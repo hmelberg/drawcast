@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { decodeTreeAnswer, encodeTreeAnswer, parseBlankNumber, parseTreeBlankNumber, scoreBlanks, treeAnswerAction, treeBlanks, treePick } from "../src/tree/blanks";
+import { decodeTreeAnswer, encodeTreeAnswer, parseBlankNumber, parseTreeBlankNumber, pickDiff, scoreBlanks, treeAnswerAction, treeBlanks, treePick } from "../src/tree/blanks";
 
 const root = {
   id: "start", type: "decision", label: "Choose",
@@ -83,6 +83,16 @@ describe("tree blanks", () => {
     expect(treeAnswerAction([5.8], true, "treat")).toBe("submit");
     expect(treeAnswerAction([5.8, 4], false, null)).toBe("submit");
     expect(treeAnswerAction([], true, null)).toBe("nudge");
+  });
+  test("pickDiff: the margin when right or not chosen, best minus chosen when wrong; null without numbers", () => {
+    const p = treePick(params, "start");
+    if (typeof p === "string") throw new Error(p);
+    expect(p.measure).toBe("value");
+    expect(pickDiff(p, "treat")).toBeCloseTo(0.8, 9);
+    expect(pickDiff(p, null)).toBeCloseTo(0.8, 9);
+    expect(pickDiff(p, "wait")).toBeCloseTo(0.8, 9);
+    expect(pickDiff({ ...p, options: p.options.slice(0, 1) }, null)).toBeNull();
+    expect(pickDiff({ ...p, measure: "cost", values: { treat: 300, wait: 500 } }, null)).toBe(200);
   });
   test("encoding", () => {
     expect(decodeTreeAnswer(encodeTreeAnswer([5.8, null], "treat"), 2)).toEqual({ values: [5.8, null], pick: "treat" });

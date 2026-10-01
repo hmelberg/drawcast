@@ -43,7 +43,7 @@ import { guessMarks } from "../guess/marks";
 import type { CardsGeometry } from "../spec/cards";
 import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
 import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
-import { decodeTreeAnswer, encodeTreeAnswer, scoreBlanks, treeBlanks, treePick, type TreeBlank, type TreePick } from "../tree/blanks";
+import { decodeTreeAnswer, encodeTreeAnswer, pickDiff, scoreBlanks, treeBlanks, treePick, type TreeBlank, type TreePick } from "../tree/blanks";
 import { treeNumberText, type DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { walkTree } from "../scenes/decision_tree/rollback";
 import { withOverrides } from "./params";
@@ -2123,8 +2123,10 @@ export class Player {
       if (pick) {
         set(`${base}.pick`, labelOf(chosen));
         set(`${base}.pick.true`, labelOf(pick.best));
-        const diff = chosen !== null ? pick.values[pick.best] - pick.values[chosen] : NaN;
-        set(`${base}.diff`, Number.isFinite(diff) ? fmtNum(diff) : null);
+        // How much better the best is: the margin, or what a wrong pick cost;
+        // a cost or a net benefit as money, as the tree writes it.
+        const diff = pickDiff(pick, chosen);
+        set(`${base}.diff`, diff === null ? null : pick.measure === "value" ? fmtNum(diff) : treeText(diff, "cost"));
       }
     }
     this.outcomes.set(index, ok);

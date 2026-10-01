@@ -20,7 +20,16 @@ export interface TreeBlank {
   /** For the right-to-left reveal: deepest first. */
   depth: number;
 }
-export interface TreePick { node: string; options: { id: string; label: string; edge: string }[]; best: string; values: Record<string, number> }
+export interface TreePick {
+  node: string;
+  options: { id: string; label: string; edge: string }[];
+  best: string;
+  /** Each option's number as rollback compared it: its net benefit (under a
+   *  wtp), its expected value, or — a tree of costs alone — its cost. */
+  values: Record<string, number>;
+  /** Which of those `values` are: a cost is better LOWER. */
+  measure: "value" | "nmb" | "cost";
+}
 
 const PROB_TOLERANCE = 0.01;
 
@@ -153,12 +162,27 @@ export function treePick(params: DecisionTreeParams, node: string): TreePick | s
   const best = rolled.bestId[node];
   if (best === undefined) return `pick "${node}": rollback picks no best branch here`;
   const options = childrenOf(nodes, node).map((x) => ({ id: x.id, label: x.branchLabel || x.node.label || x.id, edge: `edge_${node}_${x.id}` }));
+  const measure: TreePick["measure"] = params.wtp !== undefined && rolled.hasCost && rolled.hasPayoff ? "nmb" : rolled.hasPayoff ? "value" : "cost";
   const values: Record<string, number> = {};
-  for (const o of options) values[o.id] = params.wtp !== undefined && rolled.nmb[o.id] !== undefined ? rolled.nmb[o.id] : (rolled.ev[o.id] ?? NaN);
-  return { node, options, best, values };
+  for (const o of options) values[o.id] = (measure === "nmb" ? rolled.nmb[o.id] : measure === "cost" ? rolled.cost[o.id] : rolled.ev[o.id]) ?? NaN;
+  return { node, options, best, values, measure };
 }
 
 /** "5.8,;treat": the typed numbers (empty for none), then the pick. */
+/** {c.diff} (spec §4.3): how much better the best option is — best minus
+ *  the one chosen when the pick is wrong; else (right, skipped, the movie)
+ *  best minus the best of the others, the margin. Always ≥ 0 (a cost saved
+ *  for a tree of costs); null when the numbers are not there. */
+export function pickDiff(pick: TreePick, chosen: string | null): number | null {
+  const score = (id: string): number => (pick.measure === "cost" ? -1 : 1) * (pick.values[id] ?? NaN);
+  const best = score(pick.best);
+  const against = chosen !== null && chosen !== pick.best
+    ? score(chosen)
+    : Math.max(...pick.options.filter((o) => o.id !== pick.best).map((o) => score(o.id)));
+  const d = best - against;
+  return Number.isFinite(d) ? d : null;
+}
+
 /** What Answer (or Enter) does in a tree gate: an empty blank is opened
  *  first (never an answer of nulls), then a pick still to make is asked for,
  *  then the answer goes in. */

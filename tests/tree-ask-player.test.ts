@@ -169,6 +169,75 @@ describe("tree asks in the player", () => {
     expect(marks.get("tree_1")?.lines.some((l) => l.dashed)).toBe(true);
   });
 
+  // {c.diff} (spec §4.3, final review 2026-10-03): how much better the best
+  // one is — the margin over the best of the others when the pick is right,
+  // skipped or demonstrated; best minus chosen when it is wrong. Never 0 for
+  // a right pick, never left unset (spoken as "{c.diff}") when it is finite.
+  describe("the difference {c.diff}", () => {
+    const three = {
+      root: { ...root, children: [...root.children, { label: "Watch", node: { id: "watch", type: "terminal", label: "", payoff: 2 } }] },
+      rollback: true,
+    } as unknown as DecisionTreeParams;
+    const PICK: Command[] = [{ draw: IDS }, { ask: { question: "Which?", pick: "start", store: "c" } }];
+    test("a right pick: the margin over the next best (5.8 − 5)", async () => {
+      const { player } = makePlayer(PICK, IDS, three);
+      player.askGate = async () => encodeTreeAnswer([], "treat");
+      await player.play();
+      expect(player.vars.get("c.diff")).toBe("0.8");
+    });
+    test("a wrong pick: best minus the one chosen (5.8 − 2)", async () => {
+      const { player } = makePlayer(PICK, IDS, three);
+      player.askGate = async () => encodeTreeAnswer([], "watch");
+      await player.play();
+      expect(player.vars.get("c.diff")).toBe("3.8");
+    });
+    test("skipped: the margin", async () => {
+      const { player } = makePlayer(PICK, IDS, three);
+      player.askGate = async () => null;
+      await player.play();
+      expect(player.vars.get("c.diff")).toBe("0.8");
+    });
+    test("the movie: the margin", async () => {
+      const { player } = makePlayer(PICK, IDS, three);
+      (player as unknown as { autoAnswers: boolean }).autoAnswers = true;
+      await player.play();
+      expect(player.vars.get("c.diff")).toBe("0.8");
+    });
+    test("a tree of costs alone: the cost saved, as money", async () => {
+      const costs = {
+        root: { id: "start", type: "decision", label: "Choose", children: [
+          { label: "Pills", node: { id: "pills", type: "terminal", label: "", cost: 300 } },
+          { label: "Surgery", node: { id: "surgery", type: "terminal", label: "", cost: 500 } },
+        ] },
+        rollback: true,
+        currency: "£",
+      } as unknown as DecisionTreeParams;
+      for (const given of ["pills", "surgery"]) {
+        const { player } = makePlayer(PICK, IDS, costs);
+        player.askGate = async () => encodeTreeAnswer([], given);
+        await player.play();
+        expect(player.vars.get("c.true")).toBe("Pills");
+        expect(player.vars.get("c.diff"), given).toBe("£200");
+      }
+    });
+    test("under a willingness to pay: the net-benefit difference, as money", async () => {
+      const wtp = {
+        root: { id: "start", type: "decision", label: "Choose", children: [
+          { label: "Treat", node: { id: "treat", type: "terminal", label: "", payoff: 10, cost: 1000 } },
+          { label: "Wait", node: { id: "wait", type: "terminal", label: "", payoff: 8, cost: 0 } },
+        ] },
+        rollback: true,
+        wtp: 1000,
+        currency: "$",
+      } as unknown as DecisionTreeParams;
+      const { player } = makePlayer(PICK, IDS, wtp);
+      player.askGate = async () => encodeTreeAnswer([], "treat");
+      await player.play();
+      expect(player.vars.get("c.true")).toBe("Treat");
+      expect(player.vars.get("c.diff")).toBe("$1,000");
+    });
+  });
+
   test("a pick after blanks: the blanks' working lines stay", async () => {
     const { player, marks } = makePlayer([{ draw: IDS }, ASK, { ask: { question: "Which?", pick: "start", store: "c" } }]);
     const answers = [encodeTreeAnswer([6.5], null), encodeTreeAnswer([], "treat")];
