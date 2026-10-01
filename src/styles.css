@@ -3051,7 +3051,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .share-box .share-close { position: absolute; top: 0.4rem; right: 0.4rem; background: none; border: 0; padding: 0.3rem; cursor: pointer; color: inherit; }
 .share-card { display: flex; flex-direction: column; gap: 0.25rem; margin: 0.6rem 0 0.8rem; }
 .share-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; background: var(--line); }
-.share-card span, .share-plain, .share-or, .share-note { color: var(--muted, var(--ink)); opacity: 0.8; font-size: 0.9rem; margin: 0; }
+.share-card span, .share-plain, .share-or, .share-note { color: var(--muted); font-size: 0.9rem; margin: 0; }
 .share-row { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; }
 .share-row input { flex: 1; min-width: 0; }
 .share-box textarea { width: 100%; box-sizing: border-box; margin-bottom: 0.6rem; }
