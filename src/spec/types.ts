@@ -430,7 +430,7 @@ export interface SpecElement {
 
 export type Easing = "linear" | "ease-in" | "ease-out" | "ease-in-out";
 /** light / ring: marks on a picture place (spec §13); on a plain id they read as glow / circle. */
-export type HighlightEffect = "pulse" | "circle" | "glow" | "underline" | "box" | "light" | "ring";
+export type HighlightEffect = "pulse" | "circle" | "glow" | "underline" | "box" | "light" | "ring" | "strike";
 /** arrow / glow: marks on a picture place (spec §13); on a plain id they read as tap. */
 export type PointGesture = "tap" | "circle" | "underline" | "arrow" | "glow";
 
@@ -444,6 +444,8 @@ export interface HighlightArgs {
   color?: string;
   /** Start this mark fresh instead of gliding from the previous one on the same picture (picture places only). */
   lift?: boolean;
+  /** Book text only: the mark stays (otherwise it goes when the next block is written). */
+  keep?: boolean;
 }
 
 export interface PointArgs {
@@ -605,6 +607,32 @@ export interface FocusArgs {
 export interface ClearArgs {
   /** Ids to leave visible (e.g. the axes). */
   keep?: string[] | string;
+  /** In a book: which pane to empty — figure (default, the old clear), notes (the text pane) or both. */
+  pane?: "figure" | "notes" | "both";
+}
+
+/** A block written into a book's text pane (spec 2026-10-01-book-layout §4.2). */
+export interface WriteArgs {
+  /** Name it to come back to it (highlight/erase/point); otherwise it is w1, w2, … in this part. */
+  id?: string;
+  /** Markdown: headings, paragraphs, lists, quotes, tables, $math$, fenced code listings. */
+  text: string;
+  /** A scratch note: pencil grey, gone just before the next block arrives. */
+  temp?: boolean;
+}
+
+/** A book's layout (spec 2026-10-01-book-layout §4.1), stamped on every part. */
+export interface BookSettings {
+  /** columns (#book, the default) or rows (#book_row). */
+  layout?: "columns" | "rows";
+  /** Where the text goes: first = left / top (default), second = right / bottom. */
+  text?: "first" | "second";
+  /** The text pane's share, % of width (columns) or height (rows); 0–100. Default 40 / 28. */
+  share?: number;
+  /** How a pane empties or a figure changes between chapters. Default tv. */
+  transition?: "tv" | "fade" | "slide" | "wipe";
+  /** The figure's look. Default mixed (clean lines, hand fills). */
+  look?: "mixed" | "sketchy" | "clean";
 }
 
 export interface KeepArgs {
@@ -742,6 +770,10 @@ export interface Command {
   /** Pose a typed-answer question (the ask verb). */
   ask?: AskArgs;
   /** A named position in the storyboard — the target of quiz/ask gotos. */
+  /** Book only: write a block into the text pane (Markdown), with the paired speak. */
+  write?: string | WriteArgs;
+  /** Book only: give the whole book to one pane, or share it again. */
+  view?: "text" | "figure" | "both";
   label?: string;
   /** Play a controls script through a series of values while the speak lands —
    *  the movie form of a knob (spec 2026-09-15 §4.1). The script and its drawn
@@ -953,6 +985,8 @@ export interface Spec {
   /** Narrator gender preference (stamped from #male/#female). In dialogue this is speaker "a"; "b" gets the contrast. */
   voice?: "male" | "female";
   canvas?: { width: number; height: number };
+  /** Present this cast (a part of a multi-part cast) as a book: a text pane beside the figure. */
+  book?: BookSettings;
   template?: string;
   params?: Record<string, unknown>;
   /**

@@ -36,8 +36,41 @@ import { parseControls, type ControlSpec, type ControlValue } from "../code/cont
 import type { PlayArgs } from "../spec/types";
 import { animatableVars } from "../spec/vars";
 
+/**
+ * One operation on a book's text pane (spec 2026-10-01-book-layout §4.2). The
+ * planner only names it; the book shell (src/book/) performs it through the
+ * Player's textHook, and rebuilds the pane from these steps when seeking.
+ */
+export type TextOp =
+  | { op: "write"; id: string; text: string; temp: boolean }
+  | { op: "mark"; ids: string[]; effect: TextMarkEffect; part?: string; keep: boolean }
+  | { op: "erase"; ids: string[] }
+  | { op: "point"; id: string }
+  | { op: "clear" }
+  | { op: "view"; view: "text" | "figure" | "both" };
+
+export type TextMarkEffect = "light" | "underline" | "circle" | "box" | "strike";
+
+/** A highlight effect as a mark on text: the figure's effects mapped onto the
+ *  four a text block has (glow and pulse read as the highlighter, ring as a
+ *  circle), plus strike. */
+export function textMarkEffect(effect: string | undefined): TextMarkEffect {
+  switch (effect) {
+    case "underline":
+    case "circle":
+    case "box":
+    case "strike":
+      return effect;
+    case "ring":
+      return "circle";
+    default:
+      return "light";
+  }
+}
+
 export type PlanStep = (
   | { kind: "speak"; text: string; blocking: boolean; speaker?: "a" | "b"; delivery?: Delivery }
+  | { kind: "text"; op: TextOp }
   | { kind: "draw"; ids: string[]; parallel: boolean; implicit?: boolean }
   | { kind: "pause"; seconds: number }
   | { kind: "wait" }
@@ -328,6 +361,9 @@ export interface PlanOptions {
   isPaper?: (id: string) => boolean;
   /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
   animateBase?: Record<string, unknown> | null;
+  /** This cast is a book's part: highlight/erase/point on an id that is not
+   *  an element target the text pane (an earlier part's block included). */
+  book?: boolean;
   /** The space a template param glides through (scenes/types.ts tweenSpace): absent/null = linear. */
   tweenSpace?: (key: string) => TweenSpace | null;
   /** The spec's `vars` (design 2026-09-10 §2.4): a bare animate key that is not a template param animates the var of that name, kept in params as `vars.<name>`. */
@@ -1123,9 +1159,46 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     };
   };
 
-  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "card", "animate", "play", "run"] as const;
+  const ACTION_KEYS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "card", "animate", "play", "run", "write", "view"] as const;
   /** The command's own index — what a sweep's warning names, so the author can find the line. */
   let cmdIndex = -1;
+
+  // ---- book text (spec 2026-10-01-book-layout §4.2) -----------------------
+  // A block is w1, w2, … by its place in THIS part unless it is named; a
+  // target is text when it is not an element and is either a block of this
+  // part or (in a book) anything else — an earlier part's named block.
+  const namedBlocks = new Set<string>();
+  for (const c of commands ?? []) if (c.write !== undefined && typeof c.write === "object" && c.write.id) namedBlocks.add(c.write.id);
+  let blockCount = 0;
+  const blockIds = new Set<string>(namedBlocks);
+  const isTextTarget = (ids: string[]): boolean =>
+    ids.length > 0 && ids.every((id) => !known.has(id) && (blockIds.has(id) || /^w\d+$/.test(id) || opts.book === true));
+  const listOf = (v: string[] | string | undefined): string[] => (v === undefined ? [] : typeof v === "string" ? [v] : v);
+  const textOpOf = (cmd: Command): TextOp | null => {
+    if (cmd.write !== undefined) {
+      const w = typeof cmd.write === "string" ? { text: cmd.write } : cmd.write;
+      blockCount++;
+      const id = w.id ?? `w${blockCount}`;
+      blockIds.add(id);
+      return { op: "write", id, text: w.text, temp: w.temp === true };
+    }
+    if (cmd.view !== undefined) return { op: "view", view: cmd.view };
+    if (cmd.clear?.pane === "notes") return { op: "clear" };
+    if (cmd.highlight !== undefined) {
+      const ids = listOf(cmd.highlight.target);
+      if (!isTextTarget(ids)) return null;
+      return {
+        op: "mark", ids, effect: textMarkEffect(cmd.highlight.effect), keep: cmd.highlight.keep === true || cmd.highlight.effect === "strike",
+        ...(cmd.highlight.part !== undefined ? { part: cmd.highlight.part } : {}),
+      };
+    }
+    if (cmd.erase !== undefined) {
+      const ids = listOf(cmd.erase);
+      return isTextTarget(ids) ? { op: "erase", ids } : null;
+    }
+    if (cmd.point?.at?.ref !== undefined && isTextTarget([cmd.point.at.ref])) return { op: "point", id: cmd.point.at.ref };
+    return null;
+  };
   for (const cmd of commands ?? []) {
     cmdIndex++;
     const hasAction = ACTION_KEYS.some((k) => cmd[k] !== undefined);
@@ -1134,7 +1207,21 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     currentCueEnd = cmd.cue_end;
     currentNarrationSpeaker = hasAction ? cmd.voice : undefined;
     currentNarrationDelivery = hasAction ? cmd.delivery : undefined;
-    if (cmd.speak !== undefined && !hasAction) {
+    if (cmd.clear?.pane === "both") {
+      // Both panes: the text pane empties with the line, then the figure
+      // clears as an ordinary clear (below) — one voice, not two.
+      pushStep({ kind: "text", op: { op: "clear" } });
+      currentNarration = undefined;
+      currentNarrationSpeaker = undefined;
+      currentNarrationDelivery = undefined;
+    }
+    if (!opts.book && (cmd.write !== undefined || cmd.view !== undefined)) {
+      warnings.push(`${cmd.write !== undefined ? "write" : "view"} is for books (#book); outside a book it does nothing`);
+    }
+    const textOp = cmd.clear?.pane === "both" ? null : textOpOf(cmd);
+    if (textOp) {
+      pushStep({ kind: "text", op: textOp });
+    } else if (cmd.speak !== undefined && !hasAction) {
       pushStep({ kind: "speak", text: cmd.speak, blocking: cmd.blocking !== false, speaker: cmd.voice, delivery: cmd.delivery });
     } else if (cmd.draw !== undefined) {
       const ids = withCompanions(resolveIds(cmd.draw, "draw"));

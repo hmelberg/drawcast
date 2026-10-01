@@ -44,7 +44,7 @@ export const TARGET_FIELD: Record<string, string> = {
 };
 export const TARGET_VERBS = new Set(Object.keys(TARGET_FIELD));
 /** Verbs whose whole argument set is an object with no positional part. */
-export const OBJECT_VERBS = new Set(["point", "copy", "camera", "card", "clear", "quiz", "ask", "run", "explore", "if"]);
+export const OBJECT_VERBS = new Set(["point", "copy", "camera", "card", "clear", "quiz", "ask", "run", "explore", "if", "write", "view"]);
 /** Verbs and beat modifiers that take one value (or stand alone). */
 export const SCALAR_VERBS = new Set(["pause", "wait", "animate", "play", "step"]);
 

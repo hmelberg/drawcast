@@ -39,6 +39,7 @@ export function pictureOf(source: Spec, measure: MeasureFn, planOpts: PlanOptsFo
   const boxesOf = (l: LayoutResult) => elementBBoxes(l, measure);
   const bboxes = boxesOf(layout);
   const plan = planCommands(src.commands, layout.order, {
+    book: src.book !== undefined,
     bboxOf: (id) => bboxes.get(id) ?? null,
     windows: layout.windows ?? {},
     animateBase: src.template ? (src.params ?? {}) : null,
