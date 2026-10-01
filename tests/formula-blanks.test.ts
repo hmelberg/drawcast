@@ -4,6 +4,7 @@ import { layoutSpec, elementBBoxes } from "../src/layout/layout";
 import { expandSpec } from "../src/spec/expand";
 import { ensureEngines } from "../src/scenes/engines";
 import { GUESS_COLOR } from "../src/guess/marks";
+import { flattenDrawables } from "../src/layout/model";
 
 describe("formula blanks", () => {
   test("found in order, nested braces kept", () => {
@@ -31,9 +32,16 @@ describe("formula blanks", () => {
     expect(m.tex).toMatch(/2r/);
     expect(m.tex).not.toMatch(/r\^2/);
     expect(m.filled).toEqual([true]);
+    // An empty fill is no fill: the truth written in (kept back by the layout).
     const e = markBlanks("area", "A = \\pi \\blank{r^2}", [""]);
-    expect(e.tex).toMatch(/\\phantom\{r\^2\}/);
+    expect(e.tex).not.toMatch(/phantom/);
+    expect(e.tex).toMatch(/r\^2/);
     expect(e.filled).toEqual([false]);
+    // For a morph: an unfilled blank is a phantom, a filled one its fill.
+    const p = markBlanks("area", "\\blank{r^2} + \\blank{b}", [null, "c"], { phantom: true });
+    expect(p.tex).toMatch(/\\phantom\{r\^2\}/);
+    expect(p.tex).toMatch(/c/);
+    expect(p.tex).not.toMatch(/\{b\}/);
     const n = markBlanks("area", "\\blank{a} + \\blank{b}", [null, "c"]);
     expect(n.filled).toEqual([false, true]);
   });
@@ -98,6 +106,24 @@ describe("formula blanks in layout (real mathjax)", () => {
     const r = (right.drawables.find((d) => d.id === "area") as unknown as Kid).children!.find((c) => c.id === "area_blank_1_fill")!;
     expect(r.style?.opacity).toBe(1);
     expect(r.style?.color).not.toBe(GUESS_COLOR);
+  });
+
+  test("an empty fill keeps the box and the glyphs hidden", () => {
+    const l = layoutSpec(expandSpec({ elements: [{ id: "f", type: "math", tex: "A = \\pi \\blank{r^2}", fills: [""] }], commands: [] } as never));
+    expect(l.order).toEqual(["f", "f_blank_1"]);
+    const fill = (l.drawables.find((d) => d.id === "f") as unknown as Kid).children!.find((c) => c.id === "f_blank_1_fill")!;
+    expect(fill.style?.opacity).toBe(0);
+  });
+
+  test("a morph to a formula with a blank never shows the answer", () => {
+    const spec = expandSpec({ elements: [{ id: "eq", type: "math", tex: "A = \\pi" }], commands: [] } as never);
+    const leaves = (r: ReturnType<typeof layoutSpec>) => flattenDrawables(r.drawables).filter((d) => d.id.startsWith("eq") && d.kind === "area" && (d.style.opacity ?? 1) > 0).length;
+    const blanked = layoutSpec(spec, undefined, { math: { eq: { tex: "A = \\pi \\blank{r^2}", from: "A = \\pi", t: 0.999 } } });
+    const phantom = layoutSpec(spec, undefined, { math: { eq: { tex: "A = \\pi \\phantom{r^2}", from: "A = \\pi", t: 0.999 } } });
+    const shown = layoutSpec(spec, undefined, { math: { eq: { tex: "A = \\pi r^2", from: "A = \\pi", t: 0.999 } } });
+    expect(blanked.issues.filter((i) => i.severity === "error")).toEqual([]);
+    expect(leaves(blanked)).toBe(leaves(phantom));
+    expect(leaves(shown)).toBeGreaterThan(leaves(blanked));
   });
 
   test("blanks beside live math", () => {

@@ -620,14 +620,16 @@ export function layoutElements(
           // its content (or `fills`), marked as a part of its own; the live
           // vars are written in after (a var inside a blank is a lint error,
           // so the two kinds of mark never nest).
-          const live = (tex: string) => {
-            const blanked = hasBlanks(tex) ? markBlanks(el.id, tex, el.fills) : null;
+          // A morph draws every glyph it is given (no parts, no boxes), so
+          // there an unfilled blank is a \phantom: its width, never the answer.
+          const live = (tex: string, phantom = false) => {
+            const blanked = hasBlanks(tex) ? markBlanks(el.id, tex, el.fills, { phantom }) : null;
             const written = liveTeX(blanked?.tex ?? tex, { id: el.id, vars: ctx.vars, infos: ctx.varInfo, colors: ctx.varColors, values: ctx.templateValues, form: el.form === "symbols" || el.form === "both" ? el.form : "values", decimalComma: ctx.decimalComma });
             if (blanked) for (const [mark, part] of blanked.marks) written.marks.set(mark, part);
             return written;
           };
           if (ov?.from !== undefined && ov.t !== undefined && ov.t < 1) {
-            laid = mathMorphDrawables({ ...el, tex: ov.tex }, engine, cx, cy, live(ov.from).tex, live(ov.tex).tex, ov.t);
+            laid = mathMorphDrawables({ ...el, tex: ov.tex }, engine, cx, cy, live(ov.from, true).tex, live(ov.tex, true).tex, ov.t);
           } else {
             const source = ov?.tex ?? el.tex ?? "";
             const written = live(source);

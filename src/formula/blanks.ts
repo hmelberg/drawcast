@@ -60,11 +60,13 @@ export function formulaBlanks(id: string, tex: string): FormulaBlank[] {
 /**
  * The TeX with each `\blank{X}` replaced by X (or the fill's TeX) wrapped in
  * a nested mark, and the marks → parts. `filled[k-1]` says whether blank k
- * shows a fill (a non-empty one); an empty fill `""` draws the truth as
- * `\phantom` so the box keeps its size. A TeX without blanks comes back the
- * same string.
+ * shows a fill: a non-empty one. An empty fill `""` is no fill — the truth
+ * is written in (and kept back by the layout), so the box keeps its size.
+ * With `phantom` (a morph, which draws every glyph it is given), an unfilled
+ * blank is written `\phantom{truth}`: its width, no ink. A TeX without
+ * blanks comes back the same string.
  */
-export function markBlanks(id: string, tex: string, fills?: readonly (string | null)[]): { tex: string; marks: Map<string, LiveMathPart>; filled: boolean[] } {
+export function markBlanks(id: string, tex: string, fills?: readonly (string | null)[], opts: { phantom?: boolean } = {}): { tex: string; marks: Map<string, LiveMathPart>; filled: boolean[] } {
   const marks = new Map<string, LiveMathPart>();
   const found = scan(id, tex);
   if (found.length === 0) return { tex, marks, filled: [] };
@@ -73,8 +75,9 @@ export function markBlanks(id: string, tex: string, fills?: readonly (string | n
   let last = 0;
   for (const { blank, start, end } of found) {
     const f = fills?.[blank.k - 1];
-    const content = f === "" ? `\\phantom{${blank.tex}}` : f ?? blank.tex;
-    filled.push(typeof f === "string" && f !== "");
+    const isFilled = typeof f === "string" && f !== "";
+    const content = isFilled ? f : opts.phantom ? `\\phantom{${blank.tex}}` : blank.tex;
+    filled.push(isFilled);
     const depth = BLANK_DEPTH + blank.k;
     const mark = `${"\\mathord{".repeat(depth)}${content}${"}".repeat(depth)}`;
     marks.set(mark, { id: blank.fill, name: `blank_${blank.k}`, live: false });
