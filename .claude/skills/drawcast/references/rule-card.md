@@ -227,6 +227,15 @@ Ask:
   `default` to collect; `widget: "click"` (answer = element id), `"piano"`
   (sharp notation), `"chess"` (`h5f7`), `"connect"` (sky_map constellation
   id), or the template's own widget.
+- `ask` + `on` — a GUESS on the figure before the reveal: `on: bar_2` (drag
+  a bar), `line_1` + `from` (draw the rest), `slice_1` (pie edge),
+  `crowd_sick` (population count), a `scale` element's id (click the line;
+  `{type: scale, min, max, value, unit, log}`), or `"all"`. Never `answer`:
+  the truth is the figure's number. The guessed part is NOT drawn before
+  the ask. `store: g` → `{g}`, `{g.true}`, `{g.off}`, `{g.pct}`; `right`
+  within tolerance (default 10 % of the axis; `relative: true` → of the
+  truth), else `wrong`. `default` = the movie's demo guess. `#interactive`
+  asks for these about once a minute, varied.
 
 ## Elements with more than the schema
 
