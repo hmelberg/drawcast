@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { decodeTreeAnswer, encodeTreeAnswer, parseBlankNumber, parseTreeBlankNumber, scoreBlanks, treeBlanks, treePick } from "../src/tree/blanks";
+import { decodeTreeAnswer, encodeTreeAnswer, parseBlankNumber, parseTreeBlankNumber, scoreBlanks, treeAnswerAction, treeBlanks, treePick } from "../src/tree/blanks";
 
 const root = {
   id: "start", type: "decision", label: "Choose",
@@ -74,6 +74,15 @@ describe("tree blanks", () => {
     expect(p.best).toBe("treat");
     expect(p.options.map((o) => o.label)).toEqual(["Treat", "Wait"]);
     expect(typeof treePick(params, "treat")).toBe("string"); // not a decision
+  });
+  test("Answer (and Enter) with an empty blank opens the first empty one, never submits nulls (final review 2026-10-03)", () => {
+    expect(treeAnswerAction([5.8, null, null], false, null)).toEqual({ open: 1 });
+    expect(treeAnswerAction([null], true, "treat")).toEqual({ open: 0 });
+    // Every blank given: the pick if one is still to make, else the answer.
+    expect(treeAnswerAction([5.8], true, null)).toBe("nudge");
+    expect(treeAnswerAction([5.8], true, "treat")).toBe("submit");
+    expect(treeAnswerAction([5.8, 4], false, null)).toBe("submit");
+    expect(treeAnswerAction([], true, null)).toBe("nudge");
   });
   test("encoding", () => {
     expect(decodeTreeAnswer(encodeTreeAnswer([5.8, null], "treat"), 2)).toEqual({ values: [5.8, null], pick: "treat" });

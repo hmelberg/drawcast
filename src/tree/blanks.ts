@@ -159,6 +159,15 @@ export function treePick(params: DecisionTreeParams, node: string): TreePick | s
 }
 
 /** "5.8,;treat": the typed numbers (empty for none), then the pick. */
+/** What Answer (or Enter) does in a tree gate: an empty blank is opened
+ *  first (never an answer of nulls), then a pick still to make is asked for,
+ *  then the answer goes in. */
+export function treeAnswerAction(values: (number | null)[], hasPick: boolean, chosen: string | null): { open: number } | "nudge" | "submit" {
+  const empty = values.findIndex((v) => v === null);
+  if (empty >= 0) return { open: empty };
+  return hasPick && chosen === null ? "nudge" : "submit";
+}
+
 export function encodeTreeAnswer(values: (number | null)[], pick: string | null): string {
   return `${values.map((v) => (v === null ? "" : String(v))).join(",")};${pick ?? ""}`;
 }

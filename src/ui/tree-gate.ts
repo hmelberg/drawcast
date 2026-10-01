@@ -18,7 +18,7 @@ import type { RenderHandle } from "../render";
 import type { TreeSession } from "../render/player";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
-import { encodeTreeAnswer, parseTreeBlankNumber } from "../tree/blanks";
+import { encodeTreeAnswer, parseTreeBlankNumber, treeAnswerAction } from "../tree/blanks";
 import { clientPointFor, h } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
 import { mountNumberEdit } from "./number-edit";
@@ -137,8 +137,6 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
         finish(encodeTreeAnswer(values, chosen));
       };
 
-      /** Everything asked is given: every blank, and the pick if there is one. */
-      const ready = (): boolean => filled() && (pick === null || chosen !== null);
       const nudgePick = (): void => {
         hint.textContent = "Now tap the best branch";
         hint.classList.remove("cs-figgate-next");
@@ -300,9 +298,7 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
         }
         if (e.key === "Enter") {
           e.preventDefault();
-          if (blanks.length > 0 && !filled() && fieldAt < 0) open(values.findIndex((v) => v === null));
-          else if (ready()) submit();
-          else if (pick && chosen === null && filled()) nudgePick();
+          act();
           return;
         }
         const digit = /^[1-9]$/.test(e.key) ? Number(e.key) : null;
@@ -312,12 +308,18 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
         }
       };
 
+      /** Answer or Enter: an empty "?" is opened (never an answer of nulls),
+       *  a pick still to make is asked for, else the answer goes in. */
+      const act = (): void => {
+        commitField();
+        const next = treeAnswerAction(values, pick !== null, chosen);
+        if (next === "submit") submit();
+        else if (next === "nudge") nudgePick();
+        else open(next.open);
+      };
       answer.addEventListener("click", (e) => {
         e.stopPropagation();
-        commitField();
-        // A pick still to make: say so, rather than answer without it.
-        if (pick && chosen === null && filled()) nudgePick();
-        else submit();
+        act();
       });
       if (!step.required) {
         const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, "Skip ▸");
