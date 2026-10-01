@@ -18,7 +18,7 @@ import type { RenderHandle } from "../render";
 import type { TreeSession } from "../render/player";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
-import { encodeTreeAnswer, parseBlankNumber } from "../tree/blanks";
+import { encodeTreeAnswer, parseTreeBlankNumber } from "../tree/blanks";
 import { clientPointFor, h } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
 import { mountNumberEdit } from "./number-edit";
@@ -180,11 +180,11 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
           // The "?" shows the number as it is typed (a bad one: "?" again).
           onInput: (text) => {
             const live = values.slice();
-            live[i] = parseBlankNumber(text);
+            live[i] = parseTreeBlankNumber(text, blanks[i].kind);
             session.show(live);
           },
           onCommit: (text) => {
-            const v = parseBlankNumber(text);
+            const v = parseTreeBlankNumber(text, blanks[i].kind);
             if (v === null) {
               advance = false;
               return "Type a number";

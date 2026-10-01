@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { decodeTreeAnswer, encodeTreeAnswer, parseBlankNumber, scoreBlanks, treeBlanks, treePick } from "../src/tree/blanks";
+import { decodeTreeAnswer, encodeTreeAnswer, parseBlankNumber, parseTreeBlankNumber, scoreBlanks, treeBlanks, treePick } from "../src/tree/blanks";
 
 const root = {
   id: "start", type: "decision", label: "Choose",
@@ -51,6 +51,17 @@ describe("tree blanks", () => {
     expect(parseBlankNumber("0,250")).toBe(0.25);
     expect(parseBlankNumber("-0,250")).toBe(-0.25);
     expect(parseBlankNumber("78,000")).toBe(78000);
+  });
+  test("a probability typed as a percent is a fraction: 88% is 0.88; other blanks keep the number", () => {
+    expect(parseTreeBlankNumber("88%", "probability")).toBeCloseTo(0.88, 12);
+    expect(parseTreeBlankNumber("12,5 %", "probability")).toBeCloseTo(0.125, 12);
+    expect(parseTreeBlankNumber("0.88", "probability")).toBe(0.88);
+    expect(parseTreeBlankNumber("88%", "value")).toBe(88);
+    expect(parseTreeBlankNumber("£300", "cost")).toBe(300);
+    expect(parseTreeBlankNumber("%", "probability")).toBeNull();
+    const { blanks } = treeBlanks(params, ["branchlabel_treat_not"]);
+    const typed = parseTreeBlankNumber(`${Math.round(blanks[0].truth * 100)}%`, "probability");
+    expect(scoreBlanks(blanks, [typed], 0.02).ok).toBe(true);
   });
   test("scoring: relative tolerance; probabilities within 0.01; empty is wrong", () => {
     const { blanks } = treeBlanks(params, ["value_treat", "branchlabel_treat_not"]);

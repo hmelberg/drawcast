@@ -123,6 +123,14 @@ export function parseBlankNumber(text: string): number | null {
   return Number(t);
 }
 
+/** A tree blank's typed number: a probability written with "%" ("88%") is
+ *  the fraction (0.88); any other blank keeps the number ("88%" → 88). */
+export function parseTreeBlankNumber(text: string, kind: BlankKind): number | null {
+  const v = parseBlankNumber(text);
+  if (v === null || kind !== "probability" || !text.includes("%")) return v;
+  return v / 100;
+}
+
 /** Within the tolerance (relative), or for a probability within 0.01. */
 export function blankRight(b: TreeBlank, v: number | null, tolerance: number): boolean {
   if (v === null || !Number.isFinite(v)) return false;
