@@ -8,11 +8,12 @@
 import type { Pt } from "../layout/model";
 import type { CardsGeometry } from "../spec/cards";
 import { GUESS_COLOR, type GuessMarks, type GuessMarkLine, type GuessMarkText } from "../guess/marks";
+import { normTeX } from "../formula/expr";
 
 export interface Arrangement {
   /** rank: slot s holds card order[s]. */
   order: number[];
-  /** sort: the cards in each box, in the order they were put there. */
+  /** sort: the cards in each box, in the order they were put there; fill: at most one tile per blank. */
   boxes: number[][];
   /** place: each card's value on the line, or null (still in the row). */
   values?: (number | null)[];
@@ -33,6 +34,8 @@ export function initialArrangement(g: CardsGeometry): Arrangement {
       return { order: g.slots.map((s) => g.home.findIndex((h) => same(h, s))), boxes: [] };
     case "sort":
       return { order: [], boxes: g.bins.map(() => []) };
+    case "fill":
+      return { order: [], boxes: g.binBoxes.map(() => []) };
     case "place":
       return { order: [], boxes: [], values: g.cards.map(() => null) };
     case "match":
@@ -51,7 +54,7 @@ export function positions(g: CardsGeometry, a: Arrangement): Pt[] {
     a.order.forEach((card, s) => (out[card] = g.slots[s]));
     return out;
   }
-  if (g.mode === "sort") {
+  if (g.mode === "sort" || g.mode === "fill") {
     const out: Pt[] = g.home.slice();
     a.boxes.forEach((cards, b) => cards.forEach((card, j) => (out[card] = g.binSlot(b, j))));
     return out;
@@ -80,6 +83,14 @@ export function drop(g: CardsGeometry, a: Arrangement, card: number, p: Pt): Arr
     const boxes = a.boxes.map((cards) => cards.filter((c) => c !== card));
     const b = g.binBoxes.findIndex((bx) => Math.abs(p[0] - bx.c[0]) <= bx.w / 2 + 10 && Math.abs(p[1] - bx.c[1]) <= bx.h / 2 + 10);
     if (b >= 0) boxes[b].push(card);
+    return { ...a, boxes };
+  }
+  if (g.mode === "fill") {
+    // One tile per box: a drop on a full box swaps — the old tile goes home.
+    const boxes = g.binBoxes.map((_, k) => (a.boxes[k] ?? []).filter((c) => c !== card));
+    const pad = 10;
+    const k = g.binBoxes.findIndex((bx) => Math.abs(p[0] - bx.c[0]) <= Math.max(bx.w, g.w) / 2 + pad && Math.abs(p[1] - bx.c[1]) <= Math.max(bx.h, g.h) / 2 + pad);
+    if (k >= 0) boxes[k] = [card];
     return { ...a, boxes };
   }
   if (g.mode === "place" && g.scale) {
@@ -120,8 +131,16 @@ export function rightPick(g: CardsGeometry, r: number): number {
   return (g.values![a] ?? 0) >= (g.values![b] ?? 0) ? 0 : 1;
 }
 
+/** fill: the tile in box k is right — its TeX equals the blank's after
+ *  spaces and outer braces go (formula/blanks.ts tileRight). */
+function fillRight(g: CardsGeometry, k: number, card: number | undefined): boolean {
+  if (card === undefined || card < 0 || card >= g.texts.length) return false;
+  const truth = g.truthBin.indexOf(k);
+  return truth >= 0 && normTeX(g.texts[card]) === normTeX(g.texts[truth]);
+}
+
 /** Which answers are right: per card (rank, sort, place), per left card
- *  (match), per pair (compare), the one choice (decide). */
+ *  (match), per pair (compare), the one choice (decide), per blank (fill). */
 export function rightCards(g: CardsGeometry, a: Arrangement, tolerance = 0.05): boolean[] {
   switch (g.mode) {
     case "rank": {
@@ -134,6 +153,8 @@ export function rightCards(g: CardsGeometry, a: Arrangement, tolerance = 0.05): 
       a.boxes.forEach((cards, b) => cards.forEach((card) => (right[card] = g.truthBin[card] === b)));
       return right;
     }
+    case "fill":
+      return g.binBoxes.map((_, k) => fillRight(g, k, a.boxes[k]?.[0]));
     case "place": {
       const sg = g.scale;
       return g.cards.map((_, i) => {
@@ -179,6 +200,7 @@ export function encodeArrangement(g: CardsGeometry, a: Arrangement): string {
     case "rank":
       return a.order.join(",");
     case "sort":
+    case "fill":
       return a.boxes.map((cards) => cards.join(",")).join("|");
     case "place":
       return (a.values ?? []).map((v) => (v === null ? "" : String(v))).join(",");
@@ -207,6 +229,14 @@ export function decodeArrangement(g: CardsGeometry, s: string): Arrangement | nu
       const boxes = parts.map(nums);
       const all = boxes.flat();
       if (!all.every(ok) || new Set(all).size !== all.length) return null;
+      return { order: [], boxes };
+    }
+    case "fill": {
+      const parts = s.split("|");
+      if (parts.length !== g.binBoxes.length) return null;
+      const boxes = parts.map(nums);
+      const all = boxes.flat();
+      if (boxes.some((b) => b.length > 1) || !all.every(ok) || new Set(all).size !== all.length) return null;
       return { order: [], boxes };
     }
     case "place": {
@@ -258,6 +288,7 @@ export function matchLines(g: CardsGeometry, links: number[], pos: Pt[]): GuessM
  * round each card they got wrong, where it truly belongs. Place: an outline
  * where each wrong card was put. Match: the true lines solid, their wrong
  * links dashed. Compare: a tick or a cross by each pick. Decide: the choice.
+ * Fill: a struck-through copy of each wrong tile above its box.
  */
 export function cardsMarks(g: CardsGeometry, a: Arrangement): GuessMarks {
   const right = rightCards(g, a);
@@ -310,6 +341,17 @@ export function cardsMarks(g: CardsGeometry, a: Arrangement): GuessMarks {
     case "decide":
       if ((a.choice ?? -1) >= 0) lines.push(outline(g.home[a.choice!], w, h, false));
       break;
+    case "fill":
+      g.binBoxes.forEach((bx, k) => {
+        const card = a.boxes[k]?.[0];
+        if (card === undefined || right[k]) return;
+        const text = plainTeX(g.texts[card]);
+        const at: Pt = [bx.c[0], bx.c[1] + bx.h / 2 + 16];
+        const half = Math.max(10, text.length * 5.5);
+        texts.push({ at, text, anchor: "middle" });
+        lines.push({ pts: [[at[0] - half, at[1]], [at[0] + half, at[1]]] });
+      });
+      break;
   }
   return { color: GUESS_COLOR, lines, texts };
 }
@@ -329,6 +371,11 @@ export function cardsTruth(g: CardsGeometry): Arrangement {
       return { order: [], boxes: [], picks: (g.rows ?? []).map((_, r) => rightPick(g, r)) };
     case "decide":
       return { order: [], boxes: [], choice: Math.max(-1, (g.best ?? []).indexOf(true)) };
+    case "fill":
+      return { order: [], boxes: g.binBoxes.map((_, k) => {
+        const i = g.truthBin.indexOf(k);
+        return i >= 0 ? [i] : [];
+      }) };
   }
 }
 
@@ -337,4 +384,16 @@ export function placePins(g: CardsGeometry, pos: Pt[]): GuessMarkLine[] {
   const sg = g.scale;
   if (!sg) return [];
   return pos.flatMap(([x, y]) => (y > sg.y ? [{ pts: [[x, y - g.h / 2], [x, sg.y]] as Pt[] }] : []));
+}
+
+/** A tile's TeX as plain text for a mark: commands lose their backslash, braces go. */
+export function plainTeX(tex: string): string {
+  return tex
+    .replace(/\\(cdot|times)\b/g, (_, c: string) => (c === "cdot" ? "·" : "×"))
+    .replace(/\\pi\b/g, "π")
+    .replace(/\\(left|right)\b/g, "")
+    .replace(/\\([a-zA-Z]+)/g, "$1")
+    .replace(/[{}]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }

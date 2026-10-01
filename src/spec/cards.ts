@@ -7,6 +7,9 @@
 //   along: <scale id>   → PLACE each card on a number line (items' `value`)
 //   compare / pairs     → HIGHER OR LOWER: the bigger of each pair (`value`)
 //   items with `match`  → MATCH each card to its partner
+//   fill: <math id>     → FILL a formula's blanks with tiles (TeX), one per
+//                         box (design 2026-10-03 §5.3; set by the ask's
+//                         expansion, spec/expand.ts expandFormulaTiles)
 //   otherwise           → RANK: items in their TRUE order
 //
 // Sugar: it expands before layout (spec/expand.ts) into ordinary elements —
@@ -18,6 +21,7 @@
 
 import type { Spec, SpecElement } from "./types";
 import type { Pt } from "../layout/model";
+import type { BBox } from "../layout/geometry";
 import { authoredScales, scaleGeometry, type ScaleElementLike, type ScaleGeometry } from "./scale";
 
 export interface CardItem {
@@ -28,6 +32,8 @@ export interface CardItem {
   value?: number;
   /** match: its partner's text. */
   match?: string;
+  /** fill: the blank (1-based) this tile is the truth of; none = a wrong tile. */
+  blank?: number;
 }
 
 export interface CardOption {
@@ -58,6 +64,8 @@ export interface CardsElementLike {
   options?: CardOption[];
   /** decide: where every branch meets again. */
   then?: string;
+  /** fill: the math element whose blanks the tiles (items, TeX) go into. */
+  fill?: string;
   x?: number;
   y?: number;
   width?: number;
@@ -71,7 +79,7 @@ export interface CardBox {
   h: number;
 }
 
-export type CardsMode = "rank" | "sort" | "place" | "match" | "compare" | "decide";
+export type CardsMode = "rank" | "sort" | "place" | "match" | "compare" | "decide" | "fill";
 
 export interface CardsGeometry {
   id: string;
@@ -79,7 +87,7 @@ export interface CardsGeometry {
   /** Every card id, in the order the arrays below index (TRUE order). */
   cards: string[];
   texts: string[];
-  /** sort: each card's true bin (index into bins). */
+  /** sort: each card's true bin (index into bins); fill: its blank (0-based), -1 for a wrong tile. */
   truthBin: number[];
   bins: string[];
   /** Card size. */
@@ -89,7 +97,7 @@ export interface CardsGeometry {
   home: Pt[];
   /** rank: the slots, first = the first end; sort/place: the row the cards start in. */
   slots: Pt[];
-  /** sort: each bin's box, and the centre of slot j inside bin k. */
+  /** sort: each bin's box, and the centre of slot j inside bin k; fill: each blank's box (one slot, its centre). */
   binBoxes: CardBox[];
   binSlot(k: number, j: number): Pt;
   /** Where each card stands in the truth. */
@@ -123,10 +131,12 @@ export function cardItem(it: string | CardItem): CardItem {
     ...(it.bin !== undefined ? { bin: String(it.bin) } : {}),
     ...(isNum(it.value) ? { value: it.value } : {}),
     ...(it.match !== undefined ? { match: String(it.match) } : {}),
+    ...(Number.isInteger(it.blank) && (it.blank as number) >= 1 ? { blank: it.blank } : {}),
   };
 }
 
 export function cardsMode(el: CardsElementLike): CardsMode {
+  if (typeof el.fill === "string") return "fill";
   if (Array.isArray(el.options) && el.options.length > 0) return "decide";
   if (Array.isArray(el.bins) && el.bins.length > 0) return "sort";
   if (typeof el.along === "string") return "place";
@@ -178,7 +188,14 @@ export function compareValueText(v: number, unit?: string): string {
   return unit ? (unit === "%" ? `${n}%` : `${n} ${unit}`) : n;
 }
 
-export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => ScaleElementLike | undefined): CardsGeometry {
+/** fill: a tile's size from its TeX. */
+export const TILE_H = 48;
+export const tileWidth = (tex: string): number => Math.max(56, 22 * Math.pow(tex.length, 0.8));
+
+/** A blank's box lookup: the math element's blank boxes in order (layout boxes), or null. */
+export type BlanksOf = (mathId: string) => BBox[] | null;
+
+export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => ScaleElementLike | undefined, blanksOf?: BlanksOf): CardsGeometry {
   const mode = cardsMode(el);
   const x0 = isNum(el.x) ? el.x : 100;
   const width = isNum(el.width) && el.width > 200 ? el.width : 800;
@@ -200,6 +217,34 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
   const n = items.length;
   const cards = items.map((_, i) => `${el.id}_${i + 1}`);
   const texts = items.map((it) => it.text);
+
+  if (mode === "fill") {
+    // The tiles in a row (two when many), centred in [x0, x1]; the boxes are
+    // the formula's blanks as laid out, one tile each.
+    const w = Math.min(180, Math.max(...texts.map(tileWidth), 56));
+    const h = TILE_H;
+    const perRow = n > 5 ? Math.ceil(n / 2) : n;
+    const rowW = perRow * w + (perRow - 1) * GAP;
+    const left = (x0 + x1) / 2 - rowW / 2;
+    const yTop = isNum(el.y) ? el.y : 200;
+    const tray: Pt[] = items.map((_, s) => [left + (s % perRow) * (w + GAP) + w / 2, yTop - Math.floor(s / perRow) * (h + GAP)] as Pt);
+    // The expansion shuffles the items already; they are drawn as listed.
+    const home = tray.slice();
+    const nBlanks = Math.max(0, ...items.map((it) => it.blank ?? 0));
+    const truthBin = items.map((it) => (it.blank !== undefined && it.blank <= nBlanks ? it.blank - 1 : -1));
+    const boxes = el.fill ? blanksOf?.(el.fill) ?? null : null;
+    // Without the layout's boxes (before layout), each blank stands where its
+    // true tile does — consistent, if not where the formula draws it.
+    const binBoxes: CardBox[] = Array.from({ length: nBlanks }, (_, k) => {
+      const b = boxes?.[k];
+      if (b) return { c: [b.x + b.w / 2, b.y + b.h / 2] as Pt, w: b.w, h: b.h };
+      const i = truthBin.indexOf(k);
+      return { c: (i >= 0 ? home[i] : [0, 0]) as Pt, w, h };
+    });
+    const binSlot = (k: number): Pt => binBoxes[k]?.c ?? [0, 0];
+    const truth = truthBin.map((k, i) => (k >= 0 ? binSlot(k) : home[i]));
+    return { ...base, cards, texts, truthBin, bins: binBoxes.map((_, k) => `blank_${k + 1}`), w, h, home, slots: tray, binBoxes, binSlot, truth };
+  }
 
   if (mode === "match") {
     const k = Math.min(6, n);
@@ -326,6 +371,9 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
   return { ...base, mode, cards, texts, truthBin, bins, w, h: CARD_H, home, slots: tray, binBoxes, binSlot, truth };
 }
 
+/** The authored fields a cards group carries back (authoredCards). */
+const CARRIED = ["items", "bins", "ends", "arrange", "along", "compare", "pairs", "unit", "options", "then", "fill", "x", "y", "width"] as const;
+
 /** The ordinary elements a cards element stands for. */
 export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => ScaleElementLike | undefined): SpecElement[] {
   const g = cardsGeometry(el, scaleOf);
@@ -346,6 +394,12 @@ export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => Sc
     out.push({ id: `${el.id}_title`, type: "text", text: el.compare, x: 500, y: Math.min(720, top), font_size: 24 });
   }
   g.cards.forEach((id, i) => {
+    if (g.mode === "fill") {
+      // A tile: a box with its TeX drawn as math (size 22) — the node's `tex`
+      // (layout/tier2.ts), drawn as `<card>_text` so it moves with the card.
+      out.push({ id, type: "node", shape: "rect", tex: g.texts[i], x: g.home[i][0], y: g.home[i][1], width: g.w, height: g.h, font_size: 22, ...(el.style ? { style: el.style } : {}) });
+      return;
+    }
     out.push({ id, type: "node", shape: "rect", text: g.texts[i], x: g.home[i][0], y: g.home[i][1], width: g.w, height: g.h, font_size: g.mode === "decide" ? 24 : 20, ...(el.style ? { style: el.style } : {}) });
   });
   if (g.mode === "rank" && Array.isArray(el.ends) && el.ends.length === 2) {
@@ -364,7 +418,7 @@ export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => Sc
     });
   }
   const keep: Record<string, unknown> = {};
-  for (const k of ["items", "bins", "ends", "arrange", "along", "compare", "pairs", "unit", "options", "then", "x", "y", "width"] as const) {
+  for (const k of CARRIED) {
     if (el[k] !== undefined) keep[k] = el[k];
   }
   out.push({ id: el.id, type: "group", members, ...(keep as Partial<SpecElement>) });
@@ -380,7 +434,7 @@ export function authoredCards(spec: Pick<Spec, "elements">): CardsElementLike[] 
     const e = el as SpecElement & Record<string, unknown>;
     if (e.type !== "group" || !CARD_FIELDS.some((k) => Array.isArray(e[k])) || !(e.members ?? []).includes(`${e.id}_1`)) continue;
     const c: CardsElementLike = { id: e.id, type: "cards" };
-    for (const k of ["items", "bins", "ends", "arrange", "along", "compare", "pairs", "unit", "options", "then", "x", "y", "width"] as const) {
+    for (const k of CARRIED) {
       if (e[k] !== undefined) (c as unknown as Record<string, unknown>)[k] = e[k];
     }
     out.push(c);
@@ -389,11 +443,11 @@ export function authoredCards(spec: Pick<Spec, "elements">): CardsElementLike[] 
 }
 
 /** The geometry of a spec's cards element by id — with its scale looked up. */
-export function cardsGeometryIn(spec: Pick<Spec, "elements">, id: string): CardsGeometry | null {
+export function cardsGeometryIn(spec: Pick<Spec, "elements">, id: string, blanksOf?: BlanksOf): CardsGeometry | null {
   const el = authoredCards(spec).find((c) => c.id === id);
   if (!el) return null;
   const scales = authoredScales(spec);
-  return cardsGeometry(el, (sid) => scales.find((s) => s.id === sid));
+  return cardsGeometry(el, (sid) => scales.find((s) => s.id === sid), blanksOf);
 }
 
 export function expandCards(spec: Spec): Spec {

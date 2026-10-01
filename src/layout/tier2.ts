@@ -536,6 +536,17 @@ export function layoutElements(
         break;
       case "node":
         drawables.push(...nodeDrawables(el, ctx));
+        // A node with `tex` and no text (a formula tile, spec/cards.ts fill):
+        // its label is TeX, drawn as `<id>_text` so it moves with the node.
+        if (typeof el.tex === "string" && el.text === undefined && enginesLoaded(["mathjax"])) {
+          try {
+            const engine = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
+            const c = ctx.anchors[el.id] ?? [CANVAS.w / 2, CANVAS.h / 2];
+            drawables.push(...mathDrawables({ id: `${el.id}_text`, type: "math", tex: el.tex, font_size: el.font_size ?? 22 } as SpecElement, engine, c[0], c[1]).drawables);
+          } catch (err) {
+            issues.push({ rule: "math", ids: [el.id], severity: "error", message: `node "${el.id}": ${(err as Error).message}` });
+          }
+        }
         break;
       case "arrow":
       case "edge":

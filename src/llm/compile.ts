@@ -155,6 +155,10 @@ export function apiSchema(opts: { code?: boolean; sound?: boolean; c64?: boolean
   const copy = JSON.parse(JSON.stringify(specSchema)) as Record<string, unknown>;
   delete copy.$schema;
   const props = copy.properties as Record<string, any>;
+  // Internal fields a formula ask's expansion writes (spec/expand.ts
+  // expandFormulaTiles): Ajv knows them; the model never writes them.
+  delete props.elements.items.properties.fill;
+  delete props.elements.items.properties.items.items.anyOf[1].properties.blank;
   if (opts.code === false) {
     const el = props.elements.items.properties;
     for (const k of CODE_ONLY_ELEMENT_PROPS) delete el[k];

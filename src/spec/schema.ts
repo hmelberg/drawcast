@@ -569,7 +569,7 @@ const elementSchema = {
       type: "array",
       minItems: 2,
       maxItems: 8,
-      items: { anyOf: [{ type: "string" }, { type: "object", properties: { text: { type: "string" }, bin: { type: "string" }, value: { type: "number" }, match: { type: "string" } }, required: ["text"], additionalProperties: false }] },
+      items: { anyOf: [{ type: "string" }, { type: "object", properties: { text: { type: "string" }, bin: { type: "string" }, value: { type: "number" }, match: { type: "string" }, blank: { type: "integer", minimum: 1 } }, required: ["text"], additionalProperties: false }] },
       description:
         "cards: cards the viewer ORDERS or SORTS, asked with an ask on: <id> (they drag the cards, press Answer, and the cards glide to the truth). RANK: the items in their TRUE order, first = most/earliest/top (a word or three each: \"USA\", \"Norway\"), with ends naming the two ends. SORT: give bins, and each item {text, bin}. The cards are drawn SHUFFLED, so draw <id> before the ask; after it they stand in the true order. Cards are <id>_1 … in true order; sort's boxes <id>_bin_1 ….",
     },
@@ -587,6 +587,7 @@ const elementSchema = {
       description: "cards: DECIDE — the choices (a few words each), each with goto: the label of the section that plays out its consequences. The viewer taps one and the cast goes there; best: true on one makes the decision scored. Movies play every branch in order, so write each to stand on its own (\"If you treat now: …\"). Give then: the label where the branches meet.",
     },
     then: { type: "string", description: "cards (decide): the label where every branch meets again — a live viewer who chose one branch skips the others and goes on here." },
+    fill: { type: "string", description: "cards: set by the expansion of a formula ask with others (the tiles of math <id> are cards <id>_tiles) — never write it." },
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
     states: {
       type: "object",
