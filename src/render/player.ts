@@ -239,6 +239,9 @@ export class Player {
   guess: GuessRuntime | null = null;
   /** Guess ghosts on screen, by owner — cleared on a scrub, a clear, the next guess. */
   private guessOwners = new Set<string>();
+  /** What each guess's marks belong to: taking those parts away (erase,
+   *  hide, clear) takes the marks with them. */
+  private guessMarkParts = new Map<string, string[]>();
   /** Every stored guess, for a later revise (spec 2026-10-02 §9). */
   private guessMemory = new Map<string, number[][]>();
   /** A decision's branches (spec 2026-10-02 §8): reaching another option's
@@ -1287,6 +1290,9 @@ export class Player {
     const after = this.plan.states[index];
     const visible = new Set([...before.visible, ...after.visible, ...setup.handles.flatMap((h) => h.shows)]);
     const owner = `guess_${index}`;
+    const marked = setup.handles.flatMap((h) => [h.part, ...h.shows]);
+    this.guessMarkParts.set(owner, marked);
+    this.guessMarkParts.set(`${owner}_prev`, marked);
     const paint = this.guessPainter(setup, before, visible, owner);
     // Where the guess starts: the present (predict), the earlier guess
     // (revise), an even split (budget), else the handle's own start.
@@ -1440,6 +1446,7 @@ export class Player {
     // A decision starts afresh (its branch state outlives the jump into the branch).
     if (g.mode === "decide") this.decideBranch = null;
     const owner = `cards_${index}`;
+    this.guessMarkParts.set(owner, [...g.cards, ...(g.valueIds ?? [])]);
     const start = initialArrangement(g);
     const place = (id: string, dx: number, dy: number): void => this.nudge(id, dx, dy);
     const show = (ids: string[]): void => {
@@ -1449,6 +1456,10 @@ export class Player {
       this.guessOwners.add(owner);
       this.effects?.setGuessMarks?.(owner, m);
     };
+    // The cards are the question: if the cast did not draw them first, the
+    // question shows them (never a compare pair's numbers — those are the answer).
+    const answerIds = new Set(g.valueIds ?? []);
+    show([...this.elements.keys()].filter((id) => id.startsWith(`${g.id}_`) && !answerIds.has(id)));
     const live = !this.autoAnswers && this.askGate !== null;
     let arrangement: Arrangement = start;
     let answered = false;
@@ -1563,6 +1574,17 @@ export class Player {
     if (live && answered && judged) {
       const target = ok ? step.rightGoto : step.wrongGoto;
       if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
+    }
+  }
+
+  /** Take off the marks of every guess whose parts these ids take away. */
+  private endGuessMarksFor(ids: readonly string[]): void {
+    for (const [owner, parts] of this.guessMarkParts) {
+      if (!this.guessOwners.has(owner)) continue;
+      const gone = ids.some((id) => parts.some((p) => id === p || id.startsWith(`${p}_`) || p.startsWith(`${id}_`)));
+      if (!gone) continue;
+      this.effects?.setGuessMarks?.(owner, null);
+      this.guessOwners.delete(owner);
     }
   }
 
@@ -2205,12 +2227,14 @@ export class Player {
         return;
       case "hide":
         if (this.heldPast(index)) return;
+        this.endGuessMarksFor(step.ids);
         for (const el of this.els(step.ids)) el.hide();
         await this.tweenScroll(index, signal);
         return;
       case "erase": {
         await this.narrationBarrier();
         if (signal.aborted || this.heldPast(index)) return;
+        this.endGuessMarksFor(step.ids);
         const els = this.els(step.ids);
         const ms = this.paced(els, step, ERASE_SPEED);
         if (step.parallel) {

@@ -1,0 +1,85 @@
+[
+ {
+  "case": 1,
+  "kind": "health",
+  "request": "How much do rich countries spend on health, and does spending more buy longer lives? #interactive",
+  "arm": "storyline",
+  "ms": 467815,
+  "usd": 2.432,
+  "template": "scatter_plot",
+  "rounds": [
+   "initial",
+   "look*",
+   "look*"
+  ],
+  "lintErrors": 0,
+  "lintWarns": 13,
+  "speakLines": 21,
+  "words": 252,
+  "model": "claude-opus-5-5",
+  "treatmentMs": 54815,
+  "treatmentTemplate": "scatter_plot",
+  "templateGaps": [
+   {
+    "template": "scatter_plot",
+    "missing": "a log-shaped (saturating) fitted curve; only a straight fit line"
+   }
+  ],
+  "crowding": [
+   "18 text items are on the page at once on the finished page (more than 14) — erase what has served, merge labels, or say it instead of writing it"
+  ],
+  "stages": [
+   {
+    "label": "initial",
+    "ms": 86665,
+    "in": 18463,
+    "out": 9103
+   },
+   {
+    "label": "look",
+    "adopted": true,
+    "ms": 42015,
+    "in": 23630,
+    "out": 4004,
+    "validationErrors": [],
+    "lint": [
+     "[warn] label \"point_3__t\" (\"Japan $5k · 84\") sits on stroke \"cmp_1\" — move it to a different side",
+     "[warn] label \"point_5__t\" (\"Germany $8k · 81\") sits on stroke \"cmp_4\" — move it to a different side",
+     "[warn] label \"point_6__t\" (\"Switzerland $8k · 84\") sits on stroke \"cmp_2\" — move it to a different side",
+     "[warn] element id \"gap\" is a word the script format reads as a side, place, flag or colour — rename it (e.g. \"gap_note\")"
+    ]
+   },
+   {
+    "label": "look",
+    "adopted": true,
+    "ms": 34776,
+    "in": 28722,
+    "out": 4583,
+    "validationErrors": [],
+    "lint": [
+     "[warn] labels \"cmp_2_text\" (\"Japan\") and \"l_che\" (\"Switzerland $8k · 84\") overlap — choose different preferred sides",
+     "[warn] labels \"l_esp\" (\"Spain $4.4k · 83\") and \"l_che\" (\"Switzerland $8k · 84\") overlap — choose different preferred sides",
+     "[warn] labels \"l_deu\" (\"Germany $8k · 81\") and \"l_che\" (\"Switzerland $8k · 84\") overlap — choose different preferred sides",
+     "[warn] label \"axes__x_label\" (\"Spending per person ($)\") sits on stroke \"usa_lab_leader\" — move it to a different side",
+     "[warn] label \"axes__x_label\" (\"Spending per person ($)\") sits on stroke \"xgap_lab_leader\" — move it to a different side",
+     "[warn] label \"cmp_2_text\" (\"Japan\") sits on stroke \"l_deu_leader\" — move it to a different side",
+     "[warn] label \"cue1\" (\"Steep, then flat:\") sits on stroke \"usa_lab_leader\" — move it to a different side",
+     "[warn] label \"cue2\" (\"how, not how much\") sits on stroke \"usa_lab_leader\" — move it to a different side",
+     "[warn] label \"l_esp\" (\"Spain $4.4k · 83\") sits on stroke \"l_jpn_leader\" — move it to a different side",
+     "[warn] label \"l_che\" (\"Switzerland $8k · 84\") sits on stroke \"l_deu_leader\" — move it to a different side",
+     "[warn] ask on: the cards \"cmp\" are not drawn before the question — draw them first (they are drawn shuffled); the question moves them",
+     "[warn] element id \"gap\" is a word the script format reads as a side, place, flag or colour — rename it (e.g. \"gap_note\")",
+     "[warn] 18 text items are on the page at once on the finished page (more than 14) — erase what has served, merge labels, or say it instead of writing it"
+    ]
+   }
+  ],
+  "calls": {
+   "calls": 8,
+   "input": 125872,
+   "cacheRead": 246099,
+   "cacheWrite": 97328,
+   "output": 45938,
+   "usd": 2.4317325000000003
+  }
+ }
+]

@@ -36,7 +36,7 @@ const HINT: Record<string, string> = {
   sort: "Drag each card into its box",
   place: "Drag each card onto the line",
   match: "Drag each card to its partner",
-  compare: "Tap the bigger one",
+  compare: "Tap one in each pair",
   decide: "Choose one",
 };
 

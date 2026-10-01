@@ -78821,5 +78821,880 @@
         }
       ]
     }
+  },
+  {
+    "request": "How much do rich countries spend on health, and does spending more buy longer lives? #interactive",
+    "packs": [
+      "data"
+    ],
+    "spec": {
+      "title": "Does more health spending buy longer lives?",
+      "template": "scatter_plot",
+      "params": {
+        "x": [
+          13000
+        ],
+        "y": [
+          73
+        ],
+        "labels": [
+          ""
+        ],
+        "xlim": [
+          0,
+          14000
+        ],
+        "ylim": [
+          72,
+          86
+        ],
+        "x_label": "Spending per person ($)",
+        "y_label": "Life expectancy",
+        "box": {
+          "x": 130,
+          "y": 130,
+          "w": 790,
+          "h": 500
+        }
+      },
+      "text": {
+        "font_size": 36
+      },
+      "sources": [
+        {
+          "id": "oecd",
+          "title": "Health at a Glance 2023",
+          "authors": "OECD",
+          "year": 2023,
+          "finding": "spending per person and life expectancy, about 2022"
+        }
+      ],
+      "elements": [
+        {
+          "id": "usscale",
+          "type": "scale",
+          "min": 100,
+          "max": 100000,
+          "value": 12500,
+          "log": true,
+          "label": "US health spend / person / yr",
+          "x": 60,
+          "y": 380,
+          "width": 880,
+          "font_size": 40,
+          "cites": [
+            "oecd"
+          ]
+        },
+        {
+          "id": "oecd_tick",
+          "type": "path",
+          "points": [
+            [
+              558,
+              355
+            ],
+            [
+              558,
+              405
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "oecd_lab",
+          "type": "text",
+          "text": "OECD avg ≈ $5k",
+          "x": 558,
+          "y": 310,
+          "font_size": 36,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "c_mex",
+          "type": "point",
+          "at": {
+            "data": [
+              1200,
+              75
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "l_mex",
+          "type": "text",
+          "text": "Mexico $1.2k · 75",
+          "font_size": 28,
+          "x": 339,
+          "y": 237
+        },
+        {
+          "id": "c_esp",
+          "type": "point",
+          "at": {
+            "data": [
+              4400,
+              83
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "l_esp",
+          "type": "text",
+          "text": "Spain $4.4k · 83",
+          "font_size": 28,
+          "x": 242,
+          "y": 523
+        },
+        {
+          "id": "c_jpn",
+          "type": "point",
+          "at": {
+            "data": [
+              5000,
+              84
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "l_jpn",
+          "type": "text",
+          "text": "Japan $5k · 84",
+          "font_size": 28,
+          "x": 320,
+          "y": 595
+        },
+        {
+          "id": "c_uk",
+          "type": "point",
+          "at": {
+            "data": [
+              5500,
+              81
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "l_uk",
+          "type": "text",
+          "text": "UK $5.5k · 81",
+          "font_size": 28,
+          "x": 440,
+          "y": 415
+        },
+        {
+          "id": "c_deu",
+          "type": "point",
+          "at": {
+            "data": [
+              8000,
+              81
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "l_deu",
+          "type": "text",
+          "text": "Germany $8k · 81",
+          "font_size": 28,
+          "x": 724,
+          "y": 451
+        },
+        {
+          "id": "c_che",
+          "type": "point",
+          "at": {
+            "data": [
+              8100,
+              84
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "l_che",
+          "type": "text",
+          "text": "Switzerland $8k · 84",
+          "font_size": 28,
+          "x": 602,
+          "y": 595
+        },
+        {
+          "id": "guide_ms",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              1200,
+              75
+            ],
+            [
+              4400,
+              83
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "dash": true,
+            "opacity": 0.7
+          }
+        },
+        {
+          "id": "fitcurve",
+          "type": "path",
+          "data": true,
+          "smooth": true,
+          "points": [
+            [
+              800,
+              73.6
+            ],
+            [
+              1000,
+              75
+            ],
+            [
+              1200,
+              76.15
+            ],
+            [
+              1600,
+              78
+            ],
+            [
+              2000,
+              79.43
+            ],
+            [
+              2500,
+              80.67
+            ],
+            [
+              3000,
+              81.5
+            ],
+            [
+              3500,
+              82.08
+            ],
+            [
+              4000,
+              82.47
+            ],
+            [
+              5000,
+              82.92
+            ],
+            [
+              6000,
+              83.12
+            ],
+            [
+              8000,
+              83.26
+            ],
+            [
+              10000,
+              83.29
+            ],
+            [
+              13500,
+              83.3
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 3
+          },
+          "details": "A saturating curve drawn by eye through the points, $y \\approx 83.3 - 18e^{-x/1300}$: steep below about \\$3,000 a head, nearly flat above \\$5,000. It is a reading of the pattern, not a causal estimate."
+        },
+        {
+          "id": "flat_ul",
+          "type": "path",
+          "data": true,
+          "smooth": true,
+          "points": [
+            [
+              5000,
+              82.92
+            ],
+            [
+              6000,
+              83.12
+            ],
+            [
+              8000,
+              83.26
+            ],
+            [
+              10000,
+              83.29
+            ],
+            [
+              13500,
+              83.3
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 9,
+            "opacity": 0.45
+          }
+        },
+        {
+          "id": "flat_lab",
+          "type": "label",
+          "text": "flat",
+          "attach_to": "flat_ul",
+          "side": "below",
+          "font_size": 30,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "us_expected",
+          "type": "point",
+          "at": {
+            "data": [
+              12500,
+              84
+            ]
+          },
+          "radius": 9,
+          "style": {
+            "color": "#8f887c",
+            "opacity": 0.45
+          }
+        },
+        {
+          "id": "us_expected_lab",
+          "type": "label",
+          "text": "US?",
+          "attach_to": "us_expected",
+          "side": "left",
+          "font_size": 30,
+          "style": {
+            "color": "#8f887c"
+          }
+        },
+        {
+          "id": "cmp",
+          "type": "cards",
+          "compare": "Who lives longer?",
+          "items": [
+            {
+              "text": "USA",
+              "value": 77
+            },
+            {
+              "text": "Japan",
+              "value": 84
+            },
+            {
+              "text": "USA",
+              "value": 77
+            },
+            {
+              "text": "Germany",
+              "value": 81
+            },
+            {
+              "text": "USA",
+              "value": 77
+            },
+            {
+              "text": "Mexico",
+              "value": 75
+            }
+          ],
+          "y": 330
+        },
+        {
+          "id": "usa",
+          "type": "point",
+          "at": {
+            "data": [
+              12500,
+              77
+            ]
+          },
+          "radius": 11,
+          "style": {
+            "color": "#b5482e"
+          },
+          "cites": [
+            "oecd"
+          ],
+          "details": "United States, about 2022: roughly \\$12,500 per person per year (purchasing-power adjusted), life expectancy at birth about 77 years."
+        },
+        {
+          "id": "usa_lab",
+          "type": "text",
+          "text": "USA $12.5k · 77",
+          "font_size": 30,
+          "style": {
+            "color": "#b5482e"
+          },
+          "x": 690,
+          "y": 309
+        },
+        {
+          "id": "us_shortfall",
+          "type": "measure",
+          "from": {
+            "ref": "us_expected"
+          },
+          "to": {
+            "ref": "usa"
+          },
+          "label": "≈ 7 yrs",
+          "side": "right",
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "xgap",
+          "type": "arrow",
+          "from": {
+            "data": [
+              8100,
+              75
+            ]
+          },
+          "to": {
+            "data": [
+              12300,
+              75
+            ]
+          },
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "xgap_lab",
+          "type": "label",
+          "text": "+$4.5k, same years",
+          "attach_to": "xgap",
+          "side": "below",
+          "font_size": 28,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "cue1",
+          "type": "text",
+          "text": "Steep, then flat",
+          "x": 420,
+          "y": 250,
+          "font_size": 28
+        },
+        {
+          "id": "cue_box",
+          "type": "annotation",
+          "target": [
+            "cue1"
+          ],
+          "kind": "box"
+        },
+        {
+          "id": "a_tick",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              2000,
+              72
+            ],
+            [
+              2000,
+              73.2
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "a_lab",
+          "type": "label",
+          "text": "A",
+          "attach_to": "a_tick",
+          "side": "above",
+          "font_size": 30,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "b_tick",
+          "type": "path",
+          "data": true,
+          "points": [
+            [
+              9000,
+              72
+            ],
+            [
+              9000,
+              73.2
+            ]
+          ],
+          "style": {
+            "color": "#8a5fa8",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "b_lab",
+          "type": "label",
+          "text": "B",
+          "attach_to": "b_tick",
+          "side": "above",
+          "font_size": 30,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Does more health spending buy longer lives?"
+          }
+        },
+        {
+          "draw": [
+            "usscale"
+          ],
+          "speak": "How much do rich countries spend on health, and does more money buy longer lives?"
+        },
+        {
+          "hide": [
+            "usscale_answer"
+          ]
+        },
+        {
+          "ask": {
+            "question": "Start with a guess, not a test: how much does America spend on health, per person, each year?",
+            "on": "usscale",
+            "store": "g",
+            "default": "3000",
+            "relative": true,
+            "tolerance": 0.25,
+            "right": "You said {g}. Close: it's about $12,500.",
+            "wrong": "You said {g}. The real figure is about {g.true}, off by {g.off}. Most people guess far lower."
+          }
+        },
+        {
+          "draw": [
+            "usscale_answer"
+          ],
+          "speak": "About twelve and a half thousand dollars, for every man, woman and child."
+        },
+        {
+          "draw": [
+            "oecd_tick",
+            "oecd_lab"
+          ],
+          "speak": "The typical rich country spends around five thousand, less than half as much."
+        },
+        {
+          "erase": [
+            "usscale",
+            "usscale_answer",
+            "oecd_tick",
+            "oecd_lab"
+          ],
+          "parallel": true
+        },
+        {
+          "draw": [
+            "cmp_title",
+            "cmp_1",
+            "cmp_2",
+            "cmp_3",
+            "cmp_4",
+            "cmp_5",
+            "cmp_6"
+          ],
+          "parallel": true
+        },
+        {
+          "ask": {
+            "question": "Spending more than anyone, Americans should live longest. Do they? In each pair, tap who lives longer.",
+            "on": "cmp",
+            "store": "g",
+            "right": "You got {g}. America beats only Mexico.",
+            "wrong": "You got {g}. Most people rank America higher than it is."
+          }
+        },
+        {
+          "erase": [
+            "cmp_1",
+            "cmp_2",
+            "cmp_3",
+            "cmp_4",
+            "cmp_5",
+            "cmp_6",
+            "cmp_v_1",
+            "cmp_v_2",
+            "cmp_v_3",
+            "cmp_v_4",
+            "cmp_v_5",
+            "cmp_v_6",
+            "cmp_title"
+          ],
+          "parallel": true
+        },
+        {
+          "hide": [
+            "points"
+          ]
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Now the whole picture: spending along the bottom, years of life up the side."
+        },
+        {
+          "draw": [
+            "c_mex",
+            "l_mex"
+          ],
+          "speak": "Mexico spends about twelve hundred dollars a head, and lives to about seventy-five."
+        },
+        {
+          "draw": [
+            "c_esp",
+            "l_esp",
+            "guide_ms"
+          ],
+          "speak": "Spain spends under four and a half thousand, and reaches eighty-three."
+        },
+        {
+          "pause": 0.3
+        },
+        {
+          "draw": [
+            "c_jpn",
+            "l_jpn",
+            "c_uk",
+            "l_uk"
+          ],
+          "speak": "Japan and Britain spend around five thousand, and land at eighty-four and eighty-one."
+        },
+        {
+          "draw": [
+            "c_che",
+            "l_che",
+            "c_deu",
+            "l_deu"
+          ],
+          "speak": "Switzerland and Germany spend about eight thousand…"
+        },
+        {
+          "highlight": {
+            "target": [
+              "c_jpn",
+              "c_che",
+              "c_deu"
+            ]
+          },
+          "speak": "…and buy no more years than Japan."
+        },
+        {
+          "erase": [
+            "guide_ms"
+          ]
+        },
+        {
+          "draw": [
+            "fitcurve"
+          ],
+          "speak": "Join them, and the curve climbs fast,"
+        },
+        {
+          "draw": [
+            "flat_ul",
+            "flat_lab"
+          ],
+          "speak": "then goes almost flat."
+        },
+        {
+          "erase": [
+            "flat_ul",
+            "flat_lab"
+          ],
+          "parallel": true
+        },
+        {
+          "draw": [
+            "us_expected",
+            "us_expected_lab"
+          ],
+          "speak": "Where the curve has levelled off, twelve and a half thousand should mean at least eighty-four years."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "usa",
+            "usa_lab"
+          ],
+          "speak": "The real point lands at about seventy-seven years.",
+          "delivery": "grave"
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "draw": [
+            "us_shortfall"
+          ],
+          "speak": "That's roughly seven years below where the money says it should be."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "usa"
+            },
+            "gesture": "circle"
+          },
+          "speak": "Where does the money go?"
+        },
+        {
+          "pause": 1
+        },
+        {
+          "draw": [
+            "xgap",
+            "xgap_lab"
+          ]
+        },
+        {
+          "highlight": {
+            "target": [
+              "xgap",
+              "xgap_lab"
+            ],
+            "effect": "pulse"
+          },
+          "speak": "Partly into prices: Americans pay far more for the same drugs, scans and doctor visits."
+        },
+        {
+          "highlight": {
+            "target": [
+              "us_shortfall"
+            ]
+          },
+          "speak": "Partly against deaths medicine reaches too late for, like overdoses, shootings, car crashes and obesity."
+        },
+        {
+          "erase": [
+            "xgap",
+            "xgap_lab"
+          ]
+        },
+        {
+          "fade": {
+            "target": [
+              "us_expected",
+              "us_shortfall"
+            ],
+            "to": 0.2,
+            "duration": 0.6
+          },
+          "speak": "This is a correlation, not an experiment: wealth, diet and safety move both axes at once."
+        },
+        {
+          "explore": {},
+          "speak": "Explore: click any country to read its numbers, and look at how little height the curve gains past five thousand dollars."
+        },
+        {
+          "erase": [
+            "us_expected",
+            "us_expected_lab",
+            "us_shortfall",
+            "l_mex",
+            "l_esp",
+            "l_jpn",
+            "l_uk",
+            "l_deu",
+            "l_che"
+          ],
+          "parallel": true
+        },
+        {
+          "draw": [
+            "cue1"
+          ],
+          "speak": "Up to a few thousand dollars a head, money buys years fast;"
+        },
+        {
+          "draw": [
+            "cue_box"
+          ],
+          "speak": "beyond that, what you buy and how people live matter far more than how much you spend."
+        },
+        {
+          "draw": [
+            "a_tick",
+            "a_lab",
+            "b_tick",
+            "b_lab"
+          ],
+          "parallel": true
+        },
+        {
+          "quiz": {
+            "question": "Two countries each add $1,000 per person to health. A spends $2,000 and lives to 74; B spends $9,000 and lives to 82. Where will the extra $1,000 most likely buy more years?",
+            "choices": [
+              "Country A",
+              "Country B",
+              "About the same in both",
+              "Neither; spending never matters"
+            ],
+            "correct": 1,
+            "right": "Country A: at $2,000 the curve is still steep, so $1,000 climbs far; at $9,000 it is almost flat.",
+            "wrong": "Find each country's spending on the curve. Is the curve steep or flat there? The same $1,000 climbs much further where the curve is steep."
+          }
+        }
+      ]
+    }
   }
 ]

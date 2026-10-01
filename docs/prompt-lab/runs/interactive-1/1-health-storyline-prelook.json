@@ -1,0 +1,578 @@
+{
+ "request": "How much do rich countries spend on health, and does spending more buy longer lives? #interactive",
+ "spec": {
+  "title": "Does more health spending buy longer lives?",
+  "template": "scatter_plot",
+  "params": {
+   "x": [
+    1200,
+    4400,
+    5000,
+    5500,
+    8000,
+    8100
+   ],
+   "y": [
+    75,
+    83,
+    84,
+    81,
+    81,
+    84
+   ],
+   "labels": [
+    "Mexico $1.2k · 75",
+    "Spain $4.4k · 83",
+    "Japan $5k · 84",
+    "UK $5.5k · 81",
+    "Germany $8k · 81",
+    "Switzerland $8k · 84"
+   ],
+   "xlim": [
+    0,
+    14000
+   ],
+   "ylim": [
+    70,
+    86
+   ],
+   "x_label": "Spending per person ($)",
+   "y_label": "Life expectancy"
+  },
+  "sources": [
+   {
+    "id": "oecd",
+    "title": "Health at a Glance 2023",
+    "authors": "OECD",
+    "year": 2023,
+    "finding": "spending per person and life expectancy, about 2022"
+   }
+  ],
+  "elements": [
+   {
+    "id": "usscale",
+    "type": "scale",
+    "min": 100,
+    "max": 100000,
+    "value": 12500,
+    "log": true,
+    "label": "US health spend / person / yr",
+    "x": 150,
+    "y": 400,
+    "width": 700,
+    "cites": [
+     "oecd"
+    ]
+   },
+   {
+    "id": "lab_12500",
+    "type": "label",
+    "text": "$12,500",
+    "attach_to": "usscale_answer",
+    "side": "right",
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "oecd_tick",
+    "type": "path",
+    "points": [
+     [
+      546,
+      382
+     ],
+     [
+      546,
+      418
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "oecd_lab",
+    "type": "label",
+    "text": "OECD avg ≈ $5k",
+    "attach_to": "oecd_tick",
+    "side": "above-left",
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "guide_ms",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      1200,
+      75
+     ],
+     [
+      4400,
+      83
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "dash": true,
+     "opacity": 0.7
+    }
+   },
+   {
+    "id": "fitcurve",
+    "type": "path",
+    "data": true,
+    "smooth": true,
+    "points": [
+     [
+      500,
+      71.4
+     ],
+     [
+      800,
+      73.8
+     ],
+     [
+      1200,
+      76.4
+     ],
+     [
+      1600,
+      78.3
+     ],
+     [
+      2000,
+      79.7
+     ],
+     [
+      2500,
+      81
+     ],
+     [
+      3000,
+      81.9
+     ],
+     [
+      3500,
+      82.5
+     ],
+     [
+      4000,
+      83
+     ],
+     [
+      5000,
+      83.5
+     ],
+     [
+      6000,
+      83.75
+     ],
+     [
+      8000,
+      83.94
+     ],
+     [
+      10000,
+      84
+     ],
+     [
+      13500,
+      84
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 3
+    },
+    "details": "A saturating curve drawn by eye through the points, $y \\approx 84 - 18e^{-x/1400}$: steep below about \\$3,000 a head, nearly flat above \\$5,000. It is a reading of the pattern, not a causal estimate."
+   },
+   {
+    "id": "ghost",
+    "type": "point",
+    "at": {
+     "data": [
+      12500,
+      84
+     ]
+    },
+    "radius": 9,
+    "style": {
+     "color": "#8f887c",
+     "opacity": 0.45
+    }
+   },
+   {
+    "id": "ghost_lab",
+    "type": "label",
+    "text": "US?",
+    "attach_to": "ghost",
+    "side": "left",
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "cmp",
+    "type": "cards",
+    "compare": "Who lives longer?",
+    "items": [
+     {
+      "text": "USA",
+      "value": 77
+     },
+     {
+      "text": "Japan",
+      "value": 84
+     },
+     {
+      "text": "USA",
+      "value": 77
+     },
+     {
+      "text": "Germany",
+      "value": 81
+     },
+     {
+      "text": "USA",
+      "value": 77
+     },
+     {
+      "text": "Mexico",
+      "value": 75
+     }
+    ]
+   },
+   {
+    "id": "usa",
+    "type": "point",
+    "at": {
+     "data": [
+      12500,
+      77
+     ]
+    },
+    "radius": 10,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "oecd"
+    ],
+    "details": "United States, about 2022: roughly \\$12,500 per person per year (purchasing-power adjusted), life expectancy at birth about 77 years."
+   },
+   {
+    "id": "usa_lab",
+    "type": "label",
+    "text": "USA $12.5k · 77",
+    "attach_to": "usa",
+    "side": "left",
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "gap",
+    "type": "measure",
+    "from": {
+     "ref": "ghost"
+    },
+    "to": {
+     "ref": "usa"
+    },
+    "label": "≈ 7 yrs",
+    "side": "right",
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "xgap",
+    "type": "arrow",
+    "from": {
+     "data": [
+      8100,
+      72.5
+     ]
+    },
+    "to": {
+     "data": [
+      12500,
+      72.5
+     ]
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "cue",
+    "type": "text",
+    "text": "Steep, then flat: how, not how much",
+    "at": {
+     "data": [
+      9300,
+      74
+     ]
+    },
+    "font_size": 26
+   },
+   {
+    "id": "cue_box",
+    "type": "annotation",
+    "target": [
+     "cue"
+    ],
+    "kind": "box"
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Does more health spending buy longer lives?"
+    }
+   },
+   {
+    "draw": [
+     "usscale"
+    ],
+    "speak": "How much do rich countries spend on health, and does more money buy longer lives?"
+   },
+   {
+    "ask": {
+     "question": "Start with a guess, not a test: how much does America spend on health, per person, each year?",
+     "on": "usscale",
+     "store": "g",
+     "default": "3000",
+     "relative": true,
+     "tolerance": 0.25,
+     "right": "You said {g}. Close: it's about $12,500.",
+     "wrong": "You said {g}. The real figure is about {g.true}, off by {g.off}. Most people guess far lower."
+    }
+   },
+   {
+    "draw": [
+     "lab_12500"
+    ],
+    "speak": "About twelve and a half thousand dollars, for every man, woman and child."
+   },
+   {
+    "draw": [
+     "oecd_tick",
+     "oecd_lab"
+    ],
+    "speak": "The typical rich country spends around five thousand, less than half as much."
+   },
+   {
+    "erase": [
+     "usscale",
+     "usscale_answer",
+     "lab_12500",
+     "oecd_tick",
+     "oecd_lab"
+    ],
+    "parallel": true
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "So you'd expect Americans to buy the longest lives on earth."
+   },
+   {
+    "draw": [
+     "point_1"
+    ],
+    "speak": "Mexico spends about twelve hundred dollars a head, and lives to about seventy-five."
+   },
+   {
+    "draw": [
+     "point_2",
+     "guide_ms"
+    ],
+    "speak": "Spain spends under four and a half thousand, and reaches eighty-three."
+   },
+   {
+    "pause": 0.3
+   },
+   {
+    "draw": [
+     "point_3",
+     "point_4"
+    ],
+    "speak": "Japan and Britain spend around five thousand, and land at eighty-four and eighty-one."
+   },
+   {
+    "draw": [
+     "point_5",
+     "point_6"
+    ],
+    "speak": "Switzerland and Germany spend about eight thousand…"
+   },
+   {
+    "highlight": {
+     "target": [
+      "point_3",
+      "point_5",
+      "point_6"
+     ]
+    },
+    "speak": "…and buy no more years than Japan."
+   },
+   {
+    "erase": [
+     "guide_ms"
+    ]
+   },
+   {
+    "draw": [
+     "fitcurve"
+    ],
+    "speak": "Join them, and the curve climbs fast,"
+   },
+   {
+    "point": {
+     "at": {
+      "data": [
+       9500,
+       84
+      ]
+     },
+     "gesture": "underline"
+    },
+    "speak": "then goes almost flat."
+   },
+   {
+    "draw": [
+     "ghost",
+     "ghost_lab"
+    ],
+    "speak": "Where the curve has levelled off, twelve and a half thousand should mean at least eighty-four years."
+   },
+   {
+    "pause": 0.4
+   },
+   {
+    "draw": [
+     "cmp"
+    ]
+   },
+   {
+    "ask": {
+     "question": "Now guess: does an American live longer or shorter than someone in Japan, Germany, or Mexico?",
+     "on": "cmp",
+     "store": "g",
+     "right": "You got {g} of 3. America beats only Mexico.",
+     "wrong": "You got {g} of 3. Most people rank America higher than it is."
+    }
+   },
+   {
+    "erase": [
+     "cmp"
+    ]
+   },
+   {
+    "draw": [
+     "usa",
+     "usa_lab"
+    ],
+    "speak": "The real point lands at about seventy-seven years.",
+    "delivery": "grave"
+   },
+   {
+    "pause": 0.5
+   },
+   {
+    "draw": [
+     "gap"
+    ],
+    "speak": "That's roughly seven years below where the money says it should be."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "usa"
+     },
+     "gesture": "circle"
+    },
+    "speak": "Where does the money go?"
+   },
+   {
+    "pause": 1
+   },
+   {
+    "draw": [
+     "xgap"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "xgap"
+     ],
+     "effect": "pulse"
+    },
+    "speak": "Partly into prices: Americans pay far more for the same drugs, scans and doctor visits."
+   },
+   {
+    "highlight": {
+     "target": [
+      "gap",
+      "label_gap"
+     ]
+    },
+    "speak": "Partly against deaths medicine reaches too late for, like overdoses, shootings, car crashes and obesity."
+   },
+   {
+    "erase": [
+     "xgap"
+    ]
+   },
+   {
+    "fade": {
+     "target": [
+      "ghost",
+      "gap",
+      "label_gap"
+     ],
+     "to": 0.2
+    },
+    "speak": "This is a correlation, not an experiment: wealth, diet and safety move both axes at once."
+   },
+   {
+    "explore": {},
+    "speak": "Explore: click any country to read its numbers, and look at how little height the curve gains past five thousand dollars."
+   },
+   {
+    "draw": [
+     "cue"
+    ],
+    "speak": "Up to a few thousand dollars a head, money buys years fast;"
+   },
+   {
+    "draw": [
+     "cue_box"
+    ],
+    "speak": "beyond that, what you buy and how people live matter far more than how much you spend."
+   },
+   {
+    "quiz": {
+     "question": "Two countries each add $1,000 per person to health. A spends $2,000 and lives to 74; B spends $9,000 and lives to 82. Where will the extra $1,000 most likely buy more years?",
+     "choices": [
+      "Country A",
+      "Country B",
+      "About the same in both",
+      "Neither; spending never matters"
+     ],
+     "correct": 1,
+     "right": "Country A: at $2,000 the curve is still steep, so $1,000 climbs far; at $9,000 it is almost flat.",
+     "wrong": "Find each country's spending on the curve. Is the curve steep or flat there? The same $1,000 climbs much further where the curve is steep."
+    }
+   }
+  ]
+ }
+}

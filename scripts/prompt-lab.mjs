@@ -8,10 +8,13 @@
 //   node scripts/prompt-lab.mjs --manual …                     the model calls answered by agents (free)
 //
 // Options:
-//   --set fresh|templates|final|storyline5
+//   --set fresh|templates|final|storyline5|interactive
 //                                 the request list (final = 2 freehand + 2 template;
 //                                 storyline5 = the one-shot-vs-storyline comparison:
-//                                 2 freehand + 3 template, two with live widgets)
+//                                 2 freehand + 3 template, two with live widgets;
+//                                 interactive = #interactive requests, guesses on the figure)
+//                                 A request's #tags are parsed as the app does (parseTags →
+//                                 buildBrief): the brief goes in, the tags come out of the text.
 //   --cases 1,3                   which of them
 //   --arms oneshot,storyline      pipelines: oneshot (= standard) = one call; storyline = the
 //                                 app's default since 2026-09-28 (the storyline at medium
@@ -101,7 +104,13 @@ const FINAL = [FRESH[0], FRESH[3], TEMPLATES[0], TEMPLATES[1]];
  *  plain template, and two whose widgets the storyline can plan an explore
  *  beat around. */
 const STORYLINE5 = [FRESH[0], FRESH[3], TEMPLATES[0], TEMPLATES[1], ["lens", "Why does a magnifying glass make things look bigger, and why does the image flip when you hold it far away?"]];
-const CASES = set === "templates" ? TEMPLATES : set === "final" ? FINAL : set === "storyline5" ? STORYLINE5 : FRESH;
+/** #interactive (spec 2026-10-01-guess-and-reveal §9): does the brief make the
+ *  model ask guesses on the figure before its reveals, and vary the forms? */
+const INTERACTIVE = [
+  ["health", "How much do rich countries spend on health, and does spending more buy longer lives? #interactive"],
+  ["vaccine", "How do vaccines protect people who are not vaccinated? #interactive"],
+];
+const CASES = set === "templates" ? TEMPLATES : set === "final" ? FINAL : set === "storyline5" ? STORYLINE5 : set === "interactive" ? INTERACTIVE : FRESH;
 
 /**
  * The pipelines, as the app runs them (the 2026-09-27 lab's A* and D*): both
@@ -232,6 +241,7 @@ async function renderFrames(spec, tag) {
 const server = await createServer({ root: ROOT, server: { middlewareMode: true }, appType: "custom", logLevel: "warn" });
 try {
   const { generateSpec, promptVariants } = await server.ssrLoadModule("/src/llm/compile.ts");
+  const { parseTags, buildBrief } = await server.ssrLoadModule("/src/llm/tags.ts");
   const { routeTemplates } = await server.ssrLoadModule("/src/llm/router.ts");
   const { ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } = await server.ssrLoadModule("/src/scenes/packs.ts");
   const { isReadyTemplate } = await server.ssrLoadModule("/src/scenes/catalog.ts");
@@ -264,7 +274,10 @@ try {
         const look = ARMS[arm].lookPass ? (spec) => renderFrames(spec, `${base0}-${++looks}`) : undefined;
         const rec = { case: n, kind, request, arm };
         try {
-          const outcome = await generateSpec(request, {
+          const parsed = parseTags(request);
+          const brief = buildBrief(parsed.tags);
+          const outcome = await generateSpec(parsed.clean, {
+            ...(brief ? { brief } : {}),
             apiKey: key || "manual",
             model: modelOpt ?? DEFAULT_MODEL,
             effort: "high",

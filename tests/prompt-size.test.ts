@@ -634,7 +634,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-02 (more ways to answer, spec 2026-10-02-more-ways-to-answer):
 // the schema's +2788 (predict, revise, budget, judge; cards along, compare,
 // pairs, options, then) and one paragraph in "Ask the viewer", +963. -> 381883.
-const BASELINE_SYSTEM_CHARS = 381883;
+// Re-pinned UP 2026-10-02 (first #interactive test): "{g} already reads
+// '3 of 5'" — the model wrote "{g} of 3". +51. -> 381934.
+const BASELINE_SYSTEM_CHARS = 381934;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

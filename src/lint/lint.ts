@@ -2,6 +2,7 @@
 // IR, so every backend gets the same report and the results feed the LLM
 // repair round as structured text.
 
+import { SUB_SUFFIXES } from "../layout/model";
 import { guessParts } from "../guess/parts";
 import { authoredScales } from "../spec/scale";
 import { authoredCards } from "../spec/cards";
@@ -33,6 +34,7 @@ import { connectKey } from "../render/widgets";
 import { CONNECT_MAX_EDGES } from "../ui/connect-model";
 import { moreModel } from "../ui/more-model";
 import { COLOR_WORDS, FLAGS, PLACE_WORDS, SIDE_WORDS } from "../spec/script/sugar";
+import { MODIFIER_KEYS } from "../spec/script/parse";
 import { inlineStrokes } from "../spec/assets";
 import { decodePicture } from "../spec/trace";
 
@@ -225,9 +227,24 @@ export function coVisible(commands: Command[] | undefined, allIds: string[], exp
       }
     }
   }
-  for (const id of allIds) if (!managed.has(id)) visible.add(id);
+  // A sub-drawable ("card_3_text" …) is never named in a command, so it
+  // counts as on screen at the end — wrongly so when its owner was taken
+  // away (cards erased after their question): then it goes with its owner.
+  const owner = (id: string): string => {
+    for (const s of SUB_SUFFIXES) {
+      const tail = `_${s}`;
+      if (!id.endsWith(tail) || id.length <= tail.length) continue;
+      const base = id.slice(0, -tail.length);
+      if (managed.has(base) && !visible.has(base)) return base;
+    }
+    return id;
+  };
+  for (const id of allIds) if (!managed.has(id) && owner(id) === id) visible.add(id);
   snapshot();
-  return (a, b) => a === b || pairs.has(key(a, b));
+  return (a, b) => {
+    const oa = owner(a), ob = owner(b);
+    return oa === ob || pairs.has(key(oa, ob));
+  };
 }
 
 /**
@@ -1046,7 +1063,7 @@ function lintGuess(spec: Spec): LintIssue[] {
       }
       const first = `${one}_1`;
       if (!connectVisibility(commands, i, one).visible && !connectVisibility(commands, i, first).visible) {
-        issues.push({ rule: "guess", ids: [one], message: `ask on: the cards "${one}" are not drawn before the question — draw them first (they are drawn shuffled); the question moves them`, severity: "warn" });
+        issues.push({ rule: "guess", ids: [one], message: `ask on: the cards "${one}" are not drawn before the question — draw them first (they are drawn shuffled), so the viewer sees them arrive; the question shows them otherwise`, severity: "warn" });
       }
       return;
     }
@@ -1235,8 +1252,10 @@ export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIs
   // "flat", "red") is read as that word by the script format, so the element loses its id on the way through
   // the editor (found by the round-trip test on a revised example, 2026-09-25).
   for (const el of spec.elements ?? []) {
-    if (SIDE_WORDS.has(el.id) || PLACE_WORDS.has(el.id) || el.id in FLAGS || COLOR_WORDS.has(el.id) || AT_KEYS.has(el.id)) {
-      issues.push({ rule: "id-keyword", ids: [el.id], message: `element id "${el.id}" is a word the script format reads as a side, place, flag or colour — rename it (e.g. "${el.id}_note")`, severity: "warn" });
+    // …and a beat modifier ("ghost", "trail", "parallel"): an element named
+    // ghost broke every line that named it (an #interactive draft, 2026-10-02).
+    if (SIDE_WORDS.has(el.id) || PLACE_WORDS.has(el.id) || el.id in FLAGS || COLOR_WORDS.has(el.id) || AT_KEYS.has(el.id) || MODIFIER_KEYS.has(el.id)) {
+      issues.push({ rule: "id-keyword", ids: [el.id], message: `element id "${el.id}" is a word the script format reads as a side, place, flag, colour or beat modifier — rename it (e.g. "${el.id}_note")`, severity: "warn" });
     }
   }
 
