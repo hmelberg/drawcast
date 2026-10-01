@@ -155,7 +155,7 @@ export const PACK_TEMPLATES: Record<string, string[]> = {
   stats: ["bayes_tree", "ci_dance", "galton_board", "sampling_dist"],
   games: ["chess_board"],
   maps: ["world_map"],
-  data: ["bar_chart", "bar_race", "data_table", "heatmap", "line_chart", "scatter_plot"],
+  data: ["bar_chart", "bar_race", "data_table", "heatmap", "line_chart", "pie_chart", "scatter_plot"],
   space: ["sky_map", "solar_system"],
   isometric: ["geometric_solids", "isometric_blocks", "layer_stack"],
   widgets: ["bubble_sort", "logic_gates", "morse_key", "tictactoe", "tower_of_hanoi", "xylophone"],

@@ -366,6 +366,141 @@ layout: |
   }
   return { drawables, labels: labelReqs, anchors, order, frame: { x: [-0.5, Math.max(1, n) - 0.5], y: [yMin, yMax], box: plot } };
 ---
+template: pie_chart
+title: Pie chart
+version: 1
+kit: 11
+status: ready
+description: >-
+  A pie chart from data: how a whole splits into parts, one slice per label,
+  starting at 12 o'clock and running clockwise, each named outside the pie
+  with its percent. `values` may be one list (static) or a list of lists —
+  STAGES of the same pie — and the numeric `stage` param picks which one is
+  shown; a fractional stage interpolates, so `animate: {stage: 1}` turns
+  the slices. Values need not sum to 100: each slice is its share of the
+  total. GUESSABLE: an ask with `on: slice_2` lets the viewer drag that
+  slice's edge (the others keep their proportions), `on: all` moves every
+  divider. Choose this scene for ANY request for a pie chart, a share of a
+  whole, "how much of the total", or a composition with 2–8 parts; for
+  comparing parts across groups use bar_chart instead.
+params:
+  type: object
+  properties:
+    labels:
+      type: array
+      items: { type: string }
+      maxItems: 8
+      description: "Slice names, one per value, in order from 12 o'clock clockwise. A word or three each."
+    values:
+      oneOf:
+        - { type: array, items: { type: number, minimum: 0 }, minItems: 2, maxItems: 8 }
+        - { type: array, items: { type: array, items: { type: number, minimum: 0 }, maxItems: 8 }, minItems: 1, maxItems: 50 }
+      description: "One number per slice (any scale — each is its share of the total), or a list of lists: STAGES of the same pie."
+    stage:
+      type: number
+      minimum: 0
+      x-max-from: ["values"]
+      description: "Which stage is shown (0-based; default 0). Fractional values interpolate — the animate verb's target: {\"animate\": {\"stage\": 1}}."
+    percent:
+      type: boolean
+      description: "Write each slice's percent after its name (default true)."
+    box:
+      type: object
+      properties: { x: { type: number }, y: { type: number }, w: { type: number }, h: { type: number } }
+      required: [x, y, w, h]
+      description: "Area the pie and its labels fit in (lower-left corner, width, height) when it shares the canvas. Default: the middle of the page."
+    title:
+      type: string
+element_ids:
+  slice_1: "the first slice (its wedge, its name and percent outside the pie; slice_2, … likewise)"
+  title: figure title, when set
+examples:
+  - request: "Pie chart: how much of all wealth the top 1 % owns."
+    params:
+      labels: ["Top 1 %", "Next 9 %", "Bottom 90 %"]
+      values: [31, 36, 33]
+      title: "Who owns the wealth"
+  - request: "How the energy mix shifted from 2000 to 2020."
+    params:
+      labels: ["Fossil", "Nuclear", "Renewable"]
+      values: [[65, 17, 18], [61, 10, 29]]
+      stage: 0
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const num = (v, d) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const str = (v, d) => (typeof v === "string" && v.trim() !== "" ? v.trim() : d);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const isRow = (a) => Array.isArray(a) && a.every((v) => typeof v === "number" && Number.isFinite(v));
+  const stages = (() => {
+    const v = params.values;
+    if (!Array.isArray(v) || v.length === 0) return null;
+    if (Array.isArray(v[0])) return v.every(isRow) ? v.slice(0, 50) : null;
+    return isRow(v) ? [v] : null;
+  })();
+  const labels = (Array.isArray(params.labels) ? params.labels : []).map(String).slice(0, 8);
+  let n = labels.length;
+  if (stages) for (const st of stages) n = Math.max(n, st.length);
+  n = Math.min(8, n);
+  const K = stages ? stages.length : 1;
+  const stage = clamp(num(params.stage, 0), 0, K - 1);
+  const k0 = Math.floor(stage), k1 = Math.min(K - 1, k0 + 1), t = stage - k0;
+  const at = (k, i) => {
+    if (!stages) return 1;
+    const st = stages[Math.min(k, stages.length - 1)];
+    return typeof st[i] === "number" ? Math.max(0, st[i]) : 0;
+  };
+  const vals = [];
+  for (let i = 0; i < n; i++) vals.push(at(k0, i) + (at(k1, i) - at(k0, i)) * t);
+  const total = vals.reduce((a, b) => a + b, 0);
+  const shares = vals.map((v) => (total > 0 ? v / total : 1 / Math.max(1, n)));
+
+  const b = params.box;
+  const boxed = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0;
+  const area = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : { x0: 150, y0: 60, x1: 850, y1: 640 };
+  const title = str(params.title, "");
+  if (title) area.y1 = Math.min(area.y1, 650);
+  // Room for a label on each side: the radius leaves 150 units left and right.
+  const r = Math.max(40, Math.min((area.x1 - area.x0) / 2 - 150, (area.y1 - area.y0) / 2 - 40));
+  const cx = (area.x0 + area.x1) / 2, cy = (area.y0 + area.y1) / 2;
+  const showPct = params.percent !== false;
+  // Clockwise from 12 o'clock, y-up: angle a (radians from the top) → point.
+  const P = (a, rr) => [cx + rr * Math.sin(a), cy + rr * Math.cos(a)];
+
+  const drawables = [], labelReqs = [], anchors = {}, order = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); };
+  let a0 = 0;
+  for (let i = 0; i < n; i++) {
+    const id = "slice_" + (i + 1);
+    const sweep = shares[i] * 2 * Math.PI;
+    const a1 = a0 + sweep;
+    const steps = Math.max(2, Math.ceil((sweep / (2 * Math.PI)) * 72));
+    const rim = [];
+    for (let s = 0; s <= steps; s++) rim.push(P(a0 + (sweep * s) / steps, r));
+    const color = C.series[i % C.series.length];
+    const children = [];
+    // A whole circle (one slice of 100 %) has no centre point in its outline.
+    const wedge = shares[i] > 0.999 ? rim : [[cx, cy], ...rim];
+    if (shares[i] > 0.0005) {
+      children.push(kit.area(id + "__f", wedge, color, { opacity: 0.55 }));
+      children.push(kit.stroke(id + "__o", wedge, { closed: true, color, strokeWidth: 2.5, ms: MS.stroke }));
+    }
+    const mid = a0 + sweep / 2;
+    const lp = P(mid, r + 26);
+    const right = Math.sin(mid) >= 0;
+    const pct = Math.round(shares[i] * 100) + "%";
+    const name = labels[i] !== undefined ? labels[i] : "Slice " + (i + 1);
+    children.push(kit.text(id + "__l", lp, showPct ? name + "  " + pct : name, { fontSize: 20, anchor: right ? "start" : "end" }));
+    push(kit.group(id, children));
+    anchors[id] = P(mid, r * 0.6);
+    a0 = a1;
+  }
+  if (title) {
+    const ty = Math.min(730, cy + r + 60);
+    push(kit.text("title", [cx, ty], title, { fontSize: 30 }));
+    anchors.title = [cx, ty];
+  }
+  return { drawables, labels: labelReqs, anchors, order };
+---
 template: data_table
 title: Data table
 version: 1

@@ -148,7 +148,7 @@ const elementSchema = {
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code", "scratch",
         "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
-        "group", "math", "image", "icon", "inset", "music", "population", "link",
+        "group", "math", "image", "icon", "inset", "music", "population", "link", "scale",
       ],
     },
     // axes
@@ -365,7 +365,7 @@ const elementSchema = {
       description:
         "measure: what to read — length (a segment, arrow or path), width / height (of the element's box), area or perimeter (of its outline). Default: length for a segment, area for a closed shape.",
     },
-    unit: { type: "string", description: "measure: appended to the value — \"cm\"." },
+    unit: { type: "string", description: "measure / scale: appended to the value — \"cm\", \"%\", \"USD\"." },
     scale: { type: "number", exclusiveMinimum: 0, description: "measure: logical units per unit (default 1) — 50 with unit cm makes a 100-unit side read 2.0 cm." },
     decimals: { type: "integer", minimum: 0, maximum: 4, description: "measure: decimals shown (default 0 when the value is 100 or more, else 1)." },
     offset: { type: "number", description: "measure: how far the dimension line sits from the segment (default 24)." },
@@ -556,6 +556,15 @@ const elementSchema = {
         "code: what the pane holds — code (THE DEFAULT: the script's lines) or controls (the script's `controls` drawn as knobs and switches — a slider as a track with a knob, a choice as chips, a toggle as a switch — live while paused; the movie shows them at their defaults). The pane sits UNDER the output by default (show: below, full width); set show only when the request wants it elsewhere.",
     },
     count: { type: "integer", minimum: 1, maximum: 400, description: "population: how many people (default: the states' sum, else 100)." },
+    min: { type: "number", description: "scale: the left end of the number line." },
+    max: { type: "number", description: "scale: the right end of the number line." },
+    value: {
+      type: "number",
+      description:
+        "scale: the TRUE value — a marker over the line with its number, the part <id>_value. A scale is a number line to GUESS ON: draw <id> (the line, ticks and numbers), then ask with on: <id> — the viewer clicks where they think the value lies, and the marker slides from their guess to the truth. For a year (min 1700, max 1800), a share (unit \"%\", 0–100), or an amount spanning orders of magnitude (log: true). Placed with x, y (the left end, default 150, 300) and width (default 700); label is a caption under the line.",
+    },
+    log: { type: "boolean", description: "scale: logarithmic spacing (min > 0) — one tick per power of ten." },
+    ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
     states: {
       type: "object",
       additionalProperties: { type: "number" },
@@ -805,7 +814,7 @@ const commandSchema = {
     ask: {
       type: "object",
       description:
-        "Pose a question answered by TYPING. Check mode (answer set): the typed reply is judged, with optional retry and reveal. Collect mode (store set): the reply is saved and later speak lines may use {store_name} — e.g. 'Nice to meet you, {name}'. At least one of answer/store is required; default is REQUIRED with store (the movie types it). In video export the card types its answer by itself and never waits.",
+        "Pose a question answered by TYPING. Check mode (answer set): the typed reply is judged, with optional retry and reveal. Collect mode (store set): the reply is saved and later speak lines may use {store_name} — e.g. 'Nice to meet you, {name}'. At least one of answer/store/on is required; default is REQUIRED with store, except with `on` (the movie types it). With `on` the viewer instead GUESSES A NUMBER ON THE FIGURE (see `on`). In video export the card types its answer by itself and never waits.",
       properties: {
         question: { type: "string", description: "The question, spoken aloud and shown as the caption." },
         intro: {
@@ -846,8 +855,15 @@ const commandSchema = {
           type: "number",
           minimum: 0,
           maximum: 1,
-          description: "With widget drag: how far outside a target's outline a drop may land and still count, as a fraction of the target's size (default 0.25; 0 = inside only).",
+          description: "With widget drag: how far outside a target's outline a drop may land and still count, as a fraction of the target's size (default 0.25; 0 = inside only). With `on` (a guess): how close counts as right, as a fraction of the axis range (default 0.1) — or of the TRUE value with `relative: true`.",
         },
+        on: {
+          anyOf: [{ type: "string" }, { type: "array", items: { type: "string" }, minItems: 1, maxItems: 12 }],
+          description:
+            "GUESS ON THE FIGURE: the viewer sets a number by hand on the figure, presses Answer, and the figure animates from their guess to the truth with the gap marked. Name what is guessed: a bar_chart bar (bar_3 — they drag its height), a line_chart line (line_1 — they draw the rest of it after `from`), a pie_chart slice (slice_2 — they drag its edge), a population state (crowd_sick — they drag how many are in it), a scale element's id (they click where the value lies), a list of these, or \"all\" (every bar, line or slice of the chart — scored by average error). The truth is the figure's own number: never write `answer` or `widget`. The guessed part must NOT be drawn before the ask (draw the axes and the other bars first); it appears when the question ends. Use store (e.g. store: g) and name the guess in right/wrong: {g} the guess, {g.true} the truth, {g.off} how far off, {g.pct} percent off. right is spoken when the guess is within tolerance, wrong otherwise — say both kindly. In movies the laser demonstrates `default` (a number, or numbers joined by commas) when given.",
+        },
+        from: { type: "number", description: "With `on` a line: the x value from which the viewer draws the rest of the line (default: the middle x). Before it the true line is shown." },
+        relative: { type: "boolean", description: "With `on`: tolerance is a fraction of the true value (within 20 % = tolerance 0.2) — for money and other quantities spanning orders of magnitude." },
         code: {
           type: "string",
           description:
@@ -2087,6 +2103,12 @@ function elementErrors(el: SpecElement): string[] {
     case "ellipse":
       need(typeof el.rx === "number" && typeof el.ry === "number", "needs rx and ry");
       break;
+    case "scale": {
+      need(typeof el.min === "number" && typeof el.max === "number" && (el.max as number) > (el.min as number), "needs min < max");
+      need(typeof el.value === "number", "needs value (the true number the marker shows)");
+      if (el.log === true) need(typeof el.min === "number" && (el.min as number) > 0, "log needs min > 0");
+      break;
+    }
     case "population": {
       need(el.count !== undefined || el.states !== undefined, 'needs count or states ({"healthy": 90, "sick": 10})');
       if (el.states !== undefined) need(typeof el.states === "object" && el.states !== null && !Array.isArray(el.states) && Object.values(el.states).every((v) => typeof v === "number" && Number.isFinite(v) && v >= 0), "states must map each state to a count ≥ 0");
