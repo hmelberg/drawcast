@@ -636,7 +636,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // pairs, options, then) and one paragraph in "Ask the viewer", +963. -> 381883.
 // Re-pinned UP 2026-10-02 (first #interactive test): "{g} already reads
 // '3 of 5'" — the model wrote "{g} of 3". +51. -> 381934.
-const BASELINE_SYSTEM_CHARS = 381934;
+// Re-pinned UP 2026-10-03 (curves, trees and formulas, spec 2026-10-03 §8):
+// the schema's +1126 (see its note) with +235 already measured before this
+// task, and one "Ask the viewer" bullet — fill the tree (blanks, pick), fill
+// the formula (\blank, tiles via others, typed, form exact), move the curve
+// (on a curve, predict, check) — one example each, +1811. -> 385106.
+const BASELINE_SYSTEM_CHARS = 385106;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -700,7 +705,9 @@ const BASELINE_SYSTEM_CHARS = 381934;
 // ends and arrange. +1235. Measured 102049.
 // Re-pinned UP 2026-10-02 (more ways to answer): ask's predict, revise,
 // budget and judge; cards' along, compare, pairs, options and then. +2788. Measured 104837.
-const BASELINE_SCHEMA_CHARS = 104837;
+// Re-pinned UP 2026-10-03 (curves, trees and formulas): ask's blanks, pick,
+// work, check, others and form, and the tree/formula clauses. +1126. Measured 105963.
+const BASELINE_SCHEMA_CHARS = 105963;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
