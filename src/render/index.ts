@@ -9,6 +9,7 @@ import { formulaBlanks, hasBlanks } from "../formula/blanks";
 import type { BBox } from "../layout/geometry";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
+import type { MeasureFn } from "../layout/measure";
 import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
 import type { LintIssue } from "../lint/lint";
 import type { Spec, SpecElement } from "../spec/types";
@@ -140,6 +141,27 @@ function contactEmail(): string {
  * layout/tier2.ts placeFormulaTiles). Without the boxes the reveal would
  * move nothing. Pure, so a test can wire it the way render() does.
  */
+/**
+ * The planner's `guessParts` hook (spec 2026-10-01-guess-and-reveal §4): the
+ * parts an ask's `on` resolves to on this figure and what the question shows.
+ * Exported so a test plans exactly as render() does.
+ */
+export function guessPartsFor(
+  spec: Spec,
+  layout: LayoutResult,
+  measure?: MeasureFn,
+): (on: string | string[], from?: number) => { parts: string[]; shows: string[] } {
+  return (on, from) => {
+    const parts = guessParts(spec, on);
+    // A market curve's truth needs the next animate, which the plan has not
+    // laid out yet: the curve itself is what the question shows.
+    const market = marketParts(spec, parts);
+    if (market.length > 0) return { parts: market, shows: market };
+    const setup = guessSetup(spec, spec.params ?? {}, layout, parts, { from, ...(measure ? { measure } : {}) });
+    return { parts: setup.handles.length > 0 ? parts : [], shows: setup.handles.flatMap((h) => h.shows) };
+  };
+}
+
 export function formulaHooksFor(
   spec: Spec,
   bboxes: Map<string, BBox>,
@@ -534,15 +556,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       const rt = formulas.formula(id);
       return rt ? { blanks: rt.blanks.length } : null;
     },
-    guessParts: (on, from) => {
-      const parts = guessParts(spec, on);
-      // A market curve's truth needs the next animate, which the plan has not
-      // laid out yet: the curve itself is what the question shows.
-      const market = marketParts(spec, parts);
-      if (market.length > 0) return { parts: market, shows: market };
-      const setup = guessSetup(spec, spec.params ?? {}, layout, parts, { from, measure });
-      return { parts: setup.handles.length > 0 ? parts : [], shows: setup.handles.flatMap((h) => h.shows) };
-    },
+    guessParts: guessPartsFor(spec, layout, measure),
     ...(spec.template && scenes[spec.template]?.tweenSpace
       ? { tweenSpace: (key: string) => scenes[spec.template!]!.tweenSpace!(key, spec.params ?? {}) }
       : {}),

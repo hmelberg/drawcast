@@ -191,6 +191,11 @@ export function marketWords(m: MarketCurve, v: [number, number]): string {
 // whole (the cards' hints are English-only too). `{dir}` is the truth's way.
 const WHY = {
   right: "The new curve is where you put it.",
+  // Right by a looser check: what the viewer got right, in words.
+  rightDirection: "It moves {dir}.",
+  rightShift: "It moves {dir}.",
+  rightTurn: { steeper: "It turns {dir} and gets steeper.", flatter: "It turns {dir} and gets flatter." },
+  rightCross: { steeper: "It turns about the equilibrium and gets steeper.", flatter: "It turns about the equilibrium and gets flatter." },
   none: "You left the curve where it was, but it moves.",
   // A percent tax steepens supply (sellers' price × (1 + a)) but flattens
   // demand (buyers' price ÷ (1 + a)); a subsidy the other way round.
@@ -233,11 +238,25 @@ const WHY = {
 };
 
 /** One built-in sentence for the case at hand ({t.why}, §3.4). */
-export function marketWhy(m: MarketCurve, v: [number, number], kind: "tax" | "subsidy" | "shift" | "elasticity", ok: boolean): string {
-  if (ok) return WHY.right;
+export function marketWhy(
+  m: MarketCurve,
+  v: [number, number],
+  kind: "tax" | "subsidy" | "shift" | "elasticity",
+  ok: boolean,
+  check: "direction" | "shape" | "size" = "size",
+): string {
   const t = m.truth;
   const dir = dirWord(m, directionOf(t));
   const fill = (s: string) => s.replace("{dir}", dir);
+  if (ok) {
+    // The sentence says what the check asked, and no more: a roughly right
+    // guess is not "where the curve goes".
+    if (check === "size") return WHY.right;
+    const sense = turnSense(m, t) > 0 ? "flatter" : "steeper";
+    if (crosses(t)) return WHY.rightCross[sense];
+    if (check === "direction") return fill(WHY.rightDirection);
+    return shapeOf(t, 100) === "turn" ? fill(WHY.rightTurn[sense]) : fill(WHY.rightShift);
+  }
   const priceKind = kind === "tax" || kind === "subsidy" ? kind : "other";
   const vShape = shapeOf(v, 100);
   const tShape = shapeOf(t, 100);

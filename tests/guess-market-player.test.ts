@@ -215,7 +215,22 @@ describe("market asks in the player", () => {
     expect(session!.start).toEqual([[0, 0]]);
     expect(events[0]).toMatchObject({ kind: "ask", correct: true });
     expect(player.vars.get("t")).toBe("turned up");
-    expect(player.vars.get("t.why")).toBe("The new curve is where you put it.");
+    // check: shape (the default): the right sentence names the shape and the way.
+    expect(player.vars.get("t.why")).toBe("It turns up and gets steeper.");
+  });
+
+  test("the right-answer why follows check: direction names the way, size the place", async () => {
+    const run = async (check: "direction" | "size") => {
+      const { player } = makePlayer([{ draw: IDS }, { ask: { ...ASK.ask!, check } }, { animate: { "tax.amount": 40 }, duration: 0.2 }]);
+      player.askGate = async (_s, step) => {
+        const t = (step as unknown as { guess: GuessSession }).guess.setup.handles[0].truth;
+        return `${t[0]},${t[1]}`;
+      };
+      await player.play();
+      return player.vars.get("t.why");
+    };
+    expect(await run("direction")).toBe("It moves up.");
+    expect(await run("size")).toBe("The new curve is where you put it.");
   });
 
   test("an ask on a curve the animate does not move asks nothing", async () => {

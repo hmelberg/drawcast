@@ -26,6 +26,8 @@ export interface GuessScore {
   err: number | null;
   off: number | null;
   pct: number | null;
+  /** A market guess: the check it was scored by. */
+  check?: "direction" | "shape" | "size";
 }
 
 export const DEFAULT_TOLERANCE = 0.1;
@@ -55,6 +57,7 @@ export function scoreGuess(handles: GuessHandle[], values: number[][], tol: Gues
       err: null,
       off: null,
       pct: null,
+      check: tol.check ?? "shape",
     };
   }
   const t = tol.tolerance ?? DEFAULT_TOLERANCE;
@@ -124,7 +127,7 @@ export function guessVars(store: string, handles: GuessHandle[], _values: number
       out[`${base}.price_true`] = level.price(truth[1]);
       out[`${base}.quantity_true`] = level.quantity(truth[0]);
     }
-    out[`${base}.why`] = marketWhy(m, v, mh.marketKind ?? "shift", s.ok);
+    out[`${base}.why`] = marketWhy(m, v, mh.marketKind ?? "shift", s.ok, s.check ?? "shape");
     return out;
   }
   if (handles.length === 1 && handles[0].truth.length === 1) {
