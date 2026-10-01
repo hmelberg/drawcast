@@ -175,6 +175,9 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
           value: values[i] ?? NaN,
           label: blanks[i].label,
           text: true,
+          // The full keyboard, as the formula gate: a decimal pad has no
+          // minus key (a net benefit can be negative) and no currency or "%".
+          inputmode: "text",
           // Next to the "?", never over the label it asks about.
           place: "near",
           // The "?" shows the number as it is typed (a bad one: "?" again).
