@@ -78,7 +78,10 @@ export function treeBlanks(params: DecisionTreeParams, parts: string[]): { blank
       const p = rolled.p[key];
       const child = [...nodes.values()].find((x) => x.parent !== undefined && `${x.parent}_${x.id}` === key);
       if (p === undefined || !child) { issues.push(`blank "${part}": no chance branch "${key}" with a probability`); continue; }
-      blanks.push({ part, kind: "probability", node: child.id, truth: p, label: `Probability of ${name(child.id)}`, work: null, depth: child.depth });
+      // The complement the tree fills in has its working: 1 − the others.
+      const others = rolled.filled.has(key) ? childrenOf(nodes, child.parent!).filter((k) => k.id !== child.id).map((k) => rolled.p[`${child.parent}_${k.id}`] ?? 0) : [];
+      const work = others.length > 0 ? `1 − ${others.map(n).join(" − ")} = ${n(p)}` : null;
+      blanks.push({ part, kind: "probability", node: child.id, truth: p, label: `Probability of ${name(child.id)}`, work, depth: child.depth });
     } else if ((m = /^(effect|cost)_(.+)$/.exec(part))) {
       const kind = m[1] as "effect" | "cost";
       const info = nodes.get(m[2]);

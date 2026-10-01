@@ -28,6 +28,10 @@ describe("tree blanks", () => {
     expect(blanks[1].truth).toBe(5);
     expect(blanks[1].work).toBe("5 × 1");
   });
+  test("a probability blank filled in as the complement has a working line; a given one has none (fix wave 2026-10-03)", () => {
+    expect(treeBlanks(params, ["branchlabel_treat_not"]).blanks[0].work).toBe("1 − 0.3 = 0.7");
+    expect(treeBlanks(params, ["branchlabel_treat_cured"]).blanks[0].work).toBeNull();
+  });
   test("unknown parts and value blanks without rollback are issues", () => {
     expect(treeBlanks(params, ["value_nope"]).issues).toHaveLength(1);
     expect(treeBlanks({ root } as never, ["value_treat"]).issues[0]).toMatch(/rollback/);
