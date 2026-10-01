@@ -2,6 +2,7 @@
 // dash-offset progressive drawing. Consumes the layout IR; applies the single
 // y-flip at emission time.
 
+import type { GuessMarks } from "../guess/marks";
 import type { TextFamily, TextWeight } from "../layout/text-style";
 import rough from "roughjs";
 import type { RoughSVG } from "roughjs/bin/svg";
@@ -2006,6 +2007,7 @@ function makeEffects(
   const ghostBase = new WeakMap<Element, string>();
   const keyOf = (ids: string[]) => ids.join("|");
   let pointer: SVGGElement | null = null;
+  const guessGroups = new Map<string, SVGGElement>();
 
   const removeHighlight = (key: string) => {
     const st = active.get(key);
@@ -2289,6 +2291,46 @@ function makeEffects(
       if (m.last && sameMarkFrame(m.last, f)) return;
       m.last = f;
       m.update(f);
+    },
+
+    setGuessMarks(owner: string, m: GuessMarks | null): void {
+      guessGroups.get(owner)?.remove();
+      guessGroups.delete(owner);
+      if (!m) return;
+      const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
+      g.style.pointerEvents = "none";
+      g.setAttribute("class", "cs-guess-marks");
+      for (const l of m.lines) {
+        if (l.pts.length < 2) continue;
+        const p = document.createElementNS(SVG_NS, "path");
+        p.setAttribute("d", pathFromPts(l.pts, l.closed === true));
+        p.setAttribute("fill", "none");
+        p.setAttribute("stroke", m.color);
+        p.setAttribute("stroke-width", l.dashed ? "3" : "2.5");
+        p.setAttribute("stroke-linecap", "round");
+        p.setAttribute("stroke-linejoin", "round");
+        if (l.dashed) p.setAttribute("stroke-dasharray", "9 7");
+        g.appendChild(p);
+      }
+      for (const t of m.texts) {
+        const e = document.createElementNS(SVG_NS, "text");
+        e.setAttribute("x", t.at[0].toFixed(1));
+        e.setAttribute("y", toSvgY(t.at[1]).toFixed(1));
+        e.setAttribute("fill", m.color);
+        e.setAttribute("font-size", "20");
+        e.setAttribute("font-family", fontStack());
+        e.setAttribute("text-anchor", t.anchor);
+        e.setAttribute("dominant-baseline", "middle");
+        // A halo of paper under the letters: the gap is often written over ink.
+        e.setAttribute("stroke", "#faf6ec");
+        e.setAttribute("stroke-width", "5");
+        e.setAttribute("stroke-linejoin", "round");
+        e.setAttribute("paint-order", "stroke");
+        e.textContent = t.text;
+        g.appendChild(e);
+      }
+      overlay.appendChild(g);
+      guessGroups.set(owner, g);
     },
 
     endMark(owner: string): void {

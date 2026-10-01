@@ -1661,6 +1661,38 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   z-index: 5;
   touch-action: none;
 }
+/* ---------- guess on the figure (ui/guess-gate.ts) ---------- */
+.cs-guessgate { cursor: crosshair; }
+.cs-guessgate.dragging { cursor: grabbing; }
+.cs-guess-value,
+.cs-guess-field {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 30px));
+  font-family: var(--sketch-font);
+  font-size: 1.05rem;
+  color: #fff;
+  background: #3f6fb5;
+  border: none;
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+  box-shadow: 2px 2px 0 rgba(61, 56, 51, 0.25);
+  white-space: nowrap;
+  cursor: text;
+  pointer-events: auto;
+}
+.cs-guess-field { width: 7rem; text-align: center; color: var(--ink); background: var(--surface); border: 2px solid #3f6fb5; }
+/* The guess's own pills stand at the TOP of the figure: the bottom is the
+   caption's (the question is read there) and Skip's corner. */
+.cs-guessgate .cs-figgate-hint {
+  bottom: auto;
+  top: 0.9rem;
+}
+.cs-guess-answer {
+  position: absolute;
+  top: 0.8rem;
+  right: 1rem;
+  pointer-events: auto;
+}
 /* .cs-figgate sets no cursor of its own any more — what shows through this
    overlay (the hand, the connect question's crosshair, a widget's grab/
    grabbing) is decided together, in cascade order, down by cs-cardable. */

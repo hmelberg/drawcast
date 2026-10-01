@@ -3,6 +3,8 @@
 // fullscreen toggles. Shared between the player mode, the editor preview, and
 // the standalone #gdoc viewer.
 
+import { guessGateFor } from "./guess-gate";
+import type { GuessSession } from "../render/player";
 import type { RenderHandle } from "../render";
 import type { SpeechManager } from "../render/speech";
 import { answersMatch } from "../spec/answers";
@@ -232,6 +234,8 @@ export interface AskGateStep {
   /** drag widget: the chips, in order. */
   items?: { id: string; label: string; element: boolean }[];
   tolerance?: number;
+  /** A guess on the figure (ui/guess-gate.ts): the player's handles and painter. */
+  guess?: GuessSession;
 }
 
 /**
@@ -1172,13 +1176,16 @@ export function attachPlayerControls(
   const chessGate = chessGateFor(stage, hd);
   const dragGate = dragGateFor(stage, hd);
   const connectGate = connectGateFor(stage, hd);
+  const guessGate = guessGateFor(stage, hd);
   // A template-bound ask is worked on the figure itself, so its gate needs the
   // host. Without one (the template carries no widget body — lint calls that an
   // error) the branch is unreachable, and the typed card stands in, which is
   // what the rest of the chain would have fallen through to anyway.
   const widgetGate = widgetHost ? widgetGateFor(stage, hd, widgetHost) : textGate;
-  hd.timeline.askGate = (signal, step) =>
-    step.widgetTemplate && widgetHost
+  hd.timeline.askGate = (signal, step: Parameters<NonNullable<typeof hd.timeline.askGate>>[1] & { guess?: GuessSession }) =>
+    step.guess
+      ? guessGate(signal, step)
+      : step.widgetTemplate && widgetHost
       ? widgetGate(signal, step)
       : step.widget === "click"
       ? figureGate(signal, step)

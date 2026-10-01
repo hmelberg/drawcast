@@ -12,7 +12,7 @@
 // guess-specific drawing.
 
 import type { LayoutResult } from "../layout/layout";
-import { elementBBoxes, inverseDomainMapping } from "../layout/layout";
+import { domainMapping, elementBBoxes, inverseDomainMapping } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import type { MeasureFn } from "../layout/measure";
@@ -53,8 +53,13 @@ export interface GuessHandle {
    *  or null for the whole pie, and the true total. */
   pie?: { paths: string[]; slice: number | null; total: number; shares: number[] };
   // —— geometry for the gesture ——
-  /** Pointer → domain (template frame). */
+  /** Pointer → domain (template frame), and back. */
   toDomain?: (p: Pt) => Pt;
+  toLogical?: (p: Pt) => Pt;
+  /** height: the bar's centre x and half width (logical), and its domain x. */
+  cx?: number;
+  halfW?: number;
+  dx?: number;
   /** curve: the x of each truth entry (domain), and how many points before
    *  the sketch are given (their values in `given`). */
   xs?: number[];
@@ -168,6 +173,7 @@ export function guessSetup(
   let pin: Record<string, unknown> = {};
   const frame = layout.frame;
   const toDomain = frame ? inverseDomainMapping(frame, layout.fit) : undefined;
+  const toLogical = frame ? domainMapping(frame, layout.fit).toLogical : undefined;
   const boxes = elementBBoxes(layout, opts.measure);
   const pieParts = parts.filter((p) => p === "pie" || /^slice_\d+$/.test(p));
   for (const part of parts) {
@@ -175,6 +181,16 @@ export function guessSetup(
       const h = barHandle(spec, params, part, frame, toDomain);
       if (typeof h === "string") warnings.push(h);
       else {
+        h.toLogical = toLogical;
+        if (toLogical) {
+          // Bar i sits at domain x = i (the frame runs -0.5 … n-0.5); its
+          // width is the slot less the gap (bar_chart's own default 0.35).
+          const gap = typeof params["gap"] === "number" ? Math.max(0, Math.min(0.8, params["gap"] as number)) : 0.35;
+          const a = toLogical([h.dx!, 0]);
+          const b = toLogical([h.dx! + 1, 0]);
+          h.cx = a[0];
+          h.halfW = (Math.abs(b[0] - a[0]) * (1 - gap)) / 2;
+        }
         handles.push(h);
         if (frame) pin = { ...pin, ylim: [frame.y[0], frame.y[1]] };
       }
@@ -184,6 +200,7 @@ export function guessSetup(
       const h = lineHandle(spec, params, part, frame, toDomain, opts.from);
       if (typeof h === "string") warnings.push(h);
       else {
+        h.toLogical = toLogical;
         handles.push(h);
         if (frame) pin = { ...pin, ylim: [frame.y[0], frame.y[1]] };
       }
@@ -192,7 +209,7 @@ export function guessSetup(
     if (spec.template === "pie_chart" && (part === "pie" || /^slice_\d+$/.test(part))) {
       if (pieParts.length > 1 && part !== pieParts[0]) continue; // one pie handle covers them
       const whole = part === "pie" || pieParts.length > 1;
-      const h = pieHandle(params, whole ? null : Number(part.slice(6)) - 1, boxes);
+      const h = pieHandle(params, whole ? null : Number(part.slice(6)) - 1, layout.fit);
       if (typeof h === "string") warnings.push(h);
       else handles.push(h);
       continue;
@@ -243,6 +260,7 @@ function barHandle(
     unit: "",
     paths: [`${cur.at}.${i}`],
     toDomain,
+    dx: i,
   };
 }
 
@@ -293,7 +311,21 @@ function lineHandle(
   };
 }
 
-function pieHandle(params: Record<string, unknown>, slice: number | null, boxes: Map<string, BBox>): GuessHandle | string {
+/** Where pie_chart (scenes/packs/data.yaml) draws its circle — the same
+ *  arithmetic as the template, then the page's fit. Keep the two in step. */
+export function pieGeometry(params: Record<string, unknown>, fit?: LayoutResult["fit"]): { centre: Pt; radius: number } {
+  const b = params["box"] as { x?: unknown; y?: unknown; w?: unknown; h?: unknown } | undefined;
+  const boxed = b && [b.x, b.y, b.w, b.h].every(isNum) && (b.w as number) > 0 && (b.h as number) > 0;
+  const area = boxed
+    ? { x0: b!.x as number, y0: b!.y as number, x1: (b!.x as number) + (b!.w as number), y1: (b!.y as number) + (b!.h as number) }
+    : { x0: 150, y0: 60, x1: 850, y1: 640 };
+  if (typeof params["title"] === "string" && params["title"].trim() !== "") area.y1 = Math.min(area.y1, 650);
+  const r = Math.max(40, Math.min((area.x1 - area.x0) / 2 - 150, (area.y1 - area.y0) / 2 - 40));
+  const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
+  return { centre: [((area.x0 + area.x1) / 2) * s + dx, ((area.y0 + area.y1) / 2) * s + dy], radius: r * s };
+}
+
+function pieHandle(params: Record<string, unknown>, slice: number | null, fit: LayoutResult["fit"]): GuessHandle | string {
   const cur = currentRow(params["values"], isNum(params["stage"]) ? params["stage"] : 0, "values");
   if (!cur || cur.row.some((v) => v === null || v < 0)) return "guess: the pie has no numbers yet";
   const row = cur.row as number[];
@@ -301,15 +333,7 @@ function pieHandle(params: Record<string, unknown>, slice: number | null, boxes:
   if (!(total > 0) || row.length < 2) return "guess: a pie needs two slices or more";
   if (slice !== null && (slice < 0 || slice >= row.length)) return `guess: "slice_${slice + 1}" — no such slice`;
   const ids = row.map((_, i) => `slice_${i + 1}`);
-  let box: BBox | null = null;
-  for (const id of ids) {
-    const b = boxes.get(id);
-    if (!b) continue;
-    box = box ? unionBox(box, b) : b;
-  }
-  // The pie is a circle: its slices' union box is its square.
-  const r = box ? Math.min(box.w, box.h) / 2 : 150;
-  const centre: Pt = box ? [box.x + box.w / 2, box.y + box.h / 2] : [500, 375];
+  const { centre, radius: r } = pieGeometry(params, fit);
   const pct = row.map((v) => (v / total) * 100);
   const labels = Array.isArray(params["labels"]) ? (params["labels"] as unknown[]) : [];
   return {
@@ -616,4 +640,76 @@ export function defaultGuess(def: string | undefined, handles: GuessHandle[]): n
   if (nums.length !== width) return null;
   let i = 0;
   return handles.map((h) => h.truth.map(() => nums[i++]));
+}
+
+/** Where entry `j` of the handle stands at `values` (logical, y-up) — the
+ *  movie's laser and the ghost marks; null when the handle has no geometry. */
+export function pointFor(h: GuessHandle, values: number[], j = 0): Pt | null {
+  switch (h.kind) {
+    case "height":
+      return h.toLogical && h.cx !== undefined ? [h.cx, h.toLogical([0, values[0]])[1]] : null;
+    case "curve":
+      return h.toLogical && h.xs ? h.toLogical([h.xs[j] ?? h.xs[h.xs.length - 1], values[j] ?? values[values.length - 1]]) : null;
+    case "angle": {
+      if (!h.centre || h.radius === undefined) return null;
+      const f = angleOf(h, values, j);
+      const a = f * 2 * Math.PI;
+      return [h.centre[0] + h.radius * Math.sin(a), h.centre[1] + h.radius * Math.cos(a)];
+    }
+    case "count":
+      // Under the people (and their legend): over them it hides the faces it counts.
+      return h.box ? [h.box.x + (values[0] / (h.max || 1)) * h.box.w, h.box.y - 70] : null;
+    case "point":
+      return h.scale ? [scaleGeometry(h.scale).xAt(values[0]), scaleGeometry(h.scale).y + 18] : null;
+  }
+}
+
+/** A pie handle's divider `j` at `values`, as a clockwise fraction from 12 o'clock. */
+export function angleOf(h: GuessHandle, values: number[], j = 0): number {
+  if (h.truth.length === 1 && h.pie) {
+    const slice = h.pie.slice ?? 0;
+    const t0 = h.truth[0] / 100;
+    const s = values[0] / 100;
+    const before = h.pie.shares.slice(0, slice).reduce((a, b) => a + b, 0);
+    const scaledBefore = 1 - t0 > 1e-9 ? (before * (1 - s)) / (1 - t0) : 0;
+    return scaledBefore + s; // the slice's far edge — the one the viewer drags
+  }
+  let acc = 0;
+  for (let i = 0; i <= j && i < values.length; i++) acc += values[i];
+  return acc / 100;
+}
+
+/** How far `p` is from where this handle is worked (logical units);
+ *  Infinity when the press is not on it at all. Picks the handle a press grabs. */
+export function hitDistance(h: GuessHandle, p: Pt, values: number[]): number {
+  switch (h.kind) {
+    case "height": {
+      if (h.cx === undefined || h.halfW === undefined) return Infinity;
+      const dx = Math.abs(p[0] - h.cx);
+      return dx <= h.halfW * 1.25 + 8 ? dx : Infinity;
+    }
+    case "curve": {
+      if (!h.toLogical || !h.xs || h.xs.length === 0) return Infinity;
+      const x0 = h.toLogical([h.given && h.given.length > 0 ? h.given[h.given.length - 1].x : h.xs[0], 0])[0];
+      const x1 = h.toLogical([h.xs[h.xs.length - 1], 0])[0];
+      return p[0] >= Math.min(x0, x1) - 30 && p[0] <= Math.max(x0, x1) + 40 ? 1 : Infinity;
+    }
+    case "angle": {
+      if (!h.centre || h.radius === undefined) return Infinity;
+      const d = Math.hypot(p[0] - h.centre[0], p[1] - h.centre[1]);
+      if (d > h.radius * 1.4) return Infinity;
+      const at = pointFor(h, values);
+      return at ? Math.hypot(p[0] - at[0], p[1] - at[1]) : d;
+    }
+    case "count": {
+      if (!h.box) return Infinity;
+      const b = h.box;
+      return p[0] >= b.x - 30 && p[0] <= b.x + b.w + 30 && p[1] >= b.y - 30 && p[1] <= b.y + b.h + 30 ? 1 : Infinity;
+    }
+    case "point": {
+      if (!h.scale) return Infinity;
+      const g = scaleGeometry(h.scale);
+      return p[0] >= g.x0 - 30 && p[0] <= g.x1 + 30 && Math.abs(p[1] - g.y) <= 90 ? Math.abs(p[1] - g.y) : Infinity;
+    }
+  }
 }

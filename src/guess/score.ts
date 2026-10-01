@@ -72,7 +72,7 @@ export function guessText(handles: GuessHandle[], values: number[][], s: GuessSc
  * player's recordAnswer writes): {g.true}, {g.err}, {g.off}, {g.pct},
  * {g.within}, {g.count}. Keys are lower-case and carry the store prefix.
  */
-export function guessVars(store: string, handles: GuessHandle[], values: number[][], s: GuessScore): Record<string, string> {
+export function guessVars(store: string, handles: GuessHandle[], _values: number[][], s: GuessScore): Record<string, string> {
   const base = store.toLowerCase();
   const out: Record<string, string> = {
     [`${base}.within`]: String(s.within),

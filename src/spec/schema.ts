@@ -1806,7 +1806,20 @@ function semanticErrors(spec: Spec): string[] {
       if (typeof a.question !== "string" || a.question.trim().length === 0) {
         errors.push(`commands[${i}]: ask.question must be a non-empty string`);
       }
-      if (a.answer === undefined && a.store === undefined && a.widget !== "drag") {
+      // A guess on the figure (spec 2026-10-01-guess-and-reveal): the truth is
+      // the figure's own number, so no answer; right/wrong are its feedback.
+      const isGuess = a.on !== undefined;
+      if (isGuess) {
+        const onOk = typeof a.on === "string" ? a.on.trim() !== "" : Array.isArray(a.on) && a.on.length > 0 && a.on.every((x) => typeof x === "string" && x.trim() !== "");
+        if (!onOk) errors.push(`commands[${i}]: ask.on must name a part (bar_2, line_1, slice_1, crowd_sick, a scale's id), a list of them, or "all"`);
+        if (a.answer !== undefined || a.widget !== undefined || a.items !== undefined || a.code !== undefined) {
+          errors.push(`commands[${i}]: ask.on is a guess on the figure — the truth is the figure's own number, so leave out answer, widget, items and code`);
+        }
+        if (a.retry !== undefined) errors.push(`commands[${i}]: ask.retry does not apply to a guess (the figure shows the truth after one answer)`);
+      } else if (a.from !== undefined || a.relative !== undefined) {
+        errors.push(`commands[${i}]: ask.from and relative only apply to a guess (with on)`);
+      }
+      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess) {
         errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);
       }
       if (a.answer !== undefined && (typeof a.answer !== "string" || a.answer.trim().length === 0)) {
@@ -1818,13 +1831,13 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && isReservedVar(a.store)) {
         errors.push(`commands[${i}]: ask.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
       }
-      if (a.store !== undefined && a.default === undefined) {
+      if (a.store !== undefined && a.default === undefined && !isGuess) {
         errors.push(`commands[${i}]: ask.default is required with store — the movie types it and skip falls back to it`);
       }
       // The drag widget's answer is implied by its items, so it is check mode without `answer`.
       const isDrag = a.widget === "drag";
       const isConnect = a.widget === "connect";
-      if (!isDrag && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
+      if (!isDrag && !isGuess && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
         errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
       }
       if (a.widget !== undefined && !isDrag && a.answer === undefined) {
@@ -1847,7 +1860,7 @@ function semanticErrors(spec: Spec): string[] {
         if (isConnect && a.store !== undefined) {
           errors.push(`commands[${i}]: ask.store does not apply to the connect widget`);
         }
-        if (a.items !== undefined || a.tolerance !== undefined) {
+        if (a.items !== undefined || (a.tolerance !== undefined && !isGuess)) {
           const named = a.widget !== undefined ? ` (this one is "${a.widget}")` : "";
           errors.push(`commands[${i}]: ask.items and tolerance only apply to widget "drag"${named}`);
         }

@@ -107,6 +107,12 @@ export type PlanStep = (
       /** code widget: the panel the viewer writes in, and what to read back. */
       codeId?: string;
       expect?: string;
+      /** A guess on the figure: the parts guessed ("all" resolved). */
+      on?: string[];
+      /** Guess on a line: the x the viewer draws from. */
+      from?: number;
+      /** Guess: tolerance is a fraction of the true value. */
+      relative?: boolean;
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -361,6 +367,10 @@ export interface PlanOptions {
   isPaper?: (id: string) => boolean;
   /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
   animateBase?: Record<string, unknown> | null;
+  /** A guess ask's `on` (spec 2026-10-01-guess-and-reveal): the part ids it
+   *  resolves to on this figure ("all" expanded), and every id that must be
+   *  on screen once the question ends. Absent: guesses resolve to nothing. */
+  guessParts?: (on: string | string[], from?: number) => { parts: string[]; shows: string[] };
   /** This cast is a book's part: highlight/erase/point on an id that is not
    *  an element target the text pane (an earlier part's block included). */
   book?: boolean;
@@ -1315,6 +1325,17 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         shown.forEach((id) => mentioned.add(id));
         makeVisible(shown); // the reveal: the true parts are there once the question ends
       }
+      // A guess: the guessed parts are painted at the viewer's guess while the
+      // question stands (the gate's preview), and the plan agrees they are
+      // there — at the truth — once it ends, like the drag widget's items.
+      let guess: { parts: string[]; shows: string[] } | undefined;
+      if (cmd.ask.on !== undefined) {
+        guess = opts.guessParts?.(cmd.ask.on, cmd.ask.from) ?? { parts: [], shows: [] };
+        if (guess.parts.length === 0) warnings.push(`ask on: nothing to guess in ${JSON.stringify(cmd.ask.on)} (the question is asked as typing instead)`);
+        const shown = guess.shows.flatMap((id) => expandOne(id, "ask", true));
+        shown.forEach((id) => mentioned.add(id));
+        makeVisible(shown);
+      }
       // The connect widget: the figure's own lines are the reveal. The gate hides
       // them while the viewer draws (it owns the DOM), and the plan agrees they are
       // there once the question ends — the same contract the drag widget's items
@@ -1348,6 +1369,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // one question cannot be answered on two devices.
         ...(cmd.ask.code === undefined && cmd.ask.widget !== undefined && !(BUILTIN_WIDGETS as readonly string[]).includes(cmd.ask.widget) ? { widgetTemplate: true as const } : {}),
         ...(cmd.ask.code !== undefined && cmd.ask.expect !== undefined ? { expect: cmd.ask.expect } : {}),
+        ...(guess && guess.parts.length > 0
+          ? { on: guess.parts, tolerance: cmd.ask.tolerance ?? 0.1, ...(cmd.ask.from !== undefined ? { from: cmd.ask.from } : {}), ...(cmd.ask.relative === true ? { relative: true } : {}) }
+          : {}),
         ...(cmd.ask.code !== undefined && currentBox(cmd.ask.code) !== null ? { answerBox: currentBox(cmd.ask.code)! } : {}),
         // The movie demo points at the answer: the element's box (click), the
         // constellation group's box (connect — the laser taps the figure), or

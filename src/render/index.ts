@@ -2,6 +2,7 @@
 // render(spec, container, options) -> { timeline, update(diff), lint() }.
 // Framework-free by design. One SVG renderer, two styles (sketchy/clean).
 
+import { guessParts, guessSetup, patchFor } from "../guess/handles";
 import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
 import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
 import type { LintIssue } from "../lint/lint";
@@ -454,6 +455,11 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     // (`box: "auto"` becomes a rectangle there, and only there).
     ...domainMapping(spec.domain && layout.frame ? layout.frame : spec.domain, layout.fit),
     animateBase: spec.template ? spec.params ?? {} : null,
+    guessParts: (on, from) => {
+      const parts = guessParts(spec, on);
+      const setup = guessSetup(spec, spec.params ?? {}, layout, parts, { from, measure });
+      return { parts: setup.handles.length > 0 ? parts : [], shows: setup.handles.flatMap((h) => h.shows) };
+    },
     ...(spec.template && scenes[spec.template]?.tweenSpace
       ? { tweenSpace: (key: string) => scenes[spec.template!]!.tweenSpace!(key, spec.params ?? {}) }
       : {}),
@@ -507,6 +513,10 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // the way to `mountedLayout` — the widget's own parts sit at the same boxes
   // in both, and a patch re-reads the painted layout anyway.)
   if (spec.template && scenes[spec.template]?.widget) player.widgetDemo = widgetDemoFor(player, spec, layout);
+  player.guess = {
+    setup: (on, from, params, onScreen) => guessSetup(spec, withOverrides(spec.params ?? {}, params), onScreen ?? layout, on, { from, measure }),
+    patch: (setup, values, elements) => patchFor(elements ? { ...spec, elements } : spec, setup, values),
+  };
 
   if (mounted.swapGeometry && mounted.remount) {
     // The label placements the last committed boundary solved. A label's spot
