@@ -5,6 +5,7 @@
 import { SUB_SUFFIXES } from "../layout/model";
 import { guessParts } from "../guess/parts";
 import { treeBlanks, treePick } from "../tree/blanks";
+import { blankConvertible, blankIsNumber, formulaBlanks, hasBlanks, tileRight } from "../formula/blanks";
 import { walkTree } from "../scenes/decision_tree/rollback";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { authoredScales } from "../spec/scale";
@@ -607,6 +608,8 @@ export function lintLayoutDetailed(
     const core = { x: box.x + box.w * 0.2, y: box.y + box.h * 0.25, w: box.w * 0.6, h: box.h * 0.5 };
     for (const s of strokes) {
       if (!coexist(m.id, s.id) || composed(m.id, s.id)) continue;
+      // A formula blank's box (`<id>_blank_<k>`, layout/math.ts) is drawn round the formula's own glyphs.
+      if ((owner.get(s.id) ?? s.id).startsWith(`${m.id}_blank_`)) continue;
       if (s.pts.length >= 2 && polylineIntersectsBox(s.pts, core)) {
         (crossingPair(m, s) ? exempt : issues).push({
           rule: "overlap-math-stroke",
@@ -1034,8 +1037,9 @@ function lintGuess(spec: Spec): LintIssue[] {
   const keptBack = new Set<string>();
   commands.forEach((c, i) => {
     if (c.ask?.on === undefined) return;
-    // A tree ask (blanks / pick) is linted by lintTreeAsk.
+    // A tree ask (blanks / pick) is linted by lintTreeAsk, a formula ask by lintFormulaAsk.
     if (c.ask.blanks !== undefined || c.ask.pick !== undefined) return;
+    if (formulaOn(spec, c.ask.on) !== null) return;
     // Predict (spec 2026-10-02 §3): the animate it predicts must come next.
     if (c.ask.predict === true) {
       const next = commands.slice(i + 1).find((d) => d.animate !== undefined || d.ask !== undefined || d.quiz !== undefined || d.label !== undefined);
@@ -1148,6 +1152,68 @@ function lintTreeAsk(spec: Spec): LintIssue[] {
     if (nodes > TREE_MAX_NODES) {
       issues.push({ rule: "guess", ids: [], message: `ask on a tree of ${nodes} nodes — more than ${TREE_MAX_NODES} is too many to work by hand; ask on a smaller tree (or a folded part)`, severity: "warn" });
     }
+  }
+  return issues;
+}
+
+/** The math element an ask's `on` names (one id), or null: a formula ask. */
+function formulaOn(spec: Spec, on: string | string[] | undefined): { id: string; tex: string } | null {
+  const one = typeof on === "string" ? on : Array.isArray(on) && on.length === 1 ? on[0] : undefined;
+  if (one === undefined) return null;
+  const el = (spec.elements ?? []).find((e) => e.id === one);
+  if (!el || el.type !== "math" || typeof el.tex !== "string") return null;
+  return { id: el.id, tex: el.tex };
+}
+
+/**
+ * Formula asks (spec 2026-10-03 §5): an ask on a math element with
+ * `\blank{…}`. The formula is drawn before the question (its boxes are what
+ * the viewer fills); every blank is answerable — a number, an expression the
+ * converter reads, or tiles — and none hides in a live-math var; `others`
+ * holds only wrong tiles. A blank no ask fills, an ask on a formula with no
+ * blank, and the formula fields on another kind of ask are warned. Rule
+ * "guess", like every question on the figure.
+ */
+function lintFormulaAsk(spec: Spec): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const commands = spec.commands ?? [];
+  const vars = varValues(spec.vars);
+  const filled = new Set<string>();
+  commands.forEach((c, i) => {
+    const a = c.ask;
+    if (a === undefined) return;
+    const f = formulaOn(spec, a.on);
+    if (f === null) {
+      if (a.others !== undefined) issues.push({ rule: "guess", ids: [], message: `ask others: tiles only go with an ask on a formula with \\blank{…} — leave others out, or ask on a math element with a blank`, severity: "warn" });
+      if (a.form === "exact") issues.push({ rule: "guess", ids: [], message: `ask form: "exact" only applies to a typed answer in a formula's \\blank{…} — leave form out`, severity: "warn" });
+      return;
+    }
+    filled.add(f.id);
+    if (!connectVisibility(commands, i, f.id).visible) {
+      issues.push({ rule: "guess", ids: [f.id], message: `ask on: the formula "${f.id}" is not drawn before the question — draw it first; its boxes are what the viewer fills`, severity: "error" });
+    }
+    const blanks = formulaBlanks(f.id, f.tex);
+    if (blanks.length === 0) {
+      issues.push({ rule: "guess", ids: [f.id], message: `ask on: the formula "${f.id}" has nothing to fill — write the answer as \\blank{…} in its tex`, severity: "warn" });
+      return;
+    }
+    const others = Array.isArray(a.others) ? a.others.map(String) : null;
+    for (const b of blanks) {
+      if (texNamesVars(b.tex, vars)) {
+        issues.push({ rule: "guess", ids: [b.part], message: `math "${f.id}": blank ${b.k} holds a live var ({name}) — a blank's content must be fixed; take the var out of \\blank{…}`, severity: "error" });
+      }
+      if (others === null && !blankIsNumber(b) && !blankConvertible(b)) {
+        issues.push({ rule: "guess", ids: [b.part], message: `math "${f.id}": blank ${b.k} (${b.tex}) cannot be typed — give the ask others, so it is answered with tiles`, severity: "error" });
+      }
+      const dup = others?.find((t) => tileRight(b, t));
+      if (dup !== undefined) {
+        issues.push({ rule: "guess", ids: [b.part], message: `ask others: "${dup}" is already a tile — the right contents are always tiles; others holds only wrong ones`, severity: "warn" });
+      }
+    }
+  });
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "math" || typeof el.tex !== "string" || filled.has(el.id) || !hasBlanks(el.tex)) continue;
+    issues.push({ rule: "guess", ids: [el.id], message: `math "${el.id}": it has \\blank{…} but no ask fills it — add an ask with on: "${el.id}", or write the content without \\blank`, severity: "warn" });
   }
   return issues;
 }
@@ -1274,7 +1340,7 @@ export function lintBook(spec: Spec): LintIssue[] {
 
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintTreeAsk(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintTreeAsk(spec), ...lintFormulaAsk(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec)];
 
   // A link whose href names nothing the resolver can read draws, but never
   // opens (links/resolve.ts decides the forms a target may take).

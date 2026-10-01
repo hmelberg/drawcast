@@ -79995,5 +79995,353 @@
         }
       ]
     }
+  },
+  {
+    "request": "Why is the area of a circle pi r squared? #interactive",
+    "spec": {
+      "title": "Area of a circle",
+      "elements": [
+        {
+          "id": "disc",
+          "type": "shape",
+          "shape": "circle",
+          "x": 500,
+          "y": 520,
+          "radius": 130,
+          "style": {
+            "color": "#3d3833",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "rad",
+          "type": "path",
+          "points": [
+            [
+              500,
+              520
+            ],
+            [
+              630,
+              520
+            ]
+          ],
+          "style": {
+            "color": "#2f6b8f",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "rlab",
+          "type": "text",
+          "text": "r",
+          "x": 565,
+          "y": 550,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "area",
+          "type": "math",
+          "tex": "A = \\pi \\blank{r^2}",
+          "x": 500,
+          "y": 290
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Area of a circle"
+          }
+        },
+        {
+          "draw": [
+            "disc"
+          ],
+          "speak": "This is about the area of a circle: how much flat space lies inside the round edge."
+        },
+        {
+          "draw": [
+            "rad",
+            "rlab"
+          ],
+          "speak": "Everything about a circle hangs on one length, the radius, from the centre out to the edge."
+        },
+        {
+          "draw": [
+            "area"
+          ],
+          "speak": "So the area formula starts with pi, about three point one four, and then the radius comes in, in some form."
+        },
+        {
+          "ask": {
+            "question": "Area is counted in square units, like square metres. Which tile finishes the formula?",
+            "on": "area",
+            "others": [
+              "2r",
+              "r",
+              "d^2"
+            ],
+            "store": "a",
+            "right": "Yes: the radius squared, a length times a length.",
+            "wrong": "It is the radius squared: a length times a length gives square units."
+          }
+        },
+        {
+          "highlight": {
+            "target": "area"
+          },
+          "speak": "And because the radius is squared, a circle twice as wide holds four times the area. That is why a large pizza can be such a good deal."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Seven times what is fifty-six? Find the missing number. #interactive",
+    "spec": {
+      "title": "The missing number",
+      "elements": [
+        {
+          "id": "eq",
+          "type": "math",
+          "tex": "7 \\times \\blank{8} = 56",
+          "x": 500,
+          "y": 600
+        },
+        {
+          "id": "dots",
+          "type": "pieces",
+          "of": "grid",
+          "x": 500,
+          "y": 290,
+          "width": 360,
+          "height": 315,
+          "n": 8,
+          "rows": 7,
+          "style": {
+            "fill": "#d0865f"
+          }
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "The missing number"
+          }
+        },
+        {
+          "draw": [
+            "eq"
+          ],
+          "speak": "This is about finding a missing number in a multiplication: seven times some number makes fifty-six, and the box hides that number."
+        },
+        {
+          "speak": "To find it, ask how many sevens it takes to make fifty-six. You can count up in sevens, or run through the seven times table until you land on it."
+        },
+        {
+          "ask": {
+            "question": "What number goes in the box?",
+            "on": "eq",
+            "store": "n",
+            "right": "Yes, {n}.",
+            "wrong": "It is {n.true}, not {n}."
+          }
+        },
+        {
+          "draw": [
+            "dots"
+          ],
+          "speak": "Here is why: seven rows of eight dots. Each row adds eight more, so the rows run eight, sixteen, twenty-four, and so on, until the seventh row brings the total to fifty-six."
+        }
+      ]
+    }
+  },
+  {
+    "request": "What is the derivative of x squared, and why? #interactive",
+    "spec": {
+      "title": "The derivative of x squared",
+      "elements": [
+        {
+          "id": "sq",
+          "type": "polygon",
+          "points": [
+            [
+              330,
+              210
+            ],
+            [
+              530,
+              210
+            ],
+            [
+              530,
+              410
+            ],
+            [
+              330,
+              410
+            ]
+          ],
+          "style": {
+            "color": "#3d3833",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "lx1",
+          "type": "text",
+          "text": "x",
+          "x": 430,
+          "y": 175
+        },
+        {
+          "id": "lx2",
+          "type": "text",
+          "text": "x",
+          "x": 295,
+          "y": 310
+        },
+        {
+          "id": "s_right",
+          "type": "polygon",
+          "points": [
+            [
+              530,
+              210
+            ],
+            [
+              570,
+              210
+            ],
+            [
+              570,
+              410
+            ],
+            [
+              530,
+              410
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "s_top",
+          "type": "polygon",
+          "points": [
+            [
+              330,
+              410
+            ],
+            [
+              530,
+              410
+            ],
+            [
+              530,
+              450
+            ],
+            [
+              330,
+              450
+            ]
+          ],
+          "style": {
+            "color": "#b5482e",
+            "stroke_width": 3
+          }
+        },
+        {
+          "id": "corner",
+          "type": "polygon",
+          "points": [
+            [
+              530,
+              410
+            ],
+            [
+              570,
+              410
+            ],
+            [
+              570,
+              450
+            ],
+            [
+              530,
+              450
+            ]
+          ],
+          "style": {
+            "color": "#8f887c",
+            "stroke_width": 2
+          }
+        },
+        {
+          "id": "ldx",
+          "type": "text",
+          "text": "dx",
+          "x": 610,
+          "y": 310,
+          "style": {
+            "color": "#b5482e"
+          }
+        },
+        {
+          "id": "d",
+          "type": "math",
+          "tex": "\\frac{d}{dx} x^2 = \\blank{2x}",
+          "x": 500,
+          "y": 600
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "The derivative of x squared"
+          }
+        },
+        {
+          "draw": [
+            "sq",
+            "lx1",
+            "lx2"
+          ],
+          "speak": "This is about the derivative of x squared, and a square shows it best: give the square a side of x, and its area is x squared."
+        },
+        {
+          "draw": [
+            "d"
+          ],
+          "speak": "The derivative asks how fast that area grows as the side grows: nudge the side a little, and count the new area per bit of nudge."
+        },
+        {
+          "ask": {
+            "question": "Type the derivative in the box, as an expression in x.",
+            "on": "d",
+            "store": "g",
+            "right": "Yes, that is it.",
+            "wrong": "It is two x."
+          }
+        },
+        {
+          "draw": [
+            "s_right",
+            "s_top",
+            "ldx"
+          ],
+          "speak": "Here is why. Grow the side by a sliver, d x, and two thin strips appear, each x long, so the new area is two x times d x."
+        },
+        {
+          "draw": [
+            "corner"
+          ],
+          "speak": "The little corner is a sliver times a sliver, far too small to count. That leaves two x of new area for each bit of growth, which is the derivative."
+        }
+      ]
+    }
   }
 ]
