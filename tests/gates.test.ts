@@ -5,7 +5,7 @@
 // forgotten class costs nothing until a viewer clicks the wrong pixel.
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
-import { GATE_SELECTOR, gateIsOpen } from "../src/ui/gates";
+import { GATE_SELECTOR, gateIsOpen, keysBelongElsewhere } from "../src/ui/gates";
 
 const source = (name: string): string => readFileSync(new URL(`../src/ui/${name}`, import.meta.url), "utf8");
 
@@ -70,6 +70,58 @@ describe("the chess-ish quiz gates clear each other on mount", () => {
       expect(m, `${name}: no stage.querySelector(...)?.remove() pre-clear found`).not.toBeNull();
       const selector = m![1];
       for (const cls of SIBLINGS) expect(selector, `${name}'s pre-clear selector`).toContain(`.${cls}`);
+    });
+  }
+});
+
+// Final review 2026-10-03: the figure gates skipped every keydown whose
+// target was a <button> — including the player's own Play button, which
+// keeps the focus after a viewer starts the cast with it, so the gate keys
+// (Enter, Tab, digits, arrows) did nothing. A focused button outside the
+// gate is not a reason to hand the keys away; a text field or a panel is.
+/** A stand-in element: its tag, its classes and those of its ancestors, its attributes. */
+function fake(tag: string, classes: string[] = [], attrs: string[] = []): Element {
+  const hit = (part: string): boolean =>
+    part === tag || classes.some((c) => part === `.${c}`) || attrs.some((a) => part === `[${a}]`);
+  return { closest: (sel: string) => (sel.split(",").map((x) => x.trim()).some(hit) ? ({} as Element) : null) } as unknown as Element;
+}
+
+describe("keysBelongElsewhere: which keydowns a figure gate leaves alone", () => {
+  test("the player's transport buttons do not take the gate's keys", () => {
+    for (const key of ["Enter", "Tab", "1", "ArrowRight", " "]) {
+      expect(keysBelongElsewhere(fake("button", ["cs-bar-btn", "cs-play", "cs-controlbar"]), key), key).toBe(false);
+      expect(keysBelongElsewhere(fake("button", ["cs-bigplay"]), key), key).toBe(false);
+    }
+  });
+  test("nor does a page button that kept the focus (the example the viewer clicked)", () => {
+    expect(keysBelongElsewhere(fake("button", ["sidebar-row"]), "Enter")).toBe(false);
+  });
+  test("text fields, selects and editable text keep their keys", () => {
+    expect(keysBelongElsewhere(fake("input"), "1")).toBe(true);
+    expect(keysBelongElsewhere(fake("textarea"), "Enter")).toBe(true);
+    expect(keysBelongElsewhere(fake("select", ["cs-bar-select", "cs-controlbar"]), "ArrowRight")).toBe(true);
+    expect(keysBelongElsewhere(fake("div", [], ["contenteditable"]), "Tab")).toBe(true);
+  });
+  test("a panel (the tray, a menu, a dialog) keeps its keys, buttons and all", () => {
+    expect(keysBelongElsewhere(fake("button", ["cs-tray-run", "cs-paramtray"]), "Enter")).toBe(true);
+    expect(keysBelongElsewhere(fake("button", ["cs-more"]), "ArrowRight")).toBe(true);
+    expect(keysBelongElsewhere(fake("button", [], ["role=dialog"]), "Tab")).toBe(true);
+  });
+  test("the gate's own buttons: Enter and Space are their own click; the gate's other keys still work", () => {
+    const answer = fake("button", ["cs-figgate-answer", "cs-gatedock"]);
+    expect(keysBelongElsewhere(answer, "Enter")).toBe(true);
+    expect(keysBelongElsewhere(answer, " ")).toBe(true);
+    expect(keysBelongElsewhere(answer, "Tab")).toBe(false);
+    expect(keysBelongElsewhere(answer, "2")).toBe(false);
+  });
+  test("no target: the gate's", () => {
+    expect(keysBelongElsewhere(null, "Enter")).toBe(false);
+  });
+  for (const name of ["cards-gate.ts", "tree-gate.ts", "formula-gate.ts"]) {
+    test(`${name} asks keysBelongElsewhere, not "any button"`, () => {
+      const text = source(name);
+      expect(text).toContain("keysBelongElsewhere(");
+      expect(text).not.toMatch(/closest\?\.\("input, textarea, select, button/);
     });
   }
 });

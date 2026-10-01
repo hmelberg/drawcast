@@ -23,6 +23,7 @@ import { clientPointFor, h } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
 import { mountNumberEdit } from "./number-edit";
 import type { AskGateStep } from "./controls";
+import { keysBelongElsewhere } from "./gates";
 
 /** How near (px) a tap must land to a branch line to pick it. */
 const EDGE_HIT_PX = 18;
@@ -278,10 +279,10 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
         if (settled) return;
         const target = e.target as Element | null;
         const inField = target?.classList?.contains("cs-numedit") === true;
-        // Another control has the keys (the tray, a text box, a button —
-        // the Answer button's Enter is its own click): only the blank's
-        // own field is this gate's.
-        if (!inField && target?.closest?.("input, textarea, select, button, [contenteditable]")) return;
+        // Another control has the keys (the tray, a text box; the Answer
+        // button's Enter is its own click): only the blank's own field is
+        // this gate's — and not the Play button that kept the focus.
+        if (!inField && keysBelongElsewhere(e.target, e.key)) return;
         if (e.key === "Tab" && blanks.length > 0) {
           e.preventDefault();
           e.stopPropagation();

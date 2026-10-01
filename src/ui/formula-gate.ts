@@ -28,6 +28,7 @@ import { clientPointFor, h } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
 import { mountNumberEdit, placeNearBox, type StageRect } from "./number-edit";
 import type { AskGateStep } from "./controls";
+import { keysBelongElsewhere } from "./gates";
 
 /** A blank's box grows by this (logical) for its ring and its tap target. */
 const BLANK_PAD = 6;
@@ -298,9 +299,10 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
         const target = e.target as Element | null;
         const inNumber = target?.classList?.contains("cs-numedit") === true;
         const inText = target?.classList?.contains("cs-formula-field") === true;
-        // Another control has the keys (the tray, a text box, a button): only
-        // the blank's own field is this gate's.
-        if (!inNumber && !inText && target?.closest?.("input, textarea, select, button, [contenteditable]")) return;
+        // Another control has the keys (the tray, a text box; a gate
+        // button's Enter is its own click): only the blank's own field is
+        // this gate's — and not the Play button that kept the focus.
+        if (!inNumber && !inText && keysBelongElsewhere(e.target, e.key)) return;
         if (e.key === "Tab") {
           e.preventDefault();
           e.stopPropagation();

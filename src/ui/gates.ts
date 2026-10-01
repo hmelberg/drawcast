@@ -38,3 +38,22 @@ export function gateIsOpen(stage: ParentNode): boolean {
 // the two guards cannot drift into naming different subsets: the widget used
 // to name only "button" and swallowed presses that began on a slider.
 export const CONTROL_SELECTOR = "input, button, select, textarea, label, .cs-paramtray, .cs-codeedit, .cs-ctlinput, .cs-more";
+
+// Which keydowns a figure gate (cards, tree, formula) leaves to someone else.
+// A text field, a select or editable text types its own keys; a panel (the
+// tray, the more-menu, the code card, a dialog or menu) works its own buttons.
+// A focused button elsewhere is NOT a reason: the player's Play button keeps
+// the focus after a viewer starts the cast with it, and a guard that skipped
+// every button left the gate deaf to its keys (final review 2026-10-03). The
+// gate's own buttons (Answer, Skip, a pick) keep only Enter and Space — their
+// own click — so Tab, digits and arrows still reach the gate.
+const KEY_TEXT_SELECTOR = "input, textarea, select, [contenteditable]";
+const KEY_PANEL_SELECTOR = ".cs-paramtray, .cs-codeedit, .cs-ctlinput, .cs-more, [role=dialog], [role=menu]";
+const GATE_SURFACE_SELECTOR = `${GATE_SELECTOR}, .cs-gatedock`;
+
+export function keysBelongElsewhere(target: EventTarget | null, key: string): boolean {
+  const el = target as Element | null;
+  if (!el || typeof el.closest !== "function") return false;
+  if (el.closest(KEY_TEXT_SELECTOR) || el.closest(KEY_PANEL_SELECTOR)) return true;
+  return (key === "Enter" || key === " ") && el.closest("button") !== null && el.closest(GATE_SURFACE_SELECTOR) !== null;
+}

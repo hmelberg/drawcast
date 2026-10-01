@@ -30,6 +30,7 @@ import type { Pt } from "../layout/model";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
 import type { AskGateStep } from "./controls";
+import { keysBelongElsewhere } from "./gates";
 
 /** How long the other cards take to make room. */
 const SETTLE_MS = 160;
@@ -307,10 +308,10 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       // —— keys ——
       const onKey = (e: KeyboardEvent): void => {
         if (settled) return;
-        // Another control has the keys (the tray, a text box, a button — the
-        // Answer button's Enter is its own click): they are not this gate's.
-        const target = e.target as Element | null;
-        if (target?.closest?.("input, textarea, select, button, [contenteditable]")) return;
+        // Another control has the keys (the tray, a text box; the Answer
+        // button's Enter is its own click) — not the Play button that kept
+        // the focus (gates.ts keysBelongElsewhere).
+        if (keysBelongElsewhere(e.target, e.key)) return;
         const n = g.cards.length;
         const pairs = g.pairs ?? 0;
         if (e.key === "Tab") {
