@@ -226,6 +226,17 @@ function formatOf(params: DecisionTreeParams): Format {
   };
 }
 
+/**
+ * A tree number as the tree draws it, for what is said about it (a tree
+ * ask's stored variables): a value or payoff in the tree's decimals and
+ * locale ("7", not "7.0"), a cost as money, a probability as a branch label
+ * shows it (up to three decimals).
+ */
+export function treeNumberText(params: DecisionTreeParams): (v: number, kind: "value" | "effect" | "cost" | "probability") => string {
+  const f = formatOf(params);
+  return (v, kind) => (kind === "probability" ? String(Number(v.toFixed(3))) : kind === "cost" ? f.money(v) : f.num(v));
+}
+
 /** Whether a terminal has numbers to draw. */
 function hasNumbers(w: Wrapped): boolean {
   return w.effect !== undefined || w.cost !== undefined;

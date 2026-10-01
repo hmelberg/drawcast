@@ -44,7 +44,7 @@ import type { CardsGeometry } from "../spec/cards";
 import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
 import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
 import { decodeTreeAnswer, encodeTreeAnswer, scoreBlanks, treeBlanks, treePick, type TreeBlank, type TreePick } from "../tree/blanks";
-import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
+import { treeNumberText, type DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { walkTree } from "../scenes/decision_tree/rollback";
 import { withOverrides } from "./params";
 import { blankIsNumber, typedRight, type FormulaBlank } from "../formula/blanks";
@@ -1995,9 +1995,10 @@ export class Player {
     // Earlier guesses' ghosts go; earlier tree asks' working lines stay.
     this.endGuessMarks(true);
 
-    const decimals = Math.min(Math.max(Math.round(typeof params.decimals === "number" ? params.decimals : 1), 0), 6);
-    const fmt = (v: number, b: TreeBlank): string => (b.kind === "probability" ? v.toFixed(2) : v.toFixed(decimals));
-    const fmtNum = (v: number): string => v.toFixed(decimals);
+    // Numbers as the tree draws them: what is said matches what is written.
+    const treeText = treeNumberText(params);
+    const fmt = (v: number, b: TreeBlank): string => treeText(v, b.kind);
+    const fmtNum = (v: number): string => treeText(v, "value");
     const after = this.plan.states[index];
     // A decision's best and prune marks give its answer away: hidden while
     // asked (the picked decision's, and those of a decision whose value is a

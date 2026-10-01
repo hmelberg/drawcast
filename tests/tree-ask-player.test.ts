@@ -134,15 +134,27 @@ describe("tree asks in the player", () => {
     expect(all.marks.get("tree_1")?.texts.map((t) => t.text)).toContain("0.3 × 10 + 0.7 × 4 = 5.8");
   });
 
-  test("several blanks: 'n of m', per-blank vars, probabilities in 2 decimals", async () => {
+  test("several blanks: 'n of m', per-blank vars, numbers as the tree draws them", async () => {
     const { player } = makePlayer([{ draw: IDS }, { ask: { question: "Fill", blanks: ["branchlabel_treat_not", "effect_wait"], store: "f" } }]);
     player.askGate = async () => encodeTreeAnswer([0.7, null], null);
     await player.play();
     expect(player.vars.get("f")).toBe("1 of 2");
-    expect(player.vars.get("f.branchlabel_treat_not")).toBe("0.70");
-    expect(player.vars.get("f.branchlabel_treat_not.true")).toBe("0.70");
-    expect(player.vars.get("f.effect_wait.true")).toBe("5.0");
+    expect(player.vars.get("f.branchlabel_treat_not")).toBe("0.7");
+    expect(player.vars.get("f.branchlabel_treat_not.true")).toBe("0.7");
+    expect(player.vars.get("f.effect_wait.true")).toBe("5");
     expect(player.vars.get("f.work")).toBe("5 × 1");
+  });
+
+  test("stored numbers use the tree's own formatting: 7, not 7.0 (fix wave 2026-10-03)", async () => {
+    const seven = { ...params, decimals: 1, root: { ...root, children: [{ label: "Treat", node: { id: "treat", type: "chance", label: "", children: [
+      { label: "Cured", probability: 0.6, node: { id: "cured", type: "terminal", label: "", payoff: 9 } },
+      { label: "Not", node: { id: "not", type: "terminal", label: "", payoff: 4 } },
+    ] } }, root.children[1]] } } as unknown as DecisionTreeParams;
+    const { player } = makePlayer([{ draw: IDS }, { ask: { question: "EV?", blanks: ["value_treat"], store: "e" } }], IDS, seven);
+    player.askGate = async () => encodeTreeAnswer([6], null);
+    await player.play();
+    expect(player.vars.get("e.true")).toBe("7");
+    expect(player.vars.get("e")).toBe("6");
   });
 
   test("pick: the chosen label, the best, the difference", async () => {
@@ -227,7 +239,7 @@ describe("tree asks in the player", () => {
     expect(plan.states[1].answers).toEqual({ effect_wait: "?" });
     (player as unknown as { autoAnswers: boolean }).autoAnswers = true;
     await player.play();
-    const firstWait = frames.findIndex((f) => (f.answers as Record<string, string> | undefined)?.effect_wait === "5.0");
+    const firstWait = frames.findIndex((f) => (f.answers as Record<string, string> | undefined)?.effect_wait === "5");
     for (const f of frames.slice(0, firstWait)) {
       const a = f.answers as Record<string, string> | undefined;
       if (a !== undefined) expect(a.effect_wait).toBe("?");
