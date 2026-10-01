@@ -641,7 +641,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // task, and one "Ask the viewer" bullet — fill the tree (blanks, pick), fill
 // the formula (\blank, tiles via others, typed, form exact), move the curve
 // (on a curve, predict, check) — one example each, +1811. -> 385106.
-const BASELINE_SYSTEM_CHARS = 385106;
+// Re-pinned UP 2026-10-03 (round 4 fix wave, from the generated test casts):
+// a tree's blanks are ALWAYS followed by a pick (its reveal draws best/prune,
+// never drawn by hand); which `check` (left out = shape, size when the
+// amount is named, direction for a vague change); the market example drops
+// its check. +242. -> 385348.
+const BASELINE_SYSTEM_CHARS = 385348;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

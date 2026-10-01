@@ -248,15 +248,17 @@ Ask:
 - Fill the tree (`decision_tree`, `rollback: true`; draw it whole first,
   each blank shows "?" until its ask): `blanks: ["value_treat"]` (also
   `branchlabel_<p>_<c>`, `effect_`/`cost_<node>`), `{e.true}`, `{e.work}` =
-  the working line; then `pick: "<decision>"` → `{c.true}`, `{c.diff}`.
+  the working line; then always `pick: "<decision>"` (its reveal draws
+  best/prune; don't draw them yourself) → `{c.true}`, `{c.diff}`.
 - Fill the formula: `\blank{r^2}` in a `math` tex, then ask `on` it with
   `others: ["2r", "r"]` (the right one is always a tile; others = plausible
   wrong ones), or no `others` = typed number or expression (`pi r^2`, `2r`,
   `sqrt(x)`, checked by value; `form: "exact"` to simplify).
 - Move the curve (`supply_demand`; tax/shift at `amount: 0` in params from
   the start): `on: supply_curve` or `demand_curve` (one per question),
-  `predict: true`, `check: direction|shape|size` (default shape), right
-  before the animate that moves it; "Not quite. {t.why}" explains a miss.
+  `predict: true`, `check` left out (shape), `size` when the amount is
+  named, `direction` only for a vague change; right before the animate that
+  moves it; "Not quite. {t.why}" explains a miss.
 
 ## Elements with more than the schema
 
