@@ -1716,7 +1716,6 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   border-radius: 6px;
   padding: 0.15rem 0.45rem;
 }
-.cs-formula-error { font-size: 0.7em; }
 .cs-numedit-error { position: absolute; z-index: 25; box-sizing: border-box; }
 .cs-formula-keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.3rem; font-size: 0.9em; }
 /* Touch-sized: 40 px at the least. */
@@ -1841,7 +1840,7 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
 }
 @media (max-width: 560px) {
   .cs-gatedock { gap: 0.4rem; padding-inline: calc(0.4rem + var(--cs-more-reserve, 0px)); }
-  .cs-gatedock > .cs-figgate-hint { font-size: 0.82rem; padding: 0.2rem 0.6rem; }
+  .cs-gatedock > .cs-figgate-hint { font-size: var(--text-xs); padding: 0.2rem 0.6rem; }
   .cs-gatedock > .cs-guess-answer { font-size: 1.05rem; padding: 0.35rem 1rem; min-height: 40px; }
   .cs-gatedock > .cs-figgate-skip { min-height: 40px; }
   /* Two even rows of keys rather than five and a straggler. */
