@@ -1698,17 +1698,33 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   z-index: 4;
   font-size: 0.95rem;
 }
+/* Answer: centred at the very bottom of the figure, filled in the guess
+   colour so it reads as THE button; the caption (the question being read)
+   steps up over it while it stands. Only when several parts are guessed,
+   or release: false. */
+.cs-stage:has(.cs-guess-answer:not([hidden])):not(.cs-caption-below):not(.cs-caption-strip) .cs-caption {
+  bottom: 3.3rem;
+}
 .cs-guess-answer {
   position: absolute;
-  top: 0.8rem;
-  right: 1rem;
+  left: 50%;
+  bottom: 0.5rem;
+  transform: translateX(-50%);
   pointer-events: auto;
+  font-size: 1.2rem;
+  padding: 0.4rem 1.6rem;
+  color: #fff;
+  background: #3f6fb5;
+  border-color: #2f5590;
 }
-/* Skip joins Answer at the top: the bottom-right is the Sources corner's. */
+.cs-guess-answer:hover { background: #355f9e; }
+.cs-guess-answer[hidden] { display: none; }
+.cs-guessgate.answered { pointer-events: none; }
+/* Skip stands top right: the bottom right is the Sources corner's. */
 .cs-guessgate .cs-figgate-skip {
   bottom: auto;
   top: 0.8rem;
-  right: 8.2rem;
+  right: 1rem;
 }
 /* .cs-figgate sets no cursor of its own any more — what shows through this
    overlay (the hand, the connect question's crosshair, a widget's grab/

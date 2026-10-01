@@ -100,6 +100,9 @@ export interface Reprojector {
   patchedElements?(): SpecElement[] | undefined;
 }
 
+/** The glide from a guess to the truth. */
+const GUESS_REVEAL_MS = 800;
+
 /** What render() gives the player for guess asks (see Player.guess). */
 export interface GuessRuntime {
   /** `layout` is what is on screen, or null before any commit (the mount-time layout stands in). */
@@ -1143,7 +1146,7 @@ export class Player {
   private async revealGuess(setup: GuessSetup, guess: number[][], paint: (values: number[][], marks?: boolean) => void, owner: string, signal: AbortSignal): Promise<boolean> {
     this.guessOwners.add(owner);
     const truth = setup.handles.map((h) => h.truth);
-    await this.progress(1100, signal, (t) => {
+    await this.progress(GUESS_REVEAL_MS, signal, (t) => {
       const e = smoothstep(t);
       paint(guess.map((row, k) => row.map((v, j) => v + (truth[k][j] - v) * e)), false);
       this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, e));
@@ -1291,12 +1294,15 @@ export class Player {
         ...(secs !== null ? { secs } : {}),
       });
     }
+    // The feedback is spoken AS the figure moves to the truth, not after it:
+    // waiting for the glide and then the voice left a gap after answering.
+    const line = ok ? step.right : (step.wrong ?? step.right);
+    const spoken = line ? this.speakLine(line, step, signal) : Promise.resolve();
     if (!(await this.revealGuess(setup, guess, paint, owner, signal))) return;
     this.applyKey(this.plan.states[index]);
     this.applyScene(this.plan.states[index]);
     this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, 1));
-    const line = ok ? step.right : (step.wrong ?? step.right);
-    if (line) await this.speakLine(line, step, signal);
+    await spoken;
     if (live && answered) {
       const target = ok ? step.rightGoto : step.wrongGoto;
       if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];

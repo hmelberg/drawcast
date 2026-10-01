@@ -234,7 +234,8 @@ Ask:
   the truth is the figure's number. The guessed part is NOT drawn before
   the ask. `store: g` → `{g}`, `{g.true}`, `{g.off}`, `{g.pct}`; `right`
   within tolerance (default 10 % of the axis; `relative: true` → of the
-  truth), else `wrong`. `default` = the movie's demo guess. `#interactive`
+  truth), else `wrong`. `default` = the movie's demo guess. Letting go
+  answers one part (`release: false` adds an Answer button). `#interactive`
   asks for these about once a minute, varied.
 
 ## Elements with more than the schema

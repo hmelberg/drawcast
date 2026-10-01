@@ -310,3 +310,10 @@ Changes against the sections above, decided while building:
   (alias `#dynamic`, group `motion`). The existing `#quiz` and `#ask` share
   the exclusive `interaction` group, so writing both keeps only the last — left
   as it was.
+- **Answer on release** (added 2026-10-01): `ask.release` (default true) —
+  with one part (a bar, a line, a slice, a crowd, a scale) letting go of the
+  drag, or a typed number, is the answer after a 180 ms beat. Several parts
+  (`on: all`, a whole pie) and `release: false` show the Answer button, now
+  centred at the bottom of the figure in the guess colour, the caption
+  stepping up over it; Skip moved to the top right. The right/wrong line is
+  spoken as the 0.8 s reveal starts, not after it.

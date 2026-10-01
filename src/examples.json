@@ -77629,9 +77629,9 @@
         {
           "id": "pos",
           "type": "population",
-          "count": 98,
+          "count": 108,
           "states": {
-            "healthy": 89,
+            "healthy": 99,
             "sick": 9
           },
           "order": "rows",
@@ -77644,7 +77644,7 @@
         {
           "id": "note",
           "type": "text",
-          "text": "1 in 100 sick · test 90 % right",
+          "text": "1 in 100 has it · test right 9 times in 10",
           "x": 500,
           "y": 90,
           "font_size": 24
@@ -77655,29 +77655,21 @@
           "draw": [
             "note"
           ],
-          "speak": "Say one person in a hundred has a disease, and a test finds nine in ten of them. It also wrongly flags about nine in a hundred of the healthy."
+          "speak": "Say one person in a hundred has a disease. The test is right nine times in ten: it finds nine in ten of the sick, and it clears nine in ten of the healthy."
         },
         {
-          "speak": "Now test a thousand people. About ninety-eight of them test positive, and here they are."
+          "speak": "Now test a thousand people. A hundred and eight of them test positive."
         },
         {
           "ask": {
-            "question": "Of these ninety-eight, how many do you think are really sick? Sweep across them.",
+            "question": "Of these hundred and eight, how many do you think really have the disease? Sweep across them.",
             "on": "pos_sick",
             "store": "s",
-            "default": "80",
+            "default": "90",
             "tolerance": 0.05,
-            "right": "You said {s}. It is only {s.true}, as you saw.",
-            "wrong": "You said {s}. Only {s.true} are sick; the rest are false alarms."
+            "right": "You said {s}. Right: only {s.true}.",
+            "wrong": "You said {s}. Only {s.true} have it; the rest are false alarms."
           }
-        },
-        {
-          "highlight": {
-            "target": [
-              "pos_healthy"
-            ]
-          },
-          "speak": "That is because the healthy are so many more. Nine percent of nine hundred and ninety is eighty-nine false alarms."
         },
         {
           "highlight": {
@@ -77685,7 +77677,18 @@
               "pos_sick"
             ]
           },
-          "speak": "So a positive result means about a nine percent chance of being sick, not ninety. Which is why a positive screen is followed by a second test."
+          "speak": "Of the thousand, only ten have the disease, and the test finds nine of them."
+        },
+        {
+          "highlight": {
+            "target": [
+              "pos_healthy"
+            ]
+          },
+          "speak": "But nine hundred and ninety are healthy, and one in ten of them is flagged anyway: ninety-nine false alarms."
+        },
+        {
+          "speak": "So a positive result means about an eight percent chance of having the disease, not ninety. That is why a positive screen is always followed by a second test."
         }
       ]
     }

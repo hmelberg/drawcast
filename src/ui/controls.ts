@@ -237,6 +237,8 @@ export interface AskGateStep {
   tolerance?: number;
   /** A guess on the figure (ui/guess-gate.ts): the player's handles and painter. */
   guess?: GuessSession;
+  /** Guess: false keeps the Answer button for one part (default: letting go answers). */
+  release?: boolean;
 }
 
 /**

@@ -628,7 +628,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-01 (guess and reveal, spec 2026-10-01-guess-and-reveal):
 // the schema's +2782 (ask.on/from/relative, the scale element) and one
 // "Ask the viewer" paragraph on guessing on the figure, +1712. 371619 -> 376113.
-const BASELINE_SYSTEM_CHARS = 376113;
+// Re-pinned UP 2026-10-01 (answer on release): the schema's +267. -> 376380.
+const BASELINE_SYSTEM_CHARS = 376380;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -687,7 +688,8 @@ const BASELINE_SYSTEM_CHARS = 376113;
 // Re-pinned UP 2026-10-01 (guess and reveal): ask's `on`, `from`, `relative`
 // and the guess half of `tolerance`; the `scale` element (min, max, value,
 // log, ticks). +2782. Measured 100547.
-const BASELINE_SCHEMA_CHARS = 100547;
+// Re-pinned UP 2026-10-01 (answer on release): ask's `release`. +267. Measured 100814.
+const BASELINE_SCHEMA_CHARS = 100814;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

@@ -6,6 +6,11 @@
 // pointer, the keys and the pills. The rules (handles, mapping, nudging)
 // are guess/handles.ts; this is the DOM.
 //
+// One part (a bar, a line, a slice, a crowd, a scale): letting go of the
+// drag IS the answer, unless the ask says release: false. Several parts (on:
+// all, a whole pie) are set one by one and answered with the Answer button,
+// which stands centred at the bottom of the figure, over the caption.
+//
 // Keys: Tab picks the next handle, arrows change it (shift: ten steps; on a
 // sketched line or a whole pie ←/→ pick the point or divider), Enter answers.
 // A tap on the value pill opens a field to type the number.
@@ -42,6 +47,10 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       let focus = 0;
       let entry = 0;
       let settled = false;
+      // Letting go answers: one part, worked in one gesture.
+      const onRelease = step.release !== false && handles.length === 1 && !(handles[0].kind === "angle" && handles[0].truth.length > 1);
+      /** A beat between letting go and the reveal: the guess is seen standing. */
+      const RELEASE_MS = 180;
 
       const hintText =
         handles.length > 1 && handles[0].kind === "height"
@@ -49,9 +58,10 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
           : handles[0].kind === "angle" && multiEntry(handles[0])
             ? "Drag the edges between the slices"
             : HINT[handles[0].kind];
-      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, `${hintText} ▸`);
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, onRelease ? (handles[0].kind === "point" ? hintText : `${hintText} — let go to answer`) : `${hintText}, then Answer`);
       const pill = h("button", { class: "cs-guess-value", type: "button", title: "Type a number" });
       const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸");
+      answer.hidden = onRelease;
       const gate = h("div", { class: "cs-figgate cs-guessgate" }, hint, pill, answer);
 
       // —— painting: one frame at most per animation frame ——
@@ -143,8 +153,13 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       });
       const endDrag = (e: PointerEvent): void => {
         e.stopPropagation();
+        const was = dragging;
         dragging = null;
         gate.classList.remove("dragging");
+        if (was && onRelease && e.type === "pointerup") {
+          gate.classList.add("answered");
+          window.setTimeout(() => finish(encodeGuess(values)), RELEASE_MS);
+        }
       };
       gate.addEventListener("pointerup", endDrag);
       gate.addEventListener("pointercancel", endDrag);
@@ -208,6 +223,8 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
           }
           field.replaceWith(pill);
           repaint();
+          // A typed number is as final as letting go.
+          if (commit && onRelease) window.setTimeout(() => finish(encodeGuess(values)), RELEASE_MS);
         };
         field.addEventListener("keydown", (ev) => {
           ev.stopPropagation();

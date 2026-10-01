@@ -897,6 +897,10 @@ export interface AskArgs {
   from?: number;
   /** Guess: `tolerance` is a fraction of the TRUE value instead of the axis range. */
   relative?: boolean;
+  /** Guess: letting go of the drag IS the answer (default true) — one bar, one
+   *  line, one slice, a crowd or a scale. false shows an Answer button so the
+   *  viewer can adjust first. Several parts (on: all) always have the button. */
+  release?: boolean;
 }
 
 export interface QuizArgs {

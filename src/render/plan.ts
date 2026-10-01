@@ -113,6 +113,8 @@ export type PlanStep = (
       from?: number;
       /** Guess: tolerance is a fraction of the true value. */
       relative?: boolean;
+      /** Guess: false = an Answer button even for one part (default: letting go answers). */
+      release?: boolean;
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -1370,7 +1372,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.code === undefined && cmd.ask.widget !== undefined && !(BUILTIN_WIDGETS as readonly string[]).includes(cmd.ask.widget) ? { widgetTemplate: true as const } : {}),
         ...(cmd.ask.code !== undefined && cmd.ask.expect !== undefined ? { expect: cmd.ask.expect } : {}),
         ...(guess && guess.parts.length > 0
-          ? { on: guess.parts, tolerance: cmd.ask.tolerance ?? 0.1, ...(cmd.ask.from !== undefined ? { from: cmd.ask.from } : {}), ...(cmd.ask.relative === true ? { relative: true } : {}) }
+          ? { on: guess.parts, tolerance: cmd.ask.tolerance ?? 0.1, ...(cmd.ask.from !== undefined ? { from: cmd.ask.from } : {}), ...(cmd.ask.relative === true ? { relative: true } : {}), ...(cmd.ask.release === false ? { release: false } : {}) }
           : {}),
         ...(cmd.ask.code !== undefined && currentBox(cmd.ask.code) !== null ? { answerBox: currentBox(cmd.ask.code)! } : {}),
         // The movie demo points at the answer: the element's box (click), the
