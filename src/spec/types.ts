@@ -416,7 +416,7 @@ export interface SpecElement {
   /** scale: the line's ends. */
   min?: number;
   max?: number;
-  /** scale: the TRUE value, shown by the marker <id>_value. */
+  /** scale: the TRUE value, shown by the marker <id>_answer. */
   value?: number;
   /** scale: logarithmic spacing. */
   log?: boolean;

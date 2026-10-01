@@ -77542,5 +77542,290 @@
     "request": "A book with the text under the figures: how compound interest grows, and the rule of 72 (#row)",
     "title": "How compound interest grows — a book",
     "playlist": "playlist:\n  title: How compound interest grows\n  advance: auto\n  gap: 1\n---\ntitle: Interest on interest\nbook: { layout: rows, look: mixed }\ntemplate: line_chart\nparams:\n  x: [0, 10, 20, 30, 40, 50]\n  series:\n    - { name: \"7 % simple\", values: [100, 170, 240, 310, 380, 450] }\n    - { name: \"7 % compound\", values: [100, 197, 387, 761, 1497, 2946] }\n  ylim: [0, 3000]\n  y_label: Value of 100\n  x_label: Years\ncommands:\n  - draw: [axes]\n    speak: Put a hundred kroner in the bank at seven percent a year, and leave it for fifty years. How much is there at the end?\n  - write: \"Simple: $100 + 7t$\"\n  - draw: [line_1]\n    speak: If the bank paid seven kroner every year and nothing more, the money would grow in a straight line, to four hundred and fifty.\n  - write: \"Compound: $100 \\\\cdot 1.07^{\\\\,t}$\"\n  - draw: [line_2]\n    speak: But the interest earns interest too. Each year's seven percent is taken of a bigger pile, and the line bends upward, to almost three thousand.\n  - view: figure\n  - highlight: { target: line_2 }\n    speak: Look at the last decade alone. It adds more than the first forty years together.\n  - view: both\n  - write: \"The gap is the **interest on interest**.\"\n    speak: The whole gap between the two lines is interest earned on earlier interest.\n  - pause: 1\n---\ntitle: The rule of 72\nbook: { layout: rows, look: mixed }\ntemplate: data_table\nparams:\n  columns: [Rate, Years to double, 72 ÷ rate]\n  rows: [[\"2 %\", 35, 36], [\"4 %\", 17.7, 18], [\"7 %\", 10.2, 10.3], [\"10 %\", 7.3, 7.2]]\n  decimals: 1\n  font_size: 30\ncommands:\n  - draw: [header]\n    speak: Bankers have a shortcut for how fast money doubles.\n  - draw: [row_1, row_2]\n    speak: At two percent a year it takes thirty-five years. At four percent, about eighteen.\n  - draw: [row_3, row_4]\n    speak: At seven percent about ten, and at ten percent just over seven.\n  - write: { id: rule72, text: \"**Rule of 72**: years to double ≈ 72 ÷ rate\" }\n    speak: Divide seventy-two by the rate, and you land within a few months every time.\n  - highlight: { target: rule72, part: \"72 ÷ rate\", effect: underline }\n    speak: That is why it is called the rule of seventy-two.\n  - pause: 1\n"
+  },
+  {
+    "request": "How much does Norway spend on health per person, compared with other rich countries? #interactive",
+    "packs": [
+      "data"
+    ],
+    "spec": {
+      "title": "Health spending per person",
+      "template": "bar_chart",
+      "params": {
+        "labels": [
+          "USA",
+          "Germany",
+          "Norway",
+          "UK",
+          "Spain"
+        ],
+        "values": [
+          12555,
+          8011,
+          7771,
+          5493,
+          4432
+        ],
+        "value_labels": true,
+        "y_label": "USD per person, 2022"
+      },
+      "sources": [
+        {
+          "id": "oecd",
+          "title": "Health at a Glance 2023",
+          "authors": "OECD",
+          "year": 2023,
+          "finding": "health spending per person, 2022"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "axes",
+            "bar_1"
+          ],
+          "speak": "The United States spends more on health than any other country: about twelve and a half thousand dollars a year for every person."
+        },
+        {
+          "draw": [
+            "bar_2"
+          ],
+          "speak": "Germany, the biggest spender in Europe, is far behind, at about eight thousand."
+        },
+        {
+          "ask": {
+            "question": "Where do you think Norway lands? Drag its bar.",
+            "on": "bar_3",
+            "store": "g",
+            "default": "9500",
+            "tolerance": 0.06,
+            "right": "Close: you said {g}, and it is {g.true}, just under Germany.",
+            "wrong": "You said {g}. It is {g.true}, just under Germany, despite Norway's oil wealth."
+          }
+        },
+        {
+          "draw": [
+            "bar_4",
+            "bar_5"
+          ],
+          "speak": "Britain and Spain spend less again, between four and five and a half thousand."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_1"
+            ]
+          },
+          "speak": "So the gap that matters is not inside Europe. It is the American bar, half again as tall as anyone else's."
+        }
+      ]
+    }
+  },
+  {
+    "request": "If a test for a rare disease is 90 % accurate and you test positive, how likely are you to be sick? #interactive",
+    "spec": {
+      "title": "A positive test",
+      "elements": [
+        {
+          "id": "pos",
+          "type": "population",
+          "count": 98,
+          "states": {
+            "healthy": 89,
+            "sick": 9
+          },
+          "order": "rows",
+          "labels": {
+            "healthy": "false alarm",
+            "sick": "sick"
+          },
+          "fit": "top"
+        },
+        {
+          "id": "note",
+          "type": "text",
+          "text": "1 in 100 sick · test 90 % right",
+          "x": 500,
+          "y": 90,
+          "font_size": 24
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "note"
+          ],
+          "speak": "Say one person in a hundred has a disease, and a test finds nine in ten of them. It also wrongly flags about nine in a hundred of the healthy."
+        },
+        {
+          "speak": "Now test a thousand people. About ninety-eight of them test positive, and here they are."
+        },
+        {
+          "ask": {
+            "question": "Of these ninety-eight, how many do you think are really sick? Sweep across them.",
+            "on": "pos_sick",
+            "store": "s",
+            "default": "80",
+            "tolerance": 0.05,
+            "right": "You said {s}. It is only {s.true}, as you saw.",
+            "wrong": "You said {s}. Only {s.true} are sick; the rest are false alarms."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "pos_healthy"
+            ]
+          },
+          "speak": "That is because the healthy are so many more. Nine percent of nine hundred and ninety is eighty-nine false alarms."
+        },
+        {
+          "highlight": {
+            "target": [
+              "pos_sick"
+            ]
+          },
+          "speak": "So a positive result means about a nine percent chance of being sick, not ninety. Which is why a positive screen is followed by a second test."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How much of all the wealth in the United States does the richest one percent own? #interactive",
+    "packs": [
+      "data"
+    ],
+    "spec": {
+      "title": "Who owns the wealth",
+      "template": "pie_chart",
+      "params": {
+        "labels": [
+          "Top 1 %",
+          "Next 9 %",
+          "Bottom 90 %"
+        ],
+        "values": [
+          31,
+          36,
+          33
+        ]
+      },
+      "sources": [
+        {
+          "id": "fed",
+          "title": "Distributional Financial Accounts",
+          "authors": "Federal Reserve",
+          "year": 2024,
+          "finding": "top 1 % hold about 31 % of household wealth"
+        }
+      ],
+      "commands": [
+        {
+          "speak": "Line up every household in the United States by how much it owns, and split them into three groups."
+        },
+        {
+          "draw": [
+            "slice_2"
+          ],
+          "speak": "The next nine percent, the comfortably rich, own about a third of everything."
+        },
+        {
+          "draw": [
+            "slice_3"
+          ],
+          "speak": "And the bottom ninety percent, most Americans, own about a third too."
+        },
+        {
+          "ask": {
+            "question": "So how big a slice is left for the top one percent? Drag its edge.",
+            "on": "slice_1",
+            "store": "g",
+            "default": "15",
+            "right": "You said {g}; it is {g.true}, about the same as everyone in the bottom ninety percent.",
+            "wrong": "You said {g}. It is {g.true}: one household in a hundred owns about as much as the bottom ninety together."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "slice_1"
+            ]
+          },
+          "speak": "That slice has grown since the nineteen-eighties, when it was closer to a quarter."
+        }
+      ]
+    }
+  },
+  {
+    "request": "When was Mozart born, and how long did he live? #interactive",
+    "spec": {
+      "title": "Mozart's short life",
+      "elements": [
+        {
+          "id": "born",
+          "type": "scale",
+          "min": 1700,
+          "max": 1800,
+          "value": 1756,
+          "label": "Mozart is born",
+          "y": 470,
+          "ticks": 4
+        },
+        {
+          "id": "age",
+          "type": "scale",
+          "min": 0,
+          "max": 80,
+          "value": 35,
+          "unit": "years",
+          "label": "Age at death",
+          "ticks": 4,
+          "y": 170
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "born"
+          ],
+          "speak": "Mozart wrote his first pieces as a small boy, and over six hundred works in all. But when did he live?"
+        },
+        {
+          "ask": {
+            "question": "When do you think he was born? Click on the line.",
+            "on": "born",
+            "store": "b",
+            "default": "1770",
+            "right": "Close: you said {b}; it was {b.true}, in Salzburg.",
+            "wrong": "You said {b}. It was {b.true}, in Salzburg, a generation before Beethoven."
+          }
+        },
+        {
+          "draw": [
+            "age"
+          ],
+          "speak": "Six hundred works takes a long life, you would think."
+        },
+        {
+          "ask": {
+            "question": "How old was he when he died?",
+            "on": "age",
+            "store": "a",
+            "default": "60",
+            "tolerance": 0.06,
+            "right": "Yes: {a.true}.",
+            "wrong": "You said {a}. He was only {a.true}."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "age_answer"
+            ]
+          },
+          "speak": "All of it, the operas, the symphonies, the Requiem left unfinished, came in thirty-five years."
+        }
+      ]
+    }
   }
 ]

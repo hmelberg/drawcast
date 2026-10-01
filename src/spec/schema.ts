@@ -561,7 +561,7 @@ const elementSchema = {
     value: {
       type: "number",
       description:
-        "scale: the TRUE value — a marker over the line with its number, the part <id>_value. A scale is a number line to GUESS ON: draw <id> (the line, ticks and numbers), then ask with on: <id> — the viewer clicks where they think the value lies, and the marker slides from their guess to the truth. For a year (min 1700, max 1800), a share (unit \"%\", 0–100), or an amount spanning orders of magnitude (log: true). Placed with x, y (the left end, default 150, 300) and width (default 700); label is a caption under the line.",
+        "scale: the TRUE value — a marker over the line with its number, the part <id>_answer. A scale is a number line to GUESS ON: draw <id> (the line, ticks and numbers), then ask with on: <id> — the viewer clicks where they think the value lies, and the marker slides from their guess to the truth. For a year (min 1700, max 1800), a share (unit \"%\", 0–100), or an amount spanning orders of magnitude (log: true). Placed with x, y (the left end, default 150, 300) and width (default 700); label is a caption under the line.",
     },
     log: { type: "boolean", description: "scale: logarithmic spacing (min > 0) — one tick per power of ten." },
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },

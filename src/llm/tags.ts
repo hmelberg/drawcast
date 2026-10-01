@@ -5,7 +5,7 @@
 // Recognized tags are stripped from the text; unknown #words are left alone
 // (a literal # in a request must never be eaten) and reported for the UI.
 
-export type TagGroup = "length" | "level" | "audience" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "mode" | "pacing" | "tone" | "human" | "voice" | "gestures" | "structure" | "interaction" | "book";
+export type TagGroup = "length" | "level" | "audience" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "mode" | "pacing" | "tone" | "human" | "voice" | "gestures" | "structure" | "interaction" | "engagement" | "motion" | "book";
 
 /**
  * A book (spec 2026-10-01-book-layout §9): every part a drawcast figure with
@@ -310,6 +310,24 @@ export const TAGS: TagDef[] = [
     hint: "collect a typed answer and personalize",
     brief:
       "Include an `ask` command that collects a typed response with store + default (e.g. store: name, default: friend) early on, and weave {name} into at least one later speak line. Use answer instead of store when the reply should be checked.",
+  },
+  {
+    tag: "interactive",
+    aliases: ["guess"],
+    group: "engagement",
+    hint: "the viewer takes part: guesses on the figure before each reveal",
+    brief:
+      "INTERACTIVE: the viewer takes part about once a minute, not only at the end. Before each key number or surprising result, ask them to GUESS it first on the figure — an `ask` with `on` naming the part that will show it, that part NOT drawn yet (draw the axes and the other bars first; the ask reveals it from their guess), store: g, and right/wrong lines that name their guess and the gap ({g}, {g.true}, {g.off}). " +
+      "Pick the form from the answer: an amount per item → a bar_chart bar (on: bar_2); a trend → a line_chart line they draw on from `from` (on: line_1); a share of a whole → a pie_chart slice (on: slice_1); how many of a group of people → a population state (on: crowd_sick); a single number, a year or a percent with no chart → a `scale` element (min, max, value; log: true for money or anything spanning powers of ten), drawn first, then on: its id. " +
+      "Never the same form twice in a row; mix in a quiz or a click question. Ask only what can be guessed by intuition, not what needs a fact the viewer cannot know. Open with a guess as the hook. Say it kindly — a guess is a starting point, not a test — and come back to it when it teaches something (\"you guessed {g}: most people do\").",
+  },
+  {
+    tag: "lively",
+    aliases: ["dynamic"],
+    group: "motion",
+    hint: "more motion in the drawing: builds, marks, counting, animation",
+    brief:
+      "LIVELY: keep the drawing moving — build figures part by part with the voice, highlight and point at what is being said, let numbers count up and charts animate between stages (animate), move and flow what changes; something on the canvas changes with nearly every line. The viewer watches: add no questions for this tag.",
   },
   {
     tag: "column",

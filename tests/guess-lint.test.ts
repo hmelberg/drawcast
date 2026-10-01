@@ -35,7 +35,7 @@ describe("guess lint", () => {
       commands: [{ draw: ["born"] }, { ask: { question: "When?", on: "born" } }],
     } as unknown as Spec;
     expect(guessIssues(spec)).toEqual([]);
-    const shown = { ...spec, commands: [{ draw: ["born", "born_value"] }, { ask: { question: "When?", on: "born" } }] } as unknown as Spec;
+    const shown = { ...spec, commands: [{ draw: ["born", "born_answer"] }, { ask: { question: "When?", on: "born" } }] } as unknown as Spec;
     expect(guessIssues(shown)).toHaveLength(1);
   });
 

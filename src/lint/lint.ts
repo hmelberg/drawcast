@@ -2,8 +2,8 @@
 // IR, so every backend gets the same report and the results feed the LLM
 // repair round as structured text.
 
-import { guessParts } from "../guess/handles";
-import type { SpecWithScales } from "../spec/scale";
+import { guessParts } from "../guess/parts";
+import { authoredScales } from "../spec/scale";
 import { parseTarget } from "../links/resolve";
 import { CANVAS } from "../layout/canvas";
 import { MATH_DEFAULT_SIZE } from "../layout/math";
@@ -1007,7 +1007,7 @@ function lintWidget(spec: Spec): LintIssue[] {
 function lintGuess(spec: Spec): LintIssue[] {
   const issues: LintIssue[] = [];
   const commands = spec.commands ?? [];
-  const scales = new Set(((spec as SpecWithScales).scales ?? []).map((sc) => sc.id));
+  const scales = new Set(authoredScales(spec).map((sc) => sc.id));
   const pops = (spec.elements ?? []).filter((e) => e.type === "population");
   commands.forEach((c, i) => {
     if (c.ask?.on === undefined) return;
@@ -1022,7 +1022,7 @@ function lintGuess(spec: Spec): LintIssue[] {
         hidden = [part];
       } else if (/^line_\d+$/.test(part) && spec.template === "line_chart") hidden = [part];
       else if ((part === "pie" || /^slice_\d+$/.test(part)) && spec.template === "pie_chart") hidden = [part === "pie" ? "slice_1" : part];
-      else if (scales.has(part)) hidden = [`${part}_value`, `${part}_value_mark`, `${part}_value_text`];
+      else if (scales.has(part)) hidden = [`${part}_answer`, `${part}_answer_pin`, `${part}_answer_num`];
       else {
         const pop = pops.find((e) => part.startsWith(`${e.id}_`) && Object.keys(e.states ?? {}).some((k) => `${e.id}_${k}`.toLowerCase() === part.toLowerCase()));
         if (pop) hidden = [pop.id, part];

@@ -625,7 +625,10 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // +363. 370426 -> 370789.
 // Re-pinned UP 2026-10-01 (books): the schema's +830 and nothing else — the
 // book's rules live in a section sent only with #column / #row. 370789 -> 371619.
-const BASELINE_SYSTEM_CHARS = 371619;
+// Re-pinned UP 2026-10-01 (guess and reveal, spec 2026-10-01-guess-and-reveal):
+// the schema's +2782 (ask.on/from/relative, the scale element) and one
+// "Ask the viewer" paragraph on guessing on the figure, +1712. 371619 -> 376113.
+const BASELINE_SYSTEM_CHARS = 376113;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -681,7 +684,10 @@ const BASELINE_SYSTEM_CHARS = 371619;
 // Re-pinned UP 2026-10-01 (books, spec 2026-10-01-book-layout): the verbs
 // `write` and `view`, clear's `pane`, highlight's `keep` and `strike`. +830.
 // Measured 97765. (The book's own layout field is document-only: no cost.)
-const BASELINE_SCHEMA_CHARS = 97765;
+// Re-pinned UP 2026-10-01 (guess and reveal): ask's `on`, `from`, `relative`
+// and the guess half of `tolerance`; the `scale` element (min, max, value,
+// log, ticks). +2782. Measured 100547.
+const BASELINE_SCHEMA_CHARS = 100547;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

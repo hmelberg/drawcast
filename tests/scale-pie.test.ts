@@ -3,7 +3,7 @@ import dataYaml from "../src/scenes/packs/data.yaml?raw";
 import { registerPack } from "../src/scenes/packs";
 import { layoutSpec } from "../src/layout/layout";
 import { expandSpec } from "../src/spec/expand";
-import { scaleGeometry, type ScaleElementLike } from "../src/spec/scale";
+import { authoredScales, scaleGeometry, type ScaleElementLike } from "../src/spec/scale";
 import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
 
@@ -18,13 +18,14 @@ describe("scale", () => {
     const spec = expandSpec({ commands: [], elements: [sc({ label: "Share" }) as never] } as Spec);
     const ids = (spec.elements ?? []).map((e) => e.id);
     expect(ids).toContain("s");
-    expect(ids).toContain("s_value");
+    expect(ids).toContain("s_answer");
     expect(ids).toContain("s_line");
     expect(ids).toContain("s_caption");
-    expect((spec as { scales?: unknown[] }).scales).toHaveLength(1);
+    expect(authoredScales(spec)).toEqual([expect.objectContaining({ id: "s", min: 0, max: 100, value: 40 })]);
+    expect(validateSpec(spec).ok).toBe(true);
     const layout = layoutSpec(spec);
-    expect(layout.order).toContain("s_value_mark");
-    expect(layout.order).toContain("s_value_text");
+    expect(layout.order).toContain("s_answer_pin");
+    expect(layout.order).toContain("s_answer_num");
     expect(layout.order).toContain("s_line");
   });
 

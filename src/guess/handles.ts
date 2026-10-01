@@ -18,7 +18,10 @@ import type { Pt } from "../layout/model";
 import type { MeasureFn } from "../layout/measure";
 import { readParam } from "../render/params";
 import type { Spec, SpecElement } from "../spec/types";
-import { scaleGeometry, scaleValueElements, type ScaleElementLike } from "../spec/scale";
+import { guessParts } from "./parts";
+import { authoredScales, scaleGeometry, scaleValueElements, type ScaleElementLike } from "../spec/scale";
+
+export { guessParts };
 
 export type GuessKind = "height" | "curve" | "angle" | "count" | "point";
 
@@ -128,33 +131,6 @@ function currentRow(values: unknown, stage: number, prefix: string): { row: (num
     return { row: row.map((v) => (isNum(v) ? v : null)), at: `${prefix}.${k}` };
   }
   return { row: values.map((v) => (isNum(v) ? v : null)), at: prefix };
-}
-
-/** The part ids `on` stands for: "all" expanded to every guessable part of the
- *  template; anything else as written (lower-cased ids are kept as given). */
-export function guessParts(spec: Pick<Spec, "template" | "params">, on: string | string[] | undefined): string[] {
-  if (on === undefined) return [];
-  const list = Array.isArray(on) ? on : [on];
-  const out: string[] = [];
-  for (const id of list) {
-    if (id === "all") out.push(...allParts(spec));
-    else out.push(id);
-  }
-  return [...new Set(out)];
-}
-
-function allParts(spec: Pick<Spec, "template" | "params">): string[] {
-  const p = spec.params ?? {};
-  if (spec.template === "bar_chart") {
-    const labels = Array.isArray(p["labels"]) ? (p["labels"] as unknown[]).length : 0;
-    return Array.from({ length: labels }, (_, i) => `bar_${i + 1}`);
-  }
-  if (spec.template === "line_chart") {
-    const n = Array.isArray(p["series"]) ? (p["series"] as unknown[]).length : p["values"] !== undefined ? 1 : 0;
-    return Array.from({ length: n }, (_, i) => `line_${i + 1}`);
-  }
-  if (spec.template === "pie_chart") return ["pie"];
-  return [];
 }
 
 /**
@@ -398,16 +374,15 @@ function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>): G
   return null;
 }
 
-function scaleHandle(spec: Spec & { scales?: ScaleElementLike[] }, part: string): GuessHandle | null {
-  // A scale is sugar (spec/scale.ts): the authored element is kept on the
-  // expanded spec's `scales` list so its truth and geometry stay readable.
-  const sc = (spec.scales ?? []).find((s) => s.id === part);
+function scaleHandle(spec: Spec, part: string): GuessHandle | null {
+  // A scale is sugar (spec/scale.ts): its group keeps the numbers.
+  const sc = authoredScales(spec).find((s) => s.id === part);
   if (!sc) return null;
   const g = scaleGeometry(sc);
   const step = g.kind === "log" ? 0 : niceStep(g.max - g.min);
   return {
-    part: `${sc.id}_value`,
-    shows: [`${sc.id}_value`],
+    part: `${sc.id}_answer`,
+    shows: [`${sc.id}_answer`],
     kind: "point",
     truth: [g.value],
     min: g.min,
@@ -658,7 +633,7 @@ export function pointFor(h: GuessHandle, values: number[], j = 0): Pt | null {
     }
     case "count":
       // Under the people (and their legend): over them it hides the faces it counts.
-      return h.box ? [h.box.x + (values[0] / (h.max || 1)) * h.box.w, h.box.y - 70] : null;
+      return h.box ? [h.box.x + (values[0] / (h.max || 1)) * h.box.w, h.box.y - 125] : null;
     case "point":
       return h.scale ? [scaleGeometry(h.scale).xAt(values[0]), scaleGeometry(h.scale).y + 18] : null;
   }

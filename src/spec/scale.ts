@@ -5,11 +5,11 @@
 // player, lint and export see a group and a marker:
 //
 //   <id>        the line, its ticks and their numbers (and the caption)
-//   <id>_value  the TRUE value: a marker over the line and its number
+//   <id>_answer the TRUE value: a marker over the line and its number
 //
 // An ask with `on: <id>` lets the viewer place the marker; drawn on its own,
-// <id>_value is simply the answer shown. The authored element is kept on the
-// expanded spec's `scales` list, so the guess can read its truth and geometry.
+// <id>_answer is simply the answer shown. The group <id> keeps the scale's
+// numbers, so the guess reads its truth and geometry back (authoredScales).
 
 import type { Spec, SpecElement } from "./types";
 
@@ -64,13 +64,6 @@ const DEFAULT_W = 700;
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
-/** 1, 2 or 5 × 10^k at or under v. */
-function niceBelow(v: number): number {
-  const p = Math.pow(10, Math.floor(Math.log10(v)));
-  const m = v / p;
-  return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * p;
-}
-
 /** Round v to two significant figures — a log guess reads "4 700", not "4 683.2". */
 function twoSig(v: number): number {
   if (v === 0) return 0;
@@ -120,9 +113,10 @@ export function scaleGeometry(sc: ScaleElementLike): ScaleGeometry {
     if (ticks.length < 2) ticks.splice(0, ticks.length, lo, hi);
   } else {
     const n = isNum(sc.ticks) && sc.ticks >= 1 ? Math.min(20, Math.round(sc.ticks)) : 5;
+    // The nice step (1, 2, 2.5 or 5 × 10^k) closest to range / n.
     const raw = range / n;
-    const p = niceBelow(raw) === raw ? raw : niceBelow(raw);
-    const stepT = Math.abs(raw - p) / raw < 0.5 ? p : raw;
+    const p10 = Math.pow(10, Math.floor(Math.log10(raw)));
+    const stepT = [1, 2, 2.5, 5, 10].map((m) => m * p10).reduce((a, b) => (Math.abs(b - raw) < Math.abs(a - raw) ? b : a));
     const first = Math.ceil(lo / stepT - 1e-9) * stepT;
     for (let v = first; v <= hi + stepT * 1e-6; v += stepT) ticks.push(Number(v.toFixed(10)));
     if (ticks[0] !== lo) ticks.unshift(lo);
@@ -153,14 +147,14 @@ export function scaleGeometry(sc: ScaleElementLike): ScaleGeometry {
 const TICK = 10;
 const ACCENT = "#b5482e";
 
-/** The marker and its number at value v: `<id>_value` (a group) and its two members. */
+/** The marker and its number at value v: `<id>_answer` (a group) and its two members. */
 export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement[] {
   const g = scaleGeometry(sc);
   const x = g.xAt(v);
   const color = sc.style?.color ?? ACCENT;
   return [
     {
-      id: `${sc.id}_value_mark`,
+      id: `${sc.id}_answer_pin`,
       type: "path",
       points: [
         [x - 10, g.y + 30],
@@ -170,8 +164,8 @@ export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement
       closed: true,
       style: { color, fill: color, fill_style: "wash" },
     },
-    { id: `${sc.id}_value_text`, type: "text", text: g.format(v), x, y: g.y + 52, font_size: 24, style: { color } },
-    { id: `${sc.id}_value`, type: "group", members: [`${sc.id}_value_mark`, `${sc.id}_value_text`] },
+    { id: `${sc.id}_answer_num`, type: "text", text: g.format(v), x, y: g.y + 52, font_size: 24, style: { color } },
+    { id: `${sc.id}_answer`, type: "group", members: [`${sc.id}_answer_pin`, `${sc.id}_answer_num`] },
   ];
 }
 
@@ -182,15 +176,48 @@ export function scaleLineElements(sc: ScaleElementLike): SpecElement[] {
   g.ticks.forEach((v, k) => {
     const x = g.xAt(v);
     out.push({ id: `${sc.id}_tick_${k + 1}`, type: "path", points: [[x, g.y - TICK], [x, g.y + TICK]] });
-    out.push({ id: `${sc.id}_tick_${k + 1}_text`, type: "text", text: g.format(v), x, y: g.y - 34, font_size: 18, style: { color: "#7a7468" } });
+    // Ticks carry the number only (short canvas text); the unit is the marker's — "%" excepted, being part of the number.
+    const tick = g.unit === "" || g.unit === "%" ? g.format(v) : g.format(v).replace(` ${g.unit}`, "");
+    out.push({ id: `${sc.id}_tick_${k + 1}_num`, type: "text", text: tick, x, y: g.y - 34, font_size: 18, style: { color: "#7a7468" } });
   });
   if (sc.label) out.push({ id: `${sc.id}_caption`, type: "text", text: sc.label, x: (g.x0 + g.x1) / 2, y: g.y + 100, font_size: 24 });
-  out.push({ id: sc.id, type: "group", members: out.map((e) => e.id) });
+  // The group keeps the scale's numbers (not its caption: a group's label
+  // means nothing) — the guess reads its truth and geometry back from here.
+  const keep: Partial<SpecElement> = { min: sc.min, max: sc.max, value: sc.value };
+  if (sc.log !== undefined) keep.log = sc.log;
+  if (sc.unit !== undefined) keep.unit = sc.unit;
+  if (sc.ticks !== undefined) keep.ticks = sc.ticks;
+  if (sc.x !== undefined) keep.x = sc.x;
+  if (sc.y !== undefined) keep.y = sc.y;
+  if (sc.width !== undefined) keep.width = sc.width;
+  if (sc.style !== undefined) keep.style = sc.style;
+  out.push({ id: sc.id, type: "group", members: out.map((e) => e.id), ...keep });
   return out;
 }
 
-/** The expanded spec also carries the authored scales (read by the guess). */
-export type SpecWithScales = Spec & { scales?: ScaleElementLike[] };
+/** The scales of an expanded spec: the groups expandScales left, read back. */
+export function authoredScales(spec: Pick<Spec, "elements">): ScaleElementLike[] {
+  const out: ScaleElementLike[] = [];
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "group" || typeof el.min !== "number" || typeof el.max !== "number" || typeof el.value !== "number") continue;
+    if (!(el.members ?? []).includes(`${el.id}_line`)) continue;
+    out.push({
+      id: el.id,
+      type: "scale",
+      min: el.min,
+      max: el.max,
+      value: el.value,
+      ...(el.log !== undefined ? { log: el.log } : {}),
+      ...(el.unit !== undefined ? { unit: el.unit } : {}),
+      ...(el.ticks !== undefined ? { ticks: el.ticks } : {}),
+      ...(el.x !== undefined ? { x: el.x } : {}),
+      ...(el.y !== undefined ? { y: el.y } : {}),
+      ...(el.width !== undefined ? { width: el.width } : {}),
+      ...(el.style !== undefined ? { style: el.style } : {}),
+    });
+  }
+  return out;
+}
 
 function isScale(el: SpecElement): boolean {
   return (el as { type: string }).type === "scale";
@@ -199,7 +226,6 @@ function isScale(el: SpecElement): boolean {
 export function expandScales(spec: Spec): Spec {
   const els = spec.elements ?? [];
   if (!els.some(isScale)) return spec;
-  const scales: ScaleElementLike[] = [];
   const out: SpecElement[] = [];
   for (const el of els) {
     if (!isScale(el)) {
@@ -207,8 +233,7 @@ export function expandScales(spec: Spec): Spec {
       continue;
     }
     const sc = el as unknown as ScaleElementLike;
-    scales.push(sc);
     out.push(...scaleLineElements(sc), ...scaleValueElements(sc, scaleGeometry(sc).value));
   }
-  return { ...spec, elements: out, scales } as SpecWithScales;
+  return { ...spec, elements: out };
 }

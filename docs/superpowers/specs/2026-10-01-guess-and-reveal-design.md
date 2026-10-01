@@ -262,3 +262,51 @@ about forms that exist.
 ## 12. Out of scope
 
 The later-round forms in §6, crowd comparison, and any change to `quiz`.
+
+## 13. As built (2026-10-01)
+
+Changes against the sections above, decided while building:
+
+- **No figure id.** A cast has one template, so `on` names a part (`bar_3`,
+  `line_1`, `slice_2`), a population state set (`crowd_sick`), a scale's id,
+  a list of these, or `"all"` (every bar, line or the whole pie). Resolved by
+  `src/guess/parts.ts` (spec-only; the lint uses it) and
+  `src/guess/handles.ts` (with the layout).
+- **The icon array is the existing `population` element**, not a new
+  template: the guess sweeps across the crowd and sets a state's count. The
+  first state is the remainder and cannot be guessed. (The medicine pack's
+  `icon_array` template and the mathlogic pack's `number_line` template
+  exist too; they are templates — one per cast — so they were not used.)
+- **`scale` is sugar** (`src/spec/scale.ts`) expanding into a group `<id>`
+  (line, ticks `<id>_tick_k` + `<id>_tick_k_num`, caption `<id>_caption`) and
+  the marker group `<id>_answer` (`<id>_answer_pin`, `<id>_answer_num`) —
+  `_value`/`_text` are reserved sub-drawable suffixes. The group carries the
+  scale's numbers so the guess reads them back (`authoredScales`). Ticks show
+  numbers only; the unit is the marker's.
+- **Tolerance** stays one number (default 0.1 of the axis range) plus
+  `relative: true` (a fraction of the true value) instead of `{rel: n}`.
+- **Bars:** one series only (grouped/stacked: lint error). The guess starts
+  at the floor (4 % of the axis), not the middle — a bar growing from the
+  axis reads as "yours to set". The y range is pinned to the true chart's
+  frame while guessing and revealing.
+- **Lines:** `ask.from` (an x value; default the middle). While the viewer
+  draws, their part wears a dashed copy in the guess colour — otherwise it
+  looks exactly like the given part.
+- **Pie:** `pie_chart` is a new data-pack template (12 o'clock, clockwise,
+  name + percent outside). One slice: the others keep their proportions.
+  The whole pie: the viewer moves the dividers.
+- **Pills:** the hint and Answer stand at the TOP of the figure (the bottom
+  is the caption's and Skip's); the value pill follows the handle (hidden on
+  a scale, whose marker writes its own number); a tap on it types a number.
+- **The reveal** is 1.1 s; the ghost (dashed, `#3f6fb5`) and the gap (a
+  bracket and the signed difference, on a paper halo) stay until the next
+  guess, a `clear`, or a scrub.
+- **`{g.pct}`** is percent of the truth for one value, and the mean error as
+  percent of the axis for several. `{g.err}` is signed (+/−), `{g.within}`
+  and `{g.count}` count close entries.
+- **Test me** sits bottom-left (the top is the chart's caption). It guesses
+  only parts on screen, and any play or seek cancels it.
+- **Tags:** `#interactive` (alias `#guess`, group `engagement`), `#lively`
+  (alias `#dynamic`, group `motion`). The existing `#quiz` and `#ask` share
+  the exclusive `interaction` group, so writing both keeps only the last — left
+  as it was.

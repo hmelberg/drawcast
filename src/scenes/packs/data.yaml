@@ -19,7 +19,9 @@ description: >-
   bar chart, a column chart, a histogram (compute the bins in Python), a
   comparison across categories or years, or "show how these numbers change".
   Up to 200 stages, but a script's harvest caps at 5000 numbers — 20 bars
-  × 200 stages fits, 40 × 200 does not.
+  × 200 stages fits, 40 × 200 does not. GUESSABLE (one series): an ask
+  with `on: bar_2` lets the viewer drag that bar to their guess before it
+  rises to the truth; `on: all` guesses every bar.
 params:
   type: object
   properties:
@@ -681,7 +683,8 @@ description: >-
   series already named and valued at both ends. Choose this scene for ANY
   request for a line chart, a trend over time, a curve computed from data,
   two scenarios compared over time, a slope chart, a line race, or "show how
-  this develops".
+  this develops". GUESSABLE: an ask with `on: line_1` and `from: <x>` lets
+  the viewer draw the rest of the line before the true line is drawn.
   Up to 200 stages, but each series is its OWN harvest token, capped at
   5000 numbers independently of the others — a single line fits 200 stages
   × 25 points, 200 × 40 does not. The 12-series cap is a separate ceiling;

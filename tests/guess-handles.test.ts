@@ -170,7 +170,7 @@ describe("scale handles", () => {
     const { setup } = setupFor(mozart, "born");
     const h = setup.handles[0];
     expect(h.kind).toBe("point");
-    expect(h.part).toBe("born_value");
+    expect(h.part).toBe("born_answer");
     expect(h.truth).toEqual([1756]);
     expect(h.format(1756)).toBe("1756");
     expect(startValues(h)).toEqual([1750]);
@@ -181,7 +181,7 @@ describe("scale handles", () => {
     const h = setup.handles[0];
     expect(valueAt(h, [150 + 700 * 0.3, 300], [1750])).toEqual([1730]);
     const patch = patchFor(s, setup, [[1730]]);
-    const text = patch.elements!.find((e) => e.id === "born_value_text")!;
+    const text = patch.elements!.find((e) => e.id === "born_answer_num")!;
     expect(text.text).toBe("1730");
     expect(text.x).toBeCloseTo(150 + 700 * 0.3);
   });
