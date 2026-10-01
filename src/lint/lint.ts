@@ -2,6 +2,8 @@
 // IR, so every backend gets the same report and the results feed the LLM
 // repair round as structured text.
 
+import { guessParts } from "../guess/handles";
+import type { SpecWithScales } from "../spec/scale";
 import { parseTarget } from "../links/resolve";
 import { CANVAS } from "../layout/canvas";
 import { MATH_DEFAULT_SIZE } from "../layout/math";
@@ -134,6 +136,8 @@ export interface LintIssue {
     | "inset-count"
     /** an ask bound to the spec's template, whose document has no widget body */
     | "widget"
+    /** a guess on the figure (ask.on) that cannot be asked fairly: nothing to guess, or the answer already drawn */
+    | "guess"
     /** a draw naming an id the template DECLARES (element_ids) but did not draw under these params — a region without its `regions` entry, say */
     | "template-id-off"
     /** a highlight `part` that names no glyph or text in its targets (the whole target lights instead) */
@@ -996,6 +1000,47 @@ function lintWidget(spec: Spec): LintIssue[] {
 }
 
 /**
+ * Guesses on the figure (spec 2026-10-01-guess-and-reveal): `on` must name
+ * something guessable here, and the guessed part must not be on screen yet —
+ * a viewer asked to guess a bar they can already see is reading, not guessing.
+ */
+function lintGuess(spec: Spec): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const commands = spec.commands ?? [];
+  const scales = new Set(((spec as SpecWithScales).scales ?? []).map((sc) => sc.id));
+  const pops = (spec.elements ?? []).filter((e) => e.type === "population");
+  commands.forEach((c, i) => {
+    if (c.ask?.on === undefined) return;
+    for (const part of guessParts(spec, c.ask.on)) {
+      // What must stay undrawn for this part, or null when nothing here is guessable by that name.
+      let hidden: string[] | null = null;
+      if (/^bar_\d+$/.test(part) && spec.template === "bar_chart") {
+        if (Array.isArray(spec.params?.["series"])) {
+          issues.push({ rule: "guess", ids: [part], message: `ask on: "${part}" — grouped or stacked bars cannot be guessed yet; give the chart one series (values)`, severity: "error" });
+          continue;
+        }
+        hidden = [part];
+      } else if (/^line_\d+$/.test(part) && spec.template === "line_chart") hidden = [part];
+      else if ((part === "pie" || /^slice_\d+$/.test(part)) && spec.template === "pie_chart") hidden = [part === "pie" ? "slice_1" : part];
+      else if (scales.has(part)) hidden = [`${part}_value`, `${part}_value_mark`, `${part}_value_text`];
+      else {
+        const pop = pops.find((e) => part.startsWith(`${e.id}_`) && Object.keys(e.states ?? {}).some((k) => `${e.id}_${k}`.toLowerCase() === part.toLowerCase()));
+        if (pop) hidden = [pop.id, part];
+      }
+      if (hidden === null) {
+        issues.push({ rule: "guess", ids: [part], message: `ask on: "${part}" is not something to guess here — a bar_chart bar (bar_2), a line_chart line (line_1), a pie_chart slice (slice_1), a population state (crowd_sick) or a scale's id`, severity: "error" });
+        continue;
+      }
+      const shown = hidden.find((id) => connectVisibility(commands, i, id).visible);
+      if (shown) {
+        issues.push({ rule: "guess", ids: [shown], message: `ask on: "${part}" is already drawn before the question (${shown}) — the viewer would read the answer instead of guessing it; draw it after the ask (the ask reveals it)`, severity: "warn" });
+      }
+    }
+  });
+  return issues;
+}
+
+/**
  * Screen-first lint (spec principle 1): the canvas must start fast and keep
  * moving. Deterministic, spec-level — feeds the same report as lintLayout so
  * the LLM repair round self-corrects talky storyboards.
@@ -1117,7 +1162,7 @@ export function lintBook(spec: Spec): LintIssue[] {
 
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec)];
 
   // A link whose href names nothing the resolver can read draws, but never
   // opens (links/resolve.ts decides the forms a target may take).
