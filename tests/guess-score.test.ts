@@ -70,3 +70,13 @@ describe("guess variables", () => {
     expect(v["g.true"]).toBeUndefined();
   });
 });
+
+describe("a sketched line: how far off in its own units", () => {
+  test("{g.off} is the mean miss and {g.max} the biggest", () => {
+    const hs = [h([46, 56, 64, 70], 0, 90)];
+    const guess = [[46, 52, 58, 61]];
+    const v = guessVars("g", hs, guess, scoreGuess(hs, guess));
+    expect(v["g.off"]).toBe("5"); // (0 + 4 + 6 + 9) / 4 = 4.75 → 5 at step 1
+    expect(v["g.max"]).toBe("9");
+  });
+});

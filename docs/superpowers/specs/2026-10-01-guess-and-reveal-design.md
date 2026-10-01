@@ -317,3 +317,11 @@ Changes against the sections above, decided while building:
   centred at the bottom of the figure in the guess colour, the caption
   stepping up over it; Skip moved to the top right. The right/wrong line is
   spoken as the 0.8 s reveal starts, not after it.
+- **Lines, revised 2026-10-02** (Hans on the life-expectancy example):
+  the given part of a line not yet drawn draws itself in (2.2 s, the
+  chart's own prefix stages) while the question is read — put the facts
+  of the given years in the ask's `intro`; line charts write a tick and the
+  number under each x when 3–12 of them fit (`x_ticks: false` keeps the
+  ends); a sketched line's reveal draws a connector at each x from the
+  guess to the truth and "±N avg" by the last point, and `{g.off}` /
+  `{g.max}` give the average and biggest miss in the chart's units.

@@ -73,6 +73,7 @@ export function guessText(handles: GuessHandle[], values: number[][], s: GuessSc
  * {g.within}, {g.count}. Keys are lower-case and carry the store prefix.
  */
 export function guessVars(store: string, handles: GuessHandle[], _values: number[][], s: GuessScore): Record<string, string> {
+  // _values: the guess (read for the off/max of several numbers).
   const base = store.toLowerCase();
   const out: Record<string, string> = {
     [`${base}.within`]: String(s.within),
@@ -86,6 +87,15 @@ export function guessVars(store: string, handles: GuessHandle[], _values: number
     if (s.pct !== null) out[`${base}.pct`] = `${Math.round(s.pct)}%`;
   } else {
     out[`${base}.pct`] = `${Math.round(s.meanFrac * 100)}%`;
+    // How far off in the figure's own units (a sketched line: "4 years off
+    // on average", the biggest miss), when all the numbers share one axis.
+    const diffs = handles.flatMap((h, k) => h.truth.map((t, j) => Math.abs((_values[k]?.[j] ?? t) - t)));
+    const sameAxis = handles.every((h) => h.min === handles[0].min && h.max === handles[0].max);
+    if (diffs.length > 0 && sameAxis) {
+      const f = handles[0].format;
+      out[`${base}.off`] = f(diffs.reduce((a, b) => a + b, 0) / diffs.length);
+      out[`${base}.max`] = f(Math.max(...diffs));
+    }
   }
   return out;
 }

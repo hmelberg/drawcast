@@ -226,3 +226,19 @@ describe("encoding", () => {
     expect(defaultGuess("x", setup.handles)).toBeNull();
   });
 });
+
+describe("line chart: year ticks and the draw-in path", () => {
+  test("each data x gets a tick and its number when they fit", () => {
+    const l = layoutSpec(expandSpec({ template: "line_chart", params: { x: [1900, 1925, 1950, 1970, 1990, 2010, 2019], values: [32, 37, 46, 56, 64, 70, 73] }, commands: [] } as Spec));
+    const texts = JSON.stringify(l.drawables);
+    for (const y of ["1925", "1950", "1970", "1990", "2010"]) expect(texts).toContain(`"${y}"`);
+  });
+  test("x_ticks: false keeps the ends only", () => {
+    const l = layoutSpec(expandSpec({ template: "line_chart", params: { x: [1900, 1925, 1950, 1970], values: [1, 2, 3, 4], x_ticks: false }, commands: [] } as Spec));
+    expect(JSON.stringify(l.drawables)).not.toContain('"1925"');
+  });
+  test("an unstaged series gives the draw-in its values path", () => {
+    const { setup } = setupFor({ template: "line_chart", params: { x: [2000, 2005, 2010, 2015], series: [{ name: "a", values: [1, 2, 3, 4] }] }, commands: [] } as Spec, "line_1", 2010);
+    expect(setup.handles[0].rowPath).toBe("series.0.values");
+  });
+});

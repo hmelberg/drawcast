@@ -69,6 +69,9 @@ export interface GuessHandle {
    *  the sketch are given (their values in `given`). */
   xs?: number[];
   given?: { x: number; v: number }[];
+  /** curve on an unstaged series: the series' values path ("values",
+   *  "series.1.values") — the draw-in paints its prefix through it. */
+  rowPath?: string;
   /** count: the crowd's box (logical); angle: the pie's centre and radius. */
   box?: BBox;
   centre?: Pt;
@@ -287,6 +290,8 @@ function lineHandle(
     toDomain,
     xs: idx.map((j) => xsAll[j]),
     given,
+    // A staged series' prefix is the author's to draw; an unstaged one the guess draws in.
+    ...(Array.isArray(src["values"]) && !Array.isArray((src["values"] as unknown[])[0]) ? { rowPath: cur.at } : {}),
   };
 }
 

@@ -72,6 +72,21 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1): Gu
           if (p) pts.push(p);
         });
         if (pts.length >= 2) lines.push({ pts, dashed: true });
+        // The gap, point by point: a connector from each guessed point to the
+        // true one, and the average miss written by the last point.
+        if (t > 0 && h.toLogical && h.xs) {
+          let sum = 0;
+          let top: Pt | null = null;
+          h.xs.forEach((x, j) => {
+            const gv = g[j] ?? h.truth[j];
+            const a = h.toLogical!([x, gv]);
+            const b = h.toLogical!([x, gv + (h.truth[j] - gv) * t]);
+            if (Math.abs(b[1] - a[1]) > 2) lines.push({ pts: [a, b] });
+            sum += Math.abs(h.truth[j] - gv);
+            top = [a[0], Math.max(a[1], b[1])];
+          });
+          if (t >= 1 && top) texts.push({ at: [(top as Pt)[0], (top as Pt)[1] + 24], text: `±${h.format(sum / h.xs.length)} avg`, anchor: "middle" });
+        }
         break;
       }
       case "angle": {

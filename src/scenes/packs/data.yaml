@@ -737,6 +737,9 @@ params:
     points:
       type: boolean
       description: "Dots at the data points (default false)."
+    x_ticks:
+      type: boolean
+      description: "Tick and number under each x value when they fit (default: on, for 3–12 numeric x values). false: the two ends only."
     smooth:
       type: boolean
       description: "Catmull–Rom smoothing through the points (default false; keep off for step-like data)."
@@ -1226,6 +1229,26 @@ layout: |
     // yMin/yMax, never the data's own first and last).
     axesChildren.push(kit.text("axes__x0", [X(0), plot.y0 - 20], fmtX(clamp(xs[0], xMin, xMax)), { fontSize: 15, anchor: "start", color: C.guide }));
     axesChildren.push(kit.text("axes__x1", [X(n - 1), plot.y0 - 20], fmtX(clamp(xs[n - 1], xMin, xMax)), { fontSize: 15, color: C.guide }));
+    // The x values in between (2026-10-02, Hans: "the x axis should have the
+    // years mentioned"): each data x gets a tick and its number when they
+    // fit — few points, the whole span in view, a label's width apart from
+    // its neighbours (ends kept). x_ticks: false keeps the ends only.
+    const inView = xs.every((v) => v >= xMin && v <= xMax);
+    if (params.x_ticks !== false && inView && n >= 3 && n <= 12) {
+      const w = (v) => kit.textWidth(fmtX(v), 15);
+      const firstEdge = X(0) + w(xs[0]);
+      const lastEdge = X(n - 1) - w(xs[n - 1]) / 2;
+      let prevEdge = firstEdge;
+      const tick = (k) => kit.stroke("axes__xk" + k, [[X(k), plot.y0], [X(k), plot.y0 - 7]], { color: C.guide, strokeWidth: 2, ms: MS.guides });
+      axesChildren.push(tick(0), tick(n - 1));
+      for (let k = 1; k < n - 1; k++) {
+        const half = w(xs[k]) / 2;
+        if (X(k) - half < prevEdge + 12 || X(k) + half > lastEdge - 12) continue;
+        axesChildren.push(tick(k));
+        axesChildren.push(kit.text("axes__xt" + k, [X(k), plot.y0 - 20], fmtX(xs[k]), { fontSize: 15, color: C.guide }));
+        prevEdge = X(k) + half;
+      }
+    }
   }
   axesChildren.push(kit.text("axes__y0", [plot.x0 - 12, plot.y0], fmtY(yMin), { fontSize: 15, anchor: "end", color: C.guide }));
   axesChildren.push(kit.text("axes__y1", [plot.x0 - 12, plot.y1], fmtY(yMax), { fontSize: 15, anchor: "end", color: C.guide }));

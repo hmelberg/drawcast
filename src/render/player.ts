@@ -105,6 +105,8 @@ export interface Reprojector {
 
 /** The glide from a guess to the truth. */
 const GUESS_REVEAL_MS = 800;
+/** A line's given part drawing itself in before the viewer draws on. */
+const GIVEN_DRAW_MS = 2200;
 /** A revised guess's earlier one: the guess colour, faded. */
 const GUESS_PREV_COLOR = "#9fb6d8";
 
@@ -1294,6 +1296,11 @@ export class Player {
     this.guessMarkParts.set(owner, marked);
     this.guessMarkParts.set(`${owner}_prev`, marked);
     const paint = this.guessPainter(setup, before, visible, owner);
+    // A line not drawn yet: its given part draws itself in while the
+    // question is read, before the viewer takes over (Hans 2026-10-02:
+    // "it should draw the first part of the line while talking").
+    if (!step.predict) await this.drawGivenIn(setup, before, visible, signal);
+    if (signal.aborted) return;
     // Where the guess starts: the present (predict), the earlier guess
     // (revise), an even split (budget), else the handle's own start.
     const prev = step.revise !== undefined ? this.guessMemory.get(step.revise.toLowerCase()) : undefined;
@@ -1400,6 +1407,28 @@ export class Player {
       const target = ok ? step.rightGoto : step.wrongGoto;
       if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
     }
+  }
+
+  /**
+   * The given part of each sketched line that is not on screen yet, drawn
+   * in point by point — as the line chart draws a series given prefix by
+   * prefix (stages of growing length, the stage swept).
+   */
+  private async drawGivenIn(setup: GuessSetup, before: SceneState, visible: ReadonlySet<string>, signal: AbortSignal): Promise<void> {
+    const rp = this.reprojector;
+    if (!rp) return;
+    const lines = setup.handles.filter((h) => h.kind === "curve" && h.rowPath && (h.given?.length ?? 0) >= 2 && !before.visible.includes(h.part));
+    if (lines.length === 0) return;
+    const sceneParams = this.withVarOverrides(before.params);
+    if ("stage" in sceneParams) return; // a staged chart: its stages are the author's
+    const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
+    const m = Math.max(...lines.map((h) => h.given!.length));
+    const prefixes: Record<string, unknown> = { ...setup.pin };
+    for (const h of lines) prefixes[h.rowPath!] = h.given!.map((_, k) => h.given!.slice(0, k + 1).map((p) => p.v));
+    await this.progress(GIVEN_DRAW_MS, signal, (t) => {
+      rp.frame({ ...sceneParams, ...prefixes, stage: smoothstep(t) * (m - 1) }, this.frameScene(before, visible), { revealNew: true, overrides });
+      this.geometryDirty = true;
+    });
   }
 
   /** The next animate after step `index`, before any other question; -1 if none. */

@@ -77884,21 +77884,19 @@
           "draw": [
             "axes"
           ],
-          "speak": "In 1900, a child born anywhere in the world could expect to live about thirty-two years on average."
-        },
-        {
-          "speak": "By 1950, after two world wars, that had risen to about forty-six."
+          "speak": "Here is how long people can expect to live, across the whole world, since 1900."
         },
         {
           "ask": {
-            "question": "What happened next? Draw the line on from 1950 to today.",
+            "intro": "In 1900, a newborn could expect about thirty-two years. By 1950, after two world wars, about forty-six.",
+            "question": "What happened next? Draw the line on to today.",
             "on": "line_1",
             "from": 1970,
             "store": "g",
             "default": "50,54,58,60",
-            "tolerance": 0.06,
-            "right": "That is the shape: up about a year every three, to seventy-three.",
-            "wrong": "It rose faster than most people draw it: about a year every three, to seventy-three."
+            "tolerance": 0.04,
+            "right": "Close: on average you were {g.off} years off. It rose about a year every three, to seventy-three.",
+            "wrong": "On average you were {g.off} years off, at most {g.max}. It rose faster than most people draw it: about a year every three, to seventy-three."
           }
         },
         {
