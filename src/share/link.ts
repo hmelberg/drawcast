@@ -19,11 +19,23 @@ export const COMMENT_MAX = 280;
 /** Facebook and LinkedIn refuse pre-filled post text by policy. */
 export const TAKES_TEXT: Record<Platform, boolean> = { facebook: false, linkedin: false, x: true, bluesky: true, whatsapp: true, email: true };
 
+// netlify/lib/share-card.mts parseSharePath's gh rule, copied (the app does
+// not import netlify/; tests/share-link.test.ts runs every /c/ link made here
+// back through parseSharePath so the two cannot drift). A path it refuses
+// would send a person to the front page, so such a cast keeps its # link.
+const GH_PART_RE = /^[\w.-]+$/;
+
+function cardableGh(path: string): boolean {
+  if (path.includes("%") || !/\.ya?ml$/i.test(path)) return false;
+  const parts = path.split("/");
+  return parts.length >= 3 && parts.every((p) => GH_PART_RE.test(p) && p !== "." && p !== "..");
+}
+
 export function shareLinkFor(hash: string, origin = "https://drawcast.app"): ShareLink | null {
   const head = hash.replace(/^#/, "").split("&", 1)[0];
   if (!head) return null;
-  const gh = /^gh[=-]([\w.-]+\/[\w.-]+\/[^&\s]+\.ya?ml)$/i.exec(head);
-  if (gh) return { url: `${origin}/c/gh/${gh[1]}`, card: true };
+  const gh = /^gh[=-](.+)$/i.exec(head);
+  if (gh) return cardableGh(gh[1]) ? { url: `${origin}/c/gh/${gh[1]}`, card: true } : { url: `${origin}/#gh=${gh[1]}`, card: false };
   const plain = /^(anvil|gdrive)[=-](.+)$/.exec(head);
   if (plain) return { url: `${origin}/#${plain[1]}=${plain[2]}`, card: false };
   const name = nameInHash(`#${head}`);

@@ -3,6 +3,7 @@
 // wherever a card is possible, the plain # link where it is not, nothing for
 // a cast that lives only in its own link.
 import { describe, expect, test } from "vitest";
+import { parseSharePath } from "../netlify/lib/share-card.mts";
 import { COMMENT_MAX, platformUrl, shareLinkFor, TAKES_TEXT } from "../src/share/link";
 
 describe("shareLinkFor", () => {
@@ -20,6 +21,23 @@ describe("shareLinkFor", () => {
   });
   test("nothing to share for a cast inside its link, a paste, or no hash", () => {
     for (const h of ["#cast=eJx", "#paste", "", "#"]) expect(shareLinkFor(h), h).toBeNull();
+  });
+  test("a gh path the /c/ parser would refuse keeps its # link, with no card", () => {
+    for (const p of ["ann/casts/a%20b.yaml", "ann/casts/a b.yaml", "ann/casts/../x.yaml", "ann/casts/./x.yaml", "ann/casts/é.yaml", "ann/casts/a//b.yaml"]) {
+      expect(shareLinkFor(`#gh=${p}`), p).toEqual({ url: `https://drawcast.app/#gh=${p}`, card: false });
+    }
+  });
+  test("every /c/ link it hands out is one the card function parses back to the same cast (the two rules cannot drift)", () => {
+    const hashes = ["#vaccines", "#learn-russian/3", "#gh=ann/casts/casts/herd.yaml", "#gh-ann/casts/x.yml", "#gh=a.b/c_d/e-f/g.h.YAML", "#gh=ann/casts/a%20b.yaml", "#gh=ann/casts/../x.yaml", "#gh=ann/casts/a b.yaml", "#gh=ann/casts/./x.yaml"];
+    for (const h of hashes) {
+      const link = shareLinkFor(h);
+      expect(link, h).not.toBeNull();
+      if (!link!.card) continue;
+      const t = parseSharePath(new URL(link!.url).pathname, "/c/");
+      expect(t, h).not.toBeNull();
+      const back = t!.kind === "name" ? `#${t!.name}` : `#gh=${t!.owner}/${t!.repo}/${t!.path}`;
+      expect(back, h).toBe(h.replace(/^#gh-/, "#gh="));
+    }
   });
   test("the origin is the one given", () => {
     expect(shareLinkFor("#vaccines", "http://localhost:8888")?.url).toBe("http://localhost:8888/c/vaccines");
