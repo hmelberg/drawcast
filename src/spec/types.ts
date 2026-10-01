@@ -261,6 +261,8 @@ export interface SpecElement {
   equalize?: boolean;
   /** math: LaTeX, drawn as handwriting. label: LaTeX instead of text. */
   tex?: string;
+  /** internal: the answer shown in each `\blank` box (written by the player through element patches). */
+  fills?: (string | null)[];
   /** math: font size, the same units as text font_size (default 28); scaled by text.font_size like every text. icon: box size in logical units (default 100). */
   size?: number;
   /** math: colour per term, a TeX snippet → colour; every occurrence, deepest match wins. */
@@ -934,6 +936,19 @@ export interface AskArgs {
   /** Guess: false = an opinion, nothing is right or wrong; the reveal shows
    *  the figure's own values as the reference and `right` is spoken (§7). */
   judge?: boolean;
+  /** Tree (spec 2026-10-03 §4): the tree parts the viewer fills in —
+   *  value_<node>, branchlabel_<parent>_<child>, effect_<node>, cost_<node>. */
+  blanks?: string[];
+  /** Tree: the decision node whose best branch the viewer taps. */
+  pick?: string;
+  /** Tree: working lines under wrong blanks (default), "all", or false. */
+  work?: "all" | false;
+  /** Market guess: what "right" means — direction, shape (default), size. */
+  check?: "direction" | "shape" | "size";
+  /** Formula: wrong tiles; the right contents are always tiles. */
+  others?: string[];
+  /** Formula, typed: "exact" compares the written form, not the value. */
+  form?: "exact";
 }
 
 export interface QuizArgs {

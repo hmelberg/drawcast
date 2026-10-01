@@ -122,6 +122,12 @@ export type PlanStep = (
       revise?: string;
       budget?: number;
       judge?: false;
+      /** Round 4 (spec 2026-10-03): a tree to fill, a formula to fill, a market check. */
+      tree?: { blanks: string[]; pick?: string; work?: "all" | false };
+      formula?: string;
+      check?: "direction" | "shape" | "size";
+      others?: string[];
+      form?: "exact";
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -383,6 +389,8 @@ export interface PlanOptions {
   /** Cards to rank or sort (spec 2026-10-01-rank-and-sort): for a cards
    *  element's id, its card ids and where each stands once the question is
    *  answered (its true place, as an offset from where it is drawn). */
+  /** A math element with \blank boxes to fill (spec 2026-10-03 §5): how many. */
+  formulaFor?: (id: string) => { blanks: number } | null;
   cardsFor?: (id: string) => { cards: string[]; offsets: Record<string, Pt>; shows?: string[] } | null;
   /** This cast is a book's part: highlight/erase/point on an id that is not
    *  an element target the text pane (an earlier part's block included). */
@@ -1343,7 +1351,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // there — at the truth — once it ends, like the drag widget's items.
       let guess: { parts: string[]; shows: string[] } | undefined;
       // Cards: after the question every card stands in its true place.
-      const oneOn = typeof cmd.ask.on === "string" ? cmd.ask.on : Array.isArray(cmd.ask.on) && cmd.ask.on.length === 1 ? cmd.ask.on[0] : undefined;
+      const treeAsk = cmd.ask.blanks !== undefined || cmd.ask.pick !== undefined;
+      const oneOn = treeAsk || cmd.ask.on === "tree" ? undefined : typeof cmd.ask.on === "string" ? cmd.ask.on : Array.isArray(cmd.ask.on) && cmd.ask.on.length === 1 ? cmd.ask.on[0] : undefined;
+      const formula = oneOn !== undefined ? (opts.formulaFor?.(oneOn) ?? null) : null;
       const cardSet = oneOn !== undefined ? (opts.cardsFor?.(oneOn) ?? null) : null;
       if (cardSet) {
         for (const id of cardSet.cards) {
@@ -1358,7 +1368,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const shows = (cardSet.shows ?? []).filter((id) => known.has(id));
         shows.forEach((id) => mentioned.add(id));
         makeVisible(shows);
-      } else if (cmd.ask.on !== undefined) {
+      } else if (cmd.ask.on !== undefined && !treeAsk && cmd.ask.on !== "tree" && !formula) {
         guess = opts.guessParts?.(cmd.ask.on, cmd.ask.from) ?? { parts: [], shows: [] };
         if (guess.parts.length === 0) warnings.push(`ask on: nothing to guess in ${JSON.stringify(cmd.ask.on)} (the question is asked as typing instead)`);
         const shown = guess.shows.flatMap((id) => expandOne(id, "ask", true));
@@ -1399,6 +1409,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // one question cannot be answered on two devices.
         ...(cmd.ask.code === undefined && cmd.ask.widget !== undefined && !(BUILTIN_WIDGETS as readonly string[]).includes(cmd.ask.widget) ? { widgetTemplate: true as const } : {}),
         ...(cmd.ask.code !== undefined && cmd.ask.expect !== undefined ? { expect: cmd.ask.expect } : {}),
+        ...(treeAsk
+          ? { tree: { blanks: cmd.ask.blanks ?? [], ...(cmd.ask.pick !== undefined ? { pick: cmd.ask.pick } : {}), ...(cmd.ask.work !== undefined ? { work: cmd.ask.work } : {}) }, tolerance: cmd.ask.tolerance ?? 0.02 }
+          : {}),
+        ...(formula && oneOn !== undefined ? { formula: oneOn, tolerance: cmd.ask.tolerance ?? 0.02, ...(cmd.ask.others ? { others: cmd.ask.others } : {}), ...(cmd.ask.form ? { form: cmd.ask.form } : {}) } : {}),
+        ...(cmd.ask.check !== undefined ? { check: cmd.ask.check } : {}),
         ...(cardSet && oneOn !== undefined ? { cards: oneOn, tolerance: cmd.ask.tolerance ?? 0 } : {}),
         ...(guess && guess.parts.length > 0
           ? { on: guess.parts, tolerance: cmd.ask.tolerance ?? 0.1, ...(cmd.ask.from !== undefined ? { from: cmd.ask.from } : {}), ...(cmd.ask.relative === true ? { relative: true } : {}), ...(cmd.ask.release === false ? { release: false } : {}), ...(cmd.ask.predict === true ? { predict: true as const } : {}), ...(cmd.ask.revise !== undefined ? { revise: cmd.ask.revise } : {}), ...(cmd.ask.budget !== undefined ? { budget: cmd.ask.budget } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) }

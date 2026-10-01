@@ -319,6 +319,7 @@ const elementSchema = {
       description: "group: scale and centre the members into this region or box (aspect kept). population: the region or box it fills (legend included).",
     },
     tex: { type: "string", description: "math: LaTeX, drawn as handwriting; {v} writes var v's value, live (an argument needs {{v}}: \\frac{{B}}{…}, ^{{t}}). label: LaTeX instead of text." },
+    fills: { type: "array", items: { oneOf: [{ type: "string" }, { type: "null" }] }, description: "internal: the answer shown in each \\blank box of a math element (written by the player)." },
     size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26). link: card width (300)." },
     symbol: { type: "string", enum: [...MUSIC_SYMBOLS], description: "music: the symbol, drawn from a real music font — notes join their stems exactly. x/y is its centre (a note's head)." },
     stem: { type: "string", enum: ["up", "down"], description: "music: a note's stem direction (default up)." },
@@ -889,6 +890,12 @@ const commandSchema = {
         revise: { type: "string", description: "With `on`: start from an earlier guess on the same part (that ask's store), made with reveal: false — guess, show new evidence, guess again; the reveal shows both guesses and the truth. {store.moved} is how far they moved." },
         budget: { type: "number", exclusiveMinimum: 0, description: "With on: \"all\" on a bar_chart (or a whole pie): the viewer SPLITS this total — raising one bar lowers the others, the sum always equals the budget. Pair with judge: false for 'how would you split it?'. {store.<bar_k>} keeps each share, {store.biggest} the label given most." },
         judge: { type: "boolean", description: "With `on`: false = an opinion with no right answer — no score, `right` is spoken whatever the guess, and the reveal shows the figure's own values as the reference (what is actually done)." },
+        blanks: { type: "array", minItems: 1, items: { type: "string" }, description: "Tree: the parts of a decision_tree the viewer fills in — value_<node>, branchlabel_<parent>_<child>, effect_<node>, cost_<node>." },
+        pick: { type: "string", description: "Tree: the decision node whose best branch the viewer taps." },
+        work: { oneOf: [{ type: "string", enum: ["all"] }, { const: false }], description: "Tree: working lines under wrong blanks (default), \"all\" for every blank, or false for none." },
+        check: { type: "string", enum: ["direction", "shape", "size"], description: "Market guess (with `on` a supply or demand curve): what right means — direction, shape (default) or size." },
+        others: { type: "array", items: { type: "string" }, description: "Formula (on a math element with \\blank): wrong tiles; the right contents are always tiles." },
+        form: { const: "exact", description: "Formula, typed: \"exact\" compares the written form, not the value." },
         release: { type: "boolean", description: "With `on`: letting go of the drag is the answer (default true). false shows an Answer button, so the viewer can adjust before answering — for a careful estimate. Several parts (on: all, a whole pie) always get the button." },
         relative: { type: "boolean", description: "With `on`: tolerance is a fraction of the true value (within 20 % = tolerance 0.2) — for money and other quantities spanning orders of magnitude." },
         code: {
@@ -1835,7 +1842,8 @@ function semanticErrors(spec: Spec): string[] {
       }
       // A guess on the figure (spec 2026-10-01-guess-and-reveal): the truth is
       // the figure's own number, so no answer; right/wrong are its feedback.
-      const isGuess = a.on !== undefined;
+      const isTree = a.blanks !== undefined || a.pick !== undefined;
+      const isGuess = a.on !== undefined && !isTree;
       if (isGuess) {
         const onOk = typeof a.on === "string" ? a.on.trim() !== "" : Array.isArray(a.on) && a.on.length > 0 && a.on.every((x) => typeof x === "string" && x.trim() !== "");
         if (!onOk) errors.push(`commands[${i}]: ask.on must name a part (bar_2, line_1, slice_1, crowd_sick, a scale's id), a list of them, or "all"`);
@@ -1846,7 +1854,7 @@ function semanticErrors(spec: Spec): string[] {
       } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.revise !== undefined || a.budget !== undefined || a.judge !== undefined) {
         errors.push(`commands[${i}]: ask.from, relative, release, predict, revise, budget and judge only apply to a guess (with on)`);
       }
-      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess) {
+      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && a.on === undefined) {
         errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);
       }
       if (a.answer !== undefined && (typeof a.answer !== "string" || a.answer.trim().length === 0)) {
