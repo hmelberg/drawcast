@@ -13,7 +13,7 @@ import { answersMatch, AUTO_NAMESPACE, subVars } from "../spec/answers";
 import { notationBeats } from "../spec/notation";
 import { ACTIVITY_QUESTIONS } from "../spec/types";
 import type { LayoutResult } from "../layout/layout";
-import { heldFrom, sceneAt } from "./plan";
+import { heldFrom, posterOf, sceneAt } from "./plan";
 import { breathAfterMs } from "./breath";
 import { FOCUS_DIM, type BackendEffects, type RenderedElement } from "./backend";
 import { EASINGS, lerpBox, pointerPath } from "./effects";
@@ -790,9 +790,21 @@ export class Player {
     // shadow a walk or a fade left the earlier items in. Erased things stay
     // erased: that was the author's choice. Playing moves on from here as
     // from any boundary.
-    const end = this.stateAt(this.plan.steps.length);
+    //
+    // A cast whose asks answer on the figure (a tree, a formula, a guess,
+    // cards) would give its answers away in that drawing: its poster is the
+    // boundary before the first such ask, the trees' best and prune marks
+    // still to be asked about left out (plan.ts posterOf). The playhead
+    // stays at the end, so Play still starts from the beginning.
+    const poster = posterOf(this.plan);
+    const end = this.stateAt(poster.at);
+    if (poster.at < this.plan.steps.length) {
+      this.restoreFormulaFills(poster.at);
+      this.applyKey(end);
+    }
     this.endMarks();
-    this.applyScene({ ...end, camera: null, opacities: {} });
+    const hide = new Set(poster.hide);
+    this.applyScene({ ...end, visible: end.visible.filter((id) => !hide.has(id)), camera: null, opacities: {} });
     this.showCaption("");
   }
 

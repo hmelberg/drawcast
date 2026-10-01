@@ -166,3 +166,28 @@ describe("market copy marks (fix wave item 4)", async () => {
     expect((Math.max(...xs) - Math.min(...xs)) / 2).toBeGreaterThanOrEqual(10);
   });
 });
+
+describe("the poster keeps the answers back (fix wave item 6)", async () => {
+  const { posterOf } = await import("../src/render/plan");
+  test("a cast with no answer on the figure: the poster is the finished drawing", () => {
+    const plan = planCommands([{ draw: ["a"] }, { speak: "Hi." }, { draw: ["b"] }], ["a", "b"], {});
+    expect(posterOf(plan)).toEqual({ at: plan.steps.length, hide: [] });
+  });
+  test("a tree pick: the poster is the boundary before the first answer-on-the-figure ask, without the best and prune marks", () => {
+    const ids = ["edge_start_a", "best_start_a", "prune_start_b", "value_a", "n"];
+    const plan = planCommands(
+      [{ draw: ids.slice(0, 4) }, { speak: "Which?" }, { ask: { question: "Pick", pick: "start", store: "c" } }, { draw: ["n"] }],
+      ids,
+      {},
+    );
+    const p = posterOf(plan);
+    expect(p.at).toBe(2);
+    expect(p.hide.sort()).toEqual(["best_start_a", "prune_start_b"]);
+  });
+  test("a formula ask and a guess ask count too", () => {
+    const f = planCommands([{ draw: ["area"] }, { ask: { question: "Fill", on: "area", others: ["d"] } }], ["area", "area_blank_1"], { formulaFor: (id) => (id === "area" ? { blanks: 1 } : null) });
+    expect(posterOf(f).at).toBe(1);
+    const g = planCommands([{ draw: ["bar"] }, { speak: "Guess." }, { ask: { question: "How tall?", on: "bar" } }], ["bar"], { guessParts: () => ({ parts: ["bar"], shows: ["bar"] }) });
+    expect(posterOf(g).at).toBe(2);
+  });
+});

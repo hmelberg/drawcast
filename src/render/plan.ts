@@ -336,6 +336,29 @@ export function sceneAt(plan: Plan, n: number): SceneState {
   return boundaryAt(plan, held !== null && n > held ? held : n);
 }
 
+/**
+ * The poster (the frame shown before Play): the finished drawing — unless an
+ * ask's answer is drawn on the figure (a tree to fill or pick, a formula to
+ * fill, a guess on a part, cards to place). Then the finished drawing would
+ * give the answers away (the best branch, the 7 years, the right tile in
+ * its box), so the poster is the boundary before the first such ask, with
+ * the best and prune marks of every tree decision still to be asked about
+ * left out (fix wave 2026-10-03).
+ */
+export function posterOf(plan: Plan): { at: number; hide: string[] } {
+  const first = plan.steps.findIndex((s) => s.kind === "ask" && (s.tree !== undefined || s.formula !== undefined || s.cards !== undefined || (s.on !== undefined && s.on.length > 0)));
+  if (first < 0) return { at: plan.steps.length, hide: [] };
+  const nodes = new Set<string>();
+  for (const s of plan.steps.slice(first)) {
+    if (s.kind !== "ask" || !s.tree) continue;
+    if (s.tree.pick !== undefined) nodes.add(s.tree.pick);
+    for (const b of s.tree.blanks) if (b.startsWith("value_")) nodes.add(b.slice("value_".length));
+  }
+  const visible = sceneAt(plan, first).visible;
+  const hide = visible.filter((id) => [...nodes].some((n) => id.startsWith(`best_${n}_`) || id.startsWith(`prune_${n}_`)));
+  return { at: first, hide };
+}
+
 export interface Plan {
   steps: PlanStep[];
   /** states[i] = scene state after steps[0..i] have completed. */

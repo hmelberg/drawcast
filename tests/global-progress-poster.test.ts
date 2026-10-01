@@ -32,8 +32,11 @@ describe("the counter and the bar count the whole cast", () => {
 describe("the poster is the finished drawing", () => {
   test("the end state, repainted with the whole page in view and nothing dimmed", () => {
     const at = player.indexOf("showPoster(): void {");
-    const body = player.slice(at, at + 1200);
+    const body = player.slice(at, at + 2400);
     expect(body).toMatch(/this\.renderUpTo\(this\.plan\.steps\.length\);/);
-    expect(body).toMatch(/this\.applyScene\(\{ \.\.\.end, camera: null, opacities: \{\} \}\);/);
+    // …the end state, or the boundary before the first ask answered on the
+    // figure (posterOf, fix wave 2026-10-03): never the answers.
+    expect(body).toMatch(/const end = this\.stateAt\(poster\.at\);/);
+    expect(body).toMatch(/this\.applyScene\(\{ \.\.\.end, visible: [^;]*, camera: null, opacities: \{\} \}\);/);
   });
 });
