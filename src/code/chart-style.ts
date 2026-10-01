@@ -31,7 +31,7 @@ export type ChartStyle = (typeof CHART_STYLES)[number];
  * render/sweep-run.ts, the tray through RenderHandle.style): it costs one
  * argument, and the next ruling about a style may well use it.
  */
-export function defaultChartStyle(_render: "sketchy" | "clean" | undefined): ChartStyle {
+export function defaultChartStyle(_render: "sketchy" | "clean" | "mixed" | undefined): ChartStyle {
   return "xkcd";
 }
 
@@ -74,7 +74,7 @@ export function styled(code: string, language: string): boolean {
  */
 export function chartFor(
   el: { chart?: unknown; feel?: unknown; show?: unknown; pane?: unknown },
-  render?: "sketchy" | "clean",
+  render?: "sketchy" | "clean" | "mixed",
 ): ChartStyle {
   if (isChartStyle(el.chart)) return el.chart;
   const codeShown = ["left", "right", "above", "below", "code"].includes(String(el.show)) && el.pane !== "controls";

@@ -824,7 +824,7 @@ const templatesOnDemandMaxInput = h("input", {
 templatesOnDemandMaxInput.value = String(settings.templatesOnDemandMax);
 
 const styleSel = h("select", { title: "Drawing style" });
-styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "sketchy" }, "Hand-drawn"));
+styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "mixed" }, "Clean lines, hand fills"), h("option", { value: "sketchy" }, "Hand-drawn"));
 styleSel.value = settings.style;
 // The viewer's text override (Settings → Playback): a base size and a CSS
 // generic family, or "" to follow the drawcast. Applied wherever the app

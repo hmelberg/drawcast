@@ -441,6 +441,12 @@ function monoAdvanceEm(): number | null {
   return monoAdvance;
 }
 
+/** The rough canvases of "mixed" mounts: their strokes draw as one clean
+ *  line, their fills keep the hand hatching (Hans 2026-10-01: clean lines are
+ *  nicer on plots, but "the handwritten fill is nice"). Marked on the canvas
+ *  so every drawLeaf call — mount, rebuild, tween frame — agrees. */
+const CLEAN_STROKE_CANVASES = new WeakSet<RoughSVG>();
+
 function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>): SVGGElement {
   const g = document.createElementNS(SVG_NS, "g") as SVGGElement;
   g.dataset.leafId = d.id;
@@ -546,7 +552,7 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
   }
   // roughness 0 is the clean line the style promises: one exact path, not
   // rough.js's two coincident passes (a scratch card's border).
-  if (!rc || (d.kind === "stroke" && (d.precise || d.style.roughness === 0))) {
+  if (!rc || (d.kind === "stroke" && (d.precise || d.style.roughness === 0 || CLEAN_STROKE_CANVASES.has(rc)))) {
     drawLeafClean(g, d);
     return g;
   }
@@ -2355,7 +2361,7 @@ function makeEffects(
   };
 }
 
-function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean }): BackendModule {
+function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean; cleanStrokes?: boolean }): BackendModule {
   return {
     name: opts.name,
     label: opts.label,
@@ -2367,6 +2373,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
       svg.setAttribute("viewBox", `${rest.x} ${toSvgY(rest.y + rest.h)} ${rest.w} ${rest.h}`);
       svg.setAttribute("class", "cs-svg");
       const rc = opts.sketchy ? rough.svg(svg) : null;
+      if (rc && opts.cleanStrokes) CLEAN_STROKE_CANVASES.add(rc);
 
       const layers = { 0: document.createElementNS(SVG_NS, "g"), 1: document.createElementNS(SVG_NS, "g"), 2: document.createElementNS(SVG_NS, "g"), 3: document.createElementNS(SVG_NS, "g") };
       // Overlay for gesture effects (highlight echoes, laser pointer) — always on top.
@@ -2550,9 +2557,11 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean })
 /** The one renderer, in its two styles. Same drawables, same animation. */
 export const sketchyRenderer = makeSvgBackend({ name: "sketchy", label: "Hand-drawn (rough.js)", sketchy: true });
 export const cleanRenderer = makeSvgBackend({ name: "clean", label: "Clean lines", sketchy: false });
+/** Clean lines, hand-hatched fills — the default look of a book. */
+export const mixedRenderer = makeSvgBackend({ name: "mixed", label: "Clean lines, hand fills", sketchy: true, cleanStrokes: true });
 
-export type RenderStyle = "sketchy" | "clean";
+export type RenderStyle = "sketchy" | "clean" | "mixed";
 
 export function rendererFor(style: RenderStyle): BackendModule {
-  return style === "clean" ? cleanRenderer : sketchyRenderer;
+  return style === "clean" ? cleanRenderer : style === "mixed" ? mixedRenderer : sketchyRenderer;
 }

@@ -197,7 +197,7 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
   const styleParam = params.get("style") ?? params.get("backend");
   const advance = params.get("advance");
   const common = {
-    style: (styleParam === "sketchy" || styleParam === "custom-svg" ? "sketchy" : "clean") as RenderStyle,
+    style: (styleParam === "sketchy" || styleParam === "custom-svg" ? "sketchy" : styleParam === "mixed" ? "mixed" : "clean") as RenderStyle,
     mode: (mode === "silent" || mode === "instant" ? mode : "narrated") as ViewerRequest["mode"],
     speed: parseFloat(params.get("speed") ?? "") || loadSettings().speed || 1,
     advance: (advance === "auto" || advance === "click" ? advance : undefined) as ViewerRequest["advance"],

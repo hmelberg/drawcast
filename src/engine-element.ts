@@ -14,7 +14,7 @@ import { render, loadSpecText } from "./engine-render";
 import type { RenderHandle } from "./render";
 
 export interface FigureAttrs {
-  look: "sketchy" | "clean";
+  look: "sketchy" | "clean" | "mixed";
   mode: "narrated" | "silent" | "instant";
   speed: number;
   autoplay: boolean;
@@ -24,7 +24,7 @@ export interface FigureAttrs {
 export function parseFigureAttrs(get: (name: string) => string | null): FigureAttrs {
   const mode = get("mode");
   return {
-    look: get("look") === "clean" ? "clean" : "sketchy",
+    look: get("look") === "clean" ? "clean" : get("look") === "mixed" ? "mixed" : "sketchy",
     mode: mode === "silent" || mode === "instant" ? mode : "narrated",
     speed: parseFloat(get("speed") ?? "") || 1,
     autoplay: get("autoplay") !== null,
