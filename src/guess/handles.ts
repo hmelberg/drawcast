@@ -435,6 +435,36 @@ export function marketGrab(h: GuessHandle, values: number[], p: Pt): 0 | 1 {
   return t < END_ZONE || t > 1 - END_ZONE ? 1 : 0;
 }
 
+/** A partner coordinate kept within the old curve's span (where it is defined). */
+function clampToSpan(m: MarketCurve, q: number): number {
+  const j = m.axis === "price" ? 0 : 1;
+  const xs = m.base.map((pt) => pt[j]);
+  return clamp(q, Math.min(...xs), Math.max(...xs));
+}
+
+/** The point of the copy a press at `p` takes hold of: its partner
+ *  coordinate (Q on the price axis, P on the quantity axis), within the
+ *  old curve's span. The turn keeps that point under the pointer. */
+export function marketAnchor(h: GuessHandle, values: number[], p: Pt): number {
+  const m = h.market;
+  const line = marketLine(h, values);
+  if (!m || !h.toDomain || line.length < 2) return 0;
+  const at = h.toDomain(nearestAlong(line, p).at);
+  return clampToSpan(m, at[m.axis === "price" ? 0 : 1]);
+}
+
+/**
+ * A market curve's key (spec 2026-10-03 §3.2), by the screen: on the price
+ * axis ↑/↓ move it up/down and Shift+↑/↓ turn it steeper/flatter; on the
+ * quantity axis →/← move it right/left and Shift+→/← turn it flatter/steeper.
+ * The other pair does nothing (it would move the curve across the arrow).
+ */
+export function marketKey(h: GuessHandle, key: string): 1 | -1 | null {
+  const price = h.market?.axis !== "quantity";
+  if (price) return key === "ArrowUp" ? 1 : key === "ArrowDown" ? -1 : null;
+  return key === "ArrowRight" ? 1 : key === "ArrowLeft" ? -1 : null;
+}
+
 /** Gaps kept within the handle's bounds. */
 function boundGaps(h: GuessHandle, v: [number, number]): number[] {
   return [clamp(v[0], h.min, h.max), clamp(v[1], h.min, h.max)];
@@ -535,7 +565,7 @@ export function startValues(h: GuessHandle): number[] {
  * crossed, a pie keeps the dividers it did not grab. `prev` is the previous
  * pointer sample of the same stroke (a sketch fills the indices between).
  */
-export function valueAt(h: GuessHandle, p: Pt, current: number[], prev?: Pt | null, grab?: number): number[] {
+export function valueAt(h: GuessHandle, p: Pt, current: number[], prev?: Pt | null, grab?: number, anchor?: number): number[] {
   switch (h.kind) {
     case "height": {
       if (!h.toDomain) return current;
@@ -596,23 +626,44 @@ export function valueAt(h: GuessHandle, p: Pt, current: number[], prev?: Pt | nu
       return [scaleGeometry(h.scale).valueAtX(p[0])];
     }
     case "market": {
+      // Relative, like the free-play widget: a press alone changes nothing.
       // grab 0: the pointer's move along the axis moves every point by it (s);
-      // grab 1: s kept, k solved so the copy passes the pointer (a turn about
-      // the pivot: price 0, or the equilibrium quantity).
+      // grab 1: s kept, k chosen so the GRABBED point (partner coordinate
+      // `anchor`, from marketAnchor at the press) follows the pointer's move
+      // along the axis — a turn about the pivot (price 0, or the equilibrium
+      // quantity).
       const m = h.market;
-      if (!m || !h.toDomain) return current;
+      if (!m || !h.toDomain || !prev) return current;
       const i = m.axis === "price" ? 1 : 0;
       const { s, k } = skOf(m, gapsOfValues(current));
-      const d = h.toDomain(p);
+      const dd = h.toDomain(p)[i] - h.toDomain(prev)[i];
       if (grab === 1) {
-        const x0 = along(m.axis, m.base, d[1 - i]);
+        const q = clampToSpan(m, anchor ?? marketAnchor(h, current, prev));
+        const x0 = along(m.axis, m.base, q);
         if (x0 === null || Math.abs(x0 - m.pivot) < 1e-6) return current;
-        return boundGaps(h, gapsOf(m, s, clamp((d[i] - m.pivot - s) / (x0 - m.pivot), 0.1, 10)));
+        const x = m.pivot + k * (x0 - m.pivot) + s;
+        return boundGaps(h, gapsOf(m, s, clamp((x + dd - m.pivot - s) / (x0 - m.pivot), 0.1, 10)));
       }
-      if (!prev) return current;
-      return boundGaps(h, gapsOf(m, s + (d[i] - h.toDomain(prev)[i]), k));
+      return boundGaps(h, gapsOf(m, s + dd, k));
     }
   }
+}
+
+/** The handle a press at `p` works, or null. One handle: a press anywhere on
+ *  the figure works it — except a market curve, which only a press near its
+ *  copy takes (a stray tap in the plot would swing it). */
+export function pickHandle(handles: GuessHandle[], values: number[][], p: Pt): number | null {
+  let best: number | null = null;
+  let bestD = Infinity;
+  handles.forEach((g, k) => {
+    const d = hitDistance(g, p, values[k]);
+    if (d < bestD) {
+      bestD = d;
+      best = k;
+    }
+  });
+  if (best === null && handles.length === 1 && handles[0].kind !== "market") best = 0;
+  return best;
 }
 
 /** Which divider of a whole pie a press at `f` percent grabs. */

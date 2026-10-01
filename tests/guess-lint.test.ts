@@ -85,6 +85,11 @@ describe("market guess lint (spec 2026-10-03 §3)", () => {
     expect(issues.some((i) => i.severity === "error" && /predict/.test(i.message))).toBe(true);
   });
 
+  test("both curves in one question is an error (one curve per question)", () => {
+    const issues = guessIssues(market([{ ask: { question: "Show them", on: ["supply_curve", "demand_curve"], predict: true } }, { animate: { "tax.amount": 20 } }]));
+    expect(issues.some((i) => i.severity === "error" && /one curve per question/.test(i.message))).toBe(true);
+  });
+
   test("check on a bar guess warns", () => {
     const issues = guessIssues(bars([{ draw: ["axes", "bar_1"] }, { ask: { question: "B?", on: "bar_2", check: "size" } }]));
     expect(issues).toHaveLength(1);

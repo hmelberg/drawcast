@@ -1463,11 +1463,15 @@ export class Player {
         defaultGuess(step.fallback, setup.handles) ??
         (setup.handles.some((h) => h.kind === "market") ? setup.handles.map(commonest) : start);
       const effects = this.effects;
+      // Where the laser holds: a market curve's middle to move it, its end to
+      // turn it (a demo whose gaps differ in sign is a turn); else the last entry.
+      const h0 = setup.handles[0];
+      const laserAt = h0.kind === "market" ? ((demo[0]?.[0] ?? 0) * (demo[0]?.[1] ?? 0) < 0 ? 1 : 0) : (demo[0]?.length ?? 1) - 1;
       await this.progress(1400, signal, (t) => {
         const e = smoothstep(t);
         const vals = start.map((row, k) => row.map((v, j) => v + ((demo[k]?.[j] ?? v) - v) * e));
         paint(vals);
-        const p = pointFor(setup.handles[0], vals[0], setup.handles[0].kind === "market" ? 0 : vals[0].length - 1);
+        const p = pointFor(h0, vals[0], laserAt);
         effects?.setPointer(t >= 1 || !p ? null : p);
       });
       effects?.setPointer(null);

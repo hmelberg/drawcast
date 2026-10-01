@@ -1082,6 +1082,10 @@ function lintGuess(spec: Spec): LintIssue[] {
       return;
     }
     const market = new Set(marketParts(spec, guessParts(spec, c.ask.on)));
+    if (market.size > 1) {
+      issues.push({ rule: "guess", ids: [...market], message: `ask on: one curve per question — ask about ${[...market].join(" or ")}, not both`, severity: "error" });
+      return;
+    }
     for (const part of guessParts(spec, c.ask.on)) {
       // Move the curve (spec 2026-10-03 §3): a prediction of the animate
       // right after, which must move this curve.

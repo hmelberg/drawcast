@@ -6,8 +6,8 @@ import { SpeechManager } from "../src/render/speech";
 import { layoutSpec } from "../src/layout/layout";
 import { expandSpec } from "../src/spec/expand";
 import { withOverrides } from "../src/render/params";
-import { guessParts, guessSetup, marketGrab, nudge, patchFor, pointFor, valueAt } from "../src/guess/handles";
-import { skOf } from "../src/guess/market";
+import { guessParts, guessSetup, marketAnchor, marketGrab, marketKey, nudge, patchFor, pickHandle, pointFor, valueAt } from "../src/guess/handles";
+import { along, marketKind, marketPoint, skOf } from "../src/guess/market";
 import type { GuessMarks } from "../src/guess/marks";
 import type { Command, Spec } from "../src/spec/types";
 
@@ -32,7 +32,7 @@ const IDS = [...layout.order];
 const ASK: Command = { ask: { question: "Show it", on: "supply_curve", predict: true, store: "t", right: "Yes: {t.why}", wrong: "No: {t.why}" } };
 const COMMANDS: Command[] = [{ draw: IDS }, ASK, { animate: { "tax.amount": 40 }, duration: 1 }];
 
-function makePlayer(commands: Command[]) {
+function makePlayer(commands: Command[], pointers: ([number, number] | null)[] = []) {
   const plan = planCommands(commands, IDS, {
     animateBase: params,
     guessParts: (on) => {
@@ -42,7 +42,7 @@ function makePlayer(commands: Command[]) {
   });
   const speech = new CapturingSpeech();
   const marks = new Map<string, GuessMarks | null>();
-  const effects = new Proxy({ setGuessMarks: (owner: string, m: GuessMarks | null) => marks.set(owner, m) } as Record<string, unknown>, {
+  const effects = new Proxy({ setGuessMarks: (owner: string, m: GuessMarks | null) => marks.set(owner, m), setPointer: (p: [number, number] | null) => pointers.push(p) } as Record<string, unknown>, {
     get: (t, k: string) => t[k] ?? (() => {}),
   }) as unknown as BackendEffects;
   const player = new Player(plan, new Map(), speech, null, { mode: "narrated", effects });
@@ -103,6 +103,9 @@ describe("market handle setup and gesture", () => {
     const sk = skOf(h.market!, [turned[0], turned[1]]);
     expect(sk.s).toBeCloseTo(0, 5);
     expect(sk.k).toBeGreaterThan(1);
+    // A press alone changes nothing, in either grab.
+    expect(valueAt(h, end, [0, 0], null, 1, marketAnchor(h, [0, 0], end))).toEqual([0, 0]);
+    expect(valueAt(h, mid, [0, 0], null, 0)).toEqual([0, 0]);
     // Keys: ↑ moves evenly, Shift+↑ turns.
     const k1 = nudge(h, [0, 0], 0, 1);
     expect(k1[0]).toBeCloseTo(k1[1], 5);
@@ -112,7 +115,67 @@ describe("market handle setup and gesture", () => {
   });
 });
 
+describe("market gesture: fix round 1", () => {
+  const h = guessSetup(spec, params, layout, ["supply_curve"], { end: endOf }).handles[0];
+  const m = h.market!;
+  const dy = h.toLogical!([0, 10])[1] - h.toLogical!([0, 0])[1];
+
+  test("a turn moves the GRABBED point with the pointer, from wherever the press was", () => {
+    // Grab near the low end (a fifth of the way along the copy), a little off the line.
+    const line = m.base.map(h.toLogical!);
+    const near = line[Math.floor(line.length * 0.1)];
+    const press: [number, number] = [near[0] + 6, near[1] - 8];
+    expect(marketGrab(h, [0, 0], press)).toBe(1);
+    const anchor = marketAnchor(h, [0, 0], press);
+    const v = valueAt(h, [press[0], press[1] + dy], [0, 0], press, 1, anchor);
+    const at = marketPoint(m, [v[0], v[1]], anchor)!;
+    expect(at[1]).toBeCloseTo(along("price", m.base, anchor)! + 10, 4);
+    expect(skOf(m, [v[0], v[1]]).s).toBeCloseTo(0, 5);
+  });
+
+  test("a turn grabbed outside the old curve's span still turns (the anchor is clamped)", () => {
+    const end = pointFor(h, [0, 0], 1)!;
+    const v = valueAt(h, [end[0], end[1] + dy], [0, 0], end, 1, 1000);
+    expect(skOf(m, [v[0], v[1]]).k).toBeGreaterThan(1);
+  });
+
+  test("a press away from the copy takes nothing", () => {
+    const mid = pointFor(h, [0, 0])!;
+    expect(pickHandle([h], [[0, 0]], mid)).toBe(0);
+    expect(pickHandle([h], [[0, 0]], [mid[0] + 200, mid[1] + 200])).toBeNull();
+  });
+
+  test("keys by the screen: the axis's own arrows", () => {
+    expect(marketKey(h, "ArrowUp")).toBe(1);
+    expect(marketKey(h, "ArrowDown")).toBe(-1);
+    expect(marketKey(h, "ArrowRight")).toBeNull();
+    const el = guessSetup(spec, params, layout, ["supply_curve"], { end: { params: withOverrides(params, { "supply.elasticity": 1.5 }), targets: { "supply.elasticity": 1.5 } } }).handles[0];
+    expect(el.market!.axis).toBe("quantity");
+    expect(marketKey(el, "ArrowRight")).toBe(1);
+    expect(marketKey(el, "ArrowLeft")).toBe(-1);
+    expect(marketKey(el, "ArrowUp")).toBeNull();
+  });
+
+  test("marketKind reads the asked curve's own elasticity only", () => {
+    expect(marketKind("supply_curve", params, { "demand.elasticity": 1.5, "supply_shift.amount": 10 })).toBe("shift");
+    expect(marketKind("supply_curve", params, { "supply.elasticity": 1.5 })).toBe("elasticity");
+  });
+});
+
 describe("market asks in the player", () => {
+  test("the movie of a turn about the equilibrium: the laser holds the copy's end", async () => {
+    const pointers: ([number, number] | null)[] = [];
+    const { player } = makePlayer([{ draw: IDS }, { ask: { question: "More elastic?", on: "supply_curve", predict: true, store: "e" } }, { animate: { "supply.elasticity": 1.5 }, duration: 0.2 }], pointers);
+    await player.play();
+    const h = guessSetup(spec, params, layout, ["supply_curve"], { end: { params: withOverrides(params, { "supply.elasticity": 1.5 }), targets: { "supply.elasticity": 1.5 } } }).handles[0];
+    const shown = pointers.filter((p): p is [number, number] => p !== null);
+    const last = shown[shown.length - 1];
+    const endAt = pointFor(h, h.truth, 1)!;
+    const midAt = pointFor(h, h.truth, 0)!;
+    expect(Math.hypot(last[0] - endAt[0], last[1] - endAt[1])).toBeLessThan(Math.hypot(last[0] - midAt[0], last[1] - midAt[1]));
+    expect(player.vars.get("e.ok")).toBe("true");
+  });
+
   test("the movie: the commonest guess (an even move), scored by shape, the why spoken; marks stay until a seek", async () => {
     const { player, events, speech, marks, frames } = makePlayer(COMMANDS);
     await player.play();

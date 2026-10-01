@@ -271,7 +271,9 @@ export function marketKind(curve: string, params: Rec, targets: Rec): MarketKind
     const t = targets["tax.amount"];
     return typeof t === "number" && t < 0 ? "subsidy" : "tax";
   }
-  return Object.keys(targets).some((k) => k.endsWith(".elasticity")) ? "elasticity" : "shift";
+  // The asked curve's own elasticity only: the other curve's is not this move.
+  const side = curve === "supply_curve" ? "supply" : "demand";
+  return `${side}.elasticity` in targets ? "elasticity" : "shift";
 }
 
 /** The viewer's curve for gaps v, domain units. */

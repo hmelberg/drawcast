@@ -18,7 +18,7 @@
 
 import type { RenderHandle } from "../render";
 import type { GuessSession } from "../render/player";
-import { encodeGuess, hitDistance, marketGrab, nearestDivider, nudge, pointFor, valueAt, withBudget, type GuessHandle } from "../guess/handles";
+import { encodeGuess, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, pickHandle, pointFor, valueAt, withBudget, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import type { AskGateStep } from "./controls";
@@ -128,21 +128,8 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       const onAbort = (): void => finish(null);
 
       // —— pointer ——
-      let dragging: { k: number; prev: [number, number]; grab?: number } | null = null;
-      const pick = (p: [number, number]): number | null => {
-        let best: number | null = null;
-        let bestD = Infinity;
-        handles.forEach((g, k) => {
-          const d = hitDistance(g, p, values[k]);
-          if (d < bestD) {
-            bestD = d;
-            best = k;
-          }
-        });
-        // One handle: a press anywhere on the figure works it.
-        if (best === null && handles.length === 1) best = 0;
-        return best;
-      };
+      let dragging: { k: number; prev: [number, number]; grab?: number; anchor?: number } | null = null;
+      const pick = (p: [number, number]): number | null => pickHandle(handles, values, p);
       gate.addEventListener("pointerdown", (e) => {
         if (settled || (e.target as Element).closest("button, input")) return;
         e.preventDefault();
@@ -163,7 +150,9 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         } catch {
           /* a synthetic pointer has no capture */
         }
-        dragging = { k, prev: p, ...(grab !== undefined ? { grab } : {}) };
+        // A market turn holds the point grabbed (the copy follows the pointer from there).
+        const anchor = g.kind === "market" && grab === 1 ? marketAnchor(g, values[k], p) : undefined;
+        dragging = { k, prev: p, ...(grab !== undefined ? { grab } : {}), ...(anchor !== undefined ? { anchor } : {}) };
         focus = k;
         if (grab !== undefined && g.kind !== "market") entry = grab;
         values[k] = valueAt(g, p, values[k], null, grab);
@@ -177,7 +166,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         const p = logicalPoint(stage, e);
         if (!p) return;
         const g = handles[dragging.k];
-        values[dragging.k] = valueAt(g, p, values[dragging.k], dragging.prev, dragging.grab);
+        values[dragging.k] = valueAt(g, p, values[dragging.k], dragging.prev, dragging.grab, dragging.anchor);
         constrain(dragging.k);
         dragging.prev = p;
         repaint();
@@ -212,6 +201,16 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         if (e.key === "Enter") {
           e.preventDefault();
           finish(encodeGuess(values));
+          return;
+        }
+        if (g.kind === "market") {
+          // By the screen: the axis's own arrows move it, Shift turns it.
+          const dir = marketKey(g, e.key);
+          if (dir === null) return;
+          e.preventDefault();
+          e.stopPropagation();
+          values[focus] = nudge(g, values[focus], 0, dir, e.shiftKey);
+          repaint();
           return;
         }
         const up = e.key === "ArrowUp" || (e.key === "ArrowRight" && !multiEntry(g));
