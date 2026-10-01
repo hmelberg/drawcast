@@ -7,7 +7,7 @@ import { layoutSpec } from "../src/layout/layout";
 import { expandSpec } from "../src/spec/expand";
 import { withOverrides } from "../src/render/params";
 import { guessParts, guessSetup, marketAnchor, marketGrab, marketKey, nudge, patchFor, pickHandle, pointFor, valueAt } from "../src/guess/handles";
-import { along, marketKind, marketPoint, skOf } from "../src/guess/market";
+import { along, curveOfGaps, marketKind, marketPoint, skOf } from "../src/guess/market";
 import type { GuessMarks } from "../src/guess/marks";
 import type { Command, Spec } from "../src/spec/types";
 
@@ -160,6 +160,26 @@ describe("market gesture: fix round 1", () => {
     expect(marketKind("supply_curve", params, { "demand.elasticity": 1.5, "supply_shift.amount": 10 })).toBe("shift");
     expect(marketKind("supply_curve", params, { "supply.elasticity": 1.5 })).toBe("elasticity");
   });
+});
+
+describe("market grab on the visible copy (final review 2026-10-03)", () => {
+  // The copy is drawn clipped to the plot square (0–100 on both axes); the
+  // grab must measure its ends along what is drawn, not the whole curve.
+  const h = guessSetup(spec, params, layout, ["supply_curve"], { end: endOf }).handles[0];
+  const inside = (q: [number, number] | number[]) => q[0] >= 0 && q[0] <= 100 && q[1] >= 0 && q[1] <= 100;
+  for (const lift of [25, 35, -30]) {
+    test(`moved by ${lift}: the visible ends still turn, the visible middle still moves`, () => {
+      const v = [lift, lift];
+      const shown = curveOfGaps(h.market!, [lift, lift]).filter(inside);
+      expect(shown.length).toBeGreaterThan(4);
+      const ends = [shown[0], shown[shown.length - 1]].map(h.toLogical!);
+      for (const e of ends) expect(marketGrab(h, v, e)).toBe(1);
+      expect(marketGrab(h, v, h.toLogical!(shown[Math.floor(shown.length / 2)]))).toBe(0);
+      // The laser's "far end" is a drawn end too.
+      const far = pointFor(h, v, 1)!;
+      expect(inside(h.toDomain!(far).map((x) => Math.round(x * 1e6) / 1e6))).toBe(true);
+    });
+  }
 });
 
 describe("market asks in the player", () => {

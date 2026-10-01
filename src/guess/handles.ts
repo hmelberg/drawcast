@@ -20,7 +20,7 @@ import { readParam } from "../render/params";
 import type { Spec, SpecElement } from "../spec/types";
 import { guessParts } from "./parts";
 import { authoredScales, scaleGeometry, scaleValueElements, type ScaleElementLike } from "../spec/scale";
-import { along, curveOfGaps, gapsOf, marketCurve, marketKind, marketPoint, skOf, type MarketCurve, type MarketKind } from "./market";
+import { along, gapsOf, marketCurve, marketKind, marketPoint, skOf, visibleCopy, type MarketCurve, type MarketKind } from "./market";
 import { END_ZONE, nearestAlong } from "../scenes/supply_demand/widget";
 
 export { guessParts };
@@ -420,14 +420,15 @@ function marketHandle(
 
 const gapsOfValues = (v: number[]): [number, number] => [v[0] ?? 0, v[1] ?? 0];
 
-/** The viewer's curve (gaps `values`) on screen, logical. */
+/** The viewer's curve (gaps `values`) on screen, logical: the part drawn
+ *  (clipped to the plot), so its ends are the ends the viewer sees. */
 export function marketLine(h: GuessHandle, values: number[]): Pt[] {
   if (!h.market || !h.toLogical) return [];
-  return curveOfGaps(h.market, gapsOfValues(values)).map(h.toLogical);
+  return visibleCopy(h.market, gapsOfValues(values)).map(h.toLogical);
 }
 
 /** What a press at `p` takes: 0 the middle (move it), 1 an end (turn it) —
- *  the free-play widget's END_ZONE along the copy's length. */
+ *  the free-play widget's END_ZONE along the drawn copy's length. */
 export function marketGrab(h: GuessHandle, values: number[], p: Pt): 0 | 1 {
   const line = marketLine(h, values);
   if (line.length < 2) return 0;

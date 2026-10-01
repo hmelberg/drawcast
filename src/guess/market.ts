@@ -316,6 +316,58 @@ export function curveOfGaps(m: MarketCurve, v: [number, number]): Pt[] {
   return transformed(m, s, k);
 }
 
+/** The market's plot area, in its domain units (the template draws 0–100 on both axes). */
+export const MARKET_DOMAIN = { lo: 0, hi: 100 };
+
+/** A polyline clipped to the square [lo, hi]² (Liang–Barsky per segment): the runs inside. */
+export function clipToSquare(pts: Pt[], lo: number, hi: number): Pt[][] {
+  const runs: Pt[][] = [];
+  let cur: Pt[] = [];
+  const flush = () => {
+    if (cur.length >= 2) runs.push(cur);
+    cur = [];
+  };
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    const dx = x1 - x0, dy = y1 - y0;
+    let t0 = 0, t1 = 1;
+    let inside = true;
+    for (const [pp, q] of [[-dx, x0 - lo], [dx, hi - x0], [-dy, y0 - lo], [dy, hi - y0]] as [number, number][]) {
+      if (pp === 0) {
+        if (q < 0) inside = false;
+        continue;
+      }
+      const r = q / pp;
+      if (pp < 0) t0 = Math.max(t0, r);
+      else t1 = Math.min(t1, r);
+    }
+    if (!inside || t0 > t1) {
+      flush();
+      continue;
+    }
+    const a: Pt = [x0 + dx * t0, y0 + dy * t0];
+    const b: Pt = [x0 + dx * t1, y0 + dy * t1];
+    const last = cur[cur.length - 1];
+    if (!last || Math.hypot(last[0] - a[0], last[1] - a[1]) > 1e-9) {
+      flush();
+      cur.push(a);
+    }
+    cur.push(b);
+    if (t1 < 1) flush();
+  }
+  flush();
+  return runs;
+}
+
+/** The viewer's copy as drawn: the longest run of it inside the plot square
+ *  (domain units). What the grab dots sit on and what a press measures its
+ *  ends along — the whole curve runs off the plot once it is moved. */
+export function visibleCopy(m: MarketCurve, v: [number, number]): Pt[] {
+  const runs = clipToSquare(curveOfGaps(m, v), MARKET_DOMAIN.lo, MARKET_DOMAIN.hi);
+  return runs.length === 0 ? [] : runs.reduce((a, b) => (b.length > a.length ? b : a));
+}
+
 /** The point of the viewer's curve (gaps v) at partner coordinate q, domain units. */
 export function marketPoint(m: MarketCurve, v: [number, number], q: number): Pt | null {
   const x0 = along(m.axis, m.base, q);
