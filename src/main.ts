@@ -45,6 +45,8 @@ import { isReadyTemplate } from "./scenes/catalog";
 import { scenes } from "./scenes/registry";
 import { openModel3d, qualifiesFor3d, setModel3dLabels, type AnatomyScene, type Model3dViewer } from "./ui/model3d";
 import { icon } from "./ui/icons";
+import { shareLinkFor } from "./share/link";
+import { openShareBox, cardImageUrl } from "./ui/share-box";
 import { createModal, createTabs } from "./ui/modal";
 import { createMenu } from "./ui/menu";
 import { openDestinations, saveDestinations, OPEN_LABELS, SAVE_LABELS, type CredentialState } from "./ui/destinations";
@@ -5305,7 +5307,12 @@ async function publishDrawcast({
     // different thing entirely — every publish gets one from the registry,
     // named or not, signed in or not (registry delivery 1).
     if (lock) setStatus(`Published locked — only enrolled learners can watch. ${out.castUrl}${lastEmbedNote}${regSuffix}`, "ok");
-    else setStatus(`Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}${regSuffix}`, "ok");
+    else {
+      const link = shareLinkFor(doc.freeName ? `#${doc.freeName}` : `#gh=${repoStr}/${joinPath(castsDir, `${out.slug}.yaml`)}`);
+      const text = `Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}${regSuffix}`;
+      if (link) setStatusAction(text, "Share…", () => openShareBox({ link, title: doc.title, subtitle: doc.playlist.meta.subtitle, image: cardImageUrl(link) }), "ok");
+      else setStatus(text, "ok");
+    }
   } catch (err) {
     console.error("drawcast: publish failed", err);
     const e = err as Error;
