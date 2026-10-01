@@ -12,6 +12,10 @@ export const BOOK_CSS = `
   transition: width 1.1s cubic-bezier(.65, 0, .35, 1), height 1.1s cubic-bezier(.65, 0, .35, 1), opacity .5s ease;
 }
 .bk-figure { flex: 0 0 auto; box-sizing: border-box; overflow: hidden; }
+/* The viewer sizes its stage from the window (--viewer-stage-h); in a book
+   the shell sizes the figure pane, and the stage keeps its own 4:3. */
+.viewer-body .bk-row .player-figure:not(:is(:fullscreen, .cs-faux-fs)) { min-height: 0; }
+.viewer-body .bk-row .player-figure:not(:is(:fullscreen, .cs-faux-fs)) .cs-stage { height: auto; width: 100%; }
 .bk-figure.bk-closed { opacity: 0; padding: 0; border-width: 0; }
 .bk-text {
   flex: 0 0 auto; position: relative; overflow: hidden; box-sizing: border-box;

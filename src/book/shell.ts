@@ -87,7 +87,9 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
     const stage = host.querySelector<HTMLElement>(".cs-stage");
     const barH = stage ? Math.max(40, host.offsetHeight - stage.offsetHeight) : 64;
     const room = {
-      w: Math.max(320, container.clientWidth - pad - (page ? 32 : 4) - GAP),
+      // A page (the player, the viewer) offers the window's width — its own
+      // wrapper shrinks to fit the book, so measuring it would be circular.
+      w: Math.max(320, (page ? document.documentElement.clientWidth : container.clientWidth - pad) - (page ? 32 : 4) - GAP),
       h: Math.max(320, window.innerHeight - Math.max(0, top) - furniture - 24),
       barH,
     };

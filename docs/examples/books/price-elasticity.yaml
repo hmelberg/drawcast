@@ -43,27 +43,27 @@ domain: { x: [0, 100], y: [0, 100] }
 vars: { k: 0.25 }
 elements:
   - { id: ax, type: axes, x_label: Quantity, y_label: Price }
-  - { id: steep, type: curve, expr: "100 - 4*x", x_from: 5, x_to: 22, style: { color: "#b5482e" } }
-  - { id: lSteep, type: label, attach_to: steep, side: right, text: insulin, style: { color: "#b5482e" } }
-  - { id: flat, type: curve, expr: "47.5 - k*(x - 30)", x_from: 5, x_to: 60, style: { color: "#2f6b8f" } }
-  - { id: lFlat, type: label, attach_to: flat, side: above-right, text: one cola brand, style: { color: "#2f6b8f" } }
+  - { id: insulin_d, type: curve, expr: "100 - 4*x", x_from: 5, x_to: 22, style: { color: "#b5482e" } }
+  - { id: lSteep, type: label, attach_to: insulin_d, side: right, text: insulin, style: { color: "#b5482e" } }
+  - { id: cola_d, type: curve, expr: "47.5 - k*(x - 30)", x_from: 5, x_to: 60, style: { color: "#2f6b8f" } }
+  - { id: lFlat, type: label, attach_to: cola_d, side: above-right, text: one cola brand, style: { color: "#2f6b8f" } }
 commands:
   - draw: [ax]
     speak: Minus two is a big reaction. But some goods barely react at all.
   - write: "- **Inelastic**, $|\\varepsilon| < 1$: insulin, petrol"
-  - draw: [steep, lSteep]
+  - draw: [insulin_d, lSteep]
     speak: Insulin is the classic case. Double its price, and diabetics still need the same dose, so the curve stands almost upright.
   - write: { text: "Steep = elastic?", temp: true }
     speak: Such a steep line looks dramatic. Does that make it the elastic one?
   - highlight: { target: w2, effect: strike }
     speak: No, it is the other way round. Steep means quantity hardly moves, and that is inelastic.
   - write: "- **Elastic**, $|\\varepsilon| > 1$: one brand of cola"
-  - draw: [flat, lFlat]
+  - draw: [cola_d, lFlat]
     speak: Compare one brand of cola. Raise its price a little, and buyers simply reach for another brand, so its curve lies almost flat.
   - view: figure
   - animate: { k: 1.5 }
     duration: 3
-    ghost: [flat]
+    ghost: [cola_d]
     speak: Now take cola's rivals off the shelf, one by one, and watch its curve tilt up toward insulin's.
   - animate: { k: 0.25 }
     duration: 2.2
@@ -80,10 +80,10 @@ chapter: Measuring and using it
 ---
 title: The midpoint method
 book: { layout: columns, look: mixed }
-domain: { x: [0, 100], y: [0, 100] }
+domain: { x: [0, 50], y: [40, 80] }
 elements:
   - { id: ax, type: axes, x_label: Rides, y_label: Price }
-  - { id: d, type: curve, expr: "90 - x", x_from: 10, x_to: 80, style: { color: "#b5482e" } }
+  - { id: d, type: curve, expr: "90 - x", x_from: 10, x_to: 50, style: { color: "#b5482e" } }
   - { id: pA, type: point, at: { x: 30, on: d }, guides: { values: true } }
   - { id: pB, type: point, at: { x: 20, on: d }, guides: { values: true } }
   - { id: pM, type: point, at: { x: 25, on: d }, style: { color: "#8a5fa8" }, guides: { values: true } }
