@@ -568,13 +568,24 @@ const elementSchema = {
       type: "array",
       minItems: 2,
       maxItems: 8,
-      items: { anyOf: [{ type: "string" }, { type: "object", properties: { text: { type: "string" }, bin: { type: "string" } }, required: ["text"], additionalProperties: false }] },
+      items: { anyOf: [{ type: "string" }, { type: "object", properties: { text: { type: "string" }, bin: { type: "string" }, value: { type: "number" }, match: { type: "string" } }, required: ["text"], additionalProperties: false }] },
       description:
         "cards: cards the viewer ORDERS or SORTS, asked with an ask on: <id> (they drag the cards, press Answer, and the cards glide to the truth). RANK: the items in their TRUE order, first = most/earliest/top (a word or three each: \"USA\", \"Norway\"), with ends naming the two ends. SORT: give bins, and each item {text, bin}. The cards are drawn SHUFFLED, so draw <id> before the ask; after it they stand in the true order. Cards are <id>_1 … in true order; sort's boxes <id>_bin_1 ….",
     },
     bins: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" }, description: "cards: the boxes to sort into (a word or two each); every item's bin is one of them." },
     ends: { type: "array", minItems: 2, maxItems: 2, items: { type: "string" }, description: "cards (rank): what the two ends mean, first end first: [\"most\", \"least\"], [\"earliest\", \"latest\"]." },
     arrange: { type: "string", enum: ["row", "column"], description: "cards (rank): a row of cards (default) or a column (longer names)." },
+    along: { type: "string", description: "cards: PLACE ON A SCALE — the id of a scale element; each item has a value, and the viewer drags the cards onto the line (\"put these inventions on the timeline\"). Draw the scale and the cards first." },
+    compare: { type: "string", description: "cards: HIGHER OR LOWER — the question each pair answers, written over the cards (\"Which kills more people a year?\"); each item has a value; pairs of items (pairs, default consecutive) are rows, the viewer taps the bigger of each, and its numbers appear." },
+    pairs: { type: "array", maxItems: 5, items: { type: "array", minItems: 2, maxItems: 2, items: { type: "integer", minimum: 0 } }, description: "cards (compare): which items face each other, as 0-based index pairs [[0, 1], [2, 3]] (default consecutive)." },
+    options: {
+      type: "array",
+      minItems: 2,
+      maxItems: 4,
+      items: { type: "object", properties: { text: { type: "string" }, goto: { type: "string" }, best: { type: "boolean" } }, required: ["text"], additionalProperties: false },
+      description: "cards: DECIDE — the choices (a few words each), each with goto: the label of the section that plays out its consequences. The viewer taps one and the cast goes there; best: true on one makes the decision scored. Movies play every branch in order, so write each to stand on its own (\"If you treat now: …\"). Give then: the label where the branches meet.",
+    },
+    then: { type: "string", description: "cards (decide): the label where every branch meets again — a live viewer who chose one branch skips the others and goes on here." },
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
     states: {
       type: "object",
@@ -2134,7 +2145,15 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "cards": {
       const items = Array.isArray(el.items) ? el.items : [];
-      need(items.length >= 2 && items.length <= 8, "needs 2–8 items");
+      const opts = (el as { options?: unknown[] }).options;
+      if (Array.isArray(opts)) {
+        need(opts.length >= 2 && opts.length <= 4, "decide: needs 2–4 options");
+        break;
+      }
+      need(items.length >= 2 && items.length <= 8, "needs 2–8 items (or options, to decide)");
+      const hasValue = (it: unknown): boolean => typeof it === "object" && it !== null && typeof (it as { value?: unknown }).value === "number";
+      if ((el as { along?: unknown }).along !== undefined || (el as { compare?: unknown }).compare !== undefined) need(items.every(hasValue), "place / compare: every item needs {text, value}");
+      if (items.some((it) => typeof it === "object" && it !== null && (it as { match?: unknown }).match !== undefined)) need(items.every((it) => typeof it === "object" && it !== null && typeof (it as { match?: unknown }).match === "string"), "match: every item needs {text, match}");
       if (Array.isArray(el.bins) && el.bins.length > 0) {
         const bins = el.bins;
         need(items.every((it) => typeof it === "object" && it !== null && typeof it.bin === "string" && bins.includes(it.bin)), "sorting (bins): every item needs {text, bin} with bin one of bins");
@@ -2143,7 +2162,6 @@ function elementErrors(el: SpecElement): string[] {
     }
     case "scale": {
       need(typeof el.min === "number" && typeof el.max === "number" && (el.max as number) > (el.min as number), "needs min < max");
-      need(typeof el.value === "number", "needs value (the true number the marker shows)");
       if (el.log === true) need(typeof el.min === "number" && (el.min as number) > 0, "log needs min > 0");
       break;
     }

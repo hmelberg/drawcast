@@ -19,8 +19,8 @@ export interface ScaleElementLike {
   type: "scale";
   min: number;
   max: number;
-  /** The true value — what the marker shows. */
-  value: number;
+  /** The true value — what the marker shows (absent: a bare line, for cards to go on). */
+  value?: number;
   /** Logarithmic spacing (min must be > 0). */
   log?: boolean;
   /** "%", "years", "USD" … — written after the marker's number ("%" with no space). */
@@ -185,7 +185,7 @@ export function scaleLineElements(sc: ScaleElementLike): SpecElement[] {
   if (sc.label) out.push({ id: `${sc.id}_caption`, type: "text", text: sc.label, x: (g.x0 + g.x1) / 2, y: g.y + 100, font_size: 24 });
   // The group keeps the scale's numbers (not its caption: a group's label
   // means nothing) — the guess reads its truth and geometry back from here.
-  const keep: Partial<SpecElement> = { min: sc.min, max: sc.max, value: sc.value };
+  const keep: Partial<SpecElement> = { min: sc.min, max: sc.max, ...(isNum(sc.value) ? { value: sc.value } : {}) };
   if (sc.log !== undefined) keep.log = sc.log;
   if (sc.unit !== undefined) keep.unit = sc.unit;
   if (sc.ticks !== undefined) keep.ticks = sc.ticks;
@@ -201,14 +201,14 @@ export function scaleLineElements(sc: ScaleElementLike): SpecElement[] {
 export function authoredScales(spec: Pick<Spec, "elements">): ScaleElementLike[] {
   const out: ScaleElementLike[] = [];
   for (const el of spec.elements ?? []) {
-    if (el.type !== "group" || typeof el.min !== "number" || typeof el.max !== "number" || typeof el.value !== "number") continue;
+    if (el.type !== "group" || typeof el.min !== "number" || typeof el.max !== "number") continue;
     if (!(el.members ?? []).includes(`${el.id}_line`)) continue;
     out.push({
       id: el.id,
       type: "scale",
       min: el.min,
       max: el.max,
-      value: el.value,
+      ...(typeof el.value === "number" ? { value: el.value } : {}),
       ...(el.log !== undefined ? { log: el.log } : {}),
       ...(el.unit !== undefined ? { unit: el.unit } : {}),
       ...(el.ticks !== undefined ? { ticks: el.ticks } : {}),
@@ -235,7 +235,7 @@ export function expandScales(spec: Spec): Spec {
       continue;
     }
     const sc = el as unknown as ScaleElementLike;
-    out.push(...scaleLineElements(sc), ...scaleValueElements(sc, scaleGeometry(sc).value));
+    out.push(...scaleLineElements(sc), ...(isNum(sc.value) ? scaleValueElements(sc, sc.value) : []));
   }
   return { ...spec, elements: out };
 }

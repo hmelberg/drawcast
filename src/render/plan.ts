@@ -383,7 +383,7 @@ export interface PlanOptions {
   /** Cards to rank or sort (spec 2026-10-01-rank-and-sort): for a cards
    *  element's id, its card ids and where each stands once the question is
    *  answered (its true place, as an offset from where it is drawn). */
-  cardsFor?: (id: string) => { cards: string[]; offsets: Record<string, Pt> } | null;
+  cardsFor?: (id: string) => { cards: string[]; offsets: Record<string, Pt>; shows?: string[] } | null;
   /** This cast is a book's part: highlight/erase/point on an id that is not
    *  an element target the text pane (an earlier part's block included). */
   book?: boolean;
@@ -1354,6 +1354,10 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           mentioned.add(id);
         }
         makeVisible(cardSet.cards.filter((id) => known.has(id)));
+        // Higher or lower: each card's number, revealed by the question.
+        const shows = (cardSet.shows ?? []).filter((id) => known.has(id));
+        shows.forEach((id) => mentioned.add(id));
+        makeVisible(shows);
       } else if (cmd.ask.on !== undefined) {
         guess = opts.guessParts?.(cmd.ask.on, cmd.ask.from) ?? { parts: [], shows: [] };
         if (guess.parts.length === 0) warnings.push(`ask on: nothing to guess in ${JSON.stringify(cmd.ask.on)} (the question is asked as typing instead)`);

@@ -3,7 +3,7 @@
 // Framework-free by design. One SVG renderer, two styles (sketchy/clean).
 
 import { guessParts, guessSetup, patchFor } from "../guess/handles";
-import { authoredCards, cardsGeometry } from "../spec/cards";
+import { cardsGeometryIn } from "../spec/cards";
 import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
 import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
 import type { LintIssue } from "../lint/lint";
@@ -457,12 +457,11 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     ...domainMapping(spec.domain && layout.frame ? layout.frame : spec.domain, layout.fit),
     animateBase: spec.template ? spec.params ?? {} : null,
     cardsFor: (id) => {
-      const el = authoredCards(spec).find((c) => c.id === id);
-      if (!el) return null;
-      const g = cardsGeometry(el);
+      const g = cardsGeometryIn(spec, id);
+      if (!g) return null;
       const offsets: Record<string, [number, number]> = {};
       g.cards.forEach((c, i) => (offsets[c] = [g.truth[i][0] - g.home[i][0], g.truth[i][1] - g.home[i][1]]));
-      return { cards: g.cards, offsets };
+      return { cards: g.cards, offsets, shows: g.valueIds ?? [] };
     },
     guessParts: (on, from) => {
       const parts = guessParts(spec, on);
@@ -525,10 +524,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   player.guess = {
     setup: (on, from, params, onScreen) => guessSetup(spec, withOverrides(spec.params ?? {}, params), onScreen ?? layout, guessParts(spec, on), { from, measure }),
     patch: (setup, values, elements) => patchFor(elements ? { ...spec, elements } : spec, setup, values),
-    cards: (id) => {
-      const el = authoredCards(spec).find((c) => c.id === id);
-      return el ? cardsGeometry(el) : null;
-    },
+    cards: (id) => cardsGeometryIn(spec, id),
   };
 
   if (mounted.swapGeometry && mounted.remount) {

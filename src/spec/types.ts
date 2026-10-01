@@ -415,13 +415,23 @@ export interface SpecElement {
   // population (layout/population.ts): people as person pictograms, each in a state
   // cards (spec/cards.ts — sugar: cards to rank or to sort into boxes)
   /** cards: the cards, in TRUE order (rank) or each with its bin (sort). */
-  items?: (string | { text: string; bin?: string })[];
+  items?: (string | { text: string; bin?: string; value?: number; match?: string })[];
   /** cards: the boxes to sort into. */
   bins?: string[];
   /** cards (rank): what the two ends mean. */
   ends?: string[];
   /** cards (rank): a row (default) or a column. */
   arrange?: "row" | "column";
+  /** cards: place on this scale (items carry value). */
+  along?: string;
+  /** cards: higher or lower — the question each pair answers. */
+  compare?: string;
+  /** cards (compare): item index pairs. */
+  pairs?: number[][];
+  /** cards: decide between these. */
+  options?: { text: string; goto?: string; best?: boolean }[];
+  /** cards (decide): where the branches meet. */
+  then?: string;
   // scale (spec/scale.ts — sugar: a number line to guess on)
   /** scale: the line's ends. */
   min?: number;

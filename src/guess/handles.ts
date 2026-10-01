@@ -381,7 +381,7 @@ function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>): G
 function scaleHandle(spec: Spec, part: string): GuessHandle | null {
   // A scale is sugar (spec/scale.ts): its group keeps the numbers.
   const sc = authoredScales(spec).find((s) => s.id === part);
-  if (!sc) return null;
+  if (!sc || typeof sc.value !== "number") return null;
   const g = scaleGeometry(sc);
   const step = g.kind === "log" ? 0 : niceStep(g.max - g.min);
   return {

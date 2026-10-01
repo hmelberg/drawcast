@@ -1030,6 +1030,20 @@ function lintGuess(spec: Spec): LintIssue[] {
     // so they must be ON screen before the question — it moves them.
     const one = typeof c.ask.on === "string" ? c.ask.on : c.ask.on.length === 1 ? c.ask.on[0] : null;
     if (one !== null && cardSets.has(one)) {
+      const cs = cardSets.get(one)!;
+      // Decide (spec 2026-10-02 §8): every option's label, and `then`, lie ahead.
+      if (Array.isArray(cs.options)) {
+        const ahead = new Set(commands.slice(i + 1).map((d) => d.label).filter((l): l is string => typeof l === "string"));
+        for (const o of cs.options) {
+          if (o.goto !== undefined && !ahead.has(o.goto)) issues.push({ rule: "guess", ids: [one], message: `cards "${one}": option "${o.text}" goes to "${o.goto}", which is not a label after the question`, severity: "error" });
+        }
+        if (cs.then === undefined) issues.push({ rule: "guess", ids: [one], message: `cards "${one}": give then — the label where the branches meet; without it a live viewer runs on from their branch into the next`, severity: "warn" });
+        else if (!ahead.has(cs.then)) issues.push({ rule: "guess", ids: [one], message: `cards "${one}": then "${cs.then}" is not a label after the question`, severity: "error" });
+      }
+      // Place (§4): the cards go on a scale of this drawcast.
+      if (cs.along !== undefined && !authoredScales(spec).some((sc) => sc.id === cs.along)) {
+        issues.push({ rule: "guess", ids: [one], message: `cards "${one}": along "${cs.along}" is not a scale element`, severity: "error" });
+      }
       const first = `${one}_1`;
       if (!connectVisibility(commands, i, one).visible && !connectVisibility(commands, i, first).visible) {
         issues.push({ rule: "guess", ids: [one], message: `ask on: the cards "${one}" are not drawn before the question — draw them first (they are drawn shuffled); the question moves them`, severity: "warn" });

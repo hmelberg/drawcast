@@ -40,7 +40,8 @@ import { defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type Gue
 import { guessText, guessVars, scoreGuess } from "../guess/score";
 import { guessMarks } from "../guess/marks";
 import type { CardsGeometry } from "../spec/cards";
-import { cardsMarks, decodeArrangement, encodeArrangement, initialArrangement, positions, scoreCards, type Arrangement } from "../cards/model";
+import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, type Arrangement } from "../cards/model";
+import type { GuessMarks } from "../guess/marks";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -123,6 +124,10 @@ export interface CardsSession {
   geometry: CardsGeometry;
   start: Arrangement;
   place(cardId: string, dx: number, dy: number): void;
+  /** Show drawn-later parts now (a compare pair's numbers). */
+  show(ids: string[]): void;
+  /** The answer's marks while it is being given (match lines, compare ticks); null clears. */
+  mark(m: GuessMarks | null): void;
 }
 
 /** What a guess gate is handed (ui/guess-gate.ts): the handles, where the
@@ -236,6 +241,10 @@ export class Player {
   private guessOwners = new Set<string>();
   /** Every stored guess, for a later revise (spec 2026-10-02 §9). */
   private guessMemory = new Map<string, number[][]>();
+  /** A decision's branches (spec 2026-10-02 §8): reaching another option's
+   *  label skips on to `then` (or the end). It must survive the jump into the
+   *  chosen branch, so it is not among what a scrub's endMarks clears. */
+  private decideBranch: { labels: string[]; chosen: string; then?: string } | null = null;
   /** A prediction waiting for its animate (spec 2026-10-02 §3). */
   private predictCarry: {
     animIndex: number;
@@ -1416,10 +1425,11 @@ export class Player {
   }
 
   /**
-   * Cards to rank or sort (spec 2026-10-01-rank-and-sort): the viewer moves
-   * the drawn cards and presses Answer; the cards glide to their true places
-   * (the plan's offsets after this step), dashed outlines stay where the
-   * wrong ones stood, and right/wrong is spoken as they move.
+   * Cards (specs 2026-10-01-rank-and-sort, 2026-10-02-more-ways-to-answer):
+   * the viewer ranks, sorts, places, matches, compares or decides on the
+   * drawn cards; the moving cards glide to their true places (the plan's
+   * offsets after this step) with the misses marked, and right/wrong is
+   * spoken as they move. A decision goes to its option's label.
    */
   private async cardsAsk(index: number, step: Extract<PlanStep, { kind: "ask" }>, signal: AbortSignal): Promise<void> {
     await this.narrationBarrier();
@@ -1427,15 +1437,25 @@ export class Player {
     const g = this.guess?.cards?.(step.cards) ?? null;
     if (!g) return;
     this.endGuessMarks();
+    // A decision starts afresh (its branch state outlives the jump into the branch).
+    if (g.mode === "decide") this.decideBranch = null;
+    const owner = `cards_${index}`;
     const start = initialArrangement(g);
     const place = (id: string, dx: number, dy: number): void => this.nudge(id, dx, dy);
+    const show = (ids: string[]): void => {
+      for (const el of this.els(ids)) el.finish();
+    };
+    const mark = (m: GuessMarks | null): void => {
+      this.guessOwners.add(owner);
+      this.effects?.setGuessMarks?.(owner, m);
+    };
     const live = !this.autoAnswers && this.askGate !== null;
     let arrangement: Arrangement = start;
     let answered = false;
     let secs: number | null = null;
     if (live) {
       const from = performance.now();
-      const typed = await this.askGate!(signal, Object.assign({}, step, { cardsSession: { geometry: g, start, place } satisfies CardsSession }));
+      const typed = await this.askGate!(signal, Object.assign({}, step, { cardsSession: { geometry: g, start, place, show, mark } satisfies CardsSession }));
       if (signal.aborted) return;
       secs = (performance.now() - from) / 1000;
       const decoded = typed !== null ? decodeArrangement(g, typed) : null;
@@ -1444,24 +1464,56 @@ export class Player {
         answered = true;
       }
       if (typed !== null) this.cutQuestionVoice();
+    } else if (g.mode === "compare") {
+      // The movie: each pair in turn, the bigger one marked and both numbers shown.
+      const picks = start.picks!.slice();
+      for (let r = 0; r < (g.rows ?? []).length; r++) {
+        await this.waitScaled(900, signal);
+        if (signal.aborted) return;
+        picks[r] = rightPick(g, r);
+        show(g.rows![r].map((c) => g.valueIds![c]));
+        mark(cardsMarks(g, { ...start, picks }));
+      }
+      arrangement = { ...start, picks };
+      answered = true;
+    } else if (g.mode === "decide") {
+      // The movie taps the `default` option (or the first) and plays on.
+      const want = (step.fallback ?? "").trim().toLowerCase();
+      const k = Math.max(0, g.texts.findIndex((t) => t.toLowerCase() === want));
+      const [x, y] = g.home[k];
+      await this.tapAt({ x: x - g.w / 2, y: y - g.h / 2, w: g.w, h: g.h });
+      arrangement = { ...start, choice: k };
+      answered = true;
     } else {
-      // The movie: a breath on the shuffled cards, then the truth.
+      // The movie: a breath on the cards as drawn, then the truth.
       await this.waitScaled(900, signal);
       if (signal.aborted) return;
     }
     if (this.narrationVoice) await this.narrationVoice;
     if (signal.aborted) return;
+
+    const judged = g.mode !== "decide" || (g.best ?? []).some(Boolean);
     const score = scoreCards(g, arrangement, step.tolerance ?? 0);
     const ok = answered && score.ok;
-    const text = `${score.within} of ${score.count}`;
-    this.recordAnswer(index, step.store, text, ok, secs);
+    const choice = arrangement.choice ?? -1;
+    const text = g.mode === "decide" ? (choice >= 0 ? g.texts[choice] : "") : `${score.within} of ${score.count}`;
+    this.recordAnswer(index, step.store, text, judged ? ok : null, secs);
     if (step.store) {
       const base = step.store.toLowerCase();
       this.vars.set(`${base}.within`, String(score.within));
       this.vars.set(`${base}.count`, String(score.count));
+      const off = g.mode === "place" ? placeOff(g, arrangement) : null;
+      if (off !== null && g.scale) {
+        // A distance is a number of units, never a year: "40 years", "40".
+        const n = off >= 10 ? Math.round(off) : Math.round(off * 10) / 10;
+        const u = g.scale.unit;
+        this.vars.set(`${base}.off`, u === "" ? String(n) : u === "%" ? `${n}%` : `${n} ${u}`);
+      }
     }
-    this.outcomes.set(index, ok);
-    this.updateScoreVars();
+    if (judged) {
+      this.outcomes.set(index, ok);
+      this.updateScoreVars();
+    }
     if (live) {
       this.callbacks.onAnswer?.({
         index,
@@ -1469,34 +1521,46 @@ export class Player {
         id: this.answerId(index, step.store),
         question: step.question,
         given: answered ? [encodeArrangement(g, arrangement)] : [],
-        expected: g.mode === "rank" ? g.cards.map((_, i) => i).join(",") : g.bins.map((_, b) => g.truthBin.map((t, i) => (t === b ? i : -1)).filter((i) => i >= 0).join(",")).join("|"),
-        correct: ok,
+        expected: encodeArrangement(g, cardsTruth(g)),
+        correct: judged ? ok : true,
         ...(secs !== null ? { secs } : {}),
       });
     }
-    const line = ok ? step.right : (step.wrong ?? step.right);
+    const line = !judged ? (step.right ?? step.wrong) : ok ? step.right : (step.wrong ?? step.right);
     const spoken = line ? this.speakLine(line, step, signal) : Promise.resolve();
-    const owner = `cards_${index}`;
-    this.guessOwners.add(owner);
+    // The cards that move glide from where the viewer left them to the truth.
     const from = positions(g, arrangement);
-    await this.progress(GUESS_REVEAL_MS, signal, (t) => {
-      const e = smoothstep(t);
-      g.cards.forEach((id, i) => {
-        const x = from[i][0] + (g.truth[i][0] - from[i][0]) * e - g.home[i][0];
-        const y = from[i][1] + (g.truth[i][1] - from[i][1]) * e - g.home[i][1];
-        place(id, x, y);
+    const moves = g.cards.some((_, i) => Math.abs(from[i][0] - g.truth[i][0]) > 0.5 || Math.abs(from[i][1] - g.truth[i][1]) > 0.5);
+    if (moves) {
+      await this.progress(GUESS_REVEAL_MS, signal, (t) => {
+        const e = smoothstep(t);
+        g.cards.forEach((id, i) => {
+          const x = from[i][0] + (g.truth[i][0] - from[i][0]) * e - g.home[i][0];
+          const y = from[i][1] + (g.truth[i][1] - from[i][1]) * e - g.home[i][1];
+          place(id, x, y);
+        });
       });
-    });
-    for (const id of g.cards) place(id, 0, 0);
-    if (signal.aborted) {
-      this.endGuessMarks();
-      return;
+      for (const id of g.cards) place(id, 0, 0);
+      if (signal.aborted) {
+        this.endGuessMarks();
+        return;
+      }
     }
     this.applyKey(this.plan.states[index]);
     this.applyScene(this.plan.states[index]);
-    if (answered) this.effects?.setGuessMarks?.(owner, cardsMarks(g, arrangement));
+    if (answered) mark(cardsMarks(g, arrangement));
     await spoken;
-    if (live && answered) {
+    if (signal.aborted) return;
+    if (g.mode === "decide" && choice >= 0) {
+      // Live: to the chosen branch; the others are skipped on the way to `then`.
+      const go = g.gotos?.[choice];
+      if (live && go !== undefined && this.plan.labels[go] !== undefined) {
+        this.pendingJump = this.plan.labels[go];
+        this.decideBranch = { labels: (g.gotos ?? []).filter((l): l is string => l !== undefined), chosen: go, then: g.then };
+      }
+      return;
+    }
+    if (live && answered && judged) {
       const target = ok ? step.rightGoto : step.wrongGoto;
       if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
     }
@@ -1847,8 +1911,15 @@ export class Player {
         this.applyScene(scene);
         return;
       }
-      case "label":
+      case "label": {
+        // A decision's other branch: a live viewer who chose one skips on.
+        const d = this.decideBranch;
+        if (d && step.name !== d.chosen && d.labels.includes(step.name)) {
+          this.decideBranch = null;
+          this.pendingJump = d.then !== undefined && this.plan.labels[d.then] !== undefined ? this.plan.labels[d.then] : this.plan.steps.length;
+        } else if (d && step.name === d.then) this.decideBranch = null;
         return;
+      }
       case "text":
         // A book's text pane (src/book/): write, mark, erase, look back, clear,
         // view. With no book around it, nothing to do.

@@ -16,7 +16,7 @@ import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
 import { expandSpec } from "../src/spec/expand";
 import { guessParts, guessSetup } from "../src/guess/handles";
-import { authoredCards, cardsGeometry } from "../src/spec/cards";
+import { cardsGeometryIn } from "../src/spec/cards";
 import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { boxAnchor } from "../src/layout/anchors";
 import { heuristicMeasure } from "../src/layout/measure";
@@ -200,12 +200,11 @@ describe("bundled examples stay exemplary", () => {
       animateBase: spec.template ? spec.params ?? {} : null,
       // Cards and a guess's parts, as render() resolves them (src/render/index.ts).
       cardsFor: (id) => {
-        const el = authoredCards(spec).find((c) => c.id === id);
-        if (!el) return null;
-        const g = cardsGeometry(el);
+        const g = cardsGeometryIn(spec, id);
+        if (!g) return null;
         const offsets: Record<string, [number, number]> = {};
         g.cards.forEach((c, i) => (offsets[c] = [g.truth[i][0] - g.home[i][0], g.truth[i][1] - g.home[i][1]]));
-        return { cards: g.cards, offsets };
+        return { cards: g.cards, offsets, shows: g.valueIds ?? [] };
       },
       guessParts: (on, from) => {
         const parts = guessParts(spec, on);
