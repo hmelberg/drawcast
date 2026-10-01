@@ -79978,12 +79978,19 @@
           }
         },
         {
+          "ask": {
+            "question": "So which does the square choose: test, or no test?",
+            "pick": "choice",
+            "store": "c",
+            "right": "Yes: {c.true}.",
+            "wrong": "The tree takes {c.true}."
+          }
+        },
+        {
           "draw": [
-            "value_choice",
-            "best_choice_test",
-            "prune_choice_notest"
+            "value_choice"
           ],
-          "speak": "That is a quarter of a year more, near enough, for three hundred dollars more. At twenty thousand dollars a year it is worth about forty-eight hundred, so the tree takes the test."
+          "speak": "Testing is a quarter of a year more, near enough, for three hundred dollars more. At twenty thousand dollars a year that quarter is worth about forty-eight hundred, so the test pays for itself."
         }
       ]
     }

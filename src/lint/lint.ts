@@ -1192,6 +1192,38 @@ function lintTreeAsk(spec: Spec): LintIssue[] {
       issues.push({ rule: "guess", ids: [], message: `ask on a tree of ${nodes} nodes — more than ${TREE_MAX_NODES} is too many to work by hand; ask on a smaller tree (or a folded part)`, severity: "warn" });
     }
   }
+  if (!isTree) return issues;
+  // A blank asked twice shows "?" again between the asks: its truth, just
+  // revealed, is taken back.
+  const askedAt = new Map<string, number>();
+  for (const [i, c] of commands.entries()) {
+    for (const b of c.ask?.blanks ?? []) {
+      if (askedAt.has(b)) issues.push({ rule: "guess", ids: [b], message: `ask blanks: "${b}" is already a blank in an earlier tree ask (commands[${askedAt.get(b)}]) — it would show ? again after its answer; blank it in one ask only`, severity: "warn" });
+      else askedAt.set(b, i);
+    }
+  }
+  // After a tree's blanks, the choice is the viewer's: a pick ask's reveal
+  // draws the best and prune marks. Drawing best_<decision>_… yourself with
+  // no pick on that decision skips the question the blanks led up to.
+  const decisions: string[] = [];
+  walkTree(params!.root, (n, id) => {
+    if (n.type === "decision") decisions.push(id);
+  });
+  const decisionOf = (id: string): string | null => {
+    const d = decisions.filter((x) => id.startsWith(`best_${x}_`)).sort((a, b) => b.length - a.length)[0];
+    return d ?? null;
+  };
+  const firstBlanks = commands.findIndex((c) => (c.ask?.blanks ?? []).length > 0);
+  if (firstBlanks >= 0) {
+    const picked = new Set<string>();
+    for (const c of commands.slice(firstBlanks + 1)) {
+      if (c.ask?.pick !== undefined) picked.add(c.ask.pick);
+      for (const id of [...idsOf(c.draw), ...idsOf(c.show)]) {
+        const d = decisionOf(id);
+        if (d !== null && !picked.has(d)) issues.push({ rule: "guess", ids: [id], message: `draw "${id}" after a tree's blanks with no pick ask on "${d}" — ask {"pick": "${d}"} instead: its reveal draws the best and prune marks`, severity: "warn" });
+      }
+    }
+  }
   return issues;
 }
 

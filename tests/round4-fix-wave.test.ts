@@ -191,3 +191,19 @@ describe("the poster keeps the answers back (fix wave item 6)", async () => {
     expect(posterOf(g).at).toBe(2);
   });
 });
+
+describe("lint (fix wave item 9)", () => {
+  beforeAll(async () => {
+    await ensureEngines(["mathjax"]);
+  });
+  test("a colors key on a math element with steps may match a later step's TeX", () => {
+    const spec = expandSpec({
+      elements: [{ id: "eq", type: "math", tex: "W = F\\,d", x: 500, y: 600, colors: { v: "#2f6b8f", q: "#aa0000" }, steps: ["W = m\\frac{v}{t}\\cdot d", "W = \\frac{1}{2}mv^2"] }],
+      commands: [{ draw: ["eq"] }, { step: "eq" }, { step: "eq" }],
+    } as never);
+    const l = layoutSpec(spec);
+    const warned = l.warnings.filter((w) => w.includes("colors key"));
+    expect(warned.some((w) => w.includes('"v"'))).toBe(false);
+    expect(warned.some((w) => w.includes('"q"'))).toBe(true);
+  });
+});

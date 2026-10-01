@@ -654,7 +654,10 @@ export function layoutElements(
         // term (θ → π) is the point of a derivation, so a key the new formula no
         // longer has is not a mistake (2026-09-25 example revisions).
         const morphed = ctx.overrides.math?.[el.id] !== undefined;
-        if (!morphed) for (const key of laid.unusedColors) ctx.warnings.push(`math "${el.id}": colors key "${key}" matches nothing`);
+        // A derivation's `steps` are its later lines, coloured with the same
+        // map: a key that names a later line's term is not unused.
+        const stepTex = Array.isArray(el.steps) ? (el.steps as unknown[]).map((st) => (typeof st === "string" ? st : typeof (st as { tex?: unknown })?.tex === "string" ? (st as { tex: string }).tex : "")).join(" ").replace(/\s+/g, "") : "";
+        if (!morphed) for (const key of laid.unusedColors) if (!stepTex.includes(key.replace(/\s+/g, ""))) ctx.warnings.push(`math "${el.id}": colors key "${key}" matches nothing`);
         drawables.push(...laid.drawables);
         // A formula's blank boxes come with it: drawing the formula draws
         // them (the reveal takes them away), so the viewer sees where to drop.

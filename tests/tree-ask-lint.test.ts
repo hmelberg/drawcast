@@ -137,3 +137,18 @@ describe("tree ask lint", () => {
     for (const e of withTree) expect(lintCommands(expandSpec(e.spec!))).toEqual([]);
   });
 });
+
+describe("tree ask lint: fix wave 2026-10-03", () => {
+  const spec = (commands: unknown[]): Spec =>
+    ({ template: "decision_tree", params: { root, rollback: true }, commands: [{ draw: ["node_start"] }, ...commands] }) as unknown as Spec;
+  test("the same blank in two tree asks is warned (it shows ? again between them)", () => {
+    const issues = guessIssues(spec([{ ask: { question: "a", blanks: ["value_treat"] } }, { speak: "Again." }, { ask: { question: "b", blanks: ["value_treat"] } }]));
+    expect(issues.some((i) => i.severity === "warn" && /value_treat/.test(i.message) && /two|again|already/.test(i.message))).toBe(true);
+  });
+  test("blanks then drawing best_<decision>_* with no pick ask is warned", () => {
+    const issues = guessIssues(spec([{ ask: { question: "a", blanks: ["value_treat"] } }, { draw: ["best_start_treat"] }]));
+    expect(issues.some((i) => i.severity === "warn" && /pick/.test(i.message) && /best_start_treat/.test(i.message))).toBe(true);
+    const withPick = guessIssues(spec([{ ask: { question: "a", blanks: ["value_treat"] } }, { ask: { question: "b", pick: "start" } }]));
+    expect(withPick.filter((i) => /best_/.test(i.message))).toEqual([]);
+  });
+});
