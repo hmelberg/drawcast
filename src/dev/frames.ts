@@ -233,7 +233,10 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
     let prevAt = 0;
     for (const frame of frames) {
       const params = hd.plan.states[frame.at - 1]?.params ?? {};
-      const at = specAt(expanded, params);
+      // A tree's blanks still to be asked are "?" here, as on screen.
+      const answers = frame.at > 0 ? hd.plan.states[frame.at - 1]?.answers : undefined;
+      const atParams = specAt(expanded, params);
+      const at = answers && Object.keys(answers).length > 0 ? { ...atParams, params: { ...(atParams.params ?? {}), answers } } : atParams;
       // A posed frame skips the draw-beat lints, as tests/examples.test.ts does:
       // template-id-off asks whether EVERY draw's id exists in THIS state, so a
       // label a template drops at small h (tangent_secant's Δx) was reported

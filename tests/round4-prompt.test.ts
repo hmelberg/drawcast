@@ -34,7 +34,17 @@ const asks = objects(bullet, "ask").map((o) => o as unknown as Command);
 const [blanksAsk, pickAsk, tilesAsk, marketAsk] = asks;
 const [marketAnimate] = objects(bullet, "animate").map((o) => ({ ...o, speak: "It moves." }) as unknown as Command);
 
-const example = (i: number) => (bundled as { spec: Spec }[])[i]!.spec;
+/** A bundled example by its title (indexes move as examples are added). */
+const example = (title: string): Spec & { commands: Command[] } => {
+  const spec = (bundled as { spec?: Spec }[]).find((e) => e.spec?.title === title)?.spec;
+  if (!spec) throw new Error(`no bundled example titled "${title}"`);
+  return { ...spec, commands: spec.commands ?? [] };
+};
+/** The commands before the first ask: the figure as it stands when asked. */
+const beforeAsk = (spec: { commands: Command[] }): Command[] => {
+  const at = spec.commands.findIndex((c) => c.ask !== undefined);
+  return spec.commands.slice(0, at < 0 ? spec.commands.length : at);
+};
 const issues = (spec: Spec) => lintCommands(expandSpec(spec)).filter((i) => i.rule === "guess" && i.severity === "error");
 
 function check(spec: Spec) {
@@ -50,19 +60,18 @@ describe("round 4 asks in the compiler prompt", () => {
   });
 
   test("the tree blanks and pick are valid on the treat-or-wait tree", () => {
-    const tree = example(373);
-    check({ ...tree, commands: [...tree.commands.slice(0, 5), blanksAsk!, pickAsk!] });
+    const tree = example("Treat or wait? Expected values by hand");
+    check({ ...tree, commands: [...beforeAsk(tree), blanksAsk!, pickAsk!] });
   });
 
   test("the formula tiles are valid on the circle's area", () => {
-    const area = example(375);
-    check({ ...area, commands: [...area.commands.slice(0, 4), tilesAsk!] });
+    const area = example("Area of a circle");
+    check({ ...area, commands: [...beforeAsk(area), tilesAsk!] });
   });
 
   test("the market predict is valid right before the animate", () => {
-    const market = example(378);
-    const at = market.commands.findIndex((c) => c.ask !== undefined);
-    check({ ...market, commands: [...market.commands.slice(0, at), marketAsk!, marketAnimate!] });
+    const market = example("A tax per unit on cigarettes");
+    check({ ...market, commands: [...beforeAsk(market), marketAsk!, marketAnimate!] });
   });
 
   test("#interactive names the three new forms", () => {

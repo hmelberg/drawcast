@@ -207,3 +207,12 @@ describe("lint (fix wave item 9)", () => {
     expect(warned.some((w) => w.includes('"q"'))).toBe(true);
   });
 });
+
+describe("boundary params carry a tree's answers (fix wave item 10)", async () => {
+  const { boundaryParams } = await import("../src/render/plan");
+  test("a boundary before a tree ask: its blanks are '?' in the params a widget or the tray lays out from", () => {
+    const plan = planCommands([{ draw: ["value_treat"] }, { ask: { question: "EV?", blanks: ["value_treat"] } }], ["value_treat"], {});
+    expect(boundaryParams(plan, 1)).toEqual({ answers: { value_treat: "?" } });
+    expect(boundaryParams(plan, 2)).toEqual({});
+  });
+});

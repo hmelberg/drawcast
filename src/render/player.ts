@@ -98,7 +98,8 @@ export interface Reprojector {
    *  scaled, faded or morphed element snaps back for the length of the tween. */
   frame(params: Record<string, unknown>, scene: FrameScene, opts?: FrameOpts): LayoutResult | void;
   /** Full remount at settled params (and the source poses/shapes of that boundary); returns the new element handles. */
-  commit(params: Record<string, number>, overrides?: LayoutOverrides): Map<string, RenderedElement>;
+  /** Params are numbers, save a tree's `answers` map (its blanks' "?"). */
+  commit(params: Record<string, unknown>, overrides?: LayoutOverrides): Map<string, RenderedElement>;
   /** The layout the last commit mounted (null before any): what is on screen
    *  after an animate settles on params the mounted layout never had. */
   committed?(): LayoutResult | null;
@@ -1161,7 +1162,7 @@ export class Player {
     if (!this.geometryDirty && key === this.appliedKey) return false;
     // Numbers, save a tree's `answers` map (its blanks' "?"), which the
     // layout reads like any other template param.
-    this.elements = this.reprojector.commit(merged as Record<string, number>, ov);
+    this.elements = this.reprojector.commit(merged, ov);
     this.appliedKey = key;
     this.geometryDirty = false;
     return true;

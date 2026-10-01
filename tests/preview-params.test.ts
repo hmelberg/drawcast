@@ -30,7 +30,7 @@ function makeReprojector() {
       frames.push({ ...p });
     },
     commit: (p) => {
-      commits.push({ ...p });
+      commits.push({ ...p } as Record<string, number>);
       return new Map<string, RenderedElement>();
     },
   };

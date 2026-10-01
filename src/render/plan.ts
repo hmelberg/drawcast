@@ -337,6 +337,18 @@ export function sceneAt(plan: Plan, n: number): SceneState {
 }
 
 /**
+ * The template params at boundary n as the player lays them out: the
+ * animated params, and a tree's `answers` (its blanks still to be asked show
+ * "?"). Anything that lays the figure out at a boundary — a widget, the
+ * tray, the frames harness — reads these, or it would draw a tree's true
+ * numbers before they are asked for.
+ */
+export function boundaryParams(plan: Plan, n: number): Record<string, unknown> {
+  const st = sceneAt(plan, n);
+  return st.answers && Object.keys(st.answers).length > 0 ? { ...st.params, answers: st.answers } : { ...st.params };
+}
+
+/**
  * The poster (the frame shown before Play): the finished drawing — unless an
  * ask's answer is drawn on the figure (a tree to fill or pick, a formula to
  * fill, a guess on a part, cards to place). Then the finished drawing would
