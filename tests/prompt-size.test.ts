@@ -631,7 +631,10 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-01 (answer on release): the schema's +267. -> 376380.
 // Re-pinned UP 2026-10-01 (rank and sort, spec 2026-10-01-rank-and-sort): the
 // schema's +1235 (the cards element) and one sentence in "Ask the viewer", +517. -> 378132.
-const BASELINE_SYSTEM_CHARS = 378132;
+// Re-pinned UP 2026-10-02 (more ways to answer, spec 2026-10-02-more-ways-to-answer):
+// the schema's +2788 (predict, revise, budget, judge; cards along, compare,
+// pairs, options, then) and one paragraph in "Ask the viewer", +963. -> 381883.
+const BASELINE_SYSTEM_CHARS = 381883;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -693,7 +696,9 @@ const BASELINE_SYSTEM_CHARS = 378132;
 // Re-pinned UP 2026-10-01 (answer on release): ask's `release`. +267. Measured 100814.
 // Re-pinned UP 2026-10-01 (rank and sort): the cards element's items, bins,
 // ends and arrange. +1235. Measured 102049.
-const BASELINE_SCHEMA_CHARS = 102049;
+// Re-pinned UP 2026-10-02 (more ways to answer): ask's predict, revise,
+// budget and judge; cards' along, compare, pairs, options and then. +2788. Measured 104837.
+const BASELINE_SCHEMA_CHARS = 104837;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

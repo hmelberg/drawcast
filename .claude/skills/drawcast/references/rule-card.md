@@ -237,7 +237,13 @@ Ask:
   truth), else `wrong`. `default` = the movie's demo guess. Letting go
   answers one part (`release: false` adds an Answer button).
   `on` a `cards` element = rank (`items` in TRUE order, `ends`) or sort
-  (`bins` + items `{text, bin}`); draw the cards (shuffled) first. `#interactive`
+  (`bins` + items `{text, bin}`); draw the cards (shuffled) first. Also:
+  `along: <scale>` + `{text, value}` = place on a line; `{text, match}` =
+  match; `compare` + `{text, value}` = higher or lower; `options`
+  `[{text, goto, best?}]` + `then` = decide (branches are labels ahead).
+- Guess extras: `predict: true` before an `animate` (it plays from the
+  guess); `reveal: false` + later `revise: "<store>"` = guess, evidence,
+  guess again; `budget` + `judge: false` on `on: all` = split a budget. `#interactive`
   asks for these about once a minute, varied.
 
 ## Elements with more than the schema

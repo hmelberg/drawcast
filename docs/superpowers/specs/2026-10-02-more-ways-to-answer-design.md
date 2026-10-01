@@ -241,3 +241,35 @@ each (kept short: the prompt-size pin moves once for the round).
    `default`'s branch?
 3. **Allocate's reference:** always the chart's data, or allow none (pure
    opinion, nothing revealed)?
+
+## 15. As built (2026-10-02)
+
+Built in the recommended order; decisions taken: every branch plays in
+movies, allocate always shows the chart's data as the reference, predict
+covers the round-1 parts only (no template widgets).
+
+Changes against the sections above:
+
+- **Place** names its scale with `along`, not `scale` (elements already have
+  a numeric `scale`, measure's). A scale used only for cards needs no
+  `value`: it is drawn as a bare line, with no marker. While cards are
+  placed, and after the reveal, a pin runs from each card to its point; a
+  missed card gets a dashed line from its true place to the point the viewer
+  chose (an outline where it stood would fall on the true cards).
+- **Higher or lower** shows every pair at once as rows (no "or" between the
+  cards — two cards side by side read as a choice); the rows are answered in
+  turn, each tap showing both numbers with ✓ or ✗. The numbers are drawn
+  outside the cards' group, so drawing the cards gives nothing away.
+- **Decide** reaches the chosen branch by the ask's own jump; reaching another
+  option's label skips on to `then` (or the end). The branch state survives
+  the jump (a scrub's cleanup does not clear it). Without `then`, lint warns.
+- **Predict**: the snapping step of every guess became about 1/50 of the
+  axis (finer steps wrote "100.0" and "37.0").
+- **Revise**: the first, kept-back guess reports no answer to the learner
+  log; only the revise is judged.
+- **Allocate**: a "Total … of …" pill under the hint; `{a.<bar_k>}` and
+  `{a.biggest}` are set; `judge: false` reports the answer as correct.
+- **Keyboard**: built for every card gate (rank, sort, place, match, compare,
+  decide), with a dashed ring on the card in focus.
+- Card hints shortened ("Drag each card to its partner"); Answer centred at
+  the bottom as for guesses.

@@ -78331,5 +78331,495 @@
         }
       ]
     }
+  },
+  {
+    "request": "Did Mexico's tax on sugary drinks work? Let me predict first. #interactive",
+    "packs": [
+      "data"
+    ],
+    "spec": {
+      "title": "A tax on sugary drinks",
+      "template": "bar_chart",
+      "params": {
+        "labels": [
+          "Taxed drinks",
+          "Water and untaxed"
+        ],
+        "values": [
+          [
+            100,
+            100
+          ],
+          [
+            92,
+            102
+          ]
+        ],
+        "stage": 0,
+        "ylim": [
+          0,
+          120
+        ],
+        "value_labels": true,
+        "y_label": "Purchases, index (before = 100)"
+      },
+      "sources": [
+        {
+          "id": "colchero",
+          "title": "In Mexico, Evidence Of Sustained Consumer Response Two Years After Implementing A Sugar-Sweetened Beverage Tax",
+          "authors": "Colchero et al.",
+          "year": 2017,
+          "finding": "taxed drinks −7.6 %, untaxed +2.1 % over two years"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "axes",
+            "bar_1",
+            "bar_2"
+          ],
+          "speak": "In 2014 Mexico put a tax of one peso a litre on sugary drinks, about a tenth of the price. Before the tax, purchases stood here."
+        },
+        {
+          "ask": {
+            "question": "Two years on, where do you think purchases of the taxed drinks stood? Drag the bar.",
+            "on": "bar_1",
+            "predict": true,
+            "store": "p",
+            "default": "80",
+            "tolerance": 0.04,
+            "right": "Close: you said {p}; they fell to {p.true}.",
+            "wrong": "You said {p}. They fell less than that, to {p.true}: about eight percent."
+          }
+        },
+        {
+          "animate": {
+            "stage": 1
+          },
+          "duration": 2
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_2"
+            ]
+          },
+          "speak": "And people did not just drink less: they bought more water and other untaxed drinks instead."
+        },
+        {
+          "speak": "A small fall, but sustained, and largest in the poorest households, who drank the most."
+        }
+      ]
+    }
+  },
+  {
+    "request": "If a screening test is positive, how likely is the disease, and what changes after a second positive test? #interactive",
+    "packs": [
+      "data"
+    ],
+    "spec": {
+      "title": "A second positive test",
+      "template": "bar_chart",
+      "params": {
+        "labels": [
+          "Chance she has it"
+        ],
+        "values": [
+          [
+            8
+          ],
+          [
+            45
+          ]
+        ],
+        "stage": 0,
+        "ylim": [
+          0,
+          100
+        ],
+        "value_labels": true,
+        "y_label": "Percent",
+        "box": {
+          "x": 300,
+          "y": 90,
+          "w": 400,
+          "h": 520
+        }
+      },
+      "commands": [
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "One person in a hundred has a disease, and a screening test is right nine times in ten, both for the sick and for the healthy."
+        },
+        {
+          "ask": {
+            "question": "She tests positive. How likely is it that she has the disease?",
+            "on": "bar_1",
+            "reveal": false,
+            "store": "g1",
+            "default": "80",
+            "right": "Hold that thought: {g1}."
+          }
+        },
+        {
+          "animate": {
+            "stage": 1
+          },
+          "duration": 0.1,
+          "speak": "Now she takes a second, independent test, and it is positive too."
+        },
+        {
+          "ask": {
+            "question": "And now?",
+            "on": "bar_1",
+            "revise": "g1",
+            "store": "g2",
+            "default": "95",
+            "tolerance": 0.1,
+            "right": "From {g1} to {g2}; the truth is {g2.true}.",
+            "wrong": "You went from {g1} to {g2}. The truth is {g2.true}."
+          }
+        },
+        {
+          "speak": "After one positive test the chance was only about eight percent, because the healthy are so many. A second positive multiplies the odds again, to about forty-five: still not certain."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How would you split a health budget, and how do rich countries actually split it? #interactive",
+    "packs": [
+      "data"
+    ],
+    "spec": {
+      "title": "Your health budget",
+      "template": "bar_chart",
+      "params": {
+        "labels": [
+          "Treatment",
+          "Long-term care",
+          "Medicines",
+          "Prevention"
+        ],
+        "values": [
+          61,
+          18,
+          18,
+          3
+        ],
+        "ylim": [
+          0,
+          80
+        ],
+        "value_labels": true,
+        "y_label": "Of every 100 spent"
+      },
+      "sources": [
+        {
+          "id": "oecd",
+          "title": "Health at a Glance 2023",
+          "authors": "OECD",
+          "year": 2023,
+          "finding": "prevention is about 3 % of health spending before COVID-19"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Suppose you had a hundred kroner to spend on a country's health."
+        },
+        {
+          "ask": {
+            "question": "How would you split it? Drag the bars; they always add up to a hundred.",
+            "on": "all",
+            "budget": 100,
+            "judge": false,
+            "store": "a",
+            "default": "40,20,15,25",
+            "right": "You gave most to {a.biggest}. Here is roughly how rich countries split it."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_1"
+            ]
+          },
+          "speak": "Treating the sick, in hospitals and at the doctor's, takes about six kroner in ten."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_4"
+            ]
+          },
+          "speak": "Prevention, which often saves the most health per krone, gets about three."
+        }
+      ]
+    }
+  },
+  {
+    "request": "When were the great inventions made? Let me put them on a timeline. #interactive",
+    "spec": {
+      "title": "Inventions on a timeline",
+      "elements": [
+        {
+          "id": "years",
+          "type": "scale",
+          "min": 1400,
+          "max": 2000,
+          "ticks": 6,
+          "y": 320
+        },
+        {
+          "id": "inv",
+          "type": "cards",
+          "along": "years",
+          "items": [
+            {
+              "text": "Printing press",
+              "value": 1440
+            },
+            {
+              "text": "Telescope",
+              "value": 1608
+            },
+            {
+              "text": "Steam engine",
+              "value": 1712
+            },
+            {
+              "text": "Telephone",
+              "value": 1876
+            },
+            {
+              "text": "Penicillin",
+              "value": 1928
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "years",
+            "inv"
+          ],
+          "speak": "Five inventions that changed the world, and six centuries to put them in."
+        },
+        {
+          "ask": {
+            "question": "Drag each one to when you think it was made.",
+            "on": "inv",
+            "store": "t",
+            "tolerance": 0.05,
+            "right": "{t} close: off by {t.off} years on average.",
+            "wrong": "{t} close, off by {t.off} years on average. Here is when each came."
+          }
+        },
+        {
+          "speak": "Gutenberg's press came first, around 1440. Then the gaps shrink: each change came faster than the last."
+        }
+      ]
+    }
+  },
+  {
+    "request": "What do the most common medicines actually do? #interactive",
+    "spec": {
+      "title": "What each drug does",
+      "elements": [
+        {
+          "id": "drugs",
+          "type": "cards",
+          "items": [
+            {
+              "text": "Aspirin",
+              "match": "Thins the blood"
+            },
+            {
+              "text": "Insulin",
+              "match": "Lowers blood sugar"
+            },
+            {
+              "text": "Penicillin",
+              "match": "Kills bacteria"
+            },
+            {
+              "text": "Statins",
+              "match": "Lower cholesterol"
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "drugs"
+          ],
+          "speak": "Four of the most used medicines in the world, and four jobs."
+        },
+        {
+          "ask": {
+            "question": "Match each drug to what it does: drag from one card to its partner.",
+            "on": "drugs",
+            "store": "m",
+            "right": "All {m} right.",
+            "wrong": "{m} right. Here are the true pairs."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "drugs_1",
+              "drugs_m_1"
+            ]
+          },
+          "speak": "Aspirin keeps platelets from clumping, which is why a small daily dose is given after a heart attack."
+        },
+        {
+          "highlight": {
+            "target": [
+              "drugs_3",
+              "drugs_m_3"
+            ]
+          },
+          "speak": "Penicillin was the first antibiotic, found by accident in 1928."
+        }
+      ]
+    }
+  },
+  {
+    "request": "What is more dangerous? A quick higher-or-lower on causes of death. #interactive",
+    "spec": {
+      "title": "What is more dangerous",
+      "elements": [
+        {
+          "id": "risk",
+          "type": "cards",
+          "compare": "Which kills more people a year?",
+          "unit": "a year",
+          "items": [
+            {
+              "text": "Sharks",
+              "value": 6
+            },
+            {
+              "text": "Lightning",
+              "value": 24000
+            },
+            {
+              "text": "Snakes",
+              "value": 100000
+            },
+            {
+              "text": "Malaria",
+              "value": 600000
+            },
+            {
+              "text": "Murder",
+              "value": 450000
+            },
+            {
+              "text": "Road crashes",
+              "value": 1190000
+            }
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "id": "who",
+          "title": "World malaria report; Global status report on road safety",
+          "authors": "World Health Organization",
+          "year": 2023,
+          "finding": "about 600 000 malaria deaths and 1.19 million road deaths a year"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "risk"
+          ],
+          "speak": "Three quick ones. In each pair, which kills more people every year?"
+        },
+        {
+          "ask": {
+            "question": "Tap the bigger killer in each pair.",
+            "on": "risk",
+            "store": "c",
+            "right": "All {c}: well judged.",
+            "wrong": "{c}. Our fears follow the drama, not the numbers."
+          }
+        },
+        {
+          "speak": "Sharks frighten us most and kill almost no one; the road outside kills more than murder does."
+        }
+      ]
+    }
+  },
+  {
+    "request": "A screening test is positive. Should the doctor treat at once, or test again? #interactive",
+    "spec": {
+      "title": "Treat or test again",
+      "elements": [
+        {
+          "id": "plan",
+          "type": "cards",
+          "options": [
+            {
+              "text": "Treat now",
+              "goto": "treat"
+            },
+            {
+              "text": "Test again first",
+              "goto": "wait",
+              "best": true
+            }
+          ],
+          "then": "after"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "plan"
+          ],
+          "speak": "A screening test for a rare disease comes back positive. The treatment works, but it is hard on the body."
+        },
+        {
+          "ask": {
+            "question": "You are the doctor. What do you do?",
+            "on": "plan",
+            "store": "d",
+            "default": "Test again first",
+            "right": "You chose: {d}.",
+            "wrong": "You chose: {d}."
+          }
+        },
+        {
+          "label": "treat"
+        },
+        {
+          "speak": "If you treat now: with a rare disease, most positive screens are false alarms. Most of the people you treat were never sick, and they get only the side effects."
+        },
+        {
+          "label": "wait"
+        },
+        {
+          "speak": "If you test again first: a second positive makes the disease far more likely, and the treatment goes to the people who need it."
+        },
+        {
+          "label": "after"
+        },
+        {
+          "speak": "That is why a positive screen is a reason for a second look, not for treatment."
+        }
+      ]
+    }
   }
 ]
