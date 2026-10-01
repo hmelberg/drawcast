@@ -315,6 +315,11 @@ app's examples by `scripts/add-book-examples.mjs`; the repo skill's
 `references/book.md`.
 
 Not built (§10 stands): wide figures for rows, code left / output right,
-printed output in stages, the text pane in video export, the embed and a
-book in fullscreen (fullscreen shows the figure only).
+printed output in stages, the text pane in video export, the embed.
+
+**Controls under the whole book** (added 2026-10-01, after the first
+merge): each part's control bar (and its explore tray) is moved from under
+the figure into a footer spanning the book, and fullscreen takes the whole
+book — text, figure and bar. In fullscreen the bar fades while playing, as
+under a plain figure; on the page it stays. No theater button in a book.
 

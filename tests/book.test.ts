@@ -180,3 +180,32 @@ describe("book lint (spec §9)", async () => {
   });
 });
 
+
+// The controls under the whole book (2026-10-01): no jsdom here, so the
+// wiring whose absence would fail silently is pinned on the source, as the
+// repo's other wiring tests do; the behaviour was checked in the app
+// (fullscreen holds text, figure and bar; the bar fades only there).
+describe("one control bar under the whole book", () => {
+  const src = readFileSync("src/book/shell.ts", "utf8");
+  const css = readFileSync("src/book/css.ts", "utf8");
+
+  test("fullscreen takes the book, not the figure; no theater button in a book", () => {
+    expect(src).toMatch(/controls: \{ \.\.\.opts\.controls, fullscreenEl: bookEl, onTheater: undefined \}/);
+  });
+
+  test("each part's bar (and its docked tray) moves into the footer, replacing the last", () => {
+    expect(src).toMatch(/footer\.replaceChildren\(bar, \.\.\.\(tray \? \[tray\] : \[\]\)\)/);
+    // after the host's own onItemMounted — the 3D button and the tray attach to the bar first
+    expect(src.indexOf("opts.onItemMounted?.(hd, item);")).toBeLessThan(src.indexOf("    adoptBar();"));
+  });
+
+  test("movement over the footer counts as movement over the controls; the fade is fullscreen-only", () => {
+    expect(src).toMatch(/footer\.addEventListener\("pointermove", forward\("pointermove"\)\)/);
+    expect(css).toMatch(/\.bk-book:is\(:fullscreen, \.cs-faux-fs\):has\(\.cs-figure\.cs-idle\) \.bk-footer \{ opacity: 0;/);
+  });
+
+  test("into and out of fullscreen, real or faux, the book lays itself out again", () => {
+    expect(src).toMatch(/document\.addEventListener\("fullscreenchange", onResize\)/);
+    expect(src).toMatch(/fauxWatch\.observe\(bookEl, \{ attributes: true, attributeFilter: \["class"\] \}\)/);
+  });
+});

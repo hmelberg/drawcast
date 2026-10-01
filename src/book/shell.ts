@@ -11,7 +11,10 @@
 //     from every text step up to there (ops.ts) — so a seek lands exactly
 //     where playing would have;
 //   - the transitions between parts, awaited by the session (its `book`
-//     hook): TV across a chapter, a short fade within one.
+//     hook): TV across a chapter, a short fade within one;
+//   - one footer under the whole book: each part's control bar (and its
+//     explore tray) is moved there from under the figure, and fullscreen
+//     takes the whole book — text, figure and bar — not the figure alone.
 
 import { itemsOf, type Playlist, type PlaylistItem } from "../playlist/playlist";
 import { mountPlaylist, type SessionHandle, type SessionOptions } from "../playlist/session";
@@ -24,6 +27,7 @@ import { loadBookMath } from "./math";
 import { crossesChapter, opsBeforePart, partTextOps, prelude } from "./ops";
 import { TextPane } from "./pane";
 import { settle, transitionIn, transitionOut, type BookTransition } from "./transitions";
+import { exitFullscreen, fullscreenElement } from "../ui/fullscreen";
 
 /** Whether a playlist is a book: its first part says so. */
 export function isBook(playlist: Playlist): boolean {
@@ -55,7 +59,12 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
   const bookTitle = playlist.meta.title;
 
   // ---- the layout around the session's host ---------------------------------
+  // [book: [row: text pane | the session's host], footer: the control bar]
   const parent = host.parentElement;
+  const bookEl = document.createElement("div");
+  bookEl.className = "bk-book";
+  const footer = document.createElement("div");
+  footer.className = "bk-footer";
   const row = document.createElement("div");
   row.className = `bk-row ${settings.layout === "rows" ? "bk-rows" : "bk-cols"}`;
   const aside = document.createElement("aside");
@@ -64,7 +73,8 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
   const scroll = document.createElement("div");
   scroll.className = "bk-scroll";
   aside.appendChild(scroll);
-  parent?.insertBefore(row, host);
+  parent?.insertBefore(bookEl, host);
+  bookEl.append(row, footer);
   // Columns put the text first (left); rows put it under the figure — what
   // #row promises — unless the book says otherwise.
   const textSecond = settings.text === "second" || (settings.text === undefined && settings.layout === "rows");
@@ -86,37 +96,50 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
     return box.clientWidth - pad - 32;
   };
 
+  /** Fullscreen holds the whole book (the real API, or ui/fullscreen.ts's faux path). */
+  const isFullscreen = (): boolean => fullscreenElement() === bookEl || bookEl.classList.contains("cs-faux-fs");
+
   let view: BookView = "both";
   let share = settings.share;
   const layoutNow = (animate: boolean): void => {
+    const full = isFullscreen();
     const container = (page ? parent?.parentElement : parent) ?? document.body;
     const pad = (() => {
       const cs = getComputedStyle(container);
       return (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
     })();
-    const top = row.getBoundingClientRect().top;
-    const after = [...(parent?.children ?? [])].filter((c) => c !== row && c.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_PRECEDING);
+    const top = full ? 0 : bookEl.getBoundingClientRect().top;
+    const after = full ? [] : [...(parent?.children ?? [])].filter((c) => c !== bookEl && c.compareDocumentPosition(bookEl) & Node.DOCUMENT_POSITION_PRECEDING);
     const furniture = after.reduce((a, c) => a + (c as HTMLElement).offsetHeight, 0);
+    // The bar lives in the footer under the whole book; the figure pane holds
+    // the stage and its frame only. Before the first bar is moved there the
+    // footer is empty: reserve a bar's height so nothing jumps.
+    const footerH = Math.max(footer.offsetHeight, 48) + 8;
     const stage = host.querySelector<HTMLElement>(".cs-stage");
-    const barH = stage ? Math.max(40, host.offsetHeight - stage.offsetHeight) : 64;
+    const frameH = stage && !host.contains(host.querySelector(".cs-controlbar")) ? Math.max(0, host.offsetHeight - stage.offsetHeight) : 18;
     const room = {
       // A page (the player, the viewer) offers the page's width, less its
       // padding — the book's own wrapper shrinks to fit the book, so
-      // measuring that would be circular.
-      w: Math.max(320, (page ? pageWidth() : container.clientWidth - pad - 4) - GAP),
-      h: Math.max(320, window.innerHeight - Math.max(0, top) - furniture - 24),
-      barH,
+      // measuring that would be circular. Fullscreen offers the screen.
+      w: Math.max(320, (full ? window.innerWidth - 48 : page ? pageWidth() : container.clientWidth - pad - 4) - GAP),
+      h: Math.max(320, (full ? window.innerHeight - 32 : window.innerHeight - Math.max(0, top) - furniture - 24) - footerH),
+      barH: frameH,
     };
     const box = bookLayout(room, { ...settings, share }, view);
     row.classList.toggle("bk-animate", animate);
     row.style.setProperty("--bk-font", `${box.fontPx}px`);
     row.style.width = `${box.w + (box.text.w > 0 && box.figure.w > 0 && box.dir === "row" ? GAP : 0)}px`;
+    bookEl.style.width = row.style.width;
+    footer.style.width = row.style.width;
     aside.style.width = `${box.text.w}px`;
     // Columns: the text as tall as the figure beside it; rows: what is left.
     aside.style.height = `${box.dir === "row" ? box.figure.h || box.h : box.text.h}px`;
     aside.classList.toggle("bk-closed", box.text.w < 1 || box.text.h < 1);
     host.style.width = `${box.figure.w}px`;
     host.classList.toggle("bk-closed", box.figure.w < 1 || box.figure.h < 1);
+    // Columns: exactly the figure frame's height, as measured — the layout's
+    // frame estimate can be a few pixels off.
+    if (box.dir === "row" && !animate && host.offsetHeight > 0 && box.figure.w > 0) aside.style.height = `${host.offsetHeight}px`;
     if (!animate) pane.relayout();
     else window.setTimeout(() => pane.relayout(), 1150);
   };
@@ -166,8 +189,24 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
 
   const figureEl = (): Element | null => host.querySelector(".cs-figure");
 
+  /** This part's control bar (and explore tray, docked under it) into the
+   *  footer, in place of the last part's. The bar keeps its listeners: it is
+   *  the same element, only placed under the whole book. */
+  const adoptBar = (): void => {
+    const bar = host.querySelector<HTMLElement>(".cs-figure .cs-controlbar");
+    if (!bar) return;
+    const tray = bar.nextElementSibling?.classList.contains("cs-paramtray") ? bar.nextElementSibling : null;
+    footer.replaceChildren(bar, ...(tray ? [tray] : []));
+  };
+  // The bar's idle fade (controls.ts) listens on the figure: movement over
+  // the footer is movement over the controls, so pass it on.
+  const forward = (type: string) => () => host.querySelector(".cs-figure")?.dispatchEvent(new PointerEvent(type));
+  footer.addEventListener("pointermove", forward("pointermove"));
+  footer.addEventListener("pointerdown", forward("pointerdown"));
+
   const onItemMounted = (hd: RenderHandle, item: PlaylistItem): void => {
     opts.onItemMounted?.(hd, item);
+    adoptBar();
     const i = item.index;
     current = i;
     plan = hd.plan;
@@ -219,6 +258,9 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
   const session = await mountPlaylist(host, playlist, {
     ...opts,
     style: look,
+    // Fullscreen takes the whole book; theater mode means nothing in a book
+    // that already takes the page's width.
+    controls: { ...opts.controls, fullscreenEl: bookEl, onTheater: undefined },
     // Captions start off in a book: the text pane already carries the words
     // that matter (the CC button still turns them on).
     captions: opts.captions ? { ...opts.captions, on: false } : undefined,
@@ -237,6 +279,14 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
   observer.observe(host, { childList: true });
 
   window.addEventListener("resize", onResize);
+  // Into and out of fullscreen: the real API fires fullscreenchange; the faux
+  // path (ui/fullscreen.ts) only toggles a class on the book.
+  document.addEventListener("fullscreenchange", onResize);
+  const fauxWatch = new MutationObserver(onResize);
+  fauxWatch.observe(bookEl, { attributes: true, attributeFilter: ["class"] });
+  // The footer grows when the explore tray opens: the book makes room.
+  const footerWatch = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => layoutNow(false));
+  footerWatch?.observe(footer);
   // The control bar appears with the first mount: lay out once it is there.
   requestAnimationFrame(() => layoutNow(false));
 
@@ -244,12 +294,16 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
     destroy: () => {
       session.destroy();
       observer.disconnect();
+      fauxWatch.disconnect();
+      footerWatch?.disconnect();
       window.removeEventListener("resize", onResize);
+      document.removeEventListener("fullscreenchange", onResize);
+      if (isFullscreen()) exitFullscreen();
       host.classList.remove("bk-figure", "cs-caption-fixed", "bk-closed");
       host.style.width = "";
       parent?.classList.remove("bk-mode");
-      if (row.parentElement) row.parentElement.insertBefore(host, row);
-      row.remove();
+      if (bookEl.parentElement) bookEl.parentElement.insertBefore(host, bookEl);
+      bookEl.remove();
     },
   };
 }
