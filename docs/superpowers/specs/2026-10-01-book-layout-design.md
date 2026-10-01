@@ -1,6 +1,6 @@
 # Books — a text pane beside the drawcast — design
 
-2026-10-01 · status: approved 2026-10-01 · building on branch book-layout · mock: `dev-casts/book-mock.html`
+2026-10-01 · status: D1–D3 BUILT 2026-10-01 on branch book-layout (see §13 for what differs from the text below) · mock: `dev-casts/book-mock.html`
 (git-ignored; `npm run dev`, then `/dev-casts/book-mock.html`, `?part=N`, `?muted=1`)
 
 ## 1. What this is for
@@ -276,3 +276,45 @@ time.
    the text pane as a heading (`#` for a chapter's first part, `##` for a
    part). If the model writes the same heading itself, the automatic one is
    skipped.
+
+## 13. As built (2026-10-01)
+
+D1–D3 are in, on branch `book-layout`. Where the build departs from the
+design above:
+
+- **The mixed look is a render style, not a spec field** (§8.2). `mixed`
+  joins `clean` and `sketchy` (svg-backend's `mixedRenderer`: the sketchy
+  renderer with every stroke drawn clean, fills hatched). It applies to a
+  template's own parts too, which a spec field read per element could not.
+  A book picks it through `book.look` (default `mixed`); Settings, `&style=`
+  and `<drawcast-figure look>` offer it everywhere.
+- **Guide values are opt-in, not the default** (§8.3): `guides: true` is
+  unchanged (every existing cast keeps its look); `guides: {values: true}`
+  writes the numbers, `{x, y}` writes given text. The compiler prompt asks
+  for values whenever the voice names a point's numbers.
+- **Automatic block ids are per part** (§12.1): `w1, w2, …` count the blocks
+  of one part — the planner sees one part at a time. Named blocks reach
+  across parts (`point` back to a block from part 1), and lint warns on a
+  command aimed at an automatic id.
+- **Headings**: book title `#`, chapter `##`, part `###` under a chapter
+  (`##` without one).
+- **Rows put the text under the figure** by default (§4.1) — what
+  `#book_row` promises.
+- **Captions**: the fixed-pane mode (§8.4) is a class, `cs-caption-fixed`,
+  on the pane: never "below"; strip and overlay remain.
+- **Brief controls**: a fourth control, Format (Drawcast / Book / Book,
+  text under), is the checkbox of the original idea.
+- **Lint**: `book-block-long` (over 40 words, quotes excepted),
+  `book-auto-id`, `book-marks` (more than three in a part).
+
+Where it lives: `src/book/` (markdown, math, layout, ops, pane, shell,
+transitions, css, stamp); the session's `book` hook
+(`src/playlist/session.ts`); the plan's `text` step and the Player's
+`textHook`; three bundled books in `docs/examples/books/`, copied into the
+app's examples by `scripts/add-book-examples.mjs`; the repo skill's
+`references/book.md`.
+
+Not built (§10 stands): wide figures for rows, code left / output right,
+printed output in stages, the text pane in video export, the embed and a
+book in fullscreen (fullscreen shows the figure only).
+
