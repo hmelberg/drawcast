@@ -1224,7 +1224,7 @@ export class Player {
       this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, e));
     });
     if (signal.aborted) {
-      this.endGuessMarks();
+      this.endGuessMarks(true);
       return false;
     }
     return true;
@@ -1250,7 +1250,7 @@ export class Player {
     this.selfTestAbort?.abort();
     const ac = new AbortController();
     this.selfTestAbort = ac;
-    this.endGuessMarks();
+    this.endGuessMarks(true);
     const owner = "guess_self";
     const paint = this.guessPainter(setup, before, visible, owner);
     const start = setup.handles.map(startValues);
@@ -1260,7 +1260,7 @@ export class Player {
     if (ac.signal.aborted) return true;
     if (!guess) {
       // Put back: the boundary's honest geometry.
-      this.endGuessMarks();
+      this.endGuessMarks(true);
       this.applyKey(before);
       this.applyScene(before);
       return true;
@@ -1280,7 +1280,7 @@ export class Player {
     if (!this.selfTestAbort) return;
     this.selfTestAbort.abort();
     this.selfTestAbort = null;
-    this.endGuessMarks();
+    this.endGuessMarks(true);
   }
 
   /** Whether "Test me" has anything to offer at this boundary (the chip shows only then). */
@@ -1305,7 +1305,7 @@ export class Player {
     if (signal.aborted || !step.on) return;
     const setup = this.guessSetupAt(step.on, step.from, before);
     if (!setup) return;
-    this.endGuessMarks();
+    this.endGuessMarks(true);
     // PREDICT (spec 2026-10-02 §3): the truth is the figure after the next
     // animate; that animate is the reveal, so this step only asks.
     const animIndex = step.predict ? this.nextAnimate(index) : -1;
@@ -1498,7 +1498,7 @@ export class Player {
     if (signal.aborted || step.cards === undefined) return;
     const g = this.guess?.cards?.(step.cards) ?? null;
     if (!g) return;
-    this.endGuessMarks();
+    this.endGuessMarks(true);
     // A decision starts afresh (its branch state outlives the jump into the branch).
     if (g.mode === "decide") this.decideBranch = null;
     const owner = `cards_${index}`;
@@ -1609,7 +1609,7 @@ export class Player {
       });
       for (const id of g.cards) place(id, 0, 0);
       if (signal.aborted) {
-        this.endGuessMarks();
+        this.endGuessMarks(true);
         return;
       }
     }
@@ -1659,13 +1659,20 @@ export class Player {
     for (const w of issues) console.warn(`[tree] ${w}`);
     const pick: TreePick | null = typeof picked === "string" ? null : picked;
     if (issues.length > 0 || (blanks.length === 0 && !pick)) return;
-    this.endGuessMarks();
+    // Earlier guesses' ghosts go; earlier tree asks' working lines stay.
+    this.endGuessMarks(true);
 
     const decimals = Math.min(Math.max(Math.round(typeof params.decimals === "number" ? params.decimals : 1), 0), 6);
     const fmt = (v: number, b: TreeBlank): string => (b.kind === "probability" ? v.toFixed(2) : v.toFixed(decimals));
     const fmtNum = (v: number): string => v.toFixed(decimals);
     const after = this.plan.states[index];
-    const visible = new Set([...before.visible, ...after.visible]);
+    // A decision's best and prune marks give its answer away: hidden while
+    // asked (the picked decision's, and those of a decision whose value is a
+    // blank), drawn in at the reveal (spec §4.3).
+    const told = new Set([...(pick ? [pick.node] : []), ...blanks.filter((b) => b.kind === "value").map((b) => b.node)]);
+    const givesAway = (id: string): boolean => [...told].some((n) => id.startsWith(`best_${n}_`) || id.startsWith(`prune_${n}_`));
+    const hidden = [...new Set([...before.visible, ...after.visible])].filter(givesAway);
+    const visible = new Set([...before.visible, ...after.visible].filter((id) => !givesAway(id)));
     const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
     // What the blanks show: "?", a typed number, or (dropped) the truth.
     let answers: Record<string, string> = {};
@@ -1792,7 +1799,19 @@ export class Player {
     }
     this.applyKey(after);
     this.applyScene(after);
-    const marks = this.treeMarks(blanks, score.right, step.tree.work, boxOf, !live, pick && chosen !== null && !pickRight ? edges[chosen] : undefined);
+    // The best and prune marks draw themselves in.
+    const drawIn = this.els(hidden.filter((id) => after.visible.includes(id)));
+    if (drawIn.length > 0) {
+      for (const el of drawIn) el.setProgress(0);
+      await this.progress(600, signal, (t) => {
+        for (const el of drawIn) el.setProgress(t);
+      });
+      for (const el of drawIn) el.finish();
+      if (signal.aborted) return;
+    }
+    // No marks of its own (rollback off): a solid ring round the best branch is the reveal.
+    const bestEdge = pick && !after.visible.some((id) => id.startsWith(`best_${pick.node}_`)) ? edges[pick.best] : undefined;
+    const marks = this.treeMarks(blanks, score.right, step.tree.work, boxOf, !live, pick && chosen !== null && !pickRight ? edges[chosen] : undefined, bestEdge);
     if (marks) {
       this.guessOwners.add(owner);
       this.effects?.setGuessMarks?.(owner, marks);
@@ -1809,7 +1828,7 @@ export class Player {
    *  blank with work "all"; none with work false, and in a movie under the
    *  first), a dashed box around a wrong number, a dashed ring round a
    *  wrongly picked branch. Null when there is nothing to mark. */
-  private treeMarks(blanks: TreeBlank[], right: boolean[], work: "all" | false | undefined, boxOf: (part: string) => BBox | null, movie: boolean, wrongEdge: Pt[] | undefined): GuessMarks | null {
+  private treeMarks(blanks: TreeBlank[], right: boolean[], work: "all" | false | undefined, boxOf: (part: string) => BBox | null, movie: boolean, wrongEdge: Pt[] | undefined, bestEdge?: Pt[]): GuessMarks | null {
     const lines: GuessMarkLine[] = [];
     const texts: GuessMarkText[] = [];
     blanks.forEach((b, i) => {
@@ -1823,13 +1842,17 @@ export class Player {
         lines.push({ pts: [[box.x - p, box.y - p], [box.x + box.w + p, box.y - p], [box.x + box.w + p, box.y + box.h + p], [box.x - p, box.y + box.h + p]], closed: true, dashed: true });
       }
     });
-    if (wrongEdge && wrongEdge.length >= 2) {
-      // A capsule round the chosen branch: its two sides, 10 off the line.
-      const a = wrongEdge[0], z = wrongEdge[wrongEdge.length - 1];
+    // A capsule round a branch: its two sides, 10 off the line — dashed
+    // round a wrong choice, solid round the best one.
+    const capsule = (edge: Pt[] | undefined, dashed: boolean): void => {
+      if (!edge || edge.length < 2) return;
+      const a = edge[0], z = edge[edge.length - 1];
       const len = Math.hypot(z[0] - a[0], z[1] - a[1]) || 1;
       const nx = (-(z[1] - a[1]) / len) * 10, ny = ((z[0] - a[0]) / len) * 10;
-      lines.push({ pts: [[a[0] + nx, a[1] + ny], [z[0] + nx, z[1] + ny], [z[0] - nx, z[1] - ny], [a[0] - nx, a[1] - ny]], closed: true, dashed: true });
-    }
+      lines.push({ pts: [[a[0] + nx, a[1] + ny], [z[0] + nx, z[1] + ny], [z[0] - nx, z[1] - ny], [a[0] - nx, a[1] - ny]], closed: true, dashed });
+    };
+    capsule(wrongEdge, true);
+    capsule(bestEdge, false);
     return lines.length > 0 || texts.length > 0 ? { color: GUESS_COLOR, lines, texts } : null;
   }
 
@@ -1844,10 +1867,15 @@ export class Player {
     }
   }
 
-  /** Take every guess ghost off the figure. */
-  private endGuessMarks(): void {
-    for (const owner of this.guessOwners) this.effects?.setGuessMarks?.(owner, null);
-    this.guessOwners.clear();
+  /** Take every guess ghost off the figure. `keepTrees`: a tree's working
+   *  lines stay (spec 2026-10-03 §4.2: until the tree is erased — the next
+   *  question does not take them). */
+  private endGuessMarks(keepTrees = false): void {
+    for (const owner of [...this.guessOwners]) {
+      if (keepTrees && owner.startsWith("tree_")) continue;
+      this.effects?.setGuessMarks?.(owner, null);
+      this.guessOwners.delete(owner);
+    }
   }
 
   /** Take down every mark still on screen — a scrub, the poster, disposal. */

@@ -34,8 +34,8 @@ const root = {
 const params = { root, rollback: true } as unknown as DecisionTreeParams;
 const IDS = ["edge_start_treat", "edge_start_wait", "value_treat", "effect_wait", "branchlabel_treat_not"];
 
-function makePlayer(commands: Command[]) {
-  const plan = planCommands(commands, IDS, {});
+function makePlayer(commands: Command[], ids: string[] = IDS) {
+  const plan = planCommands(commands, ids, {});
   const speech = new CapturingSpeech();
   const marks = new Map<string, GuessMarks | null>();
   // Every other effect is a no-op.
@@ -44,9 +44,11 @@ function makePlayer(commands: Command[]) {
   }) as unknown as BackendEffects;
   const player = new Player(plan, new Map(), speech, null, { mode: "narrated", effects });
   const frames: Record<string, unknown>[] = [];
+  const scenes: ReadonlySet<string>[] = [];
   const rp: Reprojector = {
-    frame: (p) => {
+    frame: (p, scene) => {
       frames.push(p);
+      scenes.push(scene.visible);
     },
     commit: () => new Map(),
     committed: () => null,
@@ -69,7 +71,7 @@ function makePlayer(commands: Command[]) {
   player.guess = runtime;
   const events: AnswerEvent[] = [];
   player.callbacks = { onAnswer: (a) => events.push(a) };
-  return { player, events, frames, speech, marks, plan };
+  return { player, events, frames, scenes, speech, marks, plan };
 }
 
 const ASK: Command = { ask: { question: "EV?", blanks: ["value_treat"], store: "e", right: "Yes", wrong: "No: {e.work}" } };
@@ -149,5 +151,37 @@ describe("tree asks in the player", () => {
     expect(player.vars.get("c.diff")).toBe("0.8");
     expect(player.vars.get("c.ok")).toBe("false");
     expect(marks.get("tree_1")?.lines.some((l) => l.dashed)).toBe(true);
+  });
+
+  test("a pick after blanks: the blanks' working lines stay", async () => {
+    const { player, marks } = makePlayer([{ draw: IDS }, ASK, { ask: { question: "Which?", pick: "start", store: "c" } }]);
+    const answers = [encodeTreeAnswer([6.5], null), encodeTreeAnswer([], "treat")];
+    player.askGate = async () => answers.shift() ?? null;
+    await player.play();
+    expect(player.vars.get("c.ok")).toBe("true");
+    expect(marks.get("tree_1")?.texts.map((t) => t.text)).toContain("0.3 × 10 + 0.7 × 4 = 5.8");
+    player.renderUpTo(0);
+    expect(marks.get("tree_1")).toBeNull();
+  });
+
+  test("pick on a rolled-back tree: best and prune marks hidden while asked, there after", async () => {
+    const MARKS = ["best_start_treat", "prune_start_wait"];
+    const ids = [...IDS, ...MARKS];
+    const { player, plan, scenes, marks } = makePlayer([{ draw: IDS }, { ask: { question: "Which?", pick: "start", store: "c" } }], ids);
+    expect(plan.states[0].visible).not.toContain("best_start_treat");
+    expect(plan.states[1].visible).toEqual(expect.arrayContaining(MARKS));
+    player.askGate = async () => encodeTreeAnswer([], "wait");
+    await player.play();
+    expect(scenes.length).toBeGreaterThan(0);
+    for (const v of scenes) for (const id of MARKS) expect(v.has(id)).toBe(false);
+    // The tree's own marks are the reveal: no solid ring of ours.
+    expect(marks.get("tree_1")?.lines.every((l) => l.dashed)).toBe(true);
+  });
+
+  test("pick without rollback marks: a solid ring round the best branch", async () => {
+    const { player, marks } = makePlayer([{ draw: IDS }, { ask: { question: "Which?", pick: "start", store: "c" } }]);
+    player.askGate = async () => encodeTreeAnswer([], "treat");
+    await player.play();
+    expect(marks.get("tree_1")?.lines.some((l) => !l.dashed && l.closed)).toBe(true);
   });
 });

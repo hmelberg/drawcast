@@ -1376,6 +1376,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // A guess kept back (reveal: false) shows nothing: its truth is for a later revise.
         if (cmd.ask.reveal !== false) makeVisible(shown);
       }
+      // A pick on a rolled-back tree: the decision's best and prune marks are
+      // the reveal (spec 2026-10-03 §4.3) — hidden while it is asked (the
+      // player), there once the question ends.
+      if (treeAsk && cmd.ask.pick !== undefined) {
+        const marks = [...known].filter((id) => id.startsWith(`best_${cmd.ask!.pick}_`) || id.startsWith(`prune_${cmd.ask!.pick}_`));
+        marks.forEach((id) => mentioned.add(id));
+        makeVisible(marks);
+      }
       // The connect widget: the figure's own lines are the reveal. The gate hides
       // them while the viewer draws (it owns the DOM), and the plan agrees they are
       // there once the question ends — the same contract the drag widget's items

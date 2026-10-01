@@ -115,6 +115,14 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
         finish(encodeTreeAnswer(values, chosen));
       };
 
+      /** Everything asked is given: every blank, and the pick if there is one. */
+      const ready = (): boolean => filled() && (pick === null || chosen !== null);
+      const nudgePick = (): void => {
+        hint.textContent = "Now tap the best branch";
+        hint.classList.remove("cs-figgate-next");
+        void hint.offsetWidth;
+        hint.classList.add("cs-figgate-next");
+      };
       /** After a blank is taken with Enter: the next empty one, else on to the pick or the answer. */
       const moveOn = (from: number): void => {
         for (let k = 1; k <= blanks.length; k++) {
@@ -129,10 +137,7 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
           return;
         }
         if (pick && chosen === null) {
-          hint.textContent = "Now tap the best branch";
-          hint.classList.remove("cs-figgate-next");
-          void hint.offsetWidth;
-          hint.classList.add("cs-figgate-next");
+          nudgePick();
           return;
         }
         answer.focus();
@@ -241,7 +246,12 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
       // —— keys ——
       const onKey = (e: KeyboardEvent): void => {
         if (settled) return;
-        const inField = (e.target as Element | null)?.classList?.contains("cs-numedit") === true;
+        const target = e.target as Element | null;
+        const inField = target?.classList?.contains("cs-numedit") === true;
+        // Another control has the keys (the tray, a text box, a button —
+        // the Answer button's Enter is its own click): only the blank's
+        // own field is this gate's.
+        if (!inField && target?.closest?.("input, textarea, select, button, [contenteditable]")) return;
         if (e.key === "Tab" && blanks.length > 0) {
           e.preventDefault();
           e.stopPropagation();
@@ -257,7 +267,8 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
         if (e.key === "Enter") {
           e.preventDefault();
           if (blanks.length > 0 && !filled() && fieldAt < 0) open(values.findIndex((v) => v === null));
-          else if (filled() && (blanks.length > 0 || chosen !== null)) submit();
+          else if (ready()) submit();
+          else if (pick && chosen === null && filled()) nudgePick();
           return;
         }
         const digit = /^[1-9]$/.test(e.key) ? Number(e.key) : null;
@@ -269,7 +280,10 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
 
       answer.addEventListener("click", (e) => {
         e.stopPropagation();
-        submit();
+        commitField();
+        // A pick still to make: say so, rather than answer without it.
+        if (pick && chosen === null && filled()) nudgePick();
+        else submit();
       });
       if (!step.required) {
         const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, "Skip ▸");
