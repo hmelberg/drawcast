@@ -16,6 +16,16 @@ export interface GuessMarkLine {
   pts: Pt[];
   closed?: boolean;
   dashed?: boolean;
+  /** Stroke width (default: 3 dashed, 2.5 solid). */
+  width?: number;
+  /** Opacity (default 1): a ghost after the reveal is lighter. */
+  opacity?: number;
+}
+
+/** A filled dot: a market copy's grab handles while it is asked. */
+export interface GuessMarkDot {
+  at: Pt;
+  r: number;
 }
 
 export interface GuessMarkText {
@@ -28,15 +38,83 @@ export interface GuessMarks {
   color: string;
   lines: GuessMarkLine[];
   texts: GuessMarkText[];
+  dots?: GuessMarkDot[];
 }
+
+/** The market's plot area, in its domain units (the template draws 0–100 on both axes). */
+const MARKET_DOMAIN = { lo: 0, hi: 100 };
+
+/** A polyline clipped to the square [lo, hi]² (Liang–Barsky per segment): the runs inside. */
+function clipToSquare(pts: Pt[], lo: number, hi: number): Pt[][] {
+  const runs: Pt[][] = [];
+  let cur: Pt[] = [];
+  const flush = () => {
+    if (cur.length >= 2) runs.push(cur);
+    cur = [];
+  };
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    const dx = x1 - x0, dy = y1 - y0;
+    let t0 = 0, t1 = 1;
+    let inside = true;
+    for (const [pp, q] of [[-dx, x0 - lo], [dx, hi - x0], [-dy, y0 - lo], [dy, hi - y0]] as [number, number][]) {
+      if (pp === 0) {
+        if (q < 0) inside = false;
+        continue;
+      }
+      const r = q / pp;
+      if (pp < 0) t0 = Math.max(t0, r);
+      else t1 = Math.min(t1, r);
+    }
+    if (!inside || t0 > t1) {
+      flush();
+      continue;
+    }
+    const a: Pt = [x0 + dx * t0, y0 + dy * t0];
+    const b: Pt = [x0 + dx * t1, y0 + dy * t1];
+    const last = cur[cur.length - 1];
+    if (!last || Math.hypot(last[0] - a[0], last[1] - a[1]) > 1e-9) {
+      flush();
+      cur.push(a);
+    }
+    cur.push(b);
+    if (t1 < 1) flush();
+  }
+  flush();
+  return runs;
+}
+
+/** The point halfway along a polyline (by length). */
+function midOf(pts: Pt[]): Pt {
+  const seg = pts.slice(1).map((p, i) => Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]));
+  let left = seg.reduce((a, b) => a + b, 0) / 2;
+  for (let i = 0; i < seg.length; i++) {
+    if (left <= seg[i] && seg[i] > 0) {
+      const f = left / seg[i];
+      return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * f, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * f];
+    }
+    left -= seg[i];
+  }
+  return pts[pts.length - 1];
+}
+
+/** How the market copy is drawn while asked, and as a ghost after. */
+const COPY_WIDTH = 4;
+const GHOST_WIDTH = 2.5;
+const GHOST_OPACITY = 0.5;
+const HANDLE_R = 6;
+const GAP_TICK = 14;
+const OPEN_DOT_R = 12;
 
 /**
  * The marks for these handles: ghosts at `guess`; gaps grown to `t` (0..1)
  * of the way from guess to truth — the gap is drawn as the reveal runs.
  */
-export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1): GuessMarks {
+export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opts: { asking?: boolean } = {}): GuessMarks {
   const lines: GuessMarkLine[] = [];
   const texts: GuessMarkText[] = [];
+  const dots: GuessMarkDot[] = [];
   handles.forEach((h, k) => {
     const g = guess[k] ?? h.truth;
     switch (h.kind) {
@@ -129,13 +207,24 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1): Gu
         break;
       }
       case "market": {
-        // The viewer's copy, dashed; as the truth arrives, the two gaps (at
-        // the scored points) and the equilibrium the guess implied, an open dot.
+        // The viewer's copy, clipped to the plot. While asked it is solid and
+        // a little thicker, with grab dots at its middle and both ends, so it
+        // reads as something to drag; after, a dashed, lighter ghost that
+        // cannot be taken for the true curve. As the truth arrives: the two
+        // gaps (at the scored points) as brackets with the gap written, and
+        // the equilibrium the guess implied, an open dot wider than the
+        // template's own equilibrium dot.
         const m = h.market;
         if (!m || !h.toLogical) break;
         const v: [number, number] = [g[0] ?? 0, g[1] ?? 0];
         const copy = curveOfGaps(m, v);
-        lines.push({ pts: copy.map(h.toLogical), dashed: true });
+        const runs = clipToSquare(copy, MARKET_DOMAIN.lo, MARKET_DOMAIN.hi).map((r) => r.map(h.toLogical!));
+        const asking = opts.asking === true;
+        for (const pts of runs) lines.push(asking ? { pts, width: COPY_WIDTH } : { pts, dashed: true, width: GHOST_WIDTH, opacity: GHOST_OPACITY });
+        if (asking && runs.length > 0) {
+          const longest = runs.reduce((a, b) => (b.length > a.length ? b : a));
+          for (const at of [longest[0], midOf(longest), longest[longest.length - 1]]) dots.push({ at, r: HANDLE_R });
+        }
         if (t <= 0) break;
         const at = (q: number, x: number): Pt => h.toLogical!(m.axis === "price" ? [q, x] : [x, q]);
         m.at.forEach((q, j) => {
@@ -143,21 +232,31 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1): Gu
           if (b === null) return;
           const a = at(q, b + v[j]);
           const e = at(q, b + v[j] + (m.truth[j] - v[j]) * t);
-          if (Math.hypot(e[0] - a[0], e[1] - a[1]) > 2) lines.push({ pts: [a, e] });
+          if (Math.hypot(e[0] - a[0], e[1] - a[1]) <= 2) return;
+          lines.push({ pts: [a, e] });
+          // A tick across each end: a bracket, readable however short the gap.
+          const half = GAP_TICK / 2;
+          const tick = (p: Pt): Pt[] => (m.axis === "price" ? [[p[0] - half, p[1]], [p[0] + half, p[1]]] : [[p[0], p[1] - half], [p[0], p[1] + half]]);
+          lines.push({ pts: tick(a) }, { pts: tick(e) });
+          if (t >= 1) {
+            const mid: Pt = [(a[0] + e[0]) / 2, (a[1] + e[1]) / 2];
+            const text = signed(h, m.truth[j] - v[j]);
+            texts.push(m.axis === "price" ? { at: [mid[0] + half + 6, mid[1]], text, anchor: "start" } : { at: [mid[0], mid[1] - half - 14], text, anchor: "middle" });
+          }
         });
         const eq = impliedEquilibrium(copy, m.other);
-        if (eq) {
+        if (eq && eq[0] >= MARKET_DOMAIN.lo && eq[0] <= MARKET_DOMAIN.hi && eq[1] >= MARKET_DOMAIN.lo && eq[1] <= MARKET_DOMAIN.hi) {
           const c = h.toLogical(eq);
-          const r = 7;
+          const r = OPEN_DOT_R;
           const ring: Pt[] = [];
-          for (let s = 0; s < 16; s++) ring.push([c[0] + r * Math.cos((s / 16) * 2 * Math.PI), c[1] + r * Math.sin((s / 16) * 2 * Math.PI)]);
-          lines.push({ pts: ring, closed: true });
+          for (let s = 0; s < 24; s++) ring.push([c[0] + r * Math.cos((s / 24) * 2 * Math.PI), c[1] + r * Math.sin((s / 24) * 2 * Math.PI)]);
+          lines.push({ pts: ring, closed: true, width: 3 });
         }
         break;
       }
     }
   });
-  return { color: GUESS_COLOR, lines, texts };
+  return { color: GUESS_COLOR, lines, texts, ...(dots.length > 0 ? { dots } : {}) };
 }
 
 function signed(h: GuessHandle, d: number): string {

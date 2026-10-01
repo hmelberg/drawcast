@@ -2306,11 +2306,22 @@ function makeEffects(
         p.setAttribute("d", pathFromPts(l.pts, l.closed === true));
         p.setAttribute("fill", "none");
         p.setAttribute("stroke", m.color);
-        p.setAttribute("stroke-width", l.dashed ? "3" : "2.5");
+        p.setAttribute("stroke-width", String(l.width ?? (l.dashed ? 3 : 2.5)));
         p.setAttribute("stroke-linecap", "round");
         p.setAttribute("stroke-linejoin", "round");
         if (l.dashed) p.setAttribute("stroke-dasharray", "9 7");
+        if (l.opacity !== undefined && l.opacity < 1) p.setAttribute("opacity", String(l.opacity));
         g.appendChild(p);
+      }
+      for (const d of m.dots ?? []) {
+        const c = document.createElementNS(SVG_NS, "circle");
+        c.setAttribute("cx", d.at[0].toFixed(1));
+        c.setAttribute("cy", toSvgY(d.at[1]).toFixed(1));
+        c.setAttribute("r", String(d.r));
+        c.setAttribute("fill", m.color);
+        c.setAttribute("stroke", "#faf6ec");
+        c.setAttribute("stroke-width", "2");
+        g.appendChild(c);
       }
       for (const t of m.texts) {
         const e = document.createElementNS(SVG_NS, "text");

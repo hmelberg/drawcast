@@ -191,11 +191,13 @@ describe("market asks in the player", () => {
     expect(speech.said.some((s) => s.startsWith("No: ") && /steeper/.test(s))).toBe(true);
     // The animate ran from the template's own start to the truth: the tax swept.
     expect(frames.some((f) => typeof f["tax.amount"] === "number" && (f["tax.amount"] as number) > 0 && (f["tax.amount"] as number) < 40)).toBe(true);
-    // After the animate: the copy (dashed), two gap lines and an open dot.
+    // After the animate: the copy (a dashed, lighter ghost), two gap
+    // brackets (a line and a tick at each end) and an open dot.
     const m = marks.get("guess_1");
     expect(m).toBeTruthy();
     expect(m!.lines.filter((l) => l.dashed)).toHaveLength(1);
-    expect(m!.lines.filter((l) => !l.dashed && !l.closed)).toHaveLength(2);
+    expect(m!.lines.find((l) => l.dashed)!.opacity).toBeLessThan(1);
+    expect(m!.lines.filter((l) => !l.dashed && !l.closed)).toHaveLength(6);
     expect(m!.lines.some((l) => l.closed)).toBe(true);
     player.renderUpTo(0);
     expect(marks.get("guess_1")).toBeNull();
@@ -206,8 +208,9 @@ describe("market asks in the player", () => {
     let session: GuessSession | null = null;
     player.askGate = async (_s, step) => {
       session = (step as unknown as { guess: GuessSession }).guess;
-      // While asked, the copy is painted as a mark on the curve.
-      expect(marks.get("guess_1")?.lines.some((l) => l.dashed)).toBe(true);
+      // While asked, the copy is painted as a mark on the curve: solid, with grab dots.
+      expect(marks.get("guess_1")?.lines.some((l) => !l.dashed && (l.width ?? 0) > 3)).toBe(true);
+      expect(marks.get("guess_1")?.dots).toHaveLength(3);
       const t = session.setup.handles[0].truth;
       return `${t[0]},${t[1]}`;
     };

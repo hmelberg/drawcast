@@ -1288,7 +1288,7 @@ export class Player {
       this.geometryDirty = true;
       if (marks && sketched) {
         this.guessOwners.add(owner);
-        this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, values, 0));
+        this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, values, 0, { asking: true }));
       }
     };
   }

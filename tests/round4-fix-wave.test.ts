@@ -117,3 +117,52 @@ describe("a scale's answer marker goes with its scale (fix wave item 7)", () => 
     expect(plan.states[2].offsets["s_answer_pin"]).toEqual([0, 100]);
   });
 });
+
+describe("market copy marks (fix wave item 4)", async () => {
+  const { guessMarks } = await import("../src/guess/marks");
+  const { guessParts, guessSetup } = await import("../src/guess/handles");
+  const { withOverrides } = await import("../src/render/params");
+  const params = { demand: { steepness: "medium" }, supply: { steepness: "medium" }, tax: { amount: 0, side: "seller", kind: "per_unit" } };
+  const spec = expandSpec({ template: "supply_demand", params, commands: [] } as unknown as Spec);
+  const layout = layoutSpec(spec);
+  const setup = guessSetup(spec, params, layout, guessParts(spec, "supply_curve"), {
+    end: { params: withOverrides(params, { "tax.amount": 20 }), targets: { "tax.amount": 20 } },
+  });
+  const h = setup.handles[0];
+  const plot = [h.toLogical!([0, 0]), h.toLogical!([100, 100])];
+  const inPlot = ([x, y]: [number, number]) =>
+    x >= Math.min(plot[0][0], plot[1][0]) - 0.5 && x <= Math.max(plot[0][0], plot[1][0]) + 0.5 && y >= Math.min(plot[0][1], plot[1][1]) - 0.5 && y <= Math.max(plot[0][1], plot[1][1]) + 0.5;
+
+  test("while asked: the copy is solid and thicker, with handle dots at the middle and both ends", () => {
+    expect(h.kind).toBe("market");
+    const m = guessMarks([h], [[0, 0]], 0, { asking: true });
+    const copy = m.lines[0];
+    expect(copy.dashed).toBeFalsy();
+    expect(copy.width).toBeGreaterThan(3);
+    expect(m.dots?.length).toBe(3);
+  });
+
+  test("the copy is clipped to the plot area", () => {
+    for (const asking of [true, false]) {
+      const m = guessMarks([h], [[-70, -70]], 0, { asking });
+      const copy = m.lines.filter((l) => l.pts.length > 2);
+      expect(copy.length).toBeGreaterThan(0);
+      for (const l of copy) for (const p of l.pts) expect(inPlot(p as [number, number])).toBe(true);
+      for (const d of m.dots ?? []) expect(inPlot(d.at as [number, number])).toBe(true);
+    }
+  });
+
+  test("after the reveal: a dashed, lighter ghost; gap brackets at least 12 px wide with the gap written; an open dot wider than the equilibrium dot", () => {
+    const m = guessMarks([h], [[5, 5]], 1);
+    const ghost = m.lines[0];
+    expect(ghost.dashed).toBe(true);
+    expect(ghost.opacity).toBeLessThan(1);
+    expect(m.dots ?? []).toEqual([]);
+    const ticks = m.lines.filter((l) => l.pts.length === 2 && Math.abs(l.pts[0][1] - l.pts[1][1]) < 0.01 && Math.abs(l.pts[0][0] - l.pts[1][0]) >= 12);
+    expect(ticks.length).toBeGreaterThanOrEqual(4);
+    expect(m.texts.length).toBeGreaterThanOrEqual(1);
+    const ring = m.lines.find((l) => l.closed)!;
+    const xs = ring.pts.map((p) => p[0]);
+    expect((Math.max(...xs) - Math.min(...xs)) / 2).toBeGreaterThanOrEqual(10);
+  });
+});
