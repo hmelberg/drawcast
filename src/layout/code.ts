@@ -1018,7 +1018,9 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
         // Each slide on its own opaque ground: the figures are transparent
         // PNGs, so without it a later slide showed the earlier one through it
         // (two sets of axes at once) and "a plain draw replaces" was untrue.
-        const [sx, sy] = slotCenter, hw = figWidths[k] / 2, hh = figHeights[k] / 2;
+        // The ground is painted INSIDE the image's node (ImageDrawable.ground)
+        // so it fades in with the chart: a separate instant ground blanked the
+        // earlier chart for the 0.9 s the next one took to appear (2026-10-01).
         out.push({
           id,
           kind: "group",
@@ -1027,21 +1029,13 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
           drawOpts: resolveDrawOpts(el.draw, { mode: "sketch", duration: 900 }),
           children: [
             {
-              id: `${id}__ground`,
-              kind: "area",
-              pts: [[sx - hw, sy - hh], [sx + hw, sy - hh], [sx + hw, sy + hh], [sx - hw, sy + hh]],
-              precise: true,
-              z: Z_STROKE,
-              style: resolveStyle(undefined, { fill: FIGURE_GROUND, opacity: 1, strokeWidth: 0 }),
-              drawOpts: resolveDrawOpts(undefined, { mode: "instant", duration: 0 }),
-            },
-            {
               id: `${id}__img`,
               kind: "image",
               href: f.href,
               pos: slotCenter,
               w: figWidths[k],
               h: figHeights[k],
+              ground: FIGURE_GROUND,
               z: Z_STROKE,
               style: resolveStyle(undefined, {}),
               reveal: el.reveal ?? "fade",

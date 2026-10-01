@@ -509,6 +509,15 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     if (d.style.opacity < 1) img.setAttribute("opacity", String(d.style.opacity));
     const x = d.pos[0] - d.w / 2;
     const y = toSvgY(d.pos[1] + d.h / 2);
+    if (d.ground) {
+      const ground = document.createElementNS(SVG_NS, "rect");
+      ground.setAttribute("x", String(x));
+      ground.setAttribute("y", String(y));
+      ground.setAttribute("width", String(d.w));
+      ground.setAttribute("height", String(d.h));
+      ground.setAttribute("fill", d.ground);
+      g.appendChild(ground);
+    }
     if (d.view) {
       // The whole picture in a 1000 × 1000 unit space; the viewBox picks the
       // shown part and stretches it over the drawable's box.
