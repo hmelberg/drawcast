@@ -41,6 +41,19 @@ describe("fill", () => {
     expect(a.boxes[0]).toEqual([]);
   });
 
+  test("two blanks close together: a tile goes to the NEAREST box within reach, not the first (final review 2026-10-03)", () => {
+    const two: CardsElementLike = { id: "f_tiles", type: "cards", fill: "f", items: [{ text: "a", blank: 1 }, { text: "b", blank: 2 }, { text: "c" }] };
+    const near = (id: string) => (id === "f" ? [{ x: 100, y: 100, w: 30, h: 30 }, { x: 140, y: 100, w: 30, h: 30 }] : null);
+    const g2 = cardsGeometry(two, undefined, near);
+    const [b1, b2] = g2.binBoxes;
+    // Both boxes are within reach of a point just right of the middle (the reach is tile-width based).
+    const p: [number, number] = [(b1.c[0] + b2.c[0]) / 2 + 6, b2.c[1]];
+    expect(Math.abs(p[0] - b1.c[0])).toBeLessThanOrEqual(Math.max(b1.w, g2.w) / 2 + 10);
+    expect(drop(g2, initialArrangement(g2), 0, p).boxes).toEqual([[], [0]]);
+    expect(drop(g2, initialArrangement(g2), 0, [b2.c[0] - 3, b2.c[1]]).boxes).toEqual([[], [0]]);
+    expect(drop(g2, initialArrangement(g2), 0, [b1.c[0] + 3, b1.c[1]]).boxes).toEqual([[0], []]);
+  });
+
   test("scoring counts the blanks, not the tiles", () => {
     expect(scoreCards(g, { order: [], boxes: [[0]] })).toEqual({ within: 1, count: 1, ok: true });
     expect(scoreCards(g, { order: [], boxes: [[1]] })).toEqual({ within: 0, count: 1, ok: false });

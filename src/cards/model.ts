@@ -89,7 +89,18 @@ export function drop(g: CardsGeometry, a: Arrangement, card: number, p: Pt): Arr
     // One tile per box: a drop on a full box swaps — the old tile goes home.
     const boxes = g.binBoxes.map((_, k) => (a.boxes[k] ?? []).filter((c) => c !== card));
     const pad = 10;
-    const k = g.binBoxes.findIndex((bx) => Math.abs(p[0] - bx.c[0]) <= Math.max(bx.w, g.w) / 2 + pad && Math.abs(p[1] - bx.c[1]) <= Math.max(bx.h, g.h) / 2 + pad);
+    // The reach is tile-sized, so two blanks side by side overlap: of the
+    // boxes within reach, the nearest takes it (not the first in order).
+    let k = -1;
+    let kd = Infinity;
+    g.binBoxes.forEach((bx, i) => {
+      const inReach = Math.abs(p[0] - bx.c[0]) <= Math.max(bx.w, g.w) / 2 + pad && Math.abs(p[1] - bx.c[1]) <= Math.max(bx.h, g.h) / 2 + pad;
+      const d = Math.hypot(p[0] - bx.c[0], p[1] - bx.c[1]);
+      if (inReach && d < kd) {
+        kd = d;
+        k = i;
+      }
+    });
     if (k >= 0) boxes[k] = [card];
     return { ...a, boxes };
   }
