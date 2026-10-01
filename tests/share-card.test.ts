@@ -120,6 +120,15 @@ describe("courseCardText", () => {
   test("no heading, nothing", () => {
     expect(courseCardText("just text\n")).toEqual({});
   });
+  const REAL = (priv: string) => `# Understanding the QALY: Definition, Calculation, and Debates\n${priv}enroll: https://drawcast.anvil.app\nslug: understanding-the-qaly\nlevel: advanced undergraduate\n\nA five-lecture course unpacking the Quality-Adjusted Life Year.\n\n---\n## What is a QALY, and why do we need it?\n`;
+  test("a private course leaves no text", () => {
+    expect(courseCardText(REAL("private: true\n"))).toEqual({});
+  });
+  test("option lines are skipped: title plus the intro line", () => {
+    const want = { title: "Understanding the QALY: Definition, Calculation, and Debates", subtitle: "A five-lecture course unpacking the Quality-Adjusted Life Year." };
+    expect(courseCardText(REAL("private: false\n"))).toEqual(want);
+    expect(courseCardText(REAL(""))).toEqual(want);
+  });
 });
 
 describe("cardHtml", () => {

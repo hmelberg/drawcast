@@ -80,6 +80,15 @@ describe("a crawler", () => {
     expect(html).toContain('og:title" content="QALY basics"');
     expect(html).toContain('og:image" content="https://drawcast.app/share-card.png"');
   });
+  test("a private course: the generic card, no trace of its title", async () => {
+    const md = "# Secret course\nprivate: true\nslug: secret\n\nA hidden intro.\n";
+    const html = await (await handleCardRequest(get("/c/qaly", FB), deps({ fetchText: async () => md }))).text();
+    expect(html).toContain('og:title" content="drawcast"');
+    expect(html).toContain('og:image" content="https://drawcast.app/share-card.png"');
+    expect(html).not.toContain("Secret");
+    expect(html).not.toContain("hidden intro");
+    expect(html).not.toContain("private");
+  });
   test("generic card, status 200: unknown name, Drive, GitHub down, private (locked) cast, a registry that throws", async () => {
     const cases: Array<[string, Partial<CardDeps>]> = [
       ["/c/nobody", {}],

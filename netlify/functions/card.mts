@@ -60,7 +60,9 @@ async function find(t: ShareTarget, deps: CardDeps): Promise<Found | null> {
     const k = splitKey(r.target);
     if (!k) return null;
     const md = await deps.fetchText(rawUrl(k.owner, k.repo, `${k.path}/course.md`));
-    return { text: md === null ? undefined : courseCardText(md) };
+    // No title (a private course gives {}) is the generic card, not "A drawcast".
+    const text = md === null ? undefined : courseCardText(md);
+    return { text: text?.title ? text : undefined };
   }
   if (r.target.startsWith("gdrive/")) return null;
   if (r.target.startsWith("anvil/")) {

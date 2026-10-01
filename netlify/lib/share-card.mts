@@ -103,19 +103,37 @@ export function castCardText(text: string): { title?: string; subtitle?: string 
   return out;
 }
 
-/** A course's course.md: its `# Title`, and the first line of the paragraph
- *  under it. */
+// src/course/document.ts's option-line shape (netlify/lib must not import src/).
+const OPTION_RE = /^([a-zæøå][a-zæøå0-9_-]*)\s*:\s*(.+)$/;
+
+function optionsOf(line: string): [string, string][] {
+  return line
+    .split("·")
+    .map((part) => OPTION_RE.exec(part.trim()))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => [m[1], m[2].trim()]);
+}
+
+/** A course's course.md: its `# Title`, and the first line of the intro
+ *  paragraph — after the `key: value` option lines that follow the title. A
+ *  course with `private: true` gives nothing at all: a private course must
+ *  leave no text on a card. (`private` is looked for in every line up to the
+ *  first rule or heading, so a misplaced option still locks it.) */
 export function courseCardText(md: string): { title?: string; subtitle?: string } {
   const lines = md.split(/\r?\n/);
   const at = lines.findIndex((l) => /^# \S/.test(l));
   if (at < 0) return {};
-  const out: { title?: string; subtitle?: string } = { title: clip(lines[at].slice(2), TITLE_MAX) };
+  const body: string[] = [];
   for (const l of lines.slice(at + 1)) {
     if (/^(---|#)/.test(l)) break;
-    if (l.trim()) {
-      out.subtitle = clip(l, LINE_MAX);
-      break;
-    }
+    body.push(l);
+  }
+  if (body.some((l) => optionsOf(l.trim()).some(([k, v]) => k === "private" && v === "true"))) return {};
+  const out: { title?: string; subtitle?: string } = { title: clip(lines[at].slice(2), TITLE_MAX) };
+  for (const l of body) {
+    if (!l.trim() || optionsOf(l.trim()).length > 0) continue;
+    out.subtitle = clip(l, LINE_MAX);
+    break;
   }
   return out;
 }
