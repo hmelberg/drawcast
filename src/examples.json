@@ -80343,5 +80343,402 @@
         }
       ]
     }
+  },
+  {
+    "request": "A tax per unit on cigarettes: where does supply go, and who pays? Let me guess first. #interactive",
+    "spec": {
+      "title": "A tax per unit on cigarettes",
+      "template": "supply_demand",
+      "params": {
+        "x_label": "Cartons sold",
+        "y_label": "Price ($)",
+        "demand": {
+          "elasticity": 0.5
+        },
+        "supply": {},
+        "equilibrium": {
+          "show": true,
+          "guides": true
+        },
+        "tax": {
+          "amount": 0,
+          "side": "seller",
+          "kind": "per_unit"
+        },
+        "units": {
+          "price": [
+            0,
+            100
+          ],
+          "price_unit": "$"
+        },
+        "readout": [
+          "price_buyers",
+          "price_sellers"
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "A tax per unit on cigarettes"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "This is about a tax per unit on cigarettes: a fixed number of dollars on every carton sold, whatever its price. To see who ends up paying it, start with the market for cartons in one city."
+        },
+        {
+          "draw": [
+            "demand_curve",
+            "label_D"
+          ],
+          "speak": "Smokers' demand is steep, because when the price rises, most of them keep buying."
+        },
+        {
+          "draw": [
+            "supply_curve",
+            "label_S"
+          ],
+          "speak": "Supply slopes up the other way, since a higher price makes it worth shipping more cartons."
+        },
+        {
+          "draw": [
+            "equilibrium_point",
+            "guide_lines",
+            "label_E",
+            "label_Pstar"
+          ],
+          "speak": "Before any tax, the two meet here, at fifty dollars a carton."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "tax_supply_curve"
+          ],
+          "speak": "Now the state puts a tax of eighteen dollars on every carton, and the sellers must hand it over."
+        },
+        {
+          "ask": {
+            "question": "Where does the supply curve go? Drag its middle to move it, or an end to turn it, then press Answer.",
+            "on": "supply_curve",
+            "predict": true,
+            "store": "t",
+            "right": "Yes. {t.why}",
+            "wrong": "Not quite. {t.why}"
+          }
+        },
+        {
+          "animate": {
+            "tax.amount": 18
+          },
+          "duration": 2.5,
+          "speak": "To part with a carton, sellers now need eighteen dollars more than before, at every quantity, so the whole supply curve moves up by eighteen."
+        },
+        {
+          "draw": [
+            "label_S_tax",
+            "tax_equilibrium_point",
+            "tax_guide_lines"
+          ],
+          "speak": "Yet the price does not jump by the full eighteen, because at a higher price some smokers do cut back. The market settles where the new supply meets demand."
+        },
+        {
+          "draw": [
+            "price_buyers_point",
+            "price_sellers_point",
+            "label_Pb",
+            "label_Ps",
+            "readout_price_buyers",
+            "readout_price_sellers"
+          ],
+          "speak": "There, smokers pay about sixty-three dollars a carton, while sellers keep about forty-five of it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "demand_curve"
+            ]
+          },
+          "speak": "So smokers carry about thirteen of the eighteen dollars and sellers about five. That is because demand is the steeper curve here: smokers have fewer ways out than sellers do."
+        },
+        {
+          "quiz": {
+            "question": "Who carries more of this cigarette tax?",
+            "choices": [
+              "Smokers",
+              "Sellers",
+              "Both the same"
+            ],
+            "correct": 1,
+            "right": "Smokers: their demand is the steeper curve, so the price they pay rises most.",
+            "wrong": "Compare how far each price moved from fifty dollars."
+          }
+        }
+      ]
+    }
+  },
+  {
+    "request": "What does a 25 % tax on wine do to the supply curve, compared with a tax per bottle? Let me guess first. #interactive",
+    "spec": {
+      "title": "A 25 % tax on wine",
+      "template": "supply_demand",
+      "params": {
+        "x_label": "Bottles sold",
+        "y_label": "Price ($)",
+        "demand": {},
+        "supply": {},
+        "equilibrium": {
+          "show": true,
+          "guides": true
+        },
+        "tax": {
+          "amount": 0,
+          "side": "seller",
+          "kind": "ad_valorem"
+        },
+        "units": {
+          "price": [
+            0,
+            40
+          ],
+          "price_unit": "$"
+        },
+        "readout": [
+          "price_buyers",
+          "price_sellers"
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "A 25 % tax on wine"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "This is about a twenty-five percent tax on wine, a tax set as a share of the price rather than as so many dollars a bottle. To see what it does, start with the wine market in one town."
+        },
+        {
+          "draw": [
+            "demand_curve",
+            "label_D"
+          ],
+          "speak": "Buyers want more bottles when wine is cheap,"
+        },
+        {
+          "draw": [
+            "supply_curve",
+            "label_S"
+          ],
+          "speak": "while sellers offer more when it is dear."
+        },
+        {
+          "draw": [
+            "equilibrium_point",
+            "guide_lines",
+            "label_E",
+            "label_Pstar"
+          ],
+          "speak": "Before any tax, they meet at twenty dollars a bottle."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "tax_supply_curve"
+          ],
+          "speak": "Now the state adds a tax of twenty-five percent on the price of every bottle, and the sellers must pay it."
+        },
+        {
+          "ask": {
+            "question": "Show the new supply curve. Move it, turn it, or both, then press Answer.",
+            "on": "supply_curve",
+            "predict": true,
+            "check": "shape",
+            "store": "t",
+            "right": "Yes. {t.why}",
+            "wrong": "Not quite. {t.why}"
+          }
+        },
+        {
+          "animate": {
+            "tax.amount": 25
+          },
+          "duration": 2.5,
+          "speak": "To keep what they got before, sellers now need a quarter more at every quantity: two dollars more on an eight-dollar bottle, but five more on a twenty-dollar one. So supply moves up and gets steeper as well."
+        },
+        {
+          "draw": [
+            "label_S_tax",
+            "tax_equilibrium_point",
+            "tax_guide_lines",
+            "price_buyers_point",
+            "price_sellers_point",
+            "label_Pb",
+            "label_Ps",
+            "readout_price_buyers",
+            "readout_price_sellers"
+          ],
+          "speak": "The market settles where the taxed supply meets demand: buyers now pay about twenty-two dollars a bottle, and sellers keep about eighteen."
+        },
+        {
+          "speak": "The gap between those two prices, about four and a half dollars, is the tax on each bottle, a quarter of what the seller keeps.",
+          "highlight": {
+            "target": [
+              "price_buyers_point",
+              "price_sellers_point"
+            ]
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "tax_supply_curve"
+            ]
+          },
+          "speak": "Compare that with a tax per unit, which adds the same dollars to every bottle and only moves supply up. A percent tax grows with the price instead, so it turns the curve too, and the dearer the wine, the more tax each bottle carries."
+        }
+      ]
+    }
+  },
+  {
+    "request": "What does a subsidy for heat pumps do to the market, and who gains from it? Let me guess first. #interactive",
+    "spec": {
+      "title": "A subsidy for heat pumps",
+      "template": "supply_demand",
+      "params": {
+        "x_label": "Pumps installed",
+        "y_label": "Price ($)",
+        "demand": {},
+        "supply": {},
+        "equilibrium": {
+          "show": true,
+          "guides": true
+        },
+        "tax": {
+          "amount": 0,
+          "side": "seller",
+          "kind": "per_unit",
+          "label": "S − subsidy"
+        },
+        "units": {
+          "price": [
+            0,
+            20000
+          ],
+          "price_unit": "$"
+        },
+        "readout": [
+          "price_buyers",
+          "price_sellers"
+        ]
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "A subsidy for heat pumps"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "This is about a subsidy for heat pumps: the state pays installers three thousand dollars for every pump they put in. To see what that does, start with the market before the subsidy."
+        },
+        {
+          "draw": [
+            "demand_curve",
+            "label_D"
+          ],
+          "speak": "Households want more pumps the cheaper they are,"
+        },
+        {
+          "draw": [
+            "supply_curve",
+            "label_S"
+          ],
+          "speak": "and installers fit more the better they are paid."
+        },
+        {
+          "draw": [
+            "equilibrium_point",
+            "guide_lines",
+            "label_E",
+            "label_Pstar"
+          ],
+          "speak": "Without help, the two meet at ten thousand dollars a pump."
+        },
+        {
+          "pause": 0.4
+        },
+        {
+          "draw": [
+            "tax_supply_curve"
+          ],
+          "speak": "Then the subsidy begins, paid to the installers for each pump they fit."
+        },
+        {
+          "ask": {
+            "question": "Which way does the supply curve go? Drag it there, then press Answer.",
+            "on": "supply_curve",
+            "predict": true,
+            "check": "direction",
+            "store": "t",
+            "right": "Yes, down: with the state's payment, installers need less from buyers for each pump.",
+            "wrong": "Not quite. {t.why}"
+          }
+        },
+        {
+          "animate": {
+            "tax.amount": -15
+          },
+          "duration": 2.5,
+          "speak": "The state's three thousand comes on top of whatever buyers pay, so installers need three thousand less from buyers at every quantity, and the whole supply curve moves down by that same amount."
+        },
+        {
+          "draw": [
+            "label_S_tax",
+            "tax_equilibrium_point",
+            "tax_guide_lines",
+            "price_buyers_point",
+            "price_sellers_point",
+            "label_Pb",
+            "label_Ps",
+            "readout_price_buyers",
+            "readout_price_sellers"
+          ],
+          "speak": "The new crossing is lower and further right: households pay about eight and a half thousand, installers receive about eleven and a half, and more pumps go in."
+        },
+        {
+          "highlight": {
+            "target": [
+              "price_buyers_point",
+              "price_sellers_point"
+            ]
+          },
+          "speak": "Notice that although the money goes to installers, buyers get half of it as a lower price, because here the two curves are about equally steep."
+        },
+        {
+          "quiz": {
+            "question": "Who gains from the three thousand dollars?",
+            "choices": [
+              "Only the installers",
+              "Only the buyers",
+              "Both, sharing it"
+            ],
+            "correct": 3,
+            "right": "Both: buyers pay less and installers receive more, whoever the cheque is made out to.",
+            "wrong": "Compare both prices with the old ten thousand."
+          }
+        }
+      ]
+    }
   }
 ]
