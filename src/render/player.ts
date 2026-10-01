@@ -41,7 +41,10 @@ import { guessText, guessVars, scoreGuess } from "../guess/score";
 import { guessMarks } from "../guess/marks";
 import type { CardsGeometry } from "../spec/cards";
 import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, type Arrangement } from "../cards/model";
-import type { GuessMarks } from "../guess/marks";
+import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
+import { decodeTreeAnswer, encodeTreeAnswer, scoreBlanks, treeBlanks, treePick, type TreeBlank, type TreePick } from "../tree/blanks";
+import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
+import { withOverrides } from "./params";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -117,6 +120,30 @@ export interface GuessRuntime {
   patch(setup: GuessSetup, values: number[][], elements: SpecElement[] | undefined): { params: Record<string, unknown>; elements?: SpecElement[] };
   /** A cards element's geometry (spec 2026-10-01-rank-and-sort), or null. */
   cards?(id: string): CardsGeometry | null;
+  /** The decision tree a tree ask fills (spec 2026-10-03 §4), or null when
+   *  the figure is not one: its authored params, every part's box in a
+   *  layout, and every edge's points (edge id → polyline). */
+  tree?(): TreeRuntime | null;
+}
+
+export interface TreeRuntime {
+  params: DecisionTreeParams;
+  boxes?(layout: LayoutResult | null): Map<string, BBox>;
+  edges?(layout: LayoutResult | null): Record<string, Pt[]>;
+}
+
+/** What a tree gate is handed (ui/tree-gate.ts): the blanks to fill, the
+ *  decision to pick in, where they are, and how to paint typed numbers. It
+ *  resolves encodeTreeAnswer(values, pick), or null for a skip. */
+export interface TreeSession {
+  blanks: TreeBlank[];
+  pick: TreePick | null;
+  /** Each blank's box (logical), for laying the number fields. */
+  boxOf(part: string): BBox | null;
+  /** Paint typed values (null = "?") into the tree. */
+  show(values: (number | null)[]): void;
+  /** Branch hit areas for pick: option id → its edge's points (logical). */
+  edges: Record<string, Pt[]>;
 }
 
 /** What a cards gate is handed (ui/cards-gate.ts): the geometry, the
@@ -1606,6 +1633,206 @@ export class Player {
     }
   }
 
+  /**
+   * A tree to fill (spec 2026-10-03 §4): the viewer types the numbers the
+   * blanks hide and/or taps the best branch; the true numbers are written in
+   * from the right of the tree to the left (deepest first), with the working
+   * line under each wrong blank, while right/wrong is spoken.
+   */
+  private async treeAsk(index: number, step: Extract<PlanStep, { kind: "ask" }>, before: SceneState, signal: AbortSignal): Promise<void> {
+    await this.narrationBarrier();
+    if (signal.aborted || !step.tree) return;
+    const rt = this.guess?.tree?.() ?? null;
+    const rp = this.reprojector;
+    if (!rt || !rp) {
+      console.warn("[tree] a tree ask needs a decision_tree figure; the question is skipped");
+      return;
+    }
+    // The tree as it stands at this boundary (an animate may have moved a probability).
+    const sceneParams = this.withVarOverrides(before.params);
+    const tplOverrides: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(sceneParams)) if (!k.startsWith("vars.")) tplOverrides[k] = v;
+    const params = withOverrides(rt.params as unknown as Record<string, unknown>, tplOverrides) as unknown as DecisionTreeParams;
+    const { blanks, issues } = treeBlanks(params, step.tree.blanks);
+    const picked = step.tree.pick !== undefined ? treePick(params, step.tree.pick) : null;
+    if (typeof picked === "string") issues.push(picked);
+    for (const w of issues) console.warn(`[tree] ${w}`);
+    const pick: TreePick | null = typeof picked === "string" ? null : picked;
+    if (issues.length > 0 || (blanks.length === 0 && !pick)) return;
+    this.endGuessMarks();
+
+    const decimals = Math.min(Math.max(Math.round(typeof params.decimals === "number" ? params.decimals : 1), 0), 6);
+    const fmt = (v: number, b: TreeBlank): string => (b.kind === "probability" ? v.toFixed(2) : v.toFixed(decimals));
+    const fmtNum = (v: number): string => v.toFixed(decimals);
+    const after = this.plan.states[index];
+    const visible = new Set([...before.visible, ...after.visible]);
+    const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
+    // What the blanks show: "?", a typed number, or (dropped) the truth.
+    let answers: Record<string, string> = {};
+    const paintAnswers = (): void => {
+      const p = Object.keys(answers).length > 0 ? { ...sceneParams, answers } : { ...sceneParams };
+      this.painted = rp.frame(p, this.frameScene(before, visible), { revealNew: true, overrides }) || null;
+      this.geometryDirty = true;
+    };
+    const show = (values: (number | null)[]): void => {
+      answers = Object.fromEntries(blanks.map((b, i) => [b.part, values[i] === null || values[i] === undefined || !Number.isFinite(values[i]) ? "?" : fmt(values[i]!, b)]));
+      paintAnswers();
+    };
+    const boxOf = (part: string): BBox | null => rt.boxes?.(this.paintedLayout()).get(part) ?? null;
+    const edgePts = rt.edges?.(this.paintedLayout()) ?? {};
+    const edges: Record<string, Pt[]> = {};
+    for (const o of pick?.options ?? []) if (edgePts[o.edge]) edges[o.id] = edgePts[o.edge];
+    const owner = `tree_${index}`;
+    this.guessMarkParts.set(owner, [...blanks.map((b) => b.part), ...(pick?.options.map((o) => o.edge) ?? [])]);
+
+    let values: (number | null)[] = blanks.map(() => null);
+    show(values);
+    const live = !this.autoAnswers && this.askGate !== null;
+    let chosen: string | null = null;
+    let answered = false;
+    let secs: number | null = null;
+    if (live) {
+      const from = performance.now();
+      const typed = await this.askGate!(signal, Object.assign({}, step, { treeSession: { blanks, pick, boxOf, show, edges } satisfies TreeSession }));
+      if (signal.aborted) return;
+      secs = (performance.now() - from) / 1000;
+      const decoded = typed !== null ? decodeTreeAnswer(typed, blanks.length) : null;
+      if (decoded) {
+        values = decoded.values;
+        chosen = decoded.pick !== null && pick?.options.some((o) => o.id === decoded.pick) ? decoded.pick : null;
+        answered = true;
+      }
+      if (typed !== null) this.cutQuestionVoice();
+    } else {
+      // The movie: each "?" is written in with the true value, then the
+      // laser taps the best branch.
+      for (let i = 0; i < blanks.length; i++) {
+        await this.waitScaled(300, signal);
+        if (signal.aborted) return;
+        values = values.slice();
+        values[i] = blanks[i].truth;
+        show(values);
+      }
+      if (pick) {
+        const pts = edges[pick.best];
+        if (pts && pts.length > 0) {
+          const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+          await this.tapAt({ x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) });
+        } else await this.waitScaled(600, signal);
+        if (signal.aborted) return;
+        chosen = pick.best;
+      }
+      answered = true;
+    }
+    if (this.narrationVoice) await this.narrationVoice;
+    if (signal.aborted) return;
+
+    // Scored and stored before the line is spoken, so it may use {e.work}.
+    const score = scoreBlanks(blanks, values, step.tolerance ?? 0.02);
+    const pickRight = pick ? chosen === pick.best : null;
+    const ok = answered && score.ok && (pickRight ?? true);
+    const labelOf = (id: string | null): string => pick?.options.find((o) => o.id === id)?.label ?? "";
+    const text = blanks.length === 1
+      ? (values[0] !== null ? fmt(values[0], blanks[0]) : "")
+      : blanks.length === 0
+        ? labelOf(chosen)
+        : `${score.within} of ${score.count}`;
+    this.recordAnswer(index, step.store, text, ok, secs);
+    if (step.store) {
+      const base = step.store.toLowerCase();
+      const set = (k: string, v: string | null): void => {
+        if (v === null) this.vars.delete(k);
+        else this.vars.set(k, v);
+      };
+      blanks.forEach((b, i) => {
+        const key = `${base}.${b.part.toLowerCase()}`;
+        set(key, values[i] !== null ? fmt(values[i]!, b) : "");
+        set(`${key}.true`, fmt(b.truth, b));
+      });
+      if (blanks.length === 1) set(`${base}.true`, fmt(blanks[0].truth, blanks[0]));
+      else if (blanks.length === 0 && pick) set(`${base}.true`, labelOf(pick.best));
+      const firstWrong = blanks.find((_, i) => !score.right[i] && blanks[i].work !== null);
+      set(`${base}.work`, blanks.length === 1 ? blanks[0].work : (firstWrong?.work ?? null));
+      set(`${base}.within`, String(score.within));
+      set(`${base}.count`, String(score.count));
+      if (pick) {
+        set(`${base}.pick`, labelOf(chosen));
+        set(`${base}.pick.true`, labelOf(pick.best));
+        const diff = chosen !== null ? pick.values[pick.best] - pick.values[chosen] : NaN;
+        set(`${base}.diff`, Number.isFinite(diff) ? fmtNum(diff) : null);
+      }
+    }
+    this.outcomes.set(index, ok);
+    this.updateScoreVars();
+    if (live) {
+      this.callbacks.onAnswer?.({
+        index,
+        kind: "ask",
+        id: this.answerId(index, step.store),
+        question: step.question,
+        given: answered ? [encodeTreeAnswer(values, chosen)] : [],
+        expected: encodeTreeAnswer(blanks.map((b) => b.truth), pick?.best ?? null),
+        correct: ok,
+        ...(secs !== null ? { secs } : {}),
+      });
+    }
+
+    // The reveal, as the line is spoken: the truths written in from the
+    // right of the tree to the left, then the working lines and the miss.
+    const line = ok ? step.right : (step.wrong ?? step.right);
+    const spoken = line ? this.speakLine(line, step, signal) : Promise.resolve();
+    const order = blanks.map((b, i) => ({ b, i })).sort((a, z) => z.b.depth - a.b.depth);
+    for (const { b } of order) {
+      if (answers[b.part] === undefined) continue;
+      const { [b.part]: _gone, ...rest } = answers;
+      answers = rest;
+      paintAnswers();
+      await this.waitScaled(300, signal);
+      if (signal.aborted) return;
+    }
+    this.applyKey(after);
+    this.applyScene(after);
+    const marks = this.treeMarks(blanks, score.right, step.tree.work, boxOf, !live, pick && chosen !== null && !pickRight ? edges[chosen] : undefined);
+    if (marks) {
+      this.guessOwners.add(owner);
+      this.effects?.setGuessMarks?.(owner, marks);
+    }
+    await spoken;
+    if (signal.aborted) return;
+    if (live && answered) {
+      const target = ok ? step.rightGoto : step.wrongGoto;
+      if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
+    }
+  }
+
+  /** A tree ask's marks: the working line under each wrong blank (or every
+   *  blank with work "all"; none with work false, and in a movie under the
+   *  first), a dashed box around a wrong number, a dashed ring round a
+   *  wrongly picked branch. Null when there is nothing to mark. */
+  private treeMarks(blanks: TreeBlank[], right: boolean[], work: "all" | false | undefined, boxOf: (part: string) => BBox | null, movie: boolean, wrongEdge: Pt[] | undefined): GuessMarks | null {
+    const lines: GuessMarkLine[] = [];
+    const texts: GuessMarkText[] = [];
+    blanks.forEach((b, i) => {
+      const box = boxOf(b.part);
+      if (!box) return;
+      const wrong = !right[i];
+      const withWork = work !== false && (work === "all" || wrong || (movie && i === 0));
+      if (withWork && b.work) texts.push({ at: [box.x + box.w / 2, box.y - 14], text: b.work, anchor: "middle" });
+      if (wrong) {
+        const p = 4;
+        lines.push({ pts: [[box.x - p, box.y - p], [box.x + box.w + p, box.y - p], [box.x + box.w + p, box.y + box.h + p], [box.x - p, box.y + box.h + p]], closed: true, dashed: true });
+      }
+    });
+    if (wrongEdge && wrongEdge.length >= 2) {
+      // A capsule round the chosen branch: its two sides, 10 off the line.
+      const a = wrongEdge[0], z = wrongEdge[wrongEdge.length - 1];
+      const len = Math.hypot(z[0] - a[0], z[1] - a[1]) || 1;
+      const nx = (-(z[1] - a[1]) / len) * 10, ny = ((z[0] - a[0]) / len) * 10;
+      lines.push({ pts: [[a[0] + nx, a[1] + ny], [z[0] + nx, z[1] + ny], [z[0] - nx, z[1] - ny], [a[0] - nx, a[1] - ny]], closed: true, dashed: true });
+    }
+    return lines.length > 0 || texts.length > 0 ? { color: GUESS_COLOR, lines, texts } : null;
+  }
+
   /** Take off the marks of every guess whose parts these ids take away. */
   private endGuessMarksFor(ids: readonly string[]): void {
     for (const [owner, parts] of this.guessMarkParts) {
@@ -2096,6 +2323,7 @@ export class Player {
         return;
       }
       case "ask": {
+        if (step.tree !== undefined) return this.treeAsk(index, step, before, signal);
         if (step.cards !== undefined) return this.cardsAsk(index, step, signal);
         if (step.on !== undefined) return this.guessAsk(index, step, before, signal);
         await this.narrationBarrier();

@@ -5,8 +5,9 @@
 
 import { guessGateFor } from "./guess-gate";
 import { cardsGateFor } from "./cards-gate";
+import { treeGateFor } from "./tree-gate";
 import { attachTestMe } from "./test-me";
-import type { CardsSession, GuessSession } from "../render/player";
+import type { CardsSession, GuessSession, TreeSession } from "../render/player";
 import type { RenderHandle } from "../render";
 import type { SpeechManager } from "../render/speech";
 import { answersMatch } from "../spec/answers";
@@ -244,6 +245,8 @@ export interface AskGateStep {
   budget?: number;
   /** Cards to rank or sort (ui/cards-gate.ts). */
   cardsSession?: CardsSession;
+  /** A decision tree's blanks and pick (ui/tree-gate.ts). */
+  treeSession?: TreeSession;
 }
 
 /**
@@ -1186,14 +1189,17 @@ export function attachPlayerControls(
   const connectGate = connectGateFor(stage, hd);
   const guessGate = guessGateFor(stage, hd);
   const cardsGate = cardsGateFor(stage, hd);
+  const treeGate = treeGateFor(stage, hd);
   attachTestMe(stage, hd);
   // A template-bound ask is worked on the figure itself, so its gate needs the
   // host. Without one (the template carries no widget body — lint calls that an
   // error) the branch is unreachable, and the typed card stands in, which is
   // what the rest of the chain would have fallen through to anyway.
   const widgetGate = widgetHost ? widgetGateFor(stage, hd, widgetHost) : textGate;
-  hd.timeline.askGate = (signal, step: Parameters<NonNullable<typeof hd.timeline.askGate>>[1] & { guess?: GuessSession; cardsSession?: CardsSession }) =>
-    step.cardsSession
+  hd.timeline.askGate = (signal, step: Parameters<NonNullable<typeof hd.timeline.askGate>>[1] & { guess?: GuessSession; cardsSession?: CardsSession; treeSession?: TreeSession }) =>
+    step.treeSession
+      ? treeGate(signal, step)
+      : step.cardsSession
       ? cardsGate(signal, step)
       : step.guess
       ? guessGate(signal, step)

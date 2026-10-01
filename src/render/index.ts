@@ -4,6 +4,7 @@
 
 import { guessParts, guessSetup, patchFor } from "../guess/handles";
 import { cardsGeometryIn } from "../spec/cards";
+import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
 import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
 import type { LintIssue } from "../lint/lint";
@@ -525,6 +526,19 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     setup: (on, from, params, onScreen) => guessSetup(spec, withOverrides(spec.params ?? {}, params), onScreen ?? layout, guessParts(spec, on), { from, measure }),
     patch: (setup, values, elements) => patchFor(elements ? { ...spec, elements } : spec, setup, values),
     cards: (id) => cardsGeometryIn(spec, id),
+    // A tree ask (spec 2026-10-03 §4): the figure must be a decision tree.
+    tree: () =>
+      spec.template === "decision_tree"
+        ? {
+            params: (spec.params ?? {}) as unknown as DecisionTreeParams,
+            boxes: (onScreen) => elementBBoxes(onScreen ?? layout, measure),
+            edges: (onScreen) => {
+              const out: Record<string, Pt[]> = {};
+              for (const d of leafDrawables((onScreen ?? layout).drawables)) if (d.id.startsWith("edge_") && d.kind === "stroke") out[d.id] = d.pts;
+              return out;
+            },
+          }
+        : null,
   };
 
   if (mounted.swapGeometry && mounted.remount) {

@@ -18,6 +18,9 @@ export interface NumberEditOpts {
   min?: number;
   max?: number;
   step?: number;
+  /** A text field (inputmode decimal) instead of type=number, so "5,8" or
+   *  "£300" reach onCommit as typed — a tree's blanks (ui/tree-gate.ts). */
+  text?: boolean;
   /** The typed text: null when taken, else why not (the field stays open). */
   onCommit: (text: string) => string | null;
   onCancel: () => void;
@@ -31,13 +34,13 @@ export function fieldText(v: number): string {
 export function mountNumberEdit(stage: HTMLElement, opts: NumberEditOpts): { close: () => void; reposition: () => void } | null {
   const input = h("input", {
     class: "cs-numedit",
-    type: "number",
     inputmode: "decimal",
     "aria-label": opts.label,
-    value: fieldText(opts.value),
+    // Nothing to start from (NaN): an empty field, not "NaN".
+    value: Number.isFinite(opts.value) ? fieldText(opts.value) : "",
     ...(opts.min !== undefined ? { min: String(opts.min) } : {}),
     ...(opts.max !== undefined ? { max: String(opts.max) } : {}),
-    step: opts.step !== undefined ? String(opts.step) : "any",
+    ...(opts.text ? { type: "text", autocomplete: "off" } : { type: "number", step: opts.step !== undefined ? String(opts.step) : "any" }),
   }) as HTMLInputElement;
   let done = false;
   const finish = (commit: boolean, fromBlur = false): void => {

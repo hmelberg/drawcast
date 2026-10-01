@@ -1667,6 +1667,13 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* The card the keyboard is on (ui/cards-gate.ts). */
 .cs-card-focus { position: absolute; border: 2px dashed #3f6fb5; border-radius: 6px; pointer-events: none; }
 .cs-card-value { transform: translate(-50%, 6px); cursor: default; }
+/* A tree's blanks (ui/tree-gate.ts): a dashed ring round each "?", solid
+   once a number is typed in, filled while its field is open. */
+.cs-treegate { cursor: default; }
+.cs-tree-blank { position: absolute; border: 2px dashed #3f6fb5; border-radius: 8px; pointer-events: none; }
+.cs-tree-blank.filled { border-style: solid; }
+.cs-tree-blank.active { background: rgba(63, 111, 181, 0.08); }
+.cs-tree-picked { border-style: solid; }
 /* A budget's running total, under the hint. */
 .cs-guess-total { position: absolute; top: 3.6rem; left: 50%; transform: translateX(-50%); pointer-events: none; animation: none; }
 .cs-guessgate.dragging { cursor: grabbing; }
