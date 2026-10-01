@@ -8,6 +8,11 @@
 //              strip under it — still 4 : 3, so clicks map exactly;
 //   overlay  — otherwise: written on the drawing, ink in a paper halo.
 //
+// Inside a container marked `cs-caption-fixed` (a book's figure pane,
+// 2026-10-01) below is never chosen: that pane gives the stage a fixed box
+// and resizes it while zooming, so a caption under the drawing would push
+// it past the box. Strip and overlay stay — both keep inside the stage.
+//
 // Decided from the stage's box (and the CC switch), never from a caption's
 // content, and re-made only on resize or when CC is turned on or off — so
 // nothing jumps from one line to the next.
@@ -34,9 +39,9 @@ export function captionBelow(stage: { w: number; h: number }, stripPx: number, w
 export function captionMode(
   stage: { w: number; h: number },
   stripPx: number,
-  opts: { was: CaptionMode; ccOn: boolean; needsStrip: boolean },
+  opts: { was: CaptionMode; ccOn: boolean; needsStrip: boolean; fixed?: boolean },
 ): { mode: CaptionMode; figH?: number } {
-  if (captionBelow(stage, stripPx, opts.was === "below")) return { mode: "below" };
+  if (!opts.fixed && captionBelow(stage, stripPx, opts.was === "below")) return { mode: "below" };
   if (opts.ccOn && opts.needsStrip && stage.h > stripPx) {
     return { mode: "strip", figH: Math.min(stage.h - stripPx, stage.w * ASPECT) };
   }
@@ -71,7 +76,8 @@ export function placeCaption(stage: HTMLElement, caption: HTMLElement): CaptionP
   const decide = () => {
     const r = stage.getBoundingClientRect();
     const ccOn = !(figure?.classList.contains("cs-cc-off") ?? false);
-    const next = captionMode({ w: r.width, h: r.height }, stripHeight(caption), { was: mode, ccOn, needsStrip });
+    const fixed = stage.closest(".cs-caption-fixed") !== null;
+    const next = captionMode({ w: r.width, h: r.height }, stripHeight(caption), { was: mode, ccOn, needsStrip, fixed });
     mode = next.mode;
     stage.classList.toggle("cs-caption-below", mode === "below");
     stage.classList.toggle("cs-caption-strip", mode === "strip");

@@ -41,3 +41,16 @@ describe("captionMode: below, a reserved strip, or over the drawing", () => {
     expect(captionMode(laptop, STRIP, { was: "overlay", ccOn: true, needsStrip: false }).mode).toBe("overlay");
   });
 });
+
+describe("a fixed stage (a book's figure pane, 2026-10-01)", () => {
+  test("never puts the caption below, however much room there is", () => {
+    const tall = { w: 400, h: 600 };
+    expect(captionMode(tall, 40, { was: "overlay", ccOn: true, needsStrip: false }).mode).toBe("below");
+    expect(captionMode(tall, 40, { was: "below", ccOn: true, needsStrip: false, fixed: true }).mode).toBe("overlay");
+  });
+  test("still takes the strip when it needs one — that stays inside the stage", () => {
+    const r = captionMode({ w: 400, h: 300 }, 40, { was: "overlay", ccOn: true, needsStrip: true, fixed: true });
+    expect(r.mode).toBe("strip");
+    expect(r.figH).toBeLessThanOrEqual(300 - 40);
+  });
+});
