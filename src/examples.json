@@ -80773,7 +80773,7 @@
                     "node": {
                       "id": "s_event",
                       "type": "terminal",
-                      "label": "Attack or stroke",
+                      "label": "",
                       "payoff": 16
                     }
                   },
@@ -80782,7 +80782,7 @@
                     "node": {
                       "id": "s_ok",
                       "type": "terminal",
-                      "label": "Neither",
+                      "label": "",
                       "payoff": 24
                     }
                   }
@@ -80802,7 +80802,7 @@
                     "node": {
                       "id": "n_event",
                       "type": "terminal",
-                      "label": "Attack or stroke",
+                      "label": "",
                       "payoff": 16
                     }
                   },
@@ -80811,7 +80811,7 @@
                     "node": {
                       "id": "n_ok",
                       "type": "terminal",
-                      "label": "Neither",
+                      "label": "",
                       "payoff": 24
                     }
                   }
@@ -80852,7 +80852,7 @@
           "unit": "months",
           "label": "Extra life from a statin",
           "x": 150,
-          "y": 380,
+          "y": 120,
           "width": 700
         },
         {
