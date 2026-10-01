@@ -62,6 +62,8 @@ describe("isPreviewBot", () => {
     "Mozilla/5.0 (Windows NT 6.1; WOW64) SkypeUriPreview Preview/0.5",
     "Iframely/1.3.1 (+https://iframely.com/docs/about)",
     "Mozilla/5.0 (compatible; Embedly/0.2; +http://support.embed.ly/)",
+    "Pinterest/0.2 (+https://www.pinterest.com/bot.html)",
+    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Viber/21.0.0.0",
   ];
   const people = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
@@ -129,6 +131,16 @@ describe("courseCardText", () => {
     expect(courseCardText(REAL("private: false\n"))).toEqual(want);
     expect(courseCardText(REAL(""))).toEqual(want);
   });
+  test("private after a tag line still leaves no text", () => {
+    expect(courseCardText("# Secret\n#why #parts=4\nprivate: true\n\nA hidden intro.\n\n---\n## One\n")).toEqual({});
+  });
+  test("a course with a tag line (formatCourse writes tags before the intro) keeps its intro line", () => {
+    expect(courseCardText("# QALY basics\nlevel: intro\n#why\n\nWhat a QALY is.\n\n---\n## One\n")).toEqual({ title: "QALY basics", subtitle: "What a QALY is." });
+  });
+  test("a rule is skipped, not a stop; the first lecture heading ends the header", () => {
+    expect(courseCardText("# T\n---\nprivate: true\n## One\n")).toEqual({});
+    expect(courseCardText("# T\n\n## One\nprivate: true\nA question?\n")).toEqual({ title: "T" });
+  });
 });
 
 describe("cardHtml", () => {
@@ -143,6 +155,12 @@ describe("cardHtml", () => {
     for (const tag of ['property="og:title"', 'property="og:description"', 'property="og:image"', 'property="og:url" content="https://drawcast.app/c/vaccines"', 'name="twitter:card" content="summary_large_image"', 'http-equiv="refresh" content="0; url=https://drawcast.app/#vaccines"', 'href="https://drawcast.app/#vaccines"']) {
       expect(html).toContain(tag);
     }
+  });
+  test("</title> in a description cannot close the page's <title> or a tag", () => {
+    const html = cardHtml({ ...card, title: "T", description: "a </title><b>b" });
+    expect(html).not.toContain("a </title>");
+    expect(html).toContain("a &lt;/title&gt;&lt;b&gt;b");
+    expect(html.match(/<\/title>/g)).toHaveLength(1);
   });
   test("no description, no description tag", () => {
     expect(cardHtml({ ...card, description: undefined })).not.toContain("og:description");

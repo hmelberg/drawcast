@@ -63,7 +63,7 @@ export function cardPathFor(t: ShareTarget): string {
 /** Link-preview crawlers (spec §3). Matched by their own product tokens only:
  *  the in-app browsers of Facebook, Instagram and LinkedIn carry `FBAN`,
  *  `Instagram` and `LinkedInApp` — a person, who must get the cast. */
-const BOT_RE = /facebookexternalhit|facebot|linkedinbot|twitterbot|slackbot|discordbot|whatsapp\/|telegrambot|bluesky|cardyb|mastodon\/|redditbot|applebot|googlebot|skypeuripreview|iframely|embedly/i;
+const BOT_RE = /facebookexternalhit|facebot|linkedinbot|twitterbot|slackbot|discordbot|whatsapp\/|telegrambot|bluesky|cardyb|mastodon\/|redditbot|applebot|googlebot|skypeuripreview|iframely|embedly|pinterest|viber/i;
 
 export function isPreviewBot(userAgent: string | null): boolean {
   return !!userAgent && BOT_RE.test(userAgent);
@@ -114,27 +114,33 @@ function optionsOf(line: string): [string, string][] {
     .map((m) => [m[1], m[2].trim()]);
 }
 
+// src/course/document.ts's line shapes: a lecture heading (headerEnd — the
+// header ends at the first `##`), any heading, a tag line, a rule.
+const LECTURE_RE = /^##\s/;
+const HEADING_RE = /^#{1,6}\s/;
+const TAG_LINE_RE = /^#[a-zæøå]/i;
+const RULE_RE = /^-{3,}\s*$/;
+
 /** A course's course.md: its `# Title`, and the first line of the intro
- *  paragraph — after the `key: value` option lines that follow the title. A
- *  course with `private: true` gives nothing at all: a private course must
- *  leave no text on a card. (`private` is looked for in every line up to the
- *  first rule or heading, so a misplaced option still locks it.) */
+ *  paragraph — skipping the `key: value` option lines, `#tag` lines and rules
+ *  that may sit around it. A course with `private: true` gives nothing at all:
+ *  a private course must leave no text on a card. (`private` is looked for in
+ *  every line up to the first lecture heading — parseCourse's own reach — so
+ *  a misplaced option still locks it.) */
 export function courseCardText(md: string): { title?: string; subtitle?: string } {
-  const lines = md.split(/\r?\n/);
+  const lines = md.split(/\r?\n/).map((l) => l.trim());
   const at = lines.findIndex((l) => /^# \S/.test(l));
   if (at < 0) return {};
   const body: string[] = [];
   for (const l of lines.slice(at + 1)) {
-    if (/^(---|#)/.test(l)) break;
+    if (LECTURE_RE.test(l)) break;
+    if (!l || RULE_RE.test(l) || HEADING_RE.test(l) || TAG_LINE_RE.test(l)) continue;
     body.push(l);
   }
-  if (body.some((l) => optionsOf(l.trim()).some(([k, v]) => k === "private" && v === "true"))) return {};
+  if (body.some((l) => optionsOf(l).some(([k, v]) => k === "private" && v === "true"))) return {};
   const out: { title?: string; subtitle?: string } = { title: clip(lines[at].slice(2), TITLE_MAX) };
-  for (const l of body) {
-    if (!l.trim() || optionsOf(l.trim()).length > 0) continue;
-    out.subtitle = clip(l, LINE_MAX);
-    break;
-  }
+  const intro = body.find((l) => optionsOf(l).length === 0 && !/^status\s*:/.test(l));
+  if (intro) out.subtitle = clip(intro, LINE_MAX);
   return out;
 }
 
