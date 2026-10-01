@@ -770,6 +770,22 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     }
     return out;
   };
+  /** A formula's own parts (design 2026-10-03 §5): its blank boxes and its
+   *  tiles. An erase or hide of the formula takes them with it, so no box or
+   *  tile is left floating where the formula was. */
+  const formulaParts = (id: string): string[] => {
+    const f = opts.formulaFor?.(id) ?? null;
+    if (!f) return [];
+    const boxes = Array.from({ length: f.blanks }, (_, k) => `${id}_blank_${k + 1}`);
+    const tiles = [...known].filter((k) => k.startsWith(`${id}_tiles_`) && /^\d+$/.test(k.slice(id.length + 7)));
+    return [...boxes, ...tiles].filter((k) => known.has(k));
+  };
+  const withFormulaParts = (ids: string[]): string[] => [...new Set([...ids, ...ids.flatMap(formulaParts).filter((k) => visibleSet.has(k))])];
+  /** Formulas whose ask has been answered: their boxes are gone for good (the
+   *  truth is written in), so drawing the formula again does not bring them. */
+  const answeredFormulas = new Set<string>();
+  const dropAnsweredBoxes = (ids: string[], named: string[]): string[] =>
+    ids.filter((id) => named.includes(id) || ![...answeredFormulas].some((f) => id.startsWith(`${f}_blank_`)));
   /** How a command's target reads back in a warning: the id(s) the author wrote, not the expanded pieces. */
   const targetLabel = (raw: string[] | string | undefined): string => (typeof raw === "string" ? raw : (raw ?? []).join(", "));
   /** Element's current visual bbox: layout bbox under its accumulated pose —
@@ -1265,7 +1281,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.speak !== undefined && !hasAction) {
       pushStep({ kind: "speak", text: cmd.speak, blocking: cmd.blocking !== false, speaker: cmd.voice, delivery: cmd.delivery });
     } else if (cmd.draw !== undefined) {
-      const ids = withCompanions(resolveIds(cmd.draw, "draw"));
+      const named = resolveIds(cmd.draw, "draw");
+      const ids = dropAnsweredBoxes(withCompanions(named), named);
       ids.forEach((id) => mentioned.add(id));
       ids.forEach((id) => lastRevealed.set(id, steps.length));
       makeVisible(ids);
@@ -1393,6 +1410,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const boxes = Array.from({ length: formula.blanks }, (_, k) => `${oneOn}_blank_${k + 1}`).filter((id) => known.has(id));
         boxes.forEach((id) => mentioned.add(id));
         makeHidden(boxes);
+        answeredFormulas.add(oneOn);
       }
       // A tree's blanks (spec 2026-10-03 §4.2): "?" on every boundary before
       // the ask (the post-pass below), so the ask may draw them itself —
@@ -1475,18 +1493,19 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;
     } else if (cmd.show !== undefined) {
-      const ids = withCompanions(resolveIds(cmd.show, "show"));
+      const named = resolveIds(cmd.show, "show");
+      const ids = dropAnsweredBoxes(withCompanions(named), named);
       ids.forEach((id) => mentioned.add(id));
       ids.forEach((id) => lastRevealed.set(id, steps.length));
       makeVisible(ids);
       pushStep({ kind: "show", ids });
     } else if (cmd.hide !== undefined) {
-      const ids = resolveIds(cmd.hide, "hide");
+      const ids = withFormulaParts(resolveIds(cmd.hide, "hide"));
       ids.forEach((id) => mentioned.add(id));
       makeHidden(ids);
       pushStep({ kind: "hide", ids });
     } else if (cmd.erase !== undefined) {
-      const named = resolveIds(cmd.erase, "erase");
+      const named = withFormulaParts(resolveIds(cmd.erase, "erase"));
       // Paper last: the words written on it go first, then the card.
       const ids = opts.isPaper ? [...named.filter((id) => !opts.isPaper!(id)), ...named.filter((id) => opts.isPaper!(id))] : named;
       ids.forEach((id) => mentioned.add(id));

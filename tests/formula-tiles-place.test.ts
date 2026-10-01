@@ -7,7 +7,7 @@ import { ensureEngines } from "../src/scenes/engines";
 import { formulaBlanks } from "../src/formula/blanks";
 import { cardsGeometryIn } from "../src/spec/cards";
 import { expandSpec } from "../src/spec/expand";
-import { formulaHooksFor } from "../src/render";
+import { cardsPlanFor, formulaHooksFor } from "../src/render";
 import { planCommands } from "../src/render/plan";
 import type { Spec } from "../src/spec/types";
 
@@ -139,13 +139,7 @@ describe("render's wiring (formulaHooksFor)", () => {
     expect(hooks.formula("t1")).toBeNull();
     const plan = planCommands(spec.commands, l.order, {
       formulaFor: (id) => (hooks.formula(id) ? { blanks: hooks.formula(id)!.blanks.length } : null),
-      cardsFor: (id) => {
-        const c = hooks.cardsOn(id);
-        if (!c) return null;
-        const offsets: Record<string, [number, number]> = {};
-        c.cards.forEach((card, i) => (offsets[card] = [c.truth[i][0] - c.home[i][0], c.truth[i][1] - c.home[i][1]]));
-        return { cards: c.cards, offsets, hides: c.cards.filter((_, i) => c.truthBin[i] >= 0) };
-      },
+      cardsFor: (id) => cardsPlanFor(hooks.cardsOn(id)),
     });
     const k = g.truthBin.indexOf(0);
     const tile = bb.get(g.cards[k])!;
@@ -156,7 +150,8 @@ describe("render's wiring (formulaHooksFor)", () => {
     // The ask draws the tiles: drawing the formula (its column) does not.
     for (const c of g.cards) expect(plan.states[0].visible).not.toContain(c);
     expect(plan.states[1].visible).not.toContain(g.cards[k]);
-    expect(plan.states[1].visible).toContain(g.cards[(k + 1) % g.cards.length]);
+    // The wrong tiles slide home and leave too (fix wave 2026-10-03).
+    expect(plan.states[1].visible).not.toContain(g.cards[(k + 1) % g.cards.length]);
     expect(plan.states[1].visible).not.toContain("area_blank_1");
   });
 });

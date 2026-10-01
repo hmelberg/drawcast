@@ -117,6 +117,8 @@ export interface Reprojector {
 
 /** The glide from a guess to the truth. */
 const GUESS_REVEAL_MS = 800;
+/** A formula's wrong tiles, home again after the reveal, fade out over this. */
+const TILE_FADE_MS = 350;
 /** A line's given part drawing itself in before the viewer draws on. */
 const GIVEN_DRAW_MS = 2200;
 /** A revised guess's earlier one: the guess colour, faded. */
@@ -1754,9 +1756,21 @@ export class Player {
       }
     }
     // The right tiles are in their boxes: their glyphs are written in (the
-    // plan takes the tiles and the boxes away).
+    // plan takes the tiles and the boxes away). The wrong tiles, home again,
+    // fade out first: no tile stays to the end of the cast.
     if (formula) this.setFills(step.formula!, formula.blanks.map((b) => b.tex));
+    const leaving = formula ? this.els(g.cards.filter((_, i) => g.truthBin[i] < 0)) : [];
+    if (leaving.length > 0) {
+      await this.progress(TILE_FADE_MS, signal, (t) => leaving.forEach((el) => el.setOpacity?.(1 - t)));
+      if (signal.aborted) {
+        leaving.forEach((el) => el.setOpacity?.(1));
+        this.endGuessMarks(true);
+        return;
+      }
+    }
     this.applyKey(this.plan.states[index]);
+    // Hidden now: their own opacity back, for a replay that draws them again.
+    leaving.forEach((el) => el.setOpacity?.(1));
     this.applyScene(this.plan.states[index]);
     if (answered) mark(cardsMarks(g, arrangement));
     await spoken;

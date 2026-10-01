@@ -656,6 +656,10 @@ export function layoutElements(
         const morphed = ctx.overrides.math?.[el.id] !== undefined;
         if (!morphed) for (const key of laid.unusedColors) ctx.warnings.push(`math "${el.id}": colors key "${key}" matches nothing`);
         drawables.push(...laid.drawables);
+        // A formula's blank boxes come with it: drawing the formula draws
+        // them (the reveal takes them away), so the viewer sees where to drop.
+        const boxIds = laid.drawables.map((d) => d.id).filter((id) => id.startsWith(`${el.id}_blank_`));
+        if (boxIds.length > 0) ctx.drawnAfter[el.id] = boxIds;
         ctx.anchors[el.id] = [laid.box.x + laid.box.w / 2, laid.box.y + laid.box.h / 2];
         ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(laid.box, n)]));
         break;
@@ -1068,12 +1072,17 @@ function placeFormulaTiles(elements: SpecElement[], drawables: Drawable[], ctx: 
     const mine = drawables.filter((d) => tiles.some((t) => d.id === t || d.id === `${t}_text`));
     const row = unionBoxes(tiles.map((t) => boxOfId(drawables, t, measure)));
     const formula = boxOfId(drawables, fill, measure, ctx.groups, ctx.pieceGroups);
-    if (mine.length === 0 || !row || !formula) continue;
-    let dx = formula.x + formula.w / 2 - (row.x + row.w / 2);
-    let dy = formula.y - TILE_GAP - (row.y + row.h);
+    if (mine.length === 0 || !row) continue;
+    // A formula that drew nothing (a math error) has no box: the row stays
+    // where the expansion put it, but is still kept on the canvas.
+    let dx = formula ? formula.x + formula.w / 2 - (row.x + row.w / 2) : 0;
+    let dy = formula ? formula.y - TILE_GAP - (row.y + row.h) : 0;
     if (row.x + dx < TILE_MARGIN) dx = TILE_MARGIN - row.x;
     else if (row.x + row.w + dx > CANVAS.w - TILE_MARGIN) dx = CANVAS.w - TILE_MARGIN - row.w - row.x;
-    if (row.y + dy < TILE_MARGIN) {
+    if (!formula) {
+      if (row.y + dy < TILE_MARGIN) dy = TILE_MARGIN - row.y;
+      else if (row.y + row.h + dy > CANVAS.h - TILE_MARGIN) dy = CANVAS.h - TILE_MARGIN - row.h - row.y;
+    } else if (row.y + dy < TILE_MARGIN) {
       // No room below: the row stands above the formula instead — clamping it
       // up would put it on the formula, over the very boxes it is dropped into.
       const above = formula.y + formula.h + TILE_GAP - row.y;

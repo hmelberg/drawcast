@@ -154,6 +154,20 @@ export function guessPartsFor(
 }
 
 /**
+ * What the plan needs of a cards question (PlanOptions.cardsFor): the cards,
+ * each one's offset to its true place, the numbers the answer shows, and
+ * the cards the answer takes away. A formula's tiles all go: the right ones
+ * give way to the truth's own glyphs in the boxes, the wrong ones slide home
+ * and leave (fix wave 2026-10-03: none may stay to the end of the cast).
+ */
+export function cardsPlanFor(g: CardsGeometry | null): { cards: string[]; offsets: Record<string, Pt>; shows: string[]; hides?: string[] } | null {
+  if (!g) return null;
+  const offsets: Record<string, Pt> = {};
+  g.cards.forEach((c, i) => (offsets[c] = [g.truth[i][0] - g.home[i][0], g.truth[i][1] - g.home[i][1]]));
+  return { cards: g.cards, offsets, shows: g.valueIds ?? [], ...(g.mode === "fill" ? { hides: [...g.cards] } : {}) };
+}
+
+/**
  * A formula's blanks (design 2026-10-03 §5), read off the mounted layout:
  * the math element's runtime (its blanks, a `fills` patch, its boxes), and
  * the cards an ask's `on` answers with — a cards element, or a formula's
@@ -543,15 +557,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     // (`box: "auto"` becomes a rectangle there, and only there).
     ...domainMapping(spec.domain && layout.frame ? layout.frame : spec.domain, layout.fit),
     animateBase: spec.template ? spec.params ?? {} : null,
-    cardsFor: (id) => {
-      const g = formulas.cardsOn(id);
-      if (!g) return null;
-      const offsets: Record<string, [number, number]> = {};
-      g.cards.forEach((c, i) => (offsets[c] = [g.truth[i][0] - g.home[i][0], g.truth[i][1] - g.home[i][1]]));
-      // A formula's right tiles give way to the truth's own glyphs in the boxes.
-      const hides = g.mode === "fill" ? g.cards.filter((_, i) => g.truthBin[i] >= 0) : [];
-      return { cards: g.cards, offsets, shows: g.valueIds ?? [], ...(hides.length > 0 ? { hides } : {}) };
-    },
+    cardsFor: (id) => cardsPlanFor(formulas.cardsOn(id)),
     formulaFor: (id) => {
       const rt = formulas.formula(id);
       return rt ? { blanks: rt.blanks.length } : null;
