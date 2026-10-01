@@ -65,13 +65,26 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
   scroll.className = "bk-scroll";
   aside.appendChild(scroll);
   parent?.insertBefore(row, host);
-  if (settings.text === "second") row.append(host, aside);
+  // Columns put the text first (left); rows put it under the figure — what
+  // #book_row promises — unless the book says otherwise.
+  const textSecond = settings.text === "second" || (settings.text === undefined && settings.layout === "rows");
+  if (textSecond) row.append(host, aside);
   else row.append(aside, host);
   host.classList.add("bk-figure", "cs-caption-fixed");
   // The player page (and the viewer) let the book take the window's width;
   // anywhere else — the editor's preview panel — it fits inside its panel.
   const page = parent?.classList.contains("player-wrap") === true || parent?.classList.contains("viewer-wrap") === true;
   if (page) parent?.classList.add("bk-mode");
+
+  /** The width a page offers: its <main> (the app) or the window (the
+   *  viewer), less the side padding of what holds the book. */
+  const pageWidth = (): number => {
+    const main = row.closest("main");
+    const box = main ?? document.documentElement;
+    const cs = getComputedStyle(box);
+    const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+    return box.clientWidth - pad - 32;
+  };
 
   let view: BookView = "both";
   let share = settings.share;
@@ -87,9 +100,10 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
     const stage = host.querySelector<HTMLElement>(".cs-stage");
     const barH = stage ? Math.max(40, host.offsetHeight - stage.offsetHeight) : 64;
     const room = {
-      // A page (the player, the viewer) offers the window's width — its own
-      // wrapper shrinks to fit the book, so measuring it would be circular.
-      w: Math.max(320, (page ? document.documentElement.clientWidth : container.clientWidth - pad) - (page ? 32 : 4) - GAP),
+      // A page (the player, the viewer) offers the page's width, less its
+      // padding — the book's own wrapper shrinks to fit the book, so
+      // measuring that would be circular.
+      w: Math.max(320, (page ? pageWidth() : container.clientWidth - pad - 4) - GAP),
       h: Math.max(320, window.innerHeight - Math.max(0, top) - furniture - 24),
       barH,
     };
@@ -105,6 +119,10 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
     host.classList.toggle("bk-closed", box.figure.w < 1 || box.figure.h < 1);
     if (!animate) pane.relayout();
     else window.setTimeout(() => pane.relayout(), 1150);
+  };
+  const onResize = (): void => {
+    layoutNow(false);
+    pane.settleScroll();
   };
 
   const pane = new TextPane(scroll, {
@@ -130,6 +148,7 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
 
   const rebuild = (completed: number): void => {
     preluded = -1;
+    layoutNow(false); // the pane needs its size before the blocks go in
     pane.reset();
     view = "both";
     for (const op of opsBeforePart(items, current, bookTitle, own)) void pane.apply(op, false);
@@ -137,6 +156,7 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
     for (const op of mine) void pane.apply(op, false);
     applied = mine.length;
     layoutNow(false);
+    pane.settleScroll();
   };
 
   const sync = (completed: number): void => {
@@ -216,7 +236,6 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
   });
   observer.observe(host, { childList: true });
 
-  const onResize = (): void => layoutNow(false);
   window.addEventListener("resize", onResize);
   // The control bar appears with the first mount: lay out once it is there.
   requestAnimationFrame(() => layoutNow(false));

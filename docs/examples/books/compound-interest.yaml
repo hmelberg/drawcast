@@ -1,0 +1,54 @@
+# request: A book with the text under the figures: how compound interest grows, and the rule of 72 (#book_row)
+playlist:
+  title: How compound interest grows
+  advance: auto
+  gap: 1
+---
+title: Interest on interest
+book: { layout: rows, look: mixed }
+template: line_chart
+params:
+  x: [0, 10, 20, 30, 40, 50]
+  series:
+    - { name: "7 % simple", values: [100, 170, 240, 310, 380, 450] }
+    - { name: "7 % compound", values: [100, 197, 387, 761, 1497, 2946] }
+  ylim: [0, 3000]
+  y_label: Value of 100
+  x_label: Years
+commands:
+  - draw: [axes]
+    speak: Put a hundred kroner in the bank at seven percent a year, and leave it for fifty years. How much is there at the end?
+  - write: "Simple: $100 + 7t$"
+  - draw: [line_1]
+    speak: If the bank paid seven kroner every year and nothing more, the money would grow in a straight line, to four hundred and fifty.
+  - write: "Compound: $100 \\cdot 1.07^{\\,t}$"
+  - draw: [line_2]
+    speak: But the interest earns interest too. Each year's seven percent is taken of a bigger pile, and the line bends upward, to almost three thousand.
+  - view: figure
+  - highlight: { target: line_2 }
+    speak: Look at the last decade alone. It adds more than the first forty years together.
+  - view: both
+  - write: "The gap is the **interest on interest**."
+    speak: The whole gap between the two lines is interest earned on earlier interest.
+  - pause: 1
+---
+title: The rule of 72
+book: { layout: rows, look: mixed }
+template: data_table
+params:
+  columns: [Rate, Years to double, 72 ÷ rate]
+  rows: [["2 %", 35, 36], ["4 %", 17.7, 18], ["7 %", 10.2, 10.3], ["10 %", 7.3, 7.2]]
+  decimals: 1
+  font_size: 30
+commands:
+  - draw: [header]
+    speak: Bankers have a shortcut for how fast money doubles.
+  - draw: [row_1, row_2]
+    speak: At two percent a year it takes thirty-five years. At four percent, about eighteen.
+  - draw: [row_3, row_4]
+    speak: At seven percent about ten, and at ten percent just over seven.
+  - write: { id: rule72, text: "**Rule of 72**: years to double ≈ 72 ÷ rate" }
+    speak: Divide seventy-two by the rate, and you land within a few months every time.
+  - highlight: { target: rule72, part: "72 ÷ rate", effect: underline }
+    speak: That is why it is called the rule of seventy-two.
+  - pause: 1

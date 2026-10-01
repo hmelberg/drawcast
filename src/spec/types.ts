@@ -625,7 +625,7 @@ export interface WriteArgs {
 export interface BookSettings {
   /** columns (#book, the default) or rows (#book_row). */
   layout?: "columns" | "rows";
-  /** Where the text goes: first = left / top (default), second = right / bottom. */
+  /** Where the text goes: first = left / top, second = right / bottom. Default: left in columns, under the figure in rows. */
   text?: "first" | "second";
   /** The text pane's share, % of width (columns) or height (rows); 0–100. Default 40 / 28. */
   share?: number;

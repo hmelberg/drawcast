@@ -106,6 +106,16 @@ export class TextPane {
     for (const m of this.marks) this.place(m);
   }
 
+  /** Scroll, at once, to where playing would have left the pane: the newest
+   *  block in view by the fill rule, reckoned from the top. After a rebuild
+   *  or a resize — the per-write scrolls of a rebuild may run before the
+   *  pane has its size. */
+  settleScroll(): void {
+    this.scrollAnim++;
+    const last = [...this.root.querySelectorAll<HTMLElement>(".bk-block")].pop();
+    this.root.scrollTop = last ? fillScroll(0, this.root.clientHeight, last.offsetTop + last.offsetHeight) : 0;
+  }
+
   // ---- blocks ------------------------------------------------------------
 
   private async write(id: string, text: string, temp: boolean, animate: boolean): Promise<void> {
