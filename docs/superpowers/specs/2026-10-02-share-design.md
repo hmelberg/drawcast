@@ -108,7 +108,7 @@ with a small line reader; it does not parse the cast. Missing title →
 unknown name, unreachable GitHub or Anvil, a private cast (the YAML is a
 locked envelope — the reader sees no `title:`), a Drive target. The generic
 card: title "drawcast", the line "Drawn explanations you can watch and play
-with", the site's own image (`/card/drawcast.png`, a static file).
+with", the site's own image (`/share-card.png`, a static 1200×630 file — outside `/card/`, which the card function owns).
 
 **Caching.** The card page is sent with `Cache-Control: public, max-age=600`
 so a burst of crawler fetches costs one lookup. Platforms keep their own
@@ -140,8 +140,9 @@ been looked at (§9).
 
 ## 6. Share in the player
 
-**Where.** A "Share" item in the player's ⋯ menu, always in the overflow
-(like Credits), on every screen width. It appears when the cast has a
+**Where.** The player's share icon (already in the control bar beside
+fullscreen, on every screen width — `src/viewer.ts` `shareButton`) opens
+the share box instead of copying the address. It appears when the cast has a
 **source someone else can open**: a name, a GitHub path, a drawcast-server
 key or a Drive id. Not for a `#cast=` link, an unpublished draft in the
 app, or a locally opened file.
@@ -190,9 +191,9 @@ email" (§7.4). The tag never changes what plays.
 to close, every button labelled, the platform buttons as a list with their
 names as text (icons are decoration).
 
-**In the app.** The editor's Share panel gains the same link, Copy link and
-card preview at the top once the cast is published, so an author who has
-just published can share without opening the player.
+**In the app.** After a public GitHub publish, the editor's status line
+gains a **Share…** button that opens the same box, so an author who has just
+published can share without opening the player.
 
 ## 7. The picture on every publish route
 
