@@ -80,6 +80,7 @@ import {
 } from "./playlist/playlist";
 import { unwrapCastText } from "./playlist/cast-file";
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
+import { isBook, mountBookPlaylist } from "./book/shell";
 import { appendRecord, localRecordStorage } from "./render/record";
 import { applyViewsFlag } from "./views";
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
@@ -2939,7 +2940,9 @@ async function present(andPlay = false): Promise<void> {
     await ensureEnginesForSpecs(specsNow).catch((err) => {
       setStatus(`Engine load failed: ${(err as Error).message}`, "error");
     });
-    const mounted = await mountPlaylist(host, doc.playlist, {
+    // A book (src/book/) is the same session with a text pane beside it.
+    const mount = isBook(doc.playlist) ? mountBookPlaylist : mountPlaylist;
+    const mounted = await mount(host, doc.playlist, {
       style: settings.style,
       // The local record (render/record.ts) — here keyed by the document, so
       // an author's own test run shows up the way a student's would.

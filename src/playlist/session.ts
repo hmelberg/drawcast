@@ -116,6 +116,14 @@ export interface SessionOptions {
    * stale text — see beforePlay in ui/controls.ts.
    */
   autoplay?: boolean;
+  /**
+   * The playlist is a book (src/book/, spec 2026-10-01-book-layout): its
+   * headings are written into the book's text pane, so no title page and no
+   * chapter cards over the figure, and the book plays its own transition
+   * (TV between chapters, a fade between parts) in place of the fade-out —
+   * awaited before the next part mounts.
+   */
+  book?: { beforeSwap(from: number, to: number): Promise<void> };
 }
 
 export interface SessionHandle {
@@ -396,7 +404,8 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     ...controlOpts,
     beforePlay: () => {
       if (opts.controls?.beforePlay?.()) return true;
-      const title = playlist.meta.title;
+      // A book has no title page: its title is written into the text pane.
+      const title = opts.book ? undefined : playlist.meta.title;
       const target = replayTarget({ finishedLast, hasTitle: title !== undefined });
       if (!target) return false;
       finishedLast = false;
@@ -687,6 +696,12 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     gateAbort = ac;
     await continueGate(next, ac.signal);
     if (destroyed || ac.signal.aborted) return;
+    if (opts.book) {
+      await opts.book.beforeSwap(idx, next.index);
+      if (destroyed || ac.signal.aborted) return;
+      void mountItem(next.index, true);
+      return;
+    }
     if (playlist.meta.transitions === "auto") {
       // Semantic-zoom exit: push into the named element of THIS scene, then
       // un-draw there — the next figure emerges as the inside of this one.
@@ -784,7 +799,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
   };
   document.addEventListener("keydown", onKey);
 
-  if (playlist.meta.title !== undefined) await mountTitlePage(playlist.meta.title, opts.autoplay ?? false);
+  if (playlist.meta.title !== undefined && !opts.book) await mountTitlePage(playlist.meta.title, opts.autoplay ?? false);
   else await mountItem(0, opts.autoplay ?? false);
 
   return {
