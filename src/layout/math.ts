@@ -244,6 +244,7 @@ export function mathDrawables(
     }
     // The glyphs carry the look themselves too: the renderer paints leaves,
     // so a kept-back blank must be see-through leaf by leaf.
+    d.partOf = part.id;
     const look = blankLook(part, el, blanks);
     if (look) d.style = resolveStyle(el.style, { color: look.color ?? color, fill: look.color ?? color, opacity: look.opacity });
     slot.kids.push(d);

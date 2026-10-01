@@ -1515,6 +1515,17 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         raw = raw.map((t) => (hasRegion(t, part!) ? `${t}:${part}` : t));
         part = undefined;
       }
+      // A formula blank's fill (spec 2026-10-03 §5.4), `<id>_blank_<k>_fill`:
+      // a nested group of the formula, so the highlight is on the formula,
+      // narrowed to that group's glyphs (highlight-part.ts).
+      if (part === undefined && raw.length === 1) {
+        const m = /^(.+)_blank_(\d+)_fill$/.exec(raw[0]);
+        const f = m && !known.has(raw[0]) ? (opts.formulaFor?.(m[1]) ?? null) : null;
+        if (m && f && Number(m[2]) >= 1 && Number(m[2]) <= f.blanks) {
+          part = raw[0];
+          raw = [m[1]];
+        }
+      }
       const places: PlaceNow[] = [];
       const placeNames: string[] = [];
       const plain: string[] = [];

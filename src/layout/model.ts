@@ -125,6 +125,10 @@ export interface AreaDrawable extends BaseDrawable {
    * `math.colors` does (layout/highlight-part.ts).
    */
   tex?: string[];
+  /** A formula glyph inside a nested part group (a formula blank's fill,
+   *  `<id>_blank_<k>_fill`; a live var's part): that group's id, so
+   *  `highlight.part` can name the group (layout/highlight-part.ts). */
+  partOf?: string;
 }
 
 export interface TextDrawable extends BaseDrawable {

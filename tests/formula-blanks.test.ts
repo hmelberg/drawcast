@@ -4,7 +4,8 @@ import { layoutSpec, elementBBoxes } from "../src/layout/layout";
 import { expandSpec } from "../src/spec/expand";
 import { ensureEngines } from "../src/scenes/engines";
 import { GUESS_COLOR } from "../src/guess/marks";
-import { flattenDrawables } from "../src/layout/model";
+import { flattenDrawables, leafDrawables } from "../src/layout/model";
+import { findPart } from "../src/layout/highlight-part";
 
 describe("formula blanks", () => {
   test("found in order, nested braces kept", () => {
@@ -133,5 +134,14 @@ describe("formula blanks in layout (real mathjax)", () => {
     const ids = f.children!.map((c) => c.id);
     expect(ids).toContain("f_blank_1_fill");
     expect(ids).toContain("f_var_r");
+  });
+
+  test("highlight part <id>_blank_<k>_fill names the fill's glyphs (its nested group)", () => {
+    const l = layoutSpec(expandSpec({ elements: [{ id: "area", type: "math", tex: "A = \\pi \\blank{r^2}", fills: ["r^2"] }], commands: [] } as never));
+    const area = l.drawables.filter((d) => d.id === "area");
+    const fill = (area[0] as unknown as Kid).children!.find((c) => c.id === "area_blank_1_fill")!;
+    const want = flattenDrawables([fill as never]).filter((d) => d.kind === "area").map((d) => d.id);
+    expect(want.length).toBeGreaterThan(0);
+    expect(findPart(leafDrawables(area), "area_blank_1_fill")).toEqual([{ kind: "glyphs", leafIds: want }]);
   });
 });
