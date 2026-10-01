@@ -158,7 +158,8 @@ export function apiSchema(opts: { code?: boolean; sound?: boolean; c64?: boolean
   // Internal fields a formula ask's expansion writes (spec/expand.ts
   // expandFormulaTiles): Ajv knows them; the model never writes them.
   delete props.elements.items.properties.fill;
-  delete props.elements.items.properties.items.items.anyOf[1].properties.blank;
+  const itemObject = (props.elements.items.properties.items?.items?.anyOf as any[] | undefined)?.find((b) => b?.type === "object");
+  if (itemObject?.properties) delete itemObject.properties.blank;
   if (opts.code === false) {
     const el = props.elements.items.properties;
     for (const k of CODE_ONLY_ELEMENT_PROPS) delete el[k];

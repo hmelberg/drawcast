@@ -610,7 +610,8 @@ export function lintLayoutDetailed(
     for (const s of strokes) {
       if (!coexist(m.id, s.id) || composed(m.id, s.id)) continue;
       // A formula blank's box (`<id>_blank_<k>`, layout/math.ts) is drawn round the formula's own glyphs.
-      if ((owner.get(s.id) ?? s.id).startsWith(`${m.id}_blank_`)) continue;
+      const own = owner.get(s.id) ?? s.id;
+      if (own.startsWith(`${m.id}_blank_`) && /^\d+$/.test(own.slice(`${m.id}_blank_`.length))) continue; // /^<id>_blank_\d+$/
       if (s.pts.length >= 2 && polylineIntersectsBox(s.pts, core)) {
         (crossingPair(m, s) ? exempt : issues).push({
           rule: "overlap-math-stroke",
@@ -1137,6 +1138,8 @@ const TREE_MAX_BLANKS = 4;
 const TREE_MAX_NODES = 12;
 /** Guess fields that mean nothing on a tree ask. */
 const GUESS_ONLY = ["predict", "budget", "from", "revise", "relative", "judge"] as const;
+/** Ask fields a tree ask ignores: it is answered in the tree, once. */
+const TREE_INERT = ["answer", "widget", "retry"] as const;
 
 /**
  * Tree asks (spec 2026-10-03 §4): the blanks must be numbers the tree has
@@ -1163,6 +1166,10 @@ function lintTreeAsk(spec: Spec): LintIssue[] {
     const stray = GUESS_ONLY.filter((k) => a[k] !== undefined);
     if (stray.length > 0) {
       issues.push({ rule: "guess", ids: [], message: `ask: ${stray.join(", ")} do nothing on a tree ask (they belong to a guess on a chart) — leave them out`, severity: "warn" });
+    }
+    const inert = TREE_INERT.filter((k) => a[k] !== undefined);
+    if (inert.length > 0) {
+      issues.push({ rule: "guess", ids: [], message: `ask: ${inert.join(", ")} do nothing on a tree ask (the blanks and the pick are the answer, and it is asked once) — leave them out`, severity: "warn" });
     }
     // The tree is on screen before it is asked about. Its blanks need not be
     // drawn on their own: they show "?" until their ask, which draws them.

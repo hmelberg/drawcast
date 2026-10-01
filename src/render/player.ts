@@ -45,6 +45,7 @@ import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialAr
 import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
 import { decodeTreeAnswer, encodeTreeAnswer, scoreBlanks, treeBlanks, treePick, type TreeBlank, type TreePick } from "../tree/blanks";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
+import { walkTree } from "../scenes/decision_tree/rollback";
 import { withOverrides } from "./params";
 import { blankIsNumber, typedRight, type FormulaBlank } from "../formula/blanks";
 import { exprToAscii, exprToTeX, parseAscii, texToExpr } from "../formula/expr";
@@ -1987,8 +1988,14 @@ export class Player {
     // A decision's best and prune marks give its answer away: hidden while
     // asked (the picked decision's, and those of a decision whose value is a
     // blank), drawn in at the reveal (spec §4.3).
+    // Matched exactly, child by child: a prefix `best_start_` would also
+    // catch a decision `start_2`'s marks.
     const told = new Set([...(pick ? [pick.node] : []), ...blanks.filter((b) => b.kind === "value").map((b) => b.node)]);
-    const givesAway = (id: string): boolean => [...told].some((n) => id.startsWith(`best_${n}_`) || id.startsWith(`prune_${n}_`));
+    const marksOf = new Set<string>();
+    walkTree(params.root, (_n, id, _b, parent) => {
+      if (parent !== undefined && told.has(parent)) marksOf.add(`best_${parent}_${id}`).add(`prune_${parent}_${id}`);
+    });
+    const givesAway = (id: string): boolean => marksOf.has(id);
     const hidden = [...new Set([...before.visible, ...after.visible])].filter(givesAway);
     const visible = new Set([...before.visible, ...after.visible].filter((id) => !givesAway(id)));
     const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);

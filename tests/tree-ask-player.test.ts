@@ -34,7 +34,7 @@ const root = {
 const params = { root, rollback: true } as unknown as DecisionTreeParams;
 const IDS = ["edge_start_treat", "edge_start_wait", "value_treat", "effect_wait", "branchlabel_treat_not"];
 
-function makePlayer(commands: Command[], ids: string[] = IDS) {
+function makePlayer(commands: Command[], ids: string[] = IDS, treeParams: DecisionTreeParams = params) {
   const plan = planCommands(commands, ids, {});
   const speech = new CapturingSpeech();
   const marks = new Map<string, GuessMarks | null>();
@@ -62,7 +62,7 @@ function makePlayer(commands: Command[], ids: string[] = IDS) {
     setup: () => ({ handles: [], pin: {}, warnings: [] }),
     patch: () => ({ params: {} }),
     tree: () => ({
-      params,
+      params: treeParams,
       boxes: () =>
         new Map([
           ["value_treat", { x: 100, y: 200, w: 30, h: 12 }],
@@ -237,5 +237,30 @@ describe("tree asks in the player", () => {
       const a = f.answers as Record<string, string> | undefined;
       return a !== undefined && a.value_treat === undefined && a.effect_wait === "?";
     })).toBe(true);
+  });
+
+  test("a pick on start leaves start_2's marks alone (exact ids, not a prefix)", async () => {
+    const two = {
+      rollback: true,
+      root: { id: "start", type: "decision", label: "", children: [
+        { label: "A", node: { id: "a", type: "terminal", label: "", payoff: 3 } },
+        { label: "B", node: { id: "start_2", type: "decision", label: "", children: [
+          { label: "C", node: { id: "c", type: "terminal", label: "", payoff: 5 } },
+          { label: "D", node: { id: "d", type: "terminal", label: "", payoff: 1 } },
+        ] } },
+      ] },
+    } as unknown as DecisionTreeParams;
+    const MARKS = ["best_start_start_2", "prune_start_a", "best_start_2_c", "prune_start_2_d"];
+    const ids = ["edge_start_a", "edge_start_start_2", ...MARKS];
+    const { player, scenes } = makePlayer([{ draw: ids }, { ask: { question: "Which?", pick: "start", store: "c" } }], ids, two);
+    player.askGate = async () => encodeTreeAnswer([], "a");
+    await player.play();
+    expect(scenes.length).toBeGreaterThan(0);
+    for (const v of scenes) {
+      expect(v.has("best_start_start_2")).toBe(false);
+      expect(v.has("prune_start_a")).toBe(false);
+      expect(v.has("best_start_2_c")).toBe(true);
+      expect(v.has("prune_start_2_d")).toBe(true);
+    }
   });
 });

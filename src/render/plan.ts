@@ -394,12 +394,12 @@ export interface PlanOptions {
    *  resolves to on this figure ("all" expanded), and every id that must be
    *  on screen once the question ends. Absent: guesses resolve to nothing. */
   guessParts?: (on: string | string[], from?: number) => { parts: string[]; shows: string[] };
-  /** Cards to rank or sort (spec 2026-10-01-rank-and-sort): for a cards
-   *  element's id, its card ids and where each stands once the question is
-   *  answered (its true place, as an offset from where it is drawn). */
   /** A math element with \blank boxes to fill (spec 2026-10-03 §5): how many. */
   formulaFor?: (id: string) => { blanks: number } | null;
-  /** …`hides`: the cards the answer takes away (a formula's right tiles,
+  /** Cards to rank or sort (spec 2026-10-01-rank-and-sort): for a cards
+   *  element's id, its card ids and where each stands once the question is
+   *  answered (its true place, as an offset from where it is drawn).
+   *  `hides`: the cards the answer takes away (a formula's right tiles,
    *  whose glyphs are written into the boxes instead, design 2026-10-03 §5.4). */
   cardsFor?: (id: string) => { cards: string[]; offsets: Record<string, Pt>; shows?: string[]; hides?: string[] } | null;
   /** This cast is a book's part: highlight/erase/point on an id that is not

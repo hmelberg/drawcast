@@ -123,6 +123,14 @@ describe("tree ask lint", () => {
     expect(guessIssues(whole)).toEqual([]);
   });
 
+  test("answer, widget or retry on a tree ask warn that they do nothing", () => {
+    const issues = guessIssues(tree({ blanks: ["value_treat"], answer: "5.8", retry: true }));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe("warn");
+    expect(issues[0].message).toMatch(/answer, retry do nothing on a tree ask/);
+    expect(guessIssues(tree({ pick: "start", widget: "choice" }))[0]?.message).toMatch(/widget do nothing on a tree ask/);
+  });
+
   test("the bundled tree-ask examples lint clean", () => {
     const withTree = (bundled as { spec?: Spec }[]).filter((e) => e.spec?.commands?.some((c) => c.ask?.blanks !== undefined || c.ask?.pick !== undefined));
     expect(withTree.length).toBeGreaterThanOrEqual(2);

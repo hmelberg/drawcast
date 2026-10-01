@@ -133,15 +133,6 @@ function contactEmail(): string {
  * silently drops as an unknown id instead of expanding.
  */
 /**
- * A formula's blanks (design 2026-10-03 §5), read off the mounted layout:
- * the math element's runtime (its blanks, a `fills` patch, its boxes), and
- * the cards an ask's `on` answers with — a cards element, or a formula's
- * tiles (`<id>_tiles`) with the blank boxes as the drop targets and the
- * tiles where layout drew them (under the formula as placed,
- * layout/tier2.ts placeFormulaTiles). Without the boxes the reveal would
- * move nothing. Pure, so a test can wire it the way render() does.
- */
-/**
  * The planner's `guessParts` hook (spec 2026-10-01-guess-and-reveal §4): the
  * parts an ask's `on` resolves to on this figure and what the question shows.
  * Exported so a test plans exactly as render() does.
@@ -162,6 +153,15 @@ export function guessPartsFor(
   };
 }
 
+/**
+ * A formula's blanks (design 2026-10-03 §5), read off the mounted layout:
+ * the math element's runtime (its blanks, a `fills` patch, its boxes), and
+ * the cards an ask's `on` answers with — a cards element, or a formula's
+ * tiles (`<id>_tiles`) with the blank boxes as the drop targets and the
+ * tiles where layout drew them (under the formula as placed,
+ * layout/tier2.ts placeFormulaTiles). Without the boxes the reveal would
+ * move nothing. Pure, so a test can wire it the way render() does.
+ */
 export function formulaHooksFor(
   spec: Spec,
   bboxes: Map<string, BBox>,
