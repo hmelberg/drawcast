@@ -1867,13 +1867,14 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && isReservedVar(a.store)) {
         errors.push(`commands[${i}]: ask.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
       }
-      if (a.store !== undefined && a.default === undefined && !isGuess) {
+      // A guess or a tree ask is answered on the figure: the movie fills in the truth.
+      if (a.store !== undefined && a.default === undefined && !isGuess && !isTree) {
         errors.push(`commands[${i}]: ask.default is required with store — the movie types it and skip falls back to it`);
       }
       // The drag widget's answer is implied by its items, so it is check mode without `answer`.
       const isDrag = a.widget === "drag";
       const isConnect = a.widget === "connect";
-      if (!isDrag && !isGuess && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
+      if (!isDrag && !isGuess && !isTree && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
         errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
       }
       if (a.widget !== undefined && !isDrag && a.answer === undefined) {
@@ -1896,7 +1897,7 @@ function semanticErrors(spec: Spec): string[] {
         if (isConnect && a.store !== undefined) {
           errors.push(`commands[${i}]: ask.store does not apply to the connect widget`);
         }
-        if (a.items !== undefined || (a.tolerance !== undefined && !isGuess)) {
+        if (a.items !== undefined || (a.tolerance !== undefined && !isGuess && !isTree)) {
           const named = a.widget !== undefined ? ` (this one is "${a.widget}")` : "";
           errors.push(`commands[${i}]: ask.items and tolerance only apply to widget "drag"${named}`);
         }

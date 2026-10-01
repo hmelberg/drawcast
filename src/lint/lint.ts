@@ -4,6 +4,9 @@
 
 import { SUB_SUFFIXES } from "../layout/model";
 import { guessParts } from "../guess/parts";
+import { treeBlanks, treePick } from "../tree/blanks";
+import { walkTree } from "../scenes/decision_tree/rollback";
+import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { authoredScales } from "../spec/scale";
 import { authoredCards } from "../spec/cards";
 import { parseTarget } from "../links/resolve";
@@ -1031,6 +1034,8 @@ function lintGuess(spec: Spec): LintIssue[] {
   const keptBack = new Set<string>();
   commands.forEach((c, i) => {
     if (c.ask?.on === undefined) return;
+    // A tree ask (blanks / pick) is linted by lintTreeAsk.
+    if (c.ask.blanks !== undefined || c.ask.pick !== undefined) return;
     // Predict (spec 2026-10-02 §3): the animate it predicts must come next.
     if (c.ask.predict === true) {
       const next = commands.slice(i + 1).find((d) => d.animate !== undefined || d.ask !== undefined || d.quiz !== undefined || d.label !== undefined);
@@ -1094,6 +1099,56 @@ function lintGuess(spec: Spec): LintIssue[] {
       }
     }
   });
+  return issues;
+}
+
+/** Blanks a tree ask may hold, and nodes a tree may have, before it stops
+ *  being a question worked by hand (spec 2026-10-03 §4.4). */
+const TREE_MAX_BLANKS = 4;
+const TREE_MAX_NODES = 12;
+/** Guess fields that mean nothing on a tree ask. */
+const GUESS_ONLY = ["predict", "budget", "from", "revise", "relative", "judge"] as const;
+
+/**
+ * Tree asks (spec 2026-10-03 §4): the blanks must be numbers the tree has
+ * (the same check the player makes, treeBlanks), the pick a decision node
+ * rollback picks a best branch at; and the question small enough to work
+ * by hand. Rule "guess", like every question on the figure.
+ */
+function lintTreeAsk(spec: Spec): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const params = spec.params as unknown as DecisionTreeParams | undefined;
+  const isTree = spec.template === "decision_tree" && params?.root !== undefined && typeof params.root === "object";
+  for (const c of spec.commands ?? []) {
+    const a = c.ask;
+    if (a === undefined || (a.blanks === undefined && a.pick === undefined)) continue;
+    if (!isTree) {
+      if (a.blanks !== undefined) issues.push({ rule: "guess", ids: [], message: `blanks: only a decision tree has blanks — use the decision_tree template, or ask on a part of this figure`, severity: "error" });
+      if (a.pick !== undefined) issues.push({ rule: "guess", ids: [], message: `pick: only a decision tree has a pick — use the decision_tree template, or a choice question`, severity: "error" });
+      continue;
+    }
+    if (a.on !== undefined && a.on !== "tree") {
+      issues.push({ rule: "guess", ids: [], message: `ask on: a tree ask (blanks or pick) is on the whole tree — leave on out, or write on: "tree"`, severity: "error" });
+    }
+    const stray = GUESS_ONLY.filter((k) => a[k] !== undefined);
+    if (stray.length > 0) {
+      issues.push({ rule: "guess", ids: [], message: `ask: ${stray.join(", ")} do nothing on a tree ask (they belong to a guess on a chart) — leave them out`, severity: "warn" });
+    }
+    const blanks = a.blanks ?? [];
+    for (const m of treeBlanks(params!, blanks).issues) issues.push({ rule: "guess", ids: [], message: m, severity: "error" });
+    if (a.pick !== undefined) {
+      const picked = treePick(params!, a.pick);
+      if (typeof picked === "string") issues.push({ rule: "guess", ids: [a.pick], message: picked, severity: "error" });
+    }
+    if (blanks.length > TREE_MAX_BLANKS) {
+      issues.push({ rule: "guess", ids: [], message: `ask blanks: ${blanks.length} blanks — more than 4 blanks is a worksheet, not a question; ask in two steps`, severity: "warn" });
+    }
+    let nodes = 0;
+    walkTree(params!.root, () => nodes++);
+    if (nodes > TREE_MAX_NODES) {
+      issues.push({ rule: "guess", ids: [], message: `ask on a tree of ${nodes} nodes — more than ${TREE_MAX_NODES} is too many to work by hand; ask on a smaller tree (or a folded part)`, severity: "warn" });
+    }
+  }
   return issues;
 }
 
@@ -1219,7 +1274,7 @@ export function lintBook(spec: Spec): LintIssue[] {
 
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintTreeAsk(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec)];
 
   // A link whose href names nothing the resolver can read draws, but never
   // opens (links/resolve.ts decides the forms a target may take).

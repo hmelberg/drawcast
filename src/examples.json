@@ -79694,5 +79694,306 @@
         }
       ]
     }
+  },
+  {
+    "request": "How do you work out a decision tree's expected value by hand, and let it choose? #interactive",
+    "spec": {
+      "title": "Treat or wait? Expected values by hand",
+      "template": "decision_tree",
+      "params": {
+        "rollback": true,
+        "decimals": 1,
+        "unit": "years",
+        "root": {
+          "id": "start",
+          "type": "decision",
+          "label": "",
+          "children": [
+            {
+              "label": "Treat",
+              "node": {
+                "id": "treat",
+                "type": "chance",
+                "label": "",
+                "children": [
+                  {
+                    "label": "",
+                    "probability": 0.6,
+                    "node": {
+                      "id": "cured",
+                      "type": "terminal",
+                      "label": "Cured",
+                      "payoff": 9
+                    }
+                  },
+                  {
+                    "label": "",
+                    "node": {
+                      "id": "notcured",
+                      "type": "terminal",
+                      "label": "Not cured",
+                      "payoff": 4
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "label": "Wait",
+              "node": {
+                "id": "wait",
+                "type": "terminal",
+                "label": "Watch",
+                "payoff": 6.5
+              }
+            }
+          ]
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Treat or wait?"
+          }
+        },
+        {
+          "draw": [
+            "node_start",
+            "label_start"
+          ],
+          "speak": "This is about working out a decision tree by hand: what a gamble is worth on average, and which branch to choose. Take a patient with a slow-growing tumour, who can treat it now or wait and watch."
+        },
+        {
+          "draw": [
+            "edge_start_wait",
+            "branchlabel_start_wait",
+            "node_wait",
+            "label_wait",
+            "payoff_wait"
+          ],
+          "speak": "Waiting is the safe branch: she can count on about six and a half good years."
+        },
+        {
+          "draw": [
+            "edge_start_treat",
+            "branchlabel_start_treat",
+            "node_treat",
+            "label_treat",
+            "edge_treat_cured",
+            "branchlabel_treat_cured",
+            "node_cured",
+            "label_cured",
+            "payoff_cured",
+            "edge_treat_notcured",
+            "branchlabel_treat_notcured",
+            "node_notcured",
+            "label_notcured",
+            "payoff_notcured"
+          ],
+          "speak": "Treating is a gamble, though. Six times in ten it cures her, for nine good years; otherwise the tree fills in the other four in ten, and she gets only four."
+        },
+        {
+          "draw": [
+            "value_treat"
+          ]
+        },
+        {
+          "ask": {
+            "question": "So to compare the two, treating needs one number. Weigh each ending by its chance: what is treating worth on average?",
+            "blanks": [
+              "value_treat"
+            ],
+            "store": "e",
+            "right": "Right: {e.true} years, the gamble's average.",
+            "wrong": "It is {e.true} years: {e.work}."
+          }
+        },
+        {
+          "ask": {
+            "question": "Now the square chooses. Which branch should she take?",
+            "pick": "start",
+            "store": "c",
+            "right": "Yes: {c.true}, by {c.diff} years.",
+            "wrong": "{c.true} is worth {c.diff} years more."
+          }
+        },
+        {
+          "draw": [
+            "value_start"
+          ],
+          "speak": "That is why the square is worth seven: it takes its best branch, even though treating can leave her with only four."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How does a screening decision tree fill in a missing probability, and what is the test worth? #interactive",
+    "spec": {
+      "title": "Screening tree: the missing probability",
+      "template": "decision_tree",
+      "params": {
+        "rollback": true,
+        "wtp": 20000,
+        "currency": "$",
+        "unit": "QALYs",
+        "decimals": 2,
+        "table": false,
+        "root": {
+          "id": "choice",
+          "type": "decision",
+          "label": "",
+          "children": [
+            {
+              "label": "No test",
+              "node": {
+                "id": "notest",
+                "type": "chance",
+                "label": "",
+                "children": [
+                  {
+                    "label": "Sick",
+                    "probability": 0.12,
+                    "node": {
+                      "id": "nt_sick",
+                      "type": "terminal",
+                      "label": "Late",
+                      "payoff": 6,
+                      "cost": 20000
+                    }
+                  },
+                  {
+                    "label": "Well",
+                    "node": {
+                      "id": "nt_well",
+                      "type": "terminal",
+                      "label": "",
+                      "payoff": 10,
+                      "cost": 0
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "label": "Test",
+              "cost": 1500,
+              "node": {
+                "id": "test",
+                "type": "chance",
+                "label": "",
+                "children": [
+                  {
+                    "label": "Positive",
+                    "probability": 0.12,
+                    "node": {
+                      "id": "pos",
+                      "type": "terminal",
+                      "label": "Early",
+                      "payoff": 8,
+                      "cost": 10000
+                    }
+                  },
+                  {
+                    "label": "Negative",
+                    "node": {
+                      "id": "neg",
+                      "type": "terminal",
+                      "label": "",
+                      "payoff": 10,
+                      "cost": 0
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "The missing probability"
+          }
+        },
+        {
+          "draw": [
+            "node_choice",
+            "label_choice"
+          ],
+          "speak": "This is about the number a decision tree leaves out: the last chance at a circle, which is one minus the others. To see it, take a test for a disease that twelve in a hundred people have."
+        },
+        {
+          "draw": [
+            "edge_choice_notest",
+            "branchlabel_choice_notest",
+            "node_notest",
+            "label_notest",
+            "edge_notest_nt_sick",
+            "branchlabel_notest_nt_sick",
+            "node_nt_sick",
+            "label_nt_sick",
+            "payoff_nt_sick",
+            "edge_notest_nt_well",
+            "branchlabel_notest_nt_well",
+            "node_nt_well",
+            "label_nt_well",
+            "payoff_nt_well"
+          ],
+          "speak": "Without the test, the sick are found late: six quality-adjusted years, for twenty thousand dollars of care. The well keep ten."
+        },
+        {
+          "draw": [
+            "value_notest"
+          ],
+          "speak": "Weighed by their chances, that branch is worth 9.52 years: 0.12 times six, plus 0.88 times ten."
+        },
+        {
+          "draw": [
+            "edge_choice_test",
+            "branchlabel_choice_test",
+            "node_test",
+            "label_test",
+            "edge_test_pos",
+            "branchlabel_test_pos",
+            "node_pos",
+            "label_pos",
+            "payoff_pos",
+            "edge_test_neg",
+            "branchlabel_test_neg",
+            "node_neg",
+            "label_neg",
+            "payoff_neg"
+          ],
+          "speak": "Now the test. It costs fifteen hundred dollars, but it finds the sick early, when ten thousand dollars of care gives them eight years."
+        },
+        {
+          "draw": [
+            "value_test"
+          ]
+        },
+        {
+          "ask": {
+            "question": "Your turn, the same way: what is the chance of a negative test, and what is testing worth?",
+            "blanks": [
+              "branchlabel_test_neg",
+              "value_test"
+            ],
+            "work": "all",
+            "store": "s",
+            "tolerance": 0.005,
+            "right": "Right: one minus 0.12 is {s.branchlabel_test_neg.true}, and testing is worth {s.value_test.true} years.",
+            "wrong": "The chances add to one, so a negative is {s.branchlabel_test_neg.true}; with it, testing is worth {s.value_test.true} years."
+          }
+        },
+        {
+          "draw": [
+            "value_choice",
+            "best_choice_test",
+            "prune_choice_notest"
+          ],
+          "speak": "That is a quarter of a year more, near enough, for three hundred dollars more. At twenty thousand dollars a year it is worth about forty-eight hundred, so the tree takes the test."
+        }
+      ]
+    }
   }
 ]
