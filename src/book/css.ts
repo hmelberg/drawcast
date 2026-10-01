@@ -6,6 +6,25 @@
 
 export const BOOK_CSS = `
 .bk-mode { width: auto !important; max-width: none !important; }
+/* The book: [text | figure] over one footer holding the control bar. */
+.bk-book { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0 auto; box-sizing: content-box; }
+.bk-footer {
+  box-sizing: border-box; min-height: 0;
+  background: var(--surface, #fbf8f1); border: 1.5px solid var(--line, #e4ddcf); border-radius: 8px;
+  padding: 0.15rem 0.6rem; box-shadow: 0 2px 8px rgba(61, 56, 51, 0.09);
+}
+.bk-footer:empty { display: none; }
+.bk-footer .cs-controlbar { margin: 0; }
+/* Fullscreen holds the whole book, centred on paper. */
+.bk-book:is(:fullscreen, .cs-faux-fs) {
+  width: 100% !important; height: 100%; box-sizing: border-box; justify-content: center;
+  padding: 16px 24px; background: var(--paper, #f5efe3); overflow: hidden;
+}
+.bk-book.cs-faux-fs { position: fixed; inset: 0; z-index: 50; height: 100dvh; max-height: 100dvh; margin: 0; overscroll-behavior: contain; }
+/* While playing in fullscreen the bar fades after a moment of stillness, as
+   it does under a plain figure (controls.ts marks the figure cs-idle). */
+.bk-book:is(:fullscreen, .cs-faux-fs) .bk-footer { transition: opacity 0.4s ease; }
+.bk-book:is(:fullscreen, .cs-faux-fs):has(.cs-figure.cs-idle) .bk-footer { opacity: 0; pointer-events: none; }
 .bk-row { display: flex; align-items: flex-start; gap: 12px; margin: 0 auto; }
 .bk-row.bk-rows { flex-direction: column; gap: 10px; }
 .bk-row.bk-animate .bk-text, .bk-row.bk-animate .bk-figure {
