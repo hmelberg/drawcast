@@ -32,6 +32,11 @@ describe("tree blanks", () => {
     expect(treeBlanks(params, ["branchlabel_treat_not"]).blanks[0].work).toBe("1 − 0.3 = 0.7");
     expect(treeBlanks(params, ["branchlabel_treat_cured"]).blanks[0].work).toBeNull();
   });
+  test("a pick's option labels fall back to the node's label when the branch has none (fix wave 2026-10-03)", () => {
+    const unlabelled = { rollback: true, root: { ...root, children: [{ label: "", node: { ...root.children[0].node, label: "Statin" } }, root.children[1]] } } as never;
+    const p = treePick(unlabelled, "start");
+    expect(typeof p !== "string" && p.options.map((o) => o.label)).toEqual(["Statin", "Wait"]);
+  });
   test("unknown parts and value blanks without rollback are issues", () => {
     expect(treeBlanks(params, ["value_nope"]).issues).toHaveLength(1);
     expect(treeBlanks({ root } as never, ["value_treat"]).issues[0]).toMatch(/rollback/);

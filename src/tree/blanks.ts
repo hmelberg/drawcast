@@ -144,7 +144,7 @@ export function treePick(params: DecisionTreeParams, node: string): TreePick | s
   const rolled = rolledOf(params);
   const best = rolled.bestId[node];
   if (best === undefined) return `pick "${node}": rollback picks no best branch here`;
-  const options = childrenOf(nodes, node).map((x) => ({ id: x.id, label: x.branchLabel ?? x.node.label, edge: `edge_${node}_${x.id}` }));
+  const options = childrenOf(nodes, node).map((x) => ({ id: x.id, label: x.branchLabel || x.node.label || x.id, edge: `edge_${node}_${x.id}` }));
   const values: Record<string, number> = {};
   for (const o of options) values[o.id] = params.wtp !== undefined && rolled.nmb[o.id] !== undefined ? rolled.nmb[o.id] : (rolled.ev[o.id] ?? NaN);
   return { node, options, best, values };
