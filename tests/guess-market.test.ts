@@ -66,6 +66,31 @@ describe("market handle", () => {
     expect(why("buyer", "demand_curve", -20, "subsidy")).toMatch(/steeper/);
   });
 
+  test("a turn the wrong way (flatter for steeper, or steeper for flatter) is wrong under shape and size", () => {
+    const pctOf = (side: string, curve: string) => {
+      const pct = { ...base, tax: { amount: 0, side, kind: "ad_valorem" } };
+      return marketCurve(pct, { ...pct, tax: { ...pct.tax, amount: 40 } }, curve, { "tax.amount": 40 }) as Exclude<ReturnType<typeof marketCurve>, string>;
+    };
+    // Sellers' percent tax: supply turns up and steeper (the far gap larger).
+    const supply = pctOf("seller", "supply_curve");
+    const t = supply.truth;
+    const flatter: [number, number] = [t[1], t[0] * 0.5];
+    expect(shapeOf(flatter, 100)).toBe("turn");
+    expect(directionOf(flatter)).toBe(directionOf(t));
+    expect(marketRight(supply, flatter, "direction", 0.08)).toBe(true);
+    expect(marketRight(supply, flatter, "shape", 0.08)).toBe(false);
+    expect(marketRight(supply, flatter, "size", 1)).toBe(false);
+    expect(marketRight(supply, [t[0] * 0.9, t[1] * 1.1], "shape", 0.08)).toBe(true);
+    expect(marketWhy(supply, flatter, "tax", false, "shape")).toBe("You turned it flatter. A percent tax adds more where prices are high, so the curve gets steeper.");
+    // Buyers' percent tax: demand turns flatter; a steeper turn is the mirror.
+    const demand = pctOf("buyer", "demand_curve");
+    const d = demand.truth;
+    const steeper: [number, number] = [d[1] * 0.5, d[0]];
+    expect(shapeOf(steeper, 100)).toBe("turn");
+    expect(marketRight(demand, steeper, "shape", 0.08)).toBe(false);
+    expect(marketWhy(demand, steeper, "tax", false, "shape")).toBe("You turned it steeper. A percent tax takes more off where prices are high, so the curve gets flatter.");
+  });
+
   test("implied equilibrium", () => {
     const e = impliedEquilibrium([[0, 0], [100, 100]], [[0, 100], [100, 0]]);
     expect(e![0]).toBeCloseTo(50);

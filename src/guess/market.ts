@@ -169,7 +169,8 @@ export function marketRight(m: MarketCurve, v: [number, number], check: "directi
   // carries no direction; which way it turned (steeper or flatter) does.
   const direction = crosses(t) ? turnSense(m, v) === turnSense(m, t) : directionOf(v) === directionOf(t);
   if (!direction || check === "direction") return direction;
-  const shape = shapeOf(v, 100) === shapeOf(t, 100);
+  // A turn is also a sense: flatter for steeper is the wrong shape.
+  const shape = shapeOf(v, 100) === shapeOf(t, 100) && (shapeOf(t, 100) !== "turn" || turnSense(m, v) === turnSense(m, t));
   if (!shape || check === "shape") return shape;
   return (Math.abs(v[0] - t[0]) + Math.abs(v[1] - t[1])) / 2 <= tolerance * 100;
 }
@@ -209,6 +210,19 @@ const WHY = {
       flatter: "You moved it {dir} evenly. A percent subsidy takes off more where prices are high, so the curve also gets flatter.",
     },
     other: "You moved it evenly, but the new curve also turns about the equilibrium.",
+  },
+  // A turn the right way up or down, but flatter for steeper (or the
+  // reverse); keyed by the truth's sense.
+  wrongTurn: {
+    tax: {
+      steeper: "You turned it flatter. A percent tax adds more where prices are high, so the curve gets steeper.",
+      flatter: "You turned it steeper. A percent tax takes more off where prices are high, so the curve gets flatter.",
+    },
+    subsidy: {
+      steeper: "You turned it flatter. A percent subsidy adds more where prices are high, so the curve gets steeper.",
+      flatter: "You turned it steeper. A percent subsidy takes more off where prices are high, so the curve gets flatter.",
+    },
+    other: { steeper: "You turned it flatter, but the curve gets steeper.", flatter: "You turned it steeper, but the curve gets flatter." },
   },
   turnNotShift: {
     tax: "You turned it. A tax per unit adds the same amount at every quantity, so the curve moves {dir} without turning.",
@@ -272,6 +286,7 @@ export function marketWhy(
     return fill(WHY.shiftNotTurn[priceKind][turnSense(m, t) > 0 ? "flatter" : "steeper"]);
   }
   if (vShape === "turn" && tShape === "shift") return fill(WHY.turnNotShift[priceKind]);
+  if (vShape === "turn" && tShape === "turn" && turnSense(m, v) !== turnSense(m, t)) return WHY.wrongTurn[priceKind][turnSense(m, t) > 0 ? "flatter" : "steeper"];
   const size = (g: [number, number]) => Math.abs(g[0]) + Math.abs(g[1]);
   return size(v) < size(t) ? WHY.further : WHY.less;
 }
