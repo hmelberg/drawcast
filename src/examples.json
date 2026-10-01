@@ -79941,7 +79941,7 @@
           "draw": [
             "value_notest"
           ],
-          "speak": "Weighed by their chances, that branch is worth 9.52 years: 0.12 times six, plus 0.88 times ten."
+          "speak": "Weighed by their chances, that branch is worth 9.52 years: 0.12 times six, plus the rest times ten."
         },
         {
           "draw": [
@@ -80144,7 +80144,7 @@
           "draw": [
             "dots"
           ],
-          "speak": "Here is why: seven rows of eight dots. Each row adds eight more, so the rows run eight, sixteen, twenty-four, and so on, until the seventh row brings the total to fifty-six."
+          "speak": "Here is why: seven rows of eight squares. Each row adds eight more, so the rows run eight, sixteen, twenty-four, and so on, until the seventh row brings the total to fifty-six."
         }
       ]
     }
