@@ -109,6 +109,10 @@ const STORYLINE5 = [FRESH[0], FRESH[3], TEMPLATES[0], TEMPLATES[1], ["lens", "Wh
 const INTERACTIVE = [
   ["health", "How much do rich countries spend on health, and does spending more buy longer lives? #interactive"],
   ["vaccine", "How do vaccines protect people who are not vaccinated? #interactive"],
+  // round 4 (spec 2026-10-03-curves-trees-formulas): tree blanks + pick, formula \blank, market guesses
+  ["statins", "Should a 60-year-old with high cholesterol take statins? Walk through the expected years of life #interactive"],
+  ["kinetic", "Kinetic energy: where the ½mv² comes from #interactive"],
+  ["sugartax", "Who really pays a sugar tax? #interactive"],
 ];
 const CASES = set === "templates" ? TEMPLATES : set === "final" ? FINAL : set === "storyline5" ? STORYLINE5 : set === "interactive" ? INTERACTIVE : FRESH;
 
