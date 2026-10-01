@@ -3,7 +3,9 @@
 // Framework-free by design. One SVG renderer, two styles (sketchy/clean).
 
 import { guessParts, guessSetup, patchFor } from "../guess/handles";
-import { cardsGeometryIn } from "../spec/cards";
+import { cardsGeometryIn, type CardsGeometry } from "../spec/cards";
+import { formulaBlanks, hasBlanks } from "../formula/blanks";
+import type { BBox } from "../layout/geometry";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
 import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
@@ -21,7 +23,7 @@ import { scratchCards } from "../spec/scratch";
 import { boxAnchor } from "../layout/anchors";
 import { isEmptyOverrides, overridesKey, type LayoutOverrides } from "../layout/posed";
 import type { LabelPin } from "../layout/labels";
-import { Player, type CodePatch, type PlaybackMode, type PlayerCallbacks } from "./player";
+import { Player, type CodePatch, type FormulaRuntime, type PlaybackMode, type PlayerCallbacks } from "./player";
 import { applyCodePatches, precomputeSweeps, sweepRunnerFor } from "./sweep-run";
 import { stableHash } from "./sweep";
 import { scanDataTokens, substituteDataTokens } from "../code/tokens";
@@ -128,6 +130,52 @@ function contactEmail(): string {
  * command-addressable ids), so `draw`/`arrange` naming just the parent
  * silently drops as an unknown id instead of expanding.
  */
+/**
+ * A formula's blanks (design 2026-10-03 §5), read off the mounted layout:
+ * the math element's runtime (its blanks, a `fills` patch, its boxes), and
+ * the cards an ask's `on` answers with — a cards element, or a formula's
+ * tiles (`<id>_tiles`) with the blank boxes as the drop targets and the
+ * tiles where layout drew them (under the formula as placed,
+ * layout/tier2.ts placeFormulaTiles). Without the boxes the reveal would
+ * move nothing. Pure, so a test can wire it the way render() does.
+ */
+export function formulaHooksFor(
+  spec: Spec,
+  bboxes: Map<string, BBox>,
+  boxesIn: (layout: LayoutResult) => Map<string, BBox>,
+): { cardsOn: (id: string) => CardsGeometry | null; formula: (id: string) => FormulaRuntime | null } {
+  const texOf = (id: string): string | null => {
+    const el = (spec.elements ?? []).find((e) => e.id === id);
+    return el && el.type === "math" && typeof el.tex === "string" && hasBlanks(el.tex) ? el.tex : null;
+  };
+  const blanksOf = (mathId: string): BBox[] | null => {
+    const tex = texOf(mathId);
+    if (tex === null) return null;
+    const boxes = formulaBlanks(mathId, tex).map((b) => bboxes.get(b.part) ?? null);
+    return boxes.every((b): b is BBox => b !== null) ? boxes : null;
+  };
+  const homesOf = (cardId: string): Pt | null => {
+    const b = bboxes.get(cardId);
+    return b ? [b.x + b.w / 2, b.y + b.h / 2] : null;
+  };
+  return {
+    cardsOn: (id) => (texOf(id) !== null ? cardsGeometryIn(spec, `${id}_tiles`, blanksOf, homesOf) : cardsGeometryIn(spec, id)),
+    formula: (id) => {
+      const tex = texOf(id);
+      if (tex === null) return null;
+      const blanks = formulaBlanks(id, tex);
+      return {
+        blanks,
+        patch: (fills, base) => (base ?? spec.elements ?? []).map((e) => (e.id === id ? ({ ...e, fills } as SpecElement) : e)),
+        boxes: (onScreen) => {
+          const b = onScreen ? boxesIn(onScreen) : bboxes;
+          return blanks.map((bl) => b.get(bl.part) ?? null);
+        },
+      };
+    },
+  };
+}
+
 /** Elements that live in a page's domain: they move in its units. */
 const DATA_KINDS = new Set<string>(["point", "curve", "region", "arrow", "edge", "line", "axes"]);
 
@@ -381,7 +429,20 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // boundary cache key, so a patched boundary never gets an unpatched layout
   // back out of the cache.
   const codePatches = new Map<string, CodePatch>();
-  const patchesKey = (): string => (codePatches.size === 0 ? "" : [...codePatches].map(([id, p]) => `${id}:${p.code.length}:${stableHash(p.code)}`).join("|"));
+  // Fields laid over an element for the rest of the cast — a formula's
+  // `fills` once its ask has written the truths in (design 2026-10-03 §5.4).
+  // Like the code patches: on frames and commits alike, and in the cache key.
+  const elementPatches = new Map<string, Record<string, unknown>>();
+  const patchesKey = (): string =>
+    [
+      codePatches.size === 0 ? "" : [...codePatches].map(([id, p]) => `${id}:${p.code.length}:${stableHash(p.code)}`).join("|"),
+      elementPatches.size === 0 ? "" : JSON.stringify([...elementPatches]),
+    ].join("#");
+  const livePatched = (): SpecElement[] | undefined => {
+    if (codePatches.size === 0 && elementPatches.size === 0) return undefined;
+    const els = codePatches.size > 0 ? applyCodePatches(spec.elements ?? [], codePatches) : (spec.elements ?? []);
+    return elementPatches.size === 0 ? els : els.map((e) => (elementPatches.has(e.id) ? ({ ...e, ...elementPatches.get(e.id) } as SpecElement) : e));
+  };
   // Minted elements (design §2.1 round 3, §2.5 round 2 — trails, ghosts): set
   // once the plan is known, below — layoutFor and the mounted layout both
   // append them, so a reprojected preview or a scrub carries them too.
@@ -398,7 +459,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // the FRAMES between boundaries so the solver is not re-run per rAF tick.
   // Never cached with one: a cached boundary layout must be the honest solve.
   const rawLayoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, pins?: Record<string, LabelPin>): LayoutResult => {
-    if (Object.keys(params).length === 0 && !elements && isEmptyOverrides(overrides) && codePatches.size === 0) return layout;
+    if (Object.keys(params).length === 0 && !elements && isEmptyOverrides(overrides) && codePatches.size === 0 && elementPatches.size === 0) return layout;
     // An elements override is the code editor's preview: never cached, its
     // key would be the whole patched script. A sweep's patches ARE cached —
     // one entry per run step's tail commit — but only under a key that names
@@ -409,7 +470,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     // A caller's own element list (the tray's preview) has the last word: it
     // was built from the viewer's edits and already carries whatever it wants
     // to keep. With none, a live sweep's patches stand in.
-    const patched = elements ?? (codePatches.size > 0 ? applyCodePatches(spec.elements ?? [], codePatches) : undefined);
+    const patched = elements ?? livePatched();
     // A `{id.var}` template param is harvested from the script's OUTPUT, so a
     // sweep that changes the output must change the param too — otherwise the
     // CE plane's threshold line walks while the number that labels it stands
@@ -449,6 +510,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, trailProgress?: Record<string, number>, pins?: Record<string, LabelPin>): LayoutResult =>
     withMinted(rawLayoutFor(params, cache, elements, overrides, pins), minted, (p, ov) => rawLayoutFor(p, true, undefined, ov), trailProgress);
 
+  const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l, measure));
+
   const plan = planCommands(spec.commands, layout.order, {
     book: spec.book !== undefined,
     bboxOf: (id) => bboxes.get(id) ?? null,
@@ -458,11 +521,17 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     ...domainMapping(spec.domain && layout.frame ? layout.frame : spec.domain, layout.fit),
     animateBase: spec.template ? spec.params ?? {} : null,
     cardsFor: (id) => {
-      const g = cardsGeometryIn(spec, id);
+      const g = formulas.cardsOn(id);
       if (!g) return null;
       const offsets: Record<string, [number, number]> = {};
       g.cards.forEach((c, i) => (offsets[c] = [g.truth[i][0] - g.home[i][0], g.truth[i][1] - g.home[i][1]]));
-      return { cards: g.cards, offsets, shows: g.valueIds ?? [] };
+      // A formula's right tiles give way to the truth's own glyphs in the boxes.
+      const hides = g.mode === "fill" ? g.cards.filter((_, i) => g.truthBin[i] >= 0) : [];
+      return { cards: g.cards, offsets, shows: g.valueIds ?? [], ...(hides.length > 0 ? { hides } : {}) };
+    },
+    formulaFor: (id) => {
+      const rt = formulas.formula(id);
+      return rt ? { blanks: rt.blanks.length } : null;
     },
     guessParts: (on, from) => {
       const parts = guessParts(spec, on);
@@ -525,7 +594,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   player.guess = {
     setup: (on, from, params, onScreen) => guessSetup(spec, withOverrides(spec.params ?? {}, params), onScreen ?? layout, guessParts(spec, on), { from, measure }),
     patch: (setup, values, elements) => patchFor(elements ? { ...spec, elements } : spec, setup, values),
-    cards: (id) => cardsGeometryIn(spec, id),
+    cards: (id) => formulas.cardsOn(id),
+    formula: (id) => formulas.formula(id),
     // A tree ask (spec 2026-10-03 §4): the figure must be a decision tree.
     tree: () =>
       spec.template === "decision_tree"
@@ -577,7 +647,11 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
         if (p) codePatches.set(id, p);
         else codePatches.delete(id);
       },
-      patchedElements: () => (codePatches.size > 0 ? applyCodePatches(spec.elements ?? [], codePatches) : undefined),
+      patchedElements: livePatched,
+      setElementPatch: (id, fields) => {
+        if (fields) elementPatches.set(id, fields);
+        else elementPatches.delete(id);
+      },
     };
   }
 

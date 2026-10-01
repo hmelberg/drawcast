@@ -31,6 +31,31 @@ export function fieldText(v: number): string {
   return String(Number(v.toPrecision(10)));
 }
 
+/**
+ * Lay a field over a logical box (y-up): its font from the box's height,
+ * wide enough to type in (at least `minEm` ems), centred on the box — or,
+ * with `below`, its top that many px under the box, so what the box shows
+ * stays in sight. Re-run on resize and on pan/zoom (clientPointFor follows
+ * the view). False when the stage is not laid out yet.
+ */
+export function placeOverBox(stage: HTMLElement, el: HTMLElement, box: BBox, opts: { minEm?: number; below?: number } = {}): boolean {
+  const tl = clientPointFor(stage, [box.x, box.y + box.h]);
+  const br = clientPointFor(stage, [box.x + box.w, box.y]);
+  if (!tl || !br) return false;
+  const hPx = Math.max(br[1] - tl[1], 18);
+  const fontPx = Math.max(16, hPx * 0.9);
+  const wPx = Math.max(br[0] - tl[0] + fontPx * 1.6, fontPx * (opts.minEm ?? 4.2));
+  const cx = (tl[0] + br[0]) / 2;
+  const cy = (tl[1] + br[1]) / 2;
+  const hBox = fontPx * 1.55;
+  el.style.left = `${cx - wPx / 2}px`;
+  el.style.top = opts.below !== undefined ? `${br[1] + opts.below}px` : `${cy - hBox / 2}px`;
+  el.style.width = `${wPx}px`;
+  el.style.height = `${hBox}px`;
+  el.style.fontSize = `${fontPx}px`;
+  return true;
+}
+
 export function mountNumberEdit(stage: HTMLElement, opts: NumberEditOpts): { close: () => void; reposition: () => void } | null {
   const input = h("input", {
     class: "cs-numedit",
@@ -62,21 +87,7 @@ export function mountNumberEdit(stage: HTMLElement, opts: NumberEditOpts): { clo
     input.remove();
   };
   const reposition = (): void => {
-    const tl = clientPointFor(stage, [opts.box.x, opts.box.y + opts.box.h]);
-    const br = clientPointFor(stage, [opts.box.x + opts.box.w, opts.box.y]);
-    if (!tl || !br) return;
-    const hPx = Math.max(br[1] - tl[1], 18);
-    const fontPx = Math.max(16, hPx * 0.9);
-    // Wide enough to type in, centred on the number it covers.
-    const wPx = Math.max(br[0] - tl[0] + fontPx * 1.6, fontPx * 4.2);
-    const cx = (tl[0] + br[0]) / 2;
-    const cy = (tl[1] + br[1]) / 2;
-    const hBox = fontPx * 1.55;
-    input.style.left = `${cx - wPx / 2}px`;
-    input.style.top = `${cy - hBox / 2}px`;
-    input.style.width = `${wPx}px`;
-    input.style.height = `${hBox}px`;
-    input.style.fontSize = `${fontPx}px`;
+    placeOverBox(stage, input, opts.box);
   };
   reposition();
   if (!input.style.left) return null;

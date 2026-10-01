@@ -7,6 +7,9 @@
 //   match    drag from a card to its partner      → Answer
 //   compare  tap the bigger card of each pair     (answers itself)
 //   decide   tap a choice                         (answers itself)
+//   fill     drag a tile into each of a formula's boxes, or tap a tile
+//            and then a box → Answer (one box: the drop answers, unless
+//            the ask says release: false)
 //
 // A pressed card follows the pointer on the figure (it is the figure's own
 // card, moved by the player's `place`); let go, the arrangement changes and
@@ -16,7 +19,8 @@
 // slot; sort 1–4 put it in that box, 0 back to the row; place ←/→ move it
 // along the line (shift: further); match 1–6 join it to that partner (top to
 // bottom); compare ←/→ or 1/2 pick in the current pair; decide 1–4 or ←/→
-// and Enter. Enter answers where there is an Answer button.
+// and Enter; fill 1–n put the tile in that box, 0 back to the row. Enter
+// answers where there is an Answer button.
 
 import type { RenderHandle } from "../render";
 import type { CardsSession } from "../render/player";
@@ -38,6 +42,7 @@ const HINT: Record<string, string> = {
   match: "Drag each card to its partner",
   compare: "Tap one in each pair",
   decide: "Choose one",
+  fill: "Drag a tile into each box",
 };
 
 export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
@@ -60,10 +65,14 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       /** compare: the pair being asked. */
       let row = 0;
       const needsAnswer = mode !== "compare" && mode !== "decide";
+      // A formula with one box: putting a tile in it answers.
+      const dropAnswers = mode === "fill" && g.binBoxes.length === 1 && step.release !== false;
+      /** fill: the tile tapped, waiting for a tap on a box (-1: none). */
+      let picked = -1;
 
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, HINT[mode] ?? "");
       const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸");
-      answer.hidden = !needsAnswer;
+      answer.hidden = !needsAnswer || dropAnswers;
       const ring = h("div", { class: "cs-card-focus" });
       ring.hidden = true;
       const valuePill = h("span", { class: "cs-guess-value cs-card-value" });
@@ -146,6 +155,13 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
           placeRing();
         }
       };
+      /** fill, one box: a tile in it answers once it has settled there. */
+      const maybeAnswer = (): void => {
+        if (dropAnswers && (arr.boxes[0] ?? []).length > 0) window.setTimeout(() => !settled && finish(encodeArrangement(g, arr)), SETTLE_MS + 60);
+      };
+      /** fill: the box under a logical point (its own size or a tile's, padded), or -1. */
+      const boxAt = (p: Pt): number =>
+        g.binBoxes.findIndex((bx) => Math.abs(p[0] - bx.c[0]) <= Math.max(bx.w, 24) / 2 + 10 && Math.abs(p[1] - bx.c[1]) <= Math.max(bx.h, 24) / 2 + 10);
       const choose = (k: number): void => {
         if (mode !== "decide" || k < 0 || k >= g.cards.length) return;
         arr = { ...arr, choice: k };
@@ -154,7 +170,7 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       };
 
       // —— pointer ——
-      let dragging: { card: number; grab: Pt; moved: boolean } | null = null;
+      let dragging: { card: number; grab: Pt; start: Pt; moved: boolean } | null = null;
       gate.addEventListener("pointerdown", (e) => {
         if (settled || (e.target as Element).closest("button")) return;
         e.preventDefault();
@@ -162,7 +178,21 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         const p = logicalPoint(stage, e);
         if (!p) return;
         const card = cardAt(g, shown, p);
-        if (card < 0) return;
+        if (card < 0) {
+          // fill: a tapped tile, then a tap on a box, puts it there.
+          if (mode === "fill" && picked >= 0) {
+            const k = boxAt(p);
+            if (k >= 0) {
+              arr = drop(g, arr, picked, g.binBoxes[k].c);
+              settle();
+              maybeAnswer();
+            }
+            picked = -1;
+            focus = -1;
+            placeRing();
+          }
+          return;
+        }
         if (mode === "compare") {
           const rows = g.rows ?? [];
           if (row < rows.length && rows[row].includes(card)) pickInRow(rows[row][0] === card ? 0 : 1);
@@ -177,7 +207,7 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         } catch {
           /* a synthetic pointer has no capture */
         }
-        dragging = { card, grab: [p[0] - shown[card][0], p[1] - shown[card][1]], moved: false };
+        dragging = { card, grab: [p[0] - shown[card][0], p[1] - shown[card][1]], start: p, moved: false };
         focus = card;
         gate.classList.add("dragging");
       });
@@ -186,6 +216,8 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         if (!dragging || settled) return;
         const p = logicalPoint(stage, e);
         if (!p) return;
+        // A finger's jitter on a tap is not a drag (fill: a tap picks the tile).
+        if (!dragging.moved && Math.hypot(p[0] - dragging.start[0], p[1] - dragging.start[1]) < 6) return;
         dragging.moved = true;
         if (mode === "match") {
           drawLinks({ from: dragging.card, to: p });
@@ -218,18 +250,40 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       const endDrag = (e: PointerEvent): void => {
         e.stopPropagation();
         if (!dragging) return;
-        const { card } = dragging;
+        const { card, moved } = dragging;
         dragging = null;
         gate.classList.remove("dragging");
         valuePill.hidden = true;
         const p = logicalPoint(stage, e);
         if (e.type === "pointerup") {
+          if (mode === "fill" && !moved) {
+            // A tap, not a drag. On a tile already in a box while another
+            // waits: the waiting one goes in (a swap). Else this one waits
+            // for a tap on a box.
+            const inBox = arr.boxes.findIndex((b) => b.includes(card));
+            if (picked >= 0 && picked !== card && inBox >= 0) {
+              arr = drop(g, arr, picked, g.binBoxes[inBox].c);
+              picked = -1;
+              focus = -1;
+              settle();
+              maybeAnswer();
+              return;
+            }
+            picked = card;
+            focus = card;
+            placeRing();
+            return;
+          }
           if (mode === "match") {
             if (p) arr = drop(g, arr, card, p);
             drawLinks();
             return;
           }
           arr = drop(g, arr, card, shown[card]);
+          if (mode === "fill") {
+            picked = -1;
+            maybeAnswer();
+          }
         }
         settle();
       };
@@ -279,8 +333,14 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
           const s = arr.order.indexOf(focus);
           const t = Math.max(0, Math.min(n - 1, s + (right ? 1 : -1)));
           arr = drop(g, arr, focus, g.slots[t]);
-        } else if (mode === "sort" && digit !== null) {
+        } else if ((mode === "sort" || mode === "fill") && digit !== null) {
           arr = digit === 0 ? drop(g, arr, focus, [-9999, -9999]) : digit <= g.bins.length ? drop(g, arr, focus, g.binBoxes[digit - 1].c) : arr;
+          if (mode === "fill") {
+            settle();
+            maybeAnswer();
+            e.preventDefault();
+            return;
+          }
         } else if (mode === "place" && (left || right) && g.scale) {
           const sg = g.scale;
           const cur = arr.values?.[focus] ?? sg.middle;

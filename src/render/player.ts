@@ -40,11 +40,14 @@ import { defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type Gue
 import { guessText, guessVars, scoreGuess } from "../guess/score";
 import { guessMarks } from "../guess/marks";
 import type { CardsGeometry } from "../spec/cards";
-import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, type Arrangement } from "../cards/model";
+import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
 import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
 import { decodeTreeAnswer, encodeTreeAnswer, scoreBlanks, treeBlanks, treePick, type TreeBlank, type TreePick } from "../tree/blanks";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { withOverrides } from "./params";
+import { blankIsNumber, typedRight, type FormulaBlank } from "../formula/blanks";
+import { exprToAscii, exprToTeX, parseAscii, texToExpr } from "../formula/expr";
+import { parseBlankNumber } from "../tree/blanks";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -104,6 +107,10 @@ export interface Reprojector {
   /** The spec's elements with every live patch applied, or undefined when
    *  there is none — what a frame must be laid out from mid-sweep. */
   patchedElements?(): SpecElement[] | undefined;
+  /** Fields laid over one element for every frame and commit from now on
+   *  (null takes them off): a formula's `fills` once its ask is answered
+   *  (design 2026-10-03 §5.4 — the box stays filled). */
+  setElementPatch?(id: string, fields: Record<string, unknown> | null): void;
 }
 
 /** The glide from a guess to the truth. */
@@ -124,6 +131,28 @@ export interface GuessRuntime {
    *  the figure is not one: its authored params, every part's box in a
    *  layout, and every edge's points (edge id → polyline). */
   tree?(): TreeRuntime | null;
+  /** A math element with \blank boxes (design 2026-10-03 §5), or null. */
+  formula?(id: string): FormulaRuntime | null;
+}
+
+export interface FormulaRuntime {
+  blanks: FormulaBlank[];
+  /** The elements with this formula's `fills` set — on `base` (the elements
+   *  a frame is laid out from) when given, else on the spec's own. */
+  patch(fills: (string | null)[], base?: SpecElement[]): SpecElement[];
+  /** Each blank's box (logical) in a layout (null: the mounted one). */
+  boxes(layout: LayoutResult | null): (BBox | null)[];
+}
+
+/** What a formula gate is handed (ui/formula-gate.ts): the blanks to type
+ *  into, where their boxes are, and the live preview. It resolves
+ *  JSON.stringify(texts) — one typed text (or null) per blank — or null. */
+export interface FormulaSession {
+  blanks: FormulaBlank[];
+  /** Blank k's box (k = 0, 1, … in blank order), logical. */
+  boxOf(k: number): BBox | null;
+  /** Paint typed answers into the boxes (null = empty). Returns false when a text does not parse (the field marks it). */
+  show(texts: (string | null)[]): boolean[];
 }
 
 export interface TreeRuntime {
@@ -202,6 +231,48 @@ const CLEAR_MIN_MS = 250;
 const ANSWER_GLOW_MS = EMPHASIS_ONE_SWELL_MS;
 /** The click gate's "right" green (styles.css --ok) — a literal, since SVG presentation attributes cannot read CSS variables. */
 const ANSWER_OK_COLOR = "#4a7c59";
+
+/**
+ * A typed answer as the TeX its box shows: null when nothing is typed,
+ * undefined when it does not parse (a number blank takes a number; any other
+ * an AsciiMath-style expression, design 2026-10-03 §5.3).
+ */
+function typedFill(blank: FormulaBlank, text: string | null): string | null | undefined {
+  if (text === null || text.trim() === "") return null;
+  if (blankIsNumber(blank)) {
+    const v = parseBlankNumber(text);
+    if (v === null || !Number.isFinite(v)) return undefined;
+    const t = text.trim();
+    // As typed when it is plain digits ("3,5" keeps its comma), else the value.
+    return /^[-+]?[\d\s.,]+$/.test(t) ? t.replace(/\s+/g, "").replace(/,/g, "{,}") : String(v);
+  }
+  const e = parseAscii(text);
+  return "error" in e ? undefined : exprToTeX(e);
+}
+
+/** A viewer's fill: an empty group in front, so the layout (which inks a fill
+ *  equal to the truth) draws it in the guess colour however right it is —
+ *  the colour must not give the answer away before the reveal. */
+const guessFill = (tex: string): string => `{}${tex}`;
+
+/** What the movie types for a blank: its number, or its truth as one would
+ *  type it (`π r^2`); null when the truth is outside the typed subset. */
+function typedTruth(blank: FormulaBlank): string | null {
+  if (blankIsNumber(blank)) return blank.tex.replace(/\{,\}/g, ",").trim();
+  const e = texToExpr(blank.tex);
+  return e ? exprToAscii(e) : null;
+}
+
+/** A formula gate's answer: one text (or null) per blank. */
+function decodeFormulaTexts(s: string, n: number): (string | null)[] | null {
+  try {
+    const v: unknown = JSON.parse(s);
+    if (!Array.isArray(v) || v.length !== n) return null;
+    return v.map((x) => (typeof x === "string" ? x : null));
+  } catch {
+    return null;
+  }
+}
 
 export class Player {
   private plan: Plan;
@@ -752,6 +823,8 @@ export class Player {
     this.dropPatchesFrom(n);
     // …and a scrub landing PAST a run puts back what that run ended on.
     if (!keepPlaying) this.restoreRunPatches(n);
+    // …and a formula's boxes are empty before its ask, written in after it.
+    this.restoreFormulaFills(n);
     const scene = this.stateAt(n);
     this.applyKey(scene);
     this.endMarks();
@@ -1501,8 +1574,11 @@ export class Player {
     this.endGuessMarks(true);
     // A decision starts afresh (its branch state outlives the jump into the branch).
     if (g.mode === "decide") this.decideBranch = null;
-    const owner = `cards_${index}`;
-    this.guessMarkParts.set(owner, [...g.cards, ...(g.valueIds ?? [])]);
+    // Tiles into a formula's boxes (design 2026-10-03 §5.3): the marks are the
+    // formula's, and stay until it is erased.
+    const formula = g.mode === "fill" && step.formula !== undefined ? (this.guess?.formula?.(step.formula) ?? null) : null;
+    const owner = formula ? `formula_${index}` : `cards_${index}`;
+    this.guessMarkParts.set(owner, formula ? [step.formula!] : [...g.cards, ...(g.valueIds ?? [])]);
     const start = initialArrangement(g);
     const place = (id: string, dx: number, dy: number): void => this.nudge(id, dx, dy);
     const show = (ids: string[]): void => {
@@ -1551,6 +1627,25 @@ export class Player {
       await this.tapAt({ x: x - g.w / 2, y: y - g.h / 2, w: g.w, h: g.h });
       arrangement = { ...start, choice: k };
       answered = true;
+    } else if (g.mode === "fill") {
+      // The movie: the right tiles glide into their boxes one by one.
+      const boxes = start.boxes.map((b) => b.slice());
+      for (let k = 0; k < g.binBoxes.length; k++) {
+        const i = g.truthBin.indexOf(k);
+        if (i < 0) continue;
+        await this.waitScaled(300, signal);
+        if (signal.aborted) return;
+        const [hx, hy] = g.home[i];
+        const [tx, ty] = g.binSlot(k, 0);
+        await this.progress(600, signal, (t) => {
+          const e = smoothstep(t);
+          place(g.cards[i], (tx - hx) * e, (ty - hy) * e);
+        });
+        if (signal.aborted) return;
+        boxes[k] = [i];
+      }
+      arrangement = { ...start, boxes };
+      answered = true;
     } else {
       // The movie: a breath on the cards as drawn, then the truth.
       await this.waitScaled(900, signal);
@@ -1563,8 +1658,14 @@ export class Player {
     const score = scoreCards(g, arrangement, step.tolerance ?? 0);
     const ok = answered && score.ok;
     const choice = arrangement.choice ?? -1;
-    const text = g.mode === "decide" ? (choice >= 0 ? g.texts[choice] : "") : `${score.within} of ${score.count}`;
+    // A formula's tiles: what each box holds, as the blank's answer.
+    const tileIn = g.binBoxes.map((_, k) => {
+      const card = arrangement.boxes[k]?.[0];
+      return card !== undefined ? g.texts[card] : null;
+    });
+    const text = g.mode === "decide" ? (choice >= 0 ? g.texts[choice] : "") : formula && formula.blanks.length === 1 ? (tileIn[0] ?? "") : `${score.within} of ${score.count}`;
     this.recordAnswer(index, step.store, text, judged ? ok : null, secs);
+    if (formula && step.store) this.setFormulaVars(step.store, formula.blanks, tileIn);
     if (step.store) {
       const base = step.store.toLowerCase();
       this.vars.set(`${base}.within`, String(score.within));
@@ -1613,6 +1714,9 @@ export class Player {
         return;
       }
     }
+    // The right tiles are in their boxes: their glyphs are written in (the
+    // plan takes the tiles and the boxes away).
+    if (formula) this.setFills(step.formula!, formula.blanks.map((b) => b.tex));
     this.applyKey(this.plan.states[index]);
     this.applyScene(this.plan.states[index]);
     if (answered) mark(cardsMarks(g, arrangement));
@@ -1631,6 +1735,180 @@ export class Player {
       const target = ok ? step.rightGoto : step.wrongGoto;
       if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
     }
+  }
+
+  /**
+   * A formula to fill by typing (design 2026-10-03 §5.3–5.4): a number box
+   * or an AsciiMath-style field per blank, the answer drawn into the box as
+   * it is typed (`fills`, in the guess colour); scored by value (or by form,
+   * `form: "exact"`); the truths written into the boxes as right/wrong is
+   * spoken, a wrong answer struck through above its box. (Tiles go through
+   * cardsAsk: the plan makes that ask a cards ask too.)
+   */
+  private async formulaAsk(index: number, step: Extract<PlanStep, { kind: "ask" }>, before: SceneState, signal: AbortSignal): Promise<void> {
+    await this.narrationBarrier();
+    if (signal.aborted || step.formula === undefined) return;
+    const id = step.formula;
+    const rt = this.guess?.formula?.(id) ?? null;
+    const rp = this.reprojector;
+    if (!rt || !rp || rt.blanks.length === 0) {
+      console.warn(`[formula] "${id}" has no blanks to fill; the question is skipped`);
+      return;
+    }
+    this.endGuessMarks(true);
+    const { blanks } = rt;
+    const owner = `formula_${index}`;
+    this.guessMarkParts.set(owner, [id]);
+    const after = this.plan.states[index];
+    const visible = new Set([...before.visible, ...after.visible]);
+    const sceneParams = this.withVarOverrides(before.params);
+    const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
+    const base = rp.patchedElements?.();
+    // What each box shows: the last typing that parsed (a half-typed `r^`
+    // keeps `r` there rather than blinking out).
+    const shown: (string | null)[] = blanks.map(() => null);
+    const show = (texts: (string | null)[]): boolean[] => {
+      const ok = blanks.map((b, k) => {
+        const f = typedFill(b, texts[k] ?? null);
+        if (f === undefined) return false;
+        shown[k] = f === null ? null : guessFill(f);
+        return true;
+      });
+      this.painted = rp.frame(sceneParams, this.frameScene(before, visible), { revealNew: true, overrides, elements: rt.patch(shown.slice(), base) }) || null;
+      this.geometryDirty = true;
+      return ok;
+    };
+    const boxOf = (k: number): BBox | null => rt.boxes(this.paintedLayout())[k] ?? null;
+
+    let texts: (string | null)[] = blanks.map(() => null);
+    show(texts);
+    const live = !this.autoAnswers && this.askGate !== null;
+    let answered = false;
+    let secs: number | null = null;
+    if (live) {
+      const from = performance.now();
+      const typed = await this.askGate!(signal, Object.assign({}, step, { formulaSession: { blanks, boxOf, show } satisfies FormulaSession }));
+      if (signal.aborted) return;
+      secs = (performance.now() - from) / 1000;
+      const decoded = typed !== null ? decodeFormulaTexts(typed, blanks.length) : null;
+      if (decoded) {
+        texts = decoded;
+        answered = true;
+      }
+      if (typed !== null) this.cutQuestionVoice();
+    } else {
+      // The movie: each blank's truth typed in, a character at a time.
+      for (let k = 0; k < blanks.length; k++) {
+        const truth = typedTruth(blanks[k]);
+        if (truth === null) continue;
+        for (let c = 1; c <= truth.length; c++) {
+          await this.waitScaled(40, signal);
+          if (signal.aborted) return;
+          texts = texts.slice();
+          texts[k] = truth.slice(0, c);
+          show(texts);
+        }
+        await this.waitScaled(250, signal);
+        if (signal.aborted) return;
+      }
+      answered = true;
+    }
+    if (this.narrationVoice) await this.narrationVoice;
+    if (signal.aborted) return;
+
+    const right = blanks.map((b, k) => {
+      const t = texts[k];
+      return t !== null && t.trim() !== "" && typedRight(b, t, step.form, step.tolerance ?? 0.02);
+    });
+    const within = right.filter(Boolean).length;
+    const ok = answered && within === blanks.length;
+    this.recordAnswer(index, step.store, blanks.length === 1 ? (texts[0] ?? "") : `${within} of ${blanks.length}`, ok, secs);
+    if (step.store) this.setFormulaVars(step.store, blanks, texts, right);
+    this.outcomes.set(index, ok);
+    this.updateScoreVars();
+    if (live) {
+      this.callbacks.onAnswer?.({
+        index,
+        kind: "ask",
+        id: this.answerId(index, step.store),
+        question: step.question,
+        given: answered ? [JSON.stringify(texts)] : [],
+        expected: JSON.stringify(blanks.map((b) => b.tex)),
+        correct: ok,
+        ...(secs !== null ? { secs } : {}),
+      });
+    }
+
+    // The reveal, as the line is spoken: the truths written into the boxes
+    // (the plan takes the boxes away), each wrong answer struck through above.
+    const boxes = blanks.map((_, k) => boxOf(k));
+    const line = ok ? step.right : (step.wrong ?? step.right);
+    const spoken = line ? this.speakLine(line, step, signal) : Promise.resolve();
+    this.setFills(id, blanks.map((b) => b.tex));
+    this.applyKey(after);
+    this.applyScene(after);
+    const lines: GuessMarkLine[] = [];
+    const words: GuessMarkText[] = [];
+    blanks.forEach((_, k) => {
+      const t = texts[k]?.trim();
+      const box = boxes[k];
+      if (right[k] || !t || !box) return;
+      const m = struckAbove({ c: [box.x + box.w / 2, box.y + box.h / 2], h: box.h }, t);
+      words.push(m.text);
+      lines.push(m.line);
+    });
+    if (words.length > 0) {
+      this.guessOwners.add(owner);
+      this.effects?.setGuessMarks?.(owner, { color: GUESS_COLOR, lines, texts: words });
+    }
+    await spoken;
+    if (signal.aborted) return;
+    if (live && answered) {
+      const target = ok ? step.rightGoto : step.wrongGoto;
+      if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
+    }
+  }
+
+  /** A formula ask's stored answers (design 2026-10-03 §5.4): `{f.<k>}` and
+   *  `{f.<k>.true}` per blank, `{f.true}` (the truths, comma-joined when
+   *  several), and with `right`, `{f.within}` / `{f.count}`. */
+  private setFormulaVars(store: string, blanks: FormulaBlank[], given: (string | null)[], right?: boolean[]): void {
+    const base = store.toLowerCase();
+    blanks.forEach((b, k) => {
+      this.vars.set(`${base}.${b.k}`, given[k] ?? "");
+      this.vars.set(`${base}.${b.k}.true`, b.tex);
+    });
+    this.vars.set(`${base}.true`, blanks.map((b) => b.tex).join(", "));
+    if (right) {
+      this.vars.set(`${base}.within`, String(right.filter(Boolean).length));
+      this.vars.set(`${base}.count`, String(blanks.length));
+    }
+  }
+
+  /** What a formula's boxes show for the rest of the cast (null: empty
+   *  again), mirrored here so a seek can put it back (restoreFormulaFills). */
+  private fillsShown = new Map<string, string[]>();
+  private setFills(id: string, fills: string[] | null): void {
+    const cur = this.fillsShown.get(id);
+    if (fills === null ? cur === undefined : cur !== undefined && JSON.stringify(cur) === JSON.stringify(fills)) return;
+    if (fills === null) this.fillsShown.delete(id);
+    else this.fillsShown.set(id, fills);
+    this.reprojector?.setElementPatch?.(id, fills === null ? null : { fills });
+    this.geometryDirty = true;
+  }
+
+  /** The boxes as boundary `n` has them: every formula asked before it shows
+   *  its truths (the reveal wrote them in, answered or not); any other is empty. */
+  private restoreFormulaFills(n: number): void {
+    const want = new Map<string, string[]>();
+    for (let i = 0; i < Math.min(n, this.plan.steps.length); i++) {
+      const s = this.plan.steps[i];
+      if (s.kind !== "ask" || s.formula === undefined) continue;
+      const rt = this.guess?.formula?.(s.formula);
+      if (rt) want.set(s.formula, rt.blanks.map((b) => b.tex));
+    }
+    for (const id of [...this.fillsShown.keys()]) if (!want.has(id)) this.setFills(id, null);
+    for (const [id, fills] of want) this.setFills(id, fills);
   }
 
   /**
@@ -1868,11 +2146,12 @@ export class Player {
   }
 
   /** Take every guess ghost off the figure. `keepTrees`: a tree's working
-   *  lines stay (spec 2026-10-03 §4.2: until the tree is erased — the next
-   *  question does not take them). */
+   *  lines and a formula's struck-through answers stay (spec 2026-10-03
+   *  §4.2, §5.4: until the tree or the formula is erased — the next question
+   *  does not take them). */
   private endGuessMarks(keepTrees = false): void {
     for (const owner of [...this.guessOwners]) {
-      if (keepTrees && owner.startsWith("tree_")) continue;
+      if (keepTrees && (owner.startsWith("tree_") || owner.startsWith("formula_"))) continue;
       this.effects?.setGuessMarks?.(owner, null);
       this.guessOwners.delete(owner);
     }
@@ -2353,6 +2632,7 @@ export class Player {
       case "ask": {
         if (step.tree !== undefined) return this.treeAsk(index, step, before, signal);
         if (step.cards !== undefined) return this.cardsAsk(index, step, signal);
+        if (step.formula !== undefined) return this.formulaAsk(index, step, before, signal);
         if (step.on !== undefined) return this.guessAsk(index, step, before, signal);
         await this.narrationBarrier();
         if (signal.aborted) return;

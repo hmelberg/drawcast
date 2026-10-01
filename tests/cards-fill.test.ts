@@ -133,7 +133,12 @@ describe("tiles in layout (real mathjax)", () => {
     expect(ids).toEqual(expect.arrayContaining(["area_tiles_1", "area_tiles_1_text"]));
     const bb = elementBBoxes(l);
     const blanksOf = (id: string) => formulaBlanks(id, "A = \\pi \\blank{r^2}").map((b) => bb.get(b.part)!);
-    const g = cardsGeometryIn(spec, "area_tiles", blanksOf)!;
+    // The tiles are drawn where layout puts them (under the formula as laid out).
+    const homesOf = (id: string) => {
+      const b = bb.get(id);
+      return b ? ([b.x + b.w / 2, b.y + b.h / 2] as [number, number]) : null;
+    };
+    const g = cardsGeometryIn(spec, "area_tiles", blanksOf, homesOf)!;
     const formula = bb.get("area")!;
     g.home.forEach((p, i) => {
       // Drawn where the geometry says, below the formula.

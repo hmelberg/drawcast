@@ -345,11 +345,9 @@ export function cardsMarks(g: CardsGeometry, a: Arrangement): GuessMarks {
       g.binBoxes.forEach((bx, k) => {
         const card = a.boxes[k]?.[0];
         if (card === undefined || right[k]) return;
-        const text = plainTeX(g.texts[card]);
-        const at: Pt = [bx.c[0], bx.c[1] + bx.h / 2 + 16];
-        const half = Math.max(10, text.length * 5.5);
-        texts.push({ at, text, anchor: "middle" });
-        lines.push({ pts: [[at[0] - half, at[1]], [at[0] + half, at[1]]] });
+        const m = struckAbove(bx, plainTeX(g.texts[card]));
+        texts.push(m.text);
+        lines.push(m.line);
       });
       break;
   }
@@ -384,6 +382,14 @@ export function placePins(g: CardsGeometry, pos: Pt[]): GuessMarkLine[] {
   const sg = g.scale;
   if (!sg) return [];
   return pos.flatMap(([x, y]) => (y > sg.y ? [{ pts: [[x, y - g.h / 2], [x, sg.y]] as Pt[] }] : []));
+}
+
+/** A formula blank's wrong answer (a tile, or what was typed): its text
+ *  above the box (centre `c`, height `h`, logical y-up), a line through it. */
+export function struckAbove(box: { c: Pt; h: number }, text: string): { text: GuessMarkText; line: GuessMarkLine } {
+  const at: Pt = [box.c[0], box.c[1] + box.h / 2 + 16];
+  const half = Math.max(10, text.length * 5.5);
+  return { text: { at, text, anchor: "middle" }, line: { pts: [[at[0] - half, at[1]], [at[0] + half, at[1]]] } };
 }
 
 /** A tile's TeX as plain text for a mark: commands lose their backslash, braces go. */

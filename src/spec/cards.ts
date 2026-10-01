@@ -194,8 +194,11 @@ export const tileWidth = (tex: string): number => Math.max(56, 22 * Math.pow(tex
 
 /** A blank's box lookup: the math element's blank boxes in order (layout boxes), or null. */
 export type BlanksOf = (mathId: string) => BBox[] | null;
+/** fill: where layout drew a tile (its centre), or null — layout moves the
+ *  tile row under the formula as placed (layout/tier2.ts placeFormulaTiles). */
+export type HomesOf = (cardId: string) => Pt | null;
 
-export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => ScaleElementLike | undefined, blanksOf?: BlanksOf): CardsGeometry {
+export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => ScaleElementLike | undefined, blanksOf?: BlanksOf, homesOf?: HomesOf): CardsGeometry {
   const mode = cardsMode(el);
   const x0 = isNum(el.x) ? el.x : 100;
   const width = isNum(el.width) && el.width > 200 ? el.width : 800;
@@ -228,8 +231,9 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
     const left = (x0 + x1) / 2 - rowW / 2;
     const yTop = isNum(el.y) ? el.y : 200;
     const tray: Pt[] = items.map((_, s) => [left + (s % perRow) * (w + GAP) + w / 2, yTop - Math.floor(s / perRow) * (h + GAP)] as Pt);
-    // The expansion shuffles the items already; they are drawn as listed.
-    const home = tray.slice();
+    // The expansion shuffles the items already; they are drawn as listed —
+    // where layout put them when it says (the row follows the formula).
+    const home = tray.map((p, i) => homesOf?.(cards[i]) ?? p);
     const nBlanks = Math.max(0, ...items.map((it) => it.blank ?? 0));
     const truthBin = items.map((it) => (it.blank !== undefined && it.blank <= nBlanks ? it.blank - 1 : -1));
     const boxes = el.fill ? blanksOf?.(el.fill) ?? null : null;
@@ -243,7 +247,7 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
     });
     const binSlot = (k: number): Pt => binBoxes[k]?.c ?? [0, 0];
     const truth = truthBin.map((k, i) => (k >= 0 ? binSlot(k) : home[i]));
-    return { ...base, cards, texts, truthBin, bins: binBoxes.map((_, k) => `blank_${k + 1}`), w, h, home, slots: tray, binBoxes, binSlot, truth };
+    return { ...base, cards, texts, truthBin, bins: binBoxes.map((_, k) => `blank_${k + 1}`), w, h, home, slots: home.slice(), binBoxes, binSlot, truth };
   }
 
   if (mode === "match") {
@@ -443,11 +447,11 @@ export function authoredCards(spec: Pick<Spec, "elements">): CardsElementLike[] 
 }
 
 /** The geometry of a spec's cards element by id — with its scale looked up. */
-export function cardsGeometryIn(spec: Pick<Spec, "elements">, id: string, blanksOf?: BlanksOf): CardsGeometry | null {
+export function cardsGeometryIn(spec: Pick<Spec, "elements">, id: string, blanksOf?: BlanksOf, homesOf?: HomesOf): CardsGeometry | null {
   const el = authoredCards(spec).find((c) => c.id === id);
   if (!el) return null;
   const scales = authoredScales(spec);
-  return cardsGeometry(el, (sid) => scales.find((s) => s.id === sid), blanksOf);
+  return cardsGeometry(el, (sid) => scales.find((s) => s.id === sid), blanksOf, homesOf);
 }
 
 export function expandCards(spec: Spec): Spec {

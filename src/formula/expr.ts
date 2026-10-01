@@ -377,6 +377,39 @@ export function exprToTeX(e: Expr): string {
   }
 }
 
+/** An expression as a learner would type it (`π r^2`, `v^2/(2 a)`,
+ *  `sqrt(x)`) — what parseAscii reads back to the same value. The movie
+ *  types a typed blank's truth in with it, a character at a time. */
+export function exprToAscii(e: Expr): string {
+  // Typed, `/` binds like `*` (a/b c is (a/b)·c), so a quotient is a product here.
+  const level = (x: Expr): number => (x.k === "bin" && x.op === "/" ? PREC.prod : prec(x));
+  const p = (x: Expr, min: number): string => (level(x) < min ? `(${exprToAscii(x)})` : exprToAscii(x));
+  switch (e.k) {
+    case "num":
+      return String(e.v);
+    case "sym": {
+      const [base, sub] = e.name.split(/_(.*)/s);
+      const b = base === "pi" ? "π" : base;
+      return sub === undefined ? b : `${b}_${sub}`;
+    }
+    case "neg":
+      return `-${p(e.a, PREC.pow)}`;
+    case "fn":
+      return `${e.name}(${exprToAscii(e.a)})`;
+    case "bin": {
+      if (e.op === "^") return `${p(e.a, PREC.atom)}^${p(e.b, PREC.atom)}`;
+      if (e.op === "/") return `${p(e.a, PREC.prod)}/${p(e.b, PREC.atom)}`;
+      if (e.op === "*") {
+        const l = p(e.a, PREC.prod);
+        const r = p(e.b, PREC.pow);
+        // 2r, 2(a+b) and π r juxtaposed; a number on the right needs its `*`.
+        return /^[\d.]/.test(r) ? `${l}*${r}` : /^[\d.]+$/.test(l) ? `${l}${r}` : `${l} ${r}`;
+      }
+      return `${p(e.a, PREC.sum)}${e.op}${p(e.b, e.op === "-" ? PREC.prod : PREC.sum)}`;
+    }
+  }
+}
+
 // ---- value ----
 
 export function evaluate(e: Expr, env: Record<string, number>): number {

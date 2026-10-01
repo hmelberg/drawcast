@@ -917,6 +917,8 @@ export function layoutElements(
     }
   }
 
+  placeFormulaTiles(elements, drawables, ctx, measure);
+
   // A label attached to an OUTLINE (a path, shape, polygon or ellipse) with
   // a side the author chose goes on that side of the outline's box, not
   // beside one of its points: the anchor of a path is its middle vertex and
@@ -1045,6 +1047,43 @@ function transformOwned(
 
 /** How much larger a grid must show a written row's members before the row warns. */
 const LAYOUT_SHAPE_RATIO = 1.25;
+
+/** The gap between a formula and its tile row, and the canvas margin the row keeps. */
+const TILE_GAP = 30;
+const TILE_MARGIN = 20;
+
+/**
+ * A formula's tiles (spec/cards.ts fill mode) stand centred under the formula
+ * AS LAID OUT — in a column, placed by `at`, auto-placed — not under the x/y
+ * the expansion read (it sees only the authored ones). The whole row moves as
+ * one, after everything else is placed (like an at.ref shift), and is kept on
+ * the canvas: x within the margins, its lowest tile above the bottom edge.
+ */
+function placeFormulaTiles(elements: SpecElement[], drawables: Drawable[], ctx: Ctx, measure: MeasureFn): void {
+  for (const el of elements) {
+    const fill = (el as { fill?: unknown }).fill;
+    if (el.type !== "group" || typeof fill !== "string") continue;
+    const tiles = (el.members ?? []).filter((m) => m.startsWith(`${el.id}_`));
+    const mine = drawables.filter((d) => tiles.some((t) => d.id === t || d.id === `${t}_text`));
+    const row = unionBoxes(tiles.map((t) => boxOfId(drawables, t, measure)));
+    const formula = boxOfId(drawables, fill, measure, ctx.groups, ctx.pieceGroups);
+    if (mine.length === 0 || !row || !formula) continue;
+    let dx = formula.x + formula.w / 2 - (row.x + row.w / 2);
+    let dy = formula.y - TILE_GAP - (row.y + row.h);
+    if (row.x + dx < TILE_MARGIN) dx = TILE_MARGIN - row.x;
+    else if (row.x + row.w + dx > CANVAS.w - TILE_MARGIN) dx = CANVAS.w - TILE_MARGIN - row.w - row.x;
+    if (row.y + dy < TILE_MARGIN) dy = TILE_MARGIN - row.y;
+    if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) continue;
+    shiftDrawables(mine, dx, dy);
+    for (const id of [el.id, ...tiles]) {
+      const a = ctx.anchors[id];
+      if (a) ctx.anchors[id] = [a[0] + dx, a[1] + dy];
+      shiftPoints(ctx.namedAnchors[id], dx, dy);
+    }
+    const gb = ctx.groupBoxes[el.id];
+    if (gb) ctx.groupBoxes[el.id] = { x: gb.x + dx, y: gb.y + dy, w: gb.w, h: gb.h };
+  }
+}
 
 /**
  * Arrange a group's members — a row, a column, a grid — by translating each

@@ -391,7 +391,9 @@ export interface PlanOptions {
    *  answered (its true place, as an offset from where it is drawn). */
   /** A math element with \blank boxes to fill (spec 2026-10-03 §5): how many. */
   formulaFor?: (id: string) => { blanks: number } | null;
-  cardsFor?: (id: string) => { cards: string[]; offsets: Record<string, Pt>; shows?: string[] } | null;
+  /** …`hides`: the cards the answer takes away (a formula's right tiles,
+   *  whose glyphs are written into the boxes instead, design 2026-10-03 §5.4). */
+  cardsFor?: (id: string) => { cards: string[]; offsets: Record<string, Pt>; shows?: string[]; hides?: string[] } | null;
   /** This cast is a book's part: highlight/erase/point on an id that is not
    *  an element target the text pane (an earlier part's block included). */
   book?: boolean;
@@ -1368,6 +1370,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const shows = (cardSet.shows ?? []).filter((id) => known.has(id));
         shows.forEach((id) => mentioned.add(id));
         makeVisible(shows);
+        makeHidden((cardSet.hides ?? []).filter((id) => known.has(id)));
       } else if (cmd.ask.on !== undefined && !treeAsk && cmd.ask.on !== "tree" && !formula) {
         guess = opts.guessParts?.(cmd.ask.on, cmd.ask.from) ?? { parts: [], shows: [] };
         if (guess.parts.length === 0) warnings.push(`ask on: nothing to guess in ${JSON.stringify(cmd.ask.on)} (the question is asked as typing instead)`);
@@ -1375,6 +1378,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         shown.forEach((id) => mentioned.add(id));
         // A guess kept back (reveal: false) shows nothing: its truth is for a later revise.
         if (cmd.ask.reveal !== false) makeVisible(shown);
+      }
+      // A formula's blanks (design 2026-10-03 §5.4): once answered, the truth
+      // is written into each box (the player's `fills` patch) and the boxes go.
+      if (formula && oneOn !== undefined) {
+        const boxes = Array.from({ length: formula.blanks }, (_, k) => `${oneOn}_blank_${k + 1}`).filter((id) => known.has(id));
+        boxes.forEach((id) => mentioned.add(id));
+        makeHidden(boxes);
       }
       // A pick on a rolled-back tree: the decision's best and prune marks are
       // the reveal (spec 2026-10-03 §4.3) — hidden while it is asked (the
@@ -1420,7 +1430,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(treeAsk
           ? { tree: { blanks: cmd.ask.blanks ?? [], ...(cmd.ask.pick !== undefined ? { pick: cmd.ask.pick } : {}), ...(cmd.ask.work !== undefined ? { work: cmd.ask.work } : {}) }, tolerance: cmd.ask.tolerance ?? 0.02 }
           : {}),
-        ...(formula && oneOn !== undefined ? { formula: oneOn, tolerance: cmd.ask.tolerance ?? 0.02, ...(cmd.ask.others ? { others: cmd.ask.others } : {}), ...(cmd.ask.form ? { form: cmd.ask.form } : {}) } : {}),
+        ...(formula && oneOn !== undefined ? { formula: oneOn, tolerance: cmd.ask.tolerance ?? 0.02, ...(cmd.ask.others ? { others: cmd.ask.others } : {}), ...(cmd.ask.form ? { form: cmd.ask.form } : {}), ...(cmd.ask.release === false ? { release: false as const } : {}) } : {}),
         ...(cmd.ask.check !== undefined ? { check: cmd.ask.check } : {}),
         ...(cardSet && oneOn !== undefined ? { cards: oneOn, tolerance: cmd.ask.tolerance ?? 0 } : {}),
         ...(guess && guess.parts.length > 0

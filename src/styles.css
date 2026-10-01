@@ -1674,6 +1674,41 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-tree-blank.filled { border-style: solid; }
 .cs-tree-blank.active { background: rgba(63, 111, 181, 0.08); }
 .cs-tree-picked { border-style: solid; }
+/* A formula's typed blank (ui/formula-gate.ts): a field under the box (the
+   answer is drawn in the box as it is typed), the keys a phone hides above it. */
+.cs-formulagate { cursor: default; }
+.cs-formula-edit { position: absolute; z-index: 25; display: flex; flex-direction: column; gap: 0.2em; }
+.cs-formula-field {
+  box-sizing: border-box;
+  width: 100%;
+  height: 1.55em;
+  margin: 0;
+  padding: 0 0.35em;
+  font: inherit;
+  font-family: var(--sketch-font);
+  text-align: center;
+  color: #3d3833;
+  background: rgba(255, 253, 246, 0.97);
+  border: 2px solid #2f6b8f;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  box-shadow: 1px 2px 0 rgba(61, 56, 51, 0.25);
+  outline: none;
+}
+.cs-formula-field.invalid { border-color: #b5482e; background: #fff4ef; }
+.cs-formula-keys { display: flex; justify-content: center; gap: 0.25em; font-size: 0.9em; }
+.cs-formula-key {
+  min-width: 1.8em;
+  min-height: 1.8em;
+  padding: 0 0.3em;
+  font: inherit;
+  font-family: var(--sketch-font);
+  color: #3d3833;
+  background: #fffdf8;
+  border: 1.5px solid #9a9184;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cs-formula-key:active { background: rgba(63, 111, 181, 0.12); }
 /* A budget's running total, under the hint. */
 .cs-guess-total { position: absolute; top: 3.6rem; left: 50%; transform: translateX(-50%); pointer-events: none; animation: none; }
 .cs-guessgate.dragging { cursor: grabbing; }
