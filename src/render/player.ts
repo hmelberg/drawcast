@@ -931,7 +931,7 @@ export class Player {
     return this.viewReturn;
   }
 
-  private static keyOf(params: Record<string, number>, ov: LayoutOverrides | undefined): string {
+  private static keyOf(params: Record<string, unknown>, ov: LayoutOverrides | undefined): string {
     return JSON.stringify([Object.entries(params).sort(([a], [b]) => (a < b ? -1 : 1)), overridesKey(ov)]);
   }
 
@@ -1115,6 +1115,13 @@ export class Player {
     return { ...this.varParamOverrides };
   }
 
+  /** A boundary's params as laid out: the var overrides, plus a tree's
+   *  `answers` (its blanks still to be asked show "?" — plan.ts). */
+  private paramsOf(scene: SceneState): Record<string, unknown> {
+    const p = this.withVarOverrides(scene.params);
+    return scene.answers ? { ...p, answers: scene.answers } : p;
+  }
+
   /** Overlay runtime var-animate values onto paths the params already hold. */
   private withVarOverrides(params: Record<string, number>): Record<string, number> {
     let out = params;
@@ -1133,11 +1140,13 @@ export class Player {
   private applyKey(scene: SceneState): boolean {
     if (!this.reprojector) return false;
     this.painted = null; // back to the plan-time geometry
-    const merged = this.withVarOverrides(scene.params);
+    const merged = this.paramsOf(scene);
     const ov = this.overridesOf(scene.offsets, scene.turns, scene.shapes, scene.tex, scene.copies);
     const key = Player.keyOf(merged, ov);
     if (!this.geometryDirty && key === this.appliedKey) return false;
-    this.elements = this.reprojector.commit(merged, ov);
+    // Numbers, save a tree's `answers` map (its blanks' "?"), which the
+    // layout reads like any other template param.
+    this.elements = this.reprojector.commit(merged as Record<string, number>, ov);
     this.appliedKey = key;
     this.geometryDirty = false;
     return true;
@@ -1154,7 +1163,7 @@ export class Player {
     if (!this.reprojector) return;
     const scene = this.stateAt(this.completed);
     this.painted =
-      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...overrides }, this.frameScene(scene), {
+      this.reprojector.frame({ ...this.paramsOf(scene), ...overrides }, this.frameScene(scene), {
         revealNew: opts.revealNew,
         overrides: this.overridesOf(scene.offsets, scene.turns, scene.shapes, scene.tex, scene.copies),
       }) || null;
@@ -1210,7 +1219,7 @@ export class Player {
     const visible = new Set(scene.visible);
     for (const id of patch.hide ?? []) visible.delete(id);
     this.painted =
-      this.reprojector.frame({ ...this.withVarOverrides(scene.params), ...(patch.params ?? {}) }, this.frameScene(scene, visible), {
+      this.reprojector.frame({ ...this.paramsOf(scene), ...(patch.params ?? {}) }, this.frameScene(scene, visible), {
         revealNew: true,
         elements: patch.elements,
         overrides: this.overridesOf(scene.offsets, scene.turns, scene.shapes, scene.tex, scene.copies),
@@ -1264,7 +1273,7 @@ export class Player {
    */
   private guessPainter(setup: GuessSetup, before: SceneState, visible: ReadonlySet<string>, owner: string): (values: number[][], marks?: boolean) => void {
     const rp = this.reprojector!;
-    const sceneParams = this.withVarOverrides(before.params);
+    const sceneParams = this.paramsOf(before);
     const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
     const baseElements = rp.patchedElements?.();
     // A sketched line's copy, or a market curve's (spec 2026-10-03 §3.2: the
@@ -1548,7 +1557,7 @@ export class Player {
     if (!rp) return;
     const lines = setup.handles.filter((h) => h.kind === "curve" && h.rowPath && (h.given?.length ?? 0) >= 2 && !before.visible.includes(h.part));
     if (lines.length === 0) return;
-    const sceneParams = this.withVarOverrides(before.params);
+    const sceneParams = this.paramsOf(before);
     if ("stage" in sceneParams) return; // a staged chart: its stages are the author's
     const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
     const m = Math.max(...lines.map((h) => h.given!.length));
@@ -1790,7 +1799,7 @@ export class Player {
     this.guessMarkParts.set(owner, [id]);
     const after = this.plan.states[index];
     const visible = new Set([...before.visible, ...after.visible]);
-    const sceneParams = this.withVarOverrides(before.params);
+    const sceneParams = this.paramsOf(before);
     const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
     const base = rp.patchedElements?.();
     // What each box shows: the last typing that parsed (a half-typed `r^`
@@ -1958,7 +1967,7 @@ export class Player {
       return;
     }
     // The tree as it stands at this boundary (an animate may have moved a probability).
-    const sceneParams = this.withVarOverrides(before.params);
+    const sceneParams = this.paramsOf(before);
     const tplOverrides: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(sceneParams)) if (!k.startsWith("vars.")) tplOverrides[k] = v;
     const params = withOverrides(rt.params as unknown as Record<string, unknown>, tplOverrides) as unknown as DecisionTreeParams;
@@ -1984,9 +1993,14 @@ export class Player {
     const visible = new Set([...before.visible, ...after.visible].filter((id) => !givesAway(id)));
     const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
     // What the blanks show: "?", a typed number, or (dropped) the truth.
+    // Later tree asks' blanks stay "?" throughout (the boundary's own answers).
+    const own = new Set(blanks.map((b) => b.part));
+    const later = Object.fromEntries(Object.entries(before.answers ?? {}).filter(([k]) => !own.has(k)));
     let answers: Record<string, string> = {};
     const paintAnswers = (): void => {
-      const p = Object.keys(answers).length > 0 ? { ...sceneParams, answers } : { ...sceneParams };
+      const all = { ...later, ...answers };
+      const { answers: _boundary, ...rest } = sceneParams;
+      const p = Object.keys(all).length > 0 ? { ...rest, answers: all } : rest;
       this.painted = rp.frame(p, this.frameScene(before, visible), { revealNew: true, overrides }) || null;
       this.geometryDirty = true;
     };
@@ -2515,7 +2529,7 @@ export class Player {
             if (results[last].code !== "") this.pushCodePatch(step.code, results[last], index);
           }
           // revealNew: a fresh envelope mints rows the authored run never had.
-          rp.frame(this.withVarOverrides(scene.params), this.frameScene(scene), { revealNew: true, elements: this.patchedElements(), overrides });
+          rp.frame(this.paramsOf(scene), this.frameScene(scene), { revealNew: true, elements: this.patchedElements(), overrides });
           // As in animate: frame() left the DOM at a live, handle-less state,
           // so the boundary below MUST commit even when nothing was patched
           // (a sweep whose every step failed still painted frames).
@@ -3050,7 +3064,7 @@ export class Player {
         const spokenCarry = carry?.line && step.narration === undefined ? this.speakLine(carry.line, carry.step, signal) : null;
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = ease(t);
-          const cur: Record<string, unknown> = { ...this.withVarOverrides(before.params), ...held };
+          const cur: Record<string, unknown> = { ...this.paramsOf(before), ...held };
           for (const key of Object.keys(targets)) {
             const start = startAt[key] ?? step.starts[key];
             cur[key] = start === null ? targets[key] : tweenValue(start, targets[key], e, step.spaces?.[key]);
@@ -3287,7 +3301,7 @@ export class Player {
   ): Promise<void> {
     const rp = this.reprojector!;
     const ease = EASINGS[step.easing];
-    const params = this.withVarOverrides(before.params);
+    const params = this.paramsOf(before);
     const visible = new Set([...before.visible, ...(step.trails ?? []).map((t) => t.id)]);
     await this.progress(step.seconds * 1000, signal, (t) => {
       const e = ease(t);

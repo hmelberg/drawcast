@@ -44,13 +44,17 @@ function makePlayer(commands: Command[], ids: string[] = IDS) {
   }) as unknown as BackendEffects;
   const player = new Player(plan, new Map(), speech, null, { mode: "narrated", effects });
   const frames: Record<string, unknown>[] = [];
+  const commits: Record<string, unknown>[] = [];
   const scenes: ReadonlySet<string>[] = [];
   const rp: Reprojector = {
     frame: (p, scene) => {
       frames.push(p);
       scenes.push(scene.visible);
     },
-    commit: () => new Map(),
+    commit: (p) => {
+      commits.push(p);
+      return new Map();
+    },
     committed: () => null,
   };
   player.reprojector = rp;
@@ -71,7 +75,7 @@ function makePlayer(commands: Command[], ids: string[] = IDS) {
   player.guess = runtime;
   const events: AnswerEvent[] = [];
   player.callbacks = { onAnswer: (a) => events.push(a) };
-  return { player, events, frames, scenes, speech, marks, plan };
+  return { player, events, frames, commits, scenes, speech, marks, plan };
 }
 
 const ASK: Command = { ask: { question: "EV?", blanks: ["value_treat"], store: "e", right: "Yes", wrong: "No: {e.work}" } };
@@ -183,5 +187,55 @@ describe("tree asks in the player", () => {
     player.askGate = async () => encodeTreeAnswer([], "treat");
     await player.play();
     expect(marks.get("tree_1")?.lines.some((l) => !l.dashed && l.closed)).toBe(true);
+  });
+
+  test("a blank shows ? from the start until its ask, and again after a scrub back", async () => {
+    const { player, commits, frames, plan } = makePlayer([{ draw: IDS }, { speak: "Look." }, ASK]);
+    const blankAt = (n: number): string | undefined => {
+      player.renderUpTo(n);
+      const last = commits[commits.length - 1] as { answers?: Record<string, string> } | undefined;
+      return last?.answers?.value_treat;
+    };
+    // The plan's boundaries: "?" until the ask (boundary 2), the truth after it.
+    expect(plan.states[0].answers).toEqual({ value_treat: "?" });
+    expect(plan.states[1].answers).toEqual({ value_treat: "?" });
+    expect(plan.states[2].answers).toBeUndefined();
+    expect(blankAt(0)).toBe("?");
+    expect(blankAt(1)).toBe("?");
+    expect(blankAt(2)).toBe("?");
+    (player as unknown as { autoAnswers: boolean }).autoAnswers = true;
+    commits.length = 0;
+    frames.length = 0;
+    await player.play();
+    // Nothing painted before the ask ever carried the true number.
+    const firstTruth = frames.findIndex((f) => (f.answers as Record<string, string> | undefined)?.value_treat === "5.8");
+    expect(firstTruth).toBeGreaterThan(-1);
+    for (const f of frames.slice(0, firstTruth)) expect((f.answers as Record<string, string> | undefined)?.value_treat).toBe("?");
+    expect(blankAt(3)).toBeUndefined();
+    expect(blankAt(1)).toBe("?");
+  });
+
+  test("a blank not drawn with the tree: its ask draws it", () => {
+    const { plan } = makePlayer([{ draw: ["edge_start_treat", "edge_start_wait"] }, ASK]);
+    expect(plan.states[0].visible).not.toContain("value_treat");
+    expect(plan.states[1].visible).toContain("value_treat");
+  });
+
+  test("two tree asks: the later blank stays ? through the earlier ask's reveal", async () => {
+    const LATER: Command = { ask: { question: "Wait?", blanks: ["effect_wait"], store: "w" } };
+    const { player, frames, plan } = makePlayer([{ draw: IDS }, ASK, LATER]);
+    expect(plan.states[1].answers).toEqual({ effect_wait: "?" });
+    (player as unknown as { autoAnswers: boolean }).autoAnswers = true;
+    await player.play();
+    const firstWait = frames.findIndex((f) => (f.answers as Record<string, string> | undefined)?.effect_wait === "5.0");
+    for (const f of frames.slice(0, firstWait)) {
+      const a = f.answers as Record<string, string> | undefined;
+      if (a !== undefined) expect(a.effect_wait).toBe("?");
+    }
+    // Between the asks, the earlier blank's truth with the later still hidden.
+    expect(frames.some((f) => {
+      const a = f.answers as Record<string, string> | undefined;
+      return a !== undefined && a.value_treat === undefined && a.effect_wait === "?";
+    })).toBe(true);
   });
 });

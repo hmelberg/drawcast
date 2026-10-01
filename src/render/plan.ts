@@ -292,13 +292,18 @@ export interface SceneState {
   tex: Record<string, string>;
   /** Cloned elements minted by `copy`: new id → source element id (cumulative). */
   copies: Record<string, string>;
+  /** A decision tree's numbers drawn as something else — "?" for every blank
+   *  of a tree ask still to come (spec 2026-10-03 §4), so the tree never shows
+   *  a number before it is asked for. The template's `answers` param; absent
+   *  when there is none. */
+  answers?: Record<string, string>;
 }
 
 export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {}, shapes: {}, texts: {}, tex: {}, copies: {} };
 
 /** Scene state at a step boundary as PLANNED: after steps[0..n-1]. */
 export function boundaryAt(plan: Plan, n: number): SceneState {
-  return n > 0 ? plan.states[n - 1] : INITIAL_STATE;
+  return n > 0 ? plan.states[n - 1] : (plan.start ?? INITIAL_STATE);
 }
 
 /**
@@ -345,6 +350,9 @@ export interface Plan {
    *  keys a boundary's layout on their poses and shapes (design 2026-09-10 §2.5).
    *  Optional so a hand-built plan in a test needs no empty list. */
   sources?: string[];
+  /** The boundary before any step, when it is not INITIAL_STATE — a tree
+   *  ask's blanks are "?" there too. */
+  start?: SceneState;
 }
 
 export interface PlanOptions {
@@ -1385,6 +1393,18 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const boxes = Array.from({ length: formula.blanks }, (_, k) => `${oneOn}_blank_${k + 1}`).filter((id) => known.has(id));
         boxes.forEach((id) => mentioned.add(id));
         makeHidden(boxes);
+      }
+      // A tree's blanks (spec 2026-10-03 §4.2): "?" on every boundary before
+      // the ask (the post-pass below), so the ask may draw them itself —
+      // they are there, as "?", while it is asked, and the truth once it ends.
+      if (treeAsk) {
+        const parts = (cmd.ask.blanks ?? []).flatMap((b) => {
+          const own = expandOne(b, "ask", true);
+          const m = own.length === 0 ? /^(?:effect|cost)_(.+)$/.exec(b) : null;
+          return m ? expandOne(`payoff_${m[1]}`, "ask", true) : own;
+        });
+        parts.forEach((id) => mentioned.add(id));
+        makeVisible(parts);
       }
       // A pick on a rolled-back tree: the decision's best and prune marks are
       // the reveal (spec 2026-10-03 §4.3) — hidden while it is asked (the
@@ -2499,5 +2519,18 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     pushStep({ kind: "draw", ids: remaining, parallel: false, implicit: true });
   }
 
-  return { steps, states, labels, warnings, minted, sources: [...sourceSet] };
+  // A tree ask's blanks show "?" on every boundary before it (spec
+  // 2026-10-03 §4): drawing the tree earlier must not give its numbers away,
+  // and a scrub back to before the ask hides them again. After the ask the
+  // truth stands (unless a later ask blanks the same part).
+  let start: SceneState | undefined;
+  for (let k = steps.length - 1; k >= 0; k--) {
+    const step = steps[k];
+    if (step.kind !== "ask" || !step.tree || step.tree.blanks.length === 0) continue;
+    const hide = (st: SceneState): SceneState => ({ ...st, answers: { ...(st.answers ?? {}), ...Object.fromEntries(step.tree!.blanks.map((b) => [b, "?"])) } });
+    for (let j = 0; j < k; j++) states[j] = hide(states[j]);
+    start = hide(start ?? INITIAL_STATE);
+  }
+
+  return { steps, states, labels, warnings, minted, sources: [...sourceSet], ...(start ? { start } : {}) };
 }

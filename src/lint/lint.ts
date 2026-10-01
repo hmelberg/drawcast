@@ -1148,7 +1148,8 @@ function lintTreeAsk(spec: Spec): LintIssue[] {
   const issues: LintIssue[] = [];
   const params = spec.params as unknown as DecisionTreeParams | undefined;
   const isTree = spec.template === "decision_tree" && params?.root !== undefined && typeof params.root === "object";
-  for (const c of spec.commands ?? []) {
+  const commands = spec.commands ?? [];
+  for (const [i, c] of commands.entries()) {
     const a = c.ask;
     if (a === undefined || (a.blanks === undefined && a.pick === undefined)) continue;
     if (!isTree) {
@@ -1162,6 +1163,12 @@ function lintTreeAsk(spec: Spec): LintIssue[] {
     const stray = GUESS_ONLY.filter((k) => a[k] !== undefined);
     if (stray.length > 0) {
       issues.push({ rule: "guess", ids: [], message: `ask: ${stray.join(", ")} do nothing on a tree ask (they belong to a guess on a chart) — leave them out`, severity: "warn" });
+    }
+    // The tree is on screen before it is asked about. Its blanks need not be
+    // drawn on their own: they show "?" until their ask, which draws them.
+    const drawnBefore = commands.slice(0, i).some((d) => [...idsOf(d.draw), ...idsOf(d.show)].some((id) => /^(node|edge|label|branchlabel|value|payoff)_/.test(id) && connectVisibility(commands, i, id).visible));
+    if (!drawnBefore) {
+      issues.push({ rule: "guess", ids: [], message: `ask: the tree is not drawn before the question — draw the tree first (its blanks show "?" until the ask, so draw them with it)`, severity: "warn" });
     }
     const blanks = a.blanks ?? [];
     for (const m of treeBlanks(params!, blanks).issues) issues.push({ rule: "guess", ids: [], message: m, severity: "error" });

@@ -79788,14 +79788,10 @@
             "branchlabel_treat_notcured",
             "node_notcured",
             "label_notcured",
-            "payoff_notcured"
+            "payoff_notcured",
+            "value_treat"
           ],
           "speak": "Treating is a gamble, though. Six times in ten it cures her, for nine good years; otherwise the tree fills in the other four in ten, and she gets only four."
-        },
-        {
-          "draw": [
-            "value_treat"
-          ]
         },
         {
           "ask": {
@@ -79962,14 +79958,10 @@
             "branchlabel_test_neg",
             "node_neg",
             "label_neg",
-            "payoff_neg"
+            "payoff_neg",
+            "value_test"
           ],
           "speak": "Now the test. It costs fifteen hundred dollars, but it finds the sick early, when ten thousand dollars of care gives them eight years."
-        },
-        {
-          "draw": [
-            "value_test"
-          ]
         },
         {
           "ask": {

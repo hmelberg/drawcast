@@ -112,6 +112,17 @@ describe("tree ask lint", () => {
     expect(validateSpec(spec).errors ?? []).toEqual([]);
   });
 
+  test("the tree must be drawn before its ask; its blanks need not be", () => {
+    const undrawn = { ...tree({ blanks: ["value_treat"] }), commands: [{ ask: { question: "?", blanks: ["value_treat"] } }] } as unknown as Spec;
+    const issues = guessIssues(undrawn);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe("warn");
+    expect(issues[0].message).toMatch(/draw the tree first/);
+    // The tree drawn whole, the blank's own part included: fine (it shows "?").
+    const whole = { ...tree({ blanks: ["value_treat"] }), commands: [{ draw: ["node_start", "value_treat"] }, { ask: { question: "?", blanks: ["value_treat"] } }] } as unknown as Spec;
+    expect(guessIssues(whole)).toEqual([]);
+  });
+
   test("the bundled tree-ask examples lint clean", () => {
     const withTree = (bundled as { spec?: Spec }[]).filter((e) => e.spec?.commands?.some((c) => c.ask?.blanks !== undefined || c.ask?.pick !== undefined));
     expect(withTree.length).toBeGreaterThanOrEqual(2);
