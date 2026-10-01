@@ -119,7 +119,7 @@ describe("the expansion", () => {
       const m = { id, type: "math", tex: `y = \\blank{${blank}}`, x: 500, y: 400 };
       const out = expandFormulaTiles({ elements: [m], commands: [{ ask: { question: "?", on: id, others } }] } as never);
       const el = out.elements!.find((e) => e.id === `${id}_tiles`) as unknown as CardsElementLike;
-      return el.items.findIndex((it) => typeof it === "object" && it !== null && "blank" in it);
+      return el.items!.findIndex((it) => typeof it === "object" && it !== null && "blank" in it);
     };
     // Deterministic: movies and the round-trip see the same row every time.
     expect(rightAt("f", "x^2", ["2x", "x", "1"])).toBe(rightAt("f", "x^2", ["2x", "x", "1"]));
