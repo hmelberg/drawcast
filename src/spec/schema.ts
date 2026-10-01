@@ -198,7 +198,17 @@ const elementSchema = {
         "Where the element goes. point: x,y, or x + on (a curve id), or intersection_of.Others: ref + side/gap (outside another element's box) or ref + anchor (a named point on it); optional offset. Never with x/y. " +
         "angle: the vertex — [x, y] (domain units when a domain is declared, else logical) or {ref, anchor} for a point on another element, e.g. {\"ref\": \"tri\", \"anchor\": \"vertex_1\"}.",
     },
-    guides: { type: "boolean", description: "point: draw dashed guide lines from the point to both axes." },
+    guides: {
+      description: "point: dashed lines to both axes. {values: true} also writes the point's x and y where they land; {x: \"Q*\", y: \"P*\"} writes that text instead.",
+      anyOf: [
+        { type: "boolean" },
+        {
+          type: "object",
+          properties: { values: { type: "boolean" }, x: { type: "string" }, y: { type: "string" } },
+          additionalProperties: false,
+        },
+      ],
+    },
     anchor: { type: "string", description: "With at: which of THIS element's anchors lands there (default opposite of at.side, else center)." },
     // arrow / edge / angle
     from: {

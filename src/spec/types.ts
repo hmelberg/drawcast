@@ -176,7 +176,9 @@ export interface SpecElement {
   bind?: Record<string, string>;
   /** Own landing point when placed with at (default: the side opposite at.side, else center). Same convention as move. */
   anchor?: string;
-  guides?: boolean;
+  /** point: dashed guide lines to both axes. `{values: true}` also writes the
+   *  point's coordinates where they land; `x`/`y` write given text instead. */
+  guides?: boolean | { values?: boolean; x?: string; y?: string };
   // arrow / edge / angle / pieces of triangles ("vertex_k")
   from?: EndRef | [number, number] | number | string;
   to?: EndRef | [number, number] | number;

@@ -184,3 +184,45 @@ describe("shape rect origin", () => {
     expect((Math.min(...ys) + Math.max(...ys)) / 2).toBeCloseTo(250, 6);
   });
 });
+
+describe("point guides with values (2026-10-01)", () => {
+  const els = (guides: SpecElement["guides"]) =>
+    [
+      { id: "ax", type: "axes", x_label: "Rides", y_label: "Price" },
+      { id: "d", type: "curve", expr: "90 - x" },
+      { id: "p", type: "point", at: { x: 30, on: "d" }, guides },
+    ] as SpecElement[];
+
+  test("guides: true stays a bare dashed stroke — no numbers, existing casts unchanged", () => {
+    const r = layoutElements(els(true), { x: [0, 100], y: [0, 100] });
+    expect(get(r.drawables, "p_guides")?.kind).toBe("stroke");
+    expect(get(r.drawables, "p_guides__x")).toBeUndefined();
+  });
+
+  test("{values: true} writes the point's coordinates where the guides land", () => {
+    const r = layoutElements(els({ values: true }), { x: [0, 100], y: [0, 100] });
+    const g = get(r.drawables, "p_guides");
+    expect(g?.kind).toBe("group"); // one id still names the whole guide
+    const x = get(r.drawables, "p_guides__x") as { text: string; pos: [number, number] };
+    const y = get(r.drawables, "p_guides__y") as { text: string; pos: [number, number] };
+    expect(x.text).toBe("30");
+    expect(y.text).toBe("60");
+    const line = get(r.drawables, "p_guides__line") as StrokeDrawable;
+    // the y number sits left of the axis, level with the horizontal guide;
+    // the x number under the axis, below the vertical guide
+    expect(y.pos[0]).toBeLessThan(line.pts[0][0]);
+    expect(y.pos[1]).toBeCloseTo(line.pts[0][1]);
+    expect(x.pos[0]).toBeCloseTo(line.pts[2][0]);
+    expect(x.pos[1]).toBeLessThan(line.pts[2][1]);
+  });
+
+  test("given text wins over values, and numbers are written as a reader would", async () => {
+    const r = layoutElements(els({ values: true, x: "Q*" }), { x: [0, 100], y: [0, 100] });
+    expect((get(r.drawables, "p_guides__x") as { text: string }).text).toBe("Q*");
+    expect((get(r.drawables, "p_guides__y") as { text: string }).text).toBe("60");
+    const { guideNumber } = await import("../src/layout/tier2");
+    expect(guideNumber(65)).toBe("65");
+    expect(guideNumber(15.384)).toBe("15.38");
+    expect(guideNumber(2.5)).toBe("2.5");
+  });
+});

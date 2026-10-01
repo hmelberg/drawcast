@@ -20,7 +20,7 @@ export function unionBBoxForId(drawables: Drawable[], id: string, measure: Measu
   if (top?.kind === "group" && top.box) return top.box;
   const boxes: BBox[] = [];
   for (const d of leafDrawables(drawablesForId(drawables, id))) {
-    if (d.id === `${id}_leader` || d.id === `${id}_guides`) continue;
+    if (d.id === `${id}_leader` || d.id === `${id}_guides` || d.id.startsWith(`${id}_guides__`)) continue;
     if (d.kind === "text") {
       boxes.push(bboxOfText(d, measure));
     } else if (d.kind === "image") {
