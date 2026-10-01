@@ -9,7 +9,7 @@ export type TagGroup = "length" | "level" | "audience" | "language" | "style" | 
 
 /**
  * A book (spec 2026-10-01-book-layout §9): every part a drawcast figure with
- * a written text pane beside it. Sent only with #book / #book_row — the
+ * a written text pane beside it. Sent only with #column / #row — the
  * rules for what to write cost nothing anywhere else.
  */
 const BOOK_BRIEF =
@@ -312,16 +312,15 @@ export const TAGS: TagDef[] = [
       "Include an `ask` command that collects a typed response with store + default (e.g. store: name, default: friend) early on, and weave {name} into at least one later speak line. Use answer instead of store when the reply should be checked.",
   },
   {
-    tag: "book",
+    tag: "column",
     group: "book",
-    hint: "a book: written text beside the figures, part by part",
+    hint: "a book: written text in a column beside the figures, part by part",
     brief: BOOK_BRIEF,
   },
   {
-    tag: "book_row",
-    aliases: ["bookrow"],
+    tag: "row",
     group: "book",
-    hint: "a book with the text under the figures",
+    hint: "a book: written text in a row under the figures",
     brief: BOOK_ROW_BRIEF,
   },
   {
@@ -378,7 +377,7 @@ export interface ParsedTags {
   voiceGender: "male" | "female" | null;
   /** Forced template id from #template=<id>; null = not given. */
   template: string | null;
-  /** #book (columns) or #book_row (rows): a multi-part cast with a text pane; null = not a book. */
+  /** #column (text beside) or #row (text under): a multi-part book with a text pane; null = not a book. */
   book: "columns" | "rows" | null;
 }
 
@@ -448,7 +447,7 @@ export function parseTags(text: string): ParsedTags {
     level: level === "basic" || level === "advanced" ? level : null,
     voiceGender: vg === "male" || vg === "female" ? vg : null,
     template,
-    book: byGroup.get("book")?.tag === "book_row" ? "rows" : byGroup.has("book") ? "columns" : null,
+    book: byGroup.get("book")?.tag === "row" ? "rows" : byGroup.has("book") ? "columns" : null,
   };
 }
 

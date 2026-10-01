@@ -623,7 +623,7 @@ export interface WriteArgs {
 
 /** A book's layout (spec 2026-10-01-book-layout §4.1), stamped on every part. */
 export interface BookSettings {
-  /** columns (#book, the default) or rows (#book_row). */
+  /** columns (#column, the default) or rows (#row). */
   layout?: "columns" | "rows";
   /** Where the text goes: first = left / top, second = right / bottom. Default: left in columns, under the figure in rows. */
   text?: "first" | "second";

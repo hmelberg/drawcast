@@ -21,7 +21,8 @@ for (const name of readdirSync(DIR).filter((f) => f.endsWith(".yaml")).sort()) {
   // The comment line is the example's metadata, not part of the cast.
   const playlist = text.replace(/^#\s*request:.*\n/m, "");
   const entry = { request, title: `${title ?? request} — a book`, playlist };
-  const i = examples.findIndex((e) => e.request === request);
+  // By request, or by title — a book whose request was reworded replaces its old entry.
+  const i = examples.findIndex((e) => e.request === request || (e.playlist !== undefined && e.title === entry.title));
   if (i >= 0) {
     examples[i] = entry;
     updated++;

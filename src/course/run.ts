@@ -138,7 +138,7 @@ export function endPageFor(course: Course, index: number): Spec | null {
 /** One lecture's playlist: its parts, its chapters, and the end page linking its neighbours. */
 export function lecturePlaylist(course: Course, index: number, result: PartsResult): Playlist {
   const lecture = course.lectures[index];
-  // A #book lecture (or a #book course): every part carries the book's layout.
+  // A book lecture (#column / #row, or a book course): every part carries the book's layout.
   stampBook(result.specs, parseTags(lectureTags(course, lecture).join(" ")).book);
   const entries: PlaylistEntry[] = entriesForParts(result.specs, result.chapterOf);
   const end = endPageFor(course, index);

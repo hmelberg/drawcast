@@ -624,7 +624,7 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // axes with guides: {values: true} (Hans: "default to mark where it cuts").
 // +363. 370426 -> 370789.
 // Re-pinned UP 2026-10-01 (books): the schema's +830 and nothing else — the
-// book's rules live in a section sent only with #book. 370789 -> 371619.
+// book's rules live in a section sent only with #column / #row. 370789 -> 371619.
 const BASELINE_SYSTEM_CHARS = 371619;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one

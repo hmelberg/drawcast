@@ -1384,7 +1384,7 @@ const ASSET_FIELDS = {
 } as const;
 
 /** A book's layout (spec 2026-10-01-book-layout §4.1) — stamped by the app on
- *  every part of a #book, never written by the model. */
+ *  every part of a book (#column / #row), never written by the model. */
 const BOOK_FIELDS = {
   book: {
     type: "object",

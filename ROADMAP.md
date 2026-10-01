@@ -80,7 +80,7 @@ ROADMAP for that record.
 ## Books — a written text pane beside the figure — done 2026-10-01
 
 Spec `docs/superpowers/specs/2026-10-01-book-layout-design.md` (§13: as
-built). `#book` (text left) and `#book_row` (text under), or the new Format
+built). `#column` (text left) and `#row` (text under), or the new Format
 brief control: a multi-part cast whose parts are ordinary figures, with a
 Markdown text pane — headings, key terms, formulas in the engine's own
 MathJax, tables, code listings — that carries across parts and rebuilds on

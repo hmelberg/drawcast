@@ -1,4 +1,4 @@
-// Stamp a book's layout on every part a #book / #book_row generation made
+// Stamp a book's layout on every part a #column / #row generation made
 // (spec 2026-10-01-book-layout §4.1): the model never writes `book` — the
 // app does, from the tag, so every part of one book agrees.
 import type { BookSettings, Spec } from "../spec/types";

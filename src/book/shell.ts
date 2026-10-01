@@ -66,7 +66,7 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
   aside.appendChild(scroll);
   parent?.insertBefore(row, host);
   // Columns put the text first (left); rows put it under the figure — what
-  // #book_row promises — unless the book says otherwise.
+  // #row promises — unless the book says otherwise.
   const textSecond = settings.text === "second" || (settings.text === undefined && settings.layout === "rows");
   if (textSecond) row.append(host, aside);
   else row.append(aside, host);

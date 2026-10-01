@@ -28,7 +28,7 @@ figures the other way round.
   and template that works in a drawcast works in the figure pane,
   unchanged. Anything that needs a new element or a rebuilt feature is a
   warning sign.
-- **`#book`** = two columns, text left (the default); **`#book_row`** = two
+- **`#column`** = two columns, text left (the default); **`#row`** = two
   rows. Both steer the prompt.
 - **One figure at a time**, pinned; the text pane scrolls.
 - The model decides what to write and what to say. Written: headings,
@@ -76,7 +76,7 @@ the simple split is what keeps it cheap to build and easy to generate.
 
 ```yaml
 book:
-  layout: columns      # columns (#book) | rows (#book_row)
+  layout: columns      # columns (#column) | rows (#row)
   text: first          # first = left / top · second = right / bottom
   share: 40            # text pane, % of width (columns) or height (rows); 0–100
   transition: tv       # how a pane empties / a figure changes: tv | fade | slide | wipe
@@ -212,7 +212,7 @@ time.
 
 ## 9. Generation
 
-- **Tags:** `#book` and `#book_row` in the `structure` group
+- **Tags:** `#column` and `#row` in the `structure` group
   (`src/llm/tags.ts`), exclusive with each other; they route to the
   multi-part path and stamp `book` on every part.
 - **Prompt section** (compiler and outline):
@@ -226,7 +226,7 @@ time.
   - Markdown only in the text; everything drawn goes in the figure;
   - short words on the figure (the existing rule), guides with values where
     a line meets an axis;
-  - `#book_row`: fewer, shorter blocks (the text row is short).
+  - `#row`: fewer, shorter blocks (the text row is short).
 - **Lint:** words per block; marks per part; text ids that exist; `write`
   outside a book (warn); a figure element named in a text target (error).
 
@@ -299,7 +299,7 @@ design above:
 - **Headings**: book title `#`, chapter `##`, part `###` under a chapter
   (`##` without one).
 - **Rows put the text under the figure** by default (§4.1) — what
-  `#book_row` promises.
+  `#row` promises.
 - **Captions**: the fixed-pane mode (§8.4) is a class, `cs-caption-fixed`,
   on the pane: never "below"; strip and overlay remain.
 - **Brief controls**: a fourth control, Format (Drawcast / Book / Book,

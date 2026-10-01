@@ -1,7 +1,7 @@
-# A book (#book, #book_row)
+# A book (#column, #row)
 
 A book is a multi-part drawcast with a **written text pane** beside each
-figure (`#book`, text left) or under it (`#book_row`). Spec:
+figure (`#column`, text left) or under it (`#row`). Spec:
 `docs/superpowers/specs/2026-10-01-book-layout-design.md`. Bundled books to
 copy from: `docs/examples/books/*.yaml` (copied into the app's examples by
 `node scripts/add-book-examples.mjs`).

@@ -63,8 +63,8 @@ export const BRIEF_CONTROLS: BriefControl[] = [
     label: "Format",
     options: [
       { value: "", label: "Drawcast", hint: "The figure and the voice" },
-      { value: "book", label: "Book", hint: "Written text beside the figures, part by part (#book)" },
-      { value: "book_row", label: "Book, text under", hint: "Written text under a wide figure (#book_row)" },
+      { value: "column", label: "Book, text beside", hint: "Written text in a column beside the figures, part by part (#column)" },
+      { value: "row", label: "Book, text under", hint: "Written text in a row under the figures (#row)" },
     ],
   },
 ];

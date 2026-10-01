@@ -1216,7 +1216,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       currentNarrationDelivery = undefined;
     }
     if (!opts.book && (cmd.write !== undefined || cmd.view !== undefined)) {
-      warnings.push(`${cmd.write !== undefined ? "write" : "view"} is for books (#book); outside a book it does nothing`);
+      warnings.push(`${cmd.write !== undefined ? "write" : "view"} is for books (#column / #row); outside a book it does nothing`);
     }
     const textOp = cmd.clear?.pane === "both" ? null : textOpOf(cmd);
     if (textOp) {

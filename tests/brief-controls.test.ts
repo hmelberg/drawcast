@@ -45,14 +45,15 @@ describe("brief controls — audience, level, length beside the request box", ()
 });
 
 describe("the Format control (books, 2026-10-01)", () => {
-  test("Book appends #book, which makes a multi-part book", async () => {
+  test("Book, text beside appends #column, which makes a multi-part book", async () => {
     const { parseTags } = await import("../src/llm/tags");
-    const sent = withBriefDefaults("Explain price elasticity", { audience: "", level: "", length: "", book: "book" });
-    expect(sent).toBe("Explain price elasticity #book");
+    const sent = withBriefDefaults("Explain price elasticity", { audience: "", level: "", length: "", book: "column" });
+    expect(sent).toBe("Explain price elasticity #column");
     const parsed = parseTags(sent);
     expect(parsed.book).toBe("columns");
     expect(parsed.playlist).toBe(true);
-    expect(parseTags("Explain it #book_row").book).toBe("rows");
+    expect(parseTags("Explain it #row").book).toBe("rows");
+    expect(parseTags("Explain it #book").book).toBeNull(); // the first name is gone
     expect(parseTags("Explain it").book).toBeNull();
   });
 });
