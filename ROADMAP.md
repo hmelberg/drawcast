@@ -77,6 +77,23 @@ ROADMAP for that record.
   script) both green — see
   `.superpowers/sdd/2026-08-25-science-packs/task-13-report.md`.
 
+## Books — a written text pane beside the figure — done 2026-10-01
+
+Spec `docs/superpowers/specs/2026-10-01-book-layout-design.md` (§13: as
+built). `#column` (text left) and `#row` (text under), or the new Format
+brief control: a multi-part cast whose parts are ordinary figures, with a
+Markdown text pane — headings, key terms, formulas in the engine's own
+MathJax, tables, code listings — that carries across parts and rebuilds on
+every seek. One new verb, `write`; marks, strike, erase and look-back reuse
+`highlight`, `erase` and `point` on a block's id; `view` zooms; `clear`
+takes a pane. TV between chapters, a fade between parts. Engine work that
+came with it and helps every cast: staged code charts cross-fade (no blink),
+the `mixed` look (clean lines, hand-hatched fills), `guides: {values: true}`,
+and a caption mode for a fixed pane. Three bundled books (price elasticity,
+Bayes and the screening test, compound interest). Next: a blind prompt-lab
+comparison against standard casts on text-led topics (§11 D3), then the
+text pane in video export.
+
 ## Template policy — when a figure earns a template
 
 Freehand (tier-2, often on `generic_axes_diagram`) is genuinely good at

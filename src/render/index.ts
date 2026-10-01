@@ -447,6 +447,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     withMinted(rawLayoutFor(params, cache, elements, overrides, pins), minted, (p, ov) => rawLayoutFor(p, true, undefined, ov), trailProgress);
 
   const plan = planCommands(spec.commands, layout.order, {
+    book: spec.book !== undefined,
     bboxOf: (id) => bboxes.get(id) ?? null,
     windows: layout.windows ?? {},
     // The layout's own frame when it has one: it is the RESOLVED domain

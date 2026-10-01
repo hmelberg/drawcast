@@ -619,7 +619,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // glow list adds "a highlighter wash behind coloured text" — a coloured
 // label keeps its colour instead of turning red. Prompt only: +41.
 // 370385 -> 370426.
-const BASELINE_SYSTEM_CHARS = 370426;
+// Re-pinned UP 2026-10-01 (guide values): the schema's +44, and one sentence
+// in "Words on the canvas" — a number the voice names for a point goes on the
+// axes with guides: {values: true} (Hans: "default to mark where it cuts").
+// +363. 370426 -> 370789.
+// Re-pinned UP 2026-10-01 (books): the schema's +830 and nothing else — the
+// book's rules live in a section sent only with #column / #row. 370789 -> 371619.
+const BASELINE_SYSTEM_CHARS = 371619;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -671,7 +677,11 @@ const BASELINE_SYSTEM_CHARS = 370426;
 // Re-pinned UP 2026-09-30 (picture marks): `effect`, `lift`, gesture arrow/glow. +538, see the system note. Measured 96297.
 // Re-pinned UP 2026-09-30 (picture mapping, delivery 3): regions accepts "auto" and {auto: {detail, kinds, find}}. +558. Measured 96855.
 // Re-pinned UP 2026-09-30 (node font_size): font_size's description names node. +36. Measured 96891.
-const BASELINE_SCHEMA_CHARS = 96891;
+// Re-pinned UP 2026-10-01 (guide values): point `guides` accepts {values, x, y}. +44. Measured 96935.
+// Re-pinned UP 2026-10-01 (books, spec 2026-10-01-book-layout): the verbs
+// `write` and `view`, clear's `pane`, highlight's `keep` and `strike`. +830.
+// Measured 97765. (The book's own layout field is document-only: no cost.)
+const BASELINE_SCHEMA_CHARS = 97765;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

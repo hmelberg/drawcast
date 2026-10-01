@@ -97,6 +97,7 @@ export function captionLines(spec: Spec): string[] {
   // narrated morph from being skipped (and its speak line lost) here too.
   const dummyLeaf = [{ leafId: "x", pts: [[0, 0], [1, 0], [1, 1]] as Pt[], closed: true }];
   const plan = planCommands(spec.commands ?? [], mentionedIds(spec), {
+    book: spec.book !== undefined,
     bboxOf: () => ({ x: 0, y: 0, w: 0, h: 0 }),
     leafPointsOf: () => dummyLeaf,
     // A `run` (and an explore beat's demo) is planned only when its script's

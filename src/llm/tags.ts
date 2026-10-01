@@ -5,7 +5,21 @@
 // Recognized tags are stripped from the text; unknown #words are left alone
 // (a literal # in a request must never be eaten) and reported for the UI.
 
-export type TagGroup = "length" | "level" | "audience" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "mode" | "pacing" | "tone" | "human" | "voice" | "gestures" | "structure" | "interaction";
+export type TagGroup = "length" | "level" | "audience" | "language" | "style" | "hook" | "why" | "controversy" | "history" | "facts" | "proscons" | "mode" | "pacing" | "tone" | "human" | "voice" | "gestures" | "structure" | "interaction" | "book";
+
+/**
+ * A book (spec 2026-10-01-book-layout §9): every part a drawcast figure with
+ * a written text pane beside it. Sent only with #column / #row — the
+ * rules for what to write cost nothing anywhere else.
+ */
+const BOOK_BRIEF =
+  "BOOK: every part is one figure of a book, with a written text pane beside it. Write into the pane with `write` (Markdown), on the same command as the speak it belongs to — a command has one action, so a write is its own command, never on a draw. The book writes each part's title as a heading itself: start with content. " +
+  "Write what a good textbook column keeps: a definition, a key term in **bold**, a formula ($$…$$ on its own line, $…$ inline), a short statement, a quote, a small table, a 1–3 line code listing with its ```output. About 12 words a block (a definition or a quote may be longer), 3–7 blocks a part; never write out the spoken sentence — the voice explains, the text keeps what to remember. " +
+  "Name a block you will come back to (`write: {id: formula, text: …}`): `highlight: {target: formula}` marks it until the next block (effect underline, circle or box; keep: true makes it stay; effect strike crosses it out), `point: {at: {ref: formula}}` looks back to it, also from a later part, `erase: [formula]` takes it away. `write: {text: …, temp: true}` is a scratch note for working, gone before the next block. At most two marks a part. " +
+  "The figure stays an ordinary drawcast: words on it a word or three, and a number the voice names for a point written on the axes (guides: {values: true}). `view: figure` gives the figure the whole book for a moment — keep something moving there (an animate, a highlight) — and `view: both` brings the text back. " +
+  "Connect the sentences: each line follows from the one before (so, but, now, back in our formula…), never a list of facts.";
+
+const BOOK_ROW_BRIEF = `${BOOK_BRIEF} The text sits in a short row UNDER a wide figure: fewer, shorter blocks (2–5 a part), and \`view: figure\` is worth using.`;
 
 export interface TagDef {
   tag: string;
@@ -298,6 +312,18 @@ export const TAGS: TagDef[] = [
       "Include an `ask` command that collects a typed response with store + default (e.g. store: name, default: friend) early on, and weave {name} into at least one later speak line. Use answer instead of store when the reply should be checked.",
   },
   {
+    tag: "column",
+    group: "book",
+    hint: "a book: written text in a column beside the figures, part by part",
+    brief: BOOK_BRIEF,
+  },
+  {
+    tag: "row",
+    group: "book",
+    hint: "a book: written text in a row under the figures",
+    brief: BOOK_ROW_BRIEF,
+  },
+  {
     tag: "playlist",
     group: "structure",
     hint: "multi-part drawcast (AI chooses 1–4 parts)",
@@ -351,9 +377,11 @@ export interface ParsedTags {
   voiceGender: "male" | "female" | null;
   /** Forced template id from #template=<id>; null = not given. */
   template: string | null;
+  /** #column (text beside) or #row (text under): a multi-part book with a text pane; null = not a book. */
+  book: "columns" | "rows" | null;
 }
 
-export const TAG_RE = /(^|\s)#([a-zæøå]+(?:=[^\s#]+)?)/gi;
+export const TAG_RE = /(^|\s)#([a-zæøå_]+(?:=[^\s#]+)?)/gi;
 
 export function parseTags(text: string): ParsedTags {
   const unknown: string[] = [];
@@ -397,6 +425,8 @@ export function parseTags(text: string): ParsedTags {
         playlist = true;
         return lead;
       }
+      // A book is a multi-part cast (one figure a part).
+      if (def.group === "book") playlist = true;
       const prev = byGroup.get(def.group);
       if (prev) order.splice(order.indexOf(prev), 1);
       byGroup.set(def.group, def);
@@ -417,6 +447,7 @@ export function parseTags(text: string): ParsedTags {
     level: level === "basic" || level === "advanced" ? level : null,
     voiceGender: vg === "male" || vg === "female" ? vg : null,
     template,
+    book: byGroup.get("book")?.tag === "row" ? "rows" : byGroup.has("book") ? "columns" : null,
   };
 }
 

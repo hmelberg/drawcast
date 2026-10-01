@@ -8,6 +8,7 @@ import { type GenerateConfig } from "../llm/compile";
 import { generateFromOutline, outlineParts, type PartsRequest, type PartsResult } from "../llm/multi";
 import type { Outline } from "../llm/outline";
 import { buildBrief, parseTags } from "../llm/tags";
+import { stampBook } from "../book/stamp";
 import { DEFAULT_META, entriesForParts, itemsOf, makeEndPage, parsePlaylistText, type Playlist, type PlaylistEntry } from "../playlist/playlist";
 import type { Spec } from "../spec/types";
 import type { SavedDrawing } from "../store";
@@ -137,6 +138,8 @@ export function endPageFor(course: Course, index: number): Spec | null {
 /** One lecture's playlist: its parts, its chapters, and the end page linking its neighbours. */
 export function lecturePlaylist(course: Course, index: number, result: PartsResult): Playlist {
   const lecture = course.lectures[index];
+  // A book lecture (#column / #row, or a book course): every part carries the book's layout.
+  stampBook(result.specs, parseTags(lectureTags(course, lecture).join(" ")).book);
   const entries: PlaylistEntry[] = entriesForParts(result.specs, result.chapterOf);
   const end = endPageFor(course, index);
   if (end) entries.push({ kind: "item", spec: end });

@@ -80,6 +80,8 @@ import {
 } from "./playlist/playlist";
 import { unwrapCastText } from "./playlist/cast-file";
 import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
+import { isBook, mountBookPlaylist } from "./book/shell";
+import { stampBook } from "./book/stamp";
 import { appendRecord, localRecordStorage } from "./render/record";
 import { applyViewsFlag } from "./views";
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
@@ -824,7 +826,7 @@ const templatesOnDemandMaxInput = h("input", {
 templatesOnDemandMaxInput.value = String(settings.templatesOnDemandMax);
 
 const styleSel = h("select", { title: "Drawing style" });
-styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "sketchy" }, "Hand-drawn"));
+styleSel.append(h("option", { value: "clean" }, "Clean lines"), h("option", { value: "mixed" }, "Clean lines, hand fills"), h("option", { value: "sketchy" }, "Hand-drawn"));
 styleSel.value = settings.style;
 // The viewer's text override (Settings → Playback): a base size and a CSS
 // generic family, or "" to follow the drawcast. Applied wherever the app
@@ -2939,7 +2941,9 @@ async function present(andPlay = false): Promise<void> {
     await ensureEnginesForSpecs(specsNow).catch((err) => {
       setStatus(`Engine load failed: ${(err as Error).message}`, "error");
     });
-    const mounted = await mountPlaylist(host, doc.playlist, {
+    // A book (src/book/) is the same session with a text pane beside it.
+    const mount = isBook(doc.playlist) ? mountBookPlaylist : mountPlaylist;
+    const mounted = await mount(host, doc.playlist, {
       style: settings.style,
       // The local record (render/record.ts) — here keyed by the document, so
       // an author's own test run shows up the way a student's would.
@@ -3876,6 +3880,7 @@ async function generateMulti(
   }
   for (const spec of result.specs) spec.voice ??= parsed.voiceGender ?? undefined;
   for (const spec of result.specs) spec.level ??= parsed.level ?? undefined;
+  stampBook(result.specs, parsed.book);
   const title = result.outline?.title ?? parsed.clean;
   const n = result.outline?.parts.length ?? result.specs.length;
   const playlist: Playlist = {

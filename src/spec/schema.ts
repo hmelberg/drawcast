@@ -198,7 +198,17 @@ const elementSchema = {
         "Where the element goes. point: x,y, or x + on (a curve id), or intersection_of.Others: ref + side/gap (outside another element's box) or ref + anchor (a named point on it); optional offset. Never with x/y. " +
         "angle: the vertex — [x, y] (domain units when a domain is declared, else logical) or {ref, anchor} for a point on another element, e.g. {\"ref\": \"tri\", \"anchor\": \"vertex_1\"}.",
     },
-    guides: { type: "boolean", description: "point: draw dashed guide lines from the point to both axes." },
+    guides: {
+      description: "point: dashed lines to both axes. {values: true} also writes the point's x and y where they land; {x: \"Q*\", y: \"P*\"} writes that text instead.",
+      oneOf: [
+        { type: "boolean" },
+        {
+          type: "object",
+          properties: { values: { type: "boolean" }, x: { type: "string" }, y: { type: "string" } },
+          additionalProperties: false,
+        },
+      ],
+    },
     anchor: { type: "string", description: "With at: which of THIS element's anchors lands there (default opposite of at.side, else center)." },
     // arrow / edge / angle
     from: {
@@ -862,9 +872,23 @@ const commandSchema = {
       description: "Hide everything currently visible. Use {} to clear all, or keep to leave some ids on screen.",
       properties: {
         keep: idListSchema("Ids to leave visible (e.g. the axes)."),
+        pane: { type: "string", enum: ["figure", "notes", "both"], description: "Book only: figure (default), notes (the text pane) or both." },
       },
       additionalProperties: false,
     },
+    write: {
+      description: "Book only: a block of Markdown written into the text pane as the paired speak starts. A string, or {id, text, temp}: id names it for highlight/erase/point; temp = a scratch note, gone before the next block.",
+      oneOf: [
+        { type: "string" },
+        {
+          type: "object",
+          properties: { id: { type: "string" }, text: { type: "string" }, temp: { type: "boolean" } },
+          required: ["text"],
+          additionalProperties: false,
+        },
+      ],
+    },
+    view: { type: "string", enum: ["text", "figure", "both"], description: "Book only: give the book to one pane, or share it again." },
     card: {
       type: "object",
       description:
@@ -883,11 +907,12 @@ const commandSchema = {
         "Temporarily emphasize visible elements, then return to normal. With a paired speak and no duration it LIGHTS UP AND HOLDS for the rest of the sentence, releasing as the voice ends — the way to talk about one specific element (a curve, an equilibrium) while it is lit.",
       properties: {
         target: idListSchema("Element ids to emphasize."),
-        effect: { type: "string", enum: ["glow", "circle", "underline", "pulse", "box", "light", "ring"], description: "glow (default) = suits the target: a yellow band under a line, a marker behind a code line, red ink on a formula, text or shape; circle = a hand-drawn ring; underline = a pen line under it; pulse = red ink that throbs three times first. box = a box drawn round the target; light = a soft light on a picture place (its default), ring = a hand-drawn ring. color replaces the red/yellow." },
+        effect: { type: "string", enum: ["glow", "circle", "underline", "pulse", "box", "light", "ring", "strike"], description: "glow (default) = suits the target: a yellow band under a line, a marker behind a code line, red ink on a formula, text or shape; circle = a hand-drawn ring; underline = a pen line under it; pulse = red ink that throbs three times first. box = a box drawn round the target; light = a soft light on a picture place (its default), ring = a hand-drawn ring. color replaces the red/yellow." },
         part: { type: "string", description: "Only this piece: a formula term as TeX (\"t_r\"), or verbatim text of a label or code line." },
         duration: { type: "number", description: "Seconds. Omit with a paired speak to let the effect last the whole sentence (default 1.5 otherwise)." },
         color: { type: "string", description: "Emphasis color, CSS color string." },
         lift: { type: "boolean", description: "Start this mark fresh instead of gliding from the previous one on the same picture." },
+        keep: { type: "boolean", description: "Book text: the mark stays (else it goes at the next block). strike = a line through a text block." },
       },
       required: ["target"],
       additionalProperties: false,
@@ -1358,9 +1383,25 @@ const ASSET_FIELDS = {
   },
 } as const;
 
+/** A book's layout (spec 2026-10-01-book-layout §4.1) — stamped by the app on
+ *  every part of a book (#column / #row), never written by the model. */
+const BOOK_FIELDS = {
+  book: {
+    type: "object",
+    properties: {
+      layout: { type: "string", enum: ["columns", "rows"] },
+      text: { type: "string", enum: ["first", "second"] },
+      share: { type: "number", minimum: 0, maximum: 100 },
+      transition: { type: "string", enum: ["tv", "fade", "slide", "wipe"] },
+      look: { type: "string", enum: ["mixed", "sketchy", "clean"] },
+    },
+    additionalProperties: false,
+  },
+};
+
 export const documentSchema = {
   ...specSchema,
-  properties: { ...specSchema.properties, ...TRANSLATION_FIELDS, ...TEXT_FIELDS, ...TEMPLATE_FIELDS, ...ASSET_FIELDS },
+  properties: { ...specSchema.properties, ...TRANSLATION_FIELDS, ...TEXT_FIELDS, ...TEMPLATE_FIELDS, ...ASSET_FIELDS, ...BOOK_FIELDS },
 } as const;
 
 const ajv = new AjvCtor({ allErrors: true, strict: false });
@@ -1597,7 +1638,7 @@ function semanticErrors(spec: Spec): string[] {
     }
   }
 
-  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "card", "animate", "play", "run"] as const;
+  const ACTION_VERBS = ["draw", "pause", "wait", "quiz", "ask", "label", "if", "explore", "show", "hide", "erase", "clear", "highlight", "focus", "point", "move", "arrange", "fade", "flip", "morph", "copy", "flow", "keep", "camera", "card", "animate", "play", "run", "write", "view"] as const;
   // Labels first (gotos may point forward): collect + check duplicates/names.
   const labels = new Set<string>();
   for (const [i, cmd] of (spec.commands ?? []).entries()) {

@@ -6,7 +6,7 @@
 // precomputed scene state (visibility, offsets, camera) at any boundary.
 
 import { tweenValue } from "./tween-space";
-import type { MeasureFollow, MorphItem, Plan, PlanStep, SceneState, TrailProgress, TransformItem } from "./plan";
+import type { MeasureFollow, MorphItem, Plan, PlanStep, SceneState, TextOp, TrailProgress, TransformItem } from "./plan";
 import { moveFrame, morphFrame, transformFrame } from "./tween";
 import { overridesKey, type LayoutOverrides } from "../layout/posed";
 import { answersMatch, AUTO_NAMESPACE, subVars } from "../spec/answers";
@@ -158,6 +158,13 @@ export class Player {
    * should still be able to skip the explanation").
    */
   feedbackHook: ((active: boolean) => void) | null = null;
+
+  /**
+   * Performs a book's text-pane steps (plan.ts TextOp) as they play — set by
+   * the book shell (src/book/). Seeking does not call it: the shell rebuilds
+   * the pane from the plan when onStep jumps.
+   */
+  textHook: ((op: TextOp, signal: AbortSignal) => Promise<void> | void) | null = null;
   private feedbackCtl: AbortController | null = null;
   /** Cut the current quiz feedback short; the lesson goes on from there. */
   skipFeedback(): void {
@@ -1401,6 +1408,11 @@ export class Player {
         return;
       }
       case "label":
+        return;
+      case "text":
+        // A book's text pane (src/book/): write, mark, erase, look back, clear,
+        // view. With no book around it, nothing to do.
+        if (this.textHook) await this.textHook(step.op, signal);
         return;
       case "explore": {
         await this.narrationBarrier();

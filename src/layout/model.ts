@@ -219,6 +219,12 @@ export interface ImageDrawable extends BaseDrawable {
   reveal?: ImageReveal;
   /** The part of the picture drawn into pos/w/h, [x, y, w, h] fractions from the top-left (default the whole). */
   view?: [number, number, number, number];
+  /** An opaque colour painted under the picture, inside the image's own
+   *  node — so it enters and leaves WITH the picture. A code element's chart
+   *  slides use it: a transparent PNG on its own ground covers the slide
+   *  before it, and the two cross-fade instead of the old ground blanking
+   *  the earlier chart first (the blink, 2026-10-01). */
+  ground?: string;
 }
 
 export type Drawable = StrokeDrawable | AreaDrawable | TextDrawable | ImageDrawable | GroupDrawable;

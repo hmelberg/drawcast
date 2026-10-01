@@ -25,6 +25,7 @@ import {
   SKETCH_MS,
   SUB_SUFFIXES,
   defaultStyle,
+  defaultDrawOpts,
   drawablesForId,
   leafDrawables,
   type AreaDrawable,
@@ -1363,6 +1364,28 @@ export function pointRadius(el: SpecElement): number {
   return typeof el.radius === "number" && Number.isFinite(el.radius) ? Math.max(2, Math.min(120, el.radius)) : POINT_RADIUS;
 }
 
+/** The numbers written where a point's guides meet the axes: a size under
+ *  the axis names (AXIS_LABEL_FONT 28), as paired numbers are elsewhere. */
+const GUIDE_VALUE_FONT = 24;
+
+/** A guide value as a reader writes it: whole numbers plain, else at most
+ *  two decimals with the zeros dropped. */
+export function guideNumber(v: number): string {
+  if (Number.isInteger(v)) return String(v);
+  return String(Number(v.toFixed(2)));
+}
+
+/** What `guides` asks to be written on the axes, or null for a bare guide
+ *  (`true`, the old form — no numbers, so existing casts are unchanged).
+ *  `{values: true}` writes the point's own coordinates; `x`/`y` write given
+ *  text instead ("Q*", "P*") and win over values. */
+export function guideMarks(g: SpecElement["guides"], pt: [number, number]): { x?: string; y?: string } | null {
+  if (!g || g === true) return null;
+  const x = g.x ?? (g.values ? guideNumber(pt[0]) : undefined);
+  const y = g.y ?? (g.values ? guideNumber(pt[1]) : undefined);
+  return x === undefined && y === undefined ? null : { x, y };
+}
+
 function pointDrawables(el: SpecElement, ctx: Ctx, plotFit: PlotArea): Drawable[] {
   const domainPt = resolvePointDomain(el, ctx);
   if (!domainPt) return [];
@@ -1374,7 +1397,7 @@ function pointDrawables(el: SpecElement, ctx: Ctx, plotFit: PlotArea): Drawable[
     // p's own fitted position, so it must run to the same fitted corner, not
     // the unfitted plot.x0/y0 (which, on a fitted template, reaches across
     // the whole canvas and whatever sits beside the box).
-    out.push({
+    const line: Drawable = {
       id: `${el.id}_guides`,
       kind: "stroke",
       pts: [
@@ -1385,7 +1408,31 @@ function pointDrawables(el: SpecElement, ctx: Ctx, plotFit: PlotArea): Drawable[
       z: Z_STROKE,
       style: defaultStyle({ color: COLORS.guide, strokeWidth: 2.5, dash: true, roughness: 0.9 }),
       drawOpts: resolveDrawOpts(el.draw, { duration: SKETCH_MS.guides }),
-    });
+    };
+    const marks = guideMarks(el.guides, domainPt);
+    if (!marks) out.push(line);
+    else {
+      // Where the guides land, written on the axes (Hans 2026-10-01: "when a
+      // line is drawn … default to mark where it cuts"). One group under the
+      // same id, so `<id>_guides` still names the whole guide: the dashed
+      // line first, then the two numbers — a size under the axis names.
+      const text = (id: string, pos: Pt, s: string, anchor: "end" | "middle"): Drawable => ({
+        id, kind: "text", pos, text: s, fontSize: GUIDE_VALUE_FONT, anchor, z: Z_TEXT,
+        style: defaultStyle({ color: COLORS.guide }), drawOpts: defaultDrawOpts("instant"),
+      });
+      out.push({
+        id: `${el.id}_guides`,
+        kind: "group",
+        z: Z_STROKE,
+        style: defaultStyle(),
+        drawOpts: resolveDrawOpts(el.draw, { duration: SKETCH_MS.guides }),
+        children: [
+          { ...line, id: `${el.id}_guides__line` },
+          ...(marks.y ? [text(`${el.id}_guides__y`, [plotFit.x0 - 12, p[1]], marks.y, "end")] : []),
+          ...(marks.x ? [text(`${el.id}_guides__x`, [p[0], plotFit.y0 - GUIDE_VALUE_FONT], marks.x, "middle")] : []),
+        ],
+      });
+    }
   }
   out.push({
     id: el.id,

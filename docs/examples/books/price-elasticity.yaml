@@ -1,0 +1,224 @@
+# request: A book: what price elasticity is, with the text written beside the figures (#column)
+playlist:
+  title: Price elasticity
+  advance: auto
+  gap: 1
+---
+chapter: What elasticity is
+---
+title: What elasticity measures
+book: { layout: columns, look: mixed }
+domain: { x: [0, 100], y: [0, 100] }
+elements:
+  - { id: ax, type: axes, x_label: Rides, y_label: Price }
+  - { id: d, type: curve, expr: "90 - x", x_from: 10, x_to: 80, style: { color: "#b5482e" } }
+  - { id: lD, type: label, attach_to: d, side: above-right, text: D, style: { color: "#b5482e" } }
+  - { id: pA, type: point, at: { x: 30, on: d }, guides: { values: true } }
+  - { id: pB, type: point, at: { x: 20, on: d }, guides: { values: true } }
+  - { id: mv, type: arrow, from: { ref: pA }, to: { ref: pB }, style: { color: "#8a5fa8" } }
+  - { id: lmv, type: label, attach_to: mv, side: above-right, text: price up, style: { color: "#8a5fa8" } }
+commands:
+  - draw: [ax]
+    speak: Everyone knows that when a price goes up, people buy less. The interesting question is how much less.
+  - draw: [d, lD]
+    speak: To see it, take the demand for bus rides in a small town.
+  - draw: [pA]
+    speak: At sixty kroner a ride, people take thirty rides a day.
+  - draw: [pB, mv, lmv]
+    speak: Now raise the fare to seventy, and the rides drop to twenty.
+  - write: "**Elasticity** — how strongly quantity reacts to a price change"
+    speak: That jump, from one point to the other, is what elasticity turns into a single number.
+  - write: { id: formula, text: "$$\\varepsilon = \\frac{\\%\\,\\Delta Q}{\\%\\,\\Delta P}$$" }
+    speak: It compares the two changes in percent, how much quantity moved, divided by how much the price moved.
+  - highlight: { target: formula, effect: circle }
+    speak: So quantity sits on top, and price underneath.
+  - write: "Bus rides: $\\dfrac{-33\\%}{+17\\%} \\approx -2$"
+    speak: For our buses, the fare rose about seventeen percent while rides fell by a third, which gives an elasticity of about minus two.
+  - highlight: { target: [pA, pB] }
+  - pause: 1
+---
+title: Two extremes
+book: { layout: columns, look: mixed }
+domain: { x: [0, 100], y: [0, 100] }
+vars: { k: 0.25 }
+elements:
+  - { id: ax, type: axes, x_label: Quantity, y_label: Price }
+  - { id: insulin_d, type: curve, expr: "100 - 4*x", x_from: 5, x_to: 22, style: { color: "#b5482e" } }
+  - { id: lSteep, type: label, attach_to: insulin_d, side: right, text: insulin, style: { color: "#b5482e" } }
+  - { id: cola_d, type: curve, expr: "47.5 - k*(x - 30)", x_from: 5, x_to: 60, style: { color: "#2f6b8f" } }
+  - { id: lFlat, type: label, attach_to: cola_d, side: above-right, text: one cola brand, style: { color: "#2f6b8f" } }
+commands:
+  - draw: [ax]
+    speak: Minus two is a big reaction. But some goods barely react at all.
+  - write: "- **Inelastic**, $|\\varepsilon| < 1$: insulin, petrol"
+  - draw: [insulin_d, lSteep]
+    speak: Insulin is the classic case. Double its price, and diabetics still need the same dose, so the curve stands almost upright.
+  - write: { id: guess, text: "Steep = elastic?", temp: true }
+    speak: Such a steep line looks dramatic. Does that make it the elastic one?
+  - highlight: { target: guess, effect: strike }
+    speak: No, it is the other way round. Steep means quantity hardly moves, and that is inelastic.
+  - write: "- **Elastic**, $|\\varepsilon| > 1$: one brand of cola"
+  - draw: [cola_d, lFlat]
+    speak: Compare one brand of cola. Raise its price a little, and buyers simply reach for another brand, so its curve lies almost flat.
+  - view: figure
+  - animate: { k: 1.5 }
+    duration: 3
+    ghost: [cola_d]
+    speak: Now take cola's rivals off the shelf, one by one, and watch its curve tilt up toward insulin's.
+  - animate: { k: 0.25 }
+    duration: 2.2
+    speak: Put them back, and it flattens again.
+  - view: both
+  - point: { at: { ref: formula } }
+    speak: Back in our formula, that is exactly why. A steep curve means a small change on top, and so a small elasticity.
+  - write: { id: substitutes, text: "> Substitutes decide it." }
+    speak: In short, what decides it is whether buyers have somewhere else to go.
+  - highlight: { target: substitutes, part: Substitutes }
+  - pause: 0.6
+---
+chapter: Measuring and using it
+---
+title: The midpoint method
+book: { layout: columns, look: mixed }
+domain: { x: [0, 50], y: [40, 80] }
+elements:
+  - { id: ax, type: axes, x_label: Rides, y_label: Price }
+  - { id: d, type: curve, expr: "90 - x", x_from: 10, x_to: 50, style: { color: "#b5482e" } }
+  - { id: pA, type: point, at: { x: 30, on: d }, guides: { values: true } }
+  - { id: pB, type: point, at: { x: 20, on: d }, guides: { values: true } }
+  - { id: pM, type: point, at: { x: 25, on: d }, style: { color: "#8a5fa8" }, guides: { values: true } }
+  - { id: lM, type: label, attach_to: pM, side: right, text: midpoint, style: { color: "#8a5fa8" } }
+commands:
+  - draw: [ax, d, pA, pB]
+    parallel: true
+    speak: Back to the buses, because our minus two hides a snag.
+  - write: "60 → 70 or 70 → 60? A % change depends on where you start."
+    speak: Going up from sixty, the fare rose seventeen percent. But going down from seventy, the same step is only fourteen.
+  - write: "$$\\%\\Delta P = \\frac{P_2 - P_1}{(P_1 + P_2)/2}$$"
+    speak: The usual fix is to measure both changes from the midpoint, the average of the two.
+  - draw: [pM, lM]
+  - write: { text: "65 = halfway between 60 and 70", temp: true }
+    speak: For the fares, that is sixty-five.
+  - write: "$$\\%\\Delta P = \\frac{70 - 60}{65} \\approx 15.4\\%$$"
+    speak: So ten kroner over sixty-five makes about fifteen percent.
+  - write: "$$\\%\\Delta Q = \\frac{20 - 30}{25} = -40\\%$$"
+    speak: The rides get the same treatment, minus ten over twenty-five, which is minus forty percent.
+  - write: { id: midpoint_result, text: "$$\\varepsilon = \\frac{-40\\%}{15.4\\%} \\approx -2.6$$" }
+    speak: Dividing one by the other then gives an elasticity of about minus two point six.
+  - highlight: { target: midpoint_result, effect: box, keep: true }
+  - write: "The same answer in **both directions**."
+    speak: And because both changes start from the middle, you get the same number whichever way you go.
+  - highlight: { target: pM }
+  - pause: 1
+---
+title: Compute it
+book: { layout: columns, look: mixed }
+elements:
+  - id: calc
+    type: code
+    language: python
+    show: above
+    figures: 2
+    code: |-
+      import matplotlib.pyplot as plt
+
+      def pct(a, b):
+          return (b - a) / ((a + b) / 2)
+
+      p1, p2 = 60, 70
+      q1, q2 = 30, 20
+      print("elasticity:", round(pct(q1, q2) / pct(p1, p2), 2))
+
+      plt.figure(); _ = plt.plot([10, 80], [80, 10])
+      plt.figure(); _ = plt.plot([10, 80], [80, 10]); _ = plt.plot([q1, q2], [p1, p2], "o")
+    marks: ["(a + b) / 2"]
+commands:
+  - draw: [calc, calc_line_1]
+    speak: Doing this by hand every time gets tedious, so let the computer do it, in Python, running right here in your browser.
+  - write: "A **function** for the formula: write it once, use it for any two points."
+    speak: We start with a small function for the midpoint percentage change.
+  - draw: [calc_line_3, calc_line_4]
+    parallel: true
+  - draw: [calc_mark_1]
+    speak: Its one idea is the average of the two values, underneath.
+  - draw: [calc_line_6, calc_line_7]
+    parallel: true
+    speak: Then we give it our two points, fares of sixty and seventy, and thirty and twenty rides.
+  - draw: [calc_line_8]
+    speak: With those in place, elasticity is just one change over the other.
+  - highlight: { target: calc_line_8, part: "pct(q1, q2)" }
+    speak: The rides go on top,
+  - highlight: { target: calc_line_8, part: "pct(p1, p2)" }
+    speak: and the fares underneath.
+  - draw: [calc_out]
+    speak: Run it, and out comes minus two point six, the same as by hand.
+  - draw: [calc_line_10, calc_fig_1]
+    speak: A picture helps too. First the demand line on its own,
+  - draw: [calc_line_11, calc_fig_2]
+    speak: and then, one line later, the same line with our two points on it.
+  - write: "```python\nround(pct(30, 20) / pct(60, 70), 2)\n```\n```output\n-2.6\n```"
+    speak: And once the function exists, any new pair of points is a single line.
+  - pause: 1
+---
+title: Time changes it
+book: { layout: columns, look: mixed }
+template: bar_race
+params:
+  labels: [Petrol, Bus rides, Cigarettes]
+  values: [[0.1, 0.3, 0.2], [0.3, 0.6, 0.35], [0.6, 0.9, 0.5]]
+  ticker: [1 month, 1 year, 5 years]
+  stage: 0
+  value_labels: true
+  decimals: 1
+  xlim: [0, 1]
+  x_label: Elasticity (size)
+commands:
+  - draw: [axes, ticker, race_1, race_2, race_3]
+    parallel: true
+    speak: There is one more thing that bends these numbers, and it is time.
+  - write: "Demand is more elastic in the **long run**: people find other ways."
+    speak: In the first month after a price rise, people mostly grumble and pay.
+  - animate: { stage: 1 }
+    easing: linear
+    duration: 2.5
+    speak: But give them a year, and they start to adjust, with car pools, a bike, a closer job.
+  - animate: { stage: 2 }
+    easing: linear
+    duration: 2.5
+    speak: After five years every bar has grown, bus rides most of all.
+  - write: "| Good | 1 month | 5 years |\n|---|---|---|\n| Petrol | 0.1 | 0.6 |\n| Bus rides | 0.3 | 0.9 |\n| Cigarettes | 0.2 | 0.5 |"
+    speak: Written down as a table, the pattern is the same in every row.
+  - write: "*Illustrative numbers, not estimates.*"
+  - pause: 1
+---
+title: Why it matters for revenue
+book: { layout: columns, look: mixed }
+domain: { x: [0, 100], y: [0, 100] }
+elements:
+  - { id: ax, type: axes, x_label: Rides, y_label: Price }
+  - { id: d, type: curve, expr: "90 - x", x_from: 10, x_to: 80, style: { color: "#b5482e" } }
+  - { id: lD, type: label, attach_to: d, side: above-right, text: D, style: { color: "#b5482e" } }
+  - { id: rA, type: polygon, data: true, points: [[0, 0], [30, 0], [30, 60], [0, 60]], style: { color: "#d0865f", fill: "#f2c14e" } }
+  - { id: pA, type: point, at: { x: 30, on: d } }
+  - { id: rB, type: polygon, data: true, points: [[0, 0], [20, 0], [20, 70], [0, 70]], style: { color: "#2f6b8f", fill: "#9cc3dc" } }
+  - { id: pB, type: point, at: { x: 20, on: d } }
+commands:
+  - draw: [ax, d, lD]
+    speak: All of this would be a curiosity if it did not decide something that matters to the bus company, its takings.
+  - write: "Revenue $= P \\times Q$"
+  - draw: [rA, pA]
+    speak: Its revenue is the fare times the rides, which is this rectangle. Sixty times thirty, eighteen hundred kroner a day.
+  - write: "$60 \\times 30 = 1800$ → $70 \\times 20 = 1400$"
+  - draw: [rB, pB]
+    speak: After the fare rise the rectangle is taller, but much narrower. Seventy times twenty, only fourteen hundred.
+  - write: { text: "1800 − 1400 = 400 lost", temp: true }
+    speak: So the rise costs the company four hundred kroner a day.
+  - write: { id: rule, text: "**Elastic** demand: raise the price, revenue **falls**" }
+    speak: That is what elastic demand means in money. A higher price loses more in rides than it gains per ride.
+  - highlight: { target: rule, part: falls, effect: circle }
+    speak: And so revenue falls.
+  - quiz:
+      question: A ten percent fare rise cuts rides by four percent. What happens to revenue?
+      choices: [It rises, It falls, It stays the same]
+      correct: 1
+      right: It rises. Rides fall less than the fare rose, so demand is inelastic here.

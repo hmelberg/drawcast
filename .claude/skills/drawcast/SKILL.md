@@ -19,6 +19,7 @@ opens in the app's player.
 | One drawcast | this file |
 | A drawcast that explains a picture part by part | this file + `references/pictures.md` |
 | A course (several lectures) | this file + `references/course.md` (+ `references/rule-card.md` for its parts) |
+| A book — written text beside (or under) the figures, `#column` / `#row` | this file + `references/book.md` |
 | A change to something published (a GitHub, course-page or player link) | this file + `references/revise.md` |
 | To publish, a pretty link, private, listing, narration credit | `references/publish.md` |
 

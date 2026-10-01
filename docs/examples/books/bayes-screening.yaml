@@ -1,0 +1,64 @@
+# request: A book: why a positive screening test is often wrong — Bayes' rule, with the text beside the figures (#column)
+playlist:
+  title: Bayes and the screening test
+  advance: auto
+  gap: 1
+---
+title: A thousand people tested
+book: { layout: columns, look: mixed }
+template: two_by_two_table
+params:
+  row_label: Test result
+  col_label: Really sick?
+  row_values: [Positive, Negative]
+  col_values: ["Sick: 10", "Healthy: 990"]
+  cells: [["9", "89"], ["1", "901"]]
+  cell_notes: [["true positive", "false positive"], ["false negative", "true negative"]]
+commands:
+  - draw: [grid, row_title, row_header_0, row_header_1, col_title, col_header_0, col_header_1]
+    speak: Suppose a test for a disease comes back positive. How worried should you be? To find out, test a thousand people and sort them two ways.
+  - write: "- **Prevalence**: 1 in 100 has the disease"
+    speak: Say one in a hundred has the disease, so ten of our thousand are sick.
+  - write: "- **Sensitivity**: 90 % of the sick test positive"
+  - draw: [cell_0_0]
+    speak: The test is good at finding them. It catches nine of the ten.
+  - draw: [cell_1_0]
+    speak: It misses one, who goes home reassured.
+  - write: "- **False positives**: 9 % of the healthy"
+  - draw: [cell_0_1]
+    speak: But it also raises the alarm for nine percent of the healthy, and there are nine hundred and ninety of them. That makes eighty-nine false alarms.
+  - draw: [cell_1_1]
+    speak: The other nine hundred and one are rightly cleared.
+  - write: { id: answer, text: "A positive: $\\dfrac{9}{9 + 89} \\approx 9\\%$ are sick" }
+  - highlight: { target: [cell_0_0, cell_0_1] }
+    speak: So now read only the top row, everyone who tested positive. Ninety-eight people, and just nine of them are sick. A positive result means about a nine percent chance of disease.
+  - highlight: { target: answer, effect: circle }
+    speak: Not ninety. Nine.
+  - pause: 1
+---
+title: Bayes' rule
+book: { layout: columns, look: mixed }
+template: bar_chart
+params:
+  labels: [Sick and positive, Healthy and positive]
+  values: [9, 89]
+  value_labels: true
+  y_label: People
+commands:
+  - draw: [axes, bar_1, bar_2]
+    parallel: true
+    speak: Why is it so low? Because the false alarms come from a much bigger group. Eighty-nine of them outnumber the nine true positives almost ten to one.
+  - write: "The rare group stays small, however good the test."
+    speak: However good the test is at finding the sick, there are so few of them that the healthy majority swamps them.
+  - write: { id: rule, text: "$$P(\\text{sick} \\mid +) = \\frac{P(+ \\mid \\text{sick})\\,P(\\text{sick})}{P(+)}$$" }
+    speak: The rule that does it is named after the Reverend Thomas Bayes, who worked on it in the seventeen-hundreds. It turns one probability around into the other.
+  - highlight: { target: rule, part: "P(\\text{sick})", effect: underline }
+    speak: The key ingredient is the starting chance, how common the disease is before anyone is tested.
+  - write: "$$= \\frac{0.9 \\times 0.01}{0.098} \\approx 0.09$$"
+    speak: Put our numbers in, and the rule gives the same nine percent the table did, without counting heads.
+  - highlight: { target: bar_1 }
+  - quiz:
+      question: The same test is used in a clinic where half the patients are sick. Is a positive result more or less trustworthy there?
+      choices: [More trustworthy, Less trustworthy, Just the same]
+      correct: 1
+      right: More. With half the patients sick, true positives are common, so a positive result is much more likely to be right.
