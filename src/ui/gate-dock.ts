@@ -27,6 +27,8 @@ export interface GateDock {
 }
 
 const DOCKED = "cs-docked";
+/** Below this stage width (px) the hint sits over the buttons, not beside them. */
+const NARROW_PX = 480;
 
 /**
  * How much height (px) the drawing gives up so that drawing + caption + dock
@@ -48,6 +50,9 @@ export function mountGateDock(stage: HTMLElement, gate: HTMLElement, items: HTML
     if (disposed) return;
     const svg = stage.querySelector<SVGSVGElement>("svg.cs-svg");
     const caption = stage.querySelector<HTMLElement>(".cs-caption");
+    // A narrow stage (a phone): the hint takes its own line over the buttons
+    // rather than a sliver beside them.
+    el.classList.toggle("cs-gatedock-narrow", stage.getBoundingClientRect().width < NARROW_PX);
     // The dock's own height, plus its gap from the stage's edge.
     const dockH = el.offsetHeight + 8;
     stage.style.setProperty("--cs-dock-h", `${dockH}px`);
