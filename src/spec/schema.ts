@@ -874,6 +874,10 @@ const commandSchema = {
             "GUESS ON THE FIGURE: the viewer sets a number by hand on the figure, presses Answer, and the figure animates from their guess to the truth with the gap marked. Name what is guessed: a bar_chart bar (bar_3 — they drag its height), a line_chart line (line_1 — they draw the rest of it after `from`), a pie_chart slice (slice_2 — they drag its edge), a population state (crowd_sick — they drag how many are in it), a scale element's id (they click where the value lies), a list of these, or \"all\" (every bar, line or slice of the chart — scored by average error). The truth is the figure's own number: never write `answer` or `widget`. The guessed part must NOT be drawn before the ask (draw the axes and the other bars first); it appears when the question ends. Use store (e.g. store: g) and name the guess in right/wrong: {g} the guess, {g.true} the truth, {g.off} how far off, {g.pct} percent off. right is spoken when the guess is within tolerance, wrong otherwise — say both kindly. In movies the laser demonstrates `default` (a number, or numbers joined by commas) when given.",
         },
         from: { type: "number", description: "With `on` a line: the x value from which the viewer draws the rest of the line (default: the middle x). Before it the true line is shown." },
+        predict: { type: "boolean", description: "With `on`, right BEFORE an animate: the viewer predicts where that animate takes the figure — the guess starts where the figure stands now, the truth is the figure after the animate, and the animate itself plays from their prediction to the truth. The part may already be drawn (it is the present)." },
+        revise: { type: "string", description: "With `on`: start from an earlier guess on the same part (that ask's store), made with reveal: false — guess, show new evidence, guess again; the reveal shows both guesses and the truth. {store.moved} is how far they moved." },
+        budget: { type: "number", exclusiveMinimum: 0, description: "With on: \"all\" on a bar_chart (or a whole pie): the viewer SPLITS this total — raising one bar lowers the others, the sum always equals the budget. Pair with judge: false for 'how would you split it?'. {store.<bar_k>} keeps each share, {store.biggest} the label given most." },
+        judge: { type: "boolean", description: "With `on`: false = an opinion with no right answer — no score, `right` is spoken whatever the guess, and the reveal shows the figure's own values as the reference (what is actually done)." },
         release: { type: "boolean", description: "With `on`: letting go of the drag is the answer (default true). false shows an Answer button, so the viewer can adjust before answering — for a careful estimate. Several parts (on: all, a whole pie) always get the button." },
         relative: { type: "boolean", description: "With `on`: tolerance is a fraction of the true value (within 20 % = tolerance 0.2) — for money and other quantities spanning orders of magnitude." },
         code: {
@@ -1828,8 +1832,8 @@ function semanticErrors(spec: Spec): string[] {
           errors.push(`commands[${i}]: ask.on is a guess on the figure — the truth is the figure's own number, so leave out answer, widget, items and code`);
         }
         if (a.retry !== undefined) errors.push(`commands[${i}]: ask.retry does not apply to a guess (the figure shows the truth after one answer)`);
-      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined) {
-        errors.push(`commands[${i}]: ask.from, relative and release only apply to a guess (with on)`);
+      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.revise !== undefined || a.budget !== undefined || a.judge !== undefined) {
+        errors.push(`commands[${i}]: ask.from, relative, release, predict, revise, budget and judge only apply to a guess (with on)`);
       }
       if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess) {
         errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);

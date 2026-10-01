@@ -17,7 +17,7 @@
 
 import type { RenderHandle } from "../render";
 import type { GuessSession } from "../render/player";
-import { encodeGuess, hitDistance, nearestDivider, nudge, pointFor, valueAt, type GuessHandle } from "../guess/handles";
+import { encodeGuess, hitDistance, nearestDivider, nudge, pointFor, valueAt, withBudget, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import type { AskGateStep } from "./controls";
@@ -48,6 +48,21 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       let entry = 0;
       let settled = false;
       // Letting go answers: one part, worked in one gesture.
+      // A budget (spec 2026-10-02 §7): bars that always add up to it.
+      const budget = typeof step.budget === "number" && handles.length > 1 && handles.every((x) => x.truth.length === 1) ? step.budget : null;
+      const total = h("span", { class: "cs-waitgate-pill cs-guess-total" });
+      const showTotal = (): void => {
+        if (budget === null) return;
+        const sum = values.reduce((a, r) => a + r[0], 0);
+        total.textContent = `Total ${handles[0].format(sum)} of ${handles[0].format(budget)}`;
+      };
+      /** After handle k changed: the others make room within the budget. */
+      const constrain = (k: number): void => {
+        if (budget === null) return;
+        const next = withBudget(values, k, budget);
+        next.forEach((row, i) => (values[i] = row));
+        showTotal();
+      };
       const onRelease = step.release !== false && handles.length === 1 && !(handles[0].kind === "angle" && handles[0].truth.length > 1);
       /** A beat between letting go and the reveal: the guess is seen standing. */
       const RELEASE_MS = 180;
@@ -138,6 +153,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         focus = k;
         if (grab !== undefined) entry = grab;
         values[k] = valueAt(g, p, values[k], null, grab);
+        constrain(k);
         gate.classList.add("dragging");
         repaint();
       });
@@ -148,6 +164,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         if (!p) return;
         const g = handles[dragging.k];
         values[dragging.k] = valueAt(g, p, values[dragging.k], dragging.prev, dragging.grab);
+        constrain(dragging.k);
         dragging.prev = p;
         repaint();
       });
@@ -196,6 +213,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         e.preventDefault();
         e.stopPropagation();
         values[focus] = nudge(g, values[focus], multiEntry(g) ? entry : 0, up ? 1 : -1, e.shiftKey);
+        constrain(focus);
         repaint();
       };
 
@@ -219,6 +237,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
               const row = values[focus].slice();
               row[j] = Math.max(g.min, Math.min(g.max, n));
               values[focus] = row;
+              constrain(focus);
             }
           }
           field.replaceWith(pill);
@@ -249,6 +268,10 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       }
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
+      if (budget !== null) {
+        gate.appendChild(total);
+        showTotal();
+      }
       stage.appendChild(gate);
       placePill();
     });

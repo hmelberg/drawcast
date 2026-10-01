@@ -117,6 +117,11 @@ export type PlanStep = (
       release?: boolean;
       /** Rank or sort the cards element of this id (spec 2026-10-01-rank-and-sort). */
       cards?: string;
+      /** Guess round 3 (spec 2026-10-02-more-ways-to-answer). */
+      predict?: true;
+      revise?: string;
+      budget?: number;
+      judge?: false;
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -1354,7 +1359,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         if (guess.parts.length === 0) warnings.push(`ask on: nothing to guess in ${JSON.stringify(cmd.ask.on)} (the question is asked as typing instead)`);
         const shown = guess.shows.flatMap((id) => expandOne(id, "ask", true));
         shown.forEach((id) => mentioned.add(id));
-        makeVisible(shown);
+        // A guess kept back (reveal: false) shows nothing: its truth is for a later revise.
+        if (cmd.ask.reveal !== false) makeVisible(shown);
       }
       // The connect widget: the figure's own lines are the reveal. The gate hides
       // them while the viewer draws (it owns the DOM), and the plan agrees they are
@@ -1391,7 +1397,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.code !== undefined && cmd.ask.expect !== undefined ? { expect: cmd.ask.expect } : {}),
         ...(cardSet && oneOn !== undefined ? { cards: oneOn, tolerance: cmd.ask.tolerance ?? 0 } : {}),
         ...(guess && guess.parts.length > 0
-          ? { on: guess.parts, tolerance: cmd.ask.tolerance ?? 0.1, ...(cmd.ask.from !== undefined ? { from: cmd.ask.from } : {}), ...(cmd.ask.relative === true ? { relative: true } : {}), ...(cmd.ask.release === false ? { release: false } : {}) }
+          ? { on: guess.parts, tolerance: cmd.ask.tolerance ?? 0.1, ...(cmd.ask.from !== undefined ? { from: cmd.ask.from } : {}), ...(cmd.ask.relative === true ? { relative: true } : {}), ...(cmd.ask.release === false ? { release: false } : {}), ...(cmd.ask.predict === true ? { predict: true as const } : {}), ...(cmd.ask.revise !== undefined ? { revise: cmd.ask.revise } : {}), ...(cmd.ask.budget !== undefined ? { budget: cmd.ask.budget } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) }
           : {}),
         ...(cmd.ask.code !== undefined && currentBox(cmd.ask.code) !== null ? { answerBox: currentBox(cmd.ask.code)! } : {}),
         // The movie demo points at the answer: the element's box (click), the

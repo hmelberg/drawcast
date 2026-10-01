@@ -1664,6 +1664,8 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* ---------- guess on the figure (ui/guess-gate.ts) ---------- */
 .cs-guessgate { cursor: crosshair; }
 .cs-cardsgate { cursor: grab; }
+/* A budget's running total, under the hint. */
+.cs-guess-total { position: absolute; top: 3.6rem; left: 50%; transform: translateX(-50%); pointer-events: none; animation: none; }
 .cs-guessgate.dragging { cursor: grabbing; }
 .cs-guess-value,
 .cs-guess-field {
@@ -1704,7 +1706,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
    steps up over it while it stands. Only when several parts are guessed,
    or release: false. */
 .cs-stage:has(.cs-guess-answer:not([hidden])):not(.cs-caption-below):not(.cs-caption-strip) .cs-caption {
-  bottom: 3.3rem;
+  /* !important: the caption's placement (render/caption-place.ts) writes its
+     own bottom inline, and the button must win while it stands. */
+  bottom: 3.3rem !important;
 }
 .cs-guess-answer {
   position: absolute;

@@ -88,10 +88,11 @@ export const GUESSABLE_TEMPLATES = ["bar_chart", "line_chart", "pie_chart"] as c
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
-/** A step for a range: about 1/200 of it, snapped to 1, 2 or 5 × 10^k. */
+/** A step for a range: about 1/50 of it, snapped to 1, 2 or 5 × 10^k
+ *  (finer gave "100.0" and "37.0" on 0–100 axes: decimals nobody guesses in). */
 export function niceStep(range: number): number {
   if (!(range > 0)) return 1;
-  const raw = range / 200;
+  const raw = range / 50;
   const p = Math.pow(10, Math.floor(Math.log10(raw)));
   const m = raw / p;
   return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
@@ -690,4 +691,22 @@ export function hitDistance(h: GuessHandle, p: Pt, values: number[]): number {
       return p[0] >= g.x0 - 30 && p[0] <= g.x1 + 30 && Math.abs(p[1] - g.y) <= 90 ? Math.abs(p[1] - g.y) : Infinity;
     }
   }
+}
+
+/**
+ * A budget (spec 2026-10-02 §7): handle `k` was just set; the others take up
+ * the rest in proportion to what they had, so the numbers always add up to
+ * `budget`. Single-value handles only (bars); a whole pie is already a split.
+ */
+export function withBudget(values: number[][], k: number, budget: number): number[][] {
+  const vk = Math.max(0, Math.min(budget, values[k][0]));
+  const rest = budget - vk;
+  const others = values.map((row, i) => (i === k ? 0 : Math.max(0, row[0])));
+  const sum = others.reduce((a, b) => a + b, 0);
+  const n = values.length - 1;
+  return values.map((_, i) => {
+    if (i === k) return [vk];
+    const share = sum > 1e-9 ? (others[i] / sum) * rest : n > 0 ? rest / n : 0;
+    return [Math.round(share * 100) / 100];
+  });
 }

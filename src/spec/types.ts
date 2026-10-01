@@ -911,6 +911,19 @@ export interface AskArgs {
    *  line, one slice, a crowd or a scale. false shows an Answer button so the
    *  viewer can adjust first. Several parts (on: all) always have the button. */
   release?: boolean;
+  /** Guess: PREDICT where the next `animate` takes the figure (spec
+   *  2026-10-02 §3): the guess starts at the present, the truth is the
+   *  figure after that animate, and the animate itself is the reveal. */
+  predict?: boolean;
+  /** Guess: start from an earlier guess (its store) kept back with
+   *  reveal: false — guess, see evidence, guess again (§9). */
+  revise?: string;
+  /** Guess on all bars (or a whole pie): the numbers always add up to this
+   *  budget — split it (§7). */
+  budget?: number;
+  /** Guess: false = an opinion, nothing is right or wrong; the reveal shows
+   *  the figure's own values as the reference and `right` is spoken (§7). */
+  judge?: boolean;
 }
 
 export interface QuizArgs {

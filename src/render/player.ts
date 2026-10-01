@@ -36,7 +36,7 @@ import { isIdentity, type Turn } from "./pose";
 import { decodeFigures } from "./decode-figures";
 import { smoothstep } from "./sweep";
 import { chunkCaption, pageTimes } from "./caption-chunks";
-import { defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessSetup } from "../guess/handles";
+import { defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessHandle, type GuessSetup } from "../guess/handles";
 import { guessText, guessVars, scoreGuess } from "../guess/score";
 import { guessMarks } from "../guess/marks";
 import type { CardsGeometry } from "../spec/cards";
@@ -104,6 +104,8 @@ export interface Reprojector {
 
 /** The glide from a guess to the truth. */
 const GUESS_REVEAL_MS = 800;
+/** A revised guess's earlier one: the guess colour, faded. */
+const GUESS_PREV_COLOR = "#9fb6d8";
 
 /** What render() gives the player for guess asks (see Player.guess). */
 export interface GuessRuntime {
@@ -232,6 +234,22 @@ export class Player {
   guess: GuessRuntime | null = null;
   /** Guess ghosts on screen, by owner — cleared on a scrub, a clear, the next guess. */
   private guessOwners = new Set<string>();
+  /** Every stored guess, for a later revise (spec 2026-10-02 §9). */
+  private guessMemory = new Map<string, number[][]>();
+  /** A prediction waiting for its animate (spec 2026-10-02 §3). */
+  private predictCarry: {
+    animIndex: number;
+    step: Extract<PlanStep, { kind: "ask" }>;
+    setup: GuessSetup;
+    truthHandles: GuessHandle[];
+    guess: number[][];
+    owner: string;
+    line: string | undefined;
+    live: boolean;
+    answered: boolean;
+    ok: boolean;
+    judged: boolean;
+  } | null = null;
 
   /** A template-bound ask's movie form, set by render() when the template carries a widget body: performs the widget's demo effects. */
   widgetDemo: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<void>) | null = null;
@@ -1247,13 +1265,36 @@ export class Player {
     const setup = this.guessSetupAt(step.on, step.from, before);
     if (!setup) return;
     this.endGuessMarks();
+    // PREDICT (spec 2026-10-02 §3): the truth is the figure after the next
+    // animate; that animate is the reveal, so this step only asks.
+    const animIndex = step.predict ? this.nextAnimate(index) : -1;
+    const truthHandles = (() => {
+      if (animIndex < 0) return setup.handles;
+      const later = this.guessSetupAt(step.on, step.from, this.plan.states[animIndex], true);
+      return later && later.handles.length === setup.handles.length ? setup.handles.map((h, k) => ({ ...h, truth: later.handles[k].truth })) : setup.handles;
+    })();
     // What the question shows: everything the plan reveals at this step (the
     // guessed parts), painted from the guess instead of the truth.
     const after = this.plan.states[index];
-    const visible = new Set([...before.visible, ...after.visible]);
+    const visible = new Set([...before.visible, ...after.visible, ...setup.handles.flatMap((h) => h.shows)]);
     const owner = `guess_${index}`;
     const paint = this.guessPainter(setup, before, visible, owner);
-    const start = setup.handles.map(startValues);
+    // Where the guess starts: the present (predict), the earlier guess
+    // (revise), an even split (budget), else the handle's own start.
+    const prev = step.revise !== undefined ? this.guessMemory.get(step.revise.toLowerCase()) : undefined;
+    const fits = (v: number[][] | undefined): v is number[][] => v !== undefined && v.length === setup.handles.length && v.every((r, k) => r.length === setup.handles[k].truth.length);
+    const start: number[][] = step.predict
+      ? setup.handles.map((h) => h.truth.slice())
+      : fits(prev)
+        ? prev.map((r) => r.slice())
+        : step.budget !== undefined && setup.handles.every((h) => h.truth.length === 1)
+          ? setup.handles.map(() => [step.budget! / setup.handles.length])
+          : setup.handles.map(startValues);
+    if (fits(prev)) {
+      // The first guess stays, lighter, while the viewer revises it.
+      this.guessOwners.add(`${owner}_prev`);
+      this.effects?.setGuessMarks?.(`${owner}_prev`, { ...guessMarks(setup.handles, prev, 0), color: GUESS_PREV_COLOR });
+    }
     paint(start);
     const live = !this.autoAnswers && this.askGate !== null;
     let guess: number[][] = start;
@@ -1289,12 +1330,31 @@ export class Player {
     }
     if (this.narrationVoice) await this.narrationVoice;
     if (signal.aborted) return;
-    const score = scoreGuess(setup.handles, guess, { tolerance: step.tolerance, relative: step.relative });
+    if (step.store) this.guessMemory.set(step.store.toLowerCase(), guess.map((r) => r.slice()));
+
+    // Kept back (reveal: false): stored, its ghost left, nothing revealed or scored.
+    if (!step.reveal) {
+      this.recordAnswer(index, step.store, guessText(setup.handles, guess, scoreGuess(setup.handles, guess)), null, secs);
+      this.applyKey(after);
+      this.applyScene(after);
+      this.guessOwners.add(owner);
+      this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, 0));
+      if (step.right) await this.speakLine(step.right, step, signal);
+      return;
+    }
+
+    const judged = step.judge !== false;
+    const score = scoreGuess(truthHandles, guess, { tolerance: step.tolerance, relative: step.relative });
     const ok = answered && score.ok;
-    this.recordAnswer(index, step.store, guessText(setup.handles, guess, score), ok, secs);
-    if (step.store) for (const [k, v] of Object.entries(guessVars(step.store, setup.handles, guess, score))) this.vars.set(k, v);
-    this.outcomes.set(index, ok);
-    this.updateScoreVars();
+    this.recordAnswer(index, step.store, guessText(truthHandles, guess, score), judged ? ok : null, secs);
+    if (step.store) {
+      for (const [k, v] of Object.entries(guessVars(step.store, truthHandles, guess, score))) this.vars.set(k, v);
+      this.setRoundThreeVars(step.store, truthHandles, guess, fits(prev) ? prev : null);
+    }
+    if (judged) {
+      this.outcomes.set(index, ok);
+      this.updateScoreVars();
+    }
     if (live) {
       this.callbacks.onAnswer?.({
         index,
@@ -1302,23 +1362,56 @@ export class Player {
         id: this.answerId(index, step.store),
         question: step.question,
         given: answered ? [encodeGuess(guess)] : [],
-        expected: encodeGuess(setup.handles.map((h) => h.truth)),
-        correct: ok,
+        expected: encodeGuess(truthHandles.map((h) => h.truth)),
+        correct: judged ? ok : true,
         ...(secs !== null ? { secs } : {}),
       });
     }
+    const line = !judged ? (step.right ?? step.wrong) : ok ? step.right : (step.wrong ?? step.right);
+    if (animIndex >= 0) {
+      // The animate after this step is the reveal: it starts from the guess.
+      this.predictCarry = { animIndex, step, setup, truthHandles, guess, owner, line, live, answered, ok, judged };
+      return;
+    }
     // The feedback is spoken AS the figure moves to the truth, not after it:
     // waiting for the glide and then the voice left a gap after answering.
-    const line = ok ? step.right : (step.wrong ?? step.right);
     const spoken = line ? this.speakLine(line, step, signal) : Promise.resolve();
     if (!(await this.revealGuess(setup, guess, paint, owner, signal))) return;
     this.applyKey(this.plan.states[index]);
     this.applyScene(this.plan.states[index]);
     this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, 1));
     await spoken;
-    if (live && answered) {
+    if (live && answered && judged) {
       const target = ok ? step.rightGoto : step.wrongGoto;
       if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
+    }
+  }
+
+  /** The next animate after step `index`, before any other question; -1 if none. */
+  private nextAnimate(index: number): number {
+    for (let j = index + 1; j < this.plan.steps.length; j++) {
+      const k = this.plan.steps[j].kind;
+      if (k === "animate") return j;
+      if (k === "ask" || k === "quiz" || k === "label" || k === "if") return -1;
+    }
+    return -1;
+  }
+
+  /** Round-3 variables (spec 2026-10-02): how far a revise moved, and an
+   *  allocation's shares and its biggest part. */
+  private setRoundThreeVars(store: string, handles: GuessHandle[], guess: number[][], prev: number[][] | null): void {
+    const base = store.toLowerCase();
+    if (prev && handles.length === 1 && handles[0].truth.length === 1) {
+      this.vars.set(`${base}.moved`, handles[0].format(Math.abs(guess[0][0] - prev[0][0])));
+      this.vars.set(`${base}.before`, handles[0].format(prev[0][0]));
+    }
+    if (handles.length > 1 && handles.every((h) => h.truth.length === 1)) {
+      let best = 0;
+      handles.forEach((h, k) => {
+        this.vars.set(`${base}.${h.part.toLowerCase()}`, h.format(guess[k][0]));
+        if (guess[k][0] > guess[best][0]) best = k;
+      });
+      this.vars.set(`${base}.biggest`, handles[best].label);
     }
   }
 
@@ -1417,6 +1510,7 @@ export class Player {
 
   /** Take down every mark still on screen — a scrub, the poster, disposal. */
   private endMarks(): void {
+    this.predictCarry = null;
     this.selfTestAbort?.abort();
     this.selfTestAbort = null;
     this.endGuessMarks();
@@ -2243,20 +2337,54 @@ export class Player {
         // cannot drift); a long race asks for `linear` so the middle years do
         // not blur past while the ends crawl.
         const ease = step.easing ? EASINGS[step.easing] : smoothstep;
+        // A prediction waiting for this animate (spec 2026-10-02 §3): it
+        // starts from the viewer's guess — an animated path starts at the
+        // guessed number, a stage's row is replaced by it — and the gap to
+        // the truth is drawn as it moves.
+        const carry = this.predictCarry && this.predictCarry.animIndex === index ? this.predictCarry : null;
+        this.predictCarry = null;
+        const held: Record<string, unknown> = {};
+        const startAt: Record<string, number> = {};
+        if (carry) {
+          Object.assign(held, carry.setup.pin);
+          carry.setup.handles.forEach((h, k) =>
+            h.paths?.forEach((path, j) => {
+              const v = carry.guess[k]?.[j];
+              if (v === undefined) return;
+              if (path in targets) startAt[path] = v;
+              else held[path] = v;
+            }),
+          );
+        }
+        const spokenCarry = carry?.line && step.narration === undefined ? this.speakLine(carry.line, carry.step, signal) : null;
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = ease(t);
-          const cur: Record<string, number> = { ...this.withVarOverrides(before.params) };
+          const cur: Record<string, unknown> = { ...this.withVarOverrides(before.params), ...held };
           for (const key of Object.keys(targets)) {
-            const start = step.starts[key];
+            const start = startAt[key] ?? step.starts[key];
             cur[key] = start === null ? targets[key] : tweenValue(start, targets[key], e, step.spaces?.[key]);
           }
           // reveal ids the tween mints (a 40th slice): they join the implicit final draw
           rp.frame(cur, this.frameScene(before, visible), { revealNew: true, overrides, trailProgress: Player.trailProgressAt(step.trails, e) });
           this.geometryDirty = true;
+          if (carry) this.effects?.setGuessMarks?.(carry.owner, guessMarks(carry.truthHandles, carry.guess, e));
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
         this.applyKey(this.plan.states[index]);
         this.applyScene(this.plan.states[index]);
+        if (carry) {
+          this.guessOwners.add(carry.owner);
+          this.effects?.setGuessMarks?.(carry.owner, guessMarks(carry.truthHandles, carry.guess, 1));
+          if (spokenCarry) await spokenCarry;
+          else if (carry.line) {
+            if (this.narrationVoice) await this.narrationVoice;
+            if (!signal.aborted) await this.speakLine(carry.line, carry.step, signal);
+          }
+          if (carry.live && carry.answered && carry.judged) {
+            const target = carry.ok ? carry.step.rightGoto : carry.step.wrongGoto;
+            if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
+          }
+        }
         return;
       }
       case "move": {

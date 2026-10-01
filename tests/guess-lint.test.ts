@@ -46,4 +46,18 @@ describe("guess lint", () => {
     } as unknown as Spec;
     expect(guessIssues(spec)).toEqual([]);
   });
+
+  test("predict needs an animate next; its part may be drawn", () => {
+    const ok = guessIssues(bars([{ draw: ["axes", "bar_1", "bar_2"] }, { ask: { question: "Where?", on: "bar_2", predict: true } }, { animate: { stage: 1 } }]));
+    expect(ok).toEqual([]);
+    const missing = guessIssues(bars([{ draw: ["axes"] }, { ask: { question: "Where?", on: "bar_2", predict: true } }, { speak: "x" }]));
+    expect(missing.some((i) => /animate right after/.test(i.message))).toBe(true);
+  });
+
+  test("revise needs an earlier kept-back guess", () => {
+    const ok = guessIssues(bars([{ ask: { question: "1?", on: "bar_2", store: "g1", reveal: false } }, { ask: { question: "2?", on: "bar_2", revise: "g1" } }]));
+    expect(ok).toEqual([]);
+    const bad = guessIssues(bars([{ ask: { question: "2?", on: "bar_2", revise: "g1" } }]));
+    expect(bad.some((i) => /reveal: false/.test(i.message))).toBe(true);
+  });
 });

@@ -56,7 +56,7 @@ describe("bar_chart handles", () => {
     // Halfway up the plot (no fit on a plain chart page).
     const midY = (f.box.y0 + f.box.y1) / 2;
     const v = valueAt(h, [(f.box.x0 + f.box.x1) / 2, midY], startValues(h))[0];
-    expect(v).toBeCloseTo((f.y[0] + f.y[1]) / 2, 0);
+    expect(Math.abs(v - (f.y[0] + f.y[1]) / 2)).toBeLessThanOrEqual(h.step);
   });
 
   test("all = every bar; the patch writes each value and pins the y range", () => {

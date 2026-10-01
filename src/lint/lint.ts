@@ -1011,8 +1011,21 @@ function lintGuess(spec: Spec): LintIssue[] {
   const scales = new Set(authoredScales(spec).map((sc) => sc.id));
   const pops = (spec.elements ?? []).filter((e) => e.type === "population");
   const cardSets = new Map(authoredCards(spec).map((cs) => [cs.id, cs]));
+  const keptBack = new Set<string>();
   commands.forEach((c, i) => {
     if (c.ask?.on === undefined) return;
+    // Predict (spec 2026-10-02 §3): the animate it predicts must come next.
+    if (c.ask.predict === true) {
+      const next = commands.slice(i + 1).find((d) => d.animate !== undefined || d.ask !== undefined || d.quiz !== undefined || d.label !== undefined);
+      if (!next || next.animate === undefined) {
+        issues.push({ rule: "guess", ids: [], message: `ask predict: put an animate right after this question — it is what the viewer predicts, and it plays from their guess to the truth`, severity: "error" });
+      }
+    }
+    // Revise (§9): it starts from a guess kept back earlier.
+    if (c.ask.revise !== undefined && !keptBack.has(c.ask.revise.toLowerCase())) {
+      issues.push({ rule: "guess", ids: [], message: `ask revise: "${c.ask.revise}" is not an earlier guess's store made with reveal: false — ask the first guess with store: ${c.ask.revise} and reveal: false`, severity: "error" });
+    }
+    if (c.ask.reveal === false && c.ask.store) keptBack.add(c.ask.store.toLowerCase());
     // Cards to rank or sort (spec 2026-10-01-rank-and-sort): drawn shuffled,
     // so they must be ON screen before the question — it moves them.
     const one = typeof c.ask.on === "string" ? c.ask.on : c.ask.on.length === 1 ? c.ask.on[0] : null;
@@ -1043,7 +1056,8 @@ function lintGuess(spec: Spec): LintIssue[] {
         issues.push({ rule: "guess", ids: [part], message: `ask on: "${part}" is not something to guess here — a bar_chart bar (bar_2), a line_chart line (line_1), a pie_chart slice (slice_1), a population state (crowd_sick) or a scale's id`, severity: "error" });
         continue;
       }
-      const shown = hidden.find((id) => connectVisibility(commands, i, id).visible);
+      // A prediction's part IS the present: it may be on screen.
+      const shown = c.ask.predict === true ? undefined : hidden.find((id) => connectVisibility(commands, i, id).visible);
       if (shown) {
         issues.push({ rule: "guess", ids: [shown], message: `ask on: "${part}" is already drawn before the question (${shown}) — the viewer would read the answer instead of guessing it; draw it after the ask (the ask reveals it)`, severity: "warn" });
       }
