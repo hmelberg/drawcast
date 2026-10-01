@@ -3044,3 +3044,16 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cat-meta, .cat-owner { font-size: var(--text-sm); color: var(--muted); margin-top: 0.15rem; }
 .cat-badge { display: inline-block; margin-top: 0.4rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: color-mix(in srgb, var(--loss) 16%, var(--surface)); color: var(--loss); font-size: var(--text-xs); font-weight: 600; }
 .cat-more-row { margin-top: 1.2rem; text-align: center; }
+
+/* The Share box (spec 2026-10-02-share-design §6). Colours come from the
+   dialog variables, so the dark theme follows. */
+.share-box { width: min(26rem, calc(100vw - 2rem)); padding: 1rem 1.1rem 1.1rem; position: relative; }
+.share-box .share-close { position: absolute; top: 0.4rem; right: 0.4rem; background: none; border: 0; padding: 0.3rem; cursor: pointer; color: inherit; }
+.share-card { display: flex; flex-direction: column; gap: 0.25rem; margin: 0.6rem 0 0.8rem; }
+.share-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; background: var(--line); }
+.share-card span, .share-plain, .share-or, .share-note { color: var(--muted, var(--ink)); opacity: 0.8; font-size: 0.9rem; margin: 0; }
+.share-row { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; }
+.share-row input { flex: 1; min-width: 0; }
+.share-box textarea { width: 100%; box-sizing: border-box; margin-bottom: 0.6rem; }
+.share-native { width: 100%; padding: 0.6rem; font-size: 1rem; margin-bottom: 0.4rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
+.share-list { list-style: none; padding: 0; margin: 0 0 0.6rem; display: flex; flex-wrap: wrap; gap: 0.4rem 0.9rem; }
