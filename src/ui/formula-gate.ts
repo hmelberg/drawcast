@@ -10,7 +10,8 @@
 //                       above it gives ^ √ π / ( ) for phones.
 //
 // Enter moves to the next blank, or answers at the last (or only) one; with
-// several blanks the Answer button answers too. Tab / Shift-Tab move between
+// several blanks — or one and `release: false` — the Answer button answers
+// (then Enter at the last blank only takes the field). Tab / Shift-Tab move between
 // the blanks. Resolves JSON.stringify(texts) — one typed text (or null) per
 // blank — or null for a skip. (Tiles go through the cards gate, fill mode.)
 
@@ -46,10 +47,13 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
       /** Set by Enter in a number field: its commit moves on (a blur's does not). */
       let advance = false;
       const single = blanks.length === 1;
+      // One blank answers on Enter, unless the ask says release: false —
+      // then Enter only takes the field, and the Answer button answers.
+      const enterAnswers = !(single && step.release === false);
 
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, single ? (blankIsNumber(blanks[0]) ? "Tap the box and type the number" : "Tap the box and type what goes in it") : "Tap a box and type what goes in it");
       const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸");
-      answer.hidden = single;
+      answer.hidden = single && enterAnswers;
       const rings = blanks.map(() => h("div", { class: "cs-tree-blank" }));
       const gate = h("div", { class: "cs-figgate cs-guessgate cs-formulagate" }, hint, answer, ...rings);
 
@@ -92,7 +96,12 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
       /** Enter on blank k: the next one, or the answer at the last. */
       const next = (k: number): void => {
         if (k + 1 < blanks.length) open(k + 1);
-        else submit();
+        else if (enterAnswers) submit();
+        else {
+          closeField();
+          placeRings();
+          answer.focus();
+        }
       };
 
       /** The text field of a blank that is not a plain number. */
@@ -178,6 +187,9 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
             value: v ?? NaN,
             label: `Blank ${k + 1}`,
             text: true,
+            // The full keyboard: a decimal pad has no minus key (and a pad
+            // only for negative answers would give the sign away).
+            inputmode: "text",
             onCommit: (text) => {
               if (text.trim() !== "" && parseBlankNumber(text) === null) {
                 advance = false;
@@ -252,7 +264,8 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
           e.preventDefault();
           const empty = texts.findIndex((t) => (t ?? "").trim() === "");
           if (empty >= 0) open(empty);
-          else submit();
+          else if (enterAnswers) submit();
+          else answer.focus();
         }
       };
 

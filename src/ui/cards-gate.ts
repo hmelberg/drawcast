@@ -34,6 +34,8 @@ import type { AskGateStep } from "./controls";
 const SETTLE_MS = 160;
 /** A pair's numbers stand this long before the next pair is asked. */
 const PAIR_MS = 700;
+/** A press that moves less than this (CSS px) is a tap, not a drag. */
+const TAP_SLOP_PX = 8;
 
 const HINT: Record<string, string> = {
   rank: "Drag the cards into order",
@@ -170,6 +172,7 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       };
 
       // —— pointer ——
+      /** `start`: where the press began, in client px (a tap's jitter is measured on the screen). */
       let dragging: { card: number; grab: Pt; start: Pt; moved: boolean } | null = null;
       gate.addEventListener("pointerdown", (e) => {
         if (settled || (e.target as Element).closest("button")) return;
@@ -207,7 +210,7 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         } catch {
           /* a synthetic pointer has no capture */
         }
-        dragging = { card, grab: [p[0] - shown[card][0], p[1] - shown[card][1]], start: p, moved: false };
+        dragging = { card, grab: [p[0] - shown[card][0], p[1] - shown[card][1]], start: [e.clientX, e.clientY], moved: false };
         focus = card;
         gate.classList.add("dragging");
       });
@@ -216,8 +219,9 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         if (!dragging || settled) return;
         const p = logicalPoint(stage, e);
         if (!p) return;
-        // A finger's jitter on a tap is not a drag (fill: a tap picks the tile).
-        if (!dragging.moved && Math.hypot(p[0] - dragging.start[0], p[1] - dragging.start[1]) < 6) return;
+        // A finger's jitter on a tap is not a drag (fill: a tap picks the
+        // tile) — measured in screen px, not in the 1000-wide canvas.
+        if (!dragging.moved && Math.hypot(e.clientX - dragging.start[0], e.clientY - dragging.start[1]) < TAP_SLOP_PX) return;
         dragging.moved = true;
         if (mode === "match") {
           drawLinks({ from: dragging.card, to: p });
@@ -294,6 +298,10 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       // —— keys ——
       const onKey = (e: KeyboardEvent): void => {
         if (settled) return;
+        // Another control has the keys (the tray, a text box, a button — the
+        // Answer button's Enter is its own click): they are not this gate's.
+        const target = e.target as Element | null;
+        if (target?.closest?.("input, textarea, select, button, [contenteditable]")) return;
         const n = g.cards.length;
         const pairs = g.pairs ?? 0;
         if (e.key === "Tab") {

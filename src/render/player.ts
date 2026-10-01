@@ -252,8 +252,9 @@ function typedFill(blank: FormulaBlank, text: string | null): string | null | un
 
 /** A viewer's fill: an empty group in front, so the layout (which inks a fill
  *  equal to the truth) draws it in the guess colour however right it is —
- *  the colour must not give the answer away before the reveal. */
-const guessFill = (tex: string): string => `{}${tex}`;
+ *  the colour must not give the answer away before the reveal. The fill is
+ *  grouped after it, so a leading sign stays a sign ("−3", not "{} − 3"). */
+const guessFill = (tex: string): string => `{}{${tex}}`;
 
 /** What the movie types for a blank: its number, or its truth as one would
  *  type it (`π r^2`); null when the truth is outside the typed subset. */
@@ -1841,12 +1842,14 @@ export class Player {
 
     // The reveal, as the line is spoken: the truths written into the boxes
     // (the plan takes the boxes away), each wrong answer struck through above.
-    const boxes = blanks.map((_, k) => boxOf(k));
     const line = ok ? step.right : (step.wrong ?? step.right);
     const spoken = line ? this.speakLine(line, step, signal) : Promise.resolve();
     this.setFills(id, blanks.map((b) => b.tex));
     this.applyKey(after);
     this.applyScene(after);
+    // Where the boxes stand with the truth written in (the preview's were
+    // sized to the viewer's typing): the struck-through answers go over these.
+    const boxes = blanks.map((_, k) => boxOf(k));
     const lines: GuessMarkLine[] = [];
     const words: GuessMarkText[] = [];
     blanks.forEach((_, k) => {

@@ -21,6 +21,9 @@ export interface NumberEditOpts {
   /** A text field (inputmode decimal) instead of type=number, so "5,8" or
    *  "£300" reach onCommit as typed — a tree's blanks (ui/tree-gate.ts). */
   text?: boolean;
+  /** The on-screen keyboard (default "decimal"). iOS's decimal pad has no
+   *  minus key: a field that may take a negative number asks for "text". */
+  inputmode?: "decimal" | "text";
   /** The typed text: null when taken, else why not (the field stays open). */
   onCommit: (text: string) => string | null;
   onCancel: () => void;
@@ -59,7 +62,7 @@ export function placeOverBox(stage: HTMLElement, el: HTMLElement, box: BBox, opt
 export function mountNumberEdit(stage: HTMLElement, opts: NumberEditOpts): { close: () => void; reposition: () => void } | null {
   const input = h("input", {
     class: "cs-numedit",
-    inputmode: "decimal",
+    inputmode: opts.inputmode ?? "decimal",
     "aria-label": opts.label,
     // Nothing to start from (NaN): an empty field, not "NaN".
     value: Number.isFinite(opts.value) ? fieldText(opts.value) : "",

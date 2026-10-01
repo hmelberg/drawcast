@@ -90,6 +90,28 @@ describe("formula tiles follow the laid-out formula", () => {
   });
 });
 
+describe("no room below the formula", () => {
+  beforeAll(async () => {
+    await ensureEngines(["mathjax"]);
+  });
+
+  test("a formula near the bottom edge: the tiles stand above it, clear of the box", () => {
+    const spec = expandSpec({
+      elements: [{ id: "area", type: "math", tex: TEX, x: 500, y: 60 }],
+      commands: [{ draw: ["area"] }, { ask: { question: "Fill it", on: "area", others: ["2r", "d"] } }],
+    } as never);
+    const bb = elementBBoxes(layoutSpec(spec));
+    const formula = bb.get("area")!;
+    const box = bb.get("area_blank_1")!;
+    for (let i = 1; i <= 3; i++) {
+      const t = bb.get(`area_tiles_${i}`)!;
+      expect(t.y).toBeGreaterThan(formula.y + formula.h + 20);
+      expect(t.y).toBeGreaterThan(box.y + box.h);
+      expect(t.y + t.h).toBeLessThanOrEqual(750);
+    }
+  });
+});
+
 describe("render's wiring (formulaHooksFor)", () => {
   beforeAll(async () => {
     await ensureEngines(["mathjax"]);

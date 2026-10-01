@@ -13,6 +13,7 @@ import { equivalent, exprToAscii, parseAscii, texToExpr } from "../src/formula/e
 import { cardsGeometry, type CardsElementLike } from "../src/spec/cards";
 import type { GuessMarks } from "../src/guess/marks";
 import type { Command, SpecElement } from "../src/spec/types";
+import type { LayoutResult } from "../src/layout/layout";
 
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
   setTimeout(() => cb(performance.now()), 5) as unknown as number) as typeof requestAnimationFrame;
@@ -32,7 +33,10 @@ const BOX = { x: 480, y: 380, w: 40, h: 30 };
 const tilesEl: CardsElementLike = { id: "area_tiles", type: "cards", fill: "area", items: [{ text: "2r" }, { text: "r^2", blank: 1 }, { text: "d" }], x: 100, y: 300, width: 800 };
 const geometry = cardsGeometry(tilesEl, undefined, (id) => (id === "area" ? [BOX] : null));
 
-function makePlayer(commands: Command[], opts: { tiles?: boolean; tex?: string } = {}) {
+/** What a preview frame paints (the stub's layout): its boxes sit where the viewer's typing put them. */
+const PREVIEW = { preview: true } as unknown as LayoutResult;
+
+function makePlayer(commands: Command[], opts: { tiles?: boolean; tex?: string; previewShift?: number } = {}) {
   const tex = opts.tex ?? TEX;
   const blanks = formulaBlanks("area", tex);
   const ids = ["area", ...blanks.map((b) => b.part), ...(opts.tiles ? geometry.cards : [])];
@@ -56,6 +60,7 @@ function makePlayer(commands: Command[], opts: { tiles?: boolean; tex?: string }
   const rp: Reprojector = {
     frame: (_p, _scene, o) => {
       frames.push({ elements: o?.elements });
+      return opts.previewShift ? PREVIEW : undefined;
     },
     commit: () => new Map(),
     committed: () => null,
@@ -71,7 +76,7 @@ function makePlayer(commands: Command[], opts: { tiles?: boolean; tex?: string }
         ? {
             blanks,
             patch: (fills) => [{ id: "area", type: "math", tex, fills } as SpecElement],
-            boxes: () => blanks.map((_, k) => ({ ...BOX, x: BOX.x + 100 * k })),
+            boxes: (l) => blanks.map((_, k) => ({ ...BOX, x: BOX.x + 100 * k + (l === PREVIEW ? opts.previewShift ?? 0 : 0) })),
           }
         : null,
   };
@@ -154,6 +159,25 @@ describe("formula asks in the player", () => {
     const t = m!.texts.find((x) => x.text === "2r")!;
     expect(t.at[1]).toBeGreaterThan(BOX.y + BOX.h);
     expect(m!.lines.some((l) => l.pts.length === 2 && Math.abs(l.pts[0][1] - l.pts[1][1]) < 1e-9)).toBe(true);
+  });
+
+  test("the struck-through answer sits over the box as the truth is drawn, not the preview's", async () => {
+    const { player, marks } = makePlayer([{ draw: ["area", "area_blank_1"] }, ask()], { previewShift: 60 });
+    player.askGate = async () => JSON.stringify(["2r"]);
+    await player.play();
+    const t = marks.get("formula_1")!.texts.find((x) => x.text === "2r")!;
+    expect(t.at[0]).toBeCloseTo(BOX.x + BOX.w / 2);
+  });
+
+  test("a negative typed number keeps its sign a sign (an empty group, then the fill grouped)", async () => {
+    const { player, fillsOf } = makePlayer([{ draw: ["area"] }, ask()], { tex: "x = \\blank{-3}" });
+    player.askGate = async (_s, step) => {
+      (step as { formulaSession?: FormulaSession }).formulaSession!.show(["-3"]);
+      return JSON.stringify(["-3"]);
+    };
+    await player.play();
+    expect(fillsOf().some((f) => f?.[0] === "{}{-3}")).toBe(true);
+    expect(player.vars.get("f.ok")).toBe("true");
   });
 
   test("form exact: r*r is not the form asked for", async () => {

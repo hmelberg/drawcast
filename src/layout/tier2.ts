@@ -1057,7 +1057,8 @@ const TILE_MARGIN = 20;
  * AS LAID OUT — in a column, placed by `at`, auto-placed — not under the x/y
  * the expansion read (it sees only the authored ones). The whole row moves as
  * one, after everything else is placed (like an at.ref shift), and is kept on
- * the canvas: x within the margins, its lowest tile above the bottom edge.
+ * the canvas: x within the margins; a formula too near the bottom edge has
+ * its row above it (only when neither side fits is the row clamped).
  */
 function placeFormulaTiles(elements: SpecElement[], drawables: Drawable[], ctx: Ctx, measure: MeasureFn): void {
   for (const el of elements) {
@@ -1072,7 +1073,12 @@ function placeFormulaTiles(elements: SpecElement[], drawables: Drawable[], ctx: 
     let dy = formula.y - TILE_GAP - (row.y + row.h);
     if (row.x + dx < TILE_MARGIN) dx = TILE_MARGIN - row.x;
     else if (row.x + row.w + dx > CANVAS.w - TILE_MARGIN) dx = CANVAS.w - TILE_MARGIN - row.w - row.x;
-    if (row.y + dy < TILE_MARGIN) dy = TILE_MARGIN - row.y;
+    if (row.y + dy < TILE_MARGIN) {
+      // No room below: the row stands above the formula instead — clamping it
+      // up would put it on the formula, over the very boxes it is dropped into.
+      const above = formula.y + formula.h + TILE_GAP - row.y;
+      dy = row.y + row.h + above <= CANVAS.h - TILE_MARGIN ? above : TILE_MARGIN - row.y;
+    }
     if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) continue;
     shiftDrawables(mine, dx, dy);
     for (const id of [el.id, ...tiles]) {
