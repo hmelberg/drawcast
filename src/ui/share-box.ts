@@ -8,6 +8,7 @@
 import { COMMENT_MAX, platformUrl, TAKES_TEXT, type Platform, type ShareLink } from "../share/link";
 import { h } from "./dom";
 import { icon } from "./icons";
+import { createModal } from "./modal";
 
 export interface ShareInfo {
   link: ShareLink;
@@ -125,15 +126,16 @@ export function openShareBox(info: ShareInfo): void {
     extra.push(copyImage);
   }
 
-  const close = h("button", { type: "button", class: "share-close", "aria-label": "Close" }, icon("close"));
-  const dlg = h("dialog", { class: "share-box", "aria-label": "Share this drawcast" }, close, preview, h("div", { class: "share-row" }, linkField, copyLink), comment, ...native, list, ...extra, note);
-  close.addEventListener("click", () => dlg.close());
+  const modal = createModal("Share", { size: "s", class: "share-box" });
+  const dlg = modal.dialog;
+  dlg.setAttribute("aria-label", "Share this drawcast");
+  modal.body.append(preview, h("div", { class: "share-row" }, linkField, copyLink), comment, ...native, list, ...extra, note);
   dlg.addEventListener("close", () => {
     dlg.remove();
     if (current === dlg) current = null;
   });
   document.body.appendChild(dlg);
   current = dlg;
-  dlg.showModal();
+  modal.open();
   copyLink.focus();
 }

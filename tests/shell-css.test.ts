@@ -60,6 +60,10 @@ describe("the modal size scale", () => {
     // Same story for .modal-s (30rem/480px): .sub-dialog's own 520px width was
     // always ≥ that cap, so it could never once have taken effect.
     expect(text).not.toMatch(/\.sub-dialog\s*\{[^}]*width/);
+    // The Share box is a .modal-s; the size class sets its width, and the ✕
+    // is the modal's own (.dialog-x), not a second close button.
+    expect(text).not.toMatch(/\.share-box\s*\{[^}]*width/);
+    expect(text).not.toMatch(/\.share-close/);
   });
 
   it("gives every modal a footer row for its actions", async () => {
