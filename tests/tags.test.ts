@@ -255,3 +255,18 @@ describe("brief controls — audience, level, length", () => {
     expect(buildBrief(["verylong"])).toContain("30–40 speak lines");
   });
 });
+
+describe("#interactive and #lively (spec 2026-10-01-guess-and-reveal §9)", () => {
+  test("#interactive combines with #quiz — its own group", () => {
+    expect(parseTags("Health spending #interactive #quiz").tags).toEqual(["interactive", "quiz"]);
+  });
+  test("#lively combines with a style and #interactive", () => {
+    expect(parseTags("Bayes #lively #socratic #interactive").tags.sort()).toEqual(["interactive", "lively", "socratic"]);
+  });
+  test("aliases", () => {
+    expect(parseTags("x #guess #dynamic").tags).toEqual(["interactive", "lively"]);
+  });
+  test("#interactive's brief teaches ask.on", () => {
+    expect(buildBrief(parseTags("x #interactive").tags)).toMatch(/`on`/);
+  });
+});

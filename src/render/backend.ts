@@ -4,6 +4,7 @@
 // contract stays a seam so alternative renderers remain possible, but drawcast
 // ships exactly one: the SVG renderer with a clean/sketchy style toggle.
 
+import type { GuessMarks } from "../guess/marks";
 import type { BBox } from "../layout/geometry";
 import type { LayoutResult } from "../layout/layout";
 import type { Pt } from "../layout/model";
@@ -99,6 +100,13 @@ export interface BackendEffects {
   setMark?(owner: string, f: MarkFrame): void;
   /** Remove the owner's mark (release done, abort/scrub safety). */
   endMark?(owner: string): void;
+  /**
+   * A guess's ghost and gap (spec 2026-10-01-guess-and-reveal §5): dashed
+   * outlines where the viewer put their guess, brackets to the truth and the
+   * difference written beside them. One set per owner, replaced whole on
+   * every call; null removes it. Optional, like setMark.
+   */
+  setGuessMarks?(owner: string, marks: GuessMarks | null): void;
   /**
    * Marks streaming along the ids' strokes: `travelled` is the distance
    * covered so far (logical units), `alpha` the ramp (0–1). Stateless per

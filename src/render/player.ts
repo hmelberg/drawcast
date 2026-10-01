@@ -36,6 +36,9 @@ import { isIdentity, type Turn } from "./pose";
 import { decodeFigures } from "./decode-figures";
 import { smoothstep } from "./sweep";
 import { chunkCaption, pageTimes } from "./caption-chunks";
+import { defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessSetup } from "../guess/handles";
+import { guessText, guessVars, scoreGuess } from "../guess/score";
+import { guessMarks } from "../guess/marks";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -95,6 +98,22 @@ export interface Reprojector {
   /** The spec's elements with every live patch applied, or undefined when
    *  there is none — what a frame must be laid out from mid-sweep. */
   patchedElements?(): SpecElement[] | undefined;
+}
+
+/** What render() gives the player for guess asks (see Player.guess). */
+export interface GuessRuntime {
+  /** `layout` is what is on screen, or null before any commit (the mount-time layout stands in). */
+  setup(on: string[], from: number | undefined, params: Record<string, unknown>, layout: LayoutResult | null): GuessSetup;
+  patch(setup: GuessSetup, values: number[][], elements: SpecElement[] | undefined): { params: Record<string, unknown>; elements?: SpecElement[] };
+}
+
+/** What a guess gate is handed (ui/guess-gate.ts): the handles, where the
+ *  guess starts, and how to paint a guess on the figure. It resolves the
+ *  encoded guess (handles/encodeGuess), or null for a skip. */
+export interface GuessSession {
+  setup: GuessSetup;
+  start: number[][];
+  paint(values: number[][]): void;
 }
 
 /** One graded answer from a LIVE viewer (never a movie's auto path): what
@@ -188,6 +207,15 @@ export class Player {
   askGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<string | null>) | null = null;
   /** The code widget's gate — ui/tray.ts sets it, ui/controls.ts routes to it. */
   codeGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<string | null>) | null = null;
+
+  /**
+   * Guess asks (spec 2026-10-01-guess-and-reveal), set by render(): the
+   * handles for an ask's `on` at the params and layout on screen, and the
+   * preview patch that paints a guess. Null: a guess ask is skipped.
+   */
+  guess: GuessRuntime | null = null;
+  /** Guess ghosts on screen, by owner — cleared on a scrub, a clear, the next guess. */
+  private guessOwners = new Set<string>();
 
   /** A template-bound ask's movie form, set by render() when the template carries a widget body: performs the widget's demo effects. */
   widgetDemo: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<void>) | null = null;
@@ -1072,8 +1100,220 @@ export class Player {
     this.endMarks();
   }
 
+  /**
+   * A guess on the figure (spec 2026-10-01-guess-and-reveal): the guessed
+   * parts are painted at the viewer's guess while the question stands, the
+   * answer is scored, then the figure tweens from the guess to the truth with
+   * the ghost and the gap left on it, and right/wrong is spoken.
+   */
+  /**
+   * The painter of a guess at a boundary: the figure redrawn from the
+   * guessed numbers (and, for a sketched line, the viewer's dashed copy over
+   * it while it is theirs — the part they draw would otherwise look exactly
+   * like the part they were given).
+   */
+  private guessPainter(setup: GuessSetup, before: SceneState, visible: ReadonlySet<string>, owner: string): (values: number[][], marks?: boolean) => void {
+    const rp = this.reprojector!;
+    const sceneParams = this.withVarOverrides(before.params);
+    const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
+    const baseElements = rp.patchedElements?.();
+    const sketched = setup.handles.some((h) => h.kind === "curve");
+    return (values, marks = true) => {
+      const patch = this.guess!.patch(setup, values, baseElements);
+      rp.frame({ ...sceneParams, ...patch.params }, this.frameScene(before, visible), { revealNew: true, overrides, ...(patch.elements ? { elements: patch.elements } : {}) });
+      this.geometryDirty = true;
+      if (marks && sketched) {
+        this.guessOwners.add(owner);
+        this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, values, 0));
+      }
+    };
+  }
+
+  /** The handles for `on` at a boundary (the template params as they stand there). */
+  private guessSetupAt(on: string[], from: number | undefined, before: SceneState, quiet = false): GuessSetup | null {
+    if (!this.guess || !this.reprojector) return null;
+    const tplParams: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(this.withVarOverrides(before.params))) if (!k.startsWith("vars.")) tplParams[k] = v;
+    const setup = this.guess.setup(on, from, tplParams, this.paintedLayout());
+    if (!quiet) for (const w of setup.warnings) console.warn(`[guess] ${w}`);
+    return setup.handles.length > 0 ? setup : null;
+  }
+
+  /** The reveal: guess → truth, the ghost staying where the viewer put it. False when aborted. */
+  private async revealGuess(setup: GuessSetup, guess: number[][], paint: (values: number[][], marks?: boolean) => void, owner: string, signal: AbortSignal): Promise<boolean> {
+    this.guessOwners.add(owner);
+    const truth = setup.handles.map((h) => h.truth);
+    await this.progress(1100, signal, (t) => {
+      const e = smoothstep(t);
+      paint(guess.map((row, k) => row.map((v, j) => v + (truth[k][j] - v) * e)), false);
+      this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, e));
+    });
+    if (signal.aborted) {
+      this.endGuessMarks();
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * "Test me" (spec §7): the viewer's own guess at every guessable part on
+   * screen at this boundary — the same gate, the same reveal, nothing
+   * recorded. `open` is the gate (ui/guess-gate.ts). Resolves false when
+   * there is nothing to guess here. Any play or seek aborts it.
+   */
+  async selfTest(open: (signal: AbortSignal, session: GuessSession) => Promise<string | null>): Promise<boolean> {
+    if (!this.guess || !this.reprojector || this.state === "playing") return false;
+    const n = this.state === "done" ? this.plan.steps.length : this.completed;
+    const before = this.stateAt(n);
+    const setup0 = this.guessSetupAt(["all"], undefined, before, true);
+    if (!setup0) return false;
+    // Only what the viewer can see: a part not drawn yet is the cast's own question to come.
+    const visible = new Set(before.visible);
+    const handles = setup0.handles.filter((h) => h.shows.every((id) => visible.has(id)));
+    if (handles.length === 0) return false;
+    const setup: GuessSetup = { ...setup0, handles };
+    this.selfTestAbort?.abort();
+    const ac = new AbortController();
+    this.selfTestAbort = ac;
+    this.endGuessMarks();
+    const owner = "guess_self";
+    const paint = this.guessPainter(setup, before, visible, owner);
+    const start = setup.handles.map(startValues);
+    paint(start);
+    const typed = await open(ac.signal, { setup, start, paint });
+    const guess = typed !== null ? decodeGuess(typed, setup.handles) : null;
+    if (ac.signal.aborted) return true;
+    if (!guess) {
+      // Put back: the boundary's honest geometry.
+      this.endGuessMarks();
+      this.applyKey(before);
+      this.applyScene(before);
+      return true;
+    }
+    if (await this.revealGuess(setup, guess, paint, owner, ac.signal)) {
+      this.applyKey(before);
+      this.applyScene(before);
+      this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, 1));
+    }
+    if (this.selfTestAbort === ac) this.selfTestAbort = null;
+    return true;
+  }
+  private selfTestAbort: AbortController | null = null;
+
+  /** Drop a self test in progress (playback starting): its gate closes, its marks go. */
+  cancelSelfTest(): void {
+    if (!this.selfTestAbort) return;
+    this.selfTestAbort.abort();
+    this.selfTestAbort = null;
+    this.endGuessMarks();
+  }
+
+  /** Whether "Test me" has anything to offer at this boundary (the chip shows only then). */
+  canSelfTest(): boolean {
+    if (!this.guess || !this.reprojector || this.state === "playing" || this.plan.steps.length === 0) return false;
+    const n = this.state === "done" ? this.plan.steps.length : this.completed;
+    const before = this.stateAt(n);
+    const setup = this.guessSetupAt(["all"], undefined, before, true);
+    if (!setup) return false;
+    const visible = new Set(before.visible);
+    return setup.handles.some((h) => h.shows.every((id) => visible.has(id)));
+  }
+
+  /**
+   * A guess on the figure (spec 2026-10-01-guess-and-reveal): the guessed
+   * parts are painted at the viewer's guess while the question stands, the
+   * answer is scored, then the figure tweens from the guess to the truth with
+   * the ghost and the gap left on it, and right/wrong is spoken.
+   */
+  private async guessAsk(index: number, step: Extract<PlanStep, { kind: "ask" }>, before: SceneState, signal: AbortSignal): Promise<void> {
+    await this.narrationBarrier();
+    if (signal.aborted || !step.on) return;
+    const setup = this.guessSetupAt(step.on, step.from, before);
+    if (!setup) return;
+    this.endGuessMarks();
+    // What the question shows: everything the plan reveals at this step (the
+    // guessed parts), painted from the guess instead of the truth.
+    const after = this.plan.states[index];
+    const visible = new Set([...before.visible, ...after.visible]);
+    const owner = `guess_${index}`;
+    const paint = this.guessPainter(setup, before, visible, owner);
+    const start = setup.handles.map(startValues);
+    paint(start);
+    const live = !this.autoAnswers && this.askGate !== null;
+    let guess: number[][] = start;
+    let answered = false;
+    let secs: number | null = null;
+    if (live) {
+      const from = performance.now();
+      const typed = await this.askGate!(signal, Object.assign({}, step, { guess: { setup, start, paint } satisfies GuessSession }));
+      if (signal.aborted) return;
+      secs = (performance.now() - from) / 1000;
+      const decoded = typed !== null ? decodeGuess(typed, setup.handles) : null;
+      if (decoded) {
+        guess = decoded;
+        answered = true;
+      }
+      if (typed !== null) this.cutQuestionVoice();
+    } else {
+      // The movie: the laser carries the demo guess (`default`) from the
+      // start to where it lands, painting as it goes.
+      const demo = defaultGuess(step.fallback, setup.handles) ?? start;
+      const effects = this.effects;
+      await this.progress(1400, signal, (t) => {
+        const e = smoothstep(t);
+        const vals = start.map((row, k) => row.map((v, j) => v + ((demo[k]?.[j] ?? v) - v) * e));
+        paint(vals);
+        const p = pointFor(setup.handles[0], vals[0], vals[0].length - 1);
+        effects?.setPointer(t >= 1 || !p ? null : p);
+      });
+      effects?.setPointer(null);
+      if (signal.aborted) return;
+      guess = demo;
+      answered = true;
+    }
+    if (this.narrationVoice) await this.narrationVoice;
+    if (signal.aborted) return;
+    const score = scoreGuess(setup.handles, guess, { tolerance: step.tolerance, relative: step.relative });
+    const ok = answered && score.ok;
+    this.recordAnswer(index, step.store, guessText(setup.handles, guess, score), ok, secs);
+    if (step.store) for (const [k, v] of Object.entries(guessVars(step.store, setup.handles, guess, score))) this.vars.set(k, v);
+    this.outcomes.set(index, ok);
+    this.updateScoreVars();
+    if (live) {
+      this.callbacks.onAnswer?.({
+        index,
+        kind: "ask",
+        id: this.answerId(index, step.store),
+        question: step.question,
+        given: answered ? [encodeGuess(guess)] : [],
+        expected: encodeGuess(setup.handles.map((h) => h.truth)),
+        correct: ok,
+        ...(secs !== null ? { secs } : {}),
+      });
+    }
+    if (!(await this.revealGuess(setup, guess, paint, owner, signal))) return;
+    this.applyKey(this.plan.states[index]);
+    this.applyScene(this.plan.states[index]);
+    this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, 1));
+    const line = ok ? step.right : (step.wrong ?? step.right);
+    if (line) await this.speakLine(line, step, signal);
+    if (live && answered) {
+      const target = ok ? step.rightGoto : step.wrongGoto;
+      if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
+    }
+  }
+
+  /** Take every guess ghost off the figure. */
+  private endGuessMarks(): void {
+    for (const owner of this.guessOwners) this.effects?.setGuessMarks?.(owner, null);
+    this.guessOwners.clear();
+  }
+
   /** Take down every mark still on screen — a scrub, the poster, disposal. */
   private endMarks(): void {
+    this.selfTestAbort?.abort();
+    this.selfTestAbort = null;
+    this.endGuessMarks();
     for (const owner of this.liveMarks.keys()) this.effects?.endMark?.(owner);
     this.liveMarks.clear();
   }
@@ -1534,6 +1774,7 @@ export class Player {
         return;
       }
       case "ask": {
+        if (step.on !== undefined) return this.guessAsk(index, step, before, signal);
         await this.narrationBarrier();
         if (signal.aborted) return;
         // The auto path (movie/bare player) "types" the answer in check mode,
@@ -1715,6 +1956,7 @@ export class Player {
       case "clear": {
         await this.narrationBarrier();
         if (signal.aborted || this.heldPast(index)) return;
+        this.endGuessMarks();
         const els = this.els(step.ids);
         await Promise.all(
           els.map((el) => this.animateRange(el, 1, 0, Math.min(Math.max(el.durationMs * 0.4, CLEAR_MIN_MS), CLEAR_MS), signal)),

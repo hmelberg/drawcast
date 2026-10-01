@@ -44,7 +44,8 @@ export type ElementType =
   | "music"
   | "scratch"
   | "population"
-  | "link";
+  | "link"
+  | "scale";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -411,6 +412,16 @@ export interface SpecElement {
   /** Passage on `page` to sweep with a highlighter (PDF path only). */
   quote?: string;
   // population (layout/population.ts): people as person pictograms, each in a state
+  // scale (spec/scale.ts — sugar: a number line to guess on)
+  /** scale: the line's ends. */
+  min?: number;
+  max?: number;
+  /** scale: the TRUE value, shown by the marker <id>_answer. */
+  value?: number;
+  /** scale: logarithmic spacing. */
+  log?: boolean;
+  /** scale: how many tick intervals. */
+  ticks?: number;
   /** population: how many people (default: the states' sum, else 100). */
   count?: number;
   /** population: people per state, in order; the FIRST is the remainder. Bind a count (`bind: {"states.sick": "i"}`) to animate it. */
@@ -876,6 +887,16 @@ export interface AskArgs {
    *  default), "figure" (a plot appeared), or a variable path the data bridge
    *  can harvest ("total", "df.mean"). Compared against `answer`. */
   expect?: string;
+  /** GUESS on the figure (spec 2026-10-01-guess-and-reveal): the part(s) whose
+   *  number the viewer sets — a template part (bar_3, line_1, slice_2), a
+   *  population state set (crowd_sick), a scale's id, a list of them, or
+   *  "all" (every guessable part of the template). The truth is the figure's
+   *  own value, so `answer` is never written. */
+  on?: string | string[];
+  /** Guess on a line: the x from which the viewer draws the rest (default: the middle x). */
+  from?: number;
+  /** Guess: `tolerance` is a fraction of the TRUE value instead of the axis range. */
+  relative?: boolean;
 }
 
 export interface QuizArgs {

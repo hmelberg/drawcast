@@ -15,6 +15,7 @@ import { scenes } from "../src/scenes/registry";
 import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
 import { expandSpec } from "../src/spec/expand";
+import { guessParts, guessSetup } from "../src/guess/handles";
 import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { boxAnchor } from "../src/layout/anchors";
 import { heuristicMeasure } from "../src/layout/measure";
@@ -196,6 +197,12 @@ describe("bundled examples stay exemplary", () => {
       windows: layout.windows ?? {},
       ...domainMapping(spec.domain, layout.fit),
       animateBase: spec.template ? spec.params ?? {} : null,
+      // A guess's parts, as render() resolves them (src/render/index.ts).
+      guessParts: (on, from) => {
+        const parts = guessParts(spec, on);
+        const setup = guessSetup(spec, spec.params ?? {}, layout, parts, { from });
+        return { parts: setup.handles.length > 0 ? parts : [], shows: setup.handles.flatMap((h) => h.shows) };
+      },
       // Same shape render() builds (src/render/index.ts): after an animate
       // step the planner switches its bbox source to the post-animate
       // layout, so later steps (a move to a ref, a flip through a point)
