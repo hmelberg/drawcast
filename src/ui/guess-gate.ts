@@ -43,7 +43,12 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       let entry = 0;
       let settled = false;
 
-      const hintText = handles.length > 1 ? (handles[0].kind === "height" ? "Drag each bar to your guess" : HINT[handles[0].kind]) : HINT[handles[0].kind];
+      const hintText =
+        handles.length > 1 && handles[0].kind === "height"
+          ? "Drag each bar to your guess"
+          : handles[0].kind === "angle" && multiEntry(handles[0])
+            ? "Drag the edges between the slices"
+            : HINT[handles[0].kind];
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, `${hintText} ▸`);
       const pill = h("button", { class: "cs-guess-value", type: "button", title: "Type a number" });
       const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸");
@@ -68,7 +73,8 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         const p = pointFor(g, values[focus], entry);
         const c = p ? clientPointFor(stage, p) : null;
         const v = values[focus][multiEntry(g) ? entry : 0];
-        pill.textContent = handles.length > 1 || multiEntry(g) ? `${g.kind === "curve" ? "" : `${g.label} `}${g.format(v)}` : g.format(v);
+        const name = g.entryLabels?.[entry] ?? (g.kind === "curve" ? "" : g.label);
+        pill.textContent = handles.length > 1 || multiEntry(g) ? `${name ? `${name} ` : ""}${g.format(v)}` : g.format(v);
         // A scale's marker writes its own number: a pill over it says it twice.
         if (c && g.kind !== "point") {
           pill.style.left = `${c[0]}px`;

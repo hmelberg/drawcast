@@ -1704,6 +1704,12 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   right: 1rem;
   pointer-events: auto;
 }
+/* Skip joins Answer at the top: the bottom-right is the Sources corner's. */
+.cs-guessgate .cs-figgate-skip {
+  bottom: auto;
+  top: 0.8rem;
+  right: 8.2rem;
+}
 /* .cs-figgate sets no cursor of its own any more — what shows through this
    overlay (the hand, the connect question's crosshair, a widget's grab/
    grabbing) is decided together, in cascade order, down by cs-cardable. */

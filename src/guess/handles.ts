@@ -41,6 +41,8 @@ export interface GuessHandle {
   step: number;
   /** Human name of the part ("Norway", "sick", "Mozart") — keyboard focus, aria. */
   label: string;
+  /** A whole pie: each slice's name, for the entry being set. */
+  entryLabels?: string[];
   /** Format a number like the figure would write it. */
   format: (v: number) => string;
   /** Unit after a formatted number ("%", "" …). */
@@ -321,6 +323,7 @@ function pieHandle(params: Record<string, unknown>, slice: number | null, fit: L
     max: 100,
     step: 1,
     label: slice === null ? "pie" : String(labels[slice] ?? ids[slice]),
+    ...(slice === null ? { entryLabels: row.map((_, i) => String(labels[i] ?? ids[i])) } : {}),
     format: formatterFor(1, "%"),
     unit: "%",
     pie: { paths: row.map((_, i) => `${cur.at}.${i}`), slice, total, shares: row.map((v) => v / total) },

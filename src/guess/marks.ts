@@ -50,8 +50,17 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1): Gu
           const bx = x1 + 12;
           const y1 = top[1] + (truthTop[1] - top[1]) * t;
           lines.push({ pts: [[bx - 5, top[1]], [bx, top[1]], [bx, y1], [bx - 5, y1]] });
-          // Written in the gap itself, over the bar: beside it is the next bar's room.
-          if (t >= 1) texts.push({ at: [h.cx, Math.abs(y1 - top[1]) > 30 ? (top[1] + y1) / 2 : Math.max(top[1], y1) + 34], text: signed(h, h.truth[0] - g[0]), anchor: "middle" });
+          // Written in the gap itself, over the bar: beside it is the next bar's
+          // room. The bar's own value label stands 13 over the TRUE top, so a
+          // guess above the truth keeps its number clear of it: in the gap only
+          // when the gap is tall, else over the ghost.
+          if (t >= 1) {
+            const gap = Math.abs(y1 - top[1]);
+            const hi = Math.max(top[1], y1);
+            const guessAbove = top[1] > y1;
+            const y = guessAbove ? (gap > 70 ? (top[1] + y1) / 2 + 12 : hi + 22) : gap > 30 ? (top[1] + y1) / 2 : hi + 34;
+            texts.push({ at: [h.cx, y], text: signed(h, h.truth[0] - g[0]), anchor: "middle" });
+          }
         }
         break;
       }
@@ -99,7 +108,7 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1): Gu
           const x1 = x + (xt - x) * t;
           const by = y - 58;
           lines.push({ pts: [[x, by + 6], [x, by], [x1, by], [x1, by + 6]] });
-          if (t >= 1) texts.push({ at: [(x + x1) / 2, by - 16], text: sg.kind === "log" ? `you ${sg.format(g[0])}` : signedScale(sg.format, h.truth[0] - g[0]), anchor: "middle" });
+          if (t >= 1) texts.push({ at: [(x + x1) / 2, by - 16], text: sg.kind === "log" ? ratioText(h.truth[0], g[0]) : signedScale(sg.format, h.truth[0] - g[0]), anchor: "middle" });
         }
         break;
       }
@@ -116,4 +125,12 @@ function signedScale(format: (v: number) => string, d: number): string {
   // A difference of years is a number of years, not a year: "+6", never "+0006".
   const body = format(Math.abs(d));
   return `${d > 0 ? "+" : d < 0 ? "−" : ""}${body}`;
+}
+
+/** On a log scale the gap is a factor: "×43" (the truth is 43 times the guess), "÷5". */
+function ratioText(truth: number, guess: number): string {
+  if (!(truth > 0) || !(guess > 0)) return "";
+  const r = truth >= guess ? truth / guess : guess / truth;
+  const n = r < 10 ? String(Math.round(r * 10) / 10) : String(Math.round(r));
+  return `${truth >= guess ? "×" : "÷"}${n}`;
 }

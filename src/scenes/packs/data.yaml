@@ -471,6 +471,7 @@ layout: |
   const drawables = [], labelReqs = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
   let a0 = 0;
+  let lastRight = null, lastLeft = null, topLabel = -Infinity;
   for (let i = 0; i < n; i++) {
     const id = "slice_" + (i + 1);
     const sweep = shares[i] * 2 * Math.PI;
@@ -489,6 +490,13 @@ layout: |
     const mid = a0 + sweep / 2;
     const lp = P(mid, r + 26);
     const right = Math.sin(mid) >= 0;
+    // Thin neighbours put their names on top of each other: keep each name
+    // a line clear of the last one on its side, in the direction the
+    // clockwise walk is heading there (down the right, up the left).
+    const last = right ? lastRight : lastLeft;
+    if (last !== null) lp[1] = right ? Math.min(lp[1], last - 32) : Math.max(lp[1], last + 32);
+    if (right) lastRight = lp[1]; else lastLeft = lp[1];
+    topLabel = Math.max(topLabel, lp[1]);
     const pct = Math.round(shares[i] * 100) + "%";
     const name = labels[i] !== undefined ? labels[i] : "Slice " + (i + 1);
     children.push(kit.text(id + "__l", lp, showPct ? name + "  " + pct : name, { fontSize: 20, anchor: right ? "start" : "end" }));
@@ -497,7 +505,8 @@ layout: |
     a0 = a1;
   }
   if (title) {
-    const ty = Math.min(730, cy + r + 60);
+    // Over the pie, and over any slice names stacked up near 12 o'clock.
+    const ty = Math.min(730, Math.max(cy + r + 60, topLabel + 42));
     push(kit.text("title", [cx, ty], title, { fontSize: 30 }));
     anchors.title = [cx, ty];
   }

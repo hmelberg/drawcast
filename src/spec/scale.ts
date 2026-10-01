@@ -102,8 +102,10 @@ export function scaleGeometry(sc: ScaleElementLike): ScaleGeometry {
   const clampV = (v: number): number => Math.max(lo, Math.min(hi, v));
   const snapV = (v: number): number => (log ? twoSig(v) : Number((Math.round(v / linStep) * linStep).toFixed(dec)));
   const format = (v: number): string => {
-    const d = log ? (v >= 100 ? 0 : v >= 10 ? 1 : 2) : dec;
-    const s = v.toFixed(d);
+    // A log scale spans powers of ten: two significant figures at any size
+    // ("86", "4.7", "0.003"), never a fixed count of decimals.
+    const d = log ? (v >= 10 ? 0 : Math.max(1, Math.ceil(-Math.log10(Math.abs(v) || 1)) + 1)) : dec;
+    const s = log ? String(Number(v.toFixed(d))) : v.toFixed(d);
     const body = isYear ? s : Math.abs(v) >= 10000 ? group(s) : s;
     return unit === "" ? body : unit === "%" ? `${body}%` : `${body} ${unit}`;
   };
