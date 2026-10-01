@@ -712,7 +712,9 @@ const BASELINE_SYSTEM_CHARS = 385348;
 // budget and judge; cards' along, compare, pairs, options and then. +2788. Measured 104837.
 // Re-pinned UP 2026-10-03 (curves, trees and formulas): ask's blanks, pick,
 // work, check, others and form, and the tree/formula clauses. +1126. Measured 105963.
-const BASELINE_SCHEMA_CHARS = 105963;
+// Re-pinned DOWN 2026-10-03 (final fix wave): the internal `fills` (the
+// player's answer per \\blank box) withheld like `fill`. -185. Measured 105778.
+const BASELINE_SCHEMA_CHARS = 105778;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
