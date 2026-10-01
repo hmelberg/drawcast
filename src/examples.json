@@ -80143,6 +80143,7 @@
             "question": "What number goes in the box?",
             "on": "eq",
             "store": "n",
+            "tolerance": 0,
             "right": "Yes, {n}.",
             "wrong": "It is {n.true}, not {n}."
           }
