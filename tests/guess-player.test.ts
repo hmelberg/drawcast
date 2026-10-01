@@ -120,4 +120,19 @@ describe("guess asks in the player", () => {
     const painted = frames.map((f) => f["values.1"]).filter((v): v is number => typeof v === "number");
     expect(painted.some((v) => Math.abs(v - 60) < 0.5)).toBe(true);
   });
+
+  test("Test me: offered at the end on what is drawn, and runs without recording", async () => {
+    const { player, events } = makePlayer([{ draw: ["axes", "bar_1", "bar_2"] }]);
+    await player.play();
+    expect(player.canSelfTest()).toBe(true);
+    const ran = await player.selfTest(async () => "70");
+    expect(ran).toBe(true);
+    expect(events).toHaveLength(0);
+  });
+
+  test("Test me: nothing to offer while the guessed part is not drawn", async () => {
+    const { player } = makePlayer([{ draw: ["axes"] }, { pause: 0.1 }]);
+    (player as unknown as { state: string }).state = "paused";
+    expect(player.canSelfTest()).toBe(false);
+  });
 });

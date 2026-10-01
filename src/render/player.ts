@@ -1106,30 +1106,19 @@ export class Player {
    * answer is scored, then the figure tweens from the guess to the truth with
    * the ghost and the gap left on it, and right/wrong is spoken.
    */
-  private async guessAsk(index: number, step: Extract<PlanStep, { kind: "ask" }>, before: SceneState, signal: AbortSignal): Promise<void> {
-    await this.narrationBarrier();
-    if (signal.aborted) return;
-    const rp = this.reprojector;
-    const layout = this.paintedLayout();
-    if (!this.guess || !rp || !step.on) return;
+  /**
+   * The painter of a guess at a boundary: the figure redrawn from the
+   * guessed numbers (and, for a sketched line, the viewer's dashed copy over
+   * it while it is theirs — the part they draw would otherwise look exactly
+   * like the part they were given).
+   */
+  private guessPainter(setup: GuessSetup, before: SceneState, visible: ReadonlySet<string>, owner: string): (values: number[][], marks?: boolean) => void {
+    const rp = this.reprojector!;
     const sceneParams = this.withVarOverrides(before.params);
-    const tplParams: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(sceneParams)) if (!k.startsWith("vars.")) tplParams[k] = v;
-    const setup = this.guess.setup(step.on, step.from, tplParams, layout);
-    for (const w of setup.warnings) console.warn(`[guess] ${w}`);
-    if (setup.handles.length === 0) return;
-    this.endGuessMarks();
-    // What the question shows: everything the plan reveals at this step (the
-    // guessed parts), painted from the guess instead of the truth.
-    const after = this.plan.states[index];
-    const visible = new Set([...before.visible, ...after.visible]);
     const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
     const baseElements = rp.patchedElements?.();
-    const owner = `guess_${index}`;
-    // A sketched line wears the viewer's colour while it is theirs: the part
-    // they draw would otherwise look exactly like the part they were given.
     const sketched = setup.handles.some((h) => h.kind === "curve");
-    const paint = (values: number[][], marks = true): void => {
+    return (values, marks = true) => {
       const patch = this.guess!.patch(setup, values, baseElements);
       rp.frame({ ...sceneParams, ...patch.params }, this.frameScene(before, visible), { revealNew: true, overrides, ...(patch.elements ? { elements: patch.elements } : {}) });
       this.geometryDirty = true;
@@ -1138,6 +1127,116 @@ export class Player {
         this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, values, 0));
       }
     };
+  }
+
+  /** The handles for `on` at a boundary (the template params as they stand there). */
+  private guessSetupAt(on: string[], from: number | undefined, before: SceneState, quiet = false): GuessSetup | null {
+    if (!this.guess || !this.reprojector) return null;
+    const tplParams: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(this.withVarOverrides(before.params))) if (!k.startsWith("vars.")) tplParams[k] = v;
+    const setup = this.guess.setup(on, from, tplParams, this.paintedLayout());
+    if (!quiet) for (const w of setup.warnings) console.warn(`[guess] ${w}`);
+    return setup.handles.length > 0 ? setup : null;
+  }
+
+  /** The reveal: guess → truth, the ghost staying where the viewer put it. False when aborted. */
+  private async revealGuess(setup: GuessSetup, guess: number[][], paint: (values: number[][], marks?: boolean) => void, owner: string, signal: AbortSignal): Promise<boolean> {
+    this.guessOwners.add(owner);
+    const truth = setup.handles.map((h) => h.truth);
+    await this.progress(1100, signal, (t) => {
+      const e = smoothstep(t);
+      paint(guess.map((row, k) => row.map((v, j) => v + (truth[k][j] - v) * e)), false);
+      this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, e));
+    });
+    if (signal.aborted) {
+      this.endGuessMarks();
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * "Test me" (spec §7): the viewer's own guess at every guessable part on
+   * screen at this boundary — the same gate, the same reveal, nothing
+   * recorded. `open` is the gate (ui/guess-gate.ts). Resolves false when
+   * there is nothing to guess here. Any play or seek aborts it.
+   */
+  async selfTest(open: (signal: AbortSignal, session: GuessSession) => Promise<string | null>): Promise<boolean> {
+    if (!this.guess || !this.reprojector || this.state === "playing") return false;
+    const n = this.state === "done" ? this.plan.steps.length : this.completed;
+    const before = this.stateAt(n);
+    const setup0 = this.guessSetupAt(["all"], undefined, before, true);
+    if (!setup0) return false;
+    // Only what the viewer can see: a part not drawn yet is the cast's own question to come.
+    const visible = new Set(before.visible);
+    const handles = setup0.handles.filter((h) => h.shows.every((id) => visible.has(id)));
+    if (handles.length === 0) return false;
+    const setup: GuessSetup = { ...setup0, handles };
+    this.selfTestAbort?.abort();
+    const ac = new AbortController();
+    this.selfTestAbort = ac;
+    this.endGuessMarks();
+    const owner = "guess_self";
+    const paint = this.guessPainter(setup, before, visible, owner);
+    const start = setup.handles.map(startValues);
+    paint(start);
+    const typed = await open(ac.signal, { setup, start, paint });
+    const guess = typed !== null ? decodeGuess(typed, setup.handles) : null;
+    if (ac.signal.aborted) return true;
+    if (!guess) {
+      // Put back: the boundary's honest geometry.
+      this.endGuessMarks();
+      this.applyKey(before);
+      this.applyScene(before);
+      return true;
+    }
+    if (await this.revealGuess(setup, guess, paint, owner, ac.signal)) {
+      this.applyKey(before);
+      this.applyScene(before);
+      this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, 1));
+    }
+    if (this.selfTestAbort === ac) this.selfTestAbort = null;
+    return true;
+  }
+  private selfTestAbort: AbortController | null = null;
+
+  /** Drop a self test in progress (playback starting): its gate closes, its marks go. */
+  cancelSelfTest(): void {
+    if (!this.selfTestAbort) return;
+    this.selfTestAbort.abort();
+    this.selfTestAbort = null;
+    this.endGuessMarks();
+  }
+
+  /** Whether "Test me" has anything to offer at this boundary (the chip shows only then). */
+  canSelfTest(): boolean {
+    if (!this.guess || !this.reprojector || this.state === "playing" || this.plan.steps.length === 0) return false;
+    const n = this.state === "done" ? this.plan.steps.length : this.completed;
+    const before = this.stateAt(n);
+    const setup = this.guessSetupAt(["all"], undefined, before, true);
+    if (!setup) return false;
+    const visible = new Set(before.visible);
+    return setup.handles.some((h) => h.shows.every((id) => visible.has(id)));
+  }
+
+  /**
+   * A guess on the figure (spec 2026-10-01-guess-and-reveal): the guessed
+   * parts are painted at the viewer's guess while the question stands, the
+   * answer is scored, then the figure tweens from the guess to the truth with
+   * the ghost and the gap left on it, and right/wrong is spoken.
+   */
+  private async guessAsk(index: number, step: Extract<PlanStep, { kind: "ask" }>, before: SceneState, signal: AbortSignal): Promise<void> {
+    await this.narrationBarrier();
+    if (signal.aborted || !step.on) return;
+    const setup = this.guessSetupAt(step.on, step.from, before);
+    if (!setup) return;
+    this.endGuessMarks();
+    // What the question shows: everything the plan reveals at this step (the
+    // guessed parts), painted from the guess instead of the truth.
+    const after = this.plan.states[index];
+    const visible = new Set([...before.visible, ...after.visible]);
+    const owner = `guess_${index}`;
+    const paint = this.guessPainter(setup, before, visible, owner);
     const start = setup.handles.map(startValues);
     paint(start);
     const live = !this.autoAnswers && this.askGate !== null;
@@ -1160,9 +1259,8 @@ export class Player {
       // start to where it lands, painting as it goes.
       const demo = defaultGuess(step.fallback, setup.handles) ?? start;
       const effects = this.effects;
-      const ease = smoothstep;
       await this.progress(1400, signal, (t) => {
-        const e = ease(t);
+        const e = smoothstep(t);
         const vals = start.map((row, k) => row.map((v, j) => v + ((demo[k]?.[j] ?? v) - v) * e));
         paint(vals);
         const p = pointFor(setup.handles[0], vals[0], vals[0].length - 1);
@@ -1193,18 +1291,7 @@ export class Player {
         ...(secs !== null ? { secs } : {}),
       });
     }
-    // The reveal: guess → truth, the ghost staying where the viewer put it.
-    this.guessOwners.add(owner);
-    const truth = setup.handles.map((h) => h.truth);
-    await this.progress(1100, signal, (t) => {
-      const e = smoothstep(t);
-      paint(guess.map((row, k) => row.map((v, j) => v + (truth[k][j] - v) * e)), false);
-      this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, e));
-    });
-    if (signal.aborted) {
-      this.endGuessMarks();
-      return;
-    }
+    if (!(await this.revealGuess(setup, guess, paint, owner, signal))) return;
     this.applyKey(this.plan.states[index]);
     this.applyScene(this.plan.states[index]);
     this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, 1));
@@ -1224,6 +1311,8 @@ export class Player {
 
   /** Take down every mark still on screen — a scrub, the poster, disposal. */
   private endMarks(): void {
+    this.selfTestAbort?.abort();
+    this.selfTestAbort = null;
     this.endGuessMarks();
     for (const owner of this.liveMarks.keys()) this.effects?.endMark?.(owner);
     this.liveMarks.clear();

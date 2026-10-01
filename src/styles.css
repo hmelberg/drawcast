@@ -1687,6 +1687,17 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   bottom: auto;
   top: 0.9rem;
 }
+/* A guess is worked on the figure: the big play/replay button stands aside. */
+:has(> .cs-guessgate) > .cs-bigplay { display: none; }
+/* "Test me" (ui/test-me.ts): on the figure, bottom left (the top is the
+   chart's caption and title; the bottom right is the Sources corner's). */
+.cs-testme {
+  position: absolute;
+  bottom: 1.2rem;
+  left: 1rem;
+  z-index: 4;
+  font-size: 0.95rem;
+}
 .cs-guess-answer {
   position: absolute;
   top: 0.8rem;

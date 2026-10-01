@@ -514,7 +514,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // in both, and a patch re-reads the painted layout anyway.)
   if (spec.template && scenes[spec.template]?.widget) player.widgetDemo = widgetDemoFor(player, spec, layout);
   player.guess = {
-    setup: (on, from, params, onScreen) => guessSetup(spec, withOverrides(spec.params ?? {}, params), onScreen ?? layout, on, { from, measure }),
+    setup: (on, from, params, onScreen) => guessSetup(spec, withOverrides(spec.params ?? {}, params), onScreen ?? layout, guessParts(spec, on), { from, measure }),
     patch: (setup, values, elements) => patchFor(elements ? { ...spec, elements } : spec, setup, values),
   };
 

@@ -4,6 +4,7 @@
 // the standalone #gdoc viewer.
 
 import { guessGateFor } from "./guess-gate";
+import { attachTestMe } from "./test-me";
 import type { GuessSession } from "../render/player";
 import type { RenderHandle } from "../render";
 import type { SpeechManager } from "../render/speech";
@@ -1177,6 +1178,7 @@ export function attachPlayerControls(
   const dragGate = dragGateFor(stage, hd);
   const connectGate = connectGateFor(stage, hd);
   const guessGate = guessGateFor(stage, hd);
+  attachTestMe(stage, hd);
   // A template-bound ask is worked on the figure itself, so its gate needs the
   // host. Without one (the template carries no widget body — lint calls that an
   // error) the branch is unreachable, and the typed card stands in, which is
