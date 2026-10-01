@@ -235,7 +235,9 @@ Ask:
   the ask. `store: g` → `{g}`, `{g.true}`, `{g.off}`, `{g.pct}`; `right`
   within tolerance (default 10 % of the axis; `relative: true` → of the
   truth), else `wrong`. `default` = the movie's demo guess. Letting go
-  answers one part (`release: false` adds an Answer button). `#interactive`
+  answers one part (`release: false` adds an Answer button).
+  `on` a `cards` element = rank (`items` in TRUE order, `ends`) or sort
+  (`bins` + items `{text, bin}`); draw the cards (shuffled) first. `#interactive`
   asks for these about once a minute, varied.
 
 ## Elements with more than the schema

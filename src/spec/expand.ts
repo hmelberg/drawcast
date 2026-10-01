@@ -9,11 +9,12 @@ import { expandDerivations } from "./derive";
 import { expandSound } from "./sound";
 import { expandWalks } from "./walk";
 import { expandScales } from "./scale";
+import { expandCards as expandCardSets } from "./cards";
 import { expandEquationPreset } from "../scenes/equation_plot/presets";
 import type { Spec } from "./types";
 
 /** Scales (spec/scale.ts), cards, derivations (math `steps`), sound, then walks — and an equation_plot
  *  `preset` written out into its params. The same object back when there is nothing to expand. */
 export function expandSpec(spec: Spec): Spec {
-  return expandWalks(expandSound(expandDerivations(expandCards(expandScratch(expandScales(expandEquationPreset(spec)))))));
+  return expandWalks(expandSound(expandDerivations(expandCards(expandScratch(expandCardSets(expandScales(expandEquationPreset(spec))))))));
 }

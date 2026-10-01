@@ -1663,6 +1663,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 }
 /* ---------- guess on the figure (ui/guess-gate.ts) ---------- */
 .cs-guessgate { cursor: crosshair; }
+.cs-cardsgate { cursor: grab; }
 .cs-guessgate.dragging { cursor: grabbing; }
 .cs-guess-value,
 .cs-guess-field {

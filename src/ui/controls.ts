@@ -4,8 +4,9 @@
 // the standalone #gdoc viewer.
 
 import { guessGateFor } from "./guess-gate";
+import { cardsGateFor } from "./cards-gate";
 import { attachTestMe } from "./test-me";
-import type { GuessSession } from "../render/player";
+import type { CardsSession, GuessSession } from "../render/player";
 import type { RenderHandle } from "../render";
 import type { SpeechManager } from "../render/speech";
 import { answersMatch } from "../spec/answers";
@@ -239,6 +240,8 @@ export interface AskGateStep {
   guess?: GuessSession;
   /** Guess: false keeps the Answer button for one part (default: letting go answers). */
   release?: boolean;
+  /** Cards to rank or sort (ui/cards-gate.ts). */
+  cardsSession?: CardsSession;
 }
 
 /**
@@ -1180,14 +1183,17 @@ export function attachPlayerControls(
   const dragGate = dragGateFor(stage, hd);
   const connectGate = connectGateFor(stage, hd);
   const guessGate = guessGateFor(stage, hd);
+  const cardsGate = cardsGateFor(stage, hd);
   attachTestMe(stage, hd);
   // A template-bound ask is worked on the figure itself, so its gate needs the
   // host. Without one (the template carries no widget body — lint calls that an
   // error) the branch is unreachable, and the typed card stands in, which is
   // what the rest of the chain would have fallen through to anyway.
   const widgetGate = widgetHost ? widgetGateFor(stage, hd, widgetHost) : textGate;
-  hd.timeline.askGate = (signal, step: Parameters<NonNullable<typeof hd.timeline.askGate>>[1] & { guess?: GuessSession }) =>
-    step.guess
+  hd.timeline.askGate = (signal, step: Parameters<NonNullable<typeof hd.timeline.askGate>>[1] & { guess?: GuessSession; cardsSession?: CardsSession }) =>
+    step.cardsSession
+      ? cardsGate(signal, step)
+      : step.guess
       ? guessGate(signal, step)
       : step.widgetTemplate && widgetHost
       ? widgetGate(signal, step)

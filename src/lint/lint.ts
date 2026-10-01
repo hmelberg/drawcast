@@ -4,6 +4,7 @@
 
 import { guessParts } from "../guess/parts";
 import { authoredScales } from "../spec/scale";
+import { authoredCards } from "../spec/cards";
 import { parseTarget } from "../links/resolve";
 import { CANVAS } from "../layout/canvas";
 import { MATH_DEFAULT_SIZE } from "../layout/math";
@@ -1009,8 +1010,19 @@ function lintGuess(spec: Spec): LintIssue[] {
   const commands = spec.commands ?? [];
   const scales = new Set(authoredScales(spec).map((sc) => sc.id));
   const pops = (spec.elements ?? []).filter((e) => e.type === "population");
+  const cardSets = new Map(authoredCards(spec).map((cs) => [cs.id, cs]));
   commands.forEach((c, i) => {
     if (c.ask?.on === undefined) return;
+    // Cards to rank or sort (spec 2026-10-01-rank-and-sort): drawn shuffled,
+    // so they must be ON screen before the question — it moves them.
+    const one = typeof c.ask.on === "string" ? c.ask.on : c.ask.on.length === 1 ? c.ask.on[0] : null;
+    if (one !== null && cardSets.has(one)) {
+      const first = `${one}_1`;
+      if (!connectVisibility(commands, i, one).visible && !connectVisibility(commands, i, first).visible) {
+        issues.push({ rule: "guess", ids: [one], message: `ask on: the cards "${one}" are not drawn before the question — draw them first (they are drawn shuffled); the question moves them`, severity: "warn" });
+      }
+      return;
+    }
     for (const part of guessParts(spec, c.ask.on)) {
       // What must stay undrawn for this part, or null when nothing here is guessable by that name.
       let hidden: string[] | null = null;

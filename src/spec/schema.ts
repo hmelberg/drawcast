@@ -148,7 +148,7 @@ const elementSchema = {
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code", "scratch",
         "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
-        "group", "math", "image", "icon", "inset", "music", "population", "link", "scale",
+        "group", "math", "image", "icon", "inset", "music", "population", "link", "scale", "cards",
       ],
     },
     // axes
@@ -564,6 +564,17 @@ const elementSchema = {
         "scale: the TRUE value — a marker over the line with its number, the part <id>_answer. A scale is a number line to GUESS ON: draw <id> (the line, ticks and numbers), then ask with on: <id> — the viewer clicks where they think the value lies, and the marker slides from their guess to the truth. For a year (min 1700, max 1800), a share (unit \"%\", 0–100), or an amount spanning orders of magnitude (log: true). Placed with x, y (the left end, default 150, 300) and width (default 700); label is a caption under the line.",
     },
     log: { type: "boolean", description: "scale: logarithmic spacing (min > 0) — one tick per power of ten." },
+    items: {
+      type: "array",
+      minItems: 2,
+      maxItems: 8,
+      items: { anyOf: [{ type: "string" }, { type: "object", properties: { text: { type: "string" }, bin: { type: "string" } }, required: ["text"], additionalProperties: false }] },
+      description:
+        "cards: cards the viewer ORDERS or SORTS, asked with an ask on: <id> (they drag the cards, press Answer, and the cards glide to the truth). RANK: the items in their TRUE order, first = most/earliest/top (a word or three each: \"USA\", \"Norway\"), with ends naming the two ends. SORT: give bins, and each item {text, bin}. The cards are drawn SHUFFLED, so draw <id> before the ask; after it they stand in the true order. Cards are <id>_1 … in true order; sort's boxes <id>_bin_1 ….",
+    },
+    bins: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" }, description: "cards: the boxes to sort into (a word or two each); every item's bin is one of them." },
+    ends: { type: "array", minItems: 2, maxItems: 2, items: { type: "string" }, description: "cards (rank): what the two ends mean, first end first: [\"most\", \"least\"], [\"earliest\", \"latest\"]." },
+    arrange: { type: "string", enum: ["row", "column"], description: "cards (rank): a row of cards (default) or a column (longer names)." },
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
     states: {
       type: "object",
@@ -2117,6 +2128,15 @@ function elementErrors(el: SpecElement): string[] {
     case "ellipse":
       need(typeof el.rx === "number" && typeof el.ry === "number", "needs rx and ry");
       break;
+    case "cards": {
+      const items = Array.isArray(el.items) ? el.items : [];
+      need(items.length >= 2 && items.length <= 8, "needs 2–8 items");
+      if (Array.isArray(el.bins) && el.bins.length > 0) {
+        const bins = el.bins;
+        need(items.every((it) => typeof it === "object" && it !== null && typeof it.bin === "string" && bins.includes(it.bin)), "sorting (bins): every item needs {text, bin} with bin one of bins");
+      }
+      break;
+    }
     case "scale": {
       need(typeof el.min === "number" && typeof el.max === "number" && (el.max as number) > (el.min as number), "needs min < max");
       need(typeof el.value === "number", "needs value (the true number the marker shows)");

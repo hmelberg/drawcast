@@ -45,7 +45,8 @@ export type ElementType =
   | "scratch"
   | "population"
   | "link"
-  | "scale";
+  | "scale"
+  | "cards";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -412,6 +413,15 @@ export interface SpecElement {
   /** Passage on `page` to sweep with a highlighter (PDF path only). */
   quote?: string;
   // population (layout/population.ts): people as person pictograms, each in a state
+  // cards (spec/cards.ts — sugar: cards to rank or to sort into boxes)
+  /** cards: the cards, in TRUE order (rank) or each with its bin (sort). */
+  items?: (string | { text: string; bin?: string })[];
+  /** cards: the boxes to sort into. */
+  bins?: string[];
+  /** cards (rank): what the two ends mean. */
+  ends?: string[];
+  /** cards (rank): a row (default) or a column. */
+  arrange?: "row" | "column";
   // scale (spec/scale.ts — sugar: a number line to guess on)
   /** scale: the line's ends. */
   min?: number;

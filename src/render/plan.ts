@@ -115,6 +115,8 @@ export type PlanStep = (
       relative?: boolean;
       /** Guess: false = an Answer button even for one part (default: letting go answers). */
       release?: boolean;
+      /** Rank or sort the cards element of this id (spec 2026-10-01-rank-and-sort). */
+      cards?: string;
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -373,6 +375,10 @@ export interface PlanOptions {
    *  resolves to on this figure ("all" expanded), and every id that must be
    *  on screen once the question ends. Absent: guesses resolve to nothing. */
   guessParts?: (on: string | string[], from?: number) => { parts: string[]; shows: string[] };
+  /** Cards to rank or sort (spec 2026-10-01-rank-and-sort): for a cards
+   *  element's id, its card ids and where each stands once the question is
+   *  answered (its true place, as an offset from where it is drawn). */
+  cardsFor?: (id: string) => { cards: string[]; offsets: Record<string, Pt> } | null;
   /** This cast is a book's part: highlight/erase/point on an id that is not
    *  an element target the text pane (an earlier part's block included). */
   book?: boolean;
@@ -1331,7 +1337,19 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // question stands (the gate's preview), and the plan agrees they are
       // there — at the truth — once it ends, like the drag widget's items.
       let guess: { parts: string[]; shows: string[] } | undefined;
-      if (cmd.ask.on !== undefined) {
+      // Cards: after the question every card stands in its true place.
+      const oneOn = typeof cmd.ask.on === "string" ? cmd.ask.on : Array.isArray(cmd.ask.on) && cmd.ask.on.length === 1 ? cmd.ask.on[0] : undefined;
+      const cardSet = oneOn !== undefined ? (opts.cardsFor?.(oneOn) ?? null) : null;
+      if (cardSet) {
+        for (const id of cardSet.cards) {
+          if (!known.has(id)) continue;
+          const o = offsets[id] ?? [0, 0];
+          const d = cardSet.offsets[id] ?? [0, 0];
+          offsets[id] = [o[0] + d[0], o[1] + d[1]];
+          mentioned.add(id);
+        }
+        makeVisible(cardSet.cards.filter((id) => known.has(id)));
+      } else if (cmd.ask.on !== undefined) {
         guess = opts.guessParts?.(cmd.ask.on, cmd.ask.from) ?? { parts: [], shows: [] };
         if (guess.parts.length === 0) warnings.push(`ask on: nothing to guess in ${JSON.stringify(cmd.ask.on)} (the question is asked as typing instead)`);
         const shown = guess.shows.flatMap((id) => expandOne(id, "ask", true));
@@ -1371,6 +1389,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // one question cannot be answered on two devices.
         ...(cmd.ask.code === undefined && cmd.ask.widget !== undefined && !(BUILTIN_WIDGETS as readonly string[]).includes(cmd.ask.widget) ? { widgetTemplate: true as const } : {}),
         ...(cmd.ask.code !== undefined && cmd.ask.expect !== undefined ? { expect: cmd.ask.expect } : {}),
+        ...(cardSet && oneOn !== undefined ? { cards: oneOn, tolerance: cmd.ask.tolerance ?? 0 } : {}),
         ...(guess && guess.parts.length > 0
           ? { on: guess.parts, tolerance: cmd.ask.tolerance ?? 0.1, ...(cmd.ask.from !== undefined ? { from: cmd.ask.from } : {}), ...(cmd.ask.relative === true ? { relative: true } : {}), ...(cmd.ask.release === false ? { release: false } : {}) }
           : {}),

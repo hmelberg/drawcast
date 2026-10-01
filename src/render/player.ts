@@ -39,6 +39,8 @@ import { chunkCaption, pageTimes } from "./caption-chunks";
 import { defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessSetup } from "../guess/handles";
 import { guessText, guessVars, scoreGuess } from "../guess/score";
 import { guessMarks } from "../guess/marks";
+import type { CardsGeometry } from "../spec/cards";
+import { cardsMarks, decodeArrangement, encodeArrangement, initialArrangement, positions, scoreCards, type Arrangement } from "../cards/model";
 
 export type PlaybackMode = "narrated" | "silent" | "instant";
 export type PlayerState = "idle" | "playing" | "paused" | "done";
@@ -108,6 +110,17 @@ export interface GuessRuntime {
   /** `layout` is what is on screen, or null before any commit (the mount-time layout stands in). */
   setup(on: string[], from: number | undefined, params: Record<string, unknown>, layout: LayoutResult | null): GuessSetup;
   patch(setup: GuessSetup, values: number[][], elements: SpecElement[] | undefined): { params: Record<string, unknown>; elements?: SpecElement[] };
+  /** A cards element's geometry (spec 2026-10-01-rank-and-sort), or null. */
+  cards?(id: string): CardsGeometry | null;
+}
+
+/** What a cards gate is handed (ui/cards-gate.ts): the geometry, the
+ *  arrangement as drawn, and how to place a card (logical offset from where
+ *  it is drawn). It resolves the encoded arrangement, or null for a skip. */
+export interface CardsSession {
+  geometry: CardsGeometry;
+  start: Arrangement;
+  place(cardId: string, dx: number, dy: number): void;
 }
 
 /** What a guess gate is handed (ui/guess-gate.ts): the handles, where the
@@ -1309,6 +1322,93 @@ export class Player {
     }
   }
 
+  /**
+   * Cards to rank or sort (spec 2026-10-01-rank-and-sort): the viewer moves
+   * the drawn cards and presses Answer; the cards glide to their true places
+   * (the plan's offsets after this step), dashed outlines stay where the
+   * wrong ones stood, and right/wrong is spoken as they move.
+   */
+  private async cardsAsk(index: number, step: Extract<PlanStep, { kind: "ask" }>, signal: AbortSignal): Promise<void> {
+    await this.narrationBarrier();
+    if (signal.aborted || step.cards === undefined) return;
+    const g = this.guess?.cards?.(step.cards) ?? null;
+    if (!g) return;
+    this.endGuessMarks();
+    const start = initialArrangement(g);
+    const place = (id: string, dx: number, dy: number): void => this.nudge(id, dx, dy);
+    const live = !this.autoAnswers && this.askGate !== null;
+    let arrangement: Arrangement = start;
+    let answered = false;
+    let secs: number | null = null;
+    if (live) {
+      const from = performance.now();
+      const typed = await this.askGate!(signal, Object.assign({}, step, { cardsSession: { geometry: g, start, place } satisfies CardsSession }));
+      if (signal.aborted) return;
+      secs = (performance.now() - from) / 1000;
+      const decoded = typed !== null ? decodeArrangement(g, typed) : null;
+      if (decoded) {
+        arrangement = decoded;
+        answered = true;
+      }
+      if (typed !== null) this.cutQuestionVoice();
+    } else {
+      // The movie: a breath on the shuffled cards, then the truth.
+      await this.waitScaled(900, signal);
+      if (signal.aborted) return;
+    }
+    if (this.narrationVoice) await this.narrationVoice;
+    if (signal.aborted) return;
+    const score = scoreCards(g, arrangement, step.tolerance ?? 0);
+    const ok = answered && score.ok;
+    const text = `${score.within} of ${score.count}`;
+    this.recordAnswer(index, step.store, text, ok, secs);
+    if (step.store) {
+      const base = step.store.toLowerCase();
+      this.vars.set(`${base}.within`, String(score.within));
+      this.vars.set(`${base}.count`, String(score.count));
+    }
+    this.outcomes.set(index, ok);
+    this.updateScoreVars();
+    if (live) {
+      this.callbacks.onAnswer?.({
+        index,
+        kind: "ask",
+        id: this.answerId(index, step.store),
+        question: step.question,
+        given: answered ? [encodeArrangement(g, arrangement)] : [],
+        expected: g.mode === "rank" ? g.cards.map((_, i) => i).join(",") : g.bins.map((_, b) => g.truthBin.map((t, i) => (t === b ? i : -1)).filter((i) => i >= 0).join(",")).join("|"),
+        correct: ok,
+        ...(secs !== null ? { secs } : {}),
+      });
+    }
+    const line = ok ? step.right : (step.wrong ?? step.right);
+    const spoken = line ? this.speakLine(line, step, signal) : Promise.resolve();
+    const owner = `cards_${index}`;
+    this.guessOwners.add(owner);
+    const from = positions(g, arrangement);
+    await this.progress(GUESS_REVEAL_MS, signal, (t) => {
+      const e = smoothstep(t);
+      g.cards.forEach((id, i) => {
+        const x = from[i][0] + (g.truth[i][0] - from[i][0]) * e - g.home[i][0];
+        const y = from[i][1] + (g.truth[i][1] - from[i][1]) * e - g.home[i][1];
+        place(id, x, y);
+      });
+    });
+    for (const id of g.cards) place(id, 0, 0);
+    if (signal.aborted) {
+      this.endGuessMarks();
+      return;
+    }
+    this.applyKey(this.plan.states[index]);
+    this.applyScene(this.plan.states[index]);
+    if (answered) this.effects?.setGuessMarks?.(owner, cardsMarks(g, arrangement));
+    await spoken;
+    if (live && answered) {
+      const target = ok ? step.rightGoto : step.wrongGoto;
+      if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
+    }
+  }
+
   /** Take every guess ghost off the figure. */
   private endGuessMarks(): void {
     for (const owner of this.guessOwners) this.effects?.setGuessMarks?.(owner, null);
@@ -1780,6 +1880,7 @@ export class Player {
         return;
       }
       case "ask": {
+        if (step.cards !== undefined) return this.cardsAsk(index, step, signal);
         if (step.on !== undefined) return this.guessAsk(index, step, before, signal);
         await this.narrationBarrier();
         if (signal.aborted) return;

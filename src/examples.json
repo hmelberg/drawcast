@@ -78187,5 +78187,149 @@
         }
       ]
     }
+  },
+  {
+    "request": "What kills the most people in the world? Let me guess the order. #interactive",
+    "spec": {
+      "title": "What kills us",
+      "elements": [
+        {
+          "id": "kill",
+          "type": "cards",
+          "items": [
+            "Heart disease",
+            "Stroke",
+            "COPD",
+            "Lung infections",
+            "Diabetes"
+          ],
+          "ends": [
+            "most deaths",
+            "fewest"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "id": "who",
+          "title": "The top 10 causes of death",
+          "authors": "World Health Organization",
+          "year": 2020,
+          "finding": "leading causes of death worldwide, 2019"
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "kill"
+          ],
+          "speak": "Here are five of the biggest killers in the world, in no particular order."
+        },
+        {
+          "ask": {
+            "question": "Put them in order, the one that kills the most first.",
+            "on": "kill",
+            "store": "k",
+            "tolerance": 0.2,
+            "right": "{k} in place. Heart disease, then stroke, lead by far.",
+            "wrong": "{k} in place. Heart disease and stroke lead by far; lung disease comes next."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "kill_1",
+              "kill_2"
+            ]
+          },
+          "speak": "Heart disease and stroke are both diseases of the blood vessels: together they cause more than one death in four."
+        },
+        {
+          "highlight": {
+            "target": [
+              "kill_3",
+              "kill_4"
+            ]
+          },
+          "speak": "Next come the lungs: COPD, mostly from smoking and smoke indoors, and pneumonia and other infections."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Which diseases are caused by viruses and which by bacteria? #interactive",
+    "spec": {
+      "title": "Virus or bacterium",
+      "elements": [
+        {
+          "id": "germs",
+          "type": "cards",
+          "bins": [
+            "Virus",
+            "Bacterium"
+          ],
+          "items": [
+            {
+              "text": "Flu",
+              "bin": "Virus"
+            },
+            {
+              "text": "Tuberculosis",
+              "bin": "Bacterium"
+            },
+            {
+              "text": "Measles",
+              "bin": "Virus"
+            },
+            {
+              "text": "Cholera",
+              "bin": "Bacterium"
+            },
+            {
+              "text": "COVID-19",
+              "bin": "Virus"
+            },
+            {
+              "text": "Strep throat",
+              "bin": "Bacterium"
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "germs"
+          ],
+          "speak": "Six infections. Some are caused by viruses, some by bacteria, and the difference decides the treatment."
+        },
+        {
+          "ask": {
+            "question": "Sort them: drag each one into its box.",
+            "on": "germs",
+            "store": "s",
+            "tolerance": 0.2,
+            "right": "{s} right. You know your germs.",
+            "wrong": "{s} right. Here is where each belongs."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "germs_bin_2"
+            ]
+          },
+          "speak": "Bacteria are living cells, so antibiotics can kill them: tuberculosis, cholera, strep throat."
+        },
+        {
+          "highlight": {
+            "target": [
+              "germs_bin_1"
+            ]
+          },
+          "speak": "Viruses only live inside our cells, so antibiotics do nothing against flu, measles or COVID. Vaccines are the main defence."
+        }
+      ]
+    }
   }
 ]
