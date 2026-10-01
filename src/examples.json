@@ -80739,5 +80739,428 @@
         }
       ]
     }
+  },
+  {
+    "request": "Should a 60-year-old with high cholesterol take statins? Walk through the expected years of life #interactive",
+    "spec": {
+      "title": "Statins at sixty: how much life?",
+      "template": "decision_tree",
+      "params": {
+        "box": {
+          "x": 20,
+          "y": 160,
+          "w": 620,
+          "h": 490
+        },
+        "rollback": true,
+        "unit": "years",
+        "decimals": 1,
+        "root": {
+          "id": "choice",
+          "type": "decision",
+          "label": "",
+          "children": [
+            {
+              "label": "",
+              "node": {
+                "id": "statin",
+                "type": "chance",
+                "label": "Statin",
+                "children": [
+                  {
+                    "label": "Event",
+                    "probability": 0.1,
+                    "node": {
+                      "id": "s_event",
+                      "type": "terminal",
+                      "label": "Attack or stroke",
+                      "payoff": 16
+                    }
+                  },
+                  {
+                    "label": "None",
+                    "node": {
+                      "id": "s_ok",
+                      "type": "terminal",
+                      "label": "Neither",
+                      "payoff": 24
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "label": "",
+              "node": {
+                "id": "none",
+                "type": "chance",
+                "label": "No statin",
+                "children": [
+                  {
+                    "label": "Event",
+                    "probability": 0.15,
+                    "node": {
+                      "id": "n_event",
+                      "type": "terminal",
+                      "label": "Attack or stroke",
+                      "payoff": 16
+                    }
+                  },
+                  {
+                    "label": "None",
+                    "node": {
+                      "id": "n_ok",
+                      "type": "terminal",
+                      "label": "Neither",
+                      "payoff": 24
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "details": {
+        "value_statin": "Folded back: $0.10 \\times 16 + 0.90 \\times 24 = 23.2$ years. The numbers are rounded illustrations for a 60-year-old with a ten-year risk of about 15 in 100; real gains depend on her own risk and how far the statin lowers her cholesterol.",
+        "payoff_n_event": "An average over everyone who has a heart attack or stroke: some die of it, others live on with a shorter life expectancy. Illustrative."
+      },
+      "sources": [
+        {
+          "id": "ctt",
+          "title": "Efficacy and safety of more intensive lowering of LDL cholesterol: a meta-analysis of data from 170,000 participants in 26 randomised trials",
+          "authors": "Cholesterol Treatment Trialists' Collaboration",
+          "year": 2010,
+          "finding": "Each 1 mmol/L lower LDL: about a fifth fewer events"
+        },
+        {
+          "id": "samson",
+          "title": "N-of-1 Trial of a Statin, Placebo, or No Treatment to Assess Side Effects",
+          "authors": "Wood et al.",
+          "year": 2020,
+          "finding": "90% of symptoms also came on placebo"
+        }
+      ],
+      "elements": [
+        {
+          "id": "gain",
+          "type": "scale",
+          "min": 1,
+          "max": 120,
+          "value": 5,
+          "log": true,
+          "unit": "months",
+          "label": "Extra life from a statin",
+          "x": 150,
+          "y": 380,
+          "width": 700
+        },
+        {
+          "id": "town",
+          "type": "population",
+          "count": 100,
+          "states": {
+            "healthy": 85,
+            "saved": 5,
+            "sick": 10
+          },
+          "colors": {
+            "saved": "#f2c14e"
+          },
+          "labels": {
+            "healthy": "Never ill",
+            "saved": "Spared",
+            "sick": "Ill anyway"
+          },
+          "order": "rows",
+          "fit": {
+            "x": 660,
+            "y": 300,
+            "w": 320,
+            "h": 350
+          }
+        },
+        {
+          "id": "ring",
+          "type": "annotation",
+          "target": [
+            "town_saved"
+          ],
+          "kind": "circle"
+        },
+        {
+          "id": "ev",
+          "type": "scratch",
+          "work": [
+            "5 spared × 8 years = 40 years",
+            "40 ÷ 100 people = 0.4 years",
+            "≈ 5 months each"
+          ],
+          "at": {
+            "place": "bottom_right"
+          },
+          "font_size": 20
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Statins at sixty"
+          }
+        },
+        {
+          "draw": [
+            "gain"
+          ],
+          "speak": "Should a sixty-year-old with high cholesterol take a statin every day? It comes down to one question: how much longer will it let her live?"
+        },
+        {
+          "ask": {
+            "question": "On average, how many extra months of life does a statin give her? Click your guess on the line.",
+            "on": "gain",
+            "store": "g",
+            "relative": true,
+            "tolerance": 0.5,
+            "default": "36",
+            "right": "Close. Your guess was {g}; the answer is about five months.",
+            "wrong": "Your guess was {g}; the answer is about five months. Most people guess years — hold on to that."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "gain_answer"
+            ]
+          },
+          "speak": "About five months, for a pill every day for decades. To see where that comes from, lay out what can happen."
+        },
+        {
+          "erase": [
+            "gain"
+          ]
+        },
+        {
+          "draw": [
+            "node_choice",
+            "edge_choice_statin",
+            "node_statin",
+            "label_statin",
+            "edge_choice_none",
+            "node_none",
+            "label_none"
+          ],
+          "speak": "A decision tree: the square is her choice, and each circle is chance taking over."
+        },
+        {
+          "draw": [
+            "edge_none_n_event",
+            "branchlabel_none_n_event",
+            "node_n_event",
+            "label_n_event",
+            "payoff_n_event"
+          ],
+          "speak": "Without a statin, say fifteen in a hundred people like her have a heart attack or stroke within ten years."
+        },
+        {
+          "draw": [
+            "edge_none_n_ok",
+            "branchlabel_none_n_ok",
+            "node_n_ok",
+            "label_n_ok",
+            "payoff_n_ok"
+          ],
+          "speak": "The other eighty-five don't."
+        },
+        {
+          "highlight": {
+            "target": [
+              "payoff_n_event",
+              "payoff_n_ok"
+            ],
+            "effect": "circle"
+          },
+          "speak": "Life left from sixty: about twenty-four years with no event, sixteen on average after one, because some die of it and others live shorter lives."
+        },
+        {
+          "draw": [
+            "edge_statin_s_event",
+            "branchlabel_statin_s_event",
+            "node_s_event",
+            "label_s_event",
+            "payoff_s_event"
+          ],
+          "speak": "A statin lowers cholesterol. A big pooled analysis of the trials found each step down cuts these events by about a fifth; for her, fifteen in a hundred becomes ten."
+        },
+        {
+          "draw": [
+            "edge_statin_s_ok",
+            "branchlabel_statin_s_ok",
+            "node_s_ok",
+            "label_s_ok",
+            "payoff_s_ok"
+          ],
+          "speak": "The ending years don't change: the statin only moves people between the branches."
+        },
+        {
+          "draw": [
+            "value_statin",
+            "value_none"
+          ],
+          "speak": "Now weigh each ending by its chance. With a statin: point one times sixteen, plus point nine times twenty-four, is twenty-three point two years."
+        },
+        {
+          "ask": {
+            "question": "Your turn: weigh the no-statin branch. How many years can she expect?",
+            "blanks": [
+              "value_none"
+            ],
+            "store": "e",
+            "right": "Right: {e.true} years.",
+            "wrong": "It is {e.true} years: {e.work}."
+          }
+        },
+        {
+          "ask": {
+            "question": "So which does the square choose?",
+            "pick": "choice",
+            "store": "c",
+            "right": "Yes: {c.true}, by {c.diff} years.",
+            "wrong": "{c.true} is worth {c.diff} years more."
+          }
+        },
+        {
+          "speak": "Twenty-three point two against twenty-two point eight: the statin wins by four tenths of a year, those five months.",
+          "highlight": {
+            "target": [
+              "value_statin",
+              "value_none"
+            ]
+          }
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "node_statin"
+            },
+            "gesture": "circle"
+          },
+          "speak": "But no one actually lives an extra five months. So who gains?"
+        },
+        {
+          "ask": {
+            "question": "Picture 100 people like her taking a statin for ten years. How many are spared a heart attack or stroke they would otherwise have had?",
+            "on": "town_saved",
+            "store": "h",
+            "tolerance": 0.03,
+            "default": "20",
+            "right": "Yes: you said {h}, and it is {h.true} — fifteen events become ten.",
+            "wrong": "You said {h}; it is {h.true}. Fifteen events become ten, so five are spared."
+          }
+        },
+        {
+          "draw": [
+            "town_sick"
+          ],
+          "speak": "Ten still have one, statin or not."
+        },
+        {
+          "draw": [
+            "town_healthy",
+            "town_legend"
+          ],
+          "speak": "And eighty-five never would have: for them the pill changes nothing."
+        },
+        {
+          "highlight": {
+            "target": [
+              "town_saved"
+            ]
+          },
+          "speak": "The whole gain sits with these five. Each gets back about eight years: twenty-four instead of sixteen."
+        },
+        {
+          "draw": [
+            "ev_box",
+            "ev_line_1"
+          ],
+          "speak": "Five people times eight years is forty years of life…"
+        },
+        {
+          "draw": [
+            "ev_line_2",
+            "ev_line_3"
+          ],
+          "speak": "…shared out over a hundred people: four tenths of a year each. Five months."
+        },
+        {
+          "draw": [
+            "ring"
+          ],
+          "speak": "So the five months are an average nobody lives. What she is really offered is a one-in-twenty chance of about eight more years.",
+          "delivery": "grave"
+        },
+        {
+          "erase": [
+            "ev"
+          ]
+        },
+        {
+          "animate": {
+            "root.children.1.node.children.0.probability": 0.3,
+            "root.children.0.node.children.0.probability": 0.2
+          },
+          "duration": 3,
+          "speak": "And it scales with her risk. Double it to thirty in a hundred, and the statin spares ten, and the average gain doubles too."
+        },
+        {
+          "animate": {
+            "root.children.1.node.children.0.probability": 0.15,
+            "root.children.0.node.children.0.probability": 0.1
+          },
+          "duration": 2,
+          "speak": "Back to her fifteen in a hundred."
+        },
+        {
+          "focus": {
+            "target": [
+              "town_healthy"
+            ]
+          },
+          "speak": "What does she give up? A pill a day, and for some, aching muscles."
+        },
+        {
+          "highlight": {
+            "target": [
+              "town_healthy",
+              "town_sick"
+            ]
+          },
+          "speak": "Yet in a 2020 trial, people who had quit statins over side effects took statin, dummy pill or nothing, month by month, without knowing which: ninety percent of the symptoms came with the dummy too."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "best_choice_statin"
+            },
+            "gesture": "underline"
+          },
+          "speak": "So should she? England's guidelines offer a statin from a ten-year risk of ten in a hundred. The tree can't make her choice; it shows her the bet: a daily pill for a one-in-twenty chance at eight more years."
+        },
+        {
+          "quiz": {
+            "intro": "One last check.",
+            "question": "Her friend's ten-year risk is only five in a hundred. Cut by the same third, about how many of 100 like him does a statin spare?",
+            "choices": [
+              "About 5",
+              "About 2",
+              "About 10"
+            ],
+            "correct": 2,
+            "right": "About two: a third off five in a hundred is under two, so the same pill buys far less for someone at lower risk.",
+            "wrong": "The statin cuts the risk by a third — a third of what?"
+          }
+        }
+      ]
+    }
   }
 ]
