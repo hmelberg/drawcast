@@ -164,6 +164,10 @@ handle.
          "right": "Yes, {c.true}.", "wrong": "{c.true} is worth more."}}
 ```
 
+A decision tree is a template, the whole figure: `blanks` or `pick` makes
+the ask a tree question, and `on` may be left out (when given it is
+`"tree"`).
+
 ### 4.2 Blanks
 
 - `blanks` lists tree parts whose numbers the viewer fills in:
