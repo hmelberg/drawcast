@@ -20,6 +20,8 @@ import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
 import { posterPathFor } from "./publish/cast";
 import { icon } from "./ui/icons";
+import { shareLinkFor } from "./share/link";
+import { cardImageUrl, openShareBox } from "./ui/share-box";
 import { playerMeta } from "./ui/player-meta";
 import { attachParamsTray } from "./ui/tray";
 import { castKeyFor, countingEnabled, firstViewInSession, readViewCount, recordView } from "./views";
@@ -646,14 +648,24 @@ export function lockedDoor(door: KeyDenial & { item: string }, deps: DoorDeps = 
 
 /**
  * Share, as an icon in the control bar beside fullscreen (player round; C3
- * before it, as a button in a footer strip): the Web Share API where it
- * exists (a phone), the clipboard elsewhere, with the icon turning into a
- * tick for a beat to say so. One element, moved from bar to bar as the
- * playlist rebuilds it — the same way its dots and ☰ travel.
+ * before it, as a button in a footer strip). It opens the Share box
+ * (spec 2026-10-02-share-design §6) with the cast's public /c/ link. A cast
+ * that lives only in its own link (#cast=) has no such link, so it keeps the
+ * old behaviour: the Web Share API where it exists (a phone), the clipboard
+ * elsewhere, the icon turning into a tick for a beat. One element, moved
+ * from bar to bar as the playlist rebuilds it — the same way its dots and ☰
+ * travel.
  */
-function shareButton(): HTMLButtonElement {
+function shareButton(meta: () => { title: string; subtitle?: string }): HTMLButtonElement {
   const btn = h("button", { class: "cs-bar-btn viewer-share", title: "Share this drawcast" }, icon("share")) as HTMLButtonElement;
   btn.addEventListener("click", () => {
+    const link = shareLinkFor(location.hash, "https://drawcast.app");
+    if (link) {
+      const { title, subtitle } = meta();
+      openShareBox({ link, title, subtitle, image: cardImageUrl(link) });
+      return;
+    }
+    // A cast that lives only in its own link: that link is the share.
     const url = location.href;
     const title = document.title;
     if (navigator.share) {
@@ -720,7 +732,8 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   // figure mounts — and everything ABOUT the drawcast (title, count, share,
   // comments) below it as page furniture.
   const figureHost = h("div", { class: "player-figure" }, poster, status);
-  const shareBtn = shareButton();
+  let castMeta: { title: string; subtitle?: string } = { title: document.title };
+  const shareBtn = shareButton(() => castMeta);
   const viewsEl = h("span", { class: "viewer-views" });
   // The one line a lost narration gets (server casts): the same row as the
   // count, so it is said once and never blocks the drawing.
@@ -868,6 +881,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       meta.setTitle(title);
       document.title = `${title} — drawcast`;
     }
+    castMeta = { title: title ?? document.title, subtitle: playlist.meta.subtitle };
     if (audioNote) noteEl.textContent = audioNote;
     if (!codeAllowed) {
       // The way back from "Show without it": ask again, and on yes reload —
