@@ -67,7 +67,8 @@ export function rankVerdicts(g: CardsGeometry, a: Arrangement): GuessMarks {
 /** Where slot s's label stands: just above the row, or just left of a column. */
 function labelAt(g: CardsGeometry, s: number): Pt {
   const p = g.slots[s];
-  return isColumn(g) ? [p[0] - g.w / 2 - 14, p[1]] : [p[0], Math.min(740, p[1] + g.h / 2 + 18)];
+  // Well clear of the cards, so each connector climbs to its card rather than running along the row.
+  return isColumn(g) ? [p[0] - g.w / 2 - 44, p[1]] : [p[0], Math.min(740, p[1] + g.h / 2 + 56)];
 }
 
 /** The viewer's order, faint: a short label at each slot whose card was wrong (the right ones leave a gap), the word at its start. */
@@ -81,7 +82,7 @@ export function yoursRow(g: CardsGeometry, a: Arrangement, word: string): GuessM
   });
   if (out.length === 0) return out;
   const s0 = g.slots[0];
-  const wordAt: Pt = column ? [s0[0] - g.w / 2 - 14, Math.min(740, s0[1] + g.h / 2 + 16)] : [Math.max(48, s0[0] - g.w / 2 - 8), labelAt(g, 0)[1]];
+  const wordAt: Pt = column ? [s0[0] - g.w / 2 - 44, Math.min(740, s0[1] + g.h / 2 + 16)] : [Math.max(48, s0[0] - g.w / 2 - 8), labelAt(g, 0)[1]];
   return [{ at: wordAt, text: word, anchor: "end", color: YOURS, size: LABEL_SIZE }, ...out];
 }
 
