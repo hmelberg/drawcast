@@ -1792,7 +1792,7 @@ export class Player {
     if (live) {
       const from = performance.now();
       const session: GuessSession = { setup, start, paint, ...(account ? { account } : {}) };
-      const typed = await this.askGate!(signal, Object.assign({}, step, { guess: session }));
+      const typed = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question), guess: session }));
       if (signal.aborted) return;
       secs = (performance.now() - from) / 1000;
       const decoded = typed !== null ? decodeGuess(typed, setup.handles) : null;
@@ -2006,7 +2006,7 @@ export class Player {
     let secs: number | null = null;
     if (live) {
       const from = performance.now();
-      const typed = await this.askGate!(signal, Object.assign({}, step, { cardsSession: { geometry: g, start, place, show, mark, fade } satisfies CardsSession }));
+      const typed = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question), cardsSession: { geometry: g, start, place, show, mark, fade } satisfies CardsSession }));
       this.gateDim.clear();
       if (signal.aborted) return;
       secs = (performance.now() - from) / 1000;
@@ -2307,7 +2307,7 @@ export class Player {
     let secs: number | null = null;
     if (live) {
       const from = performance.now();
-      const typed = await this.askGate!(signal, step);
+      const typed = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question) }));
       if (signal.aborted) return;
       secs = (performance.now() - from) / 1000;
       picked = typed === null ? undefined : opts.find((o) => o.id.toLowerCase() === typed.trim().toLowerCase());
@@ -2423,7 +2423,7 @@ export class Player {
     let secs: number | null = null;
     if (live) {
       const from = performance.now();
-      const typed = await this.askGate!(signal, Object.assign({}, step, { formulaSession: { blanks, boxOf, show } satisfies FormulaSession }));
+      const typed = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question), formulaSession: { blanks, boxOf, show } satisfies FormulaSession }));
       if (signal.aborted) return;
       secs = (performance.now() - from) / 1000;
       const decoded = typed !== null ? decodeFormulaTexts(typed, blanks.length) : null;
@@ -2648,7 +2648,7 @@ export class Player {
     let secs: number | null = null;
     if (live) {
       const from = performance.now();
-      const typed = await this.askGate!(signal, Object.assign({}, step, { treeSession: { blanks, pick, boxOf, show, edges } satisfies TreeSession }));
+      const typed = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question), treeSession: { blanks, pick, boxOf, show, edges } satisfies TreeSession }));
       if (signal.aborted) return;
       secs = (performance.now() - from) / 1000;
       const decoded = typed !== null ? decodeTreeAnswer(typed, blanks.length) : null;
@@ -3793,7 +3793,7 @@ export class Player {
         const timing: { secs: number | null } = { secs: null };
         const timedGate = async (): Promise<string | null> => {
           const from = performance.now();
-          const t = await this.askGate!(signal, step);
+          const t = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question) }));
           if (!this.autoAnswers) timing.secs = (performance.now() - from) / 1000;
           return t;
         };

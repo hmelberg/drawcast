@@ -174,3 +174,15 @@ for (const [name, g] of [["deck", deck], ["select", zoo]] as const) {
     });
   });
 }
+
+test("the gate gets the question with its {vars} filled (round 7 §8.1)", async () => {
+  const { player } = makePlayer(sort, { question: "Where does each of {who}'s numbers go? Sort every card." });
+  player.vars.set("who", "Ola");
+  let asked = "";
+  player.askGate = async (_signal, step) => {
+    asked = step.question;
+    return encodeArrangement(sort, answered());
+  };
+  await player.play();
+  expect(asked).toBe("Where does each of Ola's numbers go? Sort every card.");
+});

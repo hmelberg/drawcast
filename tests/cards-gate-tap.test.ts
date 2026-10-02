@@ -532,3 +532,12 @@ describe("check: each (round 7 §3)", () => {
     });
   });
 });
+
+test("the step's question stands as the headline; the hint is its how line (round 7 §8.1)", async () => {
+  const q = "Which box does each card belong in? Sort every card.";
+  const o = await open(cardsGeometry(two), { question: q });
+  expect(o.stage.find("cs-gatehead-q")!.textContent).toBe(q);
+  expect(o.stage.find("cs-gatehead")!.textContent).toContain("Tap a box, or drag a card");
+  o.ac.abort();
+  await o.done;
+});

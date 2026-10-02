@@ -67,7 +67,8 @@ export function chooseGateFor(
       const ring = h("div", { class: "cs-card-focus cs-choose-ring" });
       ring.hidden = true;
       const gate = h("div", { class: "cs-figgate cs-choosegate" }, ring);
-      const docked: HTMLElement[] = [hint];
+      // The bar (round 7 §8.3): Skip only; the hint is the how line under the question (§8.1).
+      const docked: HTMLElement[] = [];
       let dock: GateDock | null = null;
       let settled = false;
       /** The ringed option (pointer or keys), -1: none. */
@@ -192,12 +193,12 @@ export function chooseGateFor(
           remove();
           resolve(null);
         });
-        docked.push(skip);
+        docked.unshift(skip);
       }
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
       stage.appendChild(gate);
-      dock = mountGateDock(stage, gate, docked, placeRing);
+      dock = mountGateDock(stage, gate, docked, placeRing, { question: step.question, how: hint });
       dock.relayout();
     });
 }

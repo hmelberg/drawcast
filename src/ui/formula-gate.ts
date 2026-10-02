@@ -64,7 +64,8 @@ export function formulaGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       const rings = blanks.map(() => h("div", { class: "cs-tree-blank" }));
       const gate = h("div", { class: "cs-figgate cs-guessgate cs-formulagate" }, ...rings);
       let dock: GateDock | null = null;
-      const docked: HTMLElement[] = [hint, answer];
+      // The bar (round 7 §8.3): Skip, then Answer; the hint is the how line under the question (§8.1).
+      const docked: HTMLElement[] = [answer];
 
       /** The whole formula blank k sits in, in stage px: its glyphs and its
        *  boxes (data-leaf-id `<id>__…` and `<id>_blank_…`), so a field keeps
@@ -337,13 +338,13 @@ export function formulaGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
           e.stopPropagation();
           finish(null);
         });
-        docked.push(skip);
+        docked.unshift(skip);
       }
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
       window.addEventListener("resize", placeRings);
       stage.appendChild(gate);
-      dock = mountGateDock(stage, gate, docked, placeRings);
+      dock = mountGateDock(stage, gate, docked, placeRings, { question: step.question, how: hint });
       dock.relayout();
       // The first box is open at once: the question is about it.
       open(0);

@@ -1779,12 +1779,6 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   pointer-events: auto;
 }
 .cs-guess-field { width: 7rem; text-align: center; color: var(--ink); background: var(--surface); border: 2px solid #3f6fb5; }
-/* The guess's own pills stand at the TOP of the figure: the bottom is the
-   caption's (the question is read there) and Skip's corner. */
-.cs-guessgate .cs-figgate-hint {
-  bottom: auto;
-  top: 0.9rem;
-}
 /* A guess is worked on the figure: the big play/replay button stands aside. */
 :has(> .cs-guessgate) > .cs-bigplay { display: none; }
 /* "Test me" (ui/test-me.ts): on the figure, bottom left (the top is the
@@ -1844,6 +1838,59 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
 }
 .cs-gatedock > .cs-guess-answer { position: static; transform: none; }
 .cs-gatedock > .cs-figgate-skip { position: static; align-self: center; }
+/* The question over the figure while it is open (round 7 §8.1, ui/gate-dock.ts
+   mountGateHead): the whole sentence, two lines at most, the how line small
+   and muted under it. It stands where a title card's heading is — that
+   heading stands aside meanwhile. Taps go through it to the figure. */
+.cs-gatehead {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0.4rem;
+  z-index: 6;
+  padding-inline: 1rem;
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.cs-gatehead.cs-gatehead-out { opacity: 0; }
+.cs-gatehead-q {
+  font-family: var(--sketch-font);
+  font-size: 1.4rem;
+  line-height: 1.2;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-shadow: 0 0 4px var(--paper, #f5f1e6), 0 0 8px var(--paper, #f5f1e6);
+}
+.cs-gatehead > .cs-figgate-hint {
+  position: static;
+  transform: none;
+  display: block;
+  margin-top: 0.15rem;
+  padding: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  background: none;
+  border: none;
+  box-shadow: none;
+  animation: none;
+}
+.cs-gatehead > .cs-figgate-hint.cs-figgate-next { animation: gatedock-next 0.45s ease-out; }
+.cs-stage.cs-headline :is([data-leaf-id^="card_"][data-leaf-id$="_title"], [data-leaf-id^="card_"][data-leaf-id$="_line"]) {
+  opacity: 0 !important;
+  transition: opacity 0.3s ease;
+}
+@media (max-width: 560px) {
+  .cs-gatehead-q { font-size: 1.05rem; }
+  .cs-gatehead > .cs-figgate-hint { font-size: var(--text-xs); }
+}
+/* A caption below or in a strip (a phone): the drawing stands under the
+   headline — it has given up that height with the dock's (--cs-dock-shrink). */
+.cs-stage.cs-headline:is(.cs-caption-below, .cs-caption-strip) .cs-svg { margin-top: var(--cs-head-h, 0px); }
 .cs-stage.cs-docked:not(.cs-caption-below):not(.cs-caption-strip) .cs-caption {
   /* !important: the caption's placement writes its own bottom inline, and
      the dock must win while it stands. */
@@ -1925,12 +1972,6 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
 .cs-guess-answer:hover:not(:disabled) { background: #355f9e; }
 .cs-guess-answer[hidden] { display: none; }
 .cs-guessgate.answered { pointer-events: none; }
-/* Skip stands top right: the bottom right is the Sources corner's. */
-.cs-guessgate .cs-figgate-skip {
-  bottom: auto;
-  top: 0.8rem;
-  right: 1rem;
-}
 /* .cs-figgate sets no cursor of its own any more — what shows through this
    overlay (the hand, the connect question's crosshair, a widget's grab/
    grabbing) is decided together, in cascade order, down by cs-cardable. */

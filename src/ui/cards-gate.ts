@@ -120,7 +120,8 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       valuePill.hidden = true;
       const gate = h("div", { class: "cs-figgate cs-guessgate cs-cardsgate" }, ring, valuePill);
       let dock: GateDock | null = null;
-      const docked: HTMLElement[] = [hint, answer];
+      // The bar (round 7 §8.3): Skip, then Answer; the hint is the how line under the question (§8.1).
+      const docked: HTMLElement[] = [answer];
 
       const put = (i: number, p: Pt): void => session.place(g.cards[i], p[0] - g.home[i][0], p[1] - g.home[i][1]);
       /** Glide every card (but `held`) from where it is shown to where `arr` puts it. */
@@ -698,12 +699,12 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           session.mark(null);
           finish(null);
         });
-        docked.push(skip);
+        docked.unshift(skip);
       }
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
       stage.appendChild(gate);
-      dock = mountGateDock(stage, gate, docked, () => placeRing());
+      dock = mountGateDock(stage, gate, docked, () => placeRing(), { question: step.question, how: hint });
       dock.relayout();
       // check: each — the first tray card is picked (a deck has no tray to
       // pick from); the counter starts at 0.

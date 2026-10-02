@@ -84,7 +84,8 @@ export function treeGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
       const gate = h("div", { class: "cs-figgate cs-guessgate cs-treegate" }, ...rings);
       gate.appendChild(edgeLayer);
       let dock: GateDock | null = null;
-      const docked: HTMLElement[] = [hint, answer];
+      // The bar (round 7 §8.3): Skip, then Answer; the hint is the how line under the question (§8.1).
+      const docked: HTMLElement[] = [answer];
 
       const padded = (b: BBox, pad: number): BBox => ({ x: b.x - pad, y: b.y - pad, w: b.w + 2 * pad, h: b.h + 2 * pad });
       /** Put a ring div over a logical box (y-up). */
@@ -329,13 +330,13 @@ export function treeGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
           e.stopPropagation();
           finish(null);
         });
-        docked.push(skip);
+        docked.unshift(skip);
       }
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
       window.addEventListener("resize", placeRings);
       stage.appendChild(gate);
-      dock = mountGateDock(stage, gate, docked, placeRings);
+      dock = mountGateDock(stage, gate, docked, placeRings, { question: step.question, how: hint });
       lightEdge(edgeRing, null);
       dock.relayout();
       // The first "?" is open at once: the question is about it.

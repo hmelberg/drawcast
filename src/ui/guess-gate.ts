@@ -310,20 +310,20 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         if (!balanced()) return;
         finish(encodeGuess(values));
       });
-      // The dock: the hint (a budget's balance), Answer, Skip.
-      const docked: HTMLElement[] = [hint, answer];
+      // The bar (round 7 §8.3): Skip, then Answer; the hint is the how line under the question (§8.1).
+      const docked: HTMLElement[] = [answer];
       if (!step.required) {
         const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, words.skip);
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           finish(null);
         });
-        docked.push(skip);
+        docked.unshift(skip);
       }
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
       stage.appendChild(gate);
-      dock = mountGateDock(stage, gate, docked, placePill);
+      dock = mountGateDock(stage, gate, docked, placePill, { question: step.question, how: hint });
       balance();
       dock.relayout();
     });
