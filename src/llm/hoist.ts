@@ -43,7 +43,7 @@ function blobFields(el: SpecElement): BlobField[] {
  *  icon it was resolved from. Keyed by that icon — the rings depend on it
  *  alone — so a revise that reorders or rewrites the items still gets each
  *  one's rings back (and a changed icon simply re-resolves). */
-const CARD_ICON_FIELDS = [["icon_strokes", "icon"], ["match_icon_strokes", "match_icon"]] as const;
+const CARD_ICON_FIELDS = [["icon_strokes", "icon", "credit"], ["match_icon_strokes", "match_icon", "match_credit"]] as const;
 const cardIconKey = (icon: unknown): string => `cardicon:${JSON.stringify(icon)}`;
 
 /** A cards element's object items, as records (none for anything else). */
@@ -205,11 +205,16 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
         }
       }
       for (const it of cardItems(el)) {
-        for (const [field, icon] of CARD_ICON_FIELDS) {
+        for (const [field, icon, credit] of CARD_ICON_FIELDS) {
           if (it[field] !== HOISTED) continue;
           const blob = blobs.get(cardIconKey(it[icon]));
           if (blob) it[field] = blob;
-          else delete it[field];
+          else {
+            // The icon changed (or went): its rings and their credit go
+            // together, and the new icon resolves with its own.
+            delete it[field];
+            delete it[credit];
+          }
         }
       }
     }

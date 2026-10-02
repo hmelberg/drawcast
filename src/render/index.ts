@@ -35,10 +35,9 @@ import { SpeechManager, type SpeechLike } from "./speech";
 import { WebAudioTones, type ToneLike } from "./tones";
 import { resolvePortraits } from "./portrait";
 import { resolveCode } from "./code";
-import { resolvedRenderSpec } from "./resolve";
+import { expandedRenderSpec } from "./resolve";
 import { scenes } from "../scenes/registry";
 import { widgetDemoFor } from "./widget-demo";
-import { expandSpec } from "../spec/expand";
 import { resolveSources } from "./source";
 import { resolveImages } from "./image";
 import { resolveLinks } from "./link";
@@ -400,15 +399,15 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   const authored = spec;
   // A `card` beat (spec/card.ts) becomes its elements and commands here, so
   // layout, plan and lint below never see the verb — the same expansion the
-  // compile-time lint applies.
-  spec = expandSpec(spec);
+  // compile-time lint applies — in expandedRenderSpec below, after a cards
+  // element's item icons are resolved (they decide the cards' size).
   // Sketchy is the app's default look — and the default CHART style follows
   // it (a machine-ruled plot in a hand-drawn figure was the one bit of ink
   // that did not come from the app's own hand). Resolved once here, then
   // handed to every site that starts a run: the resolve pass below, the
   // sweep runner, and the tray (through the handle).
   const style: RenderStyle = options.style ?? "sketchy";
-  spec = await resolvedRenderSpec(spec, { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, resolveLinks, resolveTemplatePictures, contactEmail: contactEmail(), style });
+  spec = await expandedRenderSpec(spec, { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, resolveLinks, resolveTemplatePictures, contactEmail: contactEmail(), style });
   const renderer = rendererFor(style);
 
   const figure = document.createElement("div");
@@ -455,7 +454,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
       measureFor: (ts) => scaledMeasure(makeBrowserMeasure({ family: fontStack(ts.family), weight: ts.weight }), ts.scale),
       prepare: async (source) => {
         await ensureEnginesForSpecs([source]);
-        const resolved = await resolvedRenderSpec(expandSpec(source), { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, resolveLinks, resolveTemplatePictures, contactEmail: contactEmail(), style });
+        const resolved = await expandedRenderSpec(source, { resolvePortraits, resolveSources, resolveCode, resolveImages, resolveIcons, resolveLinks, resolveTemplatePictures, contactEmail: contactEmail(), style });
         const ts = effectiveTextStyle(resolved);
         await ensureMathFont(ts.mathFont).catch(() => undefined);
         return withTextStyle(resolved, ts);

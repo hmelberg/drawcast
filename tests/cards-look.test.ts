@@ -8,7 +8,8 @@
 // and where the truth puts it — as authored and with an icon on every card.
 import { describe, expect, test } from "vitest";
 import bundledExamples from "../src/examples.json";
-import { cardsElements, cardsGeometry, CARD_FLAT, CARD_PAPER, type CardsElementLike } from "../src/spec/cards";
+import { expandedRenderSpec } from "../src/render/resolve";
+import { cardsElements, cardsGeometry, cardsGeometryIn, CARD_FLAT, CARD_PAPER, type CardsElementLike } from "../src/spec/cards";
 import { expandSpec } from "../src/spec/expand";
 import { validateSpec } from "../src/spec/schema";
 import { elementBBoxes, layoutSpec } from "../src/layout/layout";
@@ -208,6 +209,49 @@ describe("resolving, crediting and hoisting card icons", () => {
     const r = await resolveIcons(spec, deps({}));
     expect(r[0]).toMatchObject({ id: "r_1", ok: false });
     expect((spec.elements![0].items as unknown as Record<string, unknown>[])[0].icon_strokes).toBeUndefined();
+  });
+
+  test("render's order: a card icon is resolved BEFORE the cards expand, so the card and its geometry are 96 high", async () => {
+    const authored = { elements: [{ ...match, items: [{ text: "A", match: "B", icon: "cards-order-pill", match_icon: "cards-order-drop" }, { text: "C", match: "D" }] }], commands: [{ draw: ["t"] }] } as unknown as Spec;
+    const before = JSON.stringify(authored);
+    const icons = deps({
+      [iconSearchUrl("cards-order-pill", DEFAULT_PREFIXES)]: { icons: ["lucide:pill"] },
+      [iconSearchUrl("cards-order-drop", DEFAULT_PREFIXES)]: { icons: ["lucide:droplet"] },
+      [iconSvgUrl("lucide", "pill")]: SVG,
+      [iconSvgUrl("lucide", "droplet")]: SVG,
+    });
+    const none = async () => undefined;
+    const spec = await expandedRenderSpec(authored, {
+      resolvePortraits: none,
+      resolveSources: none,
+      resolveCode: none,
+      resolveImages: none,
+      resolveIcons: (s) => resolveIcons(s, icons),
+      contactEmail: "",
+      style: "sketchy",
+    });
+    const card = spec.elements!.find((e) => e.id === "t_1")!;
+    const partner = spec.elements!.find((e) => e.id === "t_m_1")!;
+    expect(card).toMatchObject({ type: "node", height: 96, icon: "cards-order-pill" });
+    expect(decodeIcon(card.icon_strokes!)).toBeTruthy();
+    expect(partner).toMatchObject({ height: 96, icon: "cards-order-drop" });
+    expect(decodeIcon(partner.icon_strokes!)).toBeTruthy();
+    expect(cardsGeometryIn(spec, "t")!.h).toBe(96);
+    const box = elementBBoxes(layoutSpec(spec)).get("t_1")!;
+    expect(box.h).toBeGreaterThanOrEqual(96);
+    // Never the document: the authored spec is untouched.
+    expect(JSON.stringify(authored)).toBe(before);
+  });
+
+  test("a revise that changes a card's icon drops the old rings AND their credit", () => {
+    const spec = { elements: [{ ...rank, items: [{ text: "A", icon: "pill", icon_strokes: STROKES, credit: "pill from lucide · ISC" }, "B"] }], commands: [{ draw: ["r"] }] } as unknown as Spec;
+    const h = hoistPortraitStrokes(formatPlaylist(singlePlaylist(spec), "script"));
+    const back = parsePlaylistText(h.text.replace('"icon":"pill"', '"icon":"syringe"'));
+    restorePortraitStrokes(back, h.blobs);
+    const it = (itemsOf(back)[0].spec.elements![0].items as unknown as Record<string, string>[])[0];
+    expect(it.icon).toBe("syringe");
+    expect(it.icon_strokes).toBeUndefined();
+    expect(it.credit).toBeUndefined();
   });
 
   test("creditsOf reads a card item's credits", () => {
