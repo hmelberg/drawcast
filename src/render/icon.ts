@@ -122,17 +122,39 @@ function iconRequest(icon: unknown): { of: string; set?: string } | null {
   return typeof req.set === "string" && req.set !== "" ? { of: req.of, set: req.set } : { of: req.of };
 }
 
+/** What a resolution is stored under beside its strokes (`icon_key`): the keyword and the set it came from. */
+export function iconKey(of: string, set: string): string {
+  return `${slug(of)}@${set}`;
+}
+
+/**
+ * Whether strokes stored under `key` still answer this request: the same
+ * keyword, and the same set when one is asked for. No key (a spec written
+ * before keys were stored) trusts the strokes as they are.
+ */
+export function iconKeyMatches(key: unknown, req: { of: string; set?: string }): boolean {
+  if (typeof key !== "string" || key === "") return true;
+  const at = key.lastIndexOf("@");
+  const of = at < 0 ? key : key.slice(0, at), set = at < 0 ? "" : key.slice(at + 1);
+  return of === slug(req.of) && (req.set === undefined || req.set === set);
+}
+
+/** The set a stored key names ("" for none). */
+const keySet = (key: unknown): string => (typeof key === "string" && key.includes("@") ? key.slice(key.lastIndexOf("@") + 1) : "");
+
 /**
  * A cards element's icons (round 5 §3.3): each item's `icon` into its
  * `icon_strokes` and `credit`, and a match item's `match_icon` (its
  * partner's) into `match_icon_strokes` and `match_credit` — the fields
- * spec/cards.ts copies onto the card nodes. Reported under the card's id.
+ * spec/cards.ts copies onto the card nodes — with the key each was resolved
+ * for (`icon_key`, `match_icon_key`), so an edited icon is resolved again.
+ * Reported under the card's id.
  */
 async function resolveCardIcons(el: SpecElement, results: IconResolution[], deps: IconDeps, opts: IconResolveOpts): Promise<void> {
   const items = Array.isArray(el.items) ? el.items : [];
   const sides = [
-    { icon: "icon", strokes: "icon_strokes", credit: "credit", id: (i: number) => `${el.id}_${i + 1}` },
-    { icon: "match_icon", strokes: "match_icon_strokes", credit: "match_credit", id: (i: number) => `${el.id}_m_${i + 1}` },
+    { icon: "icon", strokes: "icon_strokes", credit: "credit", key: "icon_key", id: (i: number) => `${el.id}_${i + 1}` },
+    { icon: "match_icon", strokes: "match_icon_strokes", credit: "match_credit", key: "match_icon_key", id: (i: number) => `${el.id}_m_${i + 1}` },
   ] as const;
   for (const [i, it] of items.entries()) {
     if (typeof it !== "object" || it === null) continue;
@@ -141,14 +163,18 @@ async function resolveCardIcons(el: SpecElement, results: IconResolution[], deps
       const req = iconRequest(item[side.icon]);
       if (!req) continue;
       const have = item[side.strokes];
-      if (typeof have === "string" && decodeIcon(have)) {
+      if (typeof have === "string" && decodeIcon(have) && iconKeyMatches(item[side.key], req)) {
         results.push({ id: side.id(i), ok: true });
         continue;
       }
+      // Unresolved, or resolved for an `icon` since edited: never keep a wrong picture.
+      delete item[side.strokes];
+      delete item[side.key];
       try {
         const got = await resolveKeyword(req.of, req.set, deps, opts);
         item[side.strokes] = got.strokes;
         item[side.credit] = got.credit;
+        item[side.key] = iconKey(req.of, got.set);
         results.push({ id: side.id(i), ok: true });
       } catch (err) {
         results.push({ id: side.id(i), ok: false, error: (err as Error).message });
@@ -208,7 +234,8 @@ async function resolveKeyword(of: string, requestedSet: string | undefined, deps
 /**
  * Resolve every `icon` element of a spec IN PLACE — fill `strokes`, `set` and
  * `credit` — and every node's `icon` (round 5 §3.3) — fill `icon_strokes` and
- * `credit`. Licence-gated (see icon-sets.ts): an unknown set, a logo set, or a
+ * `credit`. Each also gets `icon_key`, what it was resolved for: strokes
+ * whose key no longer matches the `icon` / `of` (an edit) are resolved again. Licence-gated (see icon-sets.ts): an unknown set, a logo set, or a
  * share-alike set picked as an unattended seed is rejected outright — no
  * strokes, no credit. Failures are reported, never thrown.
  */
@@ -222,14 +249,17 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
     if (el.type === "node") {
       const req = nodeIconRequest(el);
       if (!req) continue;
-      if (el.icon_strokes && decodeIcon(el.icon_strokes)) {
+      if (el.icon_strokes && decodeIcon(el.icon_strokes) && iconKeyMatches(el.icon_key, req)) {
         results.push({ id: el.id, ok: true });
         continue;
       }
+      delete el.icon_strokes;
+      delete el.icon_key;
       try {
         const got = await resolveKeyword(req.of, req.set, deps, opts);
         el.icon_strokes = got.strokes;
         el.credit = got.credit;
+        el.icon_key = iconKey(req.of, got.set);
         results.push({ id: el.id, ok: true });
       } catch (err) {
         results.push({ id: el.id, ok: false, error: (err as Error).message });
@@ -238,19 +268,29 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
     }
     if (el.type !== "icon") continue;
     const have = inlineStrokes(spec, el);
-    if (have && decodeIcon(have)) {
+    const fresh = !el.of || iconKeyMatches(el.icon_key, { of: el.of, ...(el.set ? { set: el.set } : {}) });
+    if (have && decodeIcon(have) && fresh) {
       results.push({ id: el.id, ok: true });
       continue;
+    }
+    // Resolved for an `of` since edited: the strokes go, and a `set` the
+    // resolver filled in (the key's) no longer binds the search.
+    let set = el.set;
+    if (!fresh) {
+      delete el.strokes;
+      if (set && set === keySet(el.icon_key)) set = undefined;
+      delete el.icon_key;
     }
     if (el.strokes || !el.of) {
       results.push({ id: el.id, ok: false, error: "icon has no description or readable strokes" });
       continue;
     }
     try {
-      const got = await resolveKeyword(el.of, el.set, deps, opts);
+      const got = await resolveKeyword(el.of, set, deps, opts);
       el.strokes = got.strokes;
       el.set = got.set;
       el.credit = got.credit;
+      el.icon_key = iconKey(el.of, got.set);
       results.push({ id: el.id, ok: true });
     } catch (err) {
       results.push({ id: el.id, ok: false, error: (err as Error).message });

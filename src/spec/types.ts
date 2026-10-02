@@ -128,6 +128,9 @@ export interface CardItemSpec {
   credit?: string;
   match_icon_strokes?: string;
   match_credit?: string;
+  /** Machine-written: the key each icon was resolved for ("keyword@set"); an edited icon no longer matches and is resolved again. */
+  icon_key?: string;
+  match_icon_key?: string;
 }
 
 export interface SpecStyle {
@@ -299,8 +302,10 @@ export interface SpecElement {
   shadow?: boolean;
   /** node rect: an icon drawn inside the box above the text — a keyword ("shark") or {of, set}, resolved like an icon element (render/icon.ts). */
   icon?: string | { of: string; set?: string };
-  /** node: the resolved icon's rings (spec/trace.ts encodeIcon; machine-written, never edited). */
+  /** node rect: the resolved icon's rings (spec/trace.ts encodeIcon; machine-written, never edited). */
   icon_strokes?: string;
+  /** node / icon: the key the icon was resolved for ("keyword@set", machine-written) — an edited `icon` / `of` no longer matches and is resolved again. */
+  icon_key?: string;
   font_size?: number;
   // sector / arc / polygon / pieces (design §2.2) — radius/x/y reused above (tier-3 raw)
   /** sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up). */
