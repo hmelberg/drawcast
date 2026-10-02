@@ -12,7 +12,7 @@ import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polyli
 import { boxOfId, unionBoxes } from "./boxes";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
 import { autoRow, placeDelta } from "./places";
-import { arrangementScale, bestColumns, DEFAULT_GAP, naturalNodeSize, nodeFontSize, nodeRectHeight, slotCentres, type GroupLayout } from "./group-layout";
+import { arrangementScale, bestColumns, DEFAULT_GAP, naturalNodeSize, NODE_ICON_EXTRA, nodeFontSize, nodeIconRings, nodeRectHeight, slotCentres, type GroupLayout } from "./group-layout";
 import { columnSlots, fitPicture, isDefaultColumn, INSET_MAX, INSET_W } from "./inset";
 import { fitRegion, isFitName } from "./regions";
 import {
@@ -32,6 +32,7 @@ import {
   type Drawable,
   type GroupDrawable,
   type Pt,
+  type ResolvedStyle,
   type StrokeDrawable,
   type TextDrawable,
 } from "./model";
@@ -1595,6 +1596,12 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   // A round shape reads the larger of the two as its diameter.
   const declared = el.width !== undefined || el.height !== undefined ? Math.max(el.width ?? 0, el.height ?? 0) : undefined;
 
+  // An icon that never resolved (offline, no match): text only, normal
+  // height, and the same warning an icon element gives (round 5 §3.3).
+  if (el.icon !== undefined && !nodeIconRings(el)) {
+    ctx.warnings.push(shape === "rect" ? `no icon for "${(typeof el.icon === "string" ? el.icon : el.icon?.of) ?? el.id}"` : `node "${el.id}": an icon is drawn only in a rect node`);
+  }
+
   if (shape === "person") {
     const s = el.height !== undefined ? el.height / 2 : 34; // half-height
     const head: StrokeDrawable = {
@@ -1627,8 +1634,9 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     ctx.nodeRadius.set(el.id, s * 1.2);
     out.push(group);
   } else if (shape === "rect" || shape === "decision") {
+    const icon = nodeIconRings(el);
     const w = el.width ?? (shape === "decision" ? 56 : Math.max(130, textW + 36));
-    const h = el.height ?? (shape === "decision" ? 56 : nodeRectHeight(fontSize));
+    const h = el.height ?? (shape === "decision" ? 56 : nodeRectHeight(fontSize) + (icon ? NODE_ICON_EXTRA : 0));
     ctx.nodeRadius.set(el.id, Math.hypot(w, h) / 2);
     ctx.nodeBox.set(el.id, [w / 2, h / 2]);
     // Rounded corners and a soft shadow (round 5 §3.1). Without either the
@@ -1646,6 +1654,14 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     });
     // After the outline in reveal order (it paints under it by z).
     if (shape === "rect" && el.shadow === true) out.push(boxShadow(el.id, c, w, h, r, drawOpts));
+    if (icon) {
+      // Round 5 §3.3: the icon sits in the upper part of the box, the text
+      // below it. nodeIconLayout is the one place both are placed.
+      const at = nodeIconLayout(c, h);
+      out.push(nodeIconGroup(el.id, icon, at.icon, at.size, style, drawOpts));
+      if (text) out.push(nodeText(el.id, at.text, text, fontSize, drawOpts));
+      return out;
+    }
   } else if (shape === "triangle" || shape === "terminal") {
     const s = declared !== undefined ? declared / 2 : 30;
     ctx.nodeRadius.set(el.id, s + 6);
@@ -1684,6 +1700,46 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     out.push(nodeText(el.id, [c[0], c[1] - (ctx.nodeRadius.get(el.id) ?? 40) - 20], text, fontSize, drawOpts));
   }
   return out;
+}
+
+/** Icon side as a share of the box height, and the gap above it (round 5 §3.3). */
+const NODE_ICON_SHARE = 0.45;
+const NODE_ICON_TOP = 0.08;
+
+/** Where a rect node's icon (its centre and side) and its text go, in a box of height h centred on c (y-up). */
+function nodeIconLayout(c: Pt, h: number): { icon: Pt; size: number; text: Pt } {
+  const size = NODE_ICON_SHARE * h;
+  const top = c[1] + h / 2;
+  const iconBottom = top - NODE_ICON_TOP * h - size;
+  return { icon: [c[0], top - NODE_ICON_TOP * h - size / 2], size, text: [c[0], (iconBottom + (c[1] - h / 2)) / 2] };
+}
+
+/**
+ * A node's icon: its rings (0..1, y-down) redrawn hand-drawn in a size×size
+ * square centred on `at`, in the box's ink — one group `<id>__icon`, a
+ * sub-drawable (SUB_SUFFIXES "_icon"), so it reveals, moves, hides and
+ * erases with its box like the text does.
+ */
+function nodeIconGroup(id: string, rings: [number, number][][], at: Pt, size: number, boxStyle: ResolvedStyle, drawOpts: ReturnType<typeof resolveDrawOpts>): GroupDrawable {
+  const [cx, cy] = at;
+  // The box's ink at a line weight for a small glyph, never the box's fill.
+  const style = defaultStyle({ color: boxStyle.color, opacity: boxStyle.opacity, strokeWidth: 2 });
+  return {
+    id: `${id}__icon`,
+    kind: "group",
+    z: Z_STROKE,
+    style,
+    drawOpts,
+    children: rings.map((ring, k) => ({
+      id: `${id}__icon__r${k}`,
+      kind: "stroke",
+      pts: ring.map(([u, v]) => [cx - size / 2 + u * size, cy + size / 2 - v * size] as Pt),
+      closed: true,
+      z: Z_STROKE,
+      style,
+      drawOpts,
+    })),
+  };
 }
 
 function nodeText(id: string, pos: Pt, text: string, fontSize: number, drawOpts: ReturnType<typeof resolveDrawOpts>): TextDrawable {

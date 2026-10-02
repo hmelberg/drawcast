@@ -6,6 +6,7 @@
 import { heuristicMeasure } from "./measure";
 import type { Pt } from "./model";
 import type { SpecElement } from "../spec/types";
+import { decodeIcon } from "../spec/trace";
 
 /** Space between neighbours. Written rarely: the point is not to write it. */
 export const DEFAULT_GAP = 40;
@@ -142,6 +143,20 @@ export function nodeFontSize(el: SpecElement): number {
   return typeof el.font_size === "number" && el.font_size > 0 ? el.font_size : NODE_FONT;
 }
 
+/** How much taller a text-fitted rect node grows to hold an icon above its text (round 5 §3.3). */
+export const NODE_ICON_EXTRA = 40;
+
+/**
+ * A rect node's resolved icon rings (0..1, y-down — decodeIcon), or null
+ * when it has no icon, the icon is not resolved (no `icon_strokes`), or the
+ * node is not a rect. Null means the node lays out exactly as without one.
+ */
+export function nodeIconRings(el: SpecElement): [number, number][][] | null {
+  if (el.type !== "node" || (el.shape ?? "circle") !== "rect" || el.icon === undefined || !el.icon_strokes) return null;
+  const rings = decodeIcon(el.icon_strokes);
+  return rings && rings.length > 0 ? rings : null;
+}
+
 /** A text-fitted rect node's height: 62 at the default size, taller for a larger font. */
 export function nodeRectHeight(fontSize: number): number {
   return Math.max(62, Math.round(fontSize * 1.25 + 32));
@@ -161,6 +176,6 @@ export function naturalNodeSize(el: SpecElement): Size | null {
   const textW = el.text ? heuristicMeasure(el.text, fs).w : 0;
   return {
     w: el.width ?? (shape === "decision" ? 56 : Math.max(130, textW + 36)),
-    h: el.height ?? (shape === "decision" ? 56 : nodeRectHeight(fs)),
+    h: el.height ?? (shape === "decision" ? 56 : nodeRectHeight(fs) + (nodeIconRings(el) ? NODE_ICON_EXTRA : 0)),
   };
 }

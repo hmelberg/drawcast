@@ -730,6 +730,7 @@ export function elementRings(layout: Pick<LayoutResult, "drawables" | "order">):
     const rings: Pt[][] = [];
     for (const d of leafDrawables(drawablesForId(layout.drawables, id))) {
       if (d.id === `${id}__shadow`) continue; // a box's shadow is not its outline
+      if (d.id.startsWith(`${id}__icon__`)) continue; // nor is the icon inside it
       if (d.kind === "area" && d.pts.length >= 3) rings.push(d.pts);
       else if (d.kind === "stroke" && d.closed && d.pts.length >= 3) rings.push(d.pts);
     }

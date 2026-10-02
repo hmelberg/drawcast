@@ -19,7 +19,7 @@ export { HOISTED };
  *  the schema spells as identifiers), so the two cannot collide. */
 const assetsKey = (item: number): string => `assets:${item}`;
 
-type BlobField = "strokes" | "code_result" | "code_src";
+type BlobField = "strokes" | "code_result" | "code_src" | "icon_strokes";
 
 /** The fields per element type that hold encoded/machine-written content,
  *  never meant for a model call. A code element carries two: `code_result`
@@ -34,6 +34,8 @@ function blobFields(el: SpecElement): BlobField[] {
   // it rode into every revise round and exemplar prompt until this list grew.
   if (el.type === "portrait" || el.type === "source" || el.type === "image" || el.type === "icon") return ["strokes"];
   if (el.type === "code") return ["code_result", "code_src"];
+  // A node's resolved icon (round 5 §3.3): the same Iconify rings, kept on the node.
+  if (el.type === "node") return ["icon_strokes"];
   return [];
 }
 

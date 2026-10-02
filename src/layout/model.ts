@@ -375,13 +375,14 @@ export function leafDrawables(drawables: Drawable[]): Exclude<Drawable, GroupDra
 /**
  * Sub-drawable suffixes: `<elementId>_<suffix>` drawables animate together with
  * their parent element (e.g. a point's guides, a node's text, a label's leader,
- * a racing bar's value, a box's shadow — `<id>__shadow`, suffix "_shadow").
+ * a racing bar's value, a box's shadow — `<id>__shadow`, suffix "_shadow" —
+ * and the icon inside a box — `<id>__icon`, suffix "_icon").
  * This list is exhaustive by design: buildNodes
  * (render/svg-backend.ts) walks `order` and collects each id's parts through
  * drawablesForId, so a sub-drawable whose suffix is NOT here is never painted
  * at all — silently, since it is also not an `order` entry to warn about.
  */
-export const SUB_SUFFIXES = ["text", "guides", "leader", "head", "body", "dot", "value", "wash", "_shadow"];
+export const SUB_SUFFIXES = ["text", "guides", "leader", "head", "body", "dot", "value", "wash", "_shadow", "_icon"];
 
 /** All top-level drawables belonging to one command-addressable element id. */
 export function drawablesForId(drawables: Drawable[], id: string): Drawable[] {
