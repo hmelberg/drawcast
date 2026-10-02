@@ -644,6 +644,7 @@ const elementSchema = {
     },
     select: { type: "string", description: "cards: TAP ALL THE … — the title of the one box (\"Mammals\"); items {text, in: true} belong in it, the rest ({text, in: false} or a plain string) stay out. The viewer taps cards in and out, then Answer. Not with bins." },
     deck: { type: "boolean", description: "cards (sort): a DECK — one large card at a time in the middle; the viewer taps a box (or presses 1, 2, …), the card flies there and the next comes, with a ✓ or ✗ for each. Up to 30 items: for many quick calls." },
+    check: { type: "string", enum: ["each", "end"], description: "cards (sort, select, deck): each (default) — every card is judged as it is dropped, a wrong one moved to its right box; end — sort freely, then Answer (a test-like question)." },
     then: { type: "string", description: "cards (decide): the label where every branch meets again — a live viewer who chose one branch skips the others and goes on here." },
     fill: { type: "string", description: "cards: set by the expansion of a formula ask with others (the tiles of math <id> are cards <id>_tiles) — never write it." },
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },

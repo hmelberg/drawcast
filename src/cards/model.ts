@@ -24,6 +24,8 @@ export interface Arrangement {
   picks?: number[];
   /** decide: the option chosen, or -1. */
   choice?: number;
+  /** sort under check: each (round 7 §3.5): each card's first box (-1: the tray), null until judged. */
+  first?: (number | null)[];
 }
 
 const same = (a: Pt, b: Pt): boolean => Math.abs(a[0] - b[0]) < 0.5 && Math.abs(a[1] - b[1]) < 0.5;
@@ -158,6 +160,72 @@ export function tapCard(g: CardsGeometry, a: Arrangement, card: number): Arrange
   return drop(g, a, card, to < 0 ? [-9999, -9999] : g.binBoxes[to].c);
 }
 
+/** A card put in box `box` (-1: the tray), as dropped — nothing judged. */
+export function putIn(a: Arrangement, card: number, box: number): Arrangement {
+  const boxes = a.boxes.map((cs) => cs.filter((c) => c !== card));
+  if (box >= 0 && box < boxes.length) boxes[box].push(card);
+  return { ...a, boxes };
+}
+
+/** check: each — the card has been judged; it is final. */
+export function isPlaced(a: Arrangement, card: number): boolean {
+  const f = a.first?.[card];
+  return f !== null && f !== undefined;
+}
+
+/**
+ * check: each — the card in its right box (a select's out card: the tray),
+ * at the slot the truth gives it (the deal's order, else the items'), so the
+ * last card leaves every card where the truth stands: nothing reshuffles
+ * after the answer.
+ */
+export function placeRight(g: CardsGeometry, a: Arrangement, card: number): Arrangement {
+  const truth = g.truthBin[card];
+  const boxes = a.boxes.map((cs) => cs.filter((c) => c !== card));
+  if (truth >= 0 && truth < boxes.length) {
+    const order = g.deal ?? g.cards.map((_, i) => i);
+    const rank = (c: number): number => order.indexOf(c);
+    const box = boxes[truth];
+    const at = box.findIndex((c) => rank(c) > rank(card));
+    box.splice(at < 0 ? box.length : at, 0, card);
+  }
+  return { ...a, boxes };
+}
+
+/** check: each — the cards judged wrong so far: drawn faded (round 7 §3.1.3). */
+export function fadedCards(g: CardsGeometry, a: Arrangement): number[] {
+  return g.cards.map((_, i) => i).filter((i) => isPlaced(a, i) && a.first![i] !== g.truthBin[i]);
+}
+
+/**
+ * A drop judged at once (round 7 §3.5): `box` (-1: the tray — a select's
+ * card left out on Done) is kept as the card's first box, and the card goes
+ * to its right box (placeRight). The gate animates; this decides.
+ */
+export function checkDrop(g: CardsGeometry, a: Arrangement, card: number, box: number): { ok: boolean; arr: Arrangement; faded: number[] } {
+  const first = (a.first ?? g.cards.map(() => null)).slice();
+  if (first[card] === null || first[card] === undefined) first[card] = box;
+  const arr = { ...placeRight(g, a, card), first };
+  return { ok: first[card] === g.truthBin[card], arr, faded: fadedCards(g, arr) };
+}
+
+/** check: each — every card judged (the last one answers). */
+export function allChecked(g: CardsGeometry, a: Arrangement): boolean {
+  return g.cards.every((_, i) => isPlaced(a, i));
+}
+
+/** check: each — the counter's numbers: first drops right and wrong so far. */
+export function checkTally(g: CardsGeometry, a: Arrangement): { right: number; wrong: number } {
+  let right = 0;
+  let wrong = 0;
+  g.cards.forEach((_, i) => {
+    if (!isPlaced(a, i)) return;
+    if (a.first![i] === g.truthBin[i]) right++;
+    else wrong++;
+  });
+  return { right, wrong };
+}
+
 /** The card under `p` at these positions, or -1. */
 export function cardAt(g: CardsGeometry, pos: Pt[], p: Pt): number {
   for (let i = pos.length - 1; i >= 0; i--) {
@@ -190,6 +258,8 @@ export function rightCards(g: CardsGeometry, a: Arrangement, tolerance = 0.05): 
       return right;
     }
     case "sort":
+      // check: each — the first drop is the answer (round 7 §3.1.8).
+      if (a.first) return g.cards.map((_, i) => a.first![i] === g.truthBin[i]);
       // Where each card is (-1: still in the row) against where it belongs
       // (select: -1 for a card that stays out).
       return g.cards.map((_, i) => boxOf(a, i) === g.truthBin[i]);
@@ -239,7 +309,11 @@ export function encodeArrangement(g: CardsGeometry, a: Arrangement): string {
   switch (g.mode) {
     case "rank":
       return a.order.join(",");
-    case "sort":
+    case "sort": {
+      const boxes = a.boxes.map((cards) => cards.join(",")).join("|");
+      // check: each — the first drops after a ";" (null: empty).
+      return a.first ? `${boxes};${a.first.map((v) => (v === null ? "" : String(v))).join(",")}` : boxes;
+    }
     case "fill":
       return a.boxes.map((cards) => cards.join(",")).join("|");
     case "place":
@@ -264,12 +338,19 @@ export function decodeArrangement(g: CardsGeometry, s: string): Arrangement | nu
       return { order, boxes: [] };
     }
     case "sort": {
-      const parts = s.split("|");
+      const halves = s.split(";");
+      if (halves.length > 2) return null;
+      const parts = halves[0].split("|");
       if (parts.length !== g.bins.length) return null;
       const boxes = parts.map(nums);
       const all = boxes.flat();
       if (!all.every(ok) || new Set(all).size !== all.length) return null;
-      return { order: [], boxes };
+      if (halves.length === 1) return { order: [], boxes };
+      const raw = halves[1].split(",");
+      if (raw.length !== n) return null;
+      const first = raw.map((t) => (t.trim() === "" ? null : Number(t)));
+      if (first.some((v) => v !== null && (!Number.isInteger(v) || v < -1 || v >= g.bins.length))) return null;
+      return { order: [], boxes, first };
     }
     case "fill": {
       const parts = s.split("|");

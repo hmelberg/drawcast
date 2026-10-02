@@ -458,6 +458,8 @@ export interface SpecElement {
   select?: string;
   /** cards (sort): one large card at a time, up to 30. */
   deck?: boolean;
+  /** cards (sort, select, deck): judge each card as it is dropped (default) or all at the end. */
+  check?: "each" | "end";
   /** cards (rank): what the two ends mean. */
   ends?: string[];
   /** cards (rank): a row (default) or a column. */

@@ -89,6 +89,8 @@ export interface CardsElementLike {
   select?: string;
   /** sort: one large card at a time, centred; up to 30 items (round 6 §7). */
   deck?: boolean;
+  /** sort, select, deck (round 7 §3): each (default) — every card is judged as it is dropped; end — all at Answer. */
+  check?: "each" | "end";
   /** paper (default), flat or outline (the plain boxes of before). */
   look?: CardsLook | string;
   /** How the cards' icons show (round 6 §8): picture (default) or drawn — copied onto every card node. */
@@ -154,6 +156,8 @@ export interface CardsGeometry {
   select?: boolean;
   /** The cards' font size, when not the mode's own (a deck's small cards). */
   font?: number;
+  /** check: each (round 7) — a sort, select or deck judging every drop. */
+  each?: true;
 }
 
 const CARD_H = 56;
@@ -319,7 +323,7 @@ function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: str
   const width = isNum(el.width) && el.width > 200 ? el.width : 800;
   const x1 = x0 + width;
   const none = (): Pt => [0, 0];
-  const base = { id: el.id, mode, truthBin: [] as number[], bins: [] as string[], binBoxes: [] as CardBox[], binSlot: none };
+  const base = { id: el.id, mode, truthBin: [] as number[], bins: [] as string[], binBoxes: [] as CardBox[], binSlot: none, ...(mode === "sort" && el.check !== "end" ? { each: true as const } : {}) };
 
   if (mode === "decide") {
     const opts = (el.options ?? []).slice(0, 4).map((o) => ({ text: String(o.text ?? ""), goto: o.goto, best: o.best === true }));
@@ -560,7 +564,7 @@ export const DECK_MAX = 30;
  */
 function deckGeometry(
   el: CardsElementLike,
-  base: Pick<CardsGeometry, "id" | "mode" | "truthBin" | "bins" | "binBoxes" | "binSlot">,
+  base: Pick<CardsGeometry, "id" | "mode" | "truthBin" | "bins" | "binBoxes" | "binSlot" | "each">,
   texts: string[],
   truthBin: number[],
   bins: string[],
@@ -627,7 +631,7 @@ function deckGeometry(
 }
 
 /** The authored fields a cards group carries back (authoredCards). */
-const CARRIED = ["items", "bins", "ends", "arrange", "along", "compare", "pairs", "unit", "options", "then", "fill", "select", "deck", "x", "y", "width"] as const;
+const CARRIED = ["items", "bins", "ends", "arrange", "along", "compare", "pairs", "unit", "options", "then", "fill", "select", "deck", "check", "x", "y", "width"] as const;
 
 /** The ordinary elements a cards element stands for. */
 export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => ScaleElementLike | undefined): SpecElement[] {
