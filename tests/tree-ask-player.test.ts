@@ -196,17 +196,40 @@ describe("tree asks in the player", () => {
       await player.play();
       expect(steps[0]).toBe(0);
     });
-    test("a step back from the poster steps from the poster's boundary", () => {
-      const { player } = makePlayer(COMMANDS);
+    test("the step buttons from the poster step from the end, as the N/N counter says (fix round 2)", () => {
+      const three: Command[] = [{ draw: IDS }, ASK, { speak: "After." } as Command];
+      const a = makePlayer(three).player;
+      a.showPoster();
+      expect(a.atPoster).toBe(true);
+      expect(a.position).toBe(1);
+      a.stepBack();
+      expect(a.atPoster).toBe(false);
+      expect(a.position).toBe(2);
+      const b = makePlayer(three).player;
+      b.showPoster();
+      b.stepForward();
+      expect(b.position).toBe(3);
+    });
+    test("a cast whose first step is a figure ask (poster at 0): Play clears the poster, a later rewind is a plain rewind (fix round 2)", async () => {
+      const { player } = makePlayer([ASK, { draw: IDS }]);
       player.showPoster();
-      player.stepBack();
       expect(player.position).toBe(0);
+      expect(player.atPoster).toBe(true);
+      (player as unknown as { autoAnswers: boolean }).autoAnswers = true;
+      const run = player.play();
+      expect(player.atPoster).toBe(false);
+      await run;
+      expect(player.vars.get("e")).toBe("5.8");
+      player.renderUpTo(0);
+      expect(player.atPoster).toBe(false);
+      expect(player.state).toBe("idle");
     });
     test("a cast with no ask on the figure: the poster is the end, as before", () => {
       const { player, plan } = makePlayer([{ draw: IDS }, { speak: "Done." } as Command]);
       player.showPoster();
       expect(player.position).toBe(plan.steps.length);
       expect(player.state).toBe("done");
+      expect(player.atPoster).toBe(false);
     });
   });
 

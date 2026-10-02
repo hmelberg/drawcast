@@ -416,7 +416,9 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
     },
     onStepEdge: (dir) => {
       if (!handle) return false;
-      const move = edgeStep(dir, { completed: handle.timeline.position, total: handle.timeline.totalSteps, idx, count: items.length });
+      // An item's poster stopped before its first figure ask counts as its end
+      // (its counter reads N/N), so forward still crosses to the next item.
+      const move = edgeStep(dir, { completed: handle.timeline.atPoster ? handle.timeline.totalSteps : handle.timeline.position, total: handle.timeline.totalSteps, idx, count: items.length });
       if (!move) return false;
       // A scrub across the border is a hard jump: no card, no fade. The new
       // item mounts paused on its poster (= "end"); "start" rewinds it to a

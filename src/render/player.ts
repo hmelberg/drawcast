@@ -673,6 +673,13 @@ export class Player {
     return this.completed;
   }
 
+  /** Whether the poster shows a boundary before the end (showPoster): the
+   *  playhead stands there, but the counter, the step buttons and a
+   *  playlist's item border count it as the end. */
+  get atPoster(): boolean {
+    return this.posterRestart;
+  }
+
   setSpeed(x: number): void {
     this.speedVal = x;
   }
@@ -708,8 +715,14 @@ export class Player {
       this.renderUpTo(this.plan.steps.length);
       return;
     }
-    // From the end, or from a poster stopped before the first ask: from the beginning.
-    if (this.completed >= this.plan.steps.length || this.posterRestart) this.renderUpTo(0);
+    // From a poster stopped before the first ask: from the beginning — by
+    // jumpTo, not renderUpTo(0), which on a poster AT 0 would put the poster
+    // back up. From the end: from the beginning too.
+    if (this.posterRestart) {
+      this.posterRestart = false;
+      this.abortRun();
+      this.jumpTo(0, false);
+    } else if (this.completed >= this.plan.steps.length) this.renderUpTo(0);
     // A pending tray preview (geometryDirty) must settle before stepping:
     // frame() leaves handle-less DOM, and the run's actions need honest
     // elements. No-op when nothing is dirty and params already match; a
@@ -771,12 +784,18 @@ export class Player {
     this.renderUpTo(0);
   }
 
+  /** Where the step buttons count from: the end on a poster (the counter
+   *  reads N/N there), else the playhead. */
+  private get stepBase(): number {
+    return this.posterRestart ? this.plan.steps.length : this.completed;
+  }
+
   stepForward(): void {
-    this.renderUpTo(Math.min(this.completed + 1, this.plan.steps.length));
+    this.renderUpTo(Math.min(this.stepBase + 1, this.plan.steps.length));
   }
 
   stepBack(): void {
-    this.renderUpTo(Math.max(this.completed - 1, 0));
+    this.renderUpTo(Math.max(this.stepBase - 1, 0));
   }
 
   /**
