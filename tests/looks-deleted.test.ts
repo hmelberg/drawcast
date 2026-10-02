@@ -8,10 +8,11 @@ describe("the look variants are gone (C5, P §5)", () => {
   it("the schema no longer advertises look to the model", () => {
     expect(schema).not.toMatch(/halftone/);
     // `look: "screen"` is the one look that came back (picture regions); the old variants stay gone.
-    expect(schema).not.toMatch(/\blook:\s*\{[^}]*(poster|line|halftone)/);
+    // Cards' looks (paper, flat, outline — round 5 §3.2) are new, not the old variants: "outline" is not "line".
+    expect(schema).not.toMatch(/\blook:\s*\{[^}]*\b(poster|line|halftone)\b/);
   });
-  it("SpecElement's look is only \"screen\"", () => {
-    expect(types).toMatch(/look\?: "screen";/);
-    expect(types).not.toMatch(/look\?: [^;]*(poster|line|halftone)/);
+  it("SpecElement's look is only \"screen\" (an image) or a cards look", () => {
+    expect(types).toMatch(/look\?: "screen" \| "paper" \| "flat" \| "outline";/);
+    expect(types).not.toMatch(/look\?: [^;]*"(poster|line|halftone)"/);
   });
 });

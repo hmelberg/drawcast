@@ -39,6 +39,19 @@ function blobFields(el: SpecElement): BlobField[] {
   return [];
 }
 
+/** A cards element's item icons (round 5 §3.3): each rings field and the
+ *  icon it was resolved from. Keyed by that icon — the rings depend on it
+ *  alone — so a revise that reorders or rewrites the items still gets each
+ *  one's rings back (and a changed icon simply re-resolves). */
+const CARD_ICON_FIELDS = [["icon_strokes", "icon"], ["match_icon_strokes", "match_icon"]] as const;
+const cardIconKey = (icon: unknown): string => `cardicon:${JSON.stringify(icon)}`;
+
+/** A cards element's object items, as records (none for anything else). */
+function cardItems(el: SpecElement): Record<string, unknown>[] {
+  if (el.type !== "cards" || !Array.isArray(el.items)) return [];
+  return el.items.filter((it): it is Exclude<typeof it, string> => typeof it === "object" && it !== null) as unknown as Record<string, unknown>[];
+}
+
 /** A blob's key in the map: bare element id when the element has only one
  *  possible blob field (portrait/source/image/icon, unchanged from before
  *  code got a second one), `id:field` when it could have more than one (a
@@ -72,6 +85,15 @@ export function hoistPortraitStrokes(docText: string): { text: string; blobs: Ma
           blobs.set(blobKey(el.id, field, fields), el[field]!);
           el[field] = HOISTED;
           any = true;
+        }
+      }
+      for (const it of cardItems(el)) {
+        for (const [field, icon] of CARD_ICON_FIELDS) {
+          if (typeof it[field] === "string" && it[field] !== "" && it[field] !== HOISTED) {
+            blobs.set(cardIconKey(it[icon]), it[field] as string);
+            it[field] = HOISTED;
+            any = true;
+          }
         }
       }
     }
@@ -182,17 +204,35 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
           else delete el[field];
         }
       }
+      for (const it of cardItems(el)) {
+        for (const [field, icon] of CARD_ICON_FIELDS) {
+          if (it[field] !== HOISTED) continue;
+          const blob = blobs.get(cardIconKey(it[icon]));
+          if (blob) it[field] = blob;
+          else delete it[field];
+        }
+      }
     }
   });
 }
 
 /** Exemplar hygiene: a spec copy with every encoded blob omitted entirely. */
 export function stripStrokesForModel(spec: Spec): Spec {
-  if (!spec.assets && !spec.elements?.some((e) => blobFields(e).some((f) => e[f]))) return spec;
+  const cardBlobs = (e: SpecElement): boolean => cardItems(e).some((it) => CARD_ICON_FIELDS.some(([f]) => it[f] !== undefined));
+  if (!spec.assets && !spec.elements?.some((e) => blobFields(e).some((f) => e[f]) || cardBlobs(e))) return spec;
   return {
     ...spec,
     assets: undefined,
     elements: (spec.elements ?? []).map((e): SpecElement => {
+      if (cardBlobs(e)) {
+        // An item's rings go; its icon (the keyword) stays.
+        const items = (e.items ?? []).map((it) => {
+          if (typeof it !== "object" || it === null) return it;
+          const { icon_strokes: _a, match_icon_strokes: _b, ...rest } = it;
+          return rest;
+        });
+        e = { ...e, items };
+      }
       const fields = blobFields(e).filter((f) => e[f]);
       if (fields.length === 0) return e;
       const patch: Partial<Record<BlobField, undefined>> = {};

@@ -20,8 +20,9 @@
 // the truth puts it (`truth`), and each mode's own geometry.
 
 import type { Spec, SpecElement } from "./types";
-import type { Pt } from "../layout/model";
+import { INK, type Pt } from "../layout/model";
 import type { BBox } from "../layout/geometry";
+import { FIGURE_GROUND } from "../layout/ink";
 import { authoredScales, scaleGeometry, type ScaleElementLike, type ScaleGeometry } from "./scale";
 
 export interface CardItem {
@@ -34,7 +35,21 @@ export interface CardItem {
   match?: string;
   /** fill: the blank (1-based) this tile is the truth of; none = a wrong tile. */
   blank?: number;
+  /** An icon on the card (round 5 §3.3) — the card node's `icon`. */
+  icon?: CardIcon;
+  /** match: an icon on the partner card. */
+  match_icon?: CardIcon;
+  /** Machine-written by resolveIcons (render/icon.ts): the rings and their credit. */
+  icon_strokes?: string;
+  credit?: string;
+  match_icon_strokes?: string;
+  match_credit?: string;
 }
+
+export type CardIcon = string | { of: string; set?: string };
+
+/** How the cards look (round 5 §3.2): paper is the default. */
+export type CardsLook = "paper" | "flat" | "outline";
 
 export interface CardOption {
   text: string;
@@ -66,6 +81,8 @@ export interface CardsElementLike {
   then?: string;
   /** fill: the math element whose blanks the tiles (items, TeX) go into. */
   fill?: string;
+  /** paper (default), flat or outline (the plain boxes of before). */
+  look?: CardsLook | string;
   x?: number;
   y?: number;
   width?: number;
@@ -119,19 +136,73 @@ export interface CardsGeometry {
 }
 
 const CARD_H = 56;
+/** A card with an icon above its text (round 5 §3.3) — every card of the element, so rows stay even. */
+export const CARD_ICON_H = 96;
 const GAP = 14;
+
+/** paper: the card's fill. */
+export const CARD_PAPER = "#fffdf8";
+/** paper / flat: the corner radius. */
+const CARD_RADIUS = 10;
+
+/** `ink` at `share` over `ground`, as a hex colour (both #rrggbb). */
+function tint(ink: string, share: number, ground = FIGURE_GROUND): string {
+  const ch = (hex: string, i: number): number => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return `#${[0, 1, 2].map((i) => Math.round(ch(ground, i) * (1 - share) + ch(ink, i) * share).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** flat: a soft tint of the ink (8 %) over the figure's sheet. */
+export const CARD_FLAT = tint(INK, 0.08);
+
+export function cardsLook(el: Pick<CardsElementLike, "look">): CardsLook {
+  return el.look === "flat" || el.look === "outline" ? el.look : "paper";
+}
+
+/** A card node's look fields: radius, shadow and a fill — an authored style wins for colours. Outline: none, as before. */
+function lookFields(look: CardsLook, style: SpecElement["style"]): Partial<SpecElement> {
+  if (look === "outline") return style ? { style } : {};
+  const color = style?.color;
+  const fill = look === "paper" ? CARD_PAPER : typeof color === "string" && /^#[0-9a-fA-F]{6}$/.test(color) ? tint(color, 0.08) : CARD_FLAT;
+  return { radius: CARD_RADIUS, ...(look === "paper" ? { shadow: true } : {}), style: { fill, ...style } };
+}
+
+/** True when the item has an icon that resolved (machine-written rings) — on itself or (match) on its partner. */
+function hasIcon(it: CardItem): boolean {
+  const on = (icon: unknown, strokes: unknown): boolean => icon !== undefined && typeof strokes === "string" && strokes !== "";
+  return on(it.icon, it.icon_strokes) || on(it.match_icon, it.match_icon_strokes);
+}
+
+/** A sort bin's open box (no lid): straight under outline, rounded bottom corners under paper and flat. */
+function binPoints(l: number, r: number, t: number, btm: number, look: CardsLook): [number, number][] {
+  if (look === "outline") return [[l, t], [l, btm], [r, btm], [r, t]];
+  const rad = CARD_RADIUS;
+  const arc = (cx: number, cy: number, from: number, to: number): [number, number][] =>
+    [0, 1, 2, 3, 4].map((k) => {
+      const a = from + ((to - from) * k) / 4;
+      return [cx + rad * Math.cos(a), cy + rad * Math.sin(a)];
+    });
+  // Down the left side, round the bottom-left corner, along, round the bottom-right, up.
+  return [[l, t], ...arc(l + rad, btm + rad, Math.PI, 1.5 * Math.PI), ...arc(r - rad, btm + rad, 1.5 * Math.PI, 2 * Math.PI), [r, t]];
+}
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
 /** The item as {text, …}. */
 export function cardItem(it: string | CardItem): CardItem {
   if (typeof it === "string") return { text: it };
+  const str = (v: unknown): v is string => typeof v === "string" && v !== "";
   return {
     text: String(it.text ?? ""),
     ...(it.bin !== undefined ? { bin: String(it.bin) } : {}),
     ...(isNum(it.value) ? { value: it.value } : {}),
     ...(it.match !== undefined ? { match: String(it.match) } : {}),
     ...(Number.isInteger(it.blank) && (it.blank as number) >= 1 ? { blank: it.blank } : {}),
+    ...(it.icon !== undefined ? { icon: it.icon } : {}),
+    ...(it.match_icon !== undefined ? { match_icon: it.match_icon } : {}),
+    ...(str(it.icon_strokes) ? { icon_strokes: it.icon_strokes } : {}),
+    ...(str(it.credit) ? { credit: it.credit } : {}),
+    ...(str(it.match_icon_strokes) ? { match_icon_strokes: it.match_icon_strokes } : {}),
+    ...(str(it.match_credit) ? { match_credit: it.match_credit } : {}),
   };
 }
 
@@ -220,6 +291,9 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
   const n = items.length;
   const cards = items.map((_, i) => `${el.id}_${i + 1}`);
   const texts = items.map((it) => it.text);
+  // Round 5 §3.3: one resolved icon makes every card taller, so rows stay even.
+  // (A formula's tiles are TeX; they carry no icons.)
+  const CH = mode !== "fill" && items.some(hasIcon) ? CARD_ICON_H : CARD_H;
 
   if (mode === "fill") {
     // The tiles in a row (two when many), centred in [x0, x1]; the boxes are
@@ -256,7 +330,7 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
     const yTop = isNum(el.y) ? el.y : 560;
     const w = Math.min(260, width / 2 - 60);
     const lx = x0 + w / 2, rx = x1 - w / 2;
-    const rows = left.map((_, i) => yTop - i * (CARD_H + GAP));
+    const rows = left.map((_, i) => yTop - i * (CH + GAP));
     const perm = shuffleOrder(k, 11);
     const rightHome: Pt[] = new Array(k);
     perm.forEach((card, s) => (rightHome[card] = [rx, rows[s]]));
@@ -267,7 +341,7 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
       cards: [...left.map((_, i) => `${el.id}_${i + 1}`), ...left.map((_, i) => `${el.id}_m_${i + 1}`)],
       texts: [...left.map((it) => it.text), ...left.map((it) => it.match ?? "")],
       w,
-      h: CARD_H,
+      h: CH,
       home: [...leftPos, ...rightHome],
       slots: rightTruth,
       truth: [...leftPos, ...rightTruth],
@@ -285,12 +359,13 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
     // A card used in two pairs stands in the first; pairs are rows.
     const placed = new Set<number>();
     pairs.forEach(([a, b], r) => {
-      const y = yTop - r * 100;
+      // A row: the card, its value under it, a gap (100 for plain cards).
+      const y = yTop - r * (CH + 44);
       if (!placed.has(a)) pos[a] = [x0 + width * 0.3, y];
       if (!placed.has(b)) pos[b] = [x0 + width * 0.7, y];
       placed.add(a).add(b);
     });
-    return { ...base, cards, texts, w, h: CARD_H, home: pos, slots: pos, truth: pos, values: items.map((it) => it.value ?? 0), rows: pairs, valueIds: items.map((_, i) => `${el.id}_v_${i + 1}`) };
+    return { ...base, cards, texts, w, h: CH, home: pos, slots: pos, truth: pos, values: items.map((it) => it.value ?? 0), rows: pairs, valueIds: items.map((_, i) => `${el.id}_v_${i + 1}`) };
   }
 
   if (mode === "place") {
@@ -300,9 +375,9 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
     const span = sg.x1 - sg.x0;
     const perRow = n > 5 ? Math.ceil(n / 2) : n;
     const w = Math.min(150, span / perRow - GAP);
-    const h = 48;
+    const h = CH === CARD_ICON_H ? CARD_ICON_H : 48;
     const slotW = span / perRow;
-    const trayTop = sg.y - 110;
+    const trayTop = sg.y - 86 - h / 2;
     const tray: Pt[] = items.map((_, s) => [sg.x0 + slotW * ((s % perRow) + 0.5), trayTop - Math.floor(s / perRow) * (h + GAP)] as Pt);
     const perm = shuffleOrder(n, 5);
     const home: Pt[] = new Array(n);
@@ -320,7 +395,7 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
           levelEnd.push(-Infinity);
         }
         levelEnd[lv] = x + w / 2;
-        out[i] = [x, sg.y + 64 + lv * (h + 8)];
+        out[i] = [x, sg.y + 40 + h / 2 + lv * (h + 8)];
       }
       return out;
     };
@@ -339,7 +414,7 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
       const yTop = isNum(el.y) ? el.y : 600;
       w = Math.min(320, width);
       const cx = (x0 + x1) / 2;
-      slots = items.map((_, k) => [cx, yTop - k * (CARD_H + GAP)] as Pt);
+      slots = items.map((_, k) => [cx, yTop - k * (CH + GAP)] as Pt);
     } else {
       const y = isNum(el.y) ? el.y : 380;
       const slotW = width / Math.max(1, n);
@@ -348,7 +423,7 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
     }
     const home: Pt[] = new Array(n);
     perm.forEach((card, s) => (home[card] = slots[s]));
-    return { ...base, cards, texts, w, h: CARD_H, home, slots, truth: slots.slice() };
+    return { ...base, cards, texts, w, h: CH, home, slots, truth: slots.slice() };
   }
 
   // Sort: the boxes across the top, the cards in a row (two when many) below.
@@ -357,22 +432,22 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
   const perBin = bins.map((_, b) => truthBin.filter((t) => t === b).length);
   const rows = Math.max(2, ...perBin, Math.ceil(n / 2));
   const binTop = isNum(el.y) ? el.y : 660;
-  const binH = 44 + rows * (CARD_H + 8) + 8;
+  const binH = 44 + rows * (CH + 8) + 8;
   const binBoxes: CardBox[] = bins.map((_, b) => ({ c: [x0 + (width / k) * (b + 0.5), binTop - binH / 2] as Pt, w: binW, h: binH }));
   const perRow = n > 5 ? Math.ceil(n / 2) : n;
   const trayTop = binTop - binH - 40;
   const slotW = width / perRow;
   const w = Math.min(180, slotW - GAP, binW - 20);
-  const tray: Pt[] = items.map((_, s) => [x0 + slotW * ((s % perRow) + 0.5), trayTop - CARD_H / 2 - Math.floor(s / perRow) * (CARD_H + GAP)] as Pt);
+  const tray: Pt[] = items.map((_, s) => [x0 + slotW * ((s % perRow) + 0.5), trayTop - CH / 2 - Math.floor(s / perRow) * (CH + GAP)] as Pt);
   const home: Pt[] = new Array(n);
   perm.forEach((card, s) => (home[card] = tray[s]));
   const binSlot = (b: number, j: number): Pt => {
     const box = binBoxes[b];
-    return [box.c[0], box.c[1] + box.h / 2 - 44 - CARD_H / 2 - j * (CARD_H + 8)];
+    return [box.c[0], box.c[1] + box.h / 2 - 44 - CH / 2 - j * (CH + 8)];
   };
   const seen = bins.map(() => 0);
   const truth = truthBin.map((b) => binSlot(b, seen[b]++));
-  return { ...base, mode, cards, texts, truthBin, bins, w, h: CARD_H, home, slots: tray, binBoxes, binSlot, truth };
+  return { ...base, mode, cards, texts, truthBin, bins, w, h: CH, home, slots: tray, binBoxes, binSlot, truth };
 }
 
 /** The authored fields a cards group carries back (authoredCards). */
@@ -383,12 +458,27 @@ export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => Sc
   const g = cardsGeometry(el, scaleOf);
   const out: SpecElement[] = [];
   const quiet = { color: "#7a7468" };
+  const look = cardsLook(el);
+  const looks = lookFields(look, el.style);
+  // Each card's icon fields (round 5 §3.3), by card index: a match's partners take match_icon.
+  const items = (el.items ?? []).map(cardItem);
+  const iconOf = (i: number): Partial<SpecElement> => {
+    if (g.mode === "decide" || g.mode === "fill") return {};
+    const partner = g.mode === "match" && i >= (g.pairs ?? 0);
+    const it = items[partner ? i - (g.pairs ?? 0) : i];
+    if (!it) return {};
+    const icon = partner ? it.match_icon : it.icon;
+    if (icon === undefined) return {};
+    const strokes = partner ? it.match_icon_strokes : it.icon_strokes;
+    const credit = partner ? it.match_credit : it.credit;
+    return { icon, ...(strokes ? { icon_strokes: strokes } : {}), ...(credit ? { credit } : {}) } as Partial<SpecElement>;
+  };
   if (g.mode === "sort") {
     g.binBoxes.forEach((b, k) => {
       const id = `${el.id}_bin_${k + 1}`;
       const l = b.c[0] - b.w / 2, r = b.c[0] + b.w / 2, t = b.c[1] + b.h / 2, btm = b.c[1] - b.h / 2;
       // An open box: no lid, so it reads as somewhere to put things.
-      out.push({ id: `${id}_box`, type: "path", points: [[l, t], [l, btm], [r, btm], [r, t]], style: quiet });
+      out.push({ id: `${id}_box`, type: "path", points: binPoints(l, r, t, btm, look), style: quiet });
       out.push({ id: `${id}_title`, type: "text", text: g.bins[k], x: b.c[0], y: t - 22, font_size: 24 });
       out.push({ id, type: "group", members: [`${id}_box`, `${id}_title`] });
     });
@@ -401,10 +491,10 @@ export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => Sc
     if (g.mode === "fill") {
       // A tile: a box with its TeX drawn as math (size 22) — the node's `tex`
       // (layout/tier2.ts), drawn as `<card>_text` so it moves with the card.
-      out.push({ id, type: "node", shape: "rect", tex: g.texts[i], x: g.home[i][0], y: g.home[i][1], width: g.w, height: g.h, font_size: 22, ...(el.style ? { style: el.style } : {}) });
+      out.push({ id, type: "node", shape: "rect", tex: g.texts[i], x: g.home[i][0], y: g.home[i][1], width: g.w, height: g.h, font_size: 22, ...looks });
       return;
     }
-    out.push({ id, type: "node", shape: "rect", text: g.texts[i], x: g.home[i][0], y: g.home[i][1], width: g.w, height: g.h, font_size: g.mode === "decide" ? 24 : 20, ...(el.style ? { style: el.style } : {}) });
+    out.push({ id, type: "node", shape: "rect", text: g.texts[i], x: g.home[i][0], y: g.home[i][1], width: g.w, height: g.h, font_size: g.mode === "decide" ? 24 : 20, ...looks, ...iconOf(i) });
   });
   if (g.mode === "rank" && Array.isArray(el.ends) && el.ends.length === 2) {
     const first = g.slots[0], last = g.slots[g.slots.length - 1];

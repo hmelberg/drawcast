@@ -112,6 +112,24 @@ export interface SpecMore {
   open?: boolean;
 }
 
+/** A card (spec/cards.ts): its text and what its mode needs; an icon drawn on it (round 5 §3.3). */
+export interface CardItemSpec {
+  text: string;
+  bin?: string;
+  value?: number;
+  match?: string;
+  blank?: number;
+  /** An icon on the card — a keyword or {of, set}, resolved like a node's. */
+  icon?: string | { of: string; set?: string };
+  /** match: an icon on the partner card. */
+  match_icon?: string | { of: string; set?: string };
+  /** Machine-written by resolveIcons (render/icon.ts): the rings and their credit. */
+  icon_strokes?: string;
+  credit?: string;
+  match_icon_strokes?: string;
+  match_credit?: string;
+}
+
 export interface SpecStyle {
   color?: string;
   fill?: string;
@@ -327,8 +345,8 @@ export interface SpecElement {
   of?: string;
   /** Direct image URL (user-provided; CORS-permitting hosts only). */
   url?: string;
-  /** image: "screen" — the faithful look for screenshots, diagrams and paintings: full colour, no tint, native resolution (≤ 2400 px). Default: the styled small photo. */
-  look?: "screen";
+  /** image: "screen" — the faithful look for screenshots, diagrams and paintings: full colour, no tint, native resolution (≤ 2400 px). Default: the styled small photo. cards: paper (default — rounded, paper-white, a soft shadow), flat (rounded, a soft ink tint) or outline (plain boxes). */
+  look?: "screen" | "paper" | "flat" | "outline";
   /** image: the part of the picture shown, [x, y, w, h] as fractions from the top-left (default the whole picture). */
   view?: Rect4;
   /** image: named boxes on the picture, [x, y, w, h] as fractions of the WHOLE picture from the top-left — targets as "<id>:<name>". */
@@ -424,7 +442,7 @@ export interface SpecElement {
   // population (layout/population.ts): people as person pictograms, each in a state
   // cards (spec/cards.ts — sugar: cards to rank or to sort into boxes)
   /** cards: the cards, in TRUE order (rank) or each with its bin (sort). */
-  items?: (string | { text: string; bin?: string; value?: number; match?: string })[];
+  items?: (string | CardItemSpec)[];
   /** cards: the boxes to sort into. */
   bins?: string[];
   /** cards (rank): what the two ends mean. */

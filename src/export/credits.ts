@@ -19,10 +19,22 @@ export function creditsOf(specs: Spec[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const spec of specs) {
+    const add = (c: unknown): void => {
+      if (typeof c !== "string" || c === "" || seen.has(c)) return;
+      seen.add(c);
+      out.push(c);
+    };
     for (const el of spec.elements ?? []) {
-      if (typeof el.credit !== "string" || el.credit === "" || seen.has(el.credit)) continue;
-      seen.add(el.credit);
-      out.push(el.credit);
+      add(el.credit);
+      // A cards element's icons (round 5 §3.3) are credited on its items.
+      if (el.type === "cards" && Array.isArray(el.items)) {
+        for (const it of el.items) {
+          if (typeof it === "object" && it !== null) {
+            add(it.credit);
+            add(it.match_credit);
+          }
+        }
+      }
     }
   }
   return out;

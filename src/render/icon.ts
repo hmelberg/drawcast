@@ -115,6 +115,48 @@ export function nodeIconRequest(el: Pick<SpecElement, "type" | "icon">): { of: s
   return typeof icon.set === "string" && icon.set !== "" ? { of: icon.of, set: icon.set } : { of: icon.of };
 }
 
+/** An `icon` / `match_icon` value as {of, set}, or null when unusable. */
+function iconRequest(icon: unknown): { of: string; set?: string } | null {
+  const req = typeof icon === "string" ? { of: icon } : (icon as { of?: unknown; set?: unknown } | null | undefined);
+  if (!req || typeof req.of !== "string" || req.of.trim() === "") return null;
+  return typeof req.set === "string" && req.set !== "" ? { of: req.of, set: req.set } : { of: req.of };
+}
+
+/**
+ * A cards element's icons (round 5 §3.3): each item's `icon` into its
+ * `icon_strokes` and `credit`, and a match item's `match_icon` (its
+ * partner's) into `match_icon_strokes` and `match_credit` — the fields
+ * spec/cards.ts copies onto the card nodes. Reported under the card's id.
+ */
+async function resolveCardIcons(el: SpecElement, results: IconResolution[], deps: IconDeps, opts: IconResolveOpts): Promise<void> {
+  const items = Array.isArray(el.items) ? el.items : [];
+  const sides = [
+    { icon: "icon", strokes: "icon_strokes", credit: "credit", id: (i: number) => `${el.id}_${i + 1}` },
+    { icon: "match_icon", strokes: "match_icon_strokes", credit: "match_credit", id: (i: number) => `${el.id}_m_${i + 1}` },
+  ] as const;
+  for (const [i, it] of items.entries()) {
+    if (typeof it !== "object" || it === null) continue;
+    const item = it as unknown as Record<string, unknown>;
+    for (const side of sides) {
+      const req = iconRequest(item[side.icon]);
+      if (!req) continue;
+      const have = item[side.strokes];
+      if (typeof have === "string" && decodeIcon(have)) {
+        results.push({ id: side.id(i), ok: true });
+        continue;
+      }
+      try {
+        const got = await resolveKeyword(req.of, req.set, deps, opts);
+        item[side.strokes] = got.strokes;
+        item[side.credit] = got.credit;
+        results.push({ id: side.id(i), ok: true });
+      } catch (err) {
+        results.push({ id: side.id(i), ok: false, error: (err as Error).message });
+      }
+    }
+  }
+}
+
 /**
  * One keyword → rings: from the cache, or Iconify search (or a named `set`
  * straight to the SVG endpoint) → licence check → outline trace, on a miss.
@@ -173,6 +215,10 @@ async function resolveKeyword(of: string, requestedSet: string | undefined, deps
 export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), opts: IconResolveOpts = {}): Promise<IconResolution[]> {
   const results: IconResolution[] = [];
   for (const el of spec.elements ?? []) {
+    if (el.type === "cards") {
+      await resolveCardIcons(el, results, deps, opts);
+      continue;
+    }
     if (el.type === "node") {
       const req = nodeIconRequest(el);
       if (!req) continue;

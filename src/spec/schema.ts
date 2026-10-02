@@ -426,7 +426,7 @@ const elementSchema = {
       description:
         "portrait/source/image: direct image, .pdf, or YOUTUBE url — ONLY when the user's request supplied one (copy it verbatim; never invent). On a source, a YouTube url draws the video's still, framed with a hand-drawn play mark, and clicking it plays the video embedded — use it when the video IS a thing the figure points at, and note that its title becomes the caption automatically.",
     },
-    look: { type: "string", enum: ["screen"], description: "image: \"screen\" keeps colour and resolution — screenshots, diagrams, paintings you point into." },
+    look: { type: "string", enum: ["screen", "paper", "flat", "outline"], description: "image: \"screen\" keeps colour and resolution — screenshots, diagrams, paintings you point into. cards: paper (default), flat or outline (plain boxes)." },
     view: { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4, description: "image: the part shown, [x, y, w, h] fractions from the top-left." },
     regions: {
       anyOf: [
@@ -596,9 +596,32 @@ const elementSchema = {
       type: "array",
       minItems: 2,
       maxItems: 8,
-      items: { anyOf: [{ type: "string" }, { type: "object", properties: { text: { type: "string" }, bin: { type: "string" }, value: { type: "number" }, match: { type: "string" }, blank: { type: "integer", minimum: 1 } }, required: ["text"], additionalProperties: false }] },
+      items: {
+        anyOf: [
+          { type: "string" },
+          {
+            type: "object",
+            properties: {
+              text: { type: "string" },
+              bin: { type: "string" },
+              value: { type: "number" },
+              match: { type: "string" },
+              blank: { type: "integer", minimum: 1 },
+              // Round 5 §3.3: an icon on the card (match_icon: on its partner), as a node's icon; the rest is machine-written.
+              icon: { oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }] },
+              match_icon: { oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }] },
+              icon_strokes: { type: "string" },
+              credit: { type: "string" },
+              match_icon_strokes: { type: "string" },
+              match_credit: { type: "string" },
+            },
+            required: ["text"],
+            additionalProperties: false,
+          },
+        ],
+      },
       description:
-        "cards: cards the viewer ORDERS or SORTS, asked with an ask on: <id> (they drag the cards, press Answer, and the cards glide to the truth). RANK: the items in their TRUE order, first = most/earliest/top (a word or three each: \"USA\", \"Norway\"), with ends naming the two ends. SORT: give bins, and each item {text, bin}. The cards are drawn SHUFFLED, so draw <id> before the ask; after it they stand in the true order. Cards are <id>_1 … in true order; sort's boxes <id>_bin_1 ….",
+        "cards: cards the viewer ORDERS or SORTS, asked with an ask on: <id> (they drag the cards, press Answer, and the cards glide to the truth). RANK: the items in their TRUE order, first = most/earliest/top (a word or three each: \"USA\", \"Norway\"), with ends naming the two ends. SORT: give bins, and each item {text, bin}. The cards are drawn SHUFFLED, so draw <id> before the ask; after it they stand in the true order. Cards are <id>_1 … in true order; sort's boxes <id>_bin_1 …. An item {text, icon: \"shark\"} draws an icon on its card (match_icon: on its partner).",
     },
     bins: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" }, description: "cards: the boxes to sort into (a word or two each); every item's bin is one of them." },
     ends: { type: "array", minItems: 2, maxItems: 2, items: { type: "string" }, description: "cards (rank): what the two ends mean, first end first: [\"most\", \"least\"], [\"earliest\", \"latest\"]." },
