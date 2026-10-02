@@ -5,7 +5,7 @@
 import { SUB_SUFFIXES } from "../layout/model";
 import { guessParts, marketParts } from "../guess/parts";
 import { marketMove } from "../guess/market";
-import { niceStep } from "../guess/handles";
+import { niceStep } from "../guess/numbers";
 import { treeBlanks, treePick } from "../tree/blanks";
 import { blankConvertible, blankIsNumber, formulaBlanks, hasBlanks, tileRight } from "../formula/blanks";
 import { walkTree } from "../scenes/decision_tree/rollback";

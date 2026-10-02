@@ -19,6 +19,9 @@ import type { MeasureFn } from "../layout/measure";
 import { readParam } from "../render/params";
 import type { Spec, SpecElement } from "../spec/types";
 import { guessParts } from "./parts";
+// niceStep and dockNumber live in ./numbers (no imports): lint and the gate words use them without the guess machinery.
+import { dockNumber, niceStep } from "./numbers";
+export { dockNumber, niceStep };
 import { authoredScales, scaleGeometry, scaleValueElements, type ScaleElementLike } from "../spec/scale";
 import { along, gapsOf, marketCurve, marketKind, marketPoint, skOf, visibleCopy, type MarketCurve, type MarketKind } from "./market";
 import { END_ZONE, nearestAlong } from "../scenes/supply_demand/widget";
@@ -108,15 +111,6 @@ export const GUESSABLE_TEMPLATES = ["bar_chart", "line_chart", "pie_chart"] as c
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
-/** A step for a range: about 1/50 of it, snapped to 1, 2 or 5 × 10^k
- *  (finer gave "100.0" and "37.0" on 0–100 axes: decimals nobody guesses in). */
-export function niceStep(range: number): number {
-  if (!(range > 0)) return 1;
-  const raw = range / 50;
-  const p = Math.pow(10, Math.floor(Math.log10(raw)));
-  const m = raw / p;
-  return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
-}
 
 export function snap(v: number, step: number): number {
   if (!(step > 0)) return v;
@@ -914,11 +908,6 @@ export function accountOf(values: number[][], budget: number): number {
 export function budgetBalanced(handles: GuessHandle[], values: number[][], budget: number): boolean {
   const step = Math.min(...handles.map((h) => (h.step > 0 ? h.step : 1)));
   return Math.abs(accountOf(values, budget)) <= step / 2 + 1e-9;
-}
-
-/** A number as the dock and the account bar say it: no trailing ".0" on a whole one ("22.0" → "22"). */
-export function dockNumber(text: string): string {
-  return text.replace(/(\d)[.,]0+(?!\d)/g, "$1");
 }
 
 /**

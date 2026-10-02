@@ -133,9 +133,9 @@ export function gateWords(lang: GateLang): GateWords {
   return lang === "nb" ? NB : EN;
 }
 
-/** A number as the dock says it — shared with the account bar (guess/handles.ts). */
-export { dockNumber } from "../guess/handles";
-import { dockNumber } from "../guess/handles";
+/** A number as the dock says it — shared with the account bar (guess/numbers.ts). */
+export { dockNumber } from "../guess/numbers";
+import { dockNumber } from "../guess/numbers";
 
 /**
  * The dock's line for a budget not yet balanced (spec 2026-10-03 §5, L6):
