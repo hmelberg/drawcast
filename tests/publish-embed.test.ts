@@ -149,7 +149,8 @@ describe("unembeddedImages", () => {
   it("counts an image and an icon with no strokes, and neither once they have them", () => {
     const bare = parsePlaylistText(["elements:", "  - {id: photo, type: image, of: Honeycomb}", "  - {id: bee, type: icon, of: bee}", "commands: []"].join("\n"));
     expect(unembeddedImages(bare)).toBe(2);
-    for (const el of itemsOf(bare)[0].spec.elements ?? []) (el as { strokes?: string }).strokes = "img1:aa:data:,x";
+    // An icon is embedded by icon data (ics1:/ic1:), an image by its picture.
+    for (const el of itemsOf(bare)[0].spec.elements ?? []) (el as { strokes?: string }).strokes = el.type === "icon" ? 'ics1:lucide:bee:<svg viewBox="0 0 24 24"/>' : "img1:aa:data:,x";
     expect(unembeddedImages(bare)).toBe(0);
   });
 

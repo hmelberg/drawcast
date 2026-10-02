@@ -197,14 +197,6 @@ export function storedIcon(spec: Pick<Spec, "assets"> | undefined, name: string)
   return undefined;
 }
 
-/** True when an icon element carries its artwork in the document itself — inline, or under its keyword in `assets:` (the offline cache does not count). */
-export function iconEmbedded(spec: Pick<Spec, "assets">, el: { type?: unknown; of?: unknown; set?: unknown; icon_look?: unknown; strokes?: unknown }): boolean {
-  if (isIconData(el.strokes)) return true;
-  if (typeof el.of !== "string" || el.of.trim() === "") return false;
-  const ask = { of: el.of, ...(typeof el.set === "string" && el.set !== "" ? { set: el.set } : {}) };
-  return isIconData(spec.assets?.[iconAssetName(ask, iconLookOf(el))]);
-}
-
 // ---- filling a spec from the stores ---------------------------------------
 
 /** One place an icon is asked for, and where its data and credit go. */
@@ -240,6 +232,22 @@ export function iconSlots(spec: Pick<Spec, "elements">): IconSlot[] {
     }
   }
   return out;
+}
+
+/** How many icons a spec asks for — icon elements, nodes', cards' items and match partners. */
+export function iconCount(spec: Pick<Spec, "elements">): number {
+  return iconSlots(spec).length;
+}
+
+/**
+ * How many of a spec's icons are not in the file: no data of their own and
+ * none under their keyword in `assets:` (the offline cache does not count —
+ * a viewer elsewhere would fetch them). What Publish and the Embed dialog
+ * count; every slot, so a cast whose only icons are a node's or a card's
+ * is still embedded (final fix I).
+ */
+export function unembeddedIcons(spec: Pick<Spec, "elements" | "assets">): number {
+  return iconSlots(spec).filter((s) => !isIconData(s.host[s.data]) && !isIconData(spec.assets?.[iconAssetName(s.ask, s.look)])).length;
 }
 
 /** The keywords a spec asks for that neither carry data nor find it in `assets:` or an offline store. */
