@@ -8,6 +8,7 @@
 //                                                        the JSON schema goes to dev-casts/_schema.json (look fields up there)
 //   node scripts/cast.mjs template <id>                  a template's full catalog entry (params, element ids)
 //   node scripts/cast.mjs check <cast.json|yaml>         validation + layout/command lint (the generator's own checks)
+//   node scripts/cast.mjs poster <cast.yaml> <out.png>   the picture the cast's link card shows (drawn as the app draws it)
 //   node scripts/cast.mjs frames <cast.json> [outdir] [--large]   frames after every spoken line, as PNG tiles, plus
 //                                                        the browser-measured lint per frame (--large: one frame per row,
 //                                                        for fine text) — needs the dev server
@@ -1405,6 +1406,16 @@ const commands = {
       console.log(`valid · ${speaks} spoken lines · ${(spec.elements ?? []).length} elements${spec.template ? ` · template ${spec.template}` : ""}`);
       console.log(issues.length ? issues.map((i) => `  [${i.severity}] ${i.message}`).join("\n") : "  lint clean (heuristic metrics — frames gives the browser's)");
     });
+  },
+
+  // node scripts/cast.mjs poster <cast.yaml> <out.png> — the picture its link card will show
+  async poster([file, out]) {
+    if (!file || !out) throw new Error("usage: cast.mjs poster <cast.yaml> <out.png>");
+    const { drawPictures } = await import("./pictures.mjs");
+    const { pictures, note } = await drawPictures([readFileSync(resolve(ROOT, file), "utf8")], { root: ROOT });
+    if (!pictures[0]) throw new Error(`No picture drawn (${note ?? "the drawing failed"})`);
+    writeFileSync(resolve(ROOT, out), pictures[0]);
+    console.log(`wrote ${out} (${pictures[0].length} bytes)`);
   },
 
   async frames(args) {

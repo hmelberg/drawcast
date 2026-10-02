@@ -57,6 +57,7 @@ import { validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
 import { ensureEnginesForSpecs } from "../scenes/engines";
 import { ensureEnabledPacks, PACK_DEFS } from "../scenes/packs";
+import { posterForPlaylistText } from "../export/snapshot";
 
 interface FrameReport {
   /** Boundary: the figure as it stands after this many plan steps. */
@@ -480,6 +481,7 @@ box.addEventListener("keydown", (e) => {
 declare global {
   interface Window {
     __stampCode: (index: number) => Promise<Record<string, string>>;
+    __poster: (text: string) => Promise<string | null>;
     __frames: (input?: { index?: number; cast?: string; text?: string; beats?: "all" | "resting" }) => Promise<CastReport>;
   }
 }
@@ -521,3 +523,17 @@ window.__frames = async (input) => {
 const q = new URLSearchParams(location.search);
 if (q.has("index") || q.has("cast")) void loadCast().then(run);
 else app.append(h("pre", {}, "Paste a cast above and press ⌘⏎ — or open with ?index=274 / ?cast=/dev-casts/x.json"));
+
+/**
+ * The picture a published cast shows on its link card (spec 2026-10-02-
+ * share-design §7.1), for scripts/pictures.mjs: the app's own
+ * posterForPlaylistText, as base64 — or null when nothing could be drawn.
+ */
+window.__poster = async (text) => {
+  await ensureEnabledPacks(Object.keys(PACK_DEFS));
+  const bytes = await posterForPlaylistText(text);
+  if (!bytes) return null;
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+};
