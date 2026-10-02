@@ -1,7 +1,8 @@
 // The Spec source editor folds what nobody reads (round 6 §8): the `assets:`
 // block (a fenced ```assets block in script notation, or a top-level
 // `assets:` key in YAML) and any long machine-written string — traced
-// strokes, a picture's base64, an icon's SVG — each becomes a one-line
+// strokes, a picture's base64, an icon's SVG; never the author's own text —
+// each becomes a one-line
 // marker such as `⟪folded k3f9#2 · 3 KB⟫`. The text the app reads is always
 // the whole thing: attachSpecFolding puts the folding on the textarea's own
 // `value`, so every one of main.ts's reads and writes keeps working on the
@@ -41,10 +42,21 @@ function size(text: string): string {
   return bytes < 1024 ? `${bytes} B` : `${Math.round(bytes / 1024)} KB`;
 }
 
-/** The encoded payloads drawcast writes (spec/trace.ts, spec/icon-data.ts), and data: URIs — as a word of their own, never inside "metadata:". */
-const DATA_START = /(?<![\w-])(["']?)(?:t1|t2|img1|img2|lnk1|ic1|ics1|data):/g;
-/** A run of this many characters with no space is data, whatever it is. */
-const LONG_RUN = new RegExp(`\\S{${FOLD_MIN},}`, "g");
+/**
+ * The encoded payloads drawcast writes (spec/trace.ts, spec/icon-data.ts),
+ * each by its own wire form — `t2:<2-char aspect>:`, `ic1:[`,
+ * `ics1:<set>:<name>:<svg`, … — and real data: URIs (`data:<mime>/<type>;` or
+ * `,`). A word of their own, never inside "metadata:"; the plain word
+ * "data:" (or "t1:") in narration is the author's text, not a payload
+ * (final fix I).
+ */
+const DATA_START = /(?<![\w-])(["']?)(?:(?:t1|t2|img1|img2|lnk1):[A-Za-z0-9_-]{2}:|ic1:\[|ics1:[\w-]+:[\w-]+:<svg|data:[\w.+-]+\/[\w.+-]+[;,])/g;
+/**
+ * A base64 run this long (no quotes, braces, commas or spaces) is data,
+ * whatever names it. Anything else long — compact `with:` JSON, a path's
+ * points, a cards list — is what the author wrote and stays as written.
+ */
+const LONG_RUN = new RegExp(`[A-Za-z0-9+/=_-]{${FOLD_MIN},}`, "g");
 
 /**
  * The text as the editor shows it, what each marker stands for (marker #n
@@ -91,7 +103,7 @@ export function foldSpecText(text: string, nonce: string = foldNonce()): { shown
   return { shown: out.join("\n"), folds, nonce };
 }
 
-/** One line: from an encoded payload's start to the end of the line, or a long space-free run. */
+/** One line: from an encoded payload's start to the end of the line, or a long base64 run. */
 function foldLine(line: string, mark: (original: string, what: string) => string): string {
   if (line.length < FOLD_MIN) return line;
   for (const m of line.matchAll(DATA_START)) {

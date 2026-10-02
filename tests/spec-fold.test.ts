@@ -178,6 +178,38 @@ describe("a folded textarea", () => {
     expect(a.shown).toMatch(/⟪folded/);
     expect(a.value).toBe(text);
   });
+  test("only machine payloads fold: in every bundled example no with:, path, ask, cards or narration line is folded (final fix I)", () => {
+    const PAYLOAD = /^["']?(?:(?:t1|t2|img1|img2|lnk1):[A-Za-z0-9_-]{2}:|ic1:\[|ics1:[\w-]+:[\w-]+:<svg|data:[\w.+-]+\/[\w.+-]+[;,])|^[A-Za-z0-9+/=_-]+$/;
+    let payloads = 0;
+    for (const e of bundled as { spec?: Spec; playlist?: string }[]) {
+      const t = e.playlist ?? formatPlaylist(singlePlaylist(e.spec!), "script");
+      const f = foldSpecText(t, "qq00");
+      for (const line of f.shown.split("\n")) {
+        if (!line.includes("⟪folded")) continue;
+        expect(line.trim(), line.slice(0, 80)).not.toMatch(/^(with:|path\b|ask\b|cards\b|speak\b|-\s*speak:)/);
+      }
+      for (const fold of f.folds) {
+        if (!/^```assets|^assets/.test(fold)) expect(fold.slice(0, 60)).toMatch(PAYLOAD);
+        payloads++;
+      }
+    }
+    // The bundled pictures' data URIs still fold.
+    expect(payloads).toBeGreaterThan(0);
+  });
+  test("a narration line with the word data: is not folded; a data URI is", () => {
+    const speak = `  - speak: "Here is the data: ${"each bar is one country, ".repeat(10)}across the whole world."`;
+    expect(foldSpecText(speak).shown).toBe(speak);
+    const uri = `  href: data:image/png;base64,${"iVBORw0KGgo".repeat(30)}`;
+    expect(foldSpecText(uri, "aa11").shown).toBe("  href: ⟪folded aa11#0 · 352 B⟫");
+  });
+  test("compact JSON, point lists and a long plain word run stay as written; a bare base64 run folds", () => {
+    const json = `    with: {"bars":[${Array.from({ length: 40 }, (_, i) => `{"label":"b${i}","value":${i}}`).join(",")}]}`;
+    expect(foldSpecText(json).shown).toBe(json);
+    const pts = `    path p points=[${Array.from({ length: 60 }, (_, i) => `[${i},${i * 2}]`).join(",")}]`;
+    expect(foldSpecText(pts).shown).toBe(pts);
+    const b64 = `    foto: ${"QUJDRA==".repeat(40)}`;
+    expect(foldSpecText(b64, "bb22").shown).toBe("    foto: ⟪folded bb22#0 · 320 B⟫");
+  });
   test("a word ending in data: (metadata:) inside a sentence is not folded", () => {
     const line = `    speak The metadata: ${"says what the file is and who made it, ".repeat(6)}`;
     expect(foldSpecText(line).shown).toBe(line);
