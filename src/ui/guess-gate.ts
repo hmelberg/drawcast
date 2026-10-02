@@ -111,10 +111,35 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         // A scale's marker writes its own number: a pill over it says it twice.
         // A market curve has no one number to type: its copy is the answer.
         if (c && g.kind !== "point" && g.kind !== "market") {
-          pill.style.left = `${c[0]}px`;
-          pill.style.top = `${c[1]}px`;
           pill.hidden = false;
+          const beside = g.kind === "height" ? besideBar(g, c) : null;
+          pill.classList.toggle("cs-guess-beside", beside !== null);
+          pill.style.left = `${beside ? beside[0] : c[0]}px`;
+          pill.style.top = `${c[1]}px`;
         } else pill.hidden = true;
+      };
+      /**
+       * A bar's pill stands above the bar's top — unless there it would reach
+       * past the top of the plot, over the axis and its title (on a phone the
+       * drawing is small and the pill is not, H2): then it stands beside the
+       * bar's top, right of it (left when that runs off the drawing). Returns
+       * the pill's left edge (stage px), or null for above.
+       */
+      const besideBar = (g: GuessHandle, c: [number, number]): [number] | null => {
+        if (!g.toLogical || g.cx === undefined || g.halfW === undefined) return null;
+        const top = clientPointFor(stage, [g.cx, g.toLogical([0, g.max])[1]]);
+        const ph = pill.offsetHeight;
+        if (!top || ph === 0) return null;
+        // The pill's own gap from the bar: its CSS lifts it 100 % + 10–30 px.
+        const lift = ph + (stage.classList.contains("cs-docked-narrow") ? 10 : 30);
+        if (c[1] - lift >= top[1]) return null;
+        const y = g.toLogical([0, 0])[1];
+        const right = clientPointFor(stage, [g.cx + g.halfW, y]);
+        const left = clientPointFor(stage, [g.cx - g.halfW, y]);
+        if (!right || !left) return null;
+        const pw = pill.offsetWidth;
+        const room = stage.getBoundingClientRect().width;
+        return right[0] + 4 + pw <= room ? [right[0] + 4] : [Math.max(0, left[0] - 4 - pw)];
       };
 
       const finish = (result: string | null): void => {
@@ -243,6 +268,7 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         pill.replaceWith(field);
         field.style.left = pill.style.left;
         field.style.top = pill.style.top;
+        if (pill.classList.contains("cs-guess-beside")) field.classList.add("cs-guess-beside");
         field.focus();
         field.select();
         // Closed once: swapping the focused field out fires its blur at once

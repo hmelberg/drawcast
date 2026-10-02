@@ -993,6 +993,13 @@ details > summary { cursor: pointer; color: var(--muted); }
 .cs-stage.is-playing .cs-more:not(.cs-more-open) .cs-more-chip { opacity: 0.45; }
 .cs-figure.cs-idle .cs-more { opacity: 0; pointer-events: none; }
 .cs-stage.cs-grabbing .cs-more { display: none; }
+/* A phone: the chip is its book alone (its name is the button's title), so
+   the words beside or under it keep their width (round 5 fix wave, M5). */
+@media (max-width: 560px) {
+  .cs-more-chip .cs-more-label { display: none; }
+  .cs-more-chip { padding-inline: 0.45rem; }
+  .cs-more-chip .cs-icon { width: 1.1em; height: 1.1em; }
+}
 @media (pointer: coarse) {
   .cs-more-chip { min-height: 36px; padding-inline: 0.75rem; }
 }
@@ -1163,6 +1170,24 @@ a.cs-more-title:focus-visible { outline: 2px solid #b5482e; outline-offset: 2px;
 
 .step-indicator { color: var(--muted); font-size: var(--text-xs); min-width: 3ch; text-align: center; }
 
+/* Touch (with the (hover: none) block above): the base .cs-progress rule
+   comes after that block and its background shorthand reset the clip, so
+   a finger's 44 px hit area was painted as one tall grey slab. Restated
+   here, after the base rule. */
+@media (hover: none) {
+  .cs-controlbar > .cs-progress { height: 12px; background-clip: content-box; }
+}
+/* A phone's control bar (round 5 fix wave, M4): the seek bar takes a row of
+   its own over the buttons — squeezed between them it shrank to a knob —
+   and the buttons stand a little narrower (still --tap tall), so one row
+   holds them all, the editor's "✎ Edit" too. */
+@media (max-width: 560px) {
+  .cs-controlbar { justify-content: space-between; column-gap: 0; }
+  .cs-controlbar > .cs-progress { order: -1; flex: 1 0 100%; }
+  .cs-controlbar > .cs-bar-btn { min-width: 36px; padding-inline: 0.1rem; }
+  .cs-controlbar > .cs-bar-btn:not(:has(.cs-icon)) { font-size: var(--text-sm); }
+}
+
 /* ---------- lint + rating ---------- */
 
 .lint-list { margin: 0.2rem 0 0; padding-left: 1.2rem; }
@@ -1331,6 +1356,13 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
    where there is height to spend and scrolling past the frame is the norm. */
 @media (max-width: 940px) and (orientation: landscape) {
   .viewer-body { --viewer-stage-h: min(calc((min(960px, 96vw) - 1.2rem - 3px) * 0.75), calc(100dvh - 5rem)); }
+}
+/* A phone held upright: the stage is 4 : 4.1 there (figure-style.ts — room
+   under the drawing for the words), so a height of 4 : 3 of the width left
+   it a quarter narrower than the frame, with the page empty below (round 5
+   fix wave, H1). The same width-bound stage as the app's. */
+@media (max-width: 700px) and (orientation: portrait) {
+  .viewer-body { --viewer-stage-h: min(calc((min(960px, 96vw) - 1.2rem - 3px) * 4.1 / 4), calc(100dvh - 10rem)); }
 }
 .viewer-wrap {
   width: min(960px, 96vw);
@@ -1825,8 +1857,16 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   margin: 0 auto;
 }
 .cs-gatedock.cs-gatedock-narrow { flex-wrap: wrap; row-gap: 0.25rem; }
+/* A phone (round 5 fix wave, H1): the dock is as short as it can be, so the
+   drawing gives up as little as it can — the hint is ONE line (the whole
+   sentence is its title), Answer and Skip share the row under it, and the
+   Sources chip stands aside while the question is open, taking its reserve
+   with it (ui/gate-dock.ts marks the stage cs-docked-narrow). */
 .cs-gatedock.cs-gatedock-narrow > .cs-figgate-hint {
   flex: 1 1 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: center;
   font-size: 0.8rem;
   line-height: 1.2;
@@ -1836,6 +1876,22 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   box-shadow: none;
   border-width: 1px;
 }
+.cs-stage.cs-docked-narrow .cs-more { display: none; }
+.cs-stage.cs-docked-narrow .cs-gatedock { padding-inline: 0.4rem; }
+.cs-stage.cs-docked-narrow.cs-more-bottom:is(.cs-caption-below, .cs-caption-strip) .cs-caption { padding-inline: 0.6rem; }
+/* The value pill over a drawing scaled to a phone (H2): smaller, and close
+   to the bar — at full size it covered the plot, the axis and its title. */
+.cs-stage.cs-docked-narrow .cs-guess-value,
+.cs-stage.cs-docked-narrow .cs-guess-field {
+  font-size: var(--text-xs);
+  padding: 0.05rem 0.5rem;
+  transform: translate(-50%, calc(-100% - 10px));
+}
+.cs-stage.cs-docked-narrow .cs-guess-field { width: 5rem; }
+/* Where above the bar would reach the top of the plot (the axis title), the
+   pill stands beside the bar's top instead (ui/guess-gate.ts). */
+.cs-stage .cs-guess-value.cs-guess-beside,
+.cs-stage .cs-guess-field.cs-guess-beside { transform: translate(0, -50%); }
 @media (max-width: 560px) {
   .cs-gatedock { gap: 0.4rem; padding-inline: calc(0.4rem + var(--cs-more-reserve, 0px)); }
   .cs-gatedock > .cs-figgate-hint { font-size: var(--text-xs); padding: 0.2rem 0.6rem; }

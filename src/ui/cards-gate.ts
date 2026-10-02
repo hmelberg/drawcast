@@ -37,6 +37,8 @@ import { gateLangOf, gateWords } from "./gate-words";
 const SETTLE_MS = 160;
 /** A pair's numbers stand this long before the next pair is asked. */
 const PAIR_MS = 700;
+/** The focus ring's margin round a card (logical). */
+const RING_PAD = 3;
 /** A press that moves less than this (CSS px) is a tap, not a drag. */
 const TAP_SLOP_PX = 8;
 /** fill: a held tile floats this far (logical) above the pointer, so the
@@ -111,14 +113,20 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         }
         session.mark({ color: GUESS_COLOR, lines, texts: [] });
       };
+      /** compare: the keys have been used. The ring marks the pair being
+       *  asked for the keyboard; under a finger or a mouse a dashed ring on a
+       *  card nobody tapped reads as a pick (round 5 fix wave, L9). */
+      let keyed = false;
       const placeRing = (): void => {
-        if (focus < 0) {
+        if (focus < 0 || (mode === "compare" && !keyed)) {
           ring.hidden = true;
           return;
         }
         const p = shown[focus];
-        const a = clientPointFor(stage, [p[0] - g.w / 2 - 6, p[1] + g.h / 2 + 6]);
-        const b = clientPointFor(stage, [p[0] + g.w / 2 + 6, p[1] - g.h / 2 - 6]);
+        // A narrow margin: in a sort bin the top card sits close under the
+        // bin's title, and a wider ring ran into it (L13).
+        const a = clientPointFor(stage, [p[0] - g.w / 2 - RING_PAD, p[1] + g.h / 2 + RING_PAD]);
+        const b = clientPointFor(stage, [p[0] + g.w / 2 + RING_PAD, p[1] - g.h / 2 - RING_PAD]);
         if (!a || !b) return;
         Object.assign(ring.style, { left: `${a[0]}px`, top: `${a[1]}px`, width: `${b[0] - a[0]}px`, height: `${b[1] - a[1]}px` });
         ring.hidden = false;
@@ -151,8 +159,12 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         session.show(rows[row].map((c) => g.valueIds![c]));
         session.mark(cardsMarks(g, arr));
         row++;
-        if (row >= rows.length) window.setTimeout(() => finish(encodeArrangement(g, arr)), PAIR_MS);
-        else {
+        if (row >= rows.length) {
+          // Answered: no ring left standing on the last pair while it is read.
+          focus = -1;
+          placeRing();
+          window.setTimeout(() => finish(encodeArrangement(g, arr)), PAIR_MS);
+        } else {
           focus = rows[row][0];
           placeRing();
         }
@@ -304,6 +316,10 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         // button's Enter is its own click) — not the Play button that kept
         // the focus (gates.ts keysBelongElsewhere).
         if (keysBelongElsewhere(e.target, e.key)) return;
+        if (mode === "compare" && !keyed) {
+          keyed = true;
+          placeRing();
+        }
         const n = g.cards.length;
         const pairs = g.pairs ?? 0;
         if (e.key === "Tab") {

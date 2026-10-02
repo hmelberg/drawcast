@@ -27,6 +27,9 @@ export interface GateDock {
 }
 
 const DOCKED = "cs-docked";
+/** On the stage while a narrow (phone) dock stands: the Sources chip stands
+ *  aside and the value pill shrinks (styles.css). */
+const DOCKED_NARROW = "cs-docked-narrow";
 /** Below this stage width (px) the hint sits over the buttons, not beside them. */
 const NARROW_PX = 480;
 
@@ -52,7 +55,9 @@ export function mountGateDock(stage: HTMLElement, gate: HTMLElement, items: HTML
     const caption = stage.querySelector<HTMLElement>(".cs-caption");
     // A narrow stage (a phone): the hint takes its own line over the buttons
     // rather than a sliver beside them.
-    el.classList.toggle("cs-gatedock-narrow", stage.getBoundingClientRect().width < NARROW_PX);
+    const narrow = stage.getBoundingClientRect().width < NARROW_PX;
+    el.classList.toggle("cs-gatedock-narrow", narrow);
+    if (stage.classList.contains(DOCKED_NARROW) !== narrow) stage.classList.toggle(DOCKED_NARROW, narrow);
     // The dock's own height, plus its gap from the stage's edge.
     const dockH = el.offsetHeight + 8;
     stage.style.setProperty("--cs-dock-h", `${dockH}px`);
@@ -91,6 +96,7 @@ export function mountGateDock(stage: HTMLElement, gate: HTMLElement, items: HTML
       ro?.disconnect();
       mo?.disconnect();
       stage.classList.remove(DOCKED);
+      stage.classList.remove(DOCKED_NARROW);
       stage.style.removeProperty("--cs-dock-h");
       stage.style.removeProperty("--cs-dock-shrink");
     },
