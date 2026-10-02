@@ -169,6 +169,47 @@ describe("tree asks in the player", () => {
     expect(marks.get("tree_1")?.lines.some((l) => l.dashed)).toBe(true);
   });
 
+  // The poster before the first ask (posterOf) and the playhead must agree
+  // (final review 2026-10-03): Test me, the tray, a widget read the
+  // boundary the viewer SEES, not the end the playhead used to sit at.
+  describe("the poster and the playhead agree", () => {
+    test("on the poster, the boundary read is the poster's; Play still starts from the beginning", async () => {
+      const { player, plan } = makePlayer(COMMANDS);
+      player.showPoster();
+      expect(plan.steps.length).toBe(2);
+      expect(player.position).toBe(1);
+      const steps: number[] = [];
+      player.callbacks = { ...player.callbacks, onStep: (n) => steps.push(n) };
+      (player as unknown as { autoAnswers: boolean }).autoAnswers = true;
+      await player.play();
+      expect(steps[0]).toBe(0);
+      expect(player.vars.get("e")).toBe("5.8");
+    });
+    test("a repaint of the same boundary (the tray putting back) keeps it the poster", async () => {
+      const { player } = makePlayer(COMMANDS);
+      player.showPoster();
+      player.renderUpTo(player.position);
+      expect(player.position).toBe(1);
+      const steps: number[] = [];
+      player.callbacks = { ...player.callbacks, onStep: (n) => steps.push(n) };
+      (player as unknown as { autoAnswers: boolean }).autoAnswers = true;
+      await player.play();
+      expect(steps[0]).toBe(0);
+    });
+    test("a step back from the poster steps from the poster's boundary", () => {
+      const { player } = makePlayer(COMMANDS);
+      player.showPoster();
+      player.stepBack();
+      expect(player.position).toBe(0);
+    });
+    test("a cast with no ask on the figure: the poster is the end, as before", () => {
+      const { player, plan } = makePlayer([{ draw: IDS }, { speak: "Done." } as Command]);
+      player.showPoster();
+      expect(player.position).toBe(plan.steps.length);
+      expect(player.state).toBe("done");
+    });
+  });
+
   // {c.diff} (spec §4.3, final review 2026-10-03): how much better the best
   // one is — the margin over the best of the others when the pick is right,
   // skipped or demonstrated; best minus chosen when it is wrong. Never 0 for

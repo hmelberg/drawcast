@@ -708,7 +708,8 @@ export class Player {
       this.renderUpTo(this.plan.steps.length);
       return;
     }
-    if (this.completed >= this.plan.steps.length) this.renderUpTo(0);
+    // From the end, or from a poster stopped before the first ask: from the beginning.
+    if (this.completed >= this.plan.steps.length || this.posterRestart) this.renderUpTo(0);
     // A pending tray preview (geometryDirty) must settle before stepping:
     // frame() leaves handle-less DOM, and the run's actions need honest
     // elements. No-op when nothing is dirty and params already match; a
@@ -796,12 +797,16 @@ export class Player {
     // cards) would give its answers away in that drawing: its poster is the
     // boundary before the first such ask, the trees' best and prune marks
     // still to be asked about left out (plan.ts posterOf). The playhead
-    // stays at the end, so Play still starts from the beginning.
+    // stands at that boundary, so everything that reads "the boundary on
+    // screen" (Test me, the tray, a widget) reads the poster's — and
+    // posterRestart makes Play start from the beginning all the same.
     const poster = posterOf(this.plan);
     const end = this.stateAt(poster.at);
     if (poster.at < this.plan.steps.length) {
       this.restoreFormulaFills(poster.at);
       this.applyKey(end);
+      this.completed = poster.at;
+      this.posterRestart = true;
     }
     this.endMarks();
     const hide = new Set(poster.hide);
@@ -821,8 +826,18 @@ export class Player {
     return this.holdFrom !== null && index >= this.holdFrom;
   }
 
+  /** Set while the poster shows a boundary before the end (showPoster):
+   *  the playhead stands there, but Play starts from the beginning. */
+  private posterRestart = false;
+
   /** Jump to a step boundary: apply exactly the scene state after steps[0..n-1]. */
   renderUpTo(n: number): void {
+    // Putting the poster's own boundary back (the tray after a preview)
+    // keeps it the poster, not a cast paused at its first question.
+    if (this.posterRestart && n === this.completed) {
+      this.showPoster();
+      return;
+    }
     this.abortRun();
     this.jumpTo(n, false);
   }
@@ -834,6 +849,7 @@ export class Player {
    *  jumped backwards over a `run` and left its entry standing would put the
    *  history out of order, and the next scrub would show the wrong patch. */
   jumpTo(n: number, keepPlaying: boolean): void {
+    this.posterRestart = false;
     // A sweep's patch belongs to the step that set it: scrubbing to before
     // that step undoes it (back to the previous run's result, or to what the
     // author wrote), scrubbing past it keeps it. Dropped BEFORE the key is
@@ -1345,7 +1361,7 @@ export class Player {
    */
   async selfTest(open: (signal: AbortSignal, session: GuessSession) => Promise<string | null>): Promise<boolean> {
     if (!this.guess || !this.reprojector || this.state === "playing") return false;
-    const n = this.state === "done" ? this.plan.steps.length : this.completed;
+    const n = this.shownAt();
     const before = this.stateAt(n);
     const setup0 = this.guessSetupAt(["all"], undefined, before, true);
     if (!setup0) return false;
@@ -1390,10 +1406,16 @@ export class Player {
     this.endGuessMarks(true);
   }
 
+  /** The boundary on screen: the poster's (before the first ask) while it
+   *  shows, the end once played through, else where the playhead stands. */
+  private shownAt(): number {
+    return this.state === "done" && !this.posterRestart ? this.plan.steps.length : this.completed;
+  }
+
   /** Whether "Test me" has anything to offer at this boundary (the chip shows only then). */
   canSelfTest(): boolean {
     if (!this.guess || !this.reprojector || this.state === "playing" || this.plan.steps.length === 0) return false;
-    const n = this.state === "done" ? this.plan.steps.length : this.completed;
+    const n = this.shownAt();
     const before = this.stateAt(n);
     const setup = this.guessSetupAt(["all"], undefined, before, true);
     if (!setup) return false;
