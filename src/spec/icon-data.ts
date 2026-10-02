@@ -134,6 +134,19 @@ export function iconRingsOf(data: unknown): Pt[][] | null {
 }
 
 /**
+ * What a resolved icon element gives a Generate seed: its rings (from
+ * either form) and the set it came from — the `ics1:` data names it; else
+ * the part of `icon_key` after '@'. Null when there is nothing to trace.
+ */
+export function iconSeedOf(el: { strokes?: unknown; icon_key?: unknown }): { rings: Pt[][]; set?: string } | null {
+  const rings = iconRingsOf(el.strokes);
+  if (!rings) return null;
+  const key = typeof el.icon_key === "string" && el.icon_key.includes("@") ? el.icon_key.slice(el.icon_key.lastIndexOf("@") + 1) : undefined;
+  const set = decodeIconSvg(el.strokes)?.set ?? (key || undefined);
+  return set ? { rings, set } : { rings };
+}
+
+/**
  * The picture for icon data: a self-contained `data:` URI of the SVG with
  * `currentColor` (a line icon's ink) set to `ink`, and its aspect (h / w,
  * from the viewBox). Null for rings-only data — that can only be drawn.

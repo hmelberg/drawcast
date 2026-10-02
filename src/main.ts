@@ -111,7 +111,7 @@ import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publi
 import { resolvePortraits } from "./render/portrait";
 import { resolveIcons } from "./render/icon";
 import { resolveImages } from "./render/image";
-import { decodeIcon } from "./spec/trace";
+import { iconSeedOf } from "./spec/icon-data";
 import { seedBlock, type SeedBlock } from "./llm/seed";
 import { resolveSources } from "./render/source";
 import { parseManifest, parseRepo, readFile, slugify, type RepoRef } from "./publish/github";
@@ -3516,10 +3516,12 @@ async function generate(): Promise<void> {
       const spec: Spec = { elements: [{ id: "seed_icon", type: "icon", of: subject, x: 0, y: 0 }], commands: [] };
       const results = await resolveIcons(spec, undefined, { forSeed: true });
       const el = spec.elements![0];
-      const rings = el.strokes ? decodeIcon(el.strokes) : null;
-      if (!results[0]?.ok || !rings) return null;
-      seededSet = el.set;
-      return seedBlock(subject, rings, el.credit ?? "");
+      // The data is `ics1:` SVG since round 6 (older `ic1:` rings still
+      // read); the set it came from is in the data or its key, not el.set.
+      const seed = iconSeedOf(el);
+      if (!results[0]?.ok || !seed) return null;
+      seededSet = seed.set;
+      return seedBlock(subject, seed.rings, el.credit ?? "");
     };
     // ---- end icon seed ----
     // The look pass shows the first version as soon as it is valid and

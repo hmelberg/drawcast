@@ -132,14 +132,14 @@ try {
     if (seedOn) {
       try {
         const { resolveIcons } = await server.ssrLoadModule("/src/render/icon.ts");
-        const { decodeIcon } = await server.ssrLoadModule("/src/spec/trace.ts");
+        const { iconSeedOf } = await server.ssrLoadModule("/src/spec/icon-data.ts");
         const { seedBlock } = await server.ssrLoadModule("/src/llm/seed.ts");
         fetchSeed = async (subject, signal) => {
           const spec = { elements: [{ id: "seed_icon", type: "icon", of: subject, x: 0, y: 0 }], commands: [] };
           const r = await resolveIcons(spec, undefined, { forSeed: true });
           const el = spec.elements[0];
-          const rings = el.strokes ? decodeIcon(el.strokes) : null;
-          return r[0]?.ok && rings ? seedBlock(subject, rings, el.credit ?? "") : null;
+          const seed = iconSeedOf(el);
+          return r[0]?.ok && seed ? seedBlock(subject, seed.rings, el.credit ?? "") : null;
         };
       } catch {
         console.log("seed: unavailable in this checkout — running unseeded");
