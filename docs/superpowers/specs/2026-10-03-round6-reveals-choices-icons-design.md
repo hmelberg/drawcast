@@ -1,6 +1,6 @@
 # Round 6 — answers that stay, choices on the figure, lighter icons
 
-Date: 2026-10-03 · Status: proposed (decisions taken by the user: the "beside"
+Date: 2026-10-03 · Status: approved 2026-10-03 (decisions taken by the user: the "beside"
 reveal is the default; original-colour icons are the default for side
 illustrations). Builds on rounds 1–5 of guess-and-reveal
 (`2026-10-01-guess-and-reveal-design.md` … `2026-10-03-looks-feedback-account-design.md`).
@@ -159,9 +159,7 @@ keywords; "`icon_look: drawn` only when the icon is what you explain".
 6. Sorting (E): tap to move, "tap all", deck.
 7. Revisions (§9), guidance, browser check (muted), generated cast, push.
 
-## 12. Open questions
+## 12. Decisions (2026-10-03)
 
-1. Bars beside: halve the bar width (your half + true half), or keep full
-   width and draw your bar as an outline in front? (Proposed: halves.)
-2. Should the fade-to-35 % of your answer happen at the next command, or
-   only when the author erases it? (Proposed: next command.)
+1. Bars beside: halves (your half left, the true half right).
+2. Your answer fades to 35 % at the next command.
