@@ -35,6 +35,7 @@ import {
 } from "./connect-model";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import type { AskGateStep } from "./controls";
+import { gateLangOf, gateWords } from "./gate-words";
 
 /** Matches the other cards' CARD_LINGER_MS. */
 const LINGER_MS = 2600;
@@ -430,7 +431,7 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
         // shares; cs-figgate-skip (the other gates' own corner positioning)
         // is deliberately left off — this one's position comes from being a
         // flex child of .cs-connect-bar instead.
-        skip = h("button", { class: "cs-cardgate-pill skip" }, "Skip ▸");
+        skip = h("button", { class: "cs-cardgate-pill skip" }, gateWords(gateLangOf(hd)).skip);
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           if (settled) return;

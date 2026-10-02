@@ -31,6 +31,7 @@ import { clientPointFor, h, logicalPoint } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
 import type { AskGateStep } from "./controls";
 import { keysBelongElsewhere } from "./gates";
+import { gateLangOf, gateWords } from "./gate-words";
 
 /** How long the other cards take to make room. */
 const SETTLE_MS = 160;
@@ -42,17 +43,7 @@ const TAP_SLOP_PX = 8;
  *  finger's point — where it drops — and the box under it stay in sight. */
 const HOLD_LIFT = 14;
 
-const HINT: Record<string, string> = {
-  rank: "Drag the cards into order",
-  sort: "Drag each card into its box",
-  place: "Drag each card onto the line",
-  match: "Drag each card to its partner",
-  compare: "Tap one in each pair",
-  decide: "Choose one",
-  fill: "Drag a tile into each box",
-};
-
-export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
+export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
       const session = step.cardsSession as CardsSession | undefined;
@@ -61,6 +52,7 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         return;
       }
       stage.querySelector(".cs-figgate")?.remove();
+      const words = gateWords(gateLangOf(hd));
       const g = session.geometry;
       const mode = g.mode;
       let arr: Arrangement = session.start;
@@ -77,8 +69,8 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       /** fill: the tile tapped, waiting for a tap on a box (-1: none). */
       let picked = -1;
 
-      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, HINT[mode] ?? "");
-      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸");
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint", title: words.cards[mode] ?? "" }, words.cards[mode] ?? "");
+      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.answer);
       answer.hidden = !needsAnswer || dropAnswers;
       const ring = h("div", { class: "cs-card-focus" });
       ring.hidden = true;
@@ -383,7 +375,7 @@ export function cardsGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         finish(encodeArrangement(g, arr));
       });
       if (!step.required) {
-        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, "Skip ▸");
+        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, words.skip);
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           g.cards.forEach((id) => session.place(id, 0, 0));

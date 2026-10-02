@@ -19,26 +19,18 @@
 
 import type { RenderHandle } from "../render";
 import type { GuessSession } from "../render/player";
-import { budgetHint, encodeGuess, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, pickHandle, pointFor, valueAt, type GuessHandle } from "../guess/handles";
+import { accountOf, budgetBalanced, encodeGuess, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, pickHandle, pointFor, valueAt, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
 import type { AskGateStep } from "./controls";
-
-const HINT: Record<GuessHandle["kind"], string> = {
-  height: "Drag the bar to your guess",
-  curve: "Draw the rest of the line",
-  angle: "Drag the slice's edge",
-  count: "Drag across the people",
-  point: "Click where you think it is",
-  market: "Drag the middle to move it, an end to turn it",
-};
+import { budgetLine, gateLangOf, gateWords } from "./gate-words";
 
 /** True when ←/→ pick an entry of the handle instead of changing it. A
  *  market curve's two gaps are one gesture: its arrows move and turn it. */
 const multiEntry = (g: GuessHandle): boolean => g.truth.length > 1 && g.kind !== "market";
 
-export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
+export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
       const session = step.guess as GuessSession | undefined;
@@ -47,6 +39,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         return;
       }
       stage.querySelector(".cs-figgate")?.remove();
+      const words = gateWords(gateLangOf(hd));
       const handles = session.setup.handles;
       const values: number[][] = session.start.map((r) => r.slice());
       let focus = 0;
@@ -57,6 +50,9 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       // on its own; the player paints the account bar beside the plot, and
       // Answer waits until it balances.
       const budget = session.account?.budget ?? null;
+      // The cast's own name for the account ("Hours left") speaks in the
+      // dock too; the player's default "Left" says "Balance the budget".
+      const accountLabel = session.account && session.account.label !== "Left" ? session.account.label : null;
       // A market curve is moved AND turned (spec 2026-10-03 §3.2): one gesture
       // is rarely the whole answer, so it waits for Answer unless release: true.
       const onRelease =
@@ -68,21 +64,24 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
 
       const hintText =
         handles.length > 1 && handles[0].kind === "height"
-          ? "Drag each bar to your guess"
+          ? words.guess.bars
           : handles[0].kind === "angle" && multiEntry(handles[0])
-            ? "Drag the edges between the slices"
-            : HINT[handles[0].kind];
-      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, onRelease ? (handles[0].kind === "point" ? hintText : `${hintText} — let go to answer`) : `${hintText}, then Answer`);
-      const pill = h("button", { class: "cs-guess-value", type: "button", title: "Type a number" });
-      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸") as HTMLButtonElement;
+            ? words.guess.edges
+            : words.guess[handles[0].kind];
+      const hintFull = onRelease ? (handles[0].kind === "point" ? hintText : words.letGo(hintText)) : words.thenAnswer(hintText);
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint", title: hintFull }, hintFull);
+      const pill = h("button", { class: "cs-guess-value", type: "button", title: words.typeNumber });
+      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.answer) as HTMLButtonElement;
       answer.hidden = onRelease;
       const hintDefault = hint.textContent ?? "";
       /** A budget: the hint says what is left or over; Answer only when balanced. */
-      const balanced = (): boolean => budget === null || budgetHint(handles, values, budget) === null;
+      const balanced = (): boolean => budget === null || budgetBalanced(handles, values, budget);
       const balance = (): void => {
         if (budget === null) return;
-        const msg = budgetHint(handles, values, budget);
+        const a = accountOf(values, budget);
+        const msg = balanced() ? null : budgetLine(words, a, handles[0].format(Math.abs(a)), accountLabel);
         hint.textContent = msg ?? hintDefault;
+        hint.setAttribute("title", msg ?? hintDefault);
         answer.disabled = msg !== null;
       };
       const gate = h("div", { class: "cs-figgate cs-guessgate" }, pill);
@@ -238,7 +237,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         e.stopPropagation();
         const g = handles[focus];
         if (g.kind === "angle" && multiEntry(g)) return;
-        const field = h("input", { class: "cs-guess-field", type: "text", inputmode: "decimal", "aria-label": `Your guess for ${g.label}` }) as HTMLInputElement;
+        const field = h("input", { class: "cs-guess-field", type: "text", inputmode: "decimal", "aria-label": words.guessFor(g.label) }) as HTMLInputElement;
         const j = multiEntry(g) ? entry : 0;
         field.value = String(values[focus][j]);
         pill.replaceWith(field);
@@ -246,7 +245,13 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         field.style.top = pill.style.top;
         field.focus();
         field.select();
+        // Closed once: swapping the focused field out fires its blur at once
+        // (while it is still in the page), and a second close would swap a
+        // field that is gone — NotFoundError — and commit an Escape.
+        let closed = false;
         const close = (commit: boolean): void => {
+          if (closed) return;
+          closed = true;
           if (commit) {
             const n = Number(field.value.replace(/[\s %]/g, "").replace(",", "."));
             if (Number.isFinite(n)) {
@@ -266,7 +271,8 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
           if (ev.key === "Enter") close(true);
           else if (ev.key === "Escape") close(false);
         });
-        field.addEventListener("blur", () => field.isConnected && close(true));
+        // Leaving the field (a tap elsewhere) keeps what was typed.
+        field.addEventListener("blur", () => close(true));
         field.addEventListener("pointerdown", (ev) => ev.stopPropagation());
       });
 
@@ -278,7 +284,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       // The dock: the hint (a budget's balance), Answer, Skip.
       const docked: HTMLElement[] = [hint, answer];
       if (!step.required) {
-        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, "Skip ▸");
+        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, words.skip);
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           finish(null);

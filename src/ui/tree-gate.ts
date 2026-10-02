@@ -24,6 +24,7 @@ import { mountGateDock, type GateDock } from "./gate-dock";
 import { mountNumberEdit } from "./number-edit";
 import type { AskGateStep } from "./controls";
 import { keysBelongElsewhere } from "./gates";
+import { gateLangOf, gateWords } from "./gate-words";
 
 /** How near (px) a tap must land to a branch line to pick it. */
 const EDGE_HIT_PX = 18;
@@ -43,9 +44,10 @@ function polylineDistance(p: Pt, pts: Pt[]): number {
   return best;
 }
 
-export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
+export function treeGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
+      const words = gateWords(gateLangOf(hd));
       const session = step.treeSession as TreeSession | undefined;
       if (!session) {
         resolve(null);
@@ -64,8 +66,8 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
       const filled = (): boolean => values.every((v) => v !== null);
       const pickOpen = (): boolean => pick !== null && filled();
 
-      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, blanks.length > 0 ? "Tap a ? and type the number" : "Tap the best branch");
-      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸");
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, blanks.length > 0 ? words.tree.blanks : words.tree.branch);
+      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.answer);
       answer.hidden = oneShot || blanks.length === 0;
       const rings = blanks.map(() => h("div", { class: "cs-tree-blank" }));
       // A branch is lit along its own line (a thick translucent stroke), not
@@ -138,7 +140,7 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
       };
 
       const nudgePick = (): void => {
-        hint.textContent = "Now tap the best branch";
+        hint.textContent = words.tree.nowBranch;
         hint.classList.remove("cs-figgate-next");
         void hint.offsetWidth;
         hint.classList.add("cs-figgate-next");
@@ -188,7 +190,7 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
             const v = parseTreeBlankNumber(text, blanks[i].kind);
             if (v === null) {
               advance = false;
-              return "Type a number";
+              return words.typeNumber;
             }
             values[i] = v;
             session.show(values);
@@ -322,7 +324,7 @@ export function treeGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Abo
         act();
       });
       if (!step.required) {
-        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, "Skip ▸");
+        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, words.skip);
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           finish(null);

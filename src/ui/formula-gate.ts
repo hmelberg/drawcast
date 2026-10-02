@@ -29,15 +29,17 @@ import { mountGateDock, type GateDock } from "./gate-dock";
 import { mountNumberEdit, placeNearBox, type StageRect } from "./number-edit";
 import type { AskGateStep } from "./controls";
 import { keysBelongElsewhere } from "./gates";
+import { gateLangOf, gateWords } from "./gate-words";
 
 /** A blank's box grows by this (logical) for its ring and its tap target. */
 const BLANK_PAD = 6;
 /** The keys a phone keyboard hides: what each inserts. */
 const KEYS: [string, string][] = [["^", "^"], ["√", "√("], ["π", "π"], ["/", "/"], ["(", "("], [")", ")"]];
 
-export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
+export function formulaGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
+      const words = gateWords(gateLangOf(hd));
       const session = step.formulaSession as FormulaSession | undefined;
       if (!session) {
         resolve(null);
@@ -56,8 +58,8 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
       // then Enter only takes the field, and the Answer button answers.
       const enterAnswers = !(single && step.release === false);
 
-      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, single ? (blankIsNumber(blanks[0]) ? "Tap the box and type the number" : "Tap the box and type what goes in it") : "Tap a box and type what goes in it");
-      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸");
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, single ? (blankIsNumber(blanks[0]) ? words.formula.number : words.formula.one) : words.formula.many);
+      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.answer);
       answer.hidden = single && enterAnswers;
       const rings = blanks.map(() => h("div", { class: "cs-tree-blank" }));
       const gate = h("div", { class: "cs-figgate cs-guessgate cs-formulagate" }, ...rings);
@@ -247,7 +249,7 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
             onCommit: (text) => {
               if (text.trim() !== "" && parseBlankNumber(text) === null) {
                 advance = false;
-                return "Type a number";
+                return words.typeNumber;
               }
               texts[k] = text.trim() === "" ? null : text;
               session.show(texts);
@@ -330,7 +332,7 @@ export function formulaGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: 
         submit();
       });
       if (!step.required) {
-        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, "Skip ▸");
+        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, words.skip);
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           finish(null);
