@@ -462,8 +462,8 @@ export interface SpecElement {
   check?: "each" | "end";
   /** cards (rank): what the two ends mean. */
   ends?: string[];
-  /** cards (rank): a row (default) or a column. */
-  arrange?: "row" | "column";
+  /** cards: rank — a row (default) or a column; sort, select, deck — drop (default), side or rise. */
+  arrange?: "row" | "column" | "drop" | "side" | "rise";
   /** cards: place on this scale (items carry value). */
   along?: string;
   /** cards: higher or lower — the question each pair answers. */

@@ -54,8 +54,8 @@ describe("every card fits in any one box", () => {
       }
       // The dealt card's text is large: ≥ 26 canvas units, about 10 px on a 390 px phone.
       expect((g.font ?? 15) * (g.deckScale ?? 1)).toBeGreaterThanOrEqual(26);
-      // The boxes stay above the dealt card.
-      expect(g.binBoxes.every((box) => box.c[1] - box.h / 2 > g.home[0][1] + (g.h * (g.deckScale ?? 1)) / 2)).toBe(true);
+      // The dealt card stands over the boxes (round 7 §5: drop).
+      expect(g.binBoxes.every((box) => box.c[1] + box.h / 2 < g.home[0][1] - (g.h * (g.deckScale ?? 1)) / 2)).toBe(true);
     });
   }
 });

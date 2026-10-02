@@ -174,6 +174,8 @@ export interface LintIssue {
     | "feedback"
     | "card-icon"
     | "deck-text"
+    /** cards arrange: "side" with more than 8 cards — laid out as drop (round 7 §5) — warns */
+    | "cards-side"
     /** choose on the figure: an option not drawn before the ask, a branch that leads nowhere — or decide cards that repeat drawn things */
     | "choose"
     /** a question's cards or options sit over other visible parts: stage "own" fades the rest (spec round 6 §6) — warns */
@@ -1741,6 +1743,12 @@ function lintFeedback(spec: Spec): LintIssue[] {
     g.texts.forEach((t, i) => {
       if (t.length * (g.font ?? 15) * 0.5 > g.w - 16) warn("deck-text", [el.id], `${el.id} item ${i + 1}: "${t}" is too long for a deck card (${g.cards.length} cards, ${Math.floor((g.w - 16) / ((g.font ?? 15) * 0.5))} letters fit) — a word or two`);
     });
+  }
+  // arrange: side (round 7 §5) holds up to 8 cards in its column; more are laid out as drop.
+  const sides = [...(spec.elements ?? []).filter((e) => e.type === "cards"), ...authoredCards(spec)].filter((e) => (e as { arrange?: unknown }).arrange === "side") as CardsElementLike[];
+  for (const el of sides) {
+    const n = (el.items ?? []).length;
+    if (n > 8) warn("cards-side", [el.id], `${el.id}: arrange "side" holds up to 8 cards in its column (${n} here) — it is laid out as drop`);
   }
   return issues;
 }

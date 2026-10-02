@@ -69,8 +69,8 @@ export interface CardsElementLike {
   items?: (string | CardItem)[];
   bins?: string[];
   ends?: string[];
-  /** rank: a row (default) or a column of cards. */
-  arrange?: "row" | "column";
+  /** rank: a row (default) or a column of cards; sort, select, deck (round 7 §5): drop (default — the cards above the boxes), side (a column on the left, up to 8), rise (the boxes on top). */
+  arrange?: "row" | "column" | "drop" | "side" | "rise";
   /** place: the scale element the cards go on. */
   along?: string;
   /** compare: the question each pair answers ("more deaths per year"). */
@@ -311,10 +311,21 @@ export function counterAt(g: CardsGeometry): Pt {
   return [x, Math.min(...bs.map((b) => b.c[1] - b.h / 2)) - 22];
 }
 
+/** sort, select, deck under drop / side (round 7 §5, §8.1): nothing stands above this by default — the top strip is the headline's. */
+export const HEAD_ROOM_Y = 660;
+
+/** sort, select, deck (round 7 §5): where the cards stand against the boxes — drop unless asked; side only up to 8 cards. */
+export function sortLayout(el: Pick<CardsElementLike, "arrange">, n: number): "drop" | "side" | "rise" {
+  if (el.arrange === "rise") return "rise";
+  return el.arrange === "side" && n <= 8 ? "side" : "drop";
+}
+
 /** The lowest point the geometry draws: cards at home and at the truth, sort bins, compare values. */
 function lowestOf(g: CardsGeometry): number {
   const ys = [...g.home, ...g.truth].map((p) => p[1] - g.h / 2 - (g.mode === "compare" ? 32 : 0));
   for (const b of g.binBoxes) ys.push(b.c[1] - b.h / 2);
+  // check: each under drop or side — the counter's row under the boxes.
+  if (g.each && g.layout !== undefined && g.layout !== "rise" && g.binBoxes.length > 0) ys.push(counterAt(g)[1] - 12);
   return Math.min(...ys);
 }
 
@@ -469,7 +480,7 @@ function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: str
   // select: an out card's truth is the row (-1).
   const truthBin = items.map((it) => (select ? (it.in === true ? 0 : -1) : Math.max(0, bins.indexOf(it.bin ?? ""))));
   const perm = shuffleOrder(n);
-  if (deck) return deckGeometry(el, base, items.map((it) => it.text), truthBin, bins, perm, icons, x0, width);
+  if (deck) return deckGeometry(el, base, items.map((it) => it.text), truthBin, bins, perm, icons, x0, width, sortLayout(el, n));
 
   if (mode === "rank") {
     const column = el.arrange === "column";
@@ -492,19 +503,29 @@ function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: str
   }
 
   if (select) {
-    // One wide box across the top; the cards it holds stand side by side in
-    // it (rows of as many as fit), so every card can go in.
-    const perRow = n > 5 ? Math.ceil(n / 2) : n;
-    const slotW = width / perRow;
-    const w = Math.min(180, slotW - GAP);
-    const binW = width - 2 * GAP;
+    // One wide box; the cards it holds stand side by side in it (rows of as
+    // many as fit), so every card can go in. drop (round 7 §5): the cards
+    // above the box; side: a column on the left, the box on the right;
+    // rise: the box above the cards, as before.
+    const layout = sortLayout(el, n);
+    const side = layout === "side";
+    const perRow = side ? 1 : n > 5 ? Math.ceil(n / 2) : n;
+    const slotW = side ? width / 3 : width / perRow;
+    const bx0 = side ? x0 + width / 3 + GAP : x0;
+    const bWidth = x1 - bx0;
+    const binW = bWidth - 2 * GAP;
+    const w = Math.min(180, slotW - GAP, binW - 20);
     const cols = Math.max(1, Math.floor((binW - 12) / (w + 10)));
     const rows = Math.max(1, Math.ceil(n / cols));
-    const binTop = isNum(el.y) ? el.y : 660;
+    const topY = isNum(el.y) ? el.y : 660;
+    const trayRows = Math.ceil(n / perRow);
     const binH = 44 + rows * (CH + 8) + 8;
-    const binBoxes: CardBox[] = [{ c: [x0 + width / 2, binTop - binH / 2] as Pt, w: binW, h: binH }];
-    const trayTop = binTop - binH - 40;
-    const tray: Pt[] = items.map((_, s) => [x0 + slotW * ((s % perRow) + 0.5), trayTop - CH / 2 - Math.floor(s / perRow) * (CH + GAP)] as Pt);
+    const boxTop = layout === "drop" ? topY - trayRows * (CH + GAP) + GAP - 40 : topY;
+    const binBoxes: CardBox[] = [{ c: [bx0 + bWidth / 2, boxTop - binH / 2] as Pt, w: binW, h: binH }];
+    const trayTop = layout === "rise" ? topY - binH - 40 : topY;
+    const tray: Pt[] = items.map((_, s) =>
+      (side ? [x0 + width / 6, trayTop - CH / 2 - s * (CH + GAP)] : [x0 + slotW * ((s % perRow) + 0.5), trayTop - CH / 2 - Math.floor(s / perRow) * (CH + GAP)]) as Pt,
+    );
     const home: Pt[] = new Array(n);
     perm.forEach((card, s) => (home[card] = tray[s]));
     const binSlot = (_b: number, j: number): Pt => {
@@ -516,36 +537,53 @@ function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: str
     let seen = 0;
     const truth = truthBin.map((b, i) => (b === 0 ? binSlot(0, seen++) : home[i]));
     // Tap all: the cards are read where they stand, on a phone too (≥ ~10 px at 390 px).
-    return { ...base, mode, cards, texts, truthBin, bins, w, h: CH, home, slots: tray, binBoxes, binSlot, truth, select: true, font: icons ? 22 : 26 };
+    return { ...base, mode, cards, texts, truthBin, bins, w, h: CH, home, slots: tray, binBoxes, binSlot, truth, select: true, font: icons ? 22 : 26, layout };
   }
 
-  // Sort: the boxes across the top, the cards in a row (two when many) below.
+
+  // Sort (round 7 §5): drop — the cards in a row (two when many) on top,
+  // the boxes below; side — the cards a column on the left, the boxes on the
+  // right; rise — the boxes on top, as before.
+  const layout = sortLayout(el, n);
+  const side = layout === "side";
   const k = bins.length;
-  const binW = width / k - 2 * GAP;
+  // side: the tray takes a third — a quarter with 4 boxes, so their cards keep 20-unit text.
+  const trayW = k >= 4 ? width / 4 : width / 3;
+  const bx0 = side ? x0 + trayW + GAP : x0;
+  const bWidth = x1 - bx0;
+  const binW = bWidth / k - 2 * GAP;
   const perBin = bins.map((_, b) => truthBin.filter((t) => t === b).length);
-  const perRow = n > 5 ? Math.ceil(n / 2) : n;
-  const slotW = width / perRow;
+  const perRow = side ? 1 : n > 5 ? Math.ceil(n / 2) : n;
+  const slotW = side ? trayW : width / perRow;
   let w = Math.min(180, slotW - GAP, binW - 20);
   // Any box may get every card (final fix wave E): its grid holds all n in
   // the old number of rows — more columns (the cards narrower, never under
   // 56) — and when even that is too many rows, shorter cards (fix round 2):
-  // the boxes and the row of cards below them stay on the canvas.
-  const room = Math.max(2, ...perBin, Math.ceil(n / 2));
+  // the boxes and the cards stay on the canvas. side: the boxes stand the
+  // full height beside the column, so one column of wide cards fits.
+  const room = side ? n : Math.max(2, ...perBin, Math.ceil(n / 2));
   let cols = 1;
   while (Math.ceil(n / cols) > room && (binW - 12) / (cols + 1) - 10 >= 56) {
     cols++;
     w = Math.min(w, (binW - 12) / cols - 10);
   }
   const rows = Math.max(room, Math.ceil(n / cols));
-  const binTop = isNum(el.y) ? el.y : 660;
+  const topY = isNum(el.y) ? el.y : 660;
   const trayRows = Math.ceil(n / perRow);
-  const lowest = (h: number): number => binTop - (52 + rows * (h + 8)) - 40 - trayRows * (h + GAP) + GAP;
+  const boxH = (h: number): number => 52 + rows * (h + 8);
+  const trayH = (h: number): number => trayRows * (h + GAP) - GAP;
+  // The lowest the cards or the boxes reach; drop and side keep the counter's row too.
+  const lowest = (h: number): number => (side ? Math.min(topY - boxH(h), topY - trayH(h)) : topY - boxH(h) - 40 - trayH(h));
+  const floor = CARD_FLOOR + (layout === "rise" ? 0 : COUNTER_ROOM);
   let ch = CH;
-  while (ch > 28 && lowest(ch) < CARD_FLOOR) ch -= 2;
+  while (ch > 28 && lowest(ch) < floor) ch -= 2;
   const binH = 44 + rows * (ch + 8) + 8;
-  const binBoxes: CardBox[] = bins.map((_, b) => ({ c: [x0 + (width / k) * (b + 0.5), binTop - binH / 2] as Pt, w: binW, h: binH }));
-  const trayTop = binTop - binH - 40;
-  const tray: Pt[] = items.map((_, s) => [x0 + slotW * ((s % perRow) + 0.5), trayTop - ch / 2 - Math.floor(s / perRow) * (ch + GAP)] as Pt);
+  const boxTop = layout === "drop" ? topY - trayH(ch) - 40 : topY;
+  const binBoxes: CardBox[] = bins.map((_, b) => ({ c: [bx0 + (bWidth / k) * (b + 0.5), boxTop - binH / 2] as Pt, w: binW, h: binH }));
+  const trayTop = layout === "rise" ? topY - binH - 40 : topY;
+  const tray: Pt[] = items.map((_, s) =>
+    (side ? [x0 + trayW / 2, trayTop - ch / 2 - s * (ch + GAP)] : [x0 + slotW * ((s % perRow) + 0.5), trayTop - ch / 2 - Math.floor(s / perRow) * (ch + GAP)]) as Pt,
+  );
   const home: Pt[] = new Array(n);
   perm.forEach((card, s) => (home[card] = tray[s]));
   // Down the first column, then the next: a box holding no more than a
@@ -560,17 +598,17 @@ function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: str
   const truth = truthBin.map((b) => binSlot(b, seen[b]++, perBin[b]));
   // Shorter cards, smaller text (narrow ones too); else the mode's own size.
   const font = ch < CH || w < 90 ? Math.round(Math.min(20 * (ch / CH), w < 90 ? 16 : 20)) : undefined;
-  return { ...base, mode, cards, texts, truthBin, bins, w, h: ch, home, slots: tray, binBoxes, binSlot, truth, ...(font !== undefined && !icons ? { font } : {}) };
+  return { ...base, mode, cards, texts, truthBin, bins, w, h: ch, home, slots: tray, binBoxes, binSlot, truth, layout, ...(font !== undefined && !icons ? { font } : {}) };
 }
 
 /** A deck holds at most this many cards (round 6 §7). */
 export const DECK_MAX = 30;
 
 /**
- * deck (round 6 §7): the boxes across the top hold the cards small, in a
+ * deck (round 6 §7, round 7 §5): the boxes hold the cards small, in a
  * grid each (columns as the box's width and the most cards it may get
- * allow); the cards wait in one stack centred below them, and the card being
- * dealt is drawn `deckScale` times larger. Every card is the same node, so
+ * allow); the dealt card stands over the boxes (drop, default), on their
+ * left (side) or under them (rise), drawn `deckScale` times larger. Every card is the same node, so
  * the truth and the plan stay plain offsets; only the gate and the movie
  * scale the dealt card.
  */
@@ -584,15 +622,24 @@ function deckGeometry(
   icons: boolean,
   x0: number,
   width: number,
+  layout: "drop" | "side" | "rise",
 ): CardsGeometry {
   const n = texts.length;
   const k = Math.max(1, bins.length);
-  const binW = width / k - 2 * GAP;
-  const binTop = isNum(el.y) ? el.y : 720;
+  const side = layout === "side";
+  // side: the boxes across the right two-thirds, the dealt card in the left third.
+  const bx0 = side ? x0 + width / 3 + GAP : x0;
+  const bWidth = x0 + width - bx0;
+  const binW = bWidth / k - 2 * GAP;
+  // drop / side: the dealt card stays under the headline's strip (HEAD_ROOM_Y); rise: as before.
+  const topY = isNum(el.y) ? el.y : layout === "rise" ? 720 : HEAD_ROOM_Y;
   const h0 = icons ? CARD_H : 32;
   const PAD = 8, GX = 8, GY = 6, TITLE = 40;
-  // Room for the boxes: the dealt card needs about 150 under them.
-  const maxH = binTop - 170;
+  // The counter's row under the boxes (drop, side).
+  const floor = CARD_FLOOR + COUNTER_ROOM;
+  // Room for the boxes: rise — the dealt card needs about 150 under them;
+  // drop — about 150 over them and the counter under them; side — all of it.
+  const maxH = layout === "rise" ? topY - 170 : layout === "drop" ? topY - 170 - floor : topY - floor;
   // Any box may get every card (final fix wave E): the grid holds all n —
   // more columns while the cards stay wide enough to read, then shorter cards.
   const cap = Math.max(1, n);
@@ -611,7 +658,9 @@ function deckGeometry(
   const rows = Math.ceil(cap / cols);
   const h = Math.max(16, fitH(cols));
   const binH = heightFor(cols, h);
-  const binBoxes: CardBox[] = bins.map((_, b) => ({ c: [x0 + (width / k) * (b + 0.5), binTop - binH / 2] as Pt, w: binW, h: binH }));
+  // drop: the boxes stand on the floor, the dealt card over them.
+  const binTop = layout === "drop" ? floor + binH : topY;
+  const binBoxes: CardBox[] = bins.map((_, b) => ({ c: [bx0 + (bWidth / k) * (b + 0.5), binTop - binH / 2] as Pt, w: binW, h: binH }));
   const binSlot = (b: number, j: number): Pt => {
     const box = binBoxes[b];
     if (!box) return [0, 0];
@@ -624,12 +673,29 @@ function deckGeometry(
   };
   const boxBottom = binTop - binH;
   // The dealt card by the canvas, not by the small card (final fix wave E):
-  // about 600 wide — on a 390 px phone its text is ~17 px — as tall as the
-  // room under the boxes allows.
-  const deckScale = Math.max(1, Math.min(600 / w, (icons ? 160 : 110) / h, (boxBottom - 40) / h));
-  const bigH = h * deckScale;
-  const cx = x0 + width / 2;
-  const cy = Math.max(bigH / 2 + 12, Math.min(boxBottom - bigH / 2 - 24, boxBottom / 2));
+  // about 600 wide — on a 390 px phone its text is ~17 px — as tall as its room allows.
+  let deckScale: number;
+  let cx: number;
+  let cy: number;
+  if (layout === "rise") {
+    // check: each — the counter stands just under the boxes: the dealt card keeps clear of it.
+    const under = 24 + (base.each ? COUNTER_ROOM : 0);
+    deckScale = Math.max(1, Math.min(600 / w, (icons ? 160 : 110) / h, (boxBottom - 16 - under) / h));
+    const bigH = h * deckScale;
+    cx = x0 + width / 2;
+    cy = Math.max(bigH / 2 + 12, Math.min(boxBottom - bigH / 2 - under, boxBottom / 2));
+  } else if (layout === "drop") {
+    // Over the boxes: the dealt card flies down into one.
+    deckScale = Math.max(1, Math.min(600 / w, (icons ? 160 : 110) / h, (topY - binTop - 40) / h));
+    const bigH = h * deckScale;
+    cx = x0 + width / 2;
+    cy = Math.min(topY - bigH / 2 - 12, Math.max(binTop + bigH / 2 + 24, (topY + binTop) / 2));
+  } else {
+    // side: in the left third, level with the boxes.
+    deckScale = Math.max(1, Math.min((width / 3 - GAP) / w, (icons ? 160 : 110) / h, (topY - floor) / h));
+    cx = x0 + width / 6;
+    cy = (topY + floor) / 2;
+  }
   // Every card waits in the middle; only the top one is drawn (cardsElements:
   // the others are not the group's members — the deal shows each in turn).
   const home: Pt[] = deal.map(() => [cx, cy] as Pt);
@@ -639,7 +705,7 @@ function deckGeometry(
   for (const card of deal) truth[card] = binSlot(truthBin[card], seen[truthBin[card]]++);
   const cards = texts.map((_, i) => `${el.id}_${i + 1}`);
   const font = Math.round((icons ? 13 : 15) * Math.min(1, h / h0));
-  return { ...base, cards, texts, truthBin, bins, w, h, home, slots: home.slice(), binBoxes, binSlot, truth, deck: true, deal, deckScale, font };
+  return { ...base, cards, texts, truthBin, bins, w, h, home, slots: home.slice(), binBoxes, binSlot, truth, deck: true, deal, deckScale, font, layout };
 }
 
 /** The authored fields a cards group carries back (authoredCards). */

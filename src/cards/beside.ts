@@ -253,7 +253,10 @@ export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: num
     const k = rows.get(u.from) ?? 0;
     rows.set(u.from, k + 1);
     const names = short(u.names.join(", "), 44);
-    texts.push({ at: [bx.c[0], bx.c[1] - bx.h / 2 - 16 - k * 20], text: `${names} → ${u.to >= 0 ? short(g.bins[u.to], 16) : "out"}`, anchor: "middle", color: WRONG, size: 16 });
+    // Under its box — above it when the box stands on the floor (drop).
+    const under = bx.c[1] - bx.h / 2 - 16 - k * 20;
+    const y = under >= 12 ? under : bx.c[1] + bx.h / 2 + 16 + k * 20;
+    texts.push({ at: [bx.c[0], y], text: `${names} → ${u.to >= 0 ? short(g.bins[u.to], 16) : "out"}`, anchor: "middle", color: WRONG, size: 16 });
   }
   return { color: YOURS, lines, texts };
 }

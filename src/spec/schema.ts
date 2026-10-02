@@ -631,7 +631,7 @@ const elementSchema = {
     },
     bins: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" }, description: "cards: the boxes to sort into (a word or two each); every item's bin is one of them." },
     ends: { type: "array", minItems: 2, maxItems: 2, items: { type: "string" }, description: "cards (rank): what the two ends mean, first end first: [\"most\", \"least\"], [\"earliest\", \"latest\"]." },
-    arrange: { type: "string", enum: ["row", "column"], description: "cards (rank): a row of cards (default) or a column (longer names)." },
+    arrange: { type: "string", enum: ["row", "column", "drop", "side", "rise"], description: "cards: rank — a row (default) or a column (longer names); sort, select, deck — drop (default: the cards above the boxes; y is the top of the cards), side (the cards a column on the left, the boxes right; up to 8 cards) or rise (the boxes above the cards; y is the boxes' top)." },
     along: { type: "string", description: "cards: PLACE ON A SCALE — the id of a scale element; each item has a value, and the viewer drags the cards onto the line (\"put these inventions on the timeline\"). Draw the scale and the cards first." },
     compare: { type: "string", description: "cards: HIGHER OR LOWER — the question each pair answers, written over the cards (\"Which kills more people a year?\"); each item has a value; pairs of items (pairs, default consecutive) are rows, the viewer taps the bigger of each, and its numbers appear." },
     pairs: { type: "array", maxItems: 5, items: { type: "array", minItems: 2, maxItems: 2, items: { type: "integer", minimum: 0 } }, description: "cards (compare): which items face each other, as 0-based index pairs [[0, 1], [2, 3]] (default consecutive)." },

@@ -139,15 +139,16 @@ describe("the deck", () => {
     for (const p of g.home) expect(Math.hypot(p[0] - cx, p[1] - cy)).toBeLessThan(12);
   });
 
-  test("large when dealt, and it fits below the boxes and above the floor", () => {
+  test("large when dealt, and it stands over the boxes, under the top (round 7 §5: drop)", () => {
     const s = g.deckScale!;
     expect(s * g.w).toBeGreaterThanOrEqual(240);
     expect(s * g.w).toBeLessThanOrEqual(400);
     const [, cy] = g.home[g.deal![0]];
-    const boxBottom = Math.min(...g.binBoxes.map((b) => b.c[1] - b.h / 2));
-    expect(cy + (s * g.h) / 2).toBeLessThan(boxBottom);
-    expect(cy - (s * g.h) / 2).toBeGreaterThanOrEqual(0);
+    const boxTop = Math.max(...g.binBoxes.map((b) => b.c[1] + b.h / 2));
+    expect(cy - (s * g.h) / 2).toBeGreaterThan(boxTop);
+    expect(cy + (s * g.h) / 2).toBeLessThanOrEqual(750);
   });
+
 
   test("the truth: every card inside its box, none overlapping, all on the canvas", () => {
     g.truth.forEach((p, i) => {
