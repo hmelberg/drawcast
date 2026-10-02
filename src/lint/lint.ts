@@ -1141,6 +1141,12 @@ function lintGuess(spec: Spec): LintIssue[] {
     if (c.ask?.check !== undefined && (c.ask.on === undefined || marketParts(spec, guessParts(spec, c.ask.on)).length === 0)) {
       issues.push({ rule: "guess", ids: [], message: `ask check: "${c.ask.check}" only means something on a supply or demand curve guess (on: supply_curve or demand_curve) — it is ignored here`, severity: "warn" });
     }
+    // reveal_style / reveal_order (spec 2026-10-03-round6 §3) shape a reveal on
+    // the figure: a guess, cards, a tree or a formula. Anything else has none.
+    if (c.ask && (c.ask.reveal_style !== undefined || c.ask.reveal_order !== undefined) && c.ask.on === undefined && c.ask.blanks === undefined && c.ask.pick === undefined) {
+      const which = c.ask.reveal_style !== undefined ? `reveal_style: "${c.ask.reveal_style}"` : `reveal_order: "${c.ask.reveal_order}"`;
+      issues.push({ rule: "guess", ids: [], message: `ask ${which} shapes a reveal on the figure (a guess, cards, a tree or a formula, with on/blanks/pick) — it is ignored here`, severity: "warn" });
+    }
     // account_label names a budget's account bar: without a budget there is none.
     if (c.ask?.account_label !== undefined && c.ask.budget === undefined && c.ask.blanks === undefined && c.ask.pick === undefined) {
       issues.push({ rule: "guess", ids: [], message: `ask account_label: "${c.ask.account_label}" labels a budget's account bar — add budget (with on: "all" over bars), or leave it out`, severity: "warn" });

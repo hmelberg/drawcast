@@ -20,6 +20,14 @@ describe("guess lint", () => {
     expect(issues[0].message).toMatch(/already drawn/);
   });
 
+  test("reveal_style and reveal_order: clean on a guess, a warning where there is no reveal on the figure", () => {
+    expect(guessIssues(bars([{ draw: ["axes", "bar_1"] }, { ask: { question: "B?", on: "bar_2", reveal_style: "morph", reveal_order: "each" } }]))).toEqual([]);
+    const typed = guessIssues(bars([{ ask: { question: "Why?", store: "w", default: "x", reveal_order: "each" } }]));
+    expect(typed).toHaveLength(1);
+    expect(typed[0].severity).toBe("warn");
+    expect(typed[0].message).toMatch(/reveal_order/);
+  });
+
   test("grouped bars are an error", () => {
     const issues = guessIssues(bars([{ ask: { question: "B?", on: "bar_1" } }], { series: [{ values: [1, 2] }, { values: [3, 4] }] }));
     expect(issues[0].severity).toBe("error");
