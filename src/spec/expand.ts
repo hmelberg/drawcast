@@ -67,9 +67,21 @@ export function expandFormulaTiles(spec: Spec): Spec {
 
 /** Scales (spec/scale.ts), formula tiles, cards, derivations (math `steps`), sound, then walks — and an equation_plot
  *  `preset` written out into its params. The same object back when there is nothing to expand. */
+/** A guess on a bar chart (round 7 §7): bar_guess on, so its per-bar colours
+ *  skip the blue beside the guess's own. The same object back otherwise. */
+export function markBarGuess(spec: Spec): Spec {
+  if (spec.template !== "bar_chart" || !spec.params || spec.params.bar_guess === true) return spec;
+  const asked = (spec.commands ?? []).some((c) => {
+    const on = c.ask?.on;
+    const ids = typeof on === "string" ? [on] : Array.isArray(on) ? on : [];
+    return ids.some((id) => id === "all" || /^bar_\d+$/.test(id));
+  });
+  return asked ? { ...spec, params: { ...spec.params, bar_guess: true } } : spec;
+}
+
 export function expandSpec(spec: Spec): Spec {
   // Icons named by keyword take their data from `assets:` or the offline
   // cache FIRST (spec/icon-data.ts): a card's height depends on whether its
   // icon is there, and that is decided when the cards expand.
-  return expandWalks(expandSound(expandDerivations(expandCards(expandScratch(expandCardSets(expandFormulaTiles(expandScales(expandEquationPreset(withIconData(spec))))))))));
+  return markBarGuess(expandWalks(expandSound(expandDerivations(expandCards(expandScratch(expandCardSets(expandFormulaTiles(expandScales(expandEquationPreset(withIconData(spec)))))))))));
 }

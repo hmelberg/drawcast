@@ -5,7 +5,7 @@ description: Bar charts and tables drawn from data — typed by the author or co
 template: bar_chart
 title: Bar chart
 version: 2
-kit: 11
+kit: 13
 status: ready
 description: >-
   A bar chart from data: categories along the x axis, one bar per category
@@ -58,6 +58,9 @@ params:
     value_labels:
       type: boolean
       description: "Write each bar's value above it (default false)."
+    bar_colors:
+      enum: [each, same]
+      description: "One series: each — every bar its own colour (bars that are different things); same — one colour (one quantity over years, ranges, months). Default: from the labels."
     stacked:
       type: boolean
       description: "Stack the series on top of each other instead of grouping them side by side (requires `series`). The y scale then comes from the stack TOTAL. Use for composition — how a total splits — not for comparing series to each other. Values must all be positive: a stack of mixed signs misstates the total, so it falls back to grouped bars and reports the problem."
@@ -228,6 +231,13 @@ layout: |
   const Y = (v) => plot.y0 + ((v - yMin) / (yMax - yMin)) * (plot.y1 - plot.y0);
   const base = Y(clamp(0, yMin, yMax)); // the bars' baseline: the zero line, or the axis when 0 is off-scale
   const m = series.length;
+  // Bar colours (round 7 §7): one series, not stacked — a colour per bar when
+  // the bars are different things, one colour when they count one thing over
+  // ordered levels (from the labels unless given). While a guess is on
+  // (bar_guess, set by the expansion) the blue beside the guess's own is skipped.
+  const barColors = params.bar_colors === "each" || params.bar_colors === "same" ? params.bar_colors : kit.barColorsFor(labels);
+  const perBar = m === 1 && !stacked && barColors === "each";
+  const cycle = params.bar_guess === true ? C.series.filter((_, k) => k !== 1) : C.series;
   const slotW = (plot.x1 - plot.x0) / Math.max(1, n);
   const gap = clamp(num(params.gap, 0.35), 0, 0.8);
   const groupW = slotW * (1 - gap);
@@ -310,7 +320,7 @@ layout: |
       const yBase = stacked ? Y(clamp(segBase, yMin, yMax)) : base;
       const yv = stacked ? Y(clamp(segBase + v, yMin, yMax)) : Y(clamp(v, yMin, yMax));
       const lo2 = Math.min(yBase, yv), hi2 = Math.max(yBase, yv);
-      const color = C.series[j % C.series.length];
+      const color = perBar ? cycle[i % cycle.length] : C.series[j % C.series.length];
       const rect = [[x, lo2], [x + w, lo2], [x + w, hi2], [x, hi2]];
       children.push(kit.area(id + "__f" + j, rect, color, { opacity: 0.55 }));
       children.push(kit.stroke(id + "__o" + j, rect, { closed: true, color, strokeWidth: 2.5, ms: MS.stroke }));

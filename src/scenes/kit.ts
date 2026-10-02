@@ -41,8 +41,9 @@ import {
 import { FIGURE_GROUND, softAlpha } from "../layout/ink";
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
+import { barColorsFor } from "./bar-colors";
 
-export const KIT_VERSION = 12; // v12: num(v, d, true) groups thousands (2026-09-30); v11: num() and say() — numbers and words in the cast's language (2026-09-25); v10: circle()/rect() point rings, pad() — a tappable labelled shape for widgets, MORSE table (widget bodies); v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
+export const KIT_VERSION = 13; // v13: barColorsFor() — a bar chart's colours from its labels (2026-10-02); v12: num(v, d, true) groups thousands (2026-09-30); v11: num() and say() — numbers and words in the cast's language (2026-09-25); v10: circle()/rect() point rings, pad() — a tappable labelled shape for widgets, MORSE table (widget bodies); v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -456,6 +457,8 @@ export interface SceneKit {
    * space) where the decimal mark is a comma.
    */
   num(v: number, decimals?: number, group?: boolean): string;
+  /** A bar chart's colours from its labels (round 7 §7): "same" for ordered levels (numbers, years, ranges, months, weekdays), else "each". */
+  barColorsFor(labels: readonly string[]): "each" | "same";
   /**
    * A word in the cast's language: `say({en: "slope", nb: "stigning"})`.
    * Falls back to English, then to the first entry.
@@ -1613,6 +1616,7 @@ export const kit: SceneKit = {
   },
   softAlpha,
   GROUND: FIGURE_GROUND,
+  barColorsFor: (labels) => barColorsFor(labels),
   num(v, decimals, group) {
     const s = decimals === undefined ? String(v) : v.toFixed(decimals);
     const marked = figureLocale.decimalComma ? s.replace(".", ",") : s;
