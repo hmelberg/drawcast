@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { iconSearchUrl, iconSvgUrl, resolveIcons, DEFAULT_PREFIXES } from "../src/render/icon";
-import { decodeIcon } from "../src/spec/trace";
+import { iconRingsOf, iconSlots, registerIconStore } from "../src/spec/icon-data";
+import offlineIcons from "../src/scenes/icon-cache.json";
 import { validateSpec } from "../src/spec/schema";
 
 // Deferred minor (round 5): editing an `icon` after it was resolved left the
@@ -60,10 +61,18 @@ describe("stale icon strokes", () => {
   });
 
   test("an older spec (strokes, no key) is trusted as it is", async () => {
-    const node = { id: "n", type: "node", shape: "rect", text: "X", icon: "anything", icon_strokes: "ic1:[[[0,0],[1,0],[1,1]]]" } as Record<string, unknown>;
+    const node = { id: "n", type: "node", shape: "rect", text: "X", icon: "anything", icon_look: "drawn", icon_strokes: "ic1:[[[0,0],[1,0],[1,1]]]" } as Record<string, unknown>;
     const d = deps({});
     expect(await resolveIcons({ elements: [node], commands: [] } as never, d)).toEqual([{ id: "n", ok: true }]);
     expect(d.asked).toEqual([]);
+  });
+
+  test("older rings asked for as a picture: the artwork is looked up, and the rings kept when it cannot be had", async () => {
+    const node = { id: "n", type: "node", shape: "rect", text: "X", icon: "anything-old", icon_strokes: "ic1:[[[0,0],[1,0],[1,1]]]" } as Record<string, unknown>;
+    const d = deps({});
+    expect(await resolveIcons({ elements: [node], commands: [] } as never, d)).toEqual([{ id: "n", ok: true }]);
+    expect(d.asked.length).toBeGreaterThan(0);
+    expect(node.icon_strokes).toBe("ic1:[[[0,0],[1,0],[1,1]]]");
   });
 
   test("a keyword with no set matches the set it was found in", async () => {
@@ -87,7 +96,7 @@ describe("stale icon strokes", () => {
     expect(await resolveIcons(spec as never, deps(routes))).toEqual([{ id: "i", ok: true }]);
     expect(el.strokes).not.toBe(first);
     expect(el.icon_key).toBe("stale-pig@tabler");
-    expect(decodeIcon(el.strokes as string)).not.toBeNull();
+    expect(iconRingsOf(el.strokes as string)).not.toBeNull();
   });
 
   test("a card item and its match partner", async () => {
@@ -118,18 +127,28 @@ describe("stale icon strokes", () => {
   });
 });
 
-describe("bundled examples ship their icons resolved", () => {
-  test("every icon in every bundled example resolves with nothing fetched, its key matching", async () => {
+describe("bundled examples carry keywords only (round 6 §8)", () => {
+  const specsOf = async (): Promise<{ title?: string; elements?: unknown[] }[]> => {
     const { default: bundled } = await import("../src/examples.json");
-    const specs: unknown[] = [];
-    for (const e of bundled as { spec?: unknown; playlist?: { items?: { spec?: unknown }[] } }[]) {
-      if (e.spec) specs.push(e.spec);
-      for (const it of e.playlist?.items ?? []) if (it.spec) specs.push(it.spec);
+    const specs: { title?: string; elements?: unknown[] }[] = [];
+    for (const e of bundled as { spec?: never }[]) if (e.spec) specs.push(e.spec);
+    return specs;
+  };
+  test("no inline icon data, key or credit in any bundled example", async () => {
+    const inline: string[] = [];
+    for (const s of await specsOf()) {
+      for (const slot of iconSlots(s as never)) {
+        for (const f of [slot.data, "icon_key", "match_icon_key", slot.credit]) if (slot.host[f] !== undefined) inline.push(`${s.title}: ${f}`);
+      }
     }
-    const d = deps({});
+    expect(inline).toEqual([]);
+  });
+  test("every icon in every bundled example resolves from the offline cache with nothing fetched", async () => {
+    registerIconStore(offlineIcons as Record<string, string>);
+    const d = { ...deps({}), offline: async () => offlineIcons as Record<string, string> };
     const failed: string[] = [];
-    for (const s of specs) {
-      const copy = JSON.parse(JSON.stringify(s)) as { title?: string; assets?: unknown };
+    for (const s of await specsOf()) {
+      const copy = JSON.parse(JSON.stringify(s)) as { title?: string };
       for (const r of await resolveIcons(copy as never, d)) if (!r.ok) failed.push(`${copy.title}: ${r.id} (${r.error})`);
     }
     expect(failed).toEqual([]);
