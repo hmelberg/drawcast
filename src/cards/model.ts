@@ -135,9 +135,9 @@ export function boxOf(a: Arrangement, card: number): number {
 
 /**
  * Tap to move (round 6 §7): where a tap sends card `card` — a box index, or
- * -1 for the row. Two boxes: from the row to box 1, then to the other side
- * each tap. One box (select) or more than two: row → 1 → 2 → … → row. Fill:
- * from the row to the first empty blank (else blank 1), then on as above.
+ * -1 for the row. Round the boxes and back: row → 1 → 2 → … → row (one box,
+ * select: in and out), so a tap on a card in the last box takes it out.
+ * Fill: from the row to the first empty blank (else blank 1), then on.
  */
 export function tapTarget(g: CardsGeometry, a: Arrangement, card: number): number {
   const k = g.mode === "fill" ? g.binBoxes.length : g.bins.length;
@@ -147,7 +147,6 @@ export function tapTarget(g: CardsGeometry, a: Arrangement, card: number): numbe
     if (g.mode === "fill") return Math.max(0, g.binBoxes.findIndex((_, b) => (a.boxes[b] ?? []).length === 0));
     return 0;
   }
-  if (k === 2) return 1 - at;
   return at + 1 < k ? at + 1 : -1;
 }
 

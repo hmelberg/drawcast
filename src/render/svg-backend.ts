@@ -2024,6 +2024,34 @@ function makeEffects(
    *  NODE, so a geometry rebuild simply starts the ghost over on the new one
    *  rather than pasting a stale pose onto it. */
   const ghostBase = new WeakMap<Element, string>();
+  /** A scaled ghost's strokes (a deck's dealt card, round 6 §7): each
+   *  stroke's own width while it is divided by the scale, so the outline
+   *  keeps its weight as the card grows; scale 1 puts them back. */
+  const strokeBase = new WeakMap<Element, string>();
+  const scaledLeaves = new WeakSet<Element>();
+  const keepStrokes = (g: Element, scale: number): void => {
+    // An ordinary ghost (a drag) never scaled: nothing to touch.
+    if (scale === 1 && !scaledLeaves.has(g)) return;
+    if (scale === 1) scaledLeaves.delete(g);
+    else scaledLeaves.add(g);
+    const els = [g, ...g.querySelectorAll("[stroke-width]")].filter((el) => el.hasAttribute("stroke-width") || strokeBase.has(el));
+    for (const el of els) {
+      if (scale === 1) {
+        const w = strokeBase.get(el);
+        if (w === undefined) continue;
+        el.setAttribute("stroke-width", w);
+        strokeBase.delete(el);
+        continue;
+      }
+      let w = strokeBase.get(el);
+      if (w === undefined) {
+        w = el.getAttribute("stroke-width") ?? "";
+        strokeBase.set(el, w);
+      }
+      const n = parseFloat(w);
+      if (Number.isFinite(n)) el.setAttribute("stroke-width", (n / scale).toFixed(2));
+    }
+  };
   const keyOf = (ids: string[]) => ids.join("|");
   let pointer: SVGGElement | null = null;
   const guessGroups = new Map<string, SVGGElement>();
@@ -2258,6 +2286,7 @@ function makeEffects(
     setOffset(id: string, dx: number, dy: number, scale = 1, pivot?: Pt): void {
       const scaled = scale !== 1 && pivot !== undefined;
       for (const { g } of leafNodes.get(id) ?? []) {
+        keepStrokes(g, scaled ? scale : 1);
         if (dx === 0 && dy === 0 && !scaled) {
           const base = ghostBase.get(g);
           if (base === undefined) continue;

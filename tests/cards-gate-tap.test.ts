@@ -155,17 +155,22 @@ function open(g: CardsGeometry, extra: Partial<AskGateStep> = {}) {
 const two: CardsElementLike = { id: "c", type: "cards", bins: ["Fixed", "Variable"], items: [{ text: "Rent", bin: "Fixed" }, { text: "Flour", bin: "Variable" }, { text: "Tax", bin: "Fixed" }] };
 
 describe("tap to move", () => {
-  test("sort: a tap sends the card to box 1, the next tap to the other side; Answer gives the arrangement", async () => {
+  test("sort: taps send a card row → box 1 → box 2 → row; Answer gives the arrangement", async () => {
     const g = cardsGeometry(two);
     const o = await open(g);
     tap(o.gate, g.home[0]);
     tap(o.gate, g.home[1]);
     await wait(200);
-    // card 1 is in box 1 now: a tap on it there sends it to box 2.
+    // card 1 is in box 1 now: a tap on it there sends it to box 2…
     tap(o.gate, g.binSlot(0, 1));
+    await wait(200);
+    // …and a fourth tap, on card 0 in box 1 twice over, takes it round to box 2 and out.
+    tap(o.gate, g.binSlot(0, 0));
+    await wait(200);
+    tap(o.gate, g.binSlot(1, 1));
     o.answer().click();
     await o.done;
-    expect(decodeArrangement(g, o.result()!)).toEqual({ order: [], boxes: [[0], [1]] });
+    expect(decodeArrangement(g, o.result()!)).toEqual({ order: [], boxes: [[], [1]] });
   });
 
   test("a drag still works (a move past the slop is not a tap)", async () => {
@@ -248,6 +253,21 @@ describe("the deck", () => {
     key("2");
     await o.done;
     expect(decodeArrangement(g, o.result()!)!.boxes.flat()).toHaveLength(2);
+  });
+
+  test("a card tapped while it still grows flies from the size it reached (no jump)", async () => {
+    const g = cardsGeometry(deck);
+    const o = await open(g);
+    const top = g.cards[g.deal![0]];
+    await wait(20);
+    const reached = o.placed.filter((p) => p.id === top).pop()!.scale;
+    expect(reached).toBeLessThan(g.deckScale!);
+    key("1");
+    const after = o.placed.filter((p) => p.id === top);
+    // The flight's first frame starts at (about) the size reached, never at full size.
+    expect(after[after.length - 1].scale).toBeLessThanOrEqual(reached + 0.05);
+    o.ac.abort();
+    await o.done;
   });
 
   test("an abort puts every card back, unscaled", async () => {

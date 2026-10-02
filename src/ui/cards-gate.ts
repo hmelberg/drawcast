@@ -2,9 +2,9 @@
 // to-answer): the viewer answers on the drawn cards —
 //
 //   rank     drag the cards into order            → Answer
-//   sort     drag each card into its box, or tap it: a tap sends it to a
-//            box (two boxes: then to the other side; more: on round to
-//            the row) → Answer. select (one box): a tap moves it in or out
+//   sort     drag each card into its box, or tap it: a tap sends it on
+//            round the boxes and back (row → 1 → 2 → … → row) → Answer.
+//            select (one box): a tap moves it in or out
 //   deck     (a sort with deck: true) one large card at a time: tap a box
 //            or press 1–4; it flies there with a ✓ or ✗ and the next comes
 //            (answers itself after the last)
@@ -160,8 +160,11 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       /** deck: cards in motion — from, to, scale from and to, start, length. */
       const flights = new Map<number, { from: Pt; to: Pt; s0: number; s1: number; t0: number; ms: number }>();
       const big = g.deckScale ?? 1;
-      const fly = (card: number, to: Pt, s0: number, s1: number, ms: number): void => {
-        flights.set(card, { from: shown[card], to, s0, s1, t0: performance.now(), ms });
+      /** deck: each card's scale as drawn now — a card tapped while it still
+       *  grows flies from the size it has reached, not from full size. */
+      const scaleNow: number[] = g.cards.map(() => 1);
+      const fly = (card: number, to: Pt, s1: number, ms: number): void => {
+        flights.set(card, { from: shown[card], to, s0: scaleNow[card], s1, t0: performance.now(), ms });
         cancelAnimationFrame(deckAnim);
         const frame = (): void => {
           if (settled) return;
@@ -171,6 +174,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
             const e = t * t * (3 - 2 * t);
             shown[c] = [f.from[0] + (f.to[0] - f.from[0]) * e, f.from[1] + (f.to[1] - f.from[1]) * e];
             const sc = f.s0 + (f.s1 - f.s0) * e;
+            scaleNow[c] = sc;
             session.place(g.cards[c], shown[c][0] - g.home[c][0], shown[c][1] - g.home[c][1], sc);
             if (t >= 1) flights.delete(c);
           }
@@ -184,7 +188,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         const card = g.deal![dealt++];
         arr = { ...arr, boxes: arr.boxes.map((b, j) => (j === k ? [...b, card] : b)) };
         const to = positions(g, arr)[card];
-        fly(card, to, big, 1, FLY_MS);
+        fly(card, to, 1, FLY_MS);
         const ok = rightCards(g, arr)[card];
         window.clearTimeout(flashTimer);
         flashTimer = window.setTimeout(() => {
@@ -195,7 +199,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         // The next card comes to the middle (the stack's top) and grows.
         if (dealt < g.deal!.length) {
           session.show([g.cards[g.deal![dealt]]]);
-          fly(g.deal![dealt], g.home[g.deal![0]], 1, big, GROW_MS);
+          fly(g.deal![dealt], g.home[g.deal![0]], big, GROW_MS);
         }
         else window.setTimeout(() => !settled && finish(encodeArrangement(g, arr)), FLY_MS + LAST_MS);
       };
@@ -353,8 +357,8 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         const p = logicalPoint(stage, e);
         if (e.type === "pointerup") {
           if ((mode === "fill" || mode === "sort") && !moved) {
-            // A tap, not a drag (round 6 §7): it sends the card to a box —
-            // the first empty blank for a tile, then on round the boxes.
+            // A tap, not a drag (round 6 §7): it sends the card on round the
+            // boxes and back to the row (a tile: the first empty blank first).
             // fill: a tap on a box next puts the tapped tile there instead.
             arr = tapCard(g, arr, card);
             if (mode === "fill") picked = card;
@@ -487,6 +491,6 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         placeRing();
       }
       // deck: the top card grows in the middle.
-      if (deck && g.deal!.length > 0) fly(g.deal![0], g.home[g.deal![0]], 1, big, GROW_MS);
+      if (deck && g.deal!.length > 0) fly(g.deal![0], g.home[g.deal![0]], big, GROW_MS);
     });
 }

@@ -23,7 +23,7 @@ const two: CardsElementLike = {
 const three: CardsElementLike = { ...two, bins: ["Fixed", "Variable", "Mixed"], items: [...(two.items as never[]), { text: "Phone", bin: "Mixed" }] };
 
 describe("tap to move", () => {
-  test("two boxes: the row goes to box 1, then to the other side and back", () => {
+  test("two boxes: row → box 1 → box 2 → row (a tap on a card in the last box takes it out)", () => {
     const g = cardsGeometry(two);
     let a = initialArrangement(g);
     expect(tapTarget(g, a, 0)).toBe(0);
@@ -32,8 +32,8 @@ describe("tap to move", () => {
     a = tapCard(g, a, 0);
     expect(a.boxes).toEqual([[], [0]]);
     a = tapCard(g, a, 0);
-    expect(a.boxes).toEqual([[0], []]);
-    expect(positions(g, a)[0]).toEqual(g.binSlot(0, 0));
+    expect(a.boxes).toEqual([[], []]);
+    expect(positions(g, a)[0]).toEqual(g.home[0]);
   });
 
   test("more boxes: row → 1 → 2 → 3 → row", () => {
@@ -48,16 +48,20 @@ describe("tap to move", () => {
     expect(positions(g, a)[1]).toEqual(g.home[1]);
   });
 
-  test("fill: a tile goes to the first empty blank; with two blanks, then the other", () => {
+  test("fill: a tile goes to the first empty blank, then on, and from the last blank back to the row", () => {
     const g = cardsGeometry({ id: "t", type: "cards", fill: "m", items: [{ text: "a", blank: 1 }, { text: "b", blank: 2 }, { text: "c" }] });
     let a = initialArrangement(g);
     a = tapCard(g, a, 1);
     expect(a.boxes).toEqual([[1], []]);
     a = tapCard(g, a, 0);
     expect(a.boxes).toEqual([[1], [0]]);
-    // In blank 2 → the other side; the tile there goes home (one per box).
+    // In the last blank → back to the row.
     a = tapCard(g, a, 0);
-    expect(a.boxes).toEqual([[0], []]);
+    expect(a.boxes).toEqual([[1], []]);
+    expect(positions(g, a)[0]).toEqual(g.home[0]);
+    // In blank 1 → on to blank 2.
+    a = tapCard(g, a, 1);
+    expect(a.boxes).toEqual([[], [1]]);
   });
 });
 
@@ -185,6 +189,14 @@ describe("the deck", () => {
     const spec = expandSpec({ commands: [{ draw: ["deck"] }, { ask: { question: "Which?", on: "deck" } }], elements: [many(30) as never] } as Spec);
     expect(layoutSpec(spec).issues).toEqual([]);
     expect(lintCommands(spec)).toEqual([]);
+  });
+
+  test("lint: a deck card's text too long for its small card is named", () => {
+    const long = { ...many(30), items: (many(30).items as { text: string; bin: string }[]).map((it, i) => (i === 3 ? { ...it, text: "Severe acute respiratory syndrome coronavirus" } : it)) };
+    const spec = expandSpec({ commands: [{ draw: ["deck"] }, { ask: { question: "Which?", on: "deck" } }], elements: [long as never] } as Spec);
+    const w = lintCommands(spec).filter((i) => i.rule === "deck-text");
+    expect(w).toHaveLength(1);
+    expect(w[0].message).toMatch(/item 4/);
   });
 
   test("validation: a deck may hold 30 cards; a sort without it 8", () => {

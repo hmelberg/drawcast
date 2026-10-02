@@ -11,7 +11,7 @@ import { blankConvertible, blankIsNumber, formulaBlanks, hasBlanks, tileRight } 
 import { walkTree } from "../scenes/decision_tree/rollback";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { authoredScales } from "../spec/scale";
-import { authoredCards } from "../spec/cards";
+import { authoredCards, cardsGeometry, type CardsElementLike } from "../spec/cards";
 import { parseTarget } from "../links/resolve";
 import { CANVAS } from "../layout/canvas";
 import { MATH_DEFAULT_SIZE } from "../layout/math";
@@ -173,6 +173,7 @@ export interface LintIssue {
     | "book-marks"
     | "feedback"
     | "card-icon"
+    | "deck-text"
     /** choose on the figure: an option not drawn before the ask, a branch that leads nowhere — or decide cards that repeat drawn things */
     | "choose";
   ids: string[];
@@ -1615,6 +1616,15 @@ function lintFeedback(spec: Spec): LintIssue[] {
           warn("card-icon", [el.id], `${el.id} item ${i + 1}: ${key} "${kw}" is a sentence — an icon keyword is a word or two ("cheetah", "pill")`);
         }
       }
+    });
+  }
+  // A deck's cards are small in their boxes (round 6 §7): a long text runs
+  // past the card's edge there. About half an em a letter at the card's font.
+  const decks = [...(spec.elements ?? []).filter((e) => e.type === "cards"), ...authoredCards(spec)].filter((e) => (e as { deck?: unknown }).deck === true) as CardsElementLike[];
+  for (const el of decks) {
+    const g = cardsGeometry(el);
+    g.texts.forEach((t, i) => {
+      if (t.length * (g.font ?? 15) * 0.5 > g.w - 16) warn("deck-text", [el.id], `${el.id} item ${i + 1}: "${t}" is too long for a deck card (${g.cards.length} cards, ${Math.floor((g.w - 16) / ((g.font ?? 15) * 0.5))} letters fit) — a word or two`);
     });
   }
   return issues;
