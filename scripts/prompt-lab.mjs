@@ -113,6 +113,9 @@ const INTERACTIVE = [
   ["statins", "Should a 60-year-old with high cholesterol take statins? Walk through the expected years of life #interactive"],
   ["kinetic", "Kinetic energy: where the ½mv² comes from #interactive"],
   ["sugartax", "Who really pays a sugar tax? #interactive"],
+  // round 5 (looks + feedback + account): icons on cards, card looks, the cast's own feedback lines
+  ["deadliest", "Which animal is deadliest to humans? #interactive"],
+  ["farligst", "Hvilke dyr er farligst for mennesker? #interactive"],
 ];
 const CASES = set === "templates" ? TEMPLATES : set === "final" ? FINAL : set === "storyline5" ? STORYLINE5 : set === "interactive" ? INTERACTIVE : FRESH;
 
