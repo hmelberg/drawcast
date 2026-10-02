@@ -1652,6 +1652,13 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   cursor: pointer;
 }
 .cs-cardgate-pill:hover { border-color: var(--ink); }
+/* Watch (ui/watch.ts): someone else's pointer on the choices, someone else typing. */
+.cs-cardgate-watch .cs-cardgate-pill.is-hover { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, var(--surface)); }
+.cs-cardgate-watch .cs-cardgate-pill:disabled { opacity: 1; }
+.cs-cardgate-typed { min-height: 1.6em; min-width: 12em; }
+.cs-cardgate-typed::after { content: "▏"; animation: cs-caret 1s steps(1) infinite; }
+@keyframes cs-caret { 50% { opacity: 0; } }
+.cs-questions { margin-left: 0.5rem; }
 .cs-cardgate-pill.right { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
 .cs-cardgate-pill.wrong { border-color: var(--loss); color: var(--loss); background: color-mix(in srgb, var(--loss) 10%, var(--surface)); }
 .cs-cardgate-pill.skip {
@@ -3383,3 +3390,8 @@ input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; b
 .cs-choose-ring.picked { border-width: 3px; }
 .cs-choosegate .cs-figgate-mark { display: grid; place-items: center; width: 28px; height: 28px; margin: -14px 0 0 -14px; background: var(--paper, #fff); color: var(--ok); font-weight: 700; font-size: var(--text); line-height: 1; }
 .cs-choosegate .cs-figgate-mark.wrong { color: var(--loss); }
+
+/* The player's ⋯ "More choices": opens upward over the figure, at the bar's
+   right, as the CC panel does — the bar sits at the foot of the drawing. */
+.cs-controlbar .menu-panel { top: auto; bottom: calc(100% + 0.3rem); left: auto; right: 0; min-width: 14rem; }
+.cs-controlbar .menu-panel .cs-menu-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: default; }

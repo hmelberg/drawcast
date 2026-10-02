@@ -85,7 +85,7 @@ const OPEN_DOT_R = 12;
  * The marks for these handles: ghosts at `guess`; gaps grown to `t` (0..1)
  * of the way from guess to truth — the gap is drawn as the reveal runs.
  */
-export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opts: { asking?: boolean; beside?: boolean } = {}): GuessMarks {
+export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opts: { asking?: boolean; beside?: boolean; shift?: boolean } = {}): GuessMarks {
   const lines: GuessMarkLine[] = [];
   const texts: GuessMarkText[] = [];
   const dots: GuessMarkDot[] = [];
@@ -203,8 +203,31 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
           const longest = runs.reduce((a, b) => (b.length > a.length ? b : a));
           for (const at of [longest[0], midOf(longest), longest[longest.length - 1]]) dots.push({ at, r: HANDLE_R });
         }
-        if (t <= 0) break;
         const at = (q: number, x: number): Pt => h.toLogical!(m.axis === "price" ? [q, x] : [x, q]);
+        const half = GAP_TICK / 2;
+        const tick = (p: Pt): Pt[] => (m.axis === "price" ? [[p[0] - half, p[1]], [p[0] + half, p[1]]] : [[p[0], p[1] - half], [p[0], p[1] + half]]);
+        if (asking && opts.shift !== false) {
+          // The live shift (the viewer's own, never the truth's): a bracket at
+          // each scored point from the old curve to the copy, the distance
+          // written beside it — once when both say the same (a parallel move).
+          let wrote = "";
+          m.at.forEach((q, j) => {
+            const b = along(m.axis, m.base, q);
+            if (b === null) return;
+            // Off the plot the copy is clipped away: so is its bracket.
+            if (b + v[j] < MARKET_DOMAIN.lo || b + v[j] > MARKET_DOMAIN.hi) return;
+            const a = at(q, b);
+            const e = at(q, b + v[j]);
+            if (Math.hypot(e[0] - a[0], e[1] - a[1]) <= 2) return;
+            lines.push({ pts: [a, e], dashed: true, width: 2 }, { pts: tick(a), width: 2 }, { pts: tick(e), width: 2 });
+            const text = signed(h, v[j]);
+            if (text === wrote) return;
+            wrote = text;
+            const mid: Pt = [(a[0] + e[0]) / 2, (a[1] + e[1]) / 2];
+            texts.push(m.axis === "price" ? { at: [mid[0] + half + 6, mid[1]], text, anchor: "start" } : { at: [mid[0], mid[1] - half - 14], text, anchor: "middle" });
+          });
+        }
+        if (t <= 0) break;
         m.at.forEach((q, j) => {
           const b = along(m.axis, m.base, q);
           if (b === null) return;
@@ -213,8 +236,6 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
           if (Math.hypot(e[0] - a[0], e[1] - a[1]) <= 2) return;
           lines.push({ pts: [a, e] });
           // A tick across each end: a bracket, readable however short the gap.
-          const half = GAP_TICK / 2;
-          const tick = (p: Pt): Pt[] => (m.axis === "price" ? [[p[0] - half, p[1]], [p[0] + half, p[1]]] : [[p[0], p[1] - half], [p[0], p[1] + half]]);
           lines.push({ pts: tick(a) }, { pts: tick(e) });
           if (t >= 1) {
             const mid: Pt = [(a[0] + e[0]) / 2, (a[1] + e[1]) / 2];

@@ -43,6 +43,7 @@ import { attachInsetZoom } from "./inset-zoom";
 import { attachViewPan } from "./view-pan";
 import { attachWidgetHost, widgetGateFor } from "./widget-host";
 import { attachPanelView } from "./panel-view";
+import { QUESTION_MODES, applyQuestionMode, type QuestionMode } from "./watch";
 import { inControlRegion, tryContinue } from "./control-press";
 import { scenes } from "../scenes/registry";
 import { HANDS_ON_CLASS, figureIsHandsOn } from "./bigplay";
@@ -51,9 +52,12 @@ export interface PlaybackPrefs {
   mode: "narrated" | "silent" | "instant";
   speed: number;
   muted?: boolean;
+  /** How questions are met (ui/watch.ts); default interactive. */
+  questions?: QuestionMode;
   onMode?(mode: "narrated" | "silent" | "instant"): void;
   onSpeed?(speed: number): void;
   onMute?(muted: boolean): void;
+  onQuestions?(mode: QuestionMode): void;
 }
 
 export interface ControlsOptions {
@@ -1031,7 +1035,14 @@ export function attachPlayerControls(
   // createMenu would mean rebuilding them as new, disconnected controls. This
   // reuses the same .menu/.menu-panel look instead, mirroring the CC popover
   // pattern already used a few lines above.
-  const foldTrigger = h("button", { class: "cs-bar-btn", title: "More controls" }, icon("more"));
+  // "More choices": always in the bar. On a phone it also holds the folded
+  // controls; everywhere it holds the choices that do not earn a button of
+  // their own — first of them how the questions are met (ui/watch.ts).
+  const foldTrigger = h("button", { class: "cs-bar-btn cs-more-choices", title: "More choices", "aria-label": "More choices" }, icon("more"));
+  const questionsSel = h("select", { class: "cs-menu-select cs-questions", title: "How the questions are met" }) as HTMLSelectElement;
+  for (const m of QUESTION_MODES) questionsSel.appendChild(h("option", { value: m.value, title: m.title }, m.label));
+  questionsSel.value = prefs.questions ?? "interactive";
+  const questionsRow = h("label", { class: "menu-item cs-menu-row" }, h("span", {}, "Questions"), questionsSel);
   const foldPanel = h("div", { class: "menu-panel", hidden: "" });
   const foldRoot = h("span", { class: "menu" }, foldTrigger, foldPanel);
   foldTrigger.addEventListener("click", (e) => {
@@ -1080,7 +1091,7 @@ export function attachPlayerControls(
    *  first rotation) silently drop the CC panel from the DOM. */
   const layout = (narrow: boolean): void => {
     const decision = foldedControls(narrow, !!muteBtn, !!ccBtn, !!creditsPanel);
-    foldPanel.replaceChildren(...decision.folded.map((s) => bySlot[s] as HTMLElement));
+    foldPanel.replaceChildren(...decision.folded.filter((s) => s !== "credits").map((s) => bySlot[s] as HTMLElement), questionsRow, ...(creditsPanel ? [creditsPanel] : []));
     const inline = (slot: SecondarySlot): HTMLElement[] => (decision.inline.includes(slot) && bySlot[slot] ? [bySlot[slot] as HTMLElement] : []);
     bar.replaceChildren(
       playBtn,
@@ -1089,7 +1100,8 @@ export function attachPlayerControls(
       ...inline("mute"),
       progress,
       stepInd,
-      ...(narrow ? [foldRoot] : [modeSel, speedSel]),
+      ...(narrow ? [] : [modeSel, speedSel]),
+      foldRoot,
       ...inline("captions"),
       ...(theaterBtn ? [theaterBtn] : []),
       ...(fsBtn ? [fsBtn] : []),
@@ -1241,6 +1253,17 @@ export function attachPlayerControls(
             step.widget === "code" && hd.timeline.codeGate
             ? hd.timeline.codeGate(signal, step)
             : textGate(signal, step);
+
+  // The viewer's way with questions, and the live gates kept to go back to.
+  const liveGates = { quiz: hd.timeline.quizGate, ask: hd.timeline.askGate, input: hd.timeline.inputGate };
+  const setQuestions = (mode: QuestionMode): void => applyQuestionMode(hd, stage, mode, liveGates);
+  setQuestions(prefs.questions ?? "interactive");
+  questionsSel.addEventListener("change", () => {
+    const mode = questionsSel.value as QuestionMode;
+    prefs.questions = mode;
+    setQuestions(mode);
+    prefs.onQuestions?.(mode);
+  });
 
   // Intrinsic free play (pause is the door): the manifest's interactions
   // section (interactivity spec §6) is the one declared source — never

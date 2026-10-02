@@ -104,7 +104,7 @@ describe("quiz choice lists", () => {
     const text = printScriptPages({}, [{ spec: {
       commands: [{ speak: "Hva skjer?", quiz: { question: "Hva nå?", choices: ["Opp", "Ned"], correct: 1 } }],
     } }]);
-    expect(text).toBe('Hva skjer?\n    quiz question "Hva nå?"\n        + Opp\n        * Ned\n');
+    expect(text).toBe('Hva skjer?\n    quiz "Hva nå?"\n        + Opp\n        * Ned\n');
   });
 });
 

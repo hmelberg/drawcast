@@ -9,7 +9,7 @@ describe("SETTINGS_TABS", () => {
   });
 
   it("files skip-questions and burn-captions under playback, not under the\n     text-to-speech KEY they were nested beneath", () => {
-    expect(tabOf("skipQuestions")).toBe("playback");
+    expect(tabOf("questionMode")).toBe("playback");
     expect(tabOf("burnCaptions")).toBe("playback");
     expect(tabOf("cloudPlayback")).toBe("playback");
   });

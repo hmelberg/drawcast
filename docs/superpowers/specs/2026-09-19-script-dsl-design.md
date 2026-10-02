@@ -496,3 +496,47 @@ language:
   phase 4, and its own decision).
 - No migration. Old YAML documents keep loading through the
   discriminator in §10; nothing is rewritten in place.
+
+## 13. Readable forms, 2026-10-03
+
+Forms that printed as inline JSON now have lines of their own. The parser
+reads both the old form and the new one; the printer writes the new one.
+
+```
+Six infections.
+    cards germs
+        Virus: Flu, Measles, COVID-19          // sort: a bin, its cards in order
+        Bacterium: Tuberculosis, Cholera
+    ask "Which is caused by a virus?" on germs store s   // the question leads
+        right: {s} right.                      // key: the rest of the line
+        wrong: {s} of {s.total} on the first try.
+
+    cards spend ends ["most","least"]
+        * USA                                  // rank: a plain item, true order
+        * "Germany" icon flag                  // an item with fields of its own
+
+    animate tax.amount -15 duration 2.5        // an animate's paths as pairs
+
+use: supply_demand
+with:                                          // an indented YAML block
+    x_label: Pumps installed
+    units:
+      price: [0, 20000]
+```
+
+- **Bins** are named by their lines, in the order they first appear. A
+  `bins [...]` on the head line takes precedence (to set an order, or for a bin
+  with no cards). A bin's name cannot be an element field (`width: 600` is
+  still a field), and it cannot contain `:`, `"` or `.`.
+- **Card order is the true order**, and it is what numbers the cards
+  (`germs_1 …`). So the printer stays lossless: a spec whose sort items
+  alternate between bins prints one `Bin: card` line per card. Written by hand,
+  group the cards by bin.
+- **`key: text`** works under any direction. The value is the rest of the line,
+  unless that rest is a single token meaning something else (`42`, `true`,
+  `"quoted"`). The printer quotes a value that would read back differently.
+  `right` and `wrong`, and any string argument of 25 characters or more, get
+  their own lines. A cued action (`(@…@)`) stays on one line.
+- **`with:`** (and any setting whose JSON is longer than 60 characters) prints
+  as YAML: a block that ends at the first blank or unindented line. Lists and
+  maps two levels down stay inline.

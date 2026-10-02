@@ -10,6 +10,7 @@
 //   https://…/drawcast/#anvil=spanish1/01-intro.yaml
 //   https://…/drawcast/#cast=<raw deflate, base64url> (links/inline-cast.ts)
 
+import { questionsOption } from "./question-mode";
 import { setLinkBase } from "./links/base";
 import { withCourse } from "./links/course";
 import type { LinkBase } from "./links/resolve";
@@ -1041,7 +1042,9 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       mode: req.mode,
       speed: req.speed,
       speech: baked.speech,
-      prefs: { mode: req.mode, speed: req.speed },
+      // The ⋯ menu's Questions choice is remembered like the captions are.
+      questions: questionsOption(settings.questionMode),
+      prefs: { mode: req.mode, speed: req.speed, questions: settings.questionMode, onQuestions: (m) => saveSettings({ ...loadSettings(), questionMode: m }) },
       captions: {
         on: settings.captionsOn,
         lang: settings.captionLang,

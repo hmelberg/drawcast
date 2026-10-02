@@ -45,6 +45,8 @@ export const TARGET_FIELD: Record<string, string> = {
 export const TARGET_VERBS = new Set(Object.keys(TARGET_FIELD));
 /** Verbs whose whole argument set is an object with no positional part. */
 export const OBJECT_VERBS = new Set(["point", "copy", "camera", "card", "clear", "quiz", "ask", "run", "explore", "if", "write", "view"]);
+/** Verbs whose line may lead with the question, quoted. */
+export const QUESTION_VERBS = new Set(["ask", "quiz"]);
 /** Verbs and beat modifiers that take one value (or stand alone). */
 export const SCALAR_VERBS = new Set(["pause", "wait", "animate", "play", "step"]);
 
@@ -257,7 +259,10 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
       delete el.text;
       extra.push(label as unknown as SpecElement);
     }
-    return { element: { ...el, type } as unknown as SpecElement, extra, args: el, hidden };
+    // The element IS its args (type last, as before): a continuation line
+    // under it writes the element, not a copy made before the line was read.
+    el.type = type;
+    return { element: el as unknown as SpecElement, extra, args: el, hidden };
   }
   // The id run: bare words up to the first known field name. The same run
   // serves every verb that takes ids; only where it LANDS differs.
@@ -291,6 +296,25 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
     // A leading LITERAL is the verb's whole value — a play string, a pause
     // number, an animate map whose keys are dot paths. A leading bare word is
     // the first of the verb's own `key value` pairs.
+    // A question's text leads its line: `ask "Which way?" on supply_curve`.
+    if (QUESTION_VERBS.has(head) && tokens[0].startsWith('"')) {
+      const args: Record<string, unknown> = { question: parseValue(tokens[0]) };
+      const { args: own, extra } = splitPairs(head, tokens.slice(1), line);
+      keyValues(own, args, line);
+      const cmd: Record<string, unknown> = { [head]: args };
+      keyValues(extra, cmd, line);
+      return { command: cmd, args };
+    }
+    // An animate's keys ARE dot paths (`animate tax.amount -15`): each pair
+    // is one literal key, never nested.
+    if (head === "animate" && /^[A-Za-z_]/.test(tokens[0]) && seconds(tokens[0]) === null) {
+      const args: Record<string, unknown> = {};
+      const { args: own, extra } = splitPairs(head, tokens, line);
+      for (let i = 0; i < own.length; i += 2) args[own[i]] = parseValue(own[i + 1]);
+      const cmd: Record<string, unknown> = { [head]: args };
+      keyValues(extra, cmd, line);
+      return { command: cmd, args };
+    }
     if (!/^[A-Za-z_]/.test(tokens[0])) {
       const cmd: Record<string, unknown> = { [head]: parseValue(tokens[0]) };
       keyValues(tokens.slice(1), cmd, line);
@@ -346,6 +370,8 @@ export function parseScriptPages(text: string): ParsedScript {
   let docTitle: string | undefined;
   let pendingTitle: string | undefined;
   let lastArgs: Record<string, unknown> | null = null;
+  /** The element type the last direction declared: a cards element reads its own lines. */
+  let lastType: string | null = null;
 
   const openPage = (): Spec => {
     if (!page) {
@@ -408,6 +434,7 @@ export function parseScriptPages(text: string): ParsedScript {
     (spec.commands ??= []).push(...(commands as unknown as Command[]));
     beat = null;
     lastArgs = null;
+    lastType = null;
   };
 
   const startBeat = (): Beat => (beat ??= { items: [], label: (() => { const l = pendingLabel; pendingLabel = undefined; return l; })() });
@@ -471,6 +498,7 @@ export function parseScriptPages(text: string): ParsedScript {
             d.indent = l.indent;
             b.items.push(d);
             lastArgs = d.args;
+            lastType = d.element.type;
             if (LAYOUT_HEADS[l.head] !== undefined) openLayouts.push({ item: d, indent: l.indent });
             break;
           }
@@ -478,6 +506,12 @@ export function parseScriptPages(text: string): ParsedScript {
         if (l.indent > baseIndent && lastArgs) {
           // `*` is a choice, `+` is the correct one — a quiz's answers, one
           // per line, in the order the viewer sees them.
+          if (lastType === "cards" && cardsLine(l.head, l.rest, lastArgs, l.line)) break;
+          // `right: The text, as it is` — a field whose value is the rest of the line.
+          if (l.head.endsWith(":") && l.head.length > 1) {
+            setPath(lastArgs, l.head.slice(0, -1), restValue(l.rest));
+            break;
+          }
           if (l.head === "*" || l.head === "+") {
             const choices = (lastArgs.choices as string[] | undefined) ?? [];
             choices.push(l.rest);
@@ -493,6 +527,7 @@ export function parseScriptPages(text: string): ParsedScript {
         d.indent = l.indent;
         b.items.push(d);
         lastArgs = d.args;
+        lastType = d.element?.type ?? null;
         if (LAYOUT_HEADS[l.head] !== undefined && d.element) openLayouts.push({ item: d, indent: l.indent });
         break;
       }
@@ -500,7 +535,7 @@ export function parseScriptPages(text: string): ParsedScript {
         const b = startBeat();
         if (b.items.length === 0) baseIndent = l.indent;
         const d = parseFence(l, openPage(), isLanguage);
-        if (d) { b.items.push(d); lastArgs = d.args; }
+        if (d) { b.items.push(d); lastArgs = d.args; lastType = null; }
         break;
       }
     }
@@ -534,6 +569,47 @@ export function parseScriptPages(text: string): ParsedScript {
   return { meta, pages, warnings };
 }
 
+/** What follows `key:` — the rest of the line as written, unless it is one
+ *  token that means something else (a number, true, a "quoted" string). */
+export function restValue(rest: string): unknown {
+  const tokens = splitTokens(rest);
+  if (tokens.length !== 1) return rest;
+  // `{s}` is one token that is not JSON: then it is the text it looks like.
+  try { return parseValue(tokens[0]); } catch { return rest; }
+}
+
+/**
+ * A line under a cards element (spec 2026-10-01-rank-and-sort §3):
+ *   Virus: Flu, Measles, COVID-19   — sort items, in that bin, in that order
+ *   * USA                           — a rank item (a plain string), in true order
+ *   * "Rent" bin Fixed icon house   — an item with fields of its own
+ * A bin line's word must not be an element field — `width: 600` is a field.
+ */
+const BINS_FROM_LINES = new WeakSet<object>();
+
+function cardsLine(head: string, rest: string, el: Record<string, unknown>, line: number): boolean {
+  const items = (): unknown[] => (el.items ??= []) as unknown[];
+  if (head === "*") {
+    if (rest.startsWith('"')) {
+      const tokens = splitTokens(rest);
+      const item: Record<string, unknown> = { text: parseValue(tokens[0]) };
+      keyValues(tokens.slice(1), item, line);
+      items().push(item);
+    } else items().push(rest);
+    return true;
+  }
+  const m = /^([^:"]+):(?:\s+(.*))?$/.exec(`${head} ${rest}`.trim());
+  if (!m || ELEMENT_KEYS.has(m[1].trim()) || m[1].includes(".")) return false;
+  const bin = m[1].trim();
+  // Bins are named by the lines, in the order first written — unless the
+  // head line gave them (`bins [...]`: an order, or a bin with no cards).
+  if (el.bins === undefined) { el.bins = []; BINS_FROM_LINES.add(el); }
+  const bins = el.bins as string[];
+  if (BINS_FROM_LINES.has(el) && !bins.includes(bin)) bins.push(bin);
+  for (const text of (m[2] ?? "").split(",").map((t) => t.trim()).filter(Boolean)) items().push({ text, bin });
+  return true;
+}
+
 /** The settings that are spelled differently in a script than in the spec. */
 const SETTING_FIELD: Record<string, string> = { use: "template", with: "params" };
 /**
@@ -554,7 +630,7 @@ const META_SETTINGS = new Set(["subtitle", "advance", "gap", "transitions", "nex
  * first page carrying it.
  */
 function applySetting(l: ScriptLine & { kind: "setting" }, openPage: () => Spec, meta: Record<string, unknown>): void {
-  const value = l.rest === "" ? true : parseValue(l.rest);
+  const value = l.block !== undefined ? load(l.block, { schema: CORE_SCHEMA }) : l.rest === "" ? true : parseValue(l.rest);
   if (l.key === "chapter") {
     // A chapter is an entry of its own, ahead of the page that follows.
     const chapters = (meta.chapters as { before: number; title: string }[] | undefined) ?? [];

@@ -969,6 +969,9 @@ export interface AskArgs {
    *  2026-10-02 §3): the guess starts at the present, the truth is the
    *  figure after that animate, and the animate itself is the reveal. */
   predict?: boolean;
+  /** Market guess: false = no live number on the copy while it is dragged
+   *  (default: a bracket from the old curve with the shift written on it). */
+  readout?: boolean;
   /** Guess: start from an earlier guess (its store) kept back with
    *  reveal: false — guess, see evidence, guess again (§9). */
   revise?: string;

@@ -952,6 +952,7 @@ const commandSchema = {
         },
         from: { type: "number", description: "With `on` a line: the x value from which the viewer draws the rest of the line (default: the middle x). Before it the true line is shown." },
         predict: { type: "boolean", description: "With `on`, right BEFORE an animate: the viewer predicts where that animate takes the figure — the guess starts where the figure stands now, the truth is the figure after the animate, and the animate itself plays from their prediction to the truth. The part may already be drawn (it is the present)." },
+        readout: { type: "boolean", description: "Market guess: false hides the live shift number while the copy is dragged (when a number would give a which-way question away)." },
         revise: { type: "string", description: "With `on`: start from an earlier guess on the same part (that ask's store), made with reveal: false — guess, show new evidence, guess again; the reveal shows both guesses and the truth. {store.moved} is how far they moved." },
         budget: { type: "number", exclusiveMinimum: 0, description: "With on: \"all\" on a bar_chart: the viewer SPLITS this total — each bar moves on its own, an account bar beside the plot shows what is left (red when overspent), and Answer waits until it balances. Pair with judge: false for 'how would you split it?'. {store.<bar_k>} keeps each share, {store.biggest} the label given most." },
         account_label: { type: "string", maxLength: 24, description: "With budget: the account bar's label (default \"Left\"), a word or two in the cast's language." },
@@ -1967,8 +1968,8 @@ function semanticErrors(spec: Spec): string[] {
           errors.push(`commands[${i}]: ask.on is a guess on the figure — the truth is the figure's own number, so leave out answer, widget, items and code`);
         }
         if (a.retry !== undefined) errors.push(`commands[${i}]: ask.retry does not apply to a guess (the figure shows the truth after one answer)`);
-      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.revise !== undefined || a.budget !== undefined || a.account_label !== undefined || (a.judge !== undefined && !isChoose)) {
-        errors.push(`commands[${i}]: ask.from, relative, release, predict, revise, budget, account_label and judge only apply to a guess (with on; judge also to choose)`);
+      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.readout !== undefined || a.revise !== undefined || a.budget !== undefined || a.account_label !== undefined || (a.judge !== undefined && !isChoose)) {
+        errors.push(`commands[${i}]: ask.from, relative, release, predict, readout, revise, budget, account_label and judge only apply to a guess (with on; judge also to choose)`);
       }
       if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && !isChoose && a.on === undefined) {
         errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);

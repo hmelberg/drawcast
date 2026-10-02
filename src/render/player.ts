@@ -500,6 +500,11 @@ export class Player {
   /** Viewer preference: skip quiz/ask entirely (a skipped collect-ask still
    *  stores its default so later {var} lines keep working). */
   private skipQuestions = false;
+  /** The viewer's Skip, changed while the cast plays (the player's ⋯ menu):
+   *  the next question follows it. */
+  setSkipQuestions(skip: boolean): void {
+    this.skipQuestions = skip;
+  }
 
   /** Set by the exporter (and true in spirit for bare players): answers are
    *  the demo's, not a viewer's — gotos never fire, the path stays linear. */
@@ -1557,7 +1562,7 @@ export class Player {
    * it while it is theirs — the part they draw would otherwise look exactly
    * like the part they were given).
    */
-  private guessPainter(setup: GuessSetup, before: SceneState, visible: ReadonlySet<string>, owner: string): GuessPaint {
+  private guessPainter(setup: GuessSetup, before: SceneState, visible: ReadonlySet<string>, owner: string, shift = true): GuessPaint {
     const rp = this.reprojector!;
     const sceneParams = this.paramsOf(before);
     const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
@@ -1576,7 +1581,7 @@ export class Player {
       this.geometryDirty = true;
       if (marks && sketched) {
         this.guessOwners.add(owner);
-        this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, values, 0, { asking: true }));
+        this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, values, 0, { asking: true, shift }));
       }
     };
   }
@@ -1745,7 +1750,7 @@ export class Player {
     const marked = setup.handles.flatMap((h) => [h.part, ...h.shows]);
     this.guessMarkParts.set(owner, marked);
     this.guessMarkParts.set(`${owner}_prev`, marked);
-    const paintFigure = this.guessPainter(setup, before, visible, owner);
+    const paintFigure = this.guessPainter(setup, before, visible, owner, step.readout !== false);
     // A budget (spec 2026-10-03-looks-feedback-account §5): the bars move on
     // their own and an account bar beside the plot shows what is left; it
     // stands while the question does and goes before the reveal.
@@ -2083,8 +2088,12 @@ export class Player {
     if (signal.aborted) return;
 
     const judged = g.mode !== "decide" || (g.best ?? []).some(Boolean);
-    const score = scoreCards(g, arrangement, step.tolerance ?? 0);
-    const ok = answered && score.ok;
+    // No viewer (a movie, Watch): scored as a perfect one, as every other auto
+    // answer is — the cards glide to the truth, so "0 of 6" and the wrong line
+    // would contradict the picture. The cards' own path still reads `answered`.
+    const auto = !live && !answered;
+    const score = scoreCards(g, auto ? cardsTruth(g) : arrangement, step.tolerance ?? 0);
+    const ok = (answered || auto) && score.ok;
     // check: each (round 7 §3): judged as dropped — the first drops are the
     // score, and there is nothing left to reveal.
     const checked = answered && g.each === true && arrangement.first !== undefined;
