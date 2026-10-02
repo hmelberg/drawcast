@@ -1634,7 +1634,6 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     // Rounded corners and a soft shadow (round 5 §3.1). Without either the
     // box is exactly today's: no `r` on the hint, the four-corner ring.
     const r = shape === "rect" ? clampRadius(el.radius, w, h) : 0;
-    if (shape === "rect" && el.shadow === true) out.push(boxShadow(el.id, c, w, h, r, drawOpts));
     out.push({
       id: el.id,
       kind: "stroke",
@@ -1645,6 +1644,8 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
       style,
       drawOpts,
     });
+    // After the outline in reveal order (it paints under it by z).
+    if (shape === "rect" && el.shadow === true) out.push(boxShadow(el.id, c, w, h, r, drawOpts));
   } else if (shape === "triangle" || shape === "terminal") {
     const s = declared !== undefined ? declared / 2 : 30;
     ctx.nodeRadius.set(el.id, s + 6);
@@ -1711,6 +1712,8 @@ function rectPts(c: Pt, w: number, h: number): Pt[] {
 /** The shadow's offset: 3 right, 4 down (y-up logical units). */
 const SHADOW_DX = 3;
 const SHADOW_DY = -4;
+/** The shadow's reveal: a short fade after the outline. */
+const SHADOW_FADE_MS = 200;
 
 /**
  * A box's soft shadow (round 5 §3.1): the same (rounded) shape offset (3, 4)
@@ -1718,7 +1721,8 @@ const SHADOW_DY = -4;
  * ordinary exact area — no SVG filter — so it reads the same in the sketchy,
  * clean and mixed styles, in movies and exports. Its id `<id>__shadow` is a
  * sub-drawable (SUB_SUFFIXES "_shadow"): it reveals, moves, hides and erases
- * with its box.
+ * with its box — revealed AFTER the outline as a short fade, so a shadow adds
+ * at most SHADOW_FADE_MS to the box's draw.
  */
 function boxShadow(id: string, c: Pt, w: number, h: number, r: number, drawOpts: ReturnType<typeof resolveDrawOpts>): AreaDrawable {
   return {
@@ -1728,7 +1732,7 @@ function boxShadow(id: string, c: Pt, w: number, h: number, r: number, drawOpts:
     precise: true,
     z: Z_STROKE - 1,
     style: defaultStyle({ color: COLORS.ink, fill: COLORS.ink, opacity: 0.12, strokeWidth: 0 }),
-    drawOpts,
+    drawOpts: drawOpts.mode === "instant" ? drawOpts : { mode: "fade", duration: Math.min(SHADOW_FADE_MS, drawOpts.duration) },
   };
 }
 

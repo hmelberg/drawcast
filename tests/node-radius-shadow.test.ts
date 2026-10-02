@@ -57,7 +57,7 @@ describe("a rect node with radius and shadow", () => {
   test("the shadow travels with the box (drawablesForId)", () => {
     const ids = drawablesForId(layoutSpec(nodeSpec({ radius: 10, shadow: true })).drawables, "b").map((d) => d.id);
     expect(ids).toContain("b__shadow");
-    expect(ids.indexOf("b__shadow")).toBeLessThan(ids.indexOf("b"));
+    expect(ids.indexOf("b__shadow")).toBeGreaterThan(ids.indexOf("b")); // after the outline (fix round 1)
   });
 
   test("the backend's fill and dashed outline follow the corners", () => {
@@ -85,5 +85,79 @@ describe("without radius/shadow nothing changes", () => {
   });
   test("radius 0 is the plain rect", () => {
     expect(JSON.stringify(layoutSpec(nodeSpec({ radius: 0 })).drawables)).toEqual(JSON.stringify(layoutSpec(nodeSpec({})).drawables));
+  });
+});
+
+// Fix round 1 (review of c2a6cbce): the shadow must not take part in a
+// highlight, and must not add a full sketch to the box's reveal.
+import { rendererFor } from "../src/render/svg-backend";
+import { heuristicMeasure } from "../src/layout/measure";
+import { installMiniDom, FakeNode } from "./helpers/mini-dom";
+
+const boxSpec = (extra: Record<string, unknown>) =>
+  ({ elements: [{ id: "b", type: "node", shape: "rect", text: "Hi", x: 300, y: 300, ...extra }], commands: [{ draw: ["b"] }] }) as never;
+
+async function mountBox(extra: Record<string, unknown>, style: "clean" | "sketchy" = "clean") {
+  const { restore, doc } = installMiniDom();
+  const spec = boxSpec(extra);
+  const container = new FakeNode("div", doc as never);
+  const r = await rendererFor(style).mount(layoutSpec(spec, heuristicMeasure), spec, container as never);
+  for (const el of r.elements.values()) el.finish();
+  return { restore, container, r };
+}
+
+/** Overlay echoes (last child of the root svg) and underlay pens, as tag/attr summaries. */
+function marks(container: FakeNode) {
+  const svg = container.children[0];
+  const overlay = svg.children[svg.children.length - 1];
+  const under = svg.children.find((c) => c.getAttribute("class") === "cs-underlay");
+  const sum = (n: FakeNode): string => `${n.tagName ?? ""}${n.getAttribute("d") ?? ""}[${n.children.map(sum).join(",")}]`;
+  return { echoes: overlay.children.map(sum), pens: (under?.children ?? []).map(sum) };
+}
+
+describe("fix round 1: the shadow stays out of highlights and the reveal", () => {
+  test("the shadow comes after the outline, as a short fade", () => {
+    const ds = layoutSpec(nodeSpec({ radius: 10, shadow: true })).drawables;
+    const ids = drawablesForId(ds, "b").map((d) => d.id);
+    expect(ids.indexOf("b__shadow")).toBeGreaterThan(ids.indexOf("b"));
+    const sh = leafDrawables(ds).find((d) => d.id === "b__shadow")!;
+    expect(sh.drawOpts.mode).toBe("fade");
+    expect(sh.drawOpts.duration).toBeLessThanOrEqual(200);
+  });
+
+  test("draw b takes about as long with a shadow as without", async () => {
+    const plain = await mountBox({ radius: 10 });
+    const plainMs = plain.r.elements.get("b")!.durationMs;
+    plain.restore();
+    const shadowed = await mountBox({ radius: 10, shadow: true });
+    const shadowMs = shadowed.r.elements.get("b")!.durationMs;
+    shadowed.restore();
+    expect(shadowMs - plainMs).toBeLessThanOrEqual(200);
+  });
+
+  for (const effect of ["glow", "pulse"] as const) {
+    test(`${effect}: an unfilled shadowed box is highlighted exactly like one without a shadow`, async () => {
+      const a = await mountBox({ radius: 10 });
+      a.r.effects!.setHighlight(["b"], effect, 1, null);
+      const plain = marks(a.container);
+      a.restore();
+      const b = await mountBox({ radius: 10, shadow: true });
+      b.r.effects!.setHighlight(["b"], effect, 1, null);
+      const shadowed = marks(b.container);
+      b.restore();
+      expect(shadowed).toEqual(plain);
+    });
+  }
+
+  test("box mark: drawn round the box, not the box and its shadow", async () => {
+    const a = await mountBox({ radius: 10 });
+    a.r.effects!.setHighlight(["b"], "box", 1, null);
+    const plain = marks(a.container);
+    a.restore();
+    const b = await mountBox({ radius: 10, shadow: true });
+    b.r.effects!.setHighlight(["b"], "box", 1, null);
+    const shadowed = marks(b.container);
+    b.restore();
+    expect(shadowed).toEqual(plain);
   });
 });

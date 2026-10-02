@@ -362,7 +362,7 @@ const elementSchema = {
     width: { type: "number", description: "shape rect / node / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880). / image: width. inset: box width (default 160; the height follows 4:3 unless given) — only read when x/y or at place the inset; in the column, width and height are ignored." },
     height: { type: "number", description: "shape rect / node / pieces strips+grid (the rectangle to cut): height in logical units. inset: box height." },
     radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40). point: the dot's radius in canvas units (default 7; e.g. 20 for a ball) — bind it to animate. node rect: corner radius (default 0)." },
-    shadow: { type: "boolean", description: "node rect: true = a soft shadow behind the box." },
+    shadow: { type: "boolean", description: "node rect: true = a soft shadow behind the box (for a filled box)." },
     icon: {
       oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }],
       description: 'node rect: an icon inside the box, above its text — a keyword ("shark") or {"of", "set"} like an icon element; the box grows to fit.',

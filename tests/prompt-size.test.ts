@@ -649,7 +649,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-03 (round 5, Task 1 + ask account_label): node rect
 // `radius` (corner radius) and `shadow`, plus ask's `account_label` (14f503a4,
 // which landed without a re-pin). +154. -> 385502.
-const BASELINE_SYSTEM_CHARS = 385502;
+// Re-pinned UP 2026-10-03 (round 5 Task 1 fix): `shadow` says it is for a
+// filled box. +19. -> 385521.
+const BASELINE_SYSTEM_CHARS = 385521;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -720,7 +722,9 @@ const BASELINE_SYSTEM_CHARS = 385502;
 // Re-pinned UP 2026-10-03 (round 5): node rect `radius` as a corner radius and
 // `shadow` (+130, Task 1), and ask's `account_label` (+209, 14f503a4, which
 // landed without a re-pin). Measured 106117.
-const BASELINE_SCHEMA_CHARS = 106117;
+// Re-pinned UP 2026-10-03 (round 5 Task 1 fix): `shadow` says it is for a
+// filled box. +19. Measured 106136 (before the icon/feedback schema work).
+const BASELINE_SCHEMA_CHARS = 106136;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

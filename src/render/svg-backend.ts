@@ -226,6 +226,11 @@ export function shapeFillD(d: { shapeHint?: ShapeHint; style: { fill?: string; f
   return hintOutlineD(d.shapeHint);
 }
 
+/** A box's soft shadow (`<id>__shadow`, layout/tier2 boxShadow). */
+function isBoxShadow(id: string): boolean {
+  return id.endsWith("__shadow");
+}
+
 /** rough.js's own exact circle/rect for a hint; a rounded rect as a rough path of its outline. */
 function roughHint(rc: RoughSVG, h: ShapeHint, o: RoughOptions): SVGGElement {
   if (h.type === "rect" && h.r) return rc.path(hintOutlineD(h), o);
@@ -2045,7 +2050,10 @@ function makeEffects(
       let st = active.get(key);
       if (!st) {
         st = { nodes: [], ringPaths: [], drawn: 0, penPaths: [], written: 0 };
-        const entries = ids.flatMap((id) => leafNodes.get(id) ?? []);
+        // A box's shadow is its look, not part of what is emphasised: it
+        // would count as a fill (band → frame), be masked out of the frame
+        // and get an echo of its own, and widen the mark's box.
+        const entries = ids.flatMap((id) => (leafNodes.get(id) ?? []).filter((e) => !isBoxShadow(e.leaf.id)));
         // `part` narrows the emphasis to a piece of the targets; one that
         // names nothing leaves the whole target lit (lint says why).
         const hits = part ? findPart(entries.map((e) => e.leaf), part) : [];
@@ -2077,7 +2085,7 @@ function makeEffects(
           } else {
             arounds = markClusters(
               ids.flatMap((id) => {
-                const own = leafNodes.get(id) ?? [];
+                const own = (leafNodes.get(id) ?? []).filter((e) => !isBoxShadow(e.leaf.id));
                 const around = unionSvgBoxes(own.flatMap((e) => pieceBox(e.g, e.leaf) ?? []));
                 return around ? [{ box: around, pose: own[0]?.g.getAttribute("transform") ?? null }] : [];
               }),
