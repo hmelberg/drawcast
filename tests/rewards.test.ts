@@ -9,7 +9,10 @@ import { SpeechManager } from "../src/render/speech";
 import { feedbackLines, resolveFeedback, type Band } from "../src/feedback/bands";
 import { isLong, pickJoke, pictureFor, rewardCredits, rewardFor, TWEMOJI_CREDIT, type RewardEvent } from "../src/feedback/rewards";
 import { JOKES } from "../src/feedback/jokes";
-import { badgeText, confettiPieces, CONFETTI_MS, overlayFor, pieceAt } from "../src/ui/rewards";
+import { badgeText, confettiPieces, CONFETTI_MS, overlayFor, pictureSrc, picturePlace, pieceAt, PICTURE_PX } from "../src/ui/rewards";
+import { REACTION_PICTURES } from "../src/feedback/rewards";
+import { readFileSync } from "node:fs";
+import { vi } from "vitest";
 import type { Command } from "../src/spec/types";
 import { cardsGeometry, type CardsElementLike } from "../src/spec/cards";
 import { cardsTruth, encodeArrangement } from "../src/cards/model";
@@ -25,6 +28,10 @@ describe("rewardFor", () => {
     ["auto", "perfect", false, 1, "sparkle"],
     ["auto", "perfect", false, 2, "sparkle"],
     ["auto", "perfect", false, 3, "confetti"],
+    ["auto", "perfect", false, 4, "sparkle"],
+    ["auto", "perfect", false, 5, "sparkle"],
+    ["auto", "perfect", false, 6, "confetti"],
+    ["auto", "perfect", false, 9, "confetti"],
     ["auto", "perfect", true, 1, "confetti"],
     ["auto", "good", true, 0, null],
     ["auto", "poor", false, 0, null],
@@ -135,14 +142,14 @@ function makePlayer(commands: Command[], feedback?: unknown) {
 const typed = (extra: Record<string, unknown> = {}): Command => ({ ask: { question: "2+2?", answer: "4", right: "Four, {streak} in a row.", wrong: "No.", ...extra } as never });
 
 describe("rewards in the player", () => {
-  test("a right typed answer sparkles; three right in a row is confetti", async () => {
-    const { player, rewards } = makePlayer([typed(), typed(), typed()], { style: "warm" });
+  test("a right typed answer sparkles; every third right in a row is confetti", async () => {
+    const { player, rewards } = makePlayer([typed(), typed(), typed(), typed(), typed(), typed()], { style: "warm" });
     player.askGate = async () => "4";
     await player.play();
-    expect(rewards.map((r) => r.kind)).toEqual(["sparkle", "sparkle", "confetti"]);
-    expect(rewards.map((r) => r.streak)).toEqual([1, 2, 3]);
+    expect(rewards.map((r) => r.kind)).toEqual(["sparkle", "sparkle", "confetti", "sparkle", "sparkle", "confetti"]);
+    expect(rewards.map((r) => r.streak)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(rewards[0].band).toBe("perfect");
-  });
+  }, 20000);
 
   test("{streak} counts right answers in a row, reset by a wrong or a skip", async () => {
     const { player, speech } = makePlayer([typed(), typed(), typed(), typed(), typed()]);
@@ -257,5 +264,59 @@ describe("rewards on a long task", () => {
     expect(speech.said.some((s) => JOKES.includes(s))).toBe(false);
     expect(feedbackLines(resolveFeedback({ style: "plain", reward: "joke" }, undefined), "en")).toEqual([...JOKES]);
     expect(feedbackLines(resolveFeedback({ style: "plain", reward: "joke" }, undefined), "nb")).toEqual([]);
+  });
+});
+
+describe("streak across rewinds and re-answers", () => {
+  test("a replay from the start counts the streak afresh", async () => {
+    const { player, speech } = makePlayer([typed(), typed()]);
+    player.askGate = async () => "4";
+    await player.play();
+    player.renderUpTo(0);
+    speech.said.length = 0;
+    await player.play();
+    expect(speech.said.filter((s) => s.startsWith("Four,"))).toEqual(["Four, 1 in a row.", "Four, 2 in a row."]);
+  });
+
+  test("a backward jump resets the streak; answering the same question again never extends it", async () => {
+    const { player, speech } = makePlayer([typed(), typed()]);
+    player.askGate = async () => "4";
+    await player.play();
+    player.jumpTo(1, false); // back over the second question
+    speech.said.length = 0;
+    await player.play();
+    // The second question again: already answered in this pass, so the streak stays 0.
+    expect(speech.said.filter((s) => s.startsWith("Four,"))).toEqual(["Four, 0 in a row."]);
+  });
+});
+
+describe("the reaction picture is bundled", () => {
+  test("every picture is an inline data: URL; nothing is fetched", () => {
+    const spy = vi.fn();
+    const was = globalThis.fetch;
+    globalThis.fetch = spy as unknown as typeof fetch;
+    try {
+      for (const p of [...REACTION_PICTURES.perfect, ...REACTION_PICTURES.none]) {
+        const src = pictureSrc(p.name);
+        expect(src?.startsWith("data:image/svg+xml")).toBe(true);
+        expect(decodeURIComponent(src!.split(",")[1])).toContain("<svg");
+      }
+    } finally {
+      globalThis.fetch = was;
+    }
+    expect(spy).not.toHaveBeenCalled();
+    // …and the overlay names no remote picture address.
+    const src = readFileSync(new URL("../src/ui/rewards.ts", import.meta.url), "utf8");
+    expect(src).not.toMatch(/iconify|https?:\/\//);
+  });
+
+  test("the picture stays on the stage, clear of the caption and answer dock at the bottom", () => {
+    const sw = 800, sh = 450;
+    const low = picturePlace(100, 440, sw, sh);
+    expect(low.top + PICTURE_PX / 2).toBeLessThanOrEqual(sh - 96);
+    const high = picturePlace(100, 0, sw, sh);
+    expect(high.top - PICTURE_PX / 2).toBeGreaterThanOrEqual(0);
+    expect(picturePlace(790, 200, sw, sh).left + PICTURE_PX).toBeLessThanOrEqual(sw);
+    expect(picturePlace(100, 200, sw, sh)).toEqual({ left: 116, top: 200 });
   });
 });

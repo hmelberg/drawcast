@@ -417,6 +417,17 @@ export class Player {
   /** Per-question outcomes, keyed by step index — re-answering a question
    *  (a remediation goto, a replay) overwrites its slot, never double-counts. */
   private outcomes = new Map<number, boolean>();
+  /** Steps already answered in this pass — a re-answer does not extend {streak}. */
+  private readonly streakSteps = new Set<number>();
+  private streak(): number {
+    return Number(this.vars.get("streak") ?? "0") || 0;
+  }
+  /** A backward jump ends the run of right answers; back at the start, a new pass begins. */
+  private resetStreak(fromStart: boolean): void {
+    if (this.vars.has("streak")) this.vars.set("streak", "0");
+    this.rewardCount = 0;
+    if (fromStart) this.streakSteps.clear();
+  }
 
   /** Step index → 1-based ordinal among the playlist's questions (the N of
    *  `_answers.N`), assigned from the plan at construction. */
@@ -457,9 +468,12 @@ export class Player {
   /** Publish {score}/{score_total} from the outcomes — called right after an
    *  answer lands, BEFORE the feedback lines speak. Digit strings: they read
    *  naturally in narration and if's numeric ops coerce at comparison time. */
-  private updateScoreVars(last: boolean): void {
-    // {streak}: right answers in a row — a wrong or skipped judged ask resets it.
-    this.vars.set("streak", last ? String((Number(this.vars.get("streak") ?? "0") || 0) + 1) : "0");
+  private updateScoreVars(index: number, last: boolean): void {
+    // {streak}: right answers in a row — a wrong or skipped judged ask resets
+    // it; answering a question again (a remediation loop) never extends it.
+    if (!last) this.vars.set("streak", "0");
+    else if (!this.streakSteps.has(index)) this.vars.set("streak", String(this.streak() + 1));
+    this.streakSteps.add(index);
     let right = 0;
     for (const ok of this.outcomes.values()) if (ok) right++;
     this.vars.set("score", String(right));
@@ -884,6 +898,7 @@ export class Player {
    *  history out of order, and the next scrub would show the wrong patch. */
   jumpTo(n: number, keepPlaying: boolean): void {
     this.posterRestart = false;
+    if (n < this.completed || n === 0) this.resetStreak(n === 0);
     // A sweep's patch belongs to the step that set it: scrubbing to before
     // that step undoes it (back to the previous run's result, or to what the
     // author wrote), scrubbing past it keeps it. Dropped BEFORE the key is
@@ -1604,7 +1619,7 @@ export class Player {
     }
     if (judged) {
       this.outcomes.set(index, ok);
-      this.updateScoreVars(ok);
+      this.updateScoreVars(index, ok);
     }
     if (live) {
       this.callbacks.onAnswer?.({
@@ -1814,7 +1829,7 @@ export class Player {
     }
     if (judged) {
       this.outcomes.set(index, ok);
-      this.updateScoreVars(ok);
+      this.updateScoreVars(index, ok);
     }
     if (live) {
       this.callbacks.onAnswer?.({
@@ -1975,7 +1990,7 @@ export class Player {
     this.recordAnswer(index, step.store, blanks.length === 1 ? (texts[0] ?? "") : `${within} of ${blanks.length}`, ok, secs);
     if (step.store) this.setFormulaVars(step.store, blanks, texts, right);
     this.outcomes.set(index, ok);
-    this.updateScoreVars(ok);
+    this.updateScoreVars(index, ok);
     if (live) {
       this.callbacks.onAnswer?.({
         index,
@@ -2215,7 +2230,7 @@ export class Player {
       }
     }
     this.outcomes.set(index, ok);
-    this.updateScoreVars(ok);
+    this.updateScoreVars(index, ok);
     if (live) {
       this.callbacks.onAnswer?.({
         index,
@@ -2418,7 +2433,7 @@ export class Player {
     const line = this.bandLine(step, band);
     if (line) out.push(line);
     if (!step.feedback) return out;
-    const streak = Number(this.vars.get("streak") ?? "0") || 0;
+    const streak = this.streak();
     const kind = rewardFor(step.feedback, band, task.long ?? false, streak);
     if (kind === null) return out;
     const parts = task.parts ?? [];
@@ -2830,7 +2845,7 @@ export class Player {
         // definition; a live viewer's Skip counts as wrong — a test is a test.
         const quizOk = this.autoAnswers || this.quizGate === null ? true : chosen === step.correct;
         this.outcomes.set(index, quizOk);
-        this.updateScoreVars(quizOk);
+        this.updateScoreVars(index, quizOk);
         // Store BEFORE feedback so the feedback lines may use {store} too; a
         // skip or an auto answer keeps the correct option (the ask's default).
         this.recordAnswer(index, step.store, step.choices[chosen ?? step.correct], quizOk, quizSecs);
@@ -2977,7 +2992,7 @@ export class Player {
         }
         this.recordAnswer(index, step.store, typed ?? step.fallback ?? step.answer ?? "", isRight(typed), timing.secs);
         this.outcomes.set(index, isRight(typed));
-        this.updateScoreVars(isRight(typed));
+        this.updateScoreVars(index, isRight(typed));
         if (!this.autoAnswers && this.askGate !== null) {
           this.callbacks.onAnswer?.({
             index,

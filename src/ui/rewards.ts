@@ -8,7 +8,7 @@
 
 import type { BBox } from "../layout/geometry";
 import { pictureFor, TWEMOJI_CREDIT, type RewardEvent, type RewardKind } from "../feedback/rewards";
-import { iconSvgUrl } from "../render/icon";
+import { REACTION_SVGS } from "../feedback/reaction-svgs";
 import { clientPointFor } from "./dom";
 
 export type OverlayKind = "confetti" | "badge" | "picture";
@@ -80,6 +80,28 @@ export function pieceAt(p: Piece, ms: number): { x: number; y: number; rot: numb
     rot: p.spin * t,
     alpha: Math.max(0, Math.min(1, (CONFETTI_MS - ms) / (CONFETTI_MS / 3))),
   };
+}
+
+/** A reaction picture as a data: URL from the bundled SVGs — never fetched at answer time. Null for an unknown name. */
+export function pictureSrc(name: string): string | null {
+  const svg = REACTION_SVGS[name];
+  return svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : null;
+}
+
+export const PICTURE_PX = 120;
+
+/**
+ * Where the picture's centre goes (stage pixels): just right of the part,
+ * kept on the stage, and clear of the bottom band where the caption and the
+ * answer dock sit (and of the top edge).
+ */
+export function picturePlace(x: number, y: number, sw: number, sh: number): { left: number; top: number } {
+  const half = PICTURE_PX / 2;
+  const left = Math.min(x + 16, Math.max(0, sw - PICTURE_PX - 20));
+  const dock = Math.max(96, sh * 0.28);
+  const minTop = half + 8;
+  const maxTop = Math.max(minTop, sh - dock - half);
+  return { left, top: Math.min(Math.max(y, minTop), maxTop) };
 }
 
 const reducedNow = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -161,10 +183,11 @@ export function playReward(stage: HTMLElement, e: RewardEvent, opts: { reducedMo
   }
   // The picture: a big twemoji beside the figure (right of the part), 2 s.
   const pic = pictureFor(e.band, e.n);
-  if (!pic) return () => {};
+  const src = pic ? pictureSrc(pic.name) : null;
+  if (!pic || !src) return () => {};
   el = overlayEl(stage, "cs-reward-picture");
   const img = document.createElement("img");
-  img.src = iconSvgUrl("twemoji", pic.name);
+  img.src = src;
   img.alt = pic.char;
   // The CC BY credit stays off the canvas: here as the picture's title, and
   // in the player's credits menu (rewardCredits).
@@ -172,9 +195,10 @@ export function playReward(stage: HTMLElement, e: RewardEvent, opts: { reducedMo
   img.onerror = () => remove();
   el.appendChild(img);
   const [x, y] = stagePoint(stage, e.box, 1, 0.5);
-  const sw = stage.getBoundingClientRect().width;
-  el.style.left = `${Math.min(x + 16, Math.max(0, sw - 140))}px`;
-  el.style.top = `${y}px`;
+  const sr = stage.getBoundingClientRect();
+  const at = picturePlace(x, y, sr.width, sr.height);
+  el.style.left = `${at.left}px`;
+  el.style.top = `${at.top}px`;
   if (opts.reducedMotion ?? reducedNow()) el.classList.add("is-still");
   timer = setTimeout(remove, PICTURE_MS);
   return remove;

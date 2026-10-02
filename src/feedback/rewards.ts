@@ -34,9 +34,9 @@ export function isLong(r: { items?: number; parts?: number }): boolean {
 /**
  * The reward an answer earns, or null.
  * - `none`: nothing.
- * - `auto`: a perfect long task, or the third right answer in a row
- *   (`streak` ≥ 3, counting this one) → confetti; any other right answer →
- *   sparkle.
+ * - `auto`: a perfect long task, or every third right answer in a row
+ *   (`streak` 3, 6, 9 …, counting this one) → confetti; any other right
+ *   answer → sparkle.
  * - `confetti`: confetti for any perfect answer.
  * - `picture`: a reaction picture for perfect and for none (good and poor
  *   get nothing — a picture for "nearly" reads as mockery).
@@ -49,7 +49,8 @@ export function rewardFor(fb: FeedbackSpec, band: Band, long: boolean, streak: n
   if (fb.reward === "confetti") return right ? "confetti" : null;
   if (fb.reward === "joke" && right && long) return "joke";
   if (!right) return null;
-  return long || streak >= 3 ? "confetti" : "sparkle";
+  // Every third right answer in a row (3, 6, 9 …); the others sparkle.
+  return long || (streak > 0 && streak % 3 === 0) ? "confetti" : "sparkle";
 }
 
 /** One joke, seeded (a replay says the same), never one already said (`used`, which this adds to). */

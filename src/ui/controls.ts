@@ -1417,10 +1417,16 @@ export function attachPlayerControls(
   // and their resets would never fire. `total` is hd.plan.steps.length, which
   // is exactly what the Player passes as onStep's second argument.
   const prev = hd.timeline.callbacks;
+  // The reward on screen, if any: taken away by a pause, a rewind or a scrub,
+  // so it never outlives the moment it belongs to.
+  let stopReward = (): void => {};
+  let lastDone = 0;
   hd.timeline.callbacks = {
     ...prev,
     onState: (s) => {
       prev.onState?.(s);
+      // Not on "done": a cast that ends on its question still shows the reward.
+      if (s === "paused" || s === "idle") stopReward();
       stage.classList.toggle("is-playing", s === "playing");
       stage.classList.toggle("is-paused", s === "paused");
       playing = s === "playing";
@@ -1437,13 +1443,17 @@ export function attachPlayerControls(
     // live only, so a movie or an export never sees one.
     onReward: (r) => {
       prev.onReward?.(r);
-      playReward(stage, r);
+      stopReward();
+      stopReward = playReward(stage, r);
       if (r.kind === "confetti" && modeSel.value === "narrated" && opts.speech && !opts.speech.muted) {
         hd.timeline.tones?.play([{ notes: "E6:s G6:s C7:q", instrument: "piano" }], 150);
       }
     },
     onStep: (done) => {
       prev.onStep?.(done, total);
+      // A seek (back, or more than one step on) takes the reward away.
+      if (done < lastDone || done > lastDone + 1) stopReward();
+      lastDone = done;
       const g = globalDone(done), T = globalTotal();
       stepInd.textContent = `${g}/${T}`;
       progressFill.style.width = `${T > 0 ? (g / T) * 100 : 0}%`;
