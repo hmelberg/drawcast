@@ -275,7 +275,10 @@ export interface SpecElement {
   y?: number;
   width?: number;
   height?: number;
+  /** shape circle / sector / …: radius. node rect: corner radius in canvas units (default 0 = square). */
   radius?: number;
+  /** node rect: a soft shadow — the same box offset (3, 4) down-right, ink at 12 %, behind it. */
+  shadow?: boolean;
   font_size?: number;
   // sector / arc / polygon / pieces (design §2.2) — radius/x/y reused above (tier-3 raw)
   /** sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up). */

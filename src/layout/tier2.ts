@@ -4,7 +4,7 @@
 import { CANVAS, domainPlot, linearScale, type DataFrame, type PlotArea } from "./canvas";
 import { makeAxes } from "./axes";
 import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression, sampleParametric } from "./curves";
-import { centroid, type BBox } from "./geometry";
+import { centroid, clampRadius, roundedRectPts, type BBox } from "./geometry";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import * as M from "./measures";
 import { codeDrawables, type CodeWindow } from "./code";
@@ -1631,12 +1631,16 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     const h = el.height ?? (shape === "decision" ? 56 : nodeRectHeight(fontSize));
     ctx.nodeRadius.set(el.id, Math.hypot(w, h) / 2);
     ctx.nodeBox.set(el.id, [w / 2, h / 2]);
+    // Rounded corners and a soft shadow (round 5 §3.1). Without either the
+    // box is exactly today's: no `r` on the hint, the four-corner ring.
+    const r = shape === "rect" ? clampRadius(el.radius, w, h) : 0;
+    if (shape === "rect" && el.shadow === true) out.push(boxShadow(el.id, c, w, h, r, drawOpts));
     out.push({
       id: el.id,
       kind: "stroke",
-      pts: rectPts(c, w, h),
+      pts: r > 0 ? roundedRectPts(c, w, h, r) : rectPts(c, w, h),
       closed: true,
-      shapeHint: { type: "rect", x: c[0] - w / 2, y: c[1] - h / 2, w, h },
+      shapeHint: { type: "rect", x: c[0] - w / 2, y: c[1] - h / 2, w, h, ...(r > 0 && { r }) },
       z: Z_STROKE,
       style,
       drawOpts,
@@ -1702,6 +1706,30 @@ function rectPts(c: Pt, w: number, h: number): Pt[] {
     [c[0] + w / 2, c[1] + h / 2],
     [c[0] - w / 2, c[1] + h / 2],
   ];
+}
+
+/** The shadow's offset: 3 right, 4 down (y-up logical units). */
+const SHADOW_DX = 3;
+const SHADOW_DY = -4;
+
+/**
+ * A box's soft shadow (round 5 §3.1): the same (rounded) shape offset (3, 4)
+ * down-right, filled with the ink at 12 %, no stroke, just under the box. An
+ * ordinary exact area — no SVG filter — so it reads the same in the sketchy,
+ * clean and mixed styles, in movies and exports. Its id `<id>__shadow` is a
+ * sub-drawable (SUB_SUFFIXES "_shadow"): it reveals, moves, hides and erases
+ * with its box.
+ */
+function boxShadow(id: string, c: Pt, w: number, h: number, r: number, drawOpts: ReturnType<typeof resolveDrawOpts>): AreaDrawable {
+  return {
+    id: `${id}__shadow`,
+    kind: "area",
+    pts: roundedRectPts([c[0] + SHADOW_DX, c[1] + SHADOW_DY], w, h, r),
+    precise: true,
+    z: Z_STROKE - 1,
+    style: defaultStyle({ color: COLORS.ink, fill: COLORS.ink, opacity: 0.12, strokeWidth: 0 }),
+    drawOpts,
+  };
 }
 
 /** A resolved endpoint, and whether it landed on an exact named/box anchor
@@ -2783,7 +2811,7 @@ function angleDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
  * first open stroke's points.
  */
 function primaryRingSoFar(ctx: Ctx, id: string): { pts: Pt[]; closed: boolean; circle?: { c: Pt; r: number } } | null {
-  const leaves = leafDrawables(drawablesForId(ctx.drawablesSoFar, id)).filter((d): d is StrokeDrawable | AreaDrawable => d.kind === "stroke" || d.kind === "area");
+  const leaves = leafDrawables(drawablesForId(ctx.drawablesSoFar, id)).filter((d): d is StrokeDrawable | AreaDrawable => (d.kind === "stroke" || d.kind === "area") && d.id !== `${id}__shadow`);
   const circleLeaf = leaves.find((d): d is StrokeDrawable & { shapeHint: { type: "circle"; c: Pt; r: number } } => d.kind === "stroke" && d.shapeHint?.type === "circle");
   if (circleLeaf) return { pts: [], closed: true, circle: { c: circleLeaf.shapeHint.c, r: circleLeaf.shapeHint.r } };
   const closed = leaves.find((d) => d.kind === "area" || (d.kind === "stroke" && d.closed));

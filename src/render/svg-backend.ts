@@ -29,7 +29,7 @@ import { writtenAt } from "./emphasis";
 import { findPart, rowOffset, textRows, type PartHit } from "../layout/highlight-part";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import type { LayoutResult } from "../layout/layout";
-import type { BBox } from "../layout/geometry";
+import { roundedRectPts, type BBox } from "../layout/geometry";
 import type { HighlightEffect } from "../spec/types";
 import type { BackendEffects, BackendModule, FlowOpts, MountResult, RenderedElement, Squash } from "./backend";
 import type { Turn } from "./pose";
@@ -175,6 +175,10 @@ function dashedPathFromPts(pts: Pt[], dash = 11, gap = 9): string {
 /** A circle/rect hint as a closed ring of points (first point repeated at
  *  the end), so a dashed outline has real points to cut. */
 function hintRing(h: ShapeHint): Pt[] {
+  if (h.type === "rect" && h.r) {
+    const ring = roundedRectPts([h.x + h.w / 2, h.y + h.h / 2], h.w, h.h, h.r);
+    return [...ring, ring[0]];
+  }
   if (h.type === "rect") return [[h.x, h.y], [h.x + h.w, h.y], [h.x + h.w, h.y + h.h], [h.x, h.y + h.h], [h.x, h.y]];
   const n = Math.max(24, Math.min(144, Math.round(h.r / 2)));
   return Array.from({ length: n + 1 }, (_, i): Pt => [h.c[0] + h.r * Math.cos((2 * Math.PI * i) / n), h.c[1] + h.r * Math.sin((2 * Math.PI * i) / n)]);
@@ -197,7 +201,15 @@ export function dashedOutlineD(d: { pts: Pt[]; closed?: boolean; shapeHint?: Sha
 /** A circle/rect hint's exact outline as SVG path data (SVG coordinates). */
 function hintOutlineD(h: ShapeHint): string {
   if (h.type === "circle") return circlePath(h.c[0], toSvgY(h.c[1]), h.r);
+  if (h.r) return roundedRectD(h.x, toSvgY(h.y + h.h), h.w, h.h, h.r);
   return `M${h.x} ${toSvgY(h.y + h.h)} h${h.w} v${h.h} h${-h.w} Z`;
+}
+
+/** A rounded rect's exact outline (SVG coordinates, top-left x/y) with true
+ *  arcs at the corners; `r` clamped to half the shorter side. */
+function roundedRectD(x: number, y: number, w: number, h: number, r: number): string {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  return `M${x + rr} ${y} h${w - 2 * rr} a${rr} ${rr} 0 0 1 ${rr} ${rr} v${h - 2 * rr} a${rr} ${rr} 0 0 1 ${-rr} ${rr} h${-(w - 2 * rr)} a${rr} ${rr} 0 0 1 ${-rr} ${-rr} v${-(h - 2 * rr)} a${rr} ${rr} 0 0 1 ${rr} ${-rr} Z`;
 }
 
 /**
@@ -214,8 +226,9 @@ export function shapeFillD(d: { shapeHint?: ShapeHint; style: { fill?: string; f
   return hintOutlineD(d.shapeHint);
 }
 
-/** rough.js's own exact circle/rect for a hint. */
+/** rough.js's own exact circle/rect for a hint; a rounded rect as a rough path of its outline. */
 function roughHint(rc: RoughSVG, h: ShapeHint, o: RoughOptions): SVGGElement {
+  if (h.type === "rect" && h.r) return rc.path(hintOutlineD(h), o);
   return h.type === "circle" ? rc.circle(h.c[0], toSvgY(h.c[1]), h.r * 2, o) : rc.rectangle(h.x, toSvgY(h.y + h.h), h.w, h.h, o);
 }
 
@@ -1306,6 +1319,7 @@ export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>, filledTar
 function outlineD(leaf: Extract<Drawable, { kind: "stroke" }>): string | null {
   const h = leaf.shapeHint;
   if (h?.type === "circle") return circlePath(h.c[0], toSvgY(h.c[1]), h.r);
+  if (h?.type === "rect" && h.r) return hintOutlineD(h);
   if (h?.type === "rect") return pathFromPts([[h.x, h.y], [h.x + h.w, h.y], [h.x + h.w, h.y + h.h], [h.x, h.y + h.h]], true);
   if (leaf.closed && leaf.pts.length >= 3) return pathFromPts(leaf.pts, true);
   return null;

@@ -340,7 +340,8 @@ const elementSchema = {
     y: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical y (y-up canvas) — the centre, for the shapes that have one. inset: the centre of the box; omit x, y and at to take the next slot in the right-hand thumbnail column." },
     width: { type: "number", description: "shape rect / node / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880). / image: width. inset: box width (default 160; the height follows 4:3 unless given) — only read when x/y or at place the inset; in the column, width and height are ignored." },
     height: { type: "number", description: "shape rect / node / pieces strips+grid (the rectangle to cut): height in logical units. inset: box height." },
-    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40). point: the dot's radius in canvas units (default 7; e.g. 20 for a ball) — bind it to animate." },
+    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40). point: the dot's radius in canvas units (default 7; e.g. 20 for a ball) — bind it to animate. node rect: corner radius (default 0)." },
+    shadow: { type: "boolean", description: "node rect: true = a soft shadow behind the box." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26). node: its text size (default 24; a text-fitted box grows with it)." },
     // sector / arc / polygon / pieces
     start: { type: "number", description: "sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up) — e.g. start: 0, end: 90 is the upper-right quarter." },

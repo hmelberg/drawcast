@@ -1,0 +1,69 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`without radius/shadow nothing changes > a plain rect node's drawables are as before 1`] = `
+[
+  {
+    "closed": true,
+    "drawOpts": {
+      "duration": 850,
+      "mode": "sketch",
+    },
+    "id": "b",
+    "kind": "stroke",
+    "pts": [
+      [
+        235,
+        269,
+      ],
+      [
+        365,
+        269,
+      ],
+      [
+        365,
+        331,
+      ],
+      [
+        235,
+        331,
+      ],
+    ],
+    "shapeHint": {
+      "h": 62,
+      "type": "rect",
+      "w": 130,
+      "x": 235,
+      "y": 269,
+    },
+    "style": {
+      "color": "#3d3833",
+      "opacity": 1,
+      "roughness": 1.4,
+      "strokeWidth": 3,
+    },
+    "z": 1,
+  },
+  {
+    "anchor": "middle",
+    "drawOpts": {
+      "duration": 400,
+      "mode": "sketch",
+    },
+    "fontSize": 24,
+    "id": "b_text",
+    "kind": "text",
+    "pos": [
+      300,
+      300,
+    ],
+    "style": {
+      "color": "#3d3833",
+      "opacity": 1,
+      "roughness": 1.4,
+      "strokeWidth": 3.5,
+    },
+    "text": "Hi",
+    "z": 2,
+  },
+]
+`;
