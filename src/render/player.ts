@@ -44,10 +44,11 @@ import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../fe
 import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
 import { besidePositions, cardsBeside, cardsParts } from "../cards/beside";
-import { BESIDE_MS, EACH_MS, FADED, WRONG, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, mergeRooms, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
+import { BESIDE_MS, EACH_MS, FADED, WRONG, YOURS, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, mergeRooms, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
 import { gateLang, gateWords } from "../ui/gate-words";
 import type { CardsGeometry } from "../spec/cards";
 import { CORRECTED, counterMarks } from "../cards/counter";
+import { REORDER_MS, VERDICT_MS, reorderAt, reorderLanded, rankVerdicts, yoursRow } from "../cards/reorder";
 import { cardsMarks, cardsTruth, fadedCards, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
 import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
 import { decodeTreeAnswer, encodeTreeAnswer, pickDiff, scoreBlanks, treeBlanks, treePick, type TreeBlank, type TreePick } from "../tree/blanks";
@@ -2143,11 +2144,13 @@ export class Player {
     // formula's boxes stay in them too, the truth written into the boxes.
     // check: each — a movie shows the truth itself: no marks at all (round 7 §3.4).
     const quietMovie = !live && g.each === true;
-    const beside = !checked && !quietMovie && step.revealStyle !== "morph" && answered;
+    // Rank slides into the true order by default (round 7 §4); an explicit beside or morph wins.
+    const reorder = g.mode === "rank" && (step.revealStyle ?? "reorder") === "reorder";
+    const beside = !checked && !quietMovie && !reorder && step.revealStyle !== "morph" && answered;
     // Tiles the viewer put in a box (the answer): kept on screen beside a formula's truth.
     const placedTiles = formula ? g.cards.filter((_, i) => arrangement.boxes.some((b) => b.includes(i))) : [];
     // The cards that move glide from where the viewer left them to the truth.
-    const moves = !beside && g.cards.some((_, i) => Math.abs(from[i][0] - g.truth[i][0]) > 0.5 || Math.abs(from[i][1] - g.truth[i][1]) > 0.5);
+    const moves = !beside && !reorder && g.cards.some((_, i) => Math.abs(from[i][0] - g.truth[i][0]) > 0.5 || Math.abs(from[i][1] - g.truth[i][1]) > 0.5);
     if (moves) {
       await this.progress(GUESS_REVEAL_MS, signal, (t) => {
         const e = smoothstep(t);
@@ -2157,6 +2160,29 @@ export class Player {
           place(id, x, y);
         });
       });
+      for (const id of g.cards) place(id, 0, 0);
+      if (signal.aborted) {
+        this.endGuessMarks(true);
+        return;
+      }
+    }
+    if (reorder) {
+      // ✓/✗ where the viewer left each card, then their order, faint, as the
+      // cards slide; a movie (or a skip) only slides, from the shuffle.
+      if (answered) {
+        mark(rankVerdicts(g, arrangement));
+        await this.waitScaled(VERDICT_MS, signal);
+        if (!signal.aborted) mark({ color: YOURS, lines: [], texts: yoursRow(g, arrangement, gateWords(gateLang(this.sourceLang)).yours) });
+      }
+      if (!signal.aborted) {
+        await this.progress(REORDER_MS, signal, (t) => {
+          g.cards.forEach((id, i) => {
+            const p = reorderAt(g, from[i], g.truth[i], t);
+            place(id, p[0] - g.home[i][0], p[1] - g.home[i][1]);
+          });
+        });
+      }
+      // The gate's nudges go (an abort too): the plan puts the cards at the truth.
       for (const id of g.cards) place(id, 0, 0);
       if (signal.aborted) {
         this.endGuessMarks(true);
@@ -2227,6 +2253,11 @@ export class Player {
       mark(marks);
       const b = this.besides.get(owner);
       if (b) b.marks = marks;
+    } else if (reorder && answered) {
+      const landed = reorderLanded(g, arrangement, gateWords(gateLang(this.sourceLang)).yours);
+      mark(landed);
+      // Marks only (the cards stand at the plan's truth): a seek forward restores them.
+      this.putBeside(owner, { index, marks: landed, faded: false });
     } else if (quietMovie) {
       // Nothing marked.
     } else if (answered) mark(cardsMarks(g, arrangement));

@@ -36,7 +36,7 @@ export const EACH_MS = 600;
 /** One part's reveal. */
 export const BESIDE_MS = 800;
 
-export type RevealStyle = "beside" | "morph";
+export type RevealStyle = "beside" | "morph" | "reorder";
 export type RevealOrder = "all" | "each";
 
 /** How far along (0..1, linear) part `k` is `elapsed` ms into a reveal of

@@ -961,7 +961,7 @@ const commandSchema = {
             "CHOOSE ON THE FIGURE: the options are things ALREADY DRAWN — a node, an icon, a group, a template part — and the viewer taps the thing itself (hover rings; Tab/Enter on the keyboard). Better than cards or a quiz whose choices repeat what the figure shows. answer = the right option's id (judged); judge: false = an opinion (store it: {c} is the tapped thing's label, {c.id} its id); {id, goto} options branch like decide cards and meet again at `then`. In movies the laser taps `default`, else the answer, else the first option.",
         },
         then: { type: "string", description: "With `choose` options that goto: the label after the branches where they meet again." },
-        reveal_style: { enum: ["beside", "morph"], description: "Reveal of a guess, cards, tree or formula: beside (default; the answer stays, the truth is drawn beside it) or morph (the answer glides into the truth)." },
+        reveal_style: { enum: ["beside", "morph", "reorder"], description: "Reveal of a guess, cards, tree or formula: beside (default; the answer stays, the truth is drawn beside it), morph (the answer glides into the truth) or reorder (default for rank cards: they slide into the true order, a faint yours row behind)." },
         reveal_order: { enum: ["all", "each"], description: "all (default), or each: the truth part by part, 0.6 s apart." },
         keep: { type: "boolean", description: "Guess: true keeps yours past the next question and a later animate (it follows the part)." },
         stage: { const: "own", description: "own: the rest of the figure fades while the question stands (cards or options over the figure)." },

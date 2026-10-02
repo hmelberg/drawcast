@@ -683,7 +683,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // for node/card icons, `icon_look: "picture"` for an illustrating icon element
 // (+1,032); the schema's cards clause, "✓ or ✗ with the truth beside" (+4). -> 393321.
 // Re-pinned UP 2026-10-02 (round 7 Task 1): cards `check` (each / end), carried into the prompt. +239. -> 393560.
-const BASELINE_SYSTEM_CHARS = 393560;
+// Re-pinned UP 2026-10-02 (round 7 Task 6): ask reveal_style "reorder" (default for rank cards). +102. -> 393662.
+const BASELINE_SYSTEM_CHARS = 393662;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -774,7 +775,8 @@ const BASELINE_SYSTEM_CHARS = 393560;
 // Re-pinned UP 2026-10-03 (round 6 Task 7): the cards clause says "see ✓ or ✗
 // with the truth beside" instead of the glide. +4. -> 111448.
 // Re-pinned UP 2026-10-02 (round 7 Task 1): cards `check` (each / end). +239. -> 111687.
-const BASELINE_SCHEMA_CHARS = 111687;
+// Re-pinned UP 2026-10-02 (round 7 Task 6): ask reveal_style "reorder". +102. -> 111789.
+const BASELINE_SCHEMA_CHARS = 111789;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

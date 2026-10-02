@@ -26,6 +26,8 @@ export interface GateWords {
   skip: string;
   /** A select's Answer under check: each (round 7 §3.2), and connect's. */
   done: string;
+  /** The reorder's row of the viewer's own order (round 7 §4). */
+  yours: string;
   typeNumber: string;
   guessFor(label: string): string;
   /** guess: one hint per handle kind, and the two composite ones. */
@@ -61,6 +63,7 @@ const EN: GateWords = {
   answer: "Answer ▸",
   skip: "Skip ▸",
   done: "Done ▸",
+  yours: "yours",
   typeNumber: "Type a number",
   guessFor: (label) => `Your guess for ${label}`,
   guess: {
@@ -105,6 +108,7 @@ const NB: GateWords = {
   answer: "Svar ▸",
   skip: "Hopp over ▸",
   done: "Ferdig ▸",
+  yours: "din",
   typeNumber: "Skriv et tall",
   guessFor: (label) => `Ditt gjett for ${label}`,
   guess: {

@@ -1005,8 +1005,9 @@ export interface AskArgs {
   /** A guess, cards, tree or formula reveal (spec 2026-10-03-round6 §3):
    *  "beside" (default) — the viewer's answer stays where they put it and
    *  the truth is drawn beside or over it; "morph" — the answer glides into
-   *  the truth (rounds 1–5). */
-  reveal_style?: "beside" | "morph";
+   *  the truth (rounds 1–5); "reorder" (round 7 §4, the default for rank
+   *  cards) — the cards slide into the true order, a faint "yours" row behind. */
+  reveal_style?: "beside" | "morph" | "reorder";
   /** "all" (default) — the truth appears at once; "each" — part by part,
    *  about 0.6 s apart, in the figure's order. */
   reveal_order?: "all" | "each";

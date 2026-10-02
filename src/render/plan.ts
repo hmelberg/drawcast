@@ -139,9 +139,9 @@ export type PlanStep = (
       choose?: ChooseOption[];
       /** Choose: where the options' branches meet. */
       then?: string;
-      /** A reveal (spec 2026-10-03-round6 §3): today's glide instead of
-       *  beside (the default), and the truth part by part instead of at once. */
-      revealStyle?: "morph";
+      /** A reveal (spec 2026-10-03-round6 §3, round 7 §4): as written — absent
+       *  means the form's own default (beside; reorder for rank cards). */
+      revealStyle?: "beside" | "morph" | "reorder";
       revealOrder?: "each";
       /** A guess's marks outlive their moment and follow the part (spec round 6 §5). */
       keep?: true;
@@ -1713,7 +1713,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           : {}),
         ...(Array.isArray(cmd.ask.choose) ? { choose: chooseOptions(cmd.ask.choose), ...(cmd.ask.then !== undefined ? { then: cmd.ask.then } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) } : {}),
         ...feedbackOf(cmd.ask.feedback),
-        ...(cmd.ask.reveal_style === "morph" ? { revealStyle: "morph" as const } : {}),
+        ...(cmd.ask.reveal_style !== undefined ? { revealStyle: cmd.ask.reveal_style } : {}),
         ...(cmd.ask.reveal_order === "each" ? { revealOrder: "each" as const } : {}),
         ...(cmd.ask.keep === true ? { keep: true as const } : {}),
         ...(cmd.ask.stage === "own"

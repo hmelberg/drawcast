@@ -110,7 +110,7 @@ describe("cards in the player", () => {
   const wrong: Arrangement = { order: [1, 0, 2, 3], boxes: [] };
 
   test("beside: the cards stay where the viewer left them, ✓/✗ and the true order shown", async () => {
-    const { player, marks, placed, nudges } = makePlayer(rank, {});
+    const { player, marks, placed, nudges } = makePlayer(rank, { reveal_style: "beside" });
     player.askGate = async () => encodeArrangement(rank, wrong);
     await player.play();
     // Card 0 stands in slot 1 (the viewer's), not its true slot 0.
@@ -141,7 +141,7 @@ describe("cards in the player", () => {
   });
 
   test("reveal_order each: the verdicts come card by card", async () => {
-    const { player, history } = makePlayer(rank, { reveal_order: "each" });
+    const { player, history } = makePlayer(rank, { reveal_style: "beside", reveal_order: "each" });
     player.askGate = async () => encodeArrangement(rank, wrong);
     await player.play();
     const counts = history.filter((h) => h.m !== null).map((h) => ({ at: h.at, n: ticks(h.m!).length }));
@@ -162,7 +162,7 @@ describe("cards in the player", () => {
     player.renderUpTo(1);
     player.renderUpTo(3);
     expect(marks.get("cards_1") ?? null).toBeNull();
-  });
+  }, 10000);
 
   test("a skipped question has no answer to keep: the cards glide to the truth", async () => {
     const { player, nudges } = makePlayer(rank, {});

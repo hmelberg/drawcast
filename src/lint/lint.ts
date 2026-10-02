@@ -11,7 +11,7 @@ import { blankConvertible, blankIsNumber, formulaBlanks, hasBlanks, tileRight } 
 import { walkTree } from "../scenes/decision_tree/rollback";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { authoredScales } from "../spec/scale";
-import { authoredCards, cardsGeometry, type CardsElementLike } from "../spec/cards";
+import { authoredCards, cardsGeometry, cardsMode, type CardsElementLike } from "../spec/cards";
 import { parseTarget } from "../links/resolve";
 import { CANVAS } from "../layout/canvas";
 import { MATH_DEFAULT_SIZE } from "../layout/math";
@@ -1229,6 +1229,7 @@ function lintGuess(spec: Spec): LintIssue[] {
   const scales = new Set(authoredScales(spec).map((sc) => sc.id));
   const pops = (spec.elements ?? []).filter((e) => e.type === "population");
   const cardSets = new Map(authoredCards(spec).map((cs) => [cs.id, cs]));
+  const rawCards = new Map((spec.elements ?? []).filter((e) => e.type === "cards").map((e) => [e.id, e as unknown as CardsElementLike]));
   const keptBack = new Set<string>();
   commands.forEach((c, i) => {
     // `check` (spec 2026-10-03 §3.3) says what right means for a market curve only.
@@ -1240,6 +1241,12 @@ function lintGuess(spec: Spec): LintIssue[] {
     if (c.ask && (c.ask.reveal_style !== undefined || c.ask.reveal_order !== undefined) && c.ask.on === undefined && c.ask.blanks === undefined && c.ask.pick === undefined) {
       const which = c.ask.reveal_style !== undefined ? `reveal_style: "${c.ask.reveal_style}"` : `reveal_order: "${c.ask.reveal_order}"`;
       issues.push({ rule: "guess", ids: [], message: `ask ${which} shapes a reveal on the figure (a guess, cards, a tree or a formula, with on/blanks/pick) — it is ignored here`, severity: "warn" });
+    }
+    // reorder (round 7 §4) slides rank cards into order; anything else reveals beside.
+    if (c.ask?.reveal_style === "reorder") {
+      const on = typeof c.ask.on === "string" ? c.ask.on : null;
+      const cs = on !== null ? (cardSets.get(on) ?? rawCards.get(on)) : undefined;
+      if (!cs || cardsMode(cs) !== "rank") issues.push({ rule: "guess", ids: [], message: `ask reveal_style: "reorder" slides rank cards into the true order — on anything else it acts as beside`, severity: "warn" });
     }
     // stage: "own" (§6) fades the figure round a question ON it: a typed or widget question has no parts to keep.
     if (c.ask?.stage !== undefined && c.ask.on === undefined && c.ask.blanks === undefined && c.ask.pick === undefined && !Array.isArray(c.ask.choose)) {
