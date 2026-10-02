@@ -242,7 +242,13 @@ Ask:
   match; `compare` + `{text, value}` = higher or lower; `options`
   `[{text, goto, best?}]` + `then` = decide (branches are labels ahead).
   The guess stays; the truth is drawn beside it (`reveal_style: "morph"`
-  for the old glide).
+  for the old glide). Rank cards slide into the true order (a faint
+  "yours" row stays). A sort, deck or select checks each card as it is
+  dropped and moves a wrong one to its right box: `wrong` gives the score
+  ("{f} of {f.total} on the first try."); `check: "end"` for a test.
+  Cards stand above their boxes (`arrange: "side"` / `"rise"` to change).
+  The `question` is the headline over the figure: a full sentence naming
+  the task ("Which of these animals are mammals? Tap every mammal.").
 - Answer on the figure: options that are DRAWN things (bags, doors, bars,
   a group) → `choose: ["door1", "door2"]` (+ `answer` to judge, or
   `judge: false`; `{id, goto}` + `then` to branch), not decide cards. A
@@ -254,8 +260,9 @@ Ask:
   guess again; `budget` + `judge: false` on `on: all` = split a budget,
   balanced against an account bar (`account_label`, a word or two). `#interactive`
   asks for these about once a minute, varied.
-- Cards: a concrete thing may wear an `icon` (`match_icon` on a match
-  partner); `look` paper (default) / flat / outline — the default is fine.
+- Cards, nodes and bars (bar_chart `icons: [...]`, one per bar): a
+  concrete thing wears an `icon` (`match_icon` on a match partner); `look`
+  paper (default) / flat / outline — the default is fine.
 - `feedback` (cast-level, or per ask/quiz; optional): one extra line after
   right/wrong by how well they did. For longer quizzes and lighter topics,
   never a serious personal one (a diagnosis, grief). Write the four bands
@@ -287,7 +294,9 @@ Ask:
   `<id>_quote` on its own beat; a YouTube url plays embedded). One per figure.
 - `inset` (`of`: another page's title / number / "previous"): no position;
   bring forward with `move` scale then back; only for referring back.
-- `icon` (`of`: keyword, `size`): a handful at most, one per category, reuse.
+- `icon` (`of`: keyword, `size`): when a card, node, bar or decorative picture
+  names a concrete thing, give it an icon; draw by hand only when no icon
+  fits or the drawing explains.
   A node box (rect; `radius`, `shadow`) or card item takes `icon` too:
   keyword or `{of, set}`, one or two words — never icon data. Node and card
   icons are pictures (own colours); an `icon` element is drawn (traced) —

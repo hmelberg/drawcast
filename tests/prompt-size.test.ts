@@ -685,7 +685,10 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-02 (round 7 Task 1): cards `check` (each / end), carried into the prompt. +239. -> 393560.
 // Re-pinned UP 2026-10-02 (round 7 Task 6): ask reveal_style "reorder" (default for rank cards). +102. -> 393662.
 // Re-pinned UP 2026-10-02 (round 7 Task 7): cards arrange drop / side / rise. +231. -> 393893.
-const BASELINE_SYSTEM_CHARS = 393893;
+// Re-pinned UP 2026-10-02 (round 7 Task 13, guidance): the cards sentence (rank slides, sort checks each
+// drop, the score line, check end), the headline question rule, bar icons and the icon rule; the schema's
+// cards and select clauses. +865. -> 394758.
+const BASELINE_SYSTEM_CHARS = 394758;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -778,7 +781,8 @@ const BASELINE_SYSTEM_CHARS = 393893;
 // Re-pinned UP 2026-10-02 (round 7 Task 1): cards `check` (each / end). +239. -> 111687.
 // Re-pinned UP 2026-10-02 (round 7 Task 6): ask reveal_style "reorder". +102. -> 111789.
 // Re-pinned UP 2026-10-02 (round 7 Task 7): cards arrange drop / side / rise. +231. -> 112020.
-const BASELINE_SCHEMA_CHARS = 112020;
+// Re-pinned UP 2026-10-02 (round 7 Task 13, guidance): the cards and select clauses. +153. -> 112173.
+const BASELINE_SCHEMA_CHARS = 112173;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

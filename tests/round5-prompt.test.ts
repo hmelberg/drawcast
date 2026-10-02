@@ -77,10 +77,10 @@ describe("round 5 guidance in the compiler prompt", () => {
     expect(prompt).toContain("`account_label`");
   });
 
-  test("icon keywords: no near miss, no short ambiguous word; cards may carry more than a handful", () => {
+  test("icon keywords: no near miss, no short ambiguous word; every concrete thing may carry one (round 7)", () => {
     expect(prompt).toContain("No icon rather than a near miss");
     expect(prompt).toContain("`\"housefly\"`");
-    expect(prompt).toContain("(cards are the exception)");
+    expect(prompt).toContain("names a concrete object or animal, give it an icon keyword");
   });
 
   test("three or more questions on a light topic: a cast-level feedback, with a valid example", () => {
