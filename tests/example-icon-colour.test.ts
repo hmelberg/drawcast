@@ -13,7 +13,7 @@ describe("What each drug does: every card icon is a colour picture", () => {
   test("Penicillin's icon resolves to twemoji with fill colours", () => {
     expect(spec).toBeDefined();
     const cards = spec.elements!.find((e) => e.type === "cards")!;
-    const pen = (cards.items as Record<string, unknown>[]).find((i) => i.text === "Penicillin")!;
+    const pen = (cards.items as unknown as Record<string, unknown>[]).find((i) => i.text === "Penicillin")!;
     const slot = iconSlots(spec).find((s) => s.host === pen && s.data === "icon_strokes")!;
     const data = storedIcon(spec, iconAssetName(slot.ask, iconLookOf(cards)));
     const svg = decodeIconSvg(data);
