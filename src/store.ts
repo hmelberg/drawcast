@@ -13,6 +13,7 @@
 // imported and the old keys removed. Everything else here is still
 // localStorage.
 
+import { isQuestionMode, type QuestionMode } from "./question-mode";
 import type { MathFont, TextFamily } from "./layout/text-style";
 import { SPEC_VERSION } from "./spec/schema";
 import type { Spec } from "./spec/types";
@@ -121,8 +122,8 @@ export interface Settings {
   theater: boolean;
   /** Use the cloud TTS voices for live playback too (when a TTS key is set). */
   cloudPlayback: boolean;
-  /** Skip quiz/ask questions in playback and exports. */
-  skipQuestions: boolean;
+  /** How questions are met in playback (ui/watch.ts); exports skip them only on "skip". */
+  questionMode: QuestionMode;
   /**
    * Subtitles (CC) on the picture. On by default: a drawcast in silent mode
    * has nothing BUT the caption, and in narrated mode the caption is what the
@@ -241,7 +242,7 @@ export const DEFAULT_SETTINGS: Settings = {
   muted: false,
   theater: false,
   cloudPlayback: true,
-  skipQuestions: false,
+  questionMode: "interactive",
   captionsOn: true,
   captionLang: "",
   burnCaptions: true,
@@ -322,6 +323,10 @@ export function loadSettings(): Settings {
   // still carries the fields drops them rather than keeping dead settings.
   delete (s as unknown as Record<string, unknown>).storyboardVersion;
   delete (s as unknown as Record<string, unknown>).pipeline;
+  // The Skip-questions checkbox became a three-way choice (2026-10-03).
+  const old = s as unknown as Record<string, unknown>;
+  if (!isQuestionMode(s.questionMode)) s.questionMode = old.skipQuestions === true ? "skip" : "interactive";
+  delete old.skipQuestions;
   // The brief controls (2026-09-30): anything but three strings falls back.
   const b = (s.brief ?? {}) as Partial<Settings["brief"]>;
   const str = (v: unknown) => (typeof v === "string" ? v : "");
@@ -367,7 +372,7 @@ export function saveSettings(s: Settings): void {
  */
 export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
-  { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "mathFont", "mathHand", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "skipQuestions", "burnCaptions"] },
+  { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "mathFont", "mathHand", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "questionMode", "burnCaptions"] },
   { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "account", "coursesDir", "giscus"] },
   { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "visualRepair", "backup"] },
 ];

@@ -8,7 +8,7 @@ import type { PlaybackPrefs } from "../ui/controls";
  * prefs to set itself up. A copy taken once at session start put the
  * viewer's own choices back to the starting ones at every cut: muted went
  * back to sound (the published viewer passes no `muted`, so it force-
- * unmuted), narrated went back to silent. This object follows every change
+ * unmuted), narrated went back to silent. The Questions choice (⋯) too. This object follows every change
  * the bar reports and still forwards it to the host's own callbacks.
  */
 export function livePrefs(start: PlaybackPrefs): PlaybackPrefs {
@@ -25,6 +25,10 @@ export function livePrefs(start: PlaybackPrefs): PlaybackPrefs {
     onMute: (muted) => {
       live.muted = muted;
       start.onMute?.(muted);
+    },
+    onQuestions: (mode) => {
+      live.questions = mode;
+      start.onQuestions?.(mode);
     },
   };
   return live;

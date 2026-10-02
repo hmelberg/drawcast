@@ -65,6 +65,7 @@ import { attachSpecFolding } from "./ui/spec-fold";
 import { accordionOpenState, applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
 import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
+import { QUESTION_MODES, questionsOption, type QuestionMode } from "./ui/watch";
 import { attachParamsTray } from "./ui/tray";
 import { lintChipModel } from "./ui/lint-chip";
 import {
@@ -1911,8 +1912,9 @@ cloudVoiceListenBtn.addEventListener("click", () => {
   if (name) speakVoiceSample(lang, name);
   else setStatus("Pick a voice first — Default lets Google choose.", "info");
 });
-const skipQuestionsCb = h("input", { type: "checkbox" }) as HTMLInputElement;
-skipQuestionsCb.checked = settings.skipQuestions;
+const questionModeSel = h("select", { title: "How the questions are met" }) as HTMLSelectElement;
+for (const m of QUESTION_MODES) questionModeSel.appendChild(h("option", { value: m.value, title: m.title }, m.label));
+questionModeSel.value = settings.questionMode;
 const burnCaptionsCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 burnCaptionsCb.checked = settings.burnCaptions;
 const developerCb = h("input", { type: "checkbox" }) as HTMLInputElement;
@@ -2086,8 +2088,14 @@ const settingsBlocks = new Map<string, HTMLElement>([
     ),
   ],
   [
-    "skipQuestions",
-    h("div", { class: "settings-field" }, h("label", { class: "settings-check" }, skipQuestionsCb, " Skip questions (quiz and typed ask) in playback and exports")),
+    "questionMode",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Questions"),
+      questionModeSel,
+      h("div", { class: "settings-note" }, "Interactive stops and waits for an answer; Watch shows someone answering and goes on; Skip leaves the questions out. Also in the player's ⋯ menu. A movie export answers them itself unless this is Skip."),
+    ),
   ],
   [
     "burnCaptions",
@@ -2268,7 +2276,7 @@ function openSettings(): void {
   mathFontSel.value = settings.mathFont ?? "";
   mathHandSel.value = mathHandValue(settings.mathHand);
   refreshCloudVoiceField();
-  skipQuestionsCb.checked = settings.skipQuestions;
+  questionModeSel.value = settings.questionMode;
   burnCaptionsCb.checked = settings.burnCaptions;
   developerCb.checked = settings.developerMode;
   visualRepairCb.checked = settings.visualRepair;
@@ -2887,6 +2895,14 @@ function playbackPrefs(): PlaybackPrefs {
       settings.muted = m;
       persist();
     },
+    questions: settings.questionMode,
+    // From the player's ⋯: the mounted cast follows at once (controls), so
+    // this only remembers it and keeps the settings dialog in step.
+    onQuestions: (m) => {
+      settings.questionMode = m;
+      questionModeSel.value = m;
+      persist();
+    },
   };
 }
 
@@ -2980,7 +2996,7 @@ async function present(andPlay = false): Promise<void> {
       text: { fontSize: settings.textSize, family: settings.textFamily, mathFont: settings.mathFont, mathHand: settings.mathHand },
       mode: settings.mode,
       speed: settings.speed,
-      questions: settings.skipQuestions ? "skip" : "on",
+      questions: questionsOption(settings.questionMode),
       speech: playSpeech,
       prefs: playbackPrefs(),
       captions: captionPrefs(),
@@ -5956,7 +5972,7 @@ async function renderVideo(specs: Spec[], burnCaptions: boolean, of = "", siblin
   try {
     return await exportVideo(
       specs,
-      { ttsKey, style: settings.style, rate: settings.rate, questions: settings.skipQuestions ? "skip" : "on", burnCaptions, lang: narrationLanguage(specs), siblings },
+      { ttsKey, style: settings.style, rate: settings.rate, questions: questionsOption(settings.questionMode), burnCaptions, lang: narrationLanguage(specs), siblings },
       {
         onStatus: (t) => (exportChipText.textContent = of ? `${t.replace(/…$/, "")}${of}…` : t),
         canvas: exportCanvas,
@@ -6200,8 +6216,8 @@ burnCaptionsCb.addEventListener("change", () => {
   settings.burnCaptions = burnCaptionsCb.checked;
   persist();
 });
-skipQuestionsCb.addEventListener("change", () => {
-  settings.skipQuestions = skipQuestionsCb.checked;
+questionModeSel.addEventListener("change", () => {
+  settings.questionMode = questionModeSel.value as QuestionMode;
   persist();
   void present();
 });
