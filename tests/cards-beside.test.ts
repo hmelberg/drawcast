@@ -1,0 +1,160 @@
+// Cards revealed beside the answer (spec 2026-10-03-round6 §3): the cards
+// stay where the viewer put them, ✓/✗ on each, the truth in ink beside —
+// and reveal_style: morph keeps the glide to the truth.
+import { describe, expect, test } from "vitest";
+import { Player, type GuessRuntime, type Reprojector } from "../src/render/player";
+import type { BackendEffects } from "../src/render/backend";
+import { planCommands } from "../src/render/plan";
+import { SpeechManager } from "../src/render/speech";
+import { cardsGeometry, type CardsElementLike, type CardsGeometry } from "../src/spec/cards";
+import { cardsTruth, encodeArrangement, type Arrangement } from "../src/cards/model";
+import { cardsBeside, cardsParts } from "../src/cards/beside";
+import type { GuessMarks } from "../src/guess/marks";
+import { EACH_MS, RIGHT, TRUTH, WRONG } from "../src/guess/reveal";
+import type { Command } from "../src/spec/types";
+import type { Pt } from "../src/layout/model";
+
+globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
+  setTimeout(() => cb(performance.now()), 2) as unknown as number) as typeof requestAnimationFrame;
+
+class QuietSpeech extends SpeechManager {
+  override get available(): boolean { return false; }
+  override speak(): Promise<void> { return Promise.resolve(); }
+  override cancel(): void {}
+}
+
+const rank = cardsGeometry({ id: "c", type: "cards", rank: true, items: ["Ant", "Bee", "Cat", "Dog"] } as unknown as CardsElementLike);
+const sort = cardsGeometry({ id: "s", type: "cards", bins: ["Odd", "Even"], items: [{ text: "1", bin: "Odd" }, { text: "2", bin: "Even" }, { text: "3", bin: "Odd" }] } as unknown as CardsElementLike);
+
+const ticks = (m: GuessMarks) => m.texts.filter((t) => t.text === "✓" || t.text === "✗");
+
+describe("cardsBeside, pure", () => {
+  test("rank: ✓/✗ where each card stands, and an ink true-order column beside the slots", () => {
+    expect(rank.mode).toBe("rank");
+    // Slot 0 holds card 1, slot 1 card 0: those two wrong, the rest right.
+    const a: Arrangement = { order: [1, 0, 2, 3], boxes: [] };
+    const m = cardsBeside(rank, a);
+    const t = ticks(m);
+    expect(t).toHaveLength(4);
+    expect(t.filter((x) => x.color === WRONG)).toHaveLength(2);
+    expect(t.filter((x) => x.color === RIGHT)).toHaveLength(2);
+    const column = m.texts.filter((x) => x.color === TRUTH);
+    expect(column.map((x) => x.text.replace(/^\d+\. /, ""))).toEqual(["Ant", "Bee", "Cat", "Dog"]);
+    // Part by part: the first two slots only.
+    expect(ticks(cardsBeside(rank, a, { upTo: 2 }))).toHaveLength(2);
+    expect(cardsParts(rank)).toBe(4);
+  });
+
+  test("sort: a wrong card gets ✗ and a thin red arrow to its box; a right one ✓ and no arrow", () => {
+    // 1 → Even (wrong), 2 → Even (right), 3 → Odd (right).
+    const a: Arrangement = { order: [], boxes: [[2], [0, 1]] };
+    const m = cardsBeside(sort, a);
+    expect(ticks(m).map((x) => x.text).sort()).toEqual(["✓", "✓", "✗"]);
+    const red = m.lines.filter((l) => l.color === WRONG);
+    expect(red.length).toBe(2); // the shaft and the head
+    // The arrow points into the Odd box.
+    const box = sort.binBoxes[0];
+    const tip = red[0].pts[1];
+    expect(Math.abs(tip[0] - box.c[0])).toBeLessThanOrEqual(box.w / 2 + 3);
+    expect(Math.abs(tip[1] - box.c[1])).toBeLessThanOrEqual(box.h / 2 + 3);
+  });
+});
+
+function makePlayer(geom: CardsGeometry, ask: Record<string, unknown>) {
+  const nudges: { id: string; dx: number; dy: number }[] = [];
+  const marks = new Map<string, GuessMarks | null>();
+  const history: { at: number; m: GuessMarks | null }[] = [];
+  const base: Record<string, unknown> = {
+    setOffset: (id: string, dx: number, dy: number) => nudges.push({ id, dx, dy }),
+    setGuessMarks: (owner: string, m: GuessMarks | null) => {
+      marks.set(owner, m);
+      history.push({ at: performance.now(), m });
+    },
+  };
+  const effects = new Proxy(base, { get: (t, k: string) => t[k] ?? (() => {}) }) as unknown as BackendEffects;
+  const commands: Command[] = [{ draw: [geom.id] } as Command, { ask: { question: "Which?", on: geom.id, store: "s", ...ask } } as Command, { speak: "Next." } as Command];
+  const truthOffsets: Record<string, Pt> = {};
+  geom.cards.forEach((c, i) => (truthOffsets[c] = [geom.truth[i][0] - geom.home[i][0], geom.truth[i][1] - geom.home[i][1]]));
+  const plan = planCommands(commands, [geom.id, ...geom.cards], { cardsFor: (id) => (id === geom.id ? { cards: geom.cards, offsets: truthOffsets } : null) });
+  // Element handles that record their offsets.
+  const placed = new Map<string, Pt>();
+  const elements = new Map(
+    geom.cards.map((id) => [
+      id,
+      {
+        setOffset: (dx: number, dy: number) => placed.set(id, [dx, dy]),
+        finish: () => {},
+        hide: () => {},
+        setOpacity: () => {},
+        setPoints: () => {},
+        setText: () => {},
+      },
+    ]),
+  );
+  const player = new Player(plan, elements as never, new QuietSpeech(), null, { mode: "narrated", effects });
+  const rp: Reprojector = { frame: () => {}, commit: () => elements as never, committed: () => null };
+  player.reprojector = rp;
+  const runtime: GuessRuntime = { setup: () => ({ handles: [], pin: {}, warnings: [] }), patch: () => ({ params: {} }), cards: (id) => (id === geom.id ? geom : null) };
+  player.guess = runtime;
+  return { player, nudges, marks, placed, history };
+}
+
+describe("cards in the player", () => {
+  const wrong: Arrangement = { order: [1, 0, 2, 3], boxes: [] };
+
+  test("beside: the cards stay where the viewer left them, ✓/✗ and the true order shown", async () => {
+    const { player, marks, placed, nudges } = makePlayer(rank, {});
+    player.askGate = async () => encodeArrangement(rank, wrong);
+    await player.play();
+    // Card 0 stands in slot 1 (the viewer's), not its true slot 0.
+    const at = placed.get(rank.cards[0])!;
+    expect(at[0] + rank.home[0][0]).toBeCloseTo(rank.slots[1][0], 0);
+    expect(at[1] + rank.home[0][1]).toBeCloseTo(rank.slots[1][1], 0);
+    // No glide: no nudge ever walks a card towards the truth.
+    expect(nudges.every((n) => n.dx === 0 && n.dy === 0)).toBe(true);
+    const m = marks.get("cards_1")!;
+    expect(ticks(m)).toHaveLength(4);
+    expect(m.texts.some((t) => t.color === TRUTH)).toBe(true);
+    // A scrub back puts the cards at the plan's places and the marks away.
+    player.renderUpTo(1);
+    expect(marks.get("cards_1")).toBeNull();
+    expect(placed.get(rank.cards[0])).toEqual([0, 0]);
+  });
+
+  test("morph: the cards glide to the truth as before", async () => {
+    const { player, marks, placed, nudges } = makePlayer(rank, { reveal_style: "morph" });
+    player.askGate = async () => encodeArrangement(rank, wrong);
+    await player.play();
+    expect(nudges.some((n) => n.dx !== 0 || n.dy !== 0)).toBe(true);
+    const at = placed.get(rank.cards[0])!;
+    expect(at[0] + rank.home[0][0]).toBeCloseTo(rank.truth[0][0], 0);
+    const m = marks.get("cards_1")!;
+    expect(m.texts.some((t) => /^you: /.test(t.text))).toBe(true);
+    expect(ticks(m)).toHaveLength(0);
+  });
+
+  test("reveal_order each: the verdicts come card by card", async () => {
+    const { player, history } = makePlayer(rank, { reveal_order: "each" });
+    player.askGate = async () => encodeArrangement(rank, wrong);
+    await player.play();
+    const counts = history.filter((h) => h.m !== null).map((h) => ({ at: h.at, n: ticks(h.m!).length }));
+    const firstOf = (n: number) => counts.find((c) => c.n === n)!.at;
+    expect(firstOf(2) - firstOf(1)).toBeGreaterThan(EACH_MS * 0.6);
+    expect(counts[counts.length - 1].n).toBe(4);
+  });
+
+  test("a skipped question has no answer to keep: the cards glide to the truth", async () => {
+    const { player, nudges } = makePlayer(rank, {});
+    player.askGate = async () => null;
+    await player.play();
+    expect(nudges.some((n) => n.dx !== 0 || n.dy !== 0)).toBe(true);
+  });
+
+  test("after the next command the verdicts stay at full strength", async () => {
+    const { player, history } = makePlayer(sort, {});
+    player.askGate = async () => encodeArrangement(sort, cardsTruth(sort));
+    await player.play();
+    const last = history.filter((h) => h.m !== null).pop()!.m!;
+    expect(ticks(last).every((t) => (t.opacity ?? 1) === 1)).toBe(true);
+  });
+});

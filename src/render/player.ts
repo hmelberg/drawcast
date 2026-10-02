@@ -43,7 +43,8 @@ import { DEFAULT_TOLERANCE, guessText, guessVars, scoreGuess } from "../guess/sc
 import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../feedback/bands";
 import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
-import { BESIDE_MS, FADED, besideMarks, besideOffsets, besideParams, besideValues, fadeYours, partProgress, revealLength, type RevealOrder } from "../guess/reveal";
+import { cardsBeside, cardsParts } from "../cards/beside";
+import { BESIDE_MS, EACH_MS, FADED, besideMarks, besideOffsets, besideParams, besideValues, fadeYours, partProgress, revealLength, type RevealOrder } from "../guess/reveal";
 import { gateLang, gateWords } from "../ui/gate-words";
 import type { CardsGeometry } from "../spec/cards";
 import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
@@ -1779,7 +1780,7 @@ export class Player {
     if (signal.aborted || step.cards === undefined) return;
     const g = this.guess?.cards?.(step.cards) ?? null;
     if (!g) return;
-    this.endGuessMarks(true);
+    this.endGuessMarks(true, true);
     // A decision starts afresh (its branch state outlives the jump into the branch).
     if (g.mode === "decide") this.decideBranch = null;
     // Tiles into a formula's boxes (design 2026-10-03 §5.3): the marks are the
@@ -1799,7 +1800,8 @@ export class Player {
     };
     // The cards are the question: if the cast did not draw them first, the
     // question shows them (never a compare pair's numbers — those are the answer).
-    const answerIds = new Set(g.valueIds ?? []);
+    // (Nor a deck's waiting cards: the deal shows each in turn.)
+    const answerIds = new Set([...(g.valueIds ?? []), ...(g.deal ?? []).slice(1).map((i) => g.cards[i])]);
     show([...this.elements.keys()].filter((id) => id.startsWith(`${g.id}_`) && !answerIds.has(id)));
     const live = !this.autoAnswers && this.askGate !== null;
     let arrangement: Arrangement = start;
@@ -1864,6 +1866,7 @@ export class Player {
       for (const i of g.deal) {
         const [hx, hy] = g.home[i];
         const [tx, ty] = g.truth[i];
+        show([g.cards[i]]);
         await this.progress(ms, signal, (t) => {
           const f = deckFlight(t, g.deckScale ?? 1);
           place(g.cards[i], cx - hx + (tx - cx) * f.along, cy - hy + (ty - cy) * f.along, f.scale);
@@ -1932,8 +1935,14 @@ export class Player {
         ? this.feedbackAfter(step, bandOf({ ok, within: score.within, count: score.count }), { long: isLong({ items: score.count }), parts: formula ? [step.formula!] : g.cards, ...(formula ? {} : { shift }) }, signal)
         : [];
     const spoken = this.speakLines(line, extra, step, signal);
+    // Beside (the default, spec 2026-10-03-round6 §3): an answer stays where
+    // the viewer left it, ✓/✗ on each card and the truth in ink beside. A
+    // skipped question (and a movie's breath on the cards as drawn) has no
+    // answer to keep: its cards glide to the truth, as with morph. Tiles in a
+    // formula's boxes go through the formula's own reveal.
+    const beside = step.revealStyle !== "morph" && answered && !formula;
     // The cards that move glide from where the viewer left them to the truth.
-    const moves = g.cards.some((_, i) => Math.abs(from[i][0] - g.truth[i][0]) > 0.5 || Math.abs(from[i][1] - g.truth[i][1]) > 0.5);
+    const moves = !beside && g.cards.some((_, i) => Math.abs(from[i][0] - g.truth[i][0]) > 0.5 || Math.abs(from[i][1] - g.truth[i][1]) > 0.5);
     if (moves) {
       await this.progress(GUESS_REVEAL_MS, signal, (t) => {
         const e = smoothstep(t);
@@ -1962,11 +1971,40 @@ export class Player {
         return;
       }
     }
+    if (beside) {
+      // The cards stay put: the gate's nudges off, the beside offsets hold them where they stand.
+      // Every card, the unmoved ones too: the plan has them all at the truth.
+      const offsets: Record<string, Pt> = {};
+      g.cards.forEach((id, i) => (offsets[id] = [from[i][0] - g.home[i][0], from[i][1] - g.home[i][1]]));
+      for (const id of g.cards) place(id, 0, 0);
+      this.besides.set(owner, { index, marks: null, faded: false, offsets });
+    }
     this.applyKey(this.plan.states[index]);
     // Hidden now: their own opacity back, for a replay that draws them again.
     leaving.forEach((el) => el.setOpacity?.(1));
     this.applyScene(this.plan.states[index]);
-    if (answered) mark(cardsMarks(g, arrangement));
+    if (beside) {
+      const tolerance = step.tolerance ?? 0;
+      const n = cardsParts(g);
+      if (step.revealOrder === "each") {
+        for (let k = 1; k < n; k++) {
+          mark(cardsBeside(g, arrangement, { upTo: k, tolerance }));
+          await this.waitScaled(EACH_MS, signal);
+          if (signal.aborted) return;
+        }
+      }
+      const marks = cardsBeside(g, arrangement, { tolerance });
+      mark(marks);
+      const b = this.besides.get(owner);
+      if (b) b.marks = marks;
+    } else if (answered && formula && step.revealStyle !== "morph") {
+      // Tiles: as before, with ✓/✗ by each box.
+      const own = cardsMarks(g, arrangement);
+      const ticks = cardsBeside(g, arrangement);
+      const marks = { ...own, lines: [...own.lines, ...ticks.lines], texts: [...own.texts, ...ticks.texts] };
+      mark(marks);
+      this.besides.set(owner, { index, marks, faded: false });
+    } else if (answered) mark(cardsMarks(g, arrangement));
     await spoken;
     if (signal.aborted) return;
     if (g.mode === "decide" && choice >= 0) {

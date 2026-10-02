@@ -78,7 +78,8 @@ describe("a deck in the player", () => {
     const firstMove = g.deal!.map((i) => offsets.findIndex((o) => o.id === g.cards[i] && (o.dx !== 0 || o.dy !== 0)));
     expect(firstMove.every((v, k) => v >= 0 && (k === 0 || v > firstMove[k - 1]))).toBe(true);
     for (const i of g.deal!) {
-      const last = offsets.filter((o) => o.id === g.cards[i]).pop()!;
+      // The last flight frame (a beside reveal then hands the card's place to its offset: a nudge back to 0).
+      const last = offsets.filter((o) => o.id === g.cards[i] && (o.dx !== 0 || o.dy !== 0)).pop()!;
       expect(last.dx).toBeCloseTo(g.truth[i][0] - g.home[i][0], 0);
       expect(last.dy).toBeCloseTo(g.truth[i][1] - g.home[i][1], 0);
       expect(last.scale ?? 1).toBe(1);
