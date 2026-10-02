@@ -9,7 +9,7 @@ import type { Pt } from "../layout/model";
 import type { CardsGeometry } from "../spec/cards";
 import type { GuessMarkLine, GuessMarkText, GuessMarks } from "../guess/marks";
 import { TRUTH, WRONG, YOURS, arrow, tick } from "../guess/reveal";
-import { matchLines, placePins, plainTeX, positions, rightCards, rightPick, type Arrangement } from "./model";
+import { matchLines, placePins, positions, rightCards, rightPick, type Arrangement } from "./model";
 
 /** A card's text for the true-order column: short canvas text. */
 function short(t: string, n = 22): string {
@@ -45,6 +45,23 @@ export function cardsParts(g: CardsGeometry): number {
 }
 
 /**
+ * Where the cards stand in a beside reveal: where the viewer left them —
+ * except a formula's tiles (fill), which step down just under their box so
+ * they never cover the formula's glyphs; the box shows the truth, as TeX
+ * (final fix wave E).
+ */
+export function besidePositions(g: CardsGeometry, a: Arrangement): Pt[] {
+  const pos = positions(g, a);
+  if (g.mode !== "fill") return pos;
+  a.boxes.forEach((cards, k) => {
+    const bx = g.binBoxes[k];
+    if (!bx) return;
+    for (const c of cards) pos[c] = [bx.c[0], bx.c[1] - bx.h / 2 - g.h / 2 - 10];
+  });
+  return pos;
+}
+
+/**
  * The beside marks of arrangement `a`: ✓/✗ on each card where it stands,
  * the truth in ink beside. `upTo` parts only (reveal_order "each"; default
  * all). `tolerance`: place's share of the line that counts as right.
@@ -52,7 +69,7 @@ export function cardsParts(g: CardsGeometry): number {
 export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: number; tolerance?: number } = {}): GuessMarks {
   const right = g.mode === "place" ? rightCards(g, a, opts.tolerance && opts.tolerance > 0 ? opts.tolerance : 0.05) : rightCards(g, a);
   const upTo = opts.upTo ?? Infinity;
-  const pos = positions(g, a);
+  const pos = besidePositions(g, a);
   const lines: GuessMarkLine[] = [];
   const texts: GuessMarkText[] = [];
   // The badge sits on the card's top-right corner, haloed in paper.
@@ -145,17 +162,15 @@ export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: num
       }
       break;
     case "fill": {
-      // The tiles stay where the viewer put them: ✓/✗ by each box, the true
-      // tile's text in ink over a box a wrong tile covers, and a
-      // thin red arrow from each misplaced tile to the box it belongs in (a
-      // tile that belongs nowhere: back to its place in the row).
+      // The tiles stand just under the boxes they were put in (besidePositions),
+      // the truth written into each box as TeX: ✓/✗ by each box, and a thin
+      // red arrow from each misplaced tile to the box it belongs in (a tile
+      // that belongs nowhere: back to its place in the row).
       const inBox = new Map<number, number>();
       a.boxes.forEach((cards, k) => cards.forEach((c) => inBox.set(c, k)));
       g.binBoxes.forEach((bx, k) => {
         if (k >= upTo) return;
         texts.push(tick([bx.c[0] + bx.w / 2 + 14, bx.c[1]], right[k] === true, "middle", 24));
-        const truth = g.truthBin.indexOf(k);
-        if (!right[k] && truth >= 0 && (a.boxes[k]?.length ?? 0) > 0) texts.push({ at: [bx.c[0], bx.c[1] + bx.h / 2 + 18], text: plainTeX(g.texts[truth]), anchor: "middle", color: TRUTH, size: 18 });
       });
       g.cards.forEach((_, i) => {
         const k = inBox.get(i);

@@ -3,7 +3,7 @@
 // formula gate; the reveal writes the truths into the boxes (an element
 // patch, `fills`), wrong answers keep a struck-through mark, and a seek back
 // before the ask empties the boxes again.
-import { RIGHT, TRUTH, WRONG } from "../src/guess/reveal";
+import { RIGHT, WRONG } from "../src/guess/reveal";
 import { describe, expect, test } from "vitest";
 import { Player, type FormulaSession, type GuessRuntime, type Reprojector } from "../src/render/player";
 import type { BackendEffects } from "../src/render/backend";
@@ -118,11 +118,12 @@ describe("formula asks in the player", () => {
     await player.play();
     expect(player.vars.get("f.ok")).toBe("false");
     expect(lastPatch()).toEqual({ fills: ["r^2"] });
-    // Beside (the default): the tile stays in the box; ✗ by it, the true tile's text in ink
-    // over it, and a thin red arrow sending the wrong tile back to the row.
+    // Beside (the default): the tile steps down under the box, the truth written into the
+    // box as TeX (fills) — never as raw text; ✗ by it, and a thin red arrow sending the wrong
+    // tile back to the row (final fix wave E).
     const m = marks.get("formula_1");
     expect(m?.texts.some((t) => t.text === "✗" && t.color === WRONG)).toBe(true);
-    expect(m?.texts.some((t) => t.text === "r^2" && t.color === TRUTH)).toBe(true);
+    expect(m?.texts.some((t) => t.text === "r^2")).toBe(false);
     expect(m?.lines.some((l) => l.color === WRONG)).toBe(true);
     expect(m?.texts.map((t) => t.text)).not.toContain("2r");
   });

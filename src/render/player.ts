@@ -43,7 +43,7 @@ import { DEFAULT_TOLERANCE, guessText, guessVars, scoreGuess } from "../guess/sc
 import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../feedback/bands";
 import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
-import { cardsBeside, cardsParts } from "../cards/beside";
+import { besidePositions, cardsBeside, cardsParts } from "../cards/beside";
 import { BESIDE_MS, EACH_MS, FADED, WRONG, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, mergeRooms, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
 import { gateLang, gateWords } from "../ui/gate-words";
 import type { CardsGeometry } from "../spec/cards";
@@ -2152,8 +2152,20 @@ export class Player {
     if (beside) {
       // The cards stay put: the gate's nudges off, the beside offsets hold them where they stand.
       // Every card, the unmoved ones too: the plan has them all at the truth.
+      // A formula's tiles step down under their boxes, clear of its glyphs (besidePositions).
+      const stand = besidePositions(g, arrangement);
+      if (formula && stand.some((p, i) => p[0] !== from[i][0] || p[1] !== from[i][1])) {
+        await this.progress(TILE_FADE_MS, signal, (t) => {
+          const e = smoothstep(t);
+          g.cards.forEach((id, i) => place(id, from[i][0] + (stand[i][0] - from[i][0]) * e - g.home[i][0], from[i][1] + (stand[i][1] - from[i][1]) * e - g.home[i][1]));
+        });
+        if (signal.aborted) {
+          this.endGuessMarks(true);
+          return;
+        }
+      }
       const offsets: Record<string, Pt> = {};
-      g.cards.forEach((id, i) => (offsets[id] = [from[i][0] - g.home[i][0], from[i][1] - g.home[i][1]]));
+      g.cards.forEach((id, i) => (offsets[id] = [stand[i][0] - g.home[i][0], stand[i][1] - g.home[i][1]]));
       for (const id of g.cards) place(id, 0, 0);
       this.putBeside(owner, { index, marks: null, faded: false, offsets, ...(placedTiles.length > 0 ? { shown: placedTiles } : {}) });
     }

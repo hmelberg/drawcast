@@ -8,7 +8,7 @@ import { planCommands } from "../src/render/plan";
 import { SpeechManager } from "../src/render/speech";
 import { cardsGeometry, type CardsElementLike, type CardsGeometry } from "../src/spec/cards";
 import { cardsTruth, encodeArrangement, type Arrangement } from "../src/cards/model";
-import { cardsBeside, cardsParts } from "../src/cards/beside";
+import { besidePositions, cardsBeside, cardsParts } from "../src/cards/beside";
 import type { GuessMarks } from "../src/guess/marks";
 import { EACH_MS, RIGHT, TRUTH, WRONG } from "../src/guess/reveal";
 import type { Command } from "../src/spec/types";
@@ -177,5 +177,28 @@ describe("cards in the player", () => {
     await player.play();
     const last = history.filter((h) => h.m !== null).pop()!.m!;
     expect(ticks(last).every((t) => (t.opacity ?? 1) === 1)).toBe(true);
+  });
+});
+
+describe("fill beside (final fix wave E): the tiles stand clear of the formula", () => {
+  const tiles = { id: "area_tiles", type: "cards", fill: "area", items: [{ text: "r^2", blank: 1 }, { text: "2r" }, { text: "d" }] } as unknown as CardsElementLike;
+  const box = { x: 100, y: 100, w: 40, h: 30 };
+  const g = cardsGeometry(tiles, undefined, (id) => (id === "area" ? [box] : null));
+
+  test("a tile in a box stands just under it, off the formula's glyphs", () => {
+    for (const card of [0, 1]) {
+      const p = besidePositions(g, { order: [], boxes: [[card]] })[card];
+      expect(p[0]).toBeCloseTo(box.x + box.w / 2);
+      // Its top is under the box's bottom (y-up).
+      expect(p[1] + g.h / 2).toBeLessThan(box.y);
+    }
+    // A tile left in the row stays where it is.
+    expect(besidePositions(g, { order: [], boxes: [[1]] })[2]).toEqual(g.home[2]);
+  });
+
+  test("wrong: no raw TeX written over the box (the box shows the truth as TeX); ✗ by the box", () => {
+    const m = cardsBeside(g, { order: [], boxes: [[1]] });
+    expect(m.texts.some((t) => t.text.includes("^"))).toBe(false);
+    expect(m.texts.some((t) => t.text === "✗")).toBe(true);
   });
 });
