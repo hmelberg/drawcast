@@ -524,10 +524,10 @@ const CAMERA_FIT_LIFT = 0.1;
 export function planCommands(commands: Command[] | undefined, allIds: string[], opts: PlanOptions = {}): Plan {
   /** The camera at rest: the page, or the fit of a template's world. */
   const rest = restView(opts.world);
-  /** A question's feedback, resolved with the cast's; plain (the default) leaves the step as it was. */
+  /** A question's feedback, resolved with the cast's; plain with no reward (the default) leaves the step as it was. */
   const feedbackOf = (own: unknown): { feedback?: FeedbackSpec } => {
     const fb = resolveFeedback(opts.feedback, own);
-    return fb.style === "plain" ? {} : { feedback: fb };
+    return fb.style === "plain" && fb.reward === "none" ? {} : { feedback: fb };
   };
   let bboxOf = opts.bboxOf ?? (() => null);
   const toLogical = opts.toLogical ?? ((p: Pt) => p);

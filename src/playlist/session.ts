@@ -613,6 +613,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
         }
       },
       onStep: prev.onStep,
+      onReward: prev.onReward,
       onAnswer: (a) => {
         prev.onAnswer?.(a);
         opts.onAnswer?.(a, items[i], i);
@@ -781,6 +782,7 @@ export async function mountPlaylist(host: HTMLElement, playlist: Playlist, opts:
         if (s === "done" && modeRef !== "instant") void mountItem(0, true);
       },
       onStep: prev.onStep,
+      onReward: prev.onReward,
     };
     markCurrent();
     if (autoplay) void hd.timeline.play();

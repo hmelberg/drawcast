@@ -39,7 +39,8 @@ import { chunkCaption, pageTimes } from "./caption-chunks";
 import { balancedSplit, budgetOf, defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessEnd, type GuessHandle, type GuessSetup } from "../guess/handles";
 import { gapsOf } from "../guess/market";
 import { DEFAULT_TOLERANCE, guessText, guessVars, scoreGuess } from "../guess/score";
-import { bandOf, guessBand, pickLine, seedOf, type Band } from "../feedback/bands";
+import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../feedback/bands";
+import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
 import type { CardsGeometry } from "../spec/cards";
 import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
@@ -229,6 +230,8 @@ export interface PlayerCallbacks {
   onState?(state: PlayerState): void;
   onStep?(completed: number, total: number): void;
   onAnswer?(answer: AnswerEvent): void;
+  /** A live answer's reward (spec 2026-10-03 §4.3), after its band line — never in a movie or on a skip. */
+  onReward?(reward: RewardEvent): void;
 }
 
 const ERASE_SPEED = 0.55; // erasing runs faster than drawing
@@ -369,8 +372,8 @@ export class Player {
     guess: number[][];
     owner: string;
     line: string | undefined;
-    /** The feedback band's line, said after `line`. */
-    extra: string | null;
+    /** The feedback band's line (and a reward's joke), said after `line`. */
+    extra: string[];
     live: boolean;
     answered: boolean;
     ok: boolean;
@@ -454,7 +457,9 @@ export class Player {
   /** Publish {score}/{score_total} from the outcomes — called right after an
    *  answer lands, BEFORE the feedback lines speak. Digit strings: they read
    *  naturally in narration and if's numeric ops coerce at comparison time. */
-  private updateScoreVars(): void {
+  private updateScoreVars(last: boolean): void {
+    // {streak}: right answers in a row — a wrong or skipped judged ask resets it.
+    this.vars.set("streak", last ? String((Number(this.vars.get("streak") ?? "0") || 0) + 1) : "0");
     let right = 0;
     for (const ok of this.outcomes.values()) if (ok) right++;
     this.vars.set("score", String(right));
@@ -1599,7 +1604,7 @@ export class Player {
     }
     if (judged) {
       this.outcomes.set(index, ok);
-      this.updateScoreVars();
+      this.updateScoreVars(ok);
     }
     if (live) {
       this.callbacks.onAnswer?.({
@@ -1615,7 +1620,10 @@ export class Player {
     }
     const line = !judged ? (step.right ?? step.wrong) : ok ? step.right : (step.wrong ?? step.right);
     const market = truthHandles.length === 1 && truthHandles[0].kind === "market";
-    const extra = live && answered && judged ? this.bandLine(step, guessBand(score, step.tolerance ?? DEFAULT_TOLERANCE, market)) : null;
+    const extra =
+      live && answered && judged
+        ? this.feedbackAfter(step, guessBand(score, step.tolerance ?? DEFAULT_TOLERANCE, market), { long: !market && isLong({ parts: score.count }), parts: truthHandles.map((h) => h.part) }, signal)
+        : [];
     if (animIndex >= 0) {
       // The animate after this step is the reveal: it starts from the guess.
       this.predictCarry = { animIndex, step, setup, truthHandles, guess, owner, line, extra, live, answered, ok, judged };
@@ -1806,7 +1814,7 @@ export class Player {
     }
     if (judged) {
       this.outcomes.set(index, ok);
-      this.updateScoreVars();
+      this.updateScoreVars(ok);
     }
     if (live) {
       this.callbacks.onAnswer?.({
@@ -1821,7 +1829,10 @@ export class Player {
       });
     }
     const line = !judged ? (step.right ?? step.wrong) : ok ? step.right : (step.wrong ?? step.right);
-    const extra = live && answered && judged ? this.bandLine(step, bandOf({ ok, within: score.within, count: score.count })) : null;
+    const extra =
+      live && answered && judged
+        ? this.feedbackAfter(step, bandOf({ ok, within: score.within, count: score.count }), { long: isLong({ items: score.count }), parts: formula ? [step.formula!] : g.cards }, signal)
+        : [];
     const spoken = this.speakLines(line, extra, step, signal);
     // The cards that move glide from where the viewer left them to the truth.
     const from = positions(g, arrangement);
@@ -1964,7 +1975,7 @@ export class Player {
     this.recordAnswer(index, step.store, blanks.length === 1 ? (texts[0] ?? "") : `${within} of ${blanks.length}`, ok, secs);
     if (step.store) this.setFormulaVars(step.store, blanks, texts, right);
     this.outcomes.set(index, ok);
-    this.updateScoreVars();
+    this.updateScoreVars(ok);
     if (live) {
       this.callbacks.onAnswer?.({
         index,
@@ -1981,7 +1992,7 @@ export class Player {
     // The reveal, as the line is spoken: the truths written into the boxes
     // (the plan takes the boxes away), each wrong answer struck through above.
     const line = ok ? step.right : (step.wrong ?? step.right);
-    const extra = live && answered ? this.bandLine(step, bandOf({ ok, within, count: blanks.length })) : null;
+    const extra = live && answered ? this.feedbackAfter(step, bandOf({ ok, within, count: blanks.length }), { long: isLong({ parts: blanks.length }), parts: [id] }, signal) : [];
     const spoken = this.speakLines(line, extra, step, signal);
     this.setFills(id, blanks.map((b) => b.tex));
     this.applyKey(after);
@@ -2204,7 +2215,7 @@ export class Player {
       }
     }
     this.outcomes.set(index, ok);
-    this.updateScoreVars();
+    this.updateScoreVars(ok);
     if (live) {
       this.callbacks.onAnswer?.({
         index,
@@ -2222,7 +2233,11 @@ export class Player {
     // right of the tree to the left, then the working lines and the miss.
     const line = ok ? step.right : (step.wrong ?? step.right);
     // Counted: each blank, and the pick as one more.
-    const extra = live && answered ? this.bandLine(step, bandOf({ ok, within: score.within + (pickRight ? 1 : 0), count: score.count + (pick ? 1 : 0) })) : null;
+    const counted = score.count + (pick ? 1 : 0);
+    const extra =
+      live && answered
+        ? this.feedbackAfter(step, bandOf({ ok, within: score.within + (pickRight ? 1 : 0), count: counted }), { long: isLong({ parts: counted }), parts: blanks.map((b) => b.part) }, signal)
+        : [];
     const spoken = this.speakLines(line, extra, step, signal);
     const order = blanks.map((b, i) => ({ b, i })).sort((a, z) => z.b.depth - a.b.depth);
     for (const { b } of order) {
@@ -2364,14 +2379,81 @@ export class Player {
    */
   private bandLine(step: Extract<PlanStep, { kind: "quiz" | "ask" }>, band: Band | null): string | null {
     if (!step.feedback || band === null) return null;
-    this.feedbackSeed ??= seedOf(this.plan.steps.map((s) => (s.kind === "quiz" || s.kind === "ask" ? s.question : "")).join("\n"));
-    return pickLine(step.feedback, band, this.sourceLang, this.feedbackSeed, this.feedbackUsed);
+    return pickLine(step.feedback, band, this.sourceLang, this.castSeed(), this.feedbackUsed);
   }
 
-  /** The author's right/wrong line, then the band's line straight after it. */
-  private async speakLines(line: string | null | undefined, extra: string | null, step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): Promise<void> {
+  private castSeed(): number {
+    return (this.feedbackSeed ??= seedOf(this.plan.steps.map((s) => (s.kind === "quiz" || s.kind === "ask" ? s.question : "")).join("\n")));
+  }
+
+  /** The author's right/wrong line, then the band's line (and a joke) straight after it. */
+  private async speakLines(line: string | null | undefined, extra: readonly string[], step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): Promise<void> {
     if (line) await this.speakLine(line, step, signal);
-    if (extra && !signal.aborted) await this.speakLine(extra, step, signal);
+    for (const l of extra) {
+      if (signal.aborted) return;
+      await this.speakLine(l, step, signal);
+    }
+  }
+
+  /** The answered parts' boxes (logical units), for placing a reward; set by the renderer. */
+  partBox: ((id: string) => BBox | null) | null = null;
+  /** Rewards played in this cast so far — the next picture alternates. */
+  private rewardCount = 0;
+
+  /**
+   * What follows the author's line for a LIVE answer (callers never ask for
+   * a movie or a skip): the band's line, then the reward it earns (spec
+   * 2026-10-03 §4.3) — a joke joins the lines; a sparkle glows the answered
+   * parts green (unless `sparkle: false`, a green glow already showing);
+   * every reward is told to the UI (onReward), which plays confetti, its
+   * still badge or the picture on an overlay.
+   */
+  private feedbackAfter(
+    step: Extract<PlanStep, { kind: "quiz" | "ask" }>,
+    band: Band,
+    task: { long?: boolean; parts?: string[]; sparkle?: boolean },
+    signal: AbortSignal,
+  ): string[] {
+    const out: string[] = [];
+    const line = this.bandLine(step, band);
+    if (line) out.push(line);
+    if (!step.feedback) return out;
+    const streak = Number(this.vars.get("streak") ?? "0") || 0;
+    const kind = rewardFor(step.feedback, band, task.long ?? false, streak);
+    if (kind === null) return out;
+    const parts = task.parts ?? [];
+    // The bundled jokes are English: said in an English cast (or one with no `lang`) only.
+    if (kind === "joke" && isEnglish(this.sourceLang)) {
+      const joke = pickJoke(this.castSeed(), this.feedbackUsed);
+      if (joke) out.push(joke);
+    }
+    if (kind === "sparkle" && task.sparkle !== false) this.sparkle(parts, signal);
+    this.callbacks.onReward?.({ kind, band, box: this.boxOfParts(parts), streak, n: this.rewardCount++ });
+    return out;
+  }
+
+  /** One short green swell on the answered parts — the sparkle. Not awaited. */
+  private sparkle(ids: string[], signal: AbortSignal): void {
+    const effects = this.effects;
+    if (!effects || ids.length === 0) return;
+    void this.emphasize(signal, (level, elapsedMs) => effects.setHighlight(ids, "glow", level, null, ANSWER_OK_COLOR, elapsedMs), Promise.resolve(), 1, "ease").finally(() =>
+      effects.endHighlight(ids),
+    );
+  }
+
+  /** The box around the parts, or null when none is known. */
+  private boxOfParts(ids: string[]): BBox | null {
+    let box: BBox | null = null;
+    for (const id of ids) {
+      const b = this.partBox?.(id);
+      if (!b) continue;
+      if (!box) box = { ...b };
+      else {
+        const x = Math.min(box.x, b.x), y = Math.min(box.y, b.y);
+        box = { x, y, w: Math.max(box.x + box.w, b.x + b.w) - x, h: Math.max(box.y + box.h, b.y + b.h) - y };
+      }
+    }
+    return box;
   }
 
   /** Speak a runtime-chosen line (quiz/ask feedback): narrated mode voices it,
@@ -2748,7 +2830,7 @@ export class Player {
         // definition; a live viewer's Skip counts as wrong — a test is a test.
         const quizOk = this.autoAnswers || this.quizGate === null ? true : chosen === step.correct;
         this.outcomes.set(index, quizOk);
-        this.updateScoreVars();
+        this.updateScoreVars(quizOk);
         // Store BEFORE feedback so the feedback lines may use {store} too; a
         // skip or an auto answer keeps the correct option (the ask's default).
         this.recordAnswer(index, step.store, step.choices[chosen ?? step.correct], quizOk, quizSecs);
@@ -2791,8 +2873,7 @@ export class Player {
           lines.push(reveal);
         }
         // The feedback band's line: a live viewer who answered, right or wrong.
-        const extra = liveQuiz && chosen !== null ? this.bandLine(step, chosen === step.correct ? "perfect" : "none") : null;
-        if (extra) lines.push(extra);
+        if (liveQuiz && chosen !== null) lines.push(...this.feedbackAfter(step, chosen === step.correct ? "perfect" : "none", {}, signal));
         if (lines.length > 0) {
           if (liveQuiz) this.feedbackHook?.(true);
           try {
@@ -2896,7 +2977,7 @@ export class Player {
         }
         this.recordAnswer(index, step.store, typed ?? step.fallback ?? step.answer ?? "", isRight(typed), timing.secs);
         this.outcomes.set(index, isRight(typed));
-        this.updateScoreVars();
+        this.updateScoreVars(isRight(typed));
         if (!this.autoAnswers && this.askGate !== null) {
           this.callbacks.onAnswer?.({
             index,
@@ -2936,12 +3017,18 @@ export class Player {
           groups = [{ ids: [answer], ...(isRight(typed) ? { color: ANSWER_OK_COLOR } : {}) }];
         }
         // The feedback band's line: a live viewer who answered, right or wrong.
-        const extra = live && typed !== null ? this.bandLine(step, isRight(typed) ? "perfect" : "none") : null;
+        // A green group already glowing IS the sparkle; else the sparkle glows the answer.
+        const greenNow = groups.some((g) => g.color === ANSWER_OK_COLOR && g.ids.length > 0);
+        const sparkleIds = step.widget === "click" ? [answer] : step.widget === "drag" && step.items ? step.items.filter((i) => i.element).map((i) => i.id) : [];
+        const extra =
+          live && typed !== null
+            ? this.feedbackAfter(step, isRight(typed) ? "perfect" : "none", { long: step.widget === "drag" && isLong({ parts: sparkleIds.length }), parts: sparkleIds, sparkle: !greenNow }, signal)
+            : [];
         if (isRight(typed)) {
           await this.glowWhile(groups, signal, () => this.speakLines(step.right, extra, step, signal));
         } else if (step.reveal) {
           await this.glowWhile(groups, signal, () => this.speakLines(step.right ?? answer, extra, step, signal));
-        } else if (extra) await this.speakLine(extra, step, signal);
+        } else if (extra.length > 0) await this.speakLines(null, extra, step, signal);
         if (!this.autoAnswers && this.askGate !== null && typed !== null) {
           const target = isRight(typed) ? step.rightGoto : step.wrongGoto;
           if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
@@ -3199,7 +3286,7 @@ export class Player {
             }),
           );
         }
-        const spokenCarry = carry && (carry.line || carry.extra) && step.narration === undefined ? this.speakLines(carry.line, carry.extra, carry.step, signal) : null;
+        const spokenCarry = carry && (carry.line || carry.extra.length > 0) && step.narration === undefined ? this.speakLines(carry.line, carry.extra, carry.step, signal) : null;
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = ease(t);
           const cur: Record<string, unknown> = { ...this.paramsOf(before), ...held };
@@ -3219,7 +3306,7 @@ export class Player {
           this.guessOwners.add(carry.owner);
           this.effects?.setGuessMarks?.(carry.owner, guessMarks(carry.truthHandles, carry.guess, 1));
           if (spokenCarry) await spokenCarry;
-          else if (carry.line || carry.extra) {
+          else if (carry.line || carry.extra.length > 0) {
             if (this.narrationVoice) await this.narrationVoice;
             if (!signal.aborted) await this.speakLines(carry.line, carry.extra, carry.step, signal);
           }

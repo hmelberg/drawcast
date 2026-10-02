@@ -31,6 +31,8 @@ import { attachChessDrag } from "./chess-drag";
 import { toggleFullscreen } from "./fullscreen";
 import { dragGateFor } from "./drag-gate";
 import { creditsOf } from "../export/credits";
+import { rewardCredits } from "../feedback/rewards";
+import { playReward } from "./rewards";
 import { connectGateFor } from "./connect-gate";
 import { attachLinks } from "./link-host";
 import { attachMore } from "./more";
@@ -1050,7 +1052,8 @@ export function attachPlayerControls(
   // gets no extra menu entry to fold. Built once, from the resolved spec on
   // the handle (hd.spec), not re-read on every layout() call: credits are
   // stamped once during resolution and never change for the life of a render.
-  const creditLines = creditsOf([hd.spec]);
+  // A cast whose questions can show a reaction picture owes the twemoji line too.
+  const creditLines = [...creditsOf([hd.spec]), ...rewardCredits(hd.plan.steps)];
   const creditsPanel = creditLines.length
     ? h(
         "div",
@@ -1415,6 +1418,7 @@ export function attachPlayerControls(
   // is exactly what the Player passes as onStep's second argument.
   const prev = hd.timeline.callbacks;
   hd.timeline.callbacks = {
+    ...prev,
     onState: (s) => {
       prev.onState?.(s);
       stage.classList.toggle("is-playing", s === "playing");
@@ -1426,6 +1430,17 @@ export function attachPlayerControls(
       playBtn.replaceChildren(icon(s === "playing" ? "pause" : "play"));
       bigPlay.replaceChildren(icon(s === "done" ? "replay" : "play"));
       nameBigPlay(s === "done" ? "Replay with narration" : "Play with narration");
+    },
+    // Rewards (spec 2026-10-03 §4.3): confetti, its still badge or a picture
+    // on an overlay above the stage; confetti's soft chime only when the
+    // narration is heard (narrated mode, not muted). The player emits these
+    // live only, so a movie or an export never sees one.
+    onReward: (r) => {
+      prev.onReward?.(r);
+      playReward(stage, r);
+      if (r.kind === "confetti" && modeSel.value === "narrated" && opts.speech && !opts.speech.muted) {
+        hd.timeline.tones?.play([{ notes: "E6:s G6:s C7:q", instrument: "piano" }], 150);
+      }
     },
     onStep: (done) => {
       prev.onStep?.(done, total);

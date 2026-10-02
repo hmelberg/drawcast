@@ -620,6 +620,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   player.setNarratorGender(spec.voice ?? null);
   player.setSourceLang(spec.lang ?? null);
   player.tones = options.tones ?? liveTones();
+  // Where a reward (confetti, a picture) bursts from: the answered part's layout box.
+  player.partBox = (id) => bboxes.get(id) ?? null;
   // A template-bound ask needs its movie form HERE, on the player, not in the
   // controls layer: the exporter never attaches UI, and it must still see the
   // widget demonstrate itself. (The layout only gains minted trails/ghosts on

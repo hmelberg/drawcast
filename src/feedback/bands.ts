@@ -5,6 +5,7 @@
  * right/wrong line. Plain (the default) says nothing extra.
  */
 import { FALLBACK_LINES } from "./lines";
+import { JOKES } from "./jokes";
 
 export type Band = "perfect" | "good" | "poor" | "none";
 export const BANDS: readonly Band[] = ["perfect", "good", "poor", "none"];
@@ -102,15 +103,16 @@ export function seedOf(s: string): number {
   return h >>> 0;
 }
 
-function isEnglish(lang: string | undefined | null): boolean {
+export function isEnglish(lang: string | undefined | null): boolean {
   return !lang || lang.toLowerCase().split(/[-_]/)[0] === "en";
 }
 
-/** Every line pickLine could say for this feedback — what a subtitle track must translate. */
+/** Every line pickLine (or a joke reward, English casts only) could say for this feedback — what a subtitle track must translate. */
 export function feedbackLines(fb: FeedbackSpec, lang: string | undefined | null): string[] {
   const style = fb.style;
-  if (style === "plain") return [];
-  return BANDS.flatMap((b) => fb.lines[b] ?? (isEnglish(lang) ? FALLBACK_LINES[style][b] : []));
+  const jokes = fb.reward === "joke" && isEnglish(lang) ? [...JOKES] : [];
+  if (style === "plain") return jokes;
+  return [...BANDS.flatMap((b) => fb.lines[b] ?? (isEnglish(lang) ? FALLBACK_LINES[style][b] : [])), ...jokes];
 }
 
 /**
