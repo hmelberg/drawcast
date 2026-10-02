@@ -82,6 +82,21 @@ export function pieceAt(p: Piece, ms: number): { x: number; y: number; rot: numb
   };
 }
 
+/**
+ * The confetti's floor (stage px): the top of the caption band when one is
+ * showing (the words being said — pieces falling through them hid them for
+ * most of the burst), else the stage's bottom. The burst is drawn above it
+ * only, and starts at least `lift` px above it.
+ */
+export function confettiFloor(stageH: number, captionTop: number | null): number {
+  return captionTop !== null && captionTop > 0 && captionTop < stageH ? captionTop : stageH;
+}
+
+/** The burst's origin, kept `lift` px over the floor (and on the stage). */
+export function confettiOrigin(origin: [number, number], floor: number, lift = 40): [number, number] {
+  return [origin[0], Math.max(0, Math.min(origin[1], floor - lift))];
+}
+
 /** A reaction picture as a data: URL from the bundled SVGs — never fetched at answer time. Null for an unknown name. */
 export function pictureSrc(name: string): string | null {
   const svg = REACTION_SVGS[name];
@@ -143,12 +158,19 @@ export function playReward(stage: HTMLElement, e: RewardEvent, opts: { reducedMo
   if (kind === "confetti") {
     const canvas = overlayEl(stage, "cs-reward-confetti", "canvas") as HTMLCanvasElement;
     el = canvas;
-    const r = stage.getBoundingClientRect();
+    const sr = stage.getBoundingClientRect();
+    // Above the caption only: the canvas ends where the words begin.
+    const cap = stage.querySelector<HTMLElement>(".cs-caption");
+    const capText = cap && !cap.classList.contains("cs-caption-empty") && (cap.textContent ?? "").trim() !== "";
+    const floor = confettiFloor(sr.height, capText ? cap.getBoundingClientRect().top - sr.top : null);
+    const r = { width: sr.width, height: floor };
+    canvas.style.height = `${floor}px`;
+    canvas.style.bottom = "auto";
     const dpr = typeof devicePixelRatio === "number" ? devicePixelRatio : 1;
     canvas.width = Math.max(1, Math.round(r.width * dpr));
     canvas.height = Math.max(1, Math.round(r.height * dpr));
     const ctx = canvas.getContext("2d");
-    const pieces = confettiPieces(CONFETTI_PIECES, stagePoint(stage, e.box, 0.5, 0.5), e.n + 1);
+    const pieces = confettiPieces(CONFETTI_PIECES, confettiOrigin(stagePoint(stage, e.box, 0.5, 0.5), floor), e.n + 1);
     const t0 = performance.now();
     const frame = (now: number): void => {
       const ms = now - t0;

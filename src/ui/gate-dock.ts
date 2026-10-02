@@ -30,6 +30,9 @@ const DOCKED = "cs-docked";
 /** On the stage while a narrow (phone) dock stands: the Sources chip stands
  *  aside and the value pill shrinks (styles.css). */
 const DOCKED_NARROW = "cs-docked-narrow";
+/** On the stage while the drawing eases back to its full size (styles.css). */
+const UNDOCKING = "cs-undocking";
+const UNDOCK_MS = 350;
 /** Below this stage width (px) the hint sits over the buttons, not beside them. */
 const NARROW_PX = 480;
 
@@ -45,6 +48,8 @@ export function dockShrink(m: { mode: "overlay" | "below" | "strip"; stageH: num
 export function mountGateDock(stage: HTMLElement, gate: HTMLElement, items: HTMLElement[], onLayout: () => void): GateDock {
   const el = h("div", { class: "cs-gatedock" }, ...items);
   gate.appendChild(el);
+  // A dock opening while the last one's drawing still eases back: instant.
+  stage.classList.remove(UNDOCKING);
   stage.classList.add(DOCKED);
   let disposed = false;
   let shrink = 0;
@@ -95,6 +100,14 @@ export function mountGateDock(stage: HTMLElement, gate: HTMLElement, items: HTML
       disposed = true;
       ro?.disconnect();
       mo?.disconnect();
+      // Ease the drawing back (only if it gave anything up).
+      if (shrink > 0) {
+        stage.classList.add(UNDOCKING);
+        setTimeout(() => {
+          // A new dock may have opened meanwhile: it is instant again.
+          stage.classList.remove(UNDOCKING);
+        }, UNDOCK_MS);
+      }
       stage.classList.remove(DOCKED);
       stage.classList.remove(DOCKED_NARROW);
       stage.style.removeProperty("--cs-dock-h");

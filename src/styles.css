@@ -811,7 +811,10 @@ details > summary { cursor: pointer; color: var(--muted); }
      content-box padding grows what a thumb can land on to the --tap minimum
      (12 + 16 + 16 = 44px) while background-clip keeps the visible track
      12px, and seeking is unaffected because it maps the X axis alone. */
-  .cs-progress {
+  /* .cs-controlbar >: the base .cs-progress rule comes later in this file,
+     and at equal weight its background shorthand reset the clip — a
+     finger's 44 px hit area was painted as one tall grey slab. */
+  .cs-controlbar > .cs-progress {
     box-sizing: content-box;
     height: 12px;
     padding: 16px 0;
@@ -1170,13 +1173,6 @@ a.cs-more-title:focus-visible { outline: 2px solid #b5482e; outline-offset: 2px;
 
 .step-indicator { color: var(--muted); font-size: var(--text-xs); min-width: 3ch; text-align: center; }
 
-/* Touch (with the (hover: none) block above): the base .cs-progress rule
-   comes after that block and its background shorthand reset the clip, so
-   a finger's 44 px hit area was painted as one tall grey slab. Restated
-   here, after the base rule. */
-@media (hover: none) {
-  .cs-controlbar > .cs-progress { height: 12px; background-clip: content-box; }
-}
 /* A phone's control bar (round 5 fix wave, M4): the seek bar takes a row of
    its own over the buttons — squeezed between them it shrank to a knob —
    and the buttons stand a little narrower (still --tap tall), so one row
@@ -1800,6 +1796,11 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   z-index: 4;
   font-size: 0.95rem;
 }
+/* A phone: down in the corner, level with the Sources chip — at 1.2rem up
+   it sat on the last line of the caption under the drawing. */
+@media (max-width: 560px) {
+  .cs-testme { bottom: 0.4rem; left: 0.5rem; font-size: var(--text-sm); }
+}
 /* The answer dock (ui/gate-dock.ts): the guess, cards, tree and formula
    gates say and offer everything — hint, total, Answer, Skip — in one row at
    the bottom of the stage, so nothing lies on the title or on the question.
@@ -1855,6 +1856,15 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
 .cs-stage.cs-docked.cs-caption-below .cs-svg {
   width: calc(100% - var(--cs-dock-shrink, 0px) * 4 / 3);
   margin: 0 auto;
+}
+/* When the dock goes (ui/gate-dock.ts marks the stage cs-undocking for a
+   moment), the drawing eases back to its full size instead of jumping to it
+   just as the reveal is drawn (L3). Only then: opening the dock is instant,
+   so the gate lays its pills on the drawing's final size. */
+.cs-stage.cs-undocking .cs-svg { transition: width 0.3s ease, height 0.3s ease; }
+.cs-stage.cs-undocking.cs-caption-below .cs-svg { margin: 0 auto; }
+@media (prefers-reduced-motion: reduce) {
+  .cs-stage.cs-undocking .cs-svg { transition: none; }
 }
 .cs-gatedock.cs-gatedock-narrow { flex-wrap: wrap; row-gap: 0.25rem; }
 /* A phone (round 5 fix wave, H1): the dock is as short as it can be, so the
