@@ -243,8 +243,17 @@ Ask:
   `[{text, goto, best?}]` + `then` = decide (branches are labels ahead).
 - Guess extras: `predict: true` before an `animate` (it plays from the
   guess); `reveal: false` + later `revise: "<store>"` = guess, evidence,
-  guess again; `budget` + `judge: false` on `on: all` = split a budget. `#interactive`
+  guess again; `budget` + `judge: false` on `on: all` = split a budget,
+  balanced against an account bar (`account_label`, a word or two). `#interactive`
   asks for these about once a minute, varied.
+- Cards: a concrete thing may wear an `icon` (`match_icon` on a match
+  partner); `look` paper (default) / flat / outline — the default is fine.
+- `feedback` (cast-level, or per ask/quiz; optional): one extra line after
+  right/wrong by how well they did. For longer quizzes and lighter topics,
+  never a serious personal one (a diagnosis, grief). Write the four bands
+  yourself — `{style: "dry", perfect, good, poor, none}` — short, in the
+  cast's language, about its topic, kind rather than mean (`"Are you a
+  botanist?"`). Only English casts have fallback lines.
 - Fill the tree (`decision_tree`, `rollback: true`; draw it whole first,
   each blank shows "?" until its ask): `blanks: ["value_treat"]` (also
   `branchlabel_<p>_<c>`, `effect_`/`cost_<node>`), `{e.true}`, `{e.work}` =
@@ -271,6 +280,9 @@ Ask:
 - `inset` (`of`: another page's title / number / "previous"): no position;
   bring forward with `move` scale then back; only for referring back.
 - `icon` (`of`: keyword, `size`): a handful at most, one per category, reuse.
+  A node box (rect; `radius`, `shadow`) or card item takes `icon` too:
+  keyword or `{of, set}`; prefer filled sets (twemoji, fa6-solid, ph "… fill"),
+  not lucide; one or two words per keyword.
 - `link` on any element: `["https://…"]` only when the request supplied it.
 - `sources` (top level: `id`, `title`, `authors`, `year`, `finding`,
   `doi`/`url` only when certain) and `cites: [id]` on the element that shows
