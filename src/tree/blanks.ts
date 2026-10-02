@@ -168,7 +168,6 @@ export function treePick(params: DecisionTreeParams, node: string): TreePick | s
   return { node, options, best, values, measure };
 }
 
-/** "5.8,;treat": the typed numbers (empty for none), then the pick. */
 /** {c.diff} (spec §4.3): how much better the best option is — best minus
  *  the one chosen when the pick is wrong; else (right, skipped, the movie)
  *  best minus the best of the others, the margin. Always ≥ 0 (a cost saved
@@ -192,6 +191,7 @@ export function treeAnswerAction(values: (number | null)[], hasPick: boolean, ch
   return hasPick && chosen === null ? "nudge" : "submit";
 }
 
+/** "5.8,;treat": the typed numbers (empty for none), then the pick. */
 export function encodeTreeAnswer(values: (number | null)[], pick: string | null): string {
   return `${values.map((v) => (v === null ? "" : String(v))).join(",")};${pick ?? ""}`;
 }
