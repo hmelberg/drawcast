@@ -175,6 +175,43 @@ describe("a crawler", () => {
   });
 });
 
+describe("a course's picture is its first lecture's", () => {
+  const MD = "# QALY basics\n\nWhat a QALY is.\n\n---\n## Lecture one\nstatus: done · file: 01-intro.yaml\n";
+  const LECTURE = "playlist:\n  title: Lecture one\n";
+  const course = (over: Partial<CardDeps> = {}) =>
+    deps({
+      fetchText: async (url) => (url.endsWith("courses/qaly/course.md") ? MD : url.endsWith("courses/qaly/01-intro.yaml") ? LECTURE : null),
+      fetchImage: async (url) => (url.endsWith("courses/qaly/01-intro.png") ? new Response(new Uint8Array([137, 80, 78, 71]), { headers: { "content-type": "image/png" } }) : null),
+      ...over,
+    });
+
+  test("the card names the course and shows the lecture's picture", async () => {
+    const html = await (await handleCardRequest(get("/c/qaly", FB), course())).text();
+    expect(html).toContain('og:title" content="QALY basics"');
+    expect(html).toContain('og:image" content="https://drawcast.app/card/qaly.png"');
+    expect(html).toContain('og:image:width" content="1000"');
+  });
+  test("/card/qaly.png streams the first lecture's picture", async () => {
+    const res = await handleCardRequest(get("/card/qaly.png", FB), course());
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+  });
+  test("no picture beside the lecture: the generic picture, not a broken one", async () => {
+    const html = await (await handleCardRequest(get("/c/qaly", FB), course({ fetchImage: async () => null }))).text();
+    expect(html).toContain('og:image" content="https://drawcast.app/share-card.png"');
+  });
+  test("a lecture with no file yet: the generic picture", async () => {
+    const html = await (await handleCardRequest(get("/c/qaly", FB), course({ fetchText: async (url) => (url.endsWith("course.md") ? "# QALY basics\n\nWhat a QALY is.\n\n---\n## Lecture one\nstatus: pending\n" : null) }))).text();
+    expect(html).toContain('og:title" content="QALY basics"');
+    expect(html).toContain('og:image" content="https://drawcast.app/share-card.png"');
+  });
+  test("a lecture whose text can't be read: no picture streamed", async () => {
+    const res = await handleCardRequest(get("/card/qaly.png", FB), course({ fetchText: async (url) => (url.endsWith("course.md") ? MD : null) }));
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("https://drawcast.app/share-card.png");
+  });
+});
+
 describe("/card/ pictures", () => {
   test("no poster is streamed when the cast's text could not be read (it might be private)", async () => {
     const d = deps({ fetchText: async () => null });

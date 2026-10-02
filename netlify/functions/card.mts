@@ -105,6 +105,10 @@ async function find(t: ShareTarget, deps: CardDeps, signal: AbortSignal): Promis
     if (file) {
       const lecture = await deps.fetchText(rawUrl(k.owner, k.repo, `${k.path}/${file}`), signal);
       if (lecture !== null && LOCKED_RE.test(lecture)) return null;
+      // The course's own picture is its first lecture's (spec 2026-10-02-
+      // share-design §7) — only once that lecture's text was read and is not
+      // locked, the same rule a cast's picture follows.
+      if (lecture !== null) return { text, poster: posterUrlFor(k.owner, k.repo, `${k.path}/${file}`) };
     }
     return { text };
   }
