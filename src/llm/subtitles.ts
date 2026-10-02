@@ -12,7 +12,7 @@
 // voice stays put, and only what the caption displays is sent.
 
 import { feedbackLines } from "../feedback/bands";
-import { correctWord } from "../render/quiz-words";
+import { castLang, correctWord } from "../render/quiz-words";
 import { callForJson, makeClient, type CallOpts } from "./client";
 import { controlsOfFor, planCommands } from "../render/plan";
 import type { Pt } from "../layout/model";
@@ -112,7 +112,7 @@ export function captionLines(spec: Spec): string[] {
     if (step.kind === "speak") add(step.text);
     if (step.kind === "quiz") {
       // What a live viewer hears on a right answer (render/quiz-words.ts).
-      add(correctWord(spec.lang, step.question));
+      add(correctWord(castLang(spec), step.question));
       add(step.right);
       add(step.wrong);
       // The reveal after a wrong answer: the author's line, or the correct
@@ -125,7 +125,7 @@ export function captionLines(spec: Spec): string[] {
       add(step.right ?? step.answer);
     }
     // The feedback band's line said after them (spec 2026-10-03 §4.2).
-    if ((step.kind === "quiz" || step.kind === "ask") && step.feedback) for (const l of feedbackLines(step.feedback, spec.lang)) add(l);
+    if ((step.kind === "quiz" || step.kind === "ask") && step.feedback) for (const l of feedbackLines(step.feedback, castLang(spec))) add(l);
   }
   return [...out];
 }

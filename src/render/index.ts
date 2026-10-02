@@ -2,6 +2,7 @@
 // render(spec, container, options) -> { timeline, update(diff), lint() }.
 // Framework-free by design. One SVG renderer, two styles (sketchy/clean).
 
+import { castLang } from "./quiz-words";
 import { guessParts, guessSetup, patchFor } from "../guess/handles";
 import { marketParts } from "../guess/parts";
 import { cardsGeometryIn, type CardsGeometry } from "../spec/cards";
@@ -618,7 +619,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     options.callbacks,
   );
   player.setNarratorGender(spec.voice ?? null);
-  player.setSourceLang(spec.lang ?? null);
+  // spec.lang, else what the lines read as: a generated Norwegian cast often has no lang.
+  player.setSourceLang(castLang(spec));
   player.tones = options.tones ?? liveTones();
   // Where a reward (confetti, a picture) bursts from: the answered part's layout box.
   player.partBox = (id) => bboxes.get(id) ?? null;

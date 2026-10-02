@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { bandOf, guessBand, pickLine, resolveFeedback, seedOf, type FeedbackSpec } from "../src/feedback/bands";
 import { FALLBACK_LINES } from "../src/feedback/lines";
+import { castLang } from "../src/render/quiz-words";
 
 describe("bandOf", () => {
   test("counted tasks: all, two thirds, some, none", () => {
@@ -202,5 +203,19 @@ describe("feedback lines in the subtitle tracks", () => {
       commands: [{ ask: { question: "Q?", answer: "4", right: "Fire." } }, { ask: { question: "P?", answer: "5", feedback: "plain" } }],
     } as never);
     expect(lines).toContain("Godt du ikke er farmasøyt.");
+  });
+});
+
+describe("castLang: the language of a cast with no lang", () => {
+  test("declared lang wins; else the narration and questions decide; nothing to read: null", () => {
+    expect(castLang({ lang: "nn", commands: [{ speak: "The cat is on the mat." }] })).toBe("nn");
+    expect(castLang({ commands: [{ speak: "Hvor mange dør hvert år? Det er flere enn du tror." }] })).toBe("nb");
+    expect(castLang({ commands: [{ ask: { question: "Hvor mange av dem er det som dør?" } }] })).toBe("nb");
+    expect(castLang({ commands: [{ speak: "How many die each year? More than you think." }] })).toBe("en");
+    expect(castLang({ commands: [] })).toBeNull();
+  });
+  test("a Norwegian cast without lang gets no English fallback line", () => {
+    const lang = castLang({ commands: [{ speak: "Hvor mange dør hvert år? Det er flere enn du tror." }] });
+    expect(pickLine({ style: "dry", reward: "none", lines: {} }, "poor", lang, 3, new Set())).toBeNull();
   });
 });

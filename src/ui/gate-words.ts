@@ -2,9 +2,10 @@
 // Answer, Skip, a field's label — in the cast's own language (round 5 fix
 // wave, M2): a Norwegian cast said "Click where you think it is" beside its
 // own Norwegian lines. English, unless the cast is written in Norwegian
-// (spec.lang nb / no / nn). One table, so a gate can never mix the two.
+// (spec.lang nb / no / nn — or, with no lang, its lines read as Norwegian). One table, so a gate can never mix the two.
 
 import type { RenderHandle } from "../render";
+import { castLang } from "../render/quiz-words";
 
 export type GateLang = "en" | "nb";
 
@@ -14,9 +15,10 @@ export function gateLang(lang: string | null | undefined): GateLang {
   return l === "nb" || l === "no" || l === "nn" || /^(nb|no|nn)[-_]/.test(l) ? "nb" : "en";
 }
 
-/** The gate language of the cast a gate is mounted for (no handle: English). */
+/** The gate language of the cast a gate is mounted for: its lang, else what
+ *  its lines read as (castLang); no handle: English. */
 export function gateLangOf(hd: RenderHandle | null | undefined): GateLang {
-  return gateLang(hd?.spec?.lang);
+  return gateLang(hd?.spec ? castLang(hd.spec as Parameters<typeof castLang>[0]) : null);
 }
 
 export interface GateWords {

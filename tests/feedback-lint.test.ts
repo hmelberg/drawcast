@@ -47,6 +47,9 @@ describe("feedback lint", () => {
     // The ask's own lines count, and the cast's lines reach the ask.
     expect(issues(cast({ lang: "nb", feedback: "warm" }, { feedback: { good: "Nesten!" } }), "feedback")).toEqual([]);
     expect(issues(cast({ lang: "en-GB", feedback: "warm" }), "feedback")).toEqual([]);
+    // No lang, but the lines are Norwegian: the player gives it no English line, so the lint warns too.
+    const nb = { elements: [rank], feedback: "warm", commands: [{ speak: "Hvem er raskest? Det er ikke så lett som du tror." }, { draw: ["r"] }, { ask: { question: "Hvem er raskest av dem?", on: "r" } }] } as unknown as Spec;
+    expect(issues(nb, "feedback")).toHaveLength(1);
   });
 
   test("a card icon of more than three words warns", () => {

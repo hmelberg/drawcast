@@ -15,7 +15,7 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { formatterFor, type GuessHandle } from "../src/guess/handles";
 import type { GuessSession } from "../src/render/player";
 import type { AskGateStep } from "../src/ui/controls";
-import { budgetLine, dockNumber, gateLang, gateWords } from "../src/ui/gate-words";
+import { budgetLine, dockNumber, gateLang, gateLangOf, gateWords } from "../src/ui/gate-words";
 
 type Listener = (e: unknown) => void;
 
@@ -239,5 +239,15 @@ describe("the gate's words (M2, L6)", () => {
     expect(budgetLine(en, 22, "22.0", null)).toBe("Balance the budget: 22 left");
     expect(budgetLine(en, -4.8, "4.8", null)).toBe("Balance the budget: 4.8 over");
     expect(budgetLine(en, 22, "22.0", "Hours left")).toBe("Hours left: 22");
+  });
+
+  test("a cast with no lang speaks the dock in the language its narration is written in", () => {
+    const nb = { spec: { commands: [{ speak: "Hvor mange dør hvert år av myggstikk? Det er flere enn du tror." }, { ask: { question: "Hvor mange?" } }] } };
+    const en = { spec: { commands: [{ speak: "How many people die each year from a mosquito bite? More than you think." }] } };
+    expect(gateLangOf(nb as never)).toBe("nb");
+    expect(gateLangOf(en as never)).toBe("en");
+    // A declared lang wins over what the lines read as.
+    expect(gateLangOf({ spec: { ...nb.spec, lang: "en" } } as never)).toBe("en");
+    expect(gateLangOf(null)).toBe("en");
   });
 });

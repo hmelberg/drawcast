@@ -30,6 +30,7 @@ import type { MeasureFn } from "../layout/measure";
 import { BUILTIN_WIDGETS } from "../spec/types";
 import { pacedDurations } from "../render/pacing";
 import { lineMs } from "../render/cue";
+import { castLang } from "../render/quiz-words";
 import type { Command, PlayArgs, Spec } from "../spec/types";
 import { scenes } from "../scenes/registry";
 import { resolveGame } from "../code/c64-catalogue";
@@ -1488,7 +1489,9 @@ function lintFeedback(spec: Spec): LintIssue[] {
     if (c.quiz) questions.push({ fb: c.quiz.feedback, where: `commands[${i}].quiz` });
   });
   if (questions.length === 0) questions.push({ fb: undefined, where: "feedback" });
-  const english = isEnglish(spec.lang);
+  // spec.lang, else what its lines read as (castLang) — the player's own rule.
+  const lang = castLang(spec);
+  const english = isEnglish(lang);
   for (const q of questions) {
     if (q.fb !== undefined) plainWithLines(q.fb, q.where);
     if (q.fb === undefined && spec.feedback === undefined) continue;
@@ -1497,7 +1500,7 @@ function lintFeedback(spec: Spec): LintIssue[] {
       warn("feedback", [], `${q.fb !== undefined ? q.where : "feedback"}: reward "${fb.reward}" plays only with a feedback style — add style "warm" or "dry"`);
     }
     if (!english && fb.style !== "plain" && Object.keys(fb.lines).length === 0) {
-      warn("feedback", [], `feedback "${fb.style}" in a cast in "${spec.lang}" has no lines of its own, and the bundled lines are English only — write perfect/good/poor/none in the cast's language`);
+      warn("feedback", [], `feedback "${fb.style}" in a cast in "${lang}" has no lines of its own, and the bundled lines are English only — write perfect/good/poor/none in the cast's language`);
     }
   }
   for (const el of spec.elements ?? []) {
