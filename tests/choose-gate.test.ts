@@ -250,6 +250,19 @@ describe("the choose gate", () => {
     expect(g.result()).toBe("door_2");
   });
 
+  test("Space does not pick (a focused Play button would take it too); the pick clears the hand cursor at once", async () => {
+    const g = await open();
+    key("Tab");
+    key(" ");
+    await settle();
+    expect(g.result()).toBeUndefined();
+    fire(g.gate, "pointermove", at(150, 200));
+    expect(g.stage.classList.contains("cs-cardable")).toBe(true);
+    fire(g.gate, "click", at(150, 200));
+    await g.done;
+    expect(g.stage.classList.contains("cs-cardable")).toBe(false);
+  });
+
   test("keys: a digit picks that option", async () => {
     const g = await open();
     key("3");
@@ -301,5 +314,70 @@ describe("template parts and groups on a real layout", () => {
     expect(members).toEqual(["bar_1", "bar_2"]);
     const [g] = chooseTargets([{ id: "first_two", members }], boxes, elementRings(layout), elementLines(layout));
     expect(hitChoice([g], [b2.x + b2.w / 2, b2.y + b2.h / 2])).toBe("first_two");
+  });
+});
+
+describe("the options where they stand now", () => {
+  const centre = (b: { x: number; y: number; w: number; h: number }): Pt => [b.x + b.w / 2, b.y + b.h / 2];
+
+  test("a move before the ask: the option is hit where it went, not where it was laid out", async () => {
+    const { layoutSpec } = await import("../src/layout/layout");
+    const { heuristicMeasure } = await import("../src/layout/measure");
+    const { planCommands } = await import("../src/render/plan");
+    const { planOptionsFor } = await import("../src/render/index");
+    const { chooseGeometryFor } = await import("../src/ui/choose-gate");
+    const spec = {
+      elements: [
+        { id: "door_1", type: "node", shape: "rect", text: "Door 1", x: 200, y: 375, width: 120, height: 80 },
+        { id: "door_2", type: "node", shape: "rect", text: "Door 2", x: 500, y: 375, width: 120, height: 80 },
+      ],
+      commands: [
+        { draw: ["door_1", "door_2"] },
+        { move: { target: "door_1", by: [0, 200] } },
+        { ask: { question: "Which?", choose: ["door_1", "door_2"], answer: "door_1" } },
+      ],
+    };
+    const layout = layoutSpec(spec as never, heuristicMeasure);
+    const boxes = (await import("../src/layout/layout")).elementBBoxes(layout, heuristicMeasure);
+    const plan = planCommands(spec.commands as never, layout.order, { bboxOf: (id) => boxes.get(id) ?? null, ...planOptionsFor(spec as never, layout) });
+    const askAt = plan.steps.findIndex((s) => s.kind === "ask");
+    const hd = { layout, plan, timeline: { paintedLayout: () => null, position: askAt } };
+    const geo = chooseGeometryFor(hd as never, heuristicMeasure);
+    const ts = chooseTargets(OPTIONS.slice(0, 2), geo.boxes, geo.rings, geo.lines);
+    const was = centre(boxes.get("door_1")!);
+    expect(hitChoice(ts, was)).toBe(null);
+    expect(hitChoice(ts, [was[0], was[1] + 200])).toBe("door_1");
+    expect(hitChoice(ts, centre(boxes.get("door_2")!))).toBe("door_2");
+  });
+
+  test("an animated bar: the painted layout's height is what is hit", async () => {
+    const { layoutSpec, elementBBoxes } = await import("../src/layout/layout");
+    const { heuristicMeasure } = await import("../src/layout/measure");
+    const { planCommands } = await import("../src/render/plan");
+    const { chooseGeometryFor } = await import("../src/ui/choose-gate");
+    const { ensureEnabledPacks, PACK_DEFS } = await import("../src/scenes/packs");
+    await ensureEnabledPacks(Object.keys(PACK_DEFS));
+    const base = { template: "bar_chart", params: { labels: ["A", "B"], values: [2, 8] } };
+    const before = layoutSpec(base as never, heuristicMeasure);
+    const after = layoutSpec({ ...base, params: { ...base.params, values: [8, 8] } } as never, heuristicMeasure);
+    const b0 = elementBBoxes(before, heuristicMeasure).get("bar_1")!;
+    const b1 = elementBBoxes(after, heuristicMeasure).get("bar_1")!;
+    expect(b1.h).toBeGreaterThan(b0.h * 2);
+    const plan = planCommands([{ draw: ["bar_1", "bar_2"] }, { ask: { question: "?", choose: ["bar_1", "bar_2"], answer: "bar_1" } }] as never, before.order, {});
+    const tall: Pt = [b1.x + b1.w / 2, b1.y + b1.h - 5]; // near the top of the grown bar, far above the old one
+    const geoNow = chooseGeometryFor({ layout: before, plan, timeline: { paintedLayout: () => after, position: 1 } } as never, heuristicMeasure);
+    expect(hitChoice(chooseTargets([{ id: "bar_1", members: ["bar_1"] }], geoNow.boxes, geoNow.rings, geoNow.lines), tall)).toBe("bar_1");
+    const geoOld = chooseGeometryFor({ layout: before, plan, timeline: { paintedLayout: () => null, position: 1 } } as never, heuristicMeasure);
+    expect(hitChoice(chooseTargets([{ id: "bar_1", members: ["bar_1"] }], geoOld.boxes, geoOld.rings, geoOld.lines), tall)).toBe(null);
+  });
+
+  test("poseGeometry: a turn maps the outline; a baked id is left alone", async () => {
+    const { poseGeometry } = await import("../src/ui/choose-model");
+    const geo = { boxes: new Map([["a", { x: 0, y: 0, w: 10, h: 10 }]]), rings: new Map([["a", [ring(0, 0, 10, 10)]]]), lines: new Map() };
+    const turned = poseGeometry(geo, { a: [100, 0] }, { a: { deg: 90, pivot: [0, 0] } });
+    const r = turned.rings.get("a")![0].map(([x, y]) => [Math.round(x), Math.round(y)]);
+    expect(r).toEqual([[100, 0], [100, 10], [90, 10], [90, 0]]);
+    expect(turned.boxes.get("a")).toEqual({ x: 90, y: 0, w: 10, h: 10 });
+    expect(poseGeometry(geo, { a: [100, 0] }, {}, new Set(["a"])).boxes.get("a")).toEqual({ x: 0, y: 0, w: 10, h: 10 });
   });
 });

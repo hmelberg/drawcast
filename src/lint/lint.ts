@@ -733,13 +733,18 @@ export function lintLayoutDetailed(
  * options, so each must be on screen when the question comes — drawn (or
  * shown) before it and not taken away since. A group or a `pieces` parent is
  * on screen when all of its members are; a part is when a draw of its
- * parent brought it.
+ * parent brought it. There is no shared per-command visibility walk here
+ * (coVisible answers pairs, connectVisibility one id without expansion), so
+ * this one keeps the plan's rules itself: draw/show, a play's `reveal` and a
+ * `copy` (its new id is minted, so it is known though not laid out) bring
+ * things on; erase/hide/clear take them off.
  */
 function lintChooseDrawn(drawables: Drawable[], commands: Command[], expandId?: (id: string) => string[] | null | undefined): LintIssue[] {
   const issues: LintIssue[] = [];
   const kids = (id: string): string[] => expandId?.(id) ?? [];
   const ids = (raw: string[] | string | undefined): string[] => idsOf(raw).flatMap((id) => [id, ...kids(id)]);
   const visible = new Set<string>();
+  const minted = new Set<string>();
   commands.forEach((c) => {
     const choose = c.ask?.choose;
     if (Array.isArray(choose)) {
@@ -747,14 +752,19 @@ function lintChooseDrawn(drawables: Drawable[], commands: Command[], expandId?: 
         const id = typeof o === "string" ? o : o?.id;
         if (typeof id !== "string") continue;
         const members = kids(id);
-        if (members.length === 0 && drawablesForId(drawables, id).length === 0) {
+        if (members.length === 0 && !minted.has(id) && drawablesForId(drawables, id).length === 0) {
           issues.push({ rule: "choose", ids: [id], message: `ask choose: "${id}" is not drawn anywhere in this figure — name an element, a group or a template part`, severity: "error" });
         } else if (!visible.has(id) && !(members.length > 0 && members.every((m) => visible.has(m)))) {
           issues.push({ rule: "choose", ids: [id], message: `ask choose: "${id}" is not drawn before the question — draw it first; the viewer taps it on the figure`, severity: "error" });
         }
       }
     }
-    for (const id of [...ids(c.draw), ...ids(c.show)]) visible.add(id);
+    for (const id of [...ids(c.draw), ...ids(c.show), ...ids(c.reveal)]) visible.add(id);
+    if (c.copy && typeof c.copy.target === "string") {
+      const id = c.copy.as ?? `${c.copy.target}_copy`;
+      minted.add(id);
+      visible.add(id);
+    }
     for (const id of [...ids(c.erase), ...ids(c.hide)]) visible.delete(id);
     if (c.clear !== undefined) {
       const keep = new Set(ids(c.clear.keep));

@@ -184,6 +184,27 @@ describe("a branch (goto / then)", () => {
     expect(speech.spoken).toEqual(["Treat or wait?", "You treat.", "Either way."]);
   });
 
+  test("a judged choose inside a branch keeps the branch: the other branch is still skipped", async () => {
+    const speech = new RecordingSpeech();
+    const p = player(
+      [
+        { draw: ["bag_now", "bag_later", "door_1", "door_2"] },
+        { ask: { question: "Treat or wait?", choose: [{ id: "bag_now", goto: "treat" }, { id: "bag_later", goto: "wait" }], then: "after" } } as Command,
+        { label: "treat" },
+        { ask: { question: "Which door?", choose: ["door_1", "door_2"], answer: "door_1", right: "Yes." } } as Command,
+        { label: "wait" },
+        { speak: "You wait." },
+        { label: "after" },
+        { speak: "Either way." },
+      ],
+      speech,
+    );
+    const taps = ["bag_now", "door_1"];
+    p.askGate = async () => taps.shift() ?? null;
+    await p.play();
+    expect(speech.spoken).toEqual(["Treat or wait?", "Which door?", "Yes.", "Either way."]);
+  });
+
   test("live: the second option jumps past the first branch", async () => {
     const speech = new RecordingSpeech();
     const p = player(BRANCH, speech);

@@ -11,6 +11,7 @@
 
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
+import { isIdentity, poseOf, type Turn } from "../render/pose";
 import { pointInRing, polylineDistance } from "./hit";
 
 export interface ChooseTarget {
@@ -64,6 +65,49 @@ export function chooseTargets(
     t.box = union(all);
     return t;
   });
+}
+
+/** Per-id geometry as the layout drew it — elementBBoxes / elementRings / elementLines. */
+export interface ChooseGeometry {
+  boxes: ReadonlyMap<string, BBox>;
+  rings: ReadonlyMap<string, Pt[][]>;
+  lines: ReadonlyMap<string, Pt[][]>;
+}
+
+/**
+ * The geometry where things stand NOW: each id the scene has moved, turned
+ * or scaled (its offsets/turns) is mapped through its pose — a box becomes
+ * the bounds of its four mapped corners. `baked` ids are already drawn at
+ * their pose in the layout (the player lays out what others are defined by
+ * at their pose), so they are left as they are.
+ */
+export function poseGeometry(geo: ChooseGeometry, offsets: Readonly<Record<string, Pt>>, turns: Readonly<Record<string, Turn>>, baked: ReadonlySet<string> = new Set()): ChooseGeometry {
+  const posed = (id: string): ((p: Pt) => Pt) | null => {
+    if (baked.has(id)) return null;
+    const o = offsets[id];
+    const t = turns[id];
+    if ((!o || (o[0] === 0 && o[1] === 0)) && isIdentity(t)) return null;
+    return poseOf(o ?? [0, 0], t);
+  };
+  const boxes = new Map<string, BBox>();
+  for (const [id, b] of geo.boxes) {
+    const f = posed(id);
+    if (!f) {
+      boxes.set(id, b);
+      continue;
+    }
+    const cs = ([[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]] as Pt[]).map(f);
+    boxes.set(id, union(cs.map(([x, y]) => ({ x, y, w: 0, h: 0 })))!);
+  }
+  const mapAll = (m: ReadonlyMap<string, Pt[][]>): Map<string, Pt[][]> => {
+    const out = new Map<string, Pt[][]>();
+    for (const [id, list] of m) {
+      const f = posed(id);
+      out.set(id, f ? list.map((pts) => pts.map(f)) : list);
+    }
+    return out;
+  };
+  return { boxes, rings: mapAll(geo.rings), lines: mapAll(geo.lines) };
 }
 
 const inBox = (b: BBox, p: Pt): boolean => p[0] >= b.x && p[0] <= b.x + b.w && p[1] >= b.y && p[1] <= b.y + b.h;

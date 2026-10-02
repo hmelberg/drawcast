@@ -1929,7 +1929,7 @@ export class Player {
     await this.narrationBarrier();
     if (signal.aborted) return;
     const opts = step.choose ?? [];
-    this.decideBranch = null;
+    if (opts.some((o) => o.goto !== undefined)) this.decideBranch = null; // only a branching choose starts afresh: one inside a branch keeps it
     const live = !this.autoAnswers && this.askGate !== null;
     const judged = step.answer !== undefined && step.judge !== false;
     let picked: ChooseOption | undefined;

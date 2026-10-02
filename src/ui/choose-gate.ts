@@ -4,18 +4,19 @@
 // Pointer: a ring follows the option under it (the hand cursor too); a tap
 // on an option answers; a tap on blank paper, or on anything that is not an
 // option, does nothing. Keys: Tab / Shift-Tab move a ring between the
-// options, Enter (or Space) picks the ringed one, 1–9 pick by number.
+// options, Enter picks the ringed one, 1–9 pick by number (no Space: a
+// focused Play button would take it too).
 // Judged (an answer, judge not false): a ✓/✗ mark on the tapped thing;
 // otherwise the ring stays on it. The rules are choose-model.ts.
 
 import type { RenderHandle } from "../render";
 import type { ChooseOption } from "../render/plan";
-import type { BBox } from "../layout/geometry";
-import type { Pt } from "../layout/model";
 import { elementBBoxes, elementLines, elementRings } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
+import type { MeasureFn } from "../layout/measure";
 import { answersMatch } from "../spec/answers";
-import { chooseTargets, hitChoice, type ChooseTarget } from "./choose-model";
+import { chooseTargets, hitChoice, poseGeometry, type ChooseGeometry, type ChooseTarget } from "./choose-model";
+import { sceneAt } from "../render/plan";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
 import type { AskGateStep } from "./controls";
@@ -27,21 +28,27 @@ const LINGER_MS = 2600;
 /** The ring's margin round an option (logical). */
 const RING_PAD = 6;
 
-/** The figure's per-id geometry the gate hit-tests — the mounted layout's by default. */
-export interface ChooseGeometry {
-  boxes: ReadonlyMap<string, BBox>;
-  rings: ReadonlyMap<string, Pt[][]>;
-  lines: ReadonlyMap<string, Pt[][]>;
-}
+export type { ChooseGeometry };
 
-function layoutGeometry(hd: RenderHandle): ChooseGeometry {
-  return { boxes: elementBBoxes(hd.layout, makeBrowserMeasure()), rings: elementRings(hd.layout), lines: elementLines(hd.layout) };
+/**
+ * Where the options stand NOW, which is what the viewer taps: the painted
+ * layout (a template's parts after an animate), with the scene's moves,
+ * turns and scales applied to every id the layout does not already draw at
+ * its pose (the plan's sources are laid out posed while anything is painted).
+ * The camera needs nothing: the gate maps taps through the live viewBox.
+ */
+export function chooseGeometryFor(hd: Pick<RenderHandle, "timeline" | "layout" | "plan">, measure: MeasureFn = makeBrowserMeasure()): ChooseGeometry {
+  const painted = hd.timeline.paintedLayout();
+  const layout = painted ?? hd.layout;
+  const scene = sceneAt(hd.plan, hd.timeline.position);
+  const baked = new Set(painted ? (hd.plan.sources ?? []) : []);
+  return poseGeometry({ boxes: elementBBoxes(layout, measure), rings: elementRings(layout), lines: elementLines(layout) }, scene.offsets, scene.turns, baked);
 }
 
 export function chooseGateFor(
   stage: HTMLElement,
   hd: RenderHandle,
-  geometry: () => ChooseGeometry = () => layoutGeometry(hd),
+  geometry: () => ChooseGeometry = () => chooseGeometryFor(hd),
 ): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
@@ -89,11 +96,17 @@ export function chooseGateFor(
         placeRing();
       };
 
-      const remove = (): void => {
+      /** Stand down: listeners off, the stage's cursor and dock back. Done
+       *  at the pick, not after the linger — by then the next gate may own
+       *  the stage's classes, and must not lose them to this one. */
+      const standDown = (): void => {
         signal.removeEventListener("abort", onAbort);
         document.removeEventListener("keydown", onKey, true);
         stage.classList.remove("cs-cardable");
         dock?.dispose();
+      };
+      const remove = (): void => {
+        standDown();
         gate.remove();
       };
       const onAbort = (): void => {
@@ -119,8 +132,9 @@ export function chooseGateFor(
           }
           gate.appendChild(mark);
         } else ring.classList.add("picked");
-        document.removeEventListener("keydown", onKey, true);
-        window.setTimeout(remove, LINGER_MS);
+        standDown();
+        // Only the verdict lingers; the gate element alone goes after it.
+        window.setTimeout(() => gate.remove(), LINGER_MS);
         resolve(id);
       };
       const indexAt = (e: MouseEvent): number => {
@@ -156,7 +170,7 @@ export function chooseGateFor(
           setFocus(((focus < 0 ? (e.shiftKey ? 0 : -1) : focus) + (e.shiftKey ? n - 1 : 1)) % n);
           return;
         }
-        if ((e.key === "Enter" || e.key === " ") && focus >= 0) {
+        if (e.key === "Enter" && focus >= 0) {
           e.preventDefault();
           pick(focus);
           return;

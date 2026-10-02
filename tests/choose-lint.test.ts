@@ -113,3 +113,10 @@ describe("choose schema", () => {
     expect(errs({ choose: ["door_1", "door_2"], widget: "click", answer: "door_1" }).some((e: string) => /choose is answered by tapping/.test(e))).toBe(true);
   });
 });
+
+describe("choose lint: minted and revealed things", () => {
+  test("a copy made before the ask is a drawn option", () => {
+    const spec = doors([{ draw: ["door_1", "door_2"] }, { copy: { target: "door_1", as: "door_1b" } }, { ask: { question: "Which?", choose: ["door_1b", "door_2"], answer: "door_2" } }]);
+    expect(chooseIssues(spec)).toEqual([]);
+  });
+});
