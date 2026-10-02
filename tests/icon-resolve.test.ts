@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { iconSearchUrl, iconSvgUrl, resolveIcons, searchQueries, svgToRings, DEFAULT_PREFIXES, EXTRA_PREFIXES, BY_PREFIXES } from "../src/render/icon";
+import { iconSearchUrl, iconSvgUrl, nameScore, resolveIcons, searchQueries, svgToRings, DEFAULT_PREFIXES, EXTRA_PREFIXES, BY_PREFIXES, PICTURE_PREFIXES } from "../src/render/icon";
 import { ICON_SETS } from "../src/render/icon-sets";
 import { iconRingsOf } from "../src/spec/icon-data";
 
@@ -89,8 +89,75 @@ describe("resolveIcons", () => {
     const r = await resolveIcons(spec as never, deps({}));
     expect(r[0]).toMatchObject({ ok: false, error: 'no icon found for "glucagon" or "vial"' });
   });
+  test("nameScore: the thing itself, the head noun, a modifier, anything else", () => {
+    expect(nameScore("car", "car")).toBe(3);
+    expect(nameScore("car-filled", "car")).toBe(3);
+    expect(nameScore("hospital-bed-01", "hospital bed")).toBe(3);
+    expect(nameScore("blood-cells-outline", "blood cell")).toBe(3);
+    expect(nameScore("doctor-24-regular", "doctor")).toBe(3);
+    expect(nameScore("hand-saw", "saw")).toBe(2);
+    expect(nameScore("chicken-leg", "chicken")).toBe(1);
+    expect(nameScore("wave-saw-tool", "saw")).toBe(0);
+  });
+  test("ranked, not first-come: a well-named match beats Iconify's first", async () => {
+    const spec = { elements: [{ id: "s", type: "icon", of: "rk-saw", x: 1, y: 1 }], commands: [] };
+    const r = await resolveIcons(spec as never, deps({ [iconSearchUrl("rk-saw", DEFAULT_PREFIXES)]: { icons: ["tabler:wave-rk-saw-tool", "ph:hand-rk-saw"] }, [iconSvgUrl("ph", "hand-rk-saw")]: SVG }));
+    expect(r[0].ok).toBe(true);
+    expect((spec.elements[0] as { credit?: string }).credit).toBe("hand-rk-saw from ph · MIT");
+  });
+  test("a weak match in an early tier gives way to a strong one later; kept when none is better", async () => {
+    const strong = { elements: [{ id: "c", type: "icon", of: "rk-hen", x: 1, y: 1 }], commands: [] };
+    await resolveIcons(strong as never, deps({ [iconSearchUrl("rk-hen", DEFAULT_PREFIXES)]: { icons: ["tabler:rk-hen-leg"] }, [iconSearchUrl("rk-hen", EXTRA_PREFIXES)]: { icons: ["mdi:rk-hen"] }, [iconSvgUrl("mdi", "rk-hen")]: SVG }));
+    expect((strong.elements[0] as { credit?: string }).credit).toBe("rk-hen from mdi · Apache-2.0");
+    const weak = { elements: [{ id: "c", type: "icon", of: "rk-drum", x: 1, y: 1 }], commands: [] };
+    await resolveIcons(weak as never, deps({ [iconSearchUrl("rk-drum", DEFAULT_PREFIXES)]: { icons: ["tabler:rk-drumstick-x"] }, [iconSearchUrl("rk-drum", EXTRA_PREFIXES)]: { icons: ["mdi:rk-drum-kit"] }, [iconSvgUrl("mdi", "rk-drum-kit")]: SVG }));
+    expect((weak.elements[0] as { credit?: string }).credit).toBe("rk-drum-kit from mdi · Apache-2.0");
+  });
+  test("harmonise: an icon outside the figure's main set is asked again there", async () => {
+    const icon = (id: string, of: string) => ({ id, type: "icon", of, x: 1, y: 1 });
+    const spec = { elements: [icon("a", "hm-cow"), icon("b", "hm-pig"), icon("c", "hm-hen")], commands: [] };
+    const routes = {
+      [iconSearchUrl("hm-cow", DEFAULT_PREFIXES)]: { icons: ["tabler:hm-cow"] },
+      [iconSearchUrl("hm-pig", DEFAULT_PREFIXES)]: { icons: ["tabler:hm-pig"] },
+      [iconSearchUrl("hm-hen", DEFAULT_PREFIXES)]: { icons: ["lucide:hm-hen"] },
+      [iconSearchUrl("hm-hen", ["tabler"])]: { icons: ["tabler:hm-hen"] },
+      [iconSvgUrl("tabler", "hm-cow")]: SVG, [iconSvgUrl("tabler", "hm-pig")]: SVG, [iconSvgUrl("lucide", "hm-hen")]: SVG, [iconSvgUrl("tabler", "hm-hen")]: SVG,
+    };
+    await resolveIcons(spec as never, deps(routes));
+    const el = spec.elements[2] as { credit?: string; icon_key?: string };
+    expect(el.credit).toBe("hm-hen from tabler · MIT");
+    expect(el.icon_key).toBe("hm-hen@tabler");
+  });
+  test("harmonise: a picture that fell to ink is pulled back into the colour family; pinned sets are left alone", async () => {
+    const node = (id: string, icon: unknown) => ({ id, type: "node", text: id, icon, x: 1, y: 1 });
+    const spec = { elements: [node("a", "hp-cat"), node("b", "hp-dog"), node("c", "hp-barn"), node("d", { of: "hp-tent", set: "lucide" })], commands: [] };
+    const routes = {
+      [iconSvgUrl("twemoji", "hp-cat")]: SVG, [iconSvgUrl("twemoji", "hp-dog")]: SVG,
+      [iconSearchUrl("hp-barn", DEFAULT_PREFIXES)]: { icons: ["tabler:hp-barn"] }, [iconSvgUrl("tabler", "hp-barn")]: SVG,
+      [iconSearchUrl("hp-barn", PICTURE_PREFIXES.filter((p) => p !== "twemoji"))]: { icons: ["noto:hp-barn"] }, [iconSvgUrl("noto", "hp-barn")]: SVG,
+      [iconSvgUrl("lucide", "hp-tent")]: SVG,
+    };
+    await resolveIcons(spec as never, deps(routes));
+    expect((spec.elements[2] as { credit?: string }).credit).toBe("hp-barn from noto · Apache-2.0");
+    expect((spec.elements[3] as { credit?: string }).credit).toBe("hp-tent from lucide · ISC");
+  });
+  test("harmonise: data from the spec's own assets is never re-picked", async () => {
+    const spec = {
+      elements: [{ id: "a", type: "icon", of: "hs-cow", x: 1, y: 1 }, { id: "b", type: "icon", of: "hs-pig", x: 1, y: 1 }, { id: "c", type: "icon", of: "hs-hen", x: 1, y: 1 }],
+      assets: { "icon.hs-hen.drawn": `ics1:lucide:hs-hen:${SVG}` },
+      commands: [],
+    };
+    const routes = {
+      [iconSearchUrl("hs-cow", DEFAULT_PREFIXES)]: { icons: ["tabler:hs-cow"] }, [iconSearchUrl("hs-pig", DEFAULT_PREFIXES)]: { icons: ["tabler:hs-pig"] },
+      [iconSvgUrl("tabler", "hs-cow")]: SVG, [iconSvgUrl("tabler", "hs-pig")]: SVG,
+      [iconSearchUrl("hs-hen", ["tabler"])]: { icons: ["tabler:hs-hen"] }, [iconSvgUrl("tabler", "hs-hen")]: SVG,
+    };
+    await resolveIcons(spec as never, deps(routes));
+    expect((spec.elements[2] as { credit?: string }).credit).toBe("hs-hen from lucide · ISC");
+  });
   test("every default and BY prefix has a licence row of the right class", () => {
     for (const p of [...DEFAULT_PREFIXES, ...EXTRA_PREFIXES]) expect(ICON_SETS[p].cls).toBe("permissive");
     for (const p of BY_PREFIXES) expect(ICON_SETS[p].cls).toBe("by");
+    for (const p of PICTURE_PREFIXES) expect(["permissive", "by"]).toContain(ICON_SETS[p].cls);
   });
 });

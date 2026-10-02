@@ -20,7 +20,7 @@ import {
   registerIconStore,
   withIconData,
 } from "../src/spec/icon-data";
-import { iconSearchUrl, iconSvgUrl, pictureNames, resolveIcons, DEFAULT_PREFIXES } from "../src/render/icon";
+import { iconSearchUrl, iconSvgUrl, pictureNames, resolveIcons, DEFAULT_PREFIXES, PICTURE_PREFIXES } from "../src/render/icon";
 import { embeddedPlaylist } from "../src/publish/embed";
 import { singlePlaylist, itemsOf } from "../src/playlist/playlist";
 import type { Spec } from "../src/spec/types";
@@ -217,12 +217,22 @@ describe("a picture prefers the colour set", () => {
     await resolveIcons(spec, d);
     expect(spec.elements![0].credit).toBe("kw-cat-face from twemoji · CC BY 4.0");
   });
-  test("…no twemoji of that name: the line icon, in ink (never a search's near miss)", async () => {
-    const d = routes({ [iconSearchUrl("kw-car", DEFAULT_PREFIXES)]: { icons: ["tabler:kw-car"] }, [iconSvgUrl("tabler", "kw-car")]: SVG });
+  test("…no twemoji of that name: the colour family searched, an exact name only — else the line icon, in ink", async () => {
+    const d = routes({
+      [iconSearchUrl("kw-car", PICTURE_PREFIXES)]: { icons: ["twemoji:tram-kw-car", "noto:police-kw-car"] },
+      [iconSearchUrl("kw-car", DEFAULT_PREFIXES)]: { icons: ["tabler:kw-car"] },
+      [iconSvgUrl("tabler", "kw-car")]: SVG,
+    });
     const spec = node({ icon: "kw-car" });
     await resolveIcons(spec, d);
     expect(spec.elements![0].credit).toBe("kw-car from tabler · MIT");
-    expect(d.asked.some((u) => u.includes("prefixes=twemoji"))).toBe(false);
+    expect(d.asked.some((u) => u.includes("tram-kw-car.svg") || u.includes("police-kw-car.svg"))).toBe(false);
+  });
+  test("…an exact name in another colour set: that picture (noto, no credit owed)", async () => {
+    const d = routes({ [iconSearchUrl("kw-lighthouse", PICTURE_PREFIXES)]: { icons: ["noto:kw-lighthouse"] }, [iconSvgUrl("noto", "kw-lighthouse")]: COLOUR });
+    const spec = node({ icon: "kw-lighthouse" });
+    await resolveIcons(spec, d);
+    expect(spec.elements![0].credit).toBe("kw-lighthouse from noto · Apache-2.0");
   });
   test("drawn: the colour set is not tried first", async () => {
     const d = routes({ [iconSearchUrl("kw-cow", DEFAULT_PREFIXES)]: { icons: ["lucide:kw-cow"] }, [iconSvgUrl("lucide", "kw-cow")]: SVG });

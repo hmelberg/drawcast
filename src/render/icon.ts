@@ -2,9 +2,14 @@
 // glyph via the Iconify API, embedded as outline rings the way a portrait
 // embeds a traced photo. Licence-gated like `image.ts`'s Commons photos —
 // an icon set's licence class decides whether it may be picked automatically
-// (DEFAULT_PREFIXES, then BY_PREFIXES) or only when the author names it
-// explicitly (`el.set`), and a trademarked logo set is never resolvable at
-// all (see icon-sets.ts).
+// (DEFAULT_PREFIXES, EXTRA_PREFIXES, then BY_PREFIXES) or only when the author
+// names it explicitly (`el.set`), and a trademarked logo set is never
+// resolvable at all (see icon-sets.ts).
+//
+// Two families, one per look: a picture comes from the colour emoji sets
+// (PICTURE_PREFIXES), a drawn icon from the ink sets. Search results are
+// ranked by name (nameScore), not taken first-come, and a figure's icons are
+// pulled toward one set afterwards (harmonise) so a slide keeps one style.
 //
 // Modeled on render/image.ts: same never-throw contract, same cache
 // (cacheGet/cachePut), same injected-deps seam so tests never hit the
@@ -31,17 +36,52 @@ import {
 import { cacheGet, cachePut } from "./portrait";
 import { ICON_SETS } from "./icon-sets";
 
-/** Tried first when an icon element gives no explicit `set`: no attribution owed. */
-export const DEFAULT_PREFIXES = ["lucide", "tabler", "ph", "heroicons", "material-symbols"];
+/** Tried first when an icon element gives no explicit `set`: no attribution owed. In
+ *  order of preference — a tie on name goes to the earlier set (tabler: the largest). */
+export const DEFAULT_PREFIXES = ["tabler", "lucide", "ph", "heroicons", "material-symbols"];
 
-/** Tried when DEFAULT_PREFIXES come up empty: still no attribution owed. A tier of
- *  their own so a keyword the first sets answer keeps the icon it always had;
- *  healthicons and mdi carry the medical and science things the UI sets lack
- *  (kidney, blood cells, mosquito, doctor). */
-export const EXTRA_PREFIXES = ["healthicons", "mdi"];
+/** Tried when DEFAULT_PREFIXES have no good match: still no attribution owed.
+ *  Real-world objects the UI sets lack (sheep, elephant, violin, grapes) and
+ *  medical ones (kidney, blood cells, doctor). */
+export const EXTRA_PREFIXES = ["mdi", "icon-park-outline", "hugeicons", "healthicons"];
 
-/** Tried last, only once every permissive set has come up empty: attribution owed (the `credit` line pays it). */
-export const BY_PREFIXES = ["fa6-solid", "fa6-regular", "twemoji"];
+/** Tried last, once no permissive set has a good match: attribution owed (the
+ *  `credit` line pays it). game-icons: filled silhouettes of nearly any object,
+ *  which trace well by hand. */
+export const BY_PREFIXES = ["fa6-solid", "fa6-regular", "twemoji", "game-icons"];
+
+/** A match this good is taken at once; a weaker one only when no tier has better. */
+const STRONG = 2;
+
+/** What a colour (emoji) match must score: the thing itself. Emoji names
+ *  describe ("tram-car", "police-car"), so a head-noun match there is a near miss. */
+const EXACT = 3;
+
+/** Style and size suffixes a set adds to a name ("-outline", "-filled", "-01", fluent's "-24"). */
+const STYLE_SUFFIX = /-(?:outline|outlined|filled|fill|solid|bold|regular|light|thin|duotone|twotone|rounded|sharp|alt|\d+)$/;
+
+/** A hyphenated name with its last word singular: "blood-cells" → "blood-cell". */
+const singularName = (name: string): string => {
+  const parts = name.split("-");
+  parts[parts.length - 1] = singular(parts[parts.length - 1]);
+  return parts.join("-");
+};
+
+/**
+ * How well an icon's name answers a query: 3 the thing itself ("car",
+ * "car-filled", "hospital-bed-01"); 2 the query as the head noun, last
+ * ("hand-saw", "balance-scale"); 1 the query first, modifying something else
+ * ("chicken-leg", "fish-eggs", "scale-mail"); 0 anywhere else ("wave-saw-tool").
+ */
+export function nameScore(name: string, query: string): number {
+  let core = name.toLowerCase();
+  for (let next = core.replace(STYLE_SUFFIX, ""); next !== core && next !== ""; next = core.replace(STYLE_SUFFIX, "")) core = next;
+  const c = singularName(core), q = singularName(slug(query));
+  if (c === q) return 3;
+  if (c.endsWith(`-${q}`)) return 2;
+  if (c.startsWith(`${q}-`)) return 1;
+  return 0;
+}
 
 /** A word's singular, by the common English endings; short words and -ss/-us/-is words kept. */
 function singular(word: string): string {
@@ -75,11 +115,11 @@ export function searchQueries(of: string, or: string[] = []): string[] {
   return [...new Set([...each.map((qs) => qs[0]), ...each.flatMap((qs) => qs.slice(1))])];
 }
 
-/** Bump when the resolver's output changes — old cache entries stop matching. 2: the SVG itself (spec/icon-data.ts `ics1:`), per look; 3: pictures by twemoji name and alias. */
-const ICON_VERSION = 3;
+/** Bump when the resolver's output changes — old cache entries stop matching. 2: the SVG itself (spec/icon-data.ts `ics1:`), per look; 3: pictures by twemoji name and alias; 4: ranked by name, emoji family for pictures. */
+const ICON_VERSION = 4;
 
 export function iconSearchUrl(q: string, prefixes: string[]): string {
-  return `https://api.iconify.design/search?query=${encodeURIComponent(q)}&limit=5&prefixes=${prefixes.join(",")}`;
+  return `https://api.iconify.design/search?query=${encodeURIComponent(q)}&limit=64&prefixes=${prefixes.join(",")}`;
 }
 
 export function iconSvgUrl(prefix: string, name: string): string {
@@ -92,8 +132,10 @@ const slug = iconSlug;
 /** An Iconify SVG's outlines as 0..1 rings — spec/icon-data.ts, where the layout traces a drawn icon too. */
 export { svgToRings };
 
-/** Tried first for a PICTURE (round 6 §8) when no set is pinned: a colour set, credited like any CC BY set. */
-export const PICTURE_PREFIXES = ["twemoji"];
+/** The colour family, tried first for a PICTURE (round 6 §8) when no set is
+ *  pinned: twemoji (CC BY, credited), then noto and fluent-emoji-flat — the
+ *  same emoji in a like flat style, no attribution owed. */
+export const PICTURE_PREFIXES = ["twemoji", "noto", "fluent-emoji-flat"];
 
 /** Common keywords whose twemoji goes by another name (each checked against the set). */
 export const PICTURE_ALIASES: Record<string, string> = {
@@ -152,18 +194,41 @@ function iconCacheKey(of: string, set: string | undefined, look: IconLook): stri
   return `ic${ICON_VERSION}|${set ? "" : look}|${set ?? "*"}|${of.trim().toLowerCase()}`;
 }
 
-/** The first `prefix:name` result whose prefix's licence class is allowed, or null. */
-function firstAllowed(icons: unknown, allow: ("permissive" | "by")[]): { prefix: string; name: string } | null {
+type Hit = { prefix: string; name: string; score: number };
+type Allow = ("permissive" | "by")[];
+
+/** The best-named `prefix:name` result whose prefix's licence class is allowed, or null: by nameScore, then the set's place in `prefixes`, then Iconify's order. */
+function bestAllowed(icons: unknown, allow: Allow, query: string, prefixes: string[]): Hit | null {
   if (!Array.isArray(icons)) return null;
-  for (const entry of icons) {
+  let best: (Hit & { rank: number }) | null = null;
+  for (const [i, entry] of icons.entries()) {
     if (typeof entry !== "string") continue;
     const sep = entry.indexOf(":");
     if (sep < 0) continue;
     const prefix = entry.slice(0, sep), name = entry.slice(sep + 1);
     const row = ICON_SETS[prefix];
-    if (row && (allow as string[]).includes(row.cls)) return { prefix, name };
+    if (!row || !(allow as string[]).includes(row.cls)) continue;
+    const score = nameScore(name, query);
+    const at = prefixes.indexOf(prefix);
+    const rank = (at < 0 ? prefixes.length : at) * 1e4 + i;
+    if (!best || score > best.score || (score === best.score && rank < best.rank)) best = { prefix, name, score, rank };
   }
-  return null;
+  return best && { prefix: best.prefix, name: best.name, score: best.score };
+}
+
+/** One Iconify search, ranked. */
+async function searchBest(deps: IconDeps, q: string, prefixes: string[], allow: Allow): Promise<Hit | null> {
+  const res = await deps.fetch(iconSearchUrl(q, prefixes));
+  const json = res.ok ? ((await res.json()) as { icons?: unknown }) : { icons: [] };
+  return bestAllowed(json.icons, allow, q, prefixes);
+}
+
+/** An icon's SVG, or null when it is missing or has no outline. */
+async function fetchSvg(deps: IconDeps, prefix: string, name: string): Promise<string | null> {
+  const res = await deps.fetch(iconSvgUrl(prefix, name));
+  if (!res.ok) return null;
+  const text = await res.text();
+  return svgToRings(text).length > 0 ? text : null;
 }
 
 /** A node's `icon` as {of, set, or}, or null when it has none (or an unusable one). */
@@ -210,11 +275,28 @@ async function fillOne(
   look: IconLook,
   deps: IconDeps,
   opts: IconResolveOpts,
+  jobs: Job[],
 ): Promise<void> {
+  const job = (set: string, source: Source): void => {
+    jobs.push({
+      look,
+      req,
+      set,
+      source,
+      apply: (got) => {
+        host[f.data] = got.strokes;
+        host[f.credit] = got.credit;
+        host[f.key] = iconKey(req.of, got.set);
+      },
+    });
+  };
   const have = host[f.data];
   const fresh = isIconData(have) && iconKeyMatches(host[f.key], req);
   const legacy = look === "picture" && decodeIconSvg(have) === null;
-  if (fresh && (!legacy || pictureMisses.has(iconAssetName(req, look)))) return;
+  if (fresh && (!legacy || pictureMisses.has(iconAssetName(req, look)))) {
+    job(keySet(host[f.key]) || (decodeIconSvg(have)?.set ?? ""), "kept");
+    return;
+  }
   const kept = fresh ? { data: have, key: host[f.key], credit: host[f.credit] } : null;
   // Unresolved, or resolved for an icon since edited: never keep a wrong picture.
   delete host[f.data];
@@ -224,12 +306,14 @@ async function fillOne(
     host[f.data] = got.strokes;
     host[f.credit] = got.credit;
     host[f.key] = iconKey(req.of, got.set);
+    job(got.set, got.source);
   } catch (err) {
     if (!kept) throw err;
     pictureMisses.add(iconAssetName(req, look));
     host[f.data] = kept.data;
     if (kept.key !== undefined) host[f.key] = kept.key;
     if (kept.credit !== undefined) host[f.credit] = kept.credit;
+    job(keySet(kept.key), "kept");
   }
 }
 
@@ -241,7 +325,7 @@ async function fillOne(
  * for (`icon_key`, `match_icon_key`), so an edited icon is resolved again.
  * Reported under the card's id.
  */
-async function resolveCardIcons(spec: Spec, el: SpecElement, results: IconResolution[], deps: IconDeps, opts: IconResolveOpts): Promise<void> {
+async function resolveCardIcons(spec: Spec, el: SpecElement, results: IconResolution[], jobs: Job[], deps: IconDeps, opts: IconResolveOpts): Promise<void> {
   const items = Array.isArray(el.items) ? el.items : [];
   const look = iconLookOf(el);
   const sides = [
@@ -255,7 +339,7 @@ async function resolveCardIcons(spec: Spec, el: SpecElement, results: IconResolu
       const req = iconAsk(item[side.icon]);
       if (!req) continue;
       try {
-        await fillOne(spec, item, side, req, look, deps, opts);
+        await fillOne(spec, item, side, req, look, deps, opts, jobs);
         results.push({ id: side.id(i), ok: true });
       } catch (err) {
         results.push({ id: side.id(i), ok: false, error: (err as Error).message });
@@ -278,14 +362,61 @@ export function loadOfflineIcons(): Promise<Record<string, string>> {
   return offlineLoad;
 }
 
+/** Where an icon's data came from this render: `kept` (already on its host),
+ *  `stored` (the spec's `assets:` or the offline cache — never re-picked, so a
+ *  published cast and the examples stay as they are), `found` (the IndexedDB
+ *  cache or Iconify). */
+type Source = "kept" | "stored" | "found";
+type Got = { strokes: string; set: string; credit: string };
+
+/** One icon of a figure, for the harmonising pass: its ask, the set it came from, and how to replace it. */
+interface Job {
+  look: IconLook;
+  req: IconAsk;
+  set: string;
+  source: Source;
+  apply: (got: Got) => void;
+}
+
+const TIERS: { prefixes: string[]; allow: Allow }[] = [
+  { prefixes: DEFAULT_PREFIXES, allow: ["permissive"] },
+  { prefixes: EXTRA_PREFIXES, allow: ["permissive"] },
+  { prefixes: BY_PREFIXES, allow: ["by"] },
+];
+
+/**
+ * The ink search: each query (searchQueries) through the tiers, a strong
+ * match (nameScore ≥ STRONG) taken at once — the keyword as written in every
+ * tier before any looser form of it, so an exact CC BY hit beats a trimmed
+ * permissive one. A weak match is kept only when nothing better turns up.
+ */
+async function searchTiers(deps: IconDeps, of: string, alts: string[]): Promise<Hit | null> {
+  let weak: Hit | null = null;
+  for (const q of searchQueries(of, alts)) {
+    for (const t of TIERS) {
+      const h = await searchBest(deps, q, t.prefixes, t.allow);
+      if (!h) continue;
+      if (h.score >= STRONG) return h;
+      if (!weak || h.score > weak.score) weak = h;
+    }
+  }
+  return weak;
+}
+
+const gotOf = (prefix: string, name: string, svg: string): Got => {
+  const data = encodeIconSvg(prefix, name, svg);
+  return { strokes: data, set: prefix, credit: iconCreditOf(data) ?? "" };
+};
+
 /**
  * One keyword → icon data (spec/icon-data.ts `ics1:`, the SVG): from the
  * spec's `assets:` or the offline cache, the IndexedDB cache, or Iconify
- * search (or a named `set` straight to the SVG endpoint) → licence check,
- * on a miss. A picture with no set pinned tries the colour set first
- * (PICTURE_PREFIXES). Throws with the reason; the caller turns it into a result.
+ * (a named `set` straight to the SVG endpoint by name) → licence check, on a
+ * miss. A picture with no set pinned stays in the colour family when it can:
+ * twemoji by name, then the family searched for a well-named match; else the
+ * ink tiers. Throws with the reason; the caller turns it into a result.
  */
-async function resolveKeyword(spec: Spec, req: IconAsk, look: IconLook, deps: IconDeps, opts: IconResolveOpts): Promise<{ strokes: string; set: string; credit: string }> {
+async function resolveKeyword(spec: Spec, req: IconAsk, look: IconLook, deps: IconDeps, opts: IconResolveOpts): Promise<Got & { source: Source }> {
   const { of } = req;
   const alts = req.or ?? [];
   const requestedSet = req.set;
@@ -304,78 +435,127 @@ async function resolveKeyword(spec: Spec, req: IconAsk, look: IconLook, deps: Ic
     await deps.offline().catch(() => undefined);
     stored = storedIcon(spec, name);
   }
-  const fromData = (data: string): { strokes: string; set: string; credit: string } => {
+  const fromData = (data: string, source: Source): Got & { source: Source } => {
     const d = decodeIconSvg(data);
-    return { strokes: data, set: d?.set ?? requestedSet ?? "", credit: iconCreditOf(data) ?? "" };
+    return { strokes: data, set: d?.set ?? requestedSet ?? "", credit: iconCreditOf(data) ?? "", source };
   };
-  if (stored !== undefined) return fromData(stored);
+  if (stored !== undefined) return fromData(stored, "stored");
   const key = iconCacheKey(of, requestedSet, look);
   const cached = await cacheGet(key);
-  if (cached && decodeIconSvg(cached)) return fromData(cached);
-  let prefix: string, iconName: string;
+  if (cached && decodeIconSvg(cached)) return fromData(cached, "found");
+  const keywords = [of, ...alts];
+  let hit: { prefix: string; name: string } | null = null;
   let svg: string | null = null;
-  let svgName = "";
   if (requestedSet) {
     // A pinned set is asked by name: the keyword's, then each alternative's.
-    prefix = requestedSet;
-    iconName = slug(of);
-    for (const name of [...new Set([of, ...alts].map(slug))]) {
-      const res = await deps.fetch(iconSvgUrl(prefix, name));
-      if (!res.ok) continue;
-      const text = await res.text();
-      if (svgToRings(text).length === 0) continue;
-      svg = text;
-      iconName = name;
-      break;
-    }
-  } else {
-    // A picture tries the colour set by NAME first (fix round 1): the
-    // keyword's own twemoji, an alias (car → automobile), then "<kw>-face".
-    // Its search ranks "tram-car" for "car"; a wrong picture is worse than
-    // an ink one, so a miss simply falls through to the line icons.
-    if (look === "picture") {
-      for (const name of [...new Set([of, ...alts].flatMap(pictureNames))]) {
-        const res = await deps.fetch(iconSvgUrl(PICTURE_PREFIXES[0], name));
-        if (!res.ok) continue;
-        const text = await res.text();
-        if (svgToRings(text).length === 0) continue;
-        svg = text;
-        svgName = name;
+    for (const n of [...new Set(keywords.map(slug))]) {
+      svg = await fetchSvg(deps, requestedSet, n);
+      if (svg !== null) {
+        hit = { prefix: requestedSet, name: n };
         break;
       }
     }
-    if (svg !== null) {
-      prefix = PICTURE_PREFIXES[0];
-      iconName = svgName;
-    } else {
-      const search = async (q: string, prefixes: string[], allow: ("permissive" | "by")[]) => {
-        const res = await deps.fetch(iconSearchUrl(q, prefixes));
-        const json = res.ok ? ((await res.json()) as { icons?: unknown }) : { icons: [] };
-        return firstAllowed(json.icons, allow);
-      };
-      // The keyword as written in every tier before any looser form of it:
-      // an exact CC BY hit beats a trimmed permissive one.
-      let hit: { prefix: string; name: string } | null = null;
-      for (const q of searchQueries(of, alts)) {
-        hit ??= await search(q, DEFAULT_PREFIXES, ["permissive"]);
-        hit ??= await search(q, EXTRA_PREFIXES, ["permissive"]);
-        hit ??= await search(q, BY_PREFIXES, ["by"]);
-        if (hit) break;
+    hit ??= { prefix: requestedSet, name: slug(of) };
+  } else {
+    if (look === "picture") {
+      // twemoji by NAME first (fix round 1): the keyword's own, an alias
+      // (car → automobile), then "<kw>-face". Then the colour family by
+      // search, an exact name only (its search ranks "tram-car" for "car"):
+      // a wrong picture is worse than an ink one.
+      for (const n of [...new Set(keywords.flatMap(pictureNames))]) {
+        svg = await fetchSvg(deps, PICTURE_PREFIXES[0], n);
+        if (svg !== null) {
+          hit = { prefix: PICTURE_PREFIXES[0], name: n };
+          break;
+        }
       }
-      if (!hit) throw new Error(`no icon found for "${[of, ...alts].join('" or "')}"`);
-      prefix = hit.prefix;
-      iconName = hit.name;
+      if (!hit) {
+        for (const q of searchQueries(of, alts)) {
+          const h = await searchBest(deps, q, PICTURE_PREFIXES, ["permissive", "by"]);
+          if (h && h.score >= EXACT) {
+            hit = h;
+            break;
+          }
+        }
+      }
     }
+    hit ??= await searchTiers(deps, of, alts);
+    if (!hit) throw new Error(`no icon found for "${keywords.join('" or "')}"`);
   }
   if (svg === null) {
-    const svgRes = await deps.fetch(iconSvgUrl(prefix, iconName));
-    if (!svgRes.ok) throw new Error(`Iconify fetch failed (${svgRes.status}) for "${prefix}:${iconName}"`);
+    const svgRes = await deps.fetch(iconSvgUrl(hit.prefix, hit.name));
+    if (!svgRes.ok) throw new Error(`Iconify fetch failed (${svgRes.status}) for "${hit.prefix}:${hit.name}"`);
     svg = await svgRes.text();
-    if (svgToRings(svg).length === 0) throw new Error(`no outline found for "${prefix}:${iconName}"`);
+    if (svgToRings(svg).length === 0) throw new Error(`no outline found for "${hit.prefix}:${hit.name}"`);
   }
-  const data = encodeIconSvg(prefix, iconName, svg);
+  const data = encodeIconSvg(hit.prefix, hit.name, svg);
   await cachePut(key, data);
-  return fromData(data);
+  return fromData(data, "found");
+}
+
+/** The colour family or the ink one. */
+const familyOf = (set: string): IconLook => (PICTURE_PREFIXES.includes(set) ? "picture" : "drawn");
+
+/** The ink sets, in tier order (twemoji is colour, whatever its tier). */
+const INK_PREFIXES = TIERS.flatMap((t) => t.prefixes).filter((p) => !PICTURE_PREFIXES.includes(p));
+
+/** An icon from one of `sets` with a well-named match only (a colour set: by name, or an exact name), or null. */
+async function findIn(deps: IconDeps, req: IconAsk, sets: string[]): Promise<Got | null> {
+  const alts = req.or ?? [];
+  const colour = sets.every((s) => PICTURE_PREFIXES.includes(s));
+  if (colour) {
+    for (const set of sets) {
+      for (const n of [...new Set([req.of, ...alts].flatMap(pictureNames))]) {
+        const svg = await fetchSvg(deps, set, n);
+        if (svg !== null) return gotOf(set, n, svg);
+      }
+    }
+  }
+  for (const q of searchQueries(req.of, alts)) {
+    const h = await searchBest(deps, q, sets, ["permissive", "by"]);
+    if (!h || h.score < (colour ? EXACT : STRONG)) continue;
+    const svg = await fetchSvg(deps, h.prefix, h.name);
+    if (svg !== null) return gotOf(h.prefix, h.name, svg);
+  }
+  return null;
+}
+
+/** The most frequent value (the first seen on a tie). */
+function mostOf<T>(values: T[]): T {
+  const n = new Map<T, number>();
+  for (const v of values) n.set(v, (n.get(v) ?? 0) + 1);
+  return [...n].reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+}
+
+/**
+ * One style per figure: among a look's icons, the family most of them came
+ * from (a tie goes to the look's own), and within it the set most came from.
+ * Each icon found this render outside that set — and not pinned to a set by
+ * its author — is asked again there, then (when its family differs) in the
+ * rest of the family, a well-named match only; it keeps what it has when
+ * neither has one. Never throws.
+ */
+async function harmonise(jobs: Job[], deps: IconDeps): Promise<void> {
+  for (const look of ["picture", "drawn"] as const) {
+    const group = jobs.filter((j) => j.look === look && j.set !== "");
+    if (group.length < 2) continue;
+    const fams = group.map((j) => familyOf(j.set));
+    const family = fams.filter((f) => f === look).length * 2 >= fams.length ? look : look === "picture" ? "drawn" : "picture";
+    const main = mostOf(group.filter((j) => familyOf(j.set) === family).map((j) => j.set));
+    const rest = (family === "picture" ? PICTURE_PREFIXES : INK_PREFIXES).filter((p) => p !== main);
+    for (const j of group) {
+      if (j.source !== "found" || j.req.set || j.set === main) continue;
+      try {
+        const got = (await findIn(deps, j.req, [main])) ?? (familyOf(j.set) !== family ? await findIn(deps, j.req, rest) : null);
+        if (got) {
+          j.apply(got);
+          j.set = got.set;
+        }
+      } catch {
+        // keep what it has
+      }
+    }
+  }
 }
 
 /**
@@ -386,21 +566,23 @@ async function resolveKeyword(spec: Spec, req: IconAsk, look: IconLook, deps: Ic
  * The data is the icon's SVG (spec/icon-data.ts); its look decides how the
  * layout shows it, and which set a bare keyword prefers. Licence-gated (see
  * icon-sets.ts): an unknown set, a logo set, or a share-alike set picked as
- * an unattended seed is rejected outright — no data, no credit. Failures are
+ * an unattended seed is rejected outright — no data, no credit. Then the
+ * figure's icons are pulled toward one set (harmonise). Failures are
  * reported, never thrown.
  */
 export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), opts: IconResolveOpts = {}): Promise<IconResolution[]> {
   const results: IconResolution[] = [];
+  const jobs: Job[] = [];
   for (const el of spec.elements ?? []) {
     if (el.type === "cards") {
-      await resolveCardIcons(spec, el, results, deps, opts);
+      await resolveCardIcons(spec, el, results, jobs, deps, opts);
       continue;
     }
     if (el.type === "node") {
       const req = nodeIconRequest(el);
       if (!req) continue;
       try {
-        await fillOne(spec, el as unknown as Record<string, unknown>, { data: "icon_strokes", key: "icon_key", credit: "credit" }, req, iconLookOf(el), deps, opts);
+        await fillOne(spec, el as unknown as Record<string, unknown>, { data: "icon_strokes", key: "icon_key", credit: "credit" }, req, iconLookOf(el), deps, opts, jobs);
         results.push({ id: el.id, ok: true });
       } catch (err) {
         results.push({ id: el.id, ok: false, error: (err as Error).message });
@@ -413,7 +595,22 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
     const fresh = !el.of || iconKeyMatches(el.icon_key, { of: el.of, ...(el.set ? { set: el.set } : {}) });
     const missName = el.of ? iconAssetName({ of: el.of, ...(el.set ? { set: el.set } : {}) }, look) : "";
     const legacy = look === "picture" && !!el.of && decodeIconSvg(have) === null && !pictureMisses.has(missName);
+    const or = iconAlternatives(el.or);
+    const job = (set: string, source: Source, req: IconAsk): void => {
+      jobs.push({
+        look,
+        req,
+        set,
+        source,
+        apply: (got) => {
+          el.strokes = got.strokes;
+          el.credit = got.credit;
+          el.icon_key = iconKey(req.of, got.set);
+        },
+      });
+    };
     if (have && isIconData(have) && fresh && !legacy) {
+      if (el.of) job(keySet(el.icon_key) || (decodeIconSvg(have)?.set ?? ""), "kept", { of: el.of, ...(el.set ? { set: el.set } : {}) });
       results.push({ id: el.id, ok: true });
       continue;
     }
@@ -431,19 +628,21 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
       results.push({ id: el.id, ok: false, error: "icon has no description or readable strokes" });
       continue;
     }
+    const req: IconAsk = { of: el.of, ...(set ? { set } : {}), ...(or ? { or } : {}) };
     try {
-      const or = iconAlternatives(el.or);
-      const got = await resolveKeyword(spec, { of: el.of, ...(set ? { set } : {}), ...(or ? { or } : {}) }, look, deps, opts);
+      const got = await resolveKeyword(spec, req, look, deps, opts);
       el.strokes = got.strokes;
       // `set` stays the author's (fix round 1): pinning the one found would
       // keep a later icon_look: picture from ever reaching the colour set.
       el.credit = got.credit;
       el.icon_key = iconKey(el.of, got.set);
+      job(got.set, got.source, req);
       results.push({ id: el.id, ok: true });
     } catch (err) {
       if (kept) {
         pictureMisses.add(missName);
         el.strokes = kept.strokes;
+        job(keySet(kept.key), "kept", req);
         results.push({ id: el.id, ok: true });
         continue;
       }
@@ -460,12 +659,13 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
       const data = (Array.isArray(p.icon_data) ? p.icon_data : (p.icon_data = [])) as Record<string, unknown>[];
       const host = (data[i] ??= {});
       try {
-        await fillOne(spec, host, { data: "strokes", key: "icon_key", credit: "credit" }, req, look, deps, opts);
+        await fillOne(spec, host, { data: "strokes", key: "icon_key", credit: "credit" }, req, look, deps, opts, jobs);
         results.push({ id: `bar_${i + 1}`, ok: true });
       } catch (err) {
         results.push({ id: `bar_${i + 1}`, ok: false, error: (err as Error).message });
       }
     }
   }
+  await harmonise(jobs, deps);
   return results;
 }
