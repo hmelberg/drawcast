@@ -704,7 +704,8 @@ function deckGeometry(
   const truth: Pt[] = new Array(n);
   for (const card of deal) truth[card] = binSlot(truthBin[card], seen[truthBin[card]]++);
   const cards = texts.map((_, i) => `${el.id}_${i + 1}`);
-  const font = Math.round((icons ? 13 : 15) * Math.min(1, h / h0));
+  // Never under 14 (the readable floor): an icon card's text included.
+  const font = Math.max(14, Math.round((icons ? 14 : 15) * Math.min(1, h / h0)));
   return { ...base, cards, texts, truthBin, bins, w, h, home, slots: home.slice(), binBoxes, binSlot, truth, deck: true, deal, deckScale, font, layout };
 }
 

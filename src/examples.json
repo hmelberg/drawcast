@@ -78291,12 +78291,12 @@
         },
         {
           "ask": {
-            "question": "Sort them: drag each one into its box.",
+            "question": "Which of these diseases is caused by a virus, and which by a bacterium?",
             "on": "germs",
             "store": "s",
             "tolerance": 0.2,
             "right": "{s} right. You know your germs.",
-            "wrong": "{s} right. Here is where each belongs."
+            "wrong": "{s} of {s.total} on the first try."
           }
         },
         {
@@ -79006,7 +79006,7 @@
         },
         {
           "ask": {
-            "question": "You are the doctor. What do you do?",
+            "question": "You are the doctor: treat her now, or test again first?",
             "on": "plan",
             "store": "d",
             "default": "Test again first",
@@ -81237,7 +81237,7 @@
         },
         {
           "ask": {
-            "question": "So which does the square choose?",
+            "question": "So which does the square choose: the statin, or no statin?",
             "pick": "choice",
             "store": "c",
             "right": "Yes: {c.true}, by {c.diff} years.",
@@ -81685,11 +81685,11 @@
         },
         {
           "ask": {
-            "question": "Sort them: tap or drag each one into its box.",
+            "question": "Sort each food the way a botanist would: fruit or not a fruit?",
             "on": "food",
             "store": "f",
             "right": "{f} right.",
-            "wrong": "{f} right. Here is where each one belongs.",
+            "wrong": "{f} of {f.total} on the first try.",
             "feedback": {
               "style": "dry",
               "reward": "auto",
@@ -81873,7 +81873,16 @@
         ],
         "value_labels": true,
         "y_label": "Deaths a year (thousands)",
-        "box": "full"
+        "box": "full",
+        "icons": [
+          "shark",
+          "hippopotamus",
+          "crocodile",
+          "dog",
+          "snake",
+          "person standing",
+          "mosquito"
+        ]
       },
       "sources": [
         {
@@ -81928,32 +81937,28 @@
           "items": [
             {
               "text": "Mosquito",
-              "bin": "Carries germs",
-              "icon": "mosquito"
+              "bin": "Carries germs"
             },
             {
               "text": "Dog",
-              "bin": "Carries germs",
-              "icon": "dog"
+              "bin": "Carries germs"
             },
             {
               "text": "Snake",
-              "bin": "Attack",
-              "icon": "snake"
+              "bin": "Attack"
             },
             {
               "text": "Crocodile",
-              "bin": "Attack",
-              "icon": "crocodile"
+              "bin": "Attack"
             },
             {
               "text": "Hippo",
-              "bin": "Attack",
-              "icon": "hippopotamus"
+              "bin": "Attack"
             }
           ],
           "x": 485,
-          "width": 505
+          "width": 505,
+          "arrange": "rise"
         }
       ],
       "commands": [
@@ -82068,11 +82073,11 @@
         },
         {
           "ask": {
-            "question": "Sort them: tap or drag each animal into its box.",
+            "question": "Does each animal kill by attacking, or by carrying germs? Sort every card.",
             "on": "kind",
             "store": "k",
-            "right": "You got {k}. Snakes, crocodiles and hippos attack; mosquitoes and dogs pass on disease.",
-            "wrong": "You got {k}. Dogs kill mostly through rabies, a virus passed in the bite."
+            "right": "{k} of {k.total}. Snakes, crocodiles and hippos attack; mosquitoes and dogs pass on disease.",
+            "wrong": "{k} of {k.total} on the first try. Dogs kill mostly through rabies, a virus passed in the bite."
           }
         },
         {
@@ -82157,11 +82162,13 @@
             },
             {
               "text": "Avocado",
-              "bin": "Fruit"
+              "bin": "Fruit",
+              "icon": "avocado"
             },
             {
               "text": "Eggplant",
-              "bin": "Fruit"
+              "bin": "Fruit",
+              "icon": "eggplant"
             },
             {
               "text": "Zucchini",
@@ -82169,15 +82176,18 @@
             },
             {
               "text": "Olive",
-              "bin": "Fruit"
+              "bin": "Fruit",
+              "icon": "olive"
             },
             {
               "text": "Bell pepper",
-              "bin": "Fruit"
+              "bin": "Fruit",
+              "icon": "bell pepper"
             },
             {
               "text": "Pea pod",
-              "bin": "Fruit"
+              "bin": "Fruit",
+              "icon": "pea pod"
             },
             {
               "text": "Celery",
@@ -82189,15 +82199,18 @@
             },
             {
               "text": "Lettuce",
-              "bin": "Not a fruit"
+              "bin": "Not a fruit",
+              "icon": "leafy green"
             },
             {
               "text": "Onion",
-              "bin": "Not a fruit"
+              "bin": "Not a fruit",
+              "icon": "onion"
             },
             {
               "text": "Ginger",
-              "bin": "Not a fruit"
+              "bin": "Not a fruit",
+              "icon": "ginger root"
             },
             {
               "text": "Asparagus",
@@ -82222,7 +82235,7 @@
         },
         {
           "ask": {
-            "question": "Fruit or not? Tap a box for each card.",
+            "question": "Sort each food the way a botanist would: is it a fruit or not?",
             "on": "food",
             "store": "f",
             "right": "{f} right.",
