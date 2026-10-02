@@ -41,9 +41,12 @@ export function isLong(r: { items?: number; parts?: number }): boolean {
  * - `picture`: a reaction picture for perfect and for none (good and poor
  *   get nothing — a picture for "nearly" reads as mockery).
  * - `joke`: a joke after a perfect long task; otherwise as `auto`.
+ * Under style plain a joke or a picture earns nothing (plain = no extras).
  */
 export function rewardFor(fb: FeedbackSpec, band: Band, long: boolean, streak: number): RewardKind | null {
   if (fb.reward === "none") return null;
+  // Plain is no extras: a joke or a picture plays only with a style (the lint warns).
+  if (fb.style === "plain" && (fb.reward === "joke" || fb.reward === "picture")) return null;
   const right = band === "perfect";
   if (fb.reward === "picture") return right || band === "none" ? "picture" : null;
   if (fb.reward === "confetti") return right ? "confetti" : null;

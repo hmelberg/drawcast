@@ -113,11 +113,12 @@ export function isEnglish(lang: string | undefined | null): boolean {
   return !lang || lang.toLowerCase().split(/[-_]/)[0] === "en";
 }
 
-/** Every line pickLine (or a joke reward, English casts only) could say for this feedback — what a subtitle track must translate. */
+/** Every line pickLine (or a joke reward, English casts with a style only) could say for this feedback — what a subtitle track must translate. */
 export function feedbackLines(fb: FeedbackSpec, lang: string | undefined | null): string[] {
   const style = fb.style;
+  // Plain is no extras: no band line and no joke (rewardFor gives plain none).
+  if (style === "plain") return [];
   const jokes = fb.reward === "joke" && isEnglish(lang) ? [...JOKES] : [];
-  if (style === "plain") return jokes;
   return [...BANDS.flatMap((b) => fb.lines[b] ?? (isEnglish(lang) ? FALLBACK_LINES[style][b] : [])), ...jokes];
 }
 

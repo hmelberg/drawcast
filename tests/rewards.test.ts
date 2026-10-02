@@ -55,6 +55,13 @@ describe("rewardFor", () => {
     expect(rewardFor(resolveFeedback("plain", undefined), "perfect", true, 9)).toBeNull();
   });
 
+  test("a joke or a picture never plays under plain (plain = no extras; the lint says so)", () => {
+    for (const reward of ["joke", "picture"]) {
+      const plain = resolveFeedback({ style: "plain", reward }, undefined);
+      for (const band of ["perfect", "none"] as Band[]) expect(rewardFor(plain, band, true, 3)).toBeNull();
+    }
+  });
+
   test("long: four items, or several parts", () => {
     expect(isLong({ items: 3 })).toBe(false);
     expect(isLong({ items: 4 })).toBe(true);
@@ -300,8 +307,10 @@ describe("rewards on a long task", () => {
     await player.play();
     expect(rewards.map((r) => r.kind)).toEqual(["joke"]);
     expect(speech.said.some((s) => JOKES.includes(s))).toBe(false);
-    expect(feedbackLines(resolveFeedback({ style: "plain", reward: "joke" }, undefined), "en")).toEqual([...JOKES]);
-    expect(feedbackLines(resolveFeedback({ style: "plain", reward: "joke" }, undefined), "nb")).toEqual([]);
+    // The jokes are collected only where they can play: a style, in English (plain = no extras).
+    expect(feedbackLines(resolveFeedback({ style: "warm", reward: "joke", perfect: "Yes." }, undefined), "en")).toEqual(expect.arrayContaining([...JOKES]));
+    expect(feedbackLines(resolveFeedback({ style: "warm", reward: "joke", perfect: "Ja." }, undefined), "nb")).toEqual(["Ja."]);
+    expect(feedbackLines(resolveFeedback({ style: "plain", reward: "joke" }, undefined), "en")).toEqual([]);
   });
 });
 
