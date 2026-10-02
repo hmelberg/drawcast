@@ -236,6 +236,8 @@ export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: num
         const t = g.truthBin[i];
         const box = t >= 0 ? g.binBoxes[t] : null;
         const target: Pt = box ? box.c : g.home[i];
+        // Home is just where it stands now (under its box): no arrow to draw.
+        if (!box && Math.abs(target[0] - pos[i][0]) < g.w && Math.abs(target[1] - pos[i][1]) < g.h * 1.5) return;
         const from = edgeToward(pos[i], g.w, g.h, target);
         const to = box ? edgeToward(box.c, box.w, box.h, pos[i], 2) : edgeToward(target, g.w, g.h, pos[i]);
         lines.push(...arrow(from, to, WRONG, 2));
