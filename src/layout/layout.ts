@@ -15,7 +15,8 @@ import { setMathTextStyle } from "./math";
 import { setMathFont, setMathHand } from "../scenes/engines";
 import type { Spec } from "../spec/types";
 import { coVisible, idsOf, lintAskStage, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
-import { layoutElements, type PieceGeometry } from "./tier2";
+import { layoutElements, noIconWarning, type PieceGeometry } from "./tier2";
+import { iconAsk, isIconData } from "../spec/icon-data";
 import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
 import { setFigureLocale } from "../scenes/kit";
@@ -279,6 +280,18 @@ export function layoutSpec(
         if (sceneLayout.attached) attached = { ...sceneLayout.attached };
         if (sceneLayout.drawnWith) drawnWith = { ...sceneLayout.drawnWith };
         drawables.push(...sceneLayout.drawables);
+        // A bar's icon keyword with no artwork (round 7 §6): named, as a node's
+        // is — also when NONE of the keywords resolved (withIconData then makes
+        // no icon_data at all).
+        const bp = spec.params as Record<string, unknown> | undefined;
+        if (spec.template === "bar_chart" && bp && Array.isArray(bp.icons) && sceneLayout.order.filter((o) => /^bar_\d+$/.test(o)).length <= 12) {
+          const data = (Array.isArray(bp.icon_data) ? bp.icon_data : []) as unknown[];
+          (bp.icons as unknown[]).forEach((k, i) => {
+            const ask = iconAsk(k);
+            const host = data[i] as { strokes?: unknown } | undefined;
+            if (ask && !isIconData(host?.strokes)) warnings.push(noIconWarning(ask.of));
+          });
+        }
         labelRequests.push(...sceneLayout.labels);
         templateOwn = { drawables: sceneLayout.drawables, labels: sceneLayout.labels };
         order.push(...sceneLayout.order);

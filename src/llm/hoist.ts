@@ -223,6 +223,11 @@ export function restorePortraitStrokes(playlist: Playlist, blobs: Map<string, st
 
 /** Exemplar hygiene: a spec copy with every encoded blob omitted entirely. */
 export function stripStrokesForModel(spec: Spec): Spec {
+  // A bar chart's icon data (round 7 §6) is machine-written: the keywords stay.
+  if (spec.params && "icon_data" in spec.params) {
+    const { icon_data: _d, ...params } = spec.params as Record<string, unknown>;
+    spec = { ...spec, params };
+  }
   const cardBlobs = (e: SpecElement): boolean => cardItems(e).some((it) => CARD_ICON_FIELDS.some(([f]) => it[f] !== undefined));
   if (!spec.assets && !spec.elements?.some((e) => blobFields(e).some((f) => e[f]) || cardBlobs(e))) return spec;
   return {

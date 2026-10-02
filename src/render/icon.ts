@@ -394,5 +394,22 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
       results.push({ id: el.id, ok: false, error: (err as Error).message });
     }
   }
+  // A bar chart's icons (round 7 §6): one per bar, into params.icon_data[i].
+  const p = spec.params as Record<string, unknown> | undefined;
+  if (spec.template === "bar_chart" && p && Array.isArray(p.icons)) {
+    const look = iconLookOf({ type: "bar", icon_look: p.icon_look });
+    for (const [i, k] of (p.icons as unknown[]).entries()) {
+      const req = iconAsk(k);
+      if (!req) continue;
+      const data = (Array.isArray(p.icon_data) ? p.icon_data : (p.icon_data = [])) as Record<string, unknown>[];
+      const host = (data[i] ??= {});
+      try {
+        await fillOne(spec, host, { data: "strokes", key: "icon_key", credit: "credit" }, req, look, deps, opts);
+        results.push({ id: `bar_${i + 1}`, ok: true });
+      } catch (err) {
+        results.push({ id: `bar_${i + 1}`, ok: false, error: (err as Error).message });
+      }
+    }
+  }
   return results;
 }

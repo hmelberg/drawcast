@@ -1587,7 +1587,7 @@ function regionDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
 /** The warning for an icon with no data. Where the offline cache is loaded
  *  (the lint, the tests, bundled examples), a keyword missing from it is
  *  NAMED as such — never a silent empty card. */
-function noIconWarning(keyword: string): string {
+export function noIconWarning(keyword: string): string {
   return hasIconStore() ? `no icon for "${keyword}" — "${keyword}" is not in the offline icon cache (npm run icons)` : `no icon for "${keyword}"`;
 }
 

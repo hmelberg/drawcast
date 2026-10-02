@@ -157,6 +157,12 @@ function validateDrawableNode(raw: unknown, errors: string[], allIds: Set<string
     } else {
       for (const child of d.children) validateDrawableNode(child, errors, allIds, topIds, false);
     }
+  } else if (d.kind === "image") {
+    if (!finitePt(d.pos)) errors.push(`image "${d.id}": pos must be a finite point (bounds/finite check)`);
+    const size = (v: unknown): boolean => typeof v === "number" && Number.isFinite(v) && v > 0;
+    if (!size(d.w) || !size(d.h)) errors.push(`image "${d.id}": w and h must be finite and positive`);
+    // Self-contained only: a remote pack must never point the page at a URL.
+    if (typeof d.href !== "string" || !d.href.startsWith("data:image/")) errors.push(`image "${d.id}": href must be a data:image/ URI`);
   } else {
     errors.push(`drawable "${d.id}": unknown kind "${String(d.kind)}"`);
   }

@@ -247,6 +247,12 @@ describe("every bundled drawcast survives being translated", () => {
 });
 
 describe("data tokens are never text", () => {
+  test("a bar chart's icon keywords and data are never text (round 7 §6)", () => {
+    const schema = { type: "object", properties: { labels: { type: "array", items: { type: "string" } }, icons: { type: "array", items: { oneOf: [{ type: "string", "x-translate": false }, { type: "null" }, { type: "object", properties: { of: { type: "string", "x-translate": false }, set: { type: "string", "x-translate": false } } }] } }, icon_data: { type: "array", items: { type: "object", additionalProperties: { type: "string", "x-translate": false } } } } };
+    const s: Spec = { template: "bar_chart", params: { labels: ["Shark"], icons: ["shark", { of: "dog", set: "twemoji" }], icon_data: [{ strokes: "ics1:xyz", credit: "Twemoji" }] }, elements: [], commands: [] };
+    expect(translatableStrings(s, schema).map((t) => t.text)).toEqual(["Shark"]);
+  });
+
   test("a \"{sim.y}\" param is neither offered to the translator nor rewritten", () => {
     const schema = { type: "object", properties: { labels: { type: "array", items: { type: "string" } }, title: { type: "string" } } };
     const s: Spec = { template: "bar_chart", params: { labels: "{sim.df.country}", title: "GDP" }, elements: [], commands: [] };

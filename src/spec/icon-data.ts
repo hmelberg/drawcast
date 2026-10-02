@@ -209,7 +209,11 @@ interface IconSlot {
 }
 
 /** Every icon a spec asks for: icon elements, nodes, cards' items (and match partners). */
-export function iconSlots(spec: Pick<Spec, "elements">): IconSlot[] {
+/** Every icon a spec asks for: icon elements, nodes, cards' items (and match
+ *  partners), a bar chart's `icons` (round 7 §6). `create`: a bar icon's
+ *  data host (params.icon_data[i]) is made when missing — for the writers;
+ *  readers get a throwaway host. */
+export function iconSlots(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "template" | "params">>, opts: { create?: boolean } = {}): IconSlot[] {
   const out: IconSlot[] = [];
   for (const el of spec.elements ?? []) {
     if (!el || typeof el !== "object") continue;
@@ -231,11 +235,24 @@ export function iconSlots(spec: Pick<Spec, "elements">): IconSlot[] {
       }
     }
   }
+  const p = spec.params as Record<string, unknown> | undefined;
+  if (spec.template === "bar_chart" && p && Array.isArray(p.icons)) {
+    const look = iconLookOf({ type: "bar", icon_look: p.icon_look });
+    if (opts.create && !Array.isArray(p.icon_data)) p.icon_data = [];
+    const hosts = (Array.isArray(p.icon_data) ? p.icon_data : []) as unknown[];
+    p.icons.forEach((k, i) => {
+      const ask = iconAsk(k);
+      if (!ask) return;
+      if (opts.create && (typeof hosts[i] !== "object" || hosts[i] === null)) hosts[i] = {};
+      const host = typeof hosts[i] === "object" && hosts[i] !== null ? (hosts[i] as Record<string, unknown>) : {};
+      out.push({ ask, look, host, data: "strokes", credit: "credit" });
+    });
+  }
   return out;
 }
 
 /** How many icons a spec asks for — icon elements, nodes', cards' items and match partners. */
-export function iconCount(spec: Pick<Spec, "elements">): number {
+export function iconCount(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "template" | "params">>): number {
   return iconSlots(spec).length;
 }
 
@@ -246,7 +263,7 @@ export function iconCount(spec: Pick<Spec, "elements">): number {
  * count; every slot, so a cast whose only icons are a node's or a card's
  * is still embedded (final fix I).
  */
-export function unembeddedIcons(spec: Pick<Spec, "elements" | "assets">): number {
+export function unembeddedIcons(spec: Pick<Spec, "elements" | "assets"> & Partial<Pick<Spec, "template" | "params">>): number {
   return iconSlots(spec).filter((s) => !isIconData(s.host[s.data]) && !isIconData(spec.assets?.[iconAssetName(s.ask, s.look)])).length;
 }
 
@@ -264,7 +281,7 @@ export function missingIcons(spec: Spec): IconAsk[] {
  */
 export function fillIconDataInPlace(spec: Spec): number {
   let n = 0;
-  for (const s of iconSlots(spec)) {
+  for (const s of iconSlots(spec, { create: true })) {
     if (isIconData(s.host[s.data])) continue;
     const data = storedIcon(spec, iconAssetName(s.ask, s.look));
     if (data === undefined) continue;
@@ -309,5 +326,8 @@ export function hoistIcons(spec: Spec): number {
     if (s.host[s.credit] === iconCreditOf(data)) delete s.host[s.credit];
     moved++;
   }
+  // A bar chart's emptied data hosts go (keywords only in the document).
+  const p = spec.params as Record<string, unknown> | undefined;
+  if (p && Array.isArray(p.icon_data) && p.icon_data.every((h) => typeof h !== "object" || h === null || Object.keys(h).length === 0)) delete p.icon_data;
   return moved;
 }
