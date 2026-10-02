@@ -18,7 +18,8 @@ describe("Player: the widget host's public surface", () => {
     expect(body).toContain("effects.setPointer(null)");
   });
   test("nudge(id, dx, dy) hands the ghost to the effects, which own the live nodes", () => {
-    expect(src).toMatch(/^\s+nudge\(id: string, dx: number, dy: number\): void/m);
+    // (A deck's dealt card adds a scale about its centre: round 6 §7.)
+    expect(src).toMatch(/^\s+nudge\(id: string, dx: number, dy: number(, scale = 1, pivot\?: Pt)?\): void/m);
     const body = src.slice(src.indexOf("nudge(id: string"), src.indexOf("nudge(id: string") + 400);
     // NOT this.elements: those handles point at the mount-time nodes, which
     // any preview has replaced (svg-backend swapGeometry). No base-offset
