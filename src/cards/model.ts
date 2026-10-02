@@ -128,6 +128,36 @@ export function drop(g: CardsGeometry, a: Arrangement, card: number, p: Pt): Arr
   return a;
 }
 
+/** sort / fill: the box card `card` is in, or -1 (the row). */
+export function boxOf(a: Arrangement, card: number): number {
+  return a.boxes.findIndex((b) => b.includes(card));
+}
+
+/**
+ * Tap to move (round 6 §7): where a tap sends card `card` — a box index, or
+ * -1 for the row. Two boxes: from the row to box 1, then to the other side
+ * each tap. One box (select) or more than two: row → 1 → 2 → … → row. Fill:
+ * from the row to the first empty blank (else blank 1), then on as above.
+ */
+export function tapTarget(g: CardsGeometry, a: Arrangement, card: number): number {
+  const k = g.mode === "fill" ? g.binBoxes.length : g.bins.length;
+  if (k === 0) return -1;
+  const at = boxOf(a, card);
+  if (at < 0) {
+    if (g.mode === "fill") return Math.max(0, g.binBoxes.findIndex((_, b) => (a.boxes[b] ?? []).length === 0));
+    return 0;
+  }
+  if (k === 2) return 1 - at;
+  return at + 1 < k ? at + 1 : -1;
+}
+
+/** The arrangement after a tap on card `card` (sort and fill; others unchanged). */
+export function tapCard(g: CardsGeometry, a: Arrangement, card: number): Arrangement {
+  if (g.mode !== "sort" && g.mode !== "fill") return a;
+  const to = tapTarget(g, a, card);
+  return drop(g, a, card, to < 0 ? [-9999, -9999] : g.binBoxes[to].c);
+}
+
 /** The card under `p` at these positions, or -1. */
 export function cardAt(g: CardsGeometry, pos: Pt[], p: Pt): number {
   for (let i = pos.length - 1; i >= 0; i--) {
@@ -159,11 +189,10 @@ export function rightCards(g: CardsGeometry, a: Arrangement, tolerance = 0.05): 
       a.order.forEach((card, s) => (right[card] = card === s));
       return right;
     }
-    case "sort": {
-      const right = g.cards.map(() => false);
-      a.boxes.forEach((cards, b) => cards.forEach((card) => (right[card] = g.truthBin[card] === b)));
-      return right;
-    }
+    case "sort":
+      // Where each card is (-1: still in the row) against where it belongs
+      // (select: -1 for a card that stays out).
+      return g.cards.map((_, i) => boxOf(a, i) === g.truthBin[i]);
     case "fill":
       return g.binBoxes.map((_, k) => fillRight(g, k, a.boxes[k]?.[0]));
     case "place": {
@@ -370,8 +399,11 @@ export function cardsTruth(g: CardsGeometry): Arrangement {
   switch (g.mode) {
     case "rank":
       return { order: g.cards.map((_, i) => i), boxes: [] };
-    case "sort":
-      return { order: [], boxes: g.bins.map((_, b) => g.truthBin.map((t, i) => (t === b ? i : -1)).filter((i) => i >= 0)) };
+    case "sort": {
+      // A deck fills its boxes in the order it deals (so the truth's slots are its own).
+      const order = g.deal ?? g.cards.map((_, i) => i);
+      return { order: [], boxes: g.bins.map((_, b) => order.filter((i) => g.truthBin[i] === b)) };
+    }
     case "place":
       return { order: [], boxes: [], values: (g.values ?? []).slice() };
     case "match":

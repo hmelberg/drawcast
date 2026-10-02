@@ -116,6 +116,8 @@ export interface SpecMore {
 export interface CardItemSpec {
   text: string;
   bin?: string;
+  /** select: the card belongs in the one box. */
+  in?: boolean;
   value?: number;
   match?: string;
   blank?: number;
@@ -452,6 +454,10 @@ export interface SpecElement {
   items?: (string | CardItemSpec)[];
   /** cards: the boxes to sort into. */
   bins?: string[];
+  /** cards: tap all the … — the one box's title (items {text, in}). */
+  select?: string;
+  /** cards (sort): one large card at a time, up to 30. */
+  deck?: boolean;
   /** cards (rank): what the two ends mean. */
   ends?: string[];
   /** cards (rank): a row (default) or a column. */

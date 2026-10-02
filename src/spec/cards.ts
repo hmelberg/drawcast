@@ -3,7 +3,9 @@
 // `on: <id>`. One element, several modes, chosen by its structure:
 //
 //   options             → DECIDE: tap one; the cast goes to its label
-//   bins                → SORT into boxes
+//   bins                → SORT into boxes (deck: true — one large card at a
+//                         time, up to 30, round 6 §7)
+//   select: <box title> → TAP ALL THE …: a one-box sort, items {text, in}
 //   along: <scale id>   → PLACE each card on a number line (items' `value`)
 //   compare / pairs     → HIGHER OR LOWER: the bigger of each pair (`value`)
 //   items with `match`  → MATCH each card to its partner
@@ -35,6 +37,8 @@ export interface CardItem {
   match?: string;
   /** fill: the blank (1-based) this tile is the truth of; none = a wrong tile. */
   blank?: number;
+  /** select: the card belongs in the one box. */
+  in?: boolean;
   /** An icon on the card (round 5 §3.3) — the card node's `icon`. */
   icon?: CardIcon;
   /** match: an icon on the partner card. */
@@ -81,6 +85,10 @@ export interface CardsElementLike {
   then?: string;
   /** fill: the math element whose blanks the tiles (items, TeX) go into. */
   fill?: string;
+  /** TAP ALL THE …: the one box's title; items {text, in: true} belong in it (round 6 §7). */
+  select?: string;
+  /** sort: one large card at a time, centred; up to 30 items (round 6 §7). */
+  deck?: boolean;
   /** paper (default), flat or outline (the plain boxes of before). */
   look?: CardsLook | string;
   /** How the cards' icons show (round 6 §8): picture (default) or drawn — copied onto every card node. */
@@ -135,6 +143,16 @@ export interface CardsGeometry {
   gotos?: (string | undefined)[];
   best?: boolean[];
   then?: string;
+  // —— sort with deck: true (round 6 §7) ——
+  deck?: boolean;
+  /** deck: the order the cards are dealt (card indices); deal[0] is on top. */
+  deal?: number[];
+  /** deck: how much larger the card being dealt is drawn (about its centre). */
+  deckScale?: number;
+  /** select: a one-box sort whose out cards stay in the row (truthBin -1). */
+  select?: boolean;
+  /** The cards' font size, when not the mode's own (a deck's small cards). */
+  font?: number;
 }
 
 const CARD_H = 56;
@@ -199,6 +217,7 @@ export function cardItem(it: string | CardItem): CardItem {
     ...(isNum(it.value) ? { value: it.value } : {}),
     ...(it.match !== undefined ? { match: String(it.match) } : {}),
     ...(Number.isInteger(it.blank) && (it.blank as number) >= 1 ? { blank: it.blank } : {}),
+    ...(it.in === true ? { in: true } : {}),
     ...(it.icon !== undefined ? { icon: it.icon } : {}),
     ...(it.match_icon !== undefined ? { match_icon: it.match_icon } : {}),
     ...(str(it.icon_strokes) ? { icon_strokes: it.icon_strokes } : {}),
@@ -212,6 +231,7 @@ export function cardsMode(el: CardsElementLike): CardsMode {
   if (typeof el.fill === "string") return "fill";
   if (Array.isArray(el.options) && el.options.length > 0) return "decide";
   if (Array.isArray(el.bins) && el.bins.length > 0) return "sort";
+  if (typeof el.select === "string") return "sort";
   if (typeof el.along === "string") return "place";
   if (el.compare !== undefined || Array.isArray(el.pairs)) return "compare";
   if ((el.items ?? []).some((it) => typeof it === "object" && it !== null && (it as CardItem).match !== undefined)) return "match";
@@ -310,7 +330,8 @@ function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: str
     return { ...base, cards: opts.map((_, i) => `${el.id}_${i + 1}`), texts: opts.map((o) => o.text), w, h: 72, home: pos, slots: pos, truth: pos, gotos: opts.map((o) => o.goto), best: opts.map((o) => o.best), ...(el.then ? { then: el.then } : {}) };
   }
 
-  const items = (el.items ?? []).map(cardItem).slice(0, 8);
+  const deck = mode === "sort" && el.deck === true && typeof el.select !== "string";
+  const items = (el.items ?? []).map(cardItem).slice(0, deck ? DECK_MAX : 8);
   const n = items.length;
   const cards = items.map((_, i) => `${el.id}_${i + 1}`);
   const texts = items.map((it) => it.text);
@@ -426,9 +447,12 @@ function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: str
     return { ...base, cards, texts, w, h, home, slots: tray, truth: placeAt(values), scale: sg, values, placeAt };
   }
 
-  const bins = (el.bins ?? []).map(String).slice(0, 4);
-  const truthBin = items.map((it) => Math.max(0, bins.indexOf(it.bin ?? "")));
+  const select = mode === "sort" && typeof el.select === "string" && !(Array.isArray(el.bins) && el.bins.length > 0);
+  const bins = select ? [String(el.select)] : (el.bins ?? []).map(String).slice(0, 4);
+  // select: an out card's truth is the row (-1).
+  const truthBin = items.map((it) => (select ? (it.in === true ? 0 : -1) : Math.max(0, bins.indexOf(it.bin ?? ""))));
   const perm = shuffleOrder(n);
+  if (deck) return deckGeometry(el, base, items.map((it) => it.text), truthBin, bins, perm, icons, x0, width);
 
   if (mode === "rank") {
     const column = el.arrange === "column";
@@ -448,6 +472,33 @@ function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: str
     const home: Pt[] = new Array(n);
     perm.forEach((card, s) => (home[card] = slots[s]));
     return { ...base, cards, texts, w, h: CH, home, slots, truth: slots.slice() };
+  }
+
+  if (select) {
+    // One wide box across the top; the cards it holds stand side by side in
+    // it (rows of as many as fit), so every card can go in.
+    const perRow = n > 5 ? Math.ceil(n / 2) : n;
+    const slotW = width / perRow;
+    const w = Math.min(180, slotW - GAP);
+    const binW = width - 2 * GAP;
+    const cols = Math.max(1, Math.floor((binW - 12) / (w + 10)));
+    const rows = Math.max(1, Math.ceil(n / cols));
+    const binTop = isNum(el.y) ? el.y : 660;
+    const binH = 44 + rows * (CH + 8) + 8;
+    const binBoxes: CardBox[] = [{ c: [x0 + width / 2, binTop - binH / 2] as Pt, w: binW, h: binH }];
+    const trayTop = binTop - binH - 40;
+    const tray: Pt[] = items.map((_, s) => [x0 + slotW * ((s % perRow) + 0.5), trayTop - CH / 2 - Math.floor(s / perRow) * (CH + GAP)] as Pt);
+    const home: Pt[] = new Array(n);
+    perm.forEach((card, s) => (home[card] = tray[s]));
+    const binSlot = (_b: number, j: number): Pt => {
+      const row = Math.floor(j / cols), col = j % cols;
+      const inRow = Math.min(cols, n - row * cols);
+      const box = binBoxes[0];
+      return [box.c[0] + (col - (inRow - 1) / 2) * (w + 10), box.c[1] + box.h / 2 - 44 - CH / 2 - row * (CH + 8)];
+    };
+    let seen = 0;
+    const truth = truthBin.map((b, i) => (b === 0 ? binSlot(0, seen++) : home[i]));
+    return { ...base, mode, cards, texts, truthBin, bins, w, h: CH, home, slots: tray, binBoxes, binSlot, truth, select: true };
   }
 
   // Sort: the boxes across the top, the cards in a row (two when many) below.
@@ -474,8 +525,74 @@ function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: str
   return { ...base, mode, cards, texts, truthBin, bins, w, h: CH, home, slots: tray, binBoxes, binSlot, truth };
 }
 
+/** A deck holds at most this many cards (round 6 §7). */
+export const DECK_MAX = 30;
+
+/**
+ * deck (round 6 §7): the boxes across the top hold the cards small, in a
+ * grid each (columns as the box's width and the most cards it may get
+ * allow); the cards wait in one stack centred below them, and the card being
+ * dealt is drawn `deckScale` times larger. Every card is the same node, so
+ * the truth and the plan stay plain offsets; only the gate and the movie
+ * scale the dealt card.
+ */
+function deckGeometry(
+  el: CardsElementLike,
+  base: Pick<CardsGeometry, "id" | "mode" | "truthBin" | "bins" | "binBoxes" | "binSlot">,
+  texts: string[],
+  truthBin: number[],
+  bins: string[],
+  deal: number[],
+  icons: boolean,
+  x0: number,
+  width: number,
+): CardsGeometry {
+  const n = texts.length;
+  const k = Math.max(1, bins.length);
+  const binW = width / k - 2 * GAP;
+  const binTop = isNum(el.y) ? el.y : 720;
+  const h = icons ? CARD_H : 32;
+  const PAD = 8, GX = 8, GY = 6, TITLE = 40;
+  // Room for the boxes: the dealt card needs about 150 under them.
+  const maxH = binTop - 170;
+  // The most cards a box may get: its truth, or an even share, whichever is more.
+  const cap = Math.max(...bins.map((_, b) => truthBin.filter((t) => t === b).length), Math.ceil(n / k), 1);
+  const heightFor = (cols: number): number => TITLE + Math.ceil(cap / cols) * (h + GY) + PAD;
+  const widthFor = (cols: number): number => Math.min(200, (binW - 2 * PAD - (cols - 1) * GX) / cols);
+  let cols = 1;
+  while (cols < 4 && heightFor(cols) > maxH && widthFor(cols + 1) >= 80) cols++;
+  const w = widthFor(cols);
+  const rows = Math.ceil(cap / cols);
+  const binH = heightFor(cols);
+  const binBoxes: CardBox[] = bins.map((_, b) => ({ c: [x0 + (width / k) * (b + 0.5), binTop - binH / 2] as Pt, w: binW, h: binH }));
+  const binSlot = (b: number, j: number): Pt => {
+    const box = binBoxes[b];
+    if (!box) return [0, 0];
+    // Past the grid, cards pile on the first slots, a little offset.
+    const layer = Math.floor(j / (rows * cols));
+    const q = j % (rows * cols);
+    const row = Math.floor(q / cols), col = q % cols;
+    const left = box.c[0] - ((cols - 1) * (w + GX)) / 2;
+    return [left + col * (w + GX) + layer * 5, box.c[1] + box.h / 2 - TITLE - h / 2 - row * (h + GY) - layer * 5];
+  };
+  const boxBottom = binTop - binH;
+  const deckScale = Math.min(3, 340 / w, (icons ? 160 : 100) / h);
+  const bigH = h * deckScale;
+  const cx = x0 + width / 2;
+  const cy = Math.max(bigH / 2 + 12, Math.min(boxBottom - bigH / 2 - 24, boxBottom / 2));
+  // The stack: the top card at the centre, the next few just under it.
+  const home: Pt[] = new Array(n);
+  deal.forEach((card, s) => (home[card] = [cx + 2 * Math.min(s, 3), cy - 2 * Math.min(s, 3)]));
+  // The truth fills each box in the order the cards are dealt.
+  const seen = bins.map(() => 0);
+  const truth: Pt[] = new Array(n);
+  for (const card of deal) truth[card] = binSlot(truthBin[card], seen[truthBin[card]]++);
+  const cards = texts.map((_, i) => `${el.id}_${i + 1}`);
+  return { ...base, cards, texts, truthBin, bins, w, h, home, slots: home.slice(), binBoxes, binSlot, truth, deck: true, deal, deckScale, font: icons ? 13 : 15 };
+}
+
 /** The authored fields a cards group carries back (authoredCards). */
-const CARRIED = ["items", "bins", "ends", "arrange", "along", "compare", "pairs", "unit", "options", "then", "fill", "x", "y", "width"] as const;
+const CARRIED = ["items", "bins", "ends", "arrange", "along", "compare", "pairs", "unit", "options", "then", "fill", "select", "deck", "x", "y", "width"] as const;
 
 /** The ordinary elements a cards element stands for. */
 export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => ScaleElementLike | undefined): SpecElement[] {
@@ -512,14 +629,17 @@ export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => Sc
     const top = Math.max(...g.home.map((p) => p[1])) + g.h / 2 + 40;
     out.push({ id: `${el.id}_title`, type: "text", text: el.compare, x: 500, y: Math.min(720, top), font_size: 24 });
   }
-  g.cards.forEach((id, i) => {
+  // A deck is drawn as a stack: the card dealt first is drawn last, on top.
+  const drawOrder = g.deal ? [...g.deal].reverse() : g.cards.map((_, i) => i);
+  drawOrder.forEach((i) => {
+    const id = g.cards[i];
     if (g.mode === "fill") {
       // A tile: a box with its TeX drawn as math (size 22) — the node's `tex`
       // (layout/tier2.ts), drawn as `<card>_text` so it moves with the card.
       out.push({ id, type: "node", shape: "rect", tex: g.texts[i], x: g.home[i][0], y: g.home[i][1], width: g.w, height: g.h, font_size: 22, ...looks });
       return;
     }
-    out.push({ id, type: "node", shape: "rect", text: g.texts[i], x: g.home[i][0], y: g.home[i][1], width: g.w, height: g.h, font_size: g.mode === "decide" ? 24 : 20, ...looks, ...iconOf(i) });
+    out.push({ id, type: "node", shape: "rect", text: g.texts[i], x: g.home[i][0], y: g.home[i][1], width: g.w, height: g.h, font_size: g.font ?? (g.mode === "decide" ? 24 : 20), ...looks, ...iconOf(i) });
   });
   if (g.mode === "rank" && Array.isArray(el.ends) && el.ends.length === 2) {
     const first = g.slots[0], last = g.slots[g.slots.length - 1];
