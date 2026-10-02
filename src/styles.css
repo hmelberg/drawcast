@@ -1880,6 +1880,8 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   animation: none;
 }
 .cs-gatehead > .cs-gatehead-how.cs-figgate-next { animation: gatedock-next 0.45s ease-out; }
+/* The caption would only repeat the question the headline already shows. */
+.cs-stage.cs-headline .cs-caption { visibility: hidden; }
 .cs-stage.cs-headline :is([data-leaf-id^="card_"][data-leaf-id$="_title"], [data-leaf-id^="card_"][data-leaf-id$="_line"]) {
   opacity: 0 !important;
   transition: opacity 0.3s ease;

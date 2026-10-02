@@ -330,7 +330,8 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           }, CHECK_HOLD_MS + CORRECT_MS);
           busyUntil = Math.max(busyUntil, now + CHECK_HOLD_MS + CORRECT_MS);
         }
-        focus = nextPick();
+        // select: the cards are tapped themselves — no pick to move on to.
+        focus = selectEach ? -1 : nextPick();
         placeRing();
         if (allChecked(g, arr)) later(() => finish(encodeArrangement(g, arr)), Math.max(0, busyUntil - now) + LAST_MS);
       };
@@ -707,9 +708,9 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       dock = mountGateDock(stage, gate, docked, () => placeRing(), { question: step.question, how: hint });
       dock.relayout();
       // check: each — the first tray card is picked (a deck has no tray to
-      // pick from); the counter starts at 0.
+      // pick from; a select's cards are tapped themselves); the counter starts at 0.
       if (counting) {
-        if (!deck) {
+        if (!deck && !selectEach) {
           focus = nextPick();
           placeRing();
         }
