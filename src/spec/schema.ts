@@ -2082,6 +2082,17 @@ function elementErrors(el: SpecElement): string[] {
   if (el.layout !== undefined && el.type !== "group" && !(el.type === "population" && (el.layout === "grid" || el.layout === "crowd"))) {
     errs.push(`element "${el.id}": layout is a group's field — wrap the parts in a group to arrange them`);
   }
+  // look is two fields sharing a name: an image's "screen", a cards element's
+  // paper/flat/outline. Anywhere else it would be silently ignored (round 5 §7).
+  if (el.look !== undefined) {
+    if (el.type === "cards") {
+      if (el.look === "screen") errs.push(`element "${el.id}" (cards): look is paper, flat or outline — "screen" is an image's look`);
+    } else if (el.type === "image") {
+      if (el.look !== "screen") errs.push(`element "${el.id}" (image): look is "screen" — paper, flat and outline are looks of a cards element`);
+    } else {
+      errs.push(`element "${el.id}" (${el.type}): look is a cards element's field (paper, flat, outline) or an image's ("screen") — leave it out`);
+    }
+  }
   if (el.walk !== undefined && el.type !== "group") {
     errs.push(`element "${el.id}": walk is a group's field — put the peers in a group and give it walk: true`);
   }

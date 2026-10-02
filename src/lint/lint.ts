@@ -42,6 +42,7 @@ import { COLOR_WORDS, FLAGS, PLACE_WORDS, SIDE_WORDS } from "../spec/script/suga
 import { MODIFIER_KEYS } from "../spec/script/parse";
 import { inlineStrokes } from "../spec/assets";
 import { decodePicture } from "../spec/trace";
+import { BANDS, isEnglish, resolveFeedback } from "../feedback/bands";
 
 /**
  * The shared traversal behind `lintableLeaves` and `flattenLintable`: a
@@ -1413,9 +1414,70 @@ export function lintBook(spec: Spec): LintIssue[] {
   return issues;
 }
 
+/**
+ * Feedback that does nothing, and card icons that are sentences (spec
+ * 2026-10-03-looks-feedback-account §7). Band lines or a joke/picture reward
+ * under plain are never said or shown; a cast not in English gets no bundled
+ * fallback line, so a flavour there needs lines of its own; an icon keyword
+ * is a word or two, never a sentence (a search for one finds nothing).
+ */
+function lintFeedback(spec: Spec): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const seen = new Set<string>();
+  const warn = (rule: string, ids: string[], message: string): void => {
+    if (seen.has(message)) return;
+    seen.add(message);
+    issues.push({ rule, ids, message, severity: "warn" });
+  };
+  const plainWithLines = (fb: unknown, where: string): void => {
+    if (typeof fb !== "object" || fb === null) return;
+    const o = fb as Record<string, unknown>;
+    const bands = BANDS.filter((b) => o[b] !== undefined);
+    if (o.style === "plain" && bands.length > 0) {
+      warn("feedback", [], `${where}: feedback lines (${bands.join(", ")}) with style "plain" are never said — use style "warm" or "dry", or leave the lines out`);
+    }
+  };
+  plainWithLines(spec.feedback, "feedback");
+  // Each question's feedback is the cast's merged with its own; a cast with
+  // no questions is judged by its own feedback.
+  const questions: { fb: unknown; where: string }[] = [];
+  (spec.commands ?? []).forEach((c, i) => {
+    if (c.ask) questions.push({ fb: c.ask.feedback, where: `commands[${i}].ask` });
+    if (c.quiz) questions.push({ fb: c.quiz.feedback, where: `commands[${i}].quiz` });
+  });
+  if (questions.length === 0) questions.push({ fb: undefined, where: "feedback" });
+  const english = isEnglish(spec.lang);
+  for (const q of questions) {
+    if (q.fb !== undefined) plainWithLines(q.fb, q.where);
+    if (q.fb === undefined && spec.feedback === undefined) continue;
+    const fb = resolveFeedback(spec.feedback, q.fb);
+    if (fb.style === "plain" && (fb.reward === "joke" || fb.reward === "picture")) {
+      warn("feedback", [], `${q.fb !== undefined ? q.where : "feedback"}: reward "${fb.reward}" plays only with a feedback style — add style "warm" or "dry"`);
+    }
+    if (!english && fb.style !== "plain" && Object.keys(fb.lines).length === 0) {
+      warn("feedback", [], `feedback "${fb.style}" in a cast in "${spec.lang}" has no lines of its own, and the bundled lines are English only — write perfect/good/poor/none in the cast's language`);
+    }
+  }
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "cards" || !Array.isArray(el.items)) continue;
+    (el.items as unknown[]).forEach((item, i) => {
+      if (typeof item !== "object" || item === null) return;
+      for (const key of ["icon", "match_icon"] as const) {
+        const v = (item as Record<string, unknown>)[key];
+        const kw = typeof v === "string" ? v : typeof v === "object" && v !== null ? (v as { of?: unknown }).of : undefined;
+        if (typeof kw !== "string") continue;
+        if (kw.trim().split(/\s+/).length > 3) {
+          warn("card-icon", [el.id], `${el.id} item ${i + 1}: ${key} "${kw}" is a sentence — an icon keyword is a word or two ("cheetah", "pill")`);
+        }
+      }
+    });
+  }
+  return issues;
+}
+
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintTreeAsk(spec), ...lintFormulaAsk(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintTreeAsk(spec), ...lintFormulaAsk(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec), ...lintFeedback(spec)];
 
   // A link whose href names nothing the resolver can read draws, but never
   // opens (links/resolve.ts decides the forms a target may take).

@@ -78698,7 +78698,15 @@
             "on": "drugs",
             "store": "m",
             "right": "All {m} right.",
-            "wrong": "{m} right. Here are the true pairs."
+            "wrong": "{m} right. Here are the true pairs.",
+            "feedback": {
+              "style": "dry",
+              "reward": "auto",
+              "perfect": "Suspiciously good. Have you worked behind a pharmacy counter?",
+              "good": "Nearly all of them. The pharmacy can stay open.",
+              "poor": "Good thing the pharmacist is the one filling the prescriptions.",
+              "none": "Bold. Wrong, but bold. Do ask the pharmacist next time."
+            }
           }
         },
         {
@@ -78989,7 +78997,15 @@
             "on": "risk",
             "store": "c",
             "right": "All {c}: well judged.",
-            "wrong": "{c}. Our fears follow the drama, not the numbers."
+            "wrong": "{c}. Our fears follow the drama, not the numbers.",
+            "feedback": {
+              "style": "warm",
+              "reward": "auto",
+              "perfect": "Spot on: your sense of danger follows the numbers.",
+              "good": "Nearly all of them. The odd one fools most people.",
+              "poor": "A tricky set: most people's fears point the other way.",
+              "none": "Everyone starts here. The scary stories are the rare ones."
+            }
           }
         },
         {
