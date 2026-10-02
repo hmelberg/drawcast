@@ -1883,8 +1883,8 @@ function semanticErrors(spec: Spec): string[] {
           errors.push(`commands[${i}]: ask.on is a guess on the figure — the truth is the figure's own number, so leave out answer, widget, items and code`);
         }
         if (a.retry !== undefined) errors.push(`commands[${i}]: ask.retry does not apply to a guess (the figure shows the truth after one answer)`);
-      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.revise !== undefined || a.budget !== undefined || a.judge !== undefined) {
-        errors.push(`commands[${i}]: ask.from, relative, release, predict, revise, budget and judge only apply to a guess (with on)`);
+      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.revise !== undefined || a.budget !== undefined || a.account_label !== undefined || a.judge !== undefined) {
+        errors.push(`commands[${i}]: ask.from, relative, release, predict, revise, budget, account_label and judge only apply to a guess (with on)`);
       }
       if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && a.on === undefined) {
         errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);

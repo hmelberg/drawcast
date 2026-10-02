@@ -275,3 +275,21 @@ describe("the account bar on a real chart", () => {
     expect(slanted.length).toBe(2);
   });
 });
+
+describe("account_label: lint and schema", () => {
+  test("account_label without a budget warns", async () => {
+    const { lintCommands } = await import("../src/lint/lint");
+    const spec = (ask: Record<string, unknown>): Spec =>
+      expandSpec({ template: "bar_chart", params: { labels: ["A", "B"], values: [1, 2] }, commands: [{ draw: ["axes"] }, { ask: { question: "Split?", on: "all", judge: false, ...ask } }] } as Spec);
+    const warned = (s: Spec) => lintCommands(s).filter((i) => /account_label/.test(i.message));
+    expect(warned(spec({ account_label: "Igjen" }))).toHaveLength(1);
+    expect(warned(spec({ account_label: "Igjen" }))[0].severity).toBe("warn");
+    expect(warned(spec({ account_label: "Igjen", budget: 100 }))).toHaveLength(0);
+  });
+
+  test("the schema refuses account_label on an ask that is not a guess", async () => {
+    const { validateSpec } = await import("../src/spec/schema");
+    const r = validateSpec({ title: "t", template: "bar_chart", params: { labels: ["A"], values: [1] }, commands: [{ ask: { question: "Q?", answer: "x", account_label: "Left" } }] });
+    expect(JSON.stringify(r)).toMatch(/account_label/);
+  });
+});

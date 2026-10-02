@@ -1042,6 +1042,10 @@ function lintGuess(spec: Spec): LintIssue[] {
     if (c.ask?.check !== undefined && (c.ask.on === undefined || marketParts(spec, guessParts(spec, c.ask.on)).length === 0)) {
       issues.push({ rule: "guess", ids: [], message: `ask check: "${c.ask.check}" only means something on a supply or demand curve guess (on: supply_curve or demand_curve) — it is ignored here`, severity: "warn" });
     }
+    // account_label names a budget's account bar: without a budget there is none.
+    if (c.ask?.account_label !== undefined && c.ask.budget === undefined && c.ask.blanks === undefined && c.ask.pick === undefined) {
+      issues.push({ rule: "guess", ids: [], message: `ask account_label: "${c.ask.account_label}" labels a budget's account bar — add budget (with on: "all" over bars), or leave it out`, severity: "warn" });
+    }
     if (c.ask?.on === undefined) return;
     // A tree ask (blanks / pick) is linted by lintTreeAsk, a formula ask by lintFormulaAsk.
     if (c.ask.blanks !== undefined || c.ask.pick !== undefined) return;
