@@ -3238,7 +3238,7 @@ export class Player {
     let shown = 0;
     const tick = (now: number): void => {
       if (run !== this.pagerRun) return;
-      if (!this.pausedFlag) t += now - last;
+      if (!this.pausedFlag) t += Math.max(0, now - last);
       last = now;
       while (shown < at.length && t >= at[shown]) this.showPage(++shown);
       if (shown < at.length) this.raf(tick);
@@ -4450,7 +4450,7 @@ export class Player {
       let last = performance.now();
       const tick = (now: number) => {
         if (signal.aborted) return resolve();
-        if (!this.pausedFlag) t += (now - last) * this.speedVal;
+        if (!this.pausedFlag) t += Math.max(0, now - last) * this.speedVal; // a frame stamped before the start counts as none
         last = now;
         if (!onFrame(t)) return resolve();
         this.raf(tick);
@@ -4506,9 +4506,9 @@ export class Player {
       let lastP = -1;
       const tick = (now: number) => {
         if (signal.aborted) return resolve();
-        if (!this.pausedFlag) t += (now - last) * this.speedVal;
+        if (!this.pausedFlag) t += Math.max(0, now - last) * this.speedVal; // a frame stamped before the start counts as none
         last = now;
-        const p = Math.min(t / ms, 1);
+        const p = Math.max(0, Math.min(t / ms, 1));
         // Skip onTick while paused holds p unchanged — avoids a busy-loop of
         // relayouts (e.g. animate's reprojector.frame) firing every rAF for
         // no visual change. p===1 always gets through so completion fires.
@@ -4537,7 +4537,7 @@ export class Player {
       let last = performance.now();
       const tick = (now: number) => {
         if (signal.aborted) return resolve();
-        if (!this.pausedFlag) t += (now - last) * this.speedVal;
+        if (!this.pausedFlag) t += Math.max(0, now - last) * this.speedVal; // a frame stamped before the start counts as none
         last = now;
         if (t >= ms) return resolve();
         this.raf(tick);
