@@ -248,3 +248,13 @@ describe("reveal arrows keep off other cards (final fix wave E)", () => {
     }
   });
 });
+
+test("compare: each pick's ✓/✗ is green or red from the start (final fix wave E)", async () => {
+  const { cardsMarks } = await import("../src/cards/model");
+  const g = cardsGeometry({ id: "k", type: "cards", compare: "More dangerous", items: [{ text: "Shark", value: 6 }, { text: "Mosquito", value: 725000 }, { text: "Snake", value: 100000 }, { text: "Dog", value: 25000 }] } as unknown as CardsElementLike);
+  const a: Arrangement = { order: [], boxes: [], picks: [0, 0] };
+  const m = cardsMarks(g, a);
+  const t = ticks(m);
+  expect(t.length).toBe(2);
+  for (const x of t) expect(x.color).toBe(x.text === "✓" ? RIGHT : WRONG);
+});

@@ -9,6 +9,7 @@ import type { Pt } from "../layout/model";
 import type { CardsGeometry } from "../spec/cards";
 import { GUESS_COLOR, type GuessMarks, type GuessMarkLine, type GuessMarkText } from "../guess/marks";
 import { normTeX } from "../formula/expr";
+import { RIGHT, WRONG } from "../guess/reveal";
 
 export interface Arrangement {
   /** rank: slot s holds card order[s]. */
@@ -374,7 +375,8 @@ export function cardsMarks(g: CardsGeometry, a: Arrangement): GuessMarks {
         if (pick < 0) return;
         const [x, y] = g.home[pick === 0 ? c0 : c1];
         lines.push(outline([x, y], w, h, !right[r]));
-        texts.push({ at: [x + g.w / 2 + 16, y], text: right[r] ? "✓" : "✗", anchor: "start" });
+        // Green or red from the first pick on, as the reveal draws them (final fix wave E).
+        texts.push({ at: [x + g.w / 2 + 16, y], text: right[r] ? "✓" : "✗", anchor: "start", color: right[r] ? RIGHT : WRONG });
       });
       break;
     case "decide":

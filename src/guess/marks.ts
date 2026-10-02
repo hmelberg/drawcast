@@ -48,6 +48,8 @@ export interface GuessMarkText {
   color?: string;
   size?: number;
   opacity?: number;
+  /** A gap written in ink between yours and the truth: it fades with yours (final fix wave E). */
+  gap?: true;
 }
 
 export interface GuessMarks {

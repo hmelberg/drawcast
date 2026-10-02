@@ -258,7 +258,7 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
             // Clear of both halves and of the true bar's value label (13 past its end):
             // over the higher top when a bar rises, under the lower end when both hang below zero.
             const y = hi > base + 0.5 ? hi + (truthTop[1] >= top[1] ? 34 : 22) : lo - (truthTop[1] <= top[1] ? 34 : 22);
-            texts.push({ at: [h.cx - h.halfW / 2, y], text: signed(h, d), anchor: "middle", color: TRUTH, size: 18 });
+            texts.push({ at: [h.cx - h.halfW / 2, y], text: signed(h, d), anchor: "middle", color: TRUTH, size: 18, gap: true, ...(fade < 1 ? { opacity: fade } : {}) });
           }
         }
         break;
@@ -303,7 +303,7 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
             const b = h.toLogical!([x, h.truth[j]]);
             at = [a[0], Math.max(a[1], b[1])];
           });
-          if (at) texts.push({ at: [(at as Pt)[0], (at as Pt)[1] + 24], text: `±${h.format(sum / h.xs.length)} avg`, anchor: "middle", color: TRUTH });
+          if (at) texts.push({ at: [(at as Pt)[0], (at as Pt)[1] + 24], text: `±${h.format(sum / h.xs.length)} avg`, anchor: "middle", color: TRUTH, gap: true, ...(fade < 1 ? { opacity: fade } : {}) });
         }
         break;
       }
@@ -361,7 +361,7 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
           const x1 = lerp(x, xt, ease(p));
           const by = y - 58;
           lines.push({ pts: [[x, by + 6], [x, by], [x1, by], [x1, by + 6]], color: TRUTH, width: 2.5 });
-          if (p >= 1) texts.push({ at: [(x + x1) / 2, by - 16], text: sg.kind === "log" ? ratioText(h.truth[0], g[0]) : signedScale(sg.format, h.truth[0] - g[0]), anchor: "middle", color: TRUTH });
+          if (p >= 1) texts.push({ at: [(x + x1) / 2, by - 16], text: sg.kind === "log" ? ratioText(h.truth[0], g[0]) : signedScale(sg.format, h.truth[0] - g[0]), anchor: "middle", color: TRUTH, gap: true, ...(fade < 1 ? { opacity: fade } : {}) });
         }
         break;
       }
@@ -404,7 +404,7 @@ export function fadeYours(m: GuessMarks, fade: number): GuessMarks {
     ...m,
     // A fill fades through its fill-opacity, an outline through its opacity — never both (they multiply).
     lines: m.lines.map((l) => (blue(l.color) ? (l.fill !== undefined ? { ...l, fillOpacity: (l.fillOpacity ?? 0.6) * fade } : { ...l, opacity: (l.opacity ?? 1) * fade }) : l)),
-    texts: m.texts.map((t) => (blue(t.color) ? { ...t, opacity: (t.opacity ?? 1) * fade } : t)),
+    texts: m.texts.map((t) => (blue(t.color) || t.gap ? { ...t, opacity: (t.opacity ?? 1) * fade } : t)),
     ...(m.dots ? { dots: m.dots.map((d) => (blue(d.color) ? { ...d, opacity: (d.opacity ?? 1) * fade } : d)) } : {}),
   };
 }

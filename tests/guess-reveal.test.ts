@@ -114,7 +114,9 @@ describe("bars: halves", () => {
     // besideMarks' own fade is the same.
     const own = besideMarks(setup.handles, [[30]], [1], FADED).lines.find((l) => l.fill !== undefined)!;
     expect((own.fillOpacity ?? 0) * (own.opacity ?? 1)).toBeCloseTo(0.6 * FADED);
-    expect(m.texts.find((t) => t.color === TRUTH)?.opacity).toBeUndefined();
+    // The gap ("+22") is yours against the truth: it fades with yours (final fix wave E).
+    expect(m.texts.find((t) => t.text === "+22")?.opacity).toBeCloseTo(FADED);
+    expect(besideMarks(setup.handles, [[30]], [1], FADED).texts.find((t) => t.text === "+22")?.opacity).toBeCloseTo(FADED);
   });
 });
 
