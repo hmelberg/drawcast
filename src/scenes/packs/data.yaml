@@ -72,8 +72,9 @@ params:
             properties:
               of: { type: string, x-translate: false }
               set: { type: string, x-translate: false }
+              or: { type: array, items: { type: string, x-translate: false }, maxItems: 4 }
             required: [of]
-      description: "One icon KEYWORD per bar, as labels (\"mosquito\", or {of, set}; null for none) — shown as a picture under the bar, above its label. Up to 12 bars."
+      description: "One icon KEYWORD per bar, as labels (\"mosquito\", or {of, set, or}; null for none) — shown as a picture under the bar, above its label. Up to 12 bars."
     icon_look:
       enum: [picture, drawn]
       description: "picture (default) or drawn (traced by hand)."

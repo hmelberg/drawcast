@@ -15,6 +15,7 @@ import { inlineStrokes } from "../spec/assets";
 import {
   decodeIconSvg,
   encodeIconSvg,
+  iconAlternatives,
   iconAsk,
   iconAssetName,
   iconCreditOf,
@@ -50,21 +51,28 @@ function singular(word: string): string {
   return word.endsWith("s") ? word.slice(0, -1) : word;
 }
 
-/**
- * The queries a keyword's search tries, in order: the keyword itself, its
- * last word made singular ("cows" → "cow"), then the same with words dropped
- * from the left ("red blood cell" → "blood cell"), since the head noun of an
- * English phrase comes last. Never down to one word from a longer phrase:
- * a bare "cell" or "plant" is the near miss the prompt would rather leave out.
- */
-export function searchQueries(of: string): string[] {
+/** One keyword's queries: itself, its last word singular, then leading words dropped — never to one word from a phrase. */
+function keywordQueries(of: string): string[] {
   const words = of.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const out: string[] = [];
   for (let k = words.length; k >= Math.min(2, words.length); k--) {
     const tail = words.slice(words.length - k);
     out.push(tail.join(" "), [...tail.slice(0, -1), singular(tail[tail.length - 1])].join(" "));
   }
-  return [...new Set(out)];
+  return out;
+}
+
+/**
+ * The queries a keyword's search tries, in order: the keyword itself, then
+ * each `or` alternative as written, then the looser forms of each — its last
+ * word made singular ("cows" → "cow"), then words dropped from the left
+ * ("red blood cell" → "blood cell"), since the head noun of an English phrase
+ * comes last. Never down to one word from a longer phrase: a bare "cell" or
+ * "plant" is the near miss the prompt would rather leave out.
+ */
+export function searchQueries(of: string, or: string[] = []): string[] {
+  const each = [of, ...or].map(keywordQueries).filter((qs) => qs.length > 0);
+  return [...new Set([...each.map((qs) => qs[0]), ...each.flatMap((qs) => qs.slice(1))])];
 }
 
 /** Bump when the resolver's output changes — old cache entries stop matching. 2: the SVG itself (spec/icon-data.ts `ics1:`), per look; 3: pictures by twemoji name and alias. */
@@ -158,12 +166,10 @@ function firstAllowed(icons: unknown, allow: ("permissive" | "by")[]): { prefix:
   return null;
 }
 
-/** A node's `icon` as {of, set}, or null when it has none (or an unusable one). */
-export function nodeIconRequest(el: Pick<SpecElement, "type" | "icon">): { of: string; set?: string } | null {
+/** A node's `icon` as {of, set, or}, or null when it has none (or an unusable one). */
+export function nodeIconRequest(el: Pick<SpecElement, "type" | "icon">): IconAsk | null {
   if (el.type !== "node" || el.icon === undefined) return null;
-  const icon = typeof el.icon === "string" ? { of: el.icon } : el.icon;
-  if (!icon || typeof icon.of !== "string" || icon.of.trim() === "") return null;
-  return typeof icon.set === "string" && icon.set !== "" ? { of: icon.of, set: icon.set } : { of: icon.of };
+  return iconAsk(el.icon);
 }
 
 
@@ -281,6 +287,7 @@ export function loadOfflineIcons(): Promise<Record<string, string>> {
  */
 async function resolveKeyword(spec: Spec, req: IconAsk, look: IconLook, deps: IconDeps, opts: IconResolveOpts): Promise<{ strokes: string; set: string; credit: string }> {
   const { of } = req;
+  const alts = req.or ?? [];
   const requestedSet = req.set;
   // Policy checks apply on every call, cache hit or miss: whether a
   // set may be used here depends on THIS call's `opts.forSeed`, not on
@@ -309,15 +316,25 @@ async function resolveKeyword(spec: Spec, req: IconAsk, look: IconLook, deps: Ic
   let svg: string | null = null;
   let svgName = "";
   if (requestedSet) {
+    // A pinned set is asked by name: the keyword's, then each alternative's.
     prefix = requestedSet;
     iconName = slug(of);
+    for (const name of [...new Set([of, ...alts].map(slug))]) {
+      const res = await deps.fetch(iconSvgUrl(prefix, name));
+      if (!res.ok) continue;
+      const text = await res.text();
+      if (svgToRings(text).length === 0) continue;
+      svg = text;
+      iconName = name;
+      break;
+    }
   } else {
     // A picture tries the colour set by NAME first (fix round 1): the
     // keyword's own twemoji, an alias (car → automobile), then "<kw>-face".
     // Its search ranks "tram-car" for "car"; a wrong picture is worse than
     // an ink one, so a miss simply falls through to the line icons.
     if (look === "picture") {
-      for (const name of pictureNames(of)) {
+      for (const name of [...new Set([of, ...alts].flatMap(pictureNames))]) {
         const res = await deps.fetch(iconSvgUrl(PICTURE_PREFIXES[0], name));
         if (!res.ok) continue;
         const text = await res.text();
@@ -339,13 +356,13 @@ async function resolveKeyword(spec: Spec, req: IconAsk, look: IconLook, deps: Ic
       // The keyword as written in every tier before any looser form of it:
       // an exact CC BY hit beats a trimmed permissive one.
       let hit: { prefix: string; name: string } | null = null;
-      for (const q of searchQueries(of)) {
+      for (const q of searchQueries(of, alts)) {
         hit ??= await search(q, DEFAULT_PREFIXES, ["permissive"]);
         hit ??= await search(q, EXTRA_PREFIXES, ["permissive"]);
         hit ??= await search(q, BY_PREFIXES, ["by"]);
         if (hit) break;
       }
-      if (!hit) throw new Error(`no icon found for "${of}"`);
+      if (!hit) throw new Error(`no icon found for "${[of, ...alts].join('" or "')}"`);
       prefix = hit.prefix;
       iconName = hit.name;
     }
@@ -415,7 +432,8 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
       continue;
     }
     try {
-      const got = await resolveKeyword(spec, { of: el.of, ...(set ? { set } : {}) }, look, deps, opts);
+      const or = iconAlternatives(el.or);
+      const got = await resolveKeyword(spec, { of: el.of, ...(set ? { set } : {}), ...(or ? { or } : {}) }, look, deps, opts);
       el.strokes = got.strokes;
       // `set` stays the author's (fix round 1): pinning the one found would
       // keep a later icon_look: picture from ever reaching the colour set.

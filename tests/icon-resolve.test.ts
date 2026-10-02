@@ -63,6 +63,31 @@ describe("resolveIcons", () => {
     expect(searchQueries("berries")).toEqual(["berries", "berry"]);
     expect(searchQueries("virus")).toEqual(["virus"]);
     expect(searchQueries("bus")).toEqual(["bus"]);
+    // Alternatives as written come before any looser form of the first keyword.
+    expect(searchQueries("insulin pens", ["syringe", "vial"])).toEqual(["insulin pens", "syringe", "vial", "insulin pen"]);
+  });
+  test("or: an icon element falls back to its alternatives, keyed and named by of", async () => {
+    const spec = { elements: [{ id: "i", type: "icon", of: "insulin", or: ["syringe"], x: 1, y: 1 }], commands: [] };
+    const r = await resolveIcons(spec as never, deps({ [iconSearchUrl("syringe", DEFAULT_PREFIXES)]: { icons: ["lucide:syringe"] }, [iconSvgUrl("lucide", "syringe")]: SVG }));
+    expect(r[0].ok).toBe(true);
+    const el = spec.elements[0] as { credit?: string; icon_key?: string };
+    expect(el.credit).toBe("syringe from lucide · ISC");
+    expect(el.icon_key).toBe("insulin@lucide");
+  });
+  test("or: a node's {of, or} and a pinned set try the alternatives by name", async () => {
+    const node = { elements: [{ id: "n", type: "node", text: "Insulin", icon: { of: "insulin", or: ["syringe"] }, x: 1, y: 1 }], commands: [] };
+    const n = await resolveIcons(node as never, deps({ [iconSvgUrl("twemoji", "syringe")]: SVG }));
+    expect(n[0].ok).toBe(true);
+    expect((node.elements[0] as { credit?: string }).credit).toBe("syringe from twemoji · CC BY 4.0");
+    const pinned = { elements: [{ id: "p", type: "icon", of: "insulin", set: "tabler", or: ["vaccine", "syringe"], x: 1, y: 1 }], commands: [] };
+    const p = await resolveIcons(pinned as never, deps({ [iconSvgUrl("tabler", "syringe")]: SVG }));
+    expect(p[0].ok).toBe(true);
+    expect((pinned.elements[0] as { credit?: string }).credit).toBe("syringe from tabler · MIT");
+  });
+  test("or: every keyword missing names them all", async () => {
+    const spec = { elements: [{ id: "i", type: "icon", of: "glucagon", or: ["vial"], x: 1, y: 1 }], commands: [] };
+    const r = await resolveIcons(spec as never, deps({}));
+    expect(r[0]).toMatchObject({ ok: false, error: 'no icon found for "glucagon" or "vial"' });
   });
   test("every default and BY prefix has a licence row of the right class", () => {
     for (const p of [...DEFAULT_PREFIXES, ...EXTRA_PREFIXES]) expect(ICON_SETS[p].cls).toBe("permissive");

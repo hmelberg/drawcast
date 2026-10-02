@@ -122,9 +122,9 @@ export interface CardItemSpec {
   match?: string;
   blank?: number;
   /** An icon on the card — a keyword or {of, set}, resolved like a node's. */
-  icon?: string | { of: string; set?: string };
+  icon?: string | { of: string; set?: string; or?: string[] };
   /** match: an icon on the partner card. */
-  match_icon?: string | { of: string; set?: string };
+  match_icon?: string | { of: string; set?: string; or?: string[] };
   /** Machine-written by resolveIcons (render/icon.ts): the rings and their credit. */
   icon_strokes?: string;
   credit?: string;
@@ -292,6 +292,8 @@ export interface SpecElement {
   colors?: Record<string, string>;
   /** icon: icon set prefix (lucide, tabler, ph, heroicons, material-symbols; fa6-solid, twemoji as CC BY). */
   set?: string;
+  /** icon: other keywords tried in order when `of` finds no icon ("insulin" → ["syringe"]). */
+  or?: string[];
   /** image/icon: attribution (machine-written; copy VERBATIM if present). */
   credit?: string;
   x?: number;
@@ -303,7 +305,7 @@ export interface SpecElement {
   /** node rect: a soft shadow — the same box offset (3, 4) down-right, ink at 12 %, behind it. */
   shadow?: boolean;
   /** node rect: an icon drawn inside the box above the text — a keyword ("shark") or {of, set}, resolved like an icon element (render/icon.ts). */
-  icon?: string | { of: string; set?: string };
+  icon?: string | { of: string; set?: string; or?: string[] };
   /** node rect: the resolved icon's rings (spec/trace.ts encodeIcon; machine-written, never edited). */
   icon_strokes?: string;
   /** node / icon: the key the icon was resolved for ("keyword@set", machine-written) — an edited `icon` / `of` no longer matches and is resolved again. */

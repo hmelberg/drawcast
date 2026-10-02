@@ -27,17 +27,29 @@ type Pt = [number, number];
 /** How an icon is shown: its own artwork (`picture`) or traced by hand (`drawn`). */
 export type IconLook = "picture" | "drawn";
 
-/** An icon as asked for: a keyword, and a set when the author pinned one. */
+/** An icon as asked for: a keyword, a set when the author pinned one, and
+ *  other keywords to try when the first finds nothing (`or`: "insulin" →
+ *  ["syringe", "vial"]). The icon goes by `of` alone: its name, key and
+ *  cache entry are the first keyword's whichever one it was found by. */
 export interface IconAsk {
   of: string;
   set?: string;
+  or?: string[];
 }
 
-/** An `icon` / `match_icon` value (a keyword or {of, set}) as an ask, or null when unusable. */
+/** An `or` list's usable keywords, or undefined when none. */
+export function iconAlternatives(or: unknown): string[] | undefined {
+  if (!Array.isArray(or)) return undefined;
+  const alts = or.filter((k): k is string => typeof k === "string" && k.trim() !== "");
+  return alts.length > 0 ? alts : undefined;
+}
+
+/** An `icon` / `match_icon` value (a keyword or {of, set, or}) as an ask, or null when unusable. */
 export function iconAsk(icon: unknown): IconAsk | null {
-  const req = typeof icon === "string" ? { of: icon } : (icon as { of?: unknown; set?: unknown } | null | undefined);
+  const req = typeof icon === "string" ? { of: icon } : (icon as { of?: unknown; set?: unknown; or?: unknown } | null | undefined);
   if (!req || typeof req !== "object" || typeof req.of !== "string" || req.of.trim() === "") return null;
-  return typeof req.set === "string" && req.set !== "" ? { of: req.of, set: req.set } : { of: req.of };
+  const or = iconAlternatives(req.or);
+  return { of: req.of, ...(typeof req.set === "string" && req.set !== "" ? { set: req.set } : {}), ...(or ? { or } : {}) };
 }
 
 /** The look an element's icon takes: `icon_look` when given; else drawn for an `icon` element (the subject), a picture for a node's or a card's. */
