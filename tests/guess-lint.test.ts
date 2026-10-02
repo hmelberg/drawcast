@@ -20,6 +20,19 @@ describe("guess lint", () => {
     expect(issues[0].message).toMatch(/already drawn/);
   });
 
+  test("keep: clean on a guess, a warning on an ask with no guess marks to keep", () => {
+    expect(guessIssues(bars([{ draw: ["axes", "bar_1"] }, { ask: { question: "B?", on: "bar_2", keep: true } }]))).toEqual([]);
+    const typed = guessIssues(bars([{ ask: { question: "Why?", store: "w", default: "x", keep: true } }]));
+    expect(typed).toHaveLength(1);
+    expect(typed[0].severity).toBe("warn");
+    expect(typed[0].message).toMatch(/keep/);
+    const cards = guessIssues({
+      elements: [{ id: "c", type: "cards", items: [{ text: "A" }, { text: "B" }] }],
+      commands: [{ draw: ["c"] }, { ask: { question: "Rank", on: "c", keep: true } }],
+    } as unknown as Spec);
+    expect(cards.some((i) => /keep/.test(i.message))).toBe(true);
+  });
+
   test("reveal_style and reveal_order: clean on a guess, a warning where there is no reveal on the figure", () => {
     expect(guessIssues(bars([{ draw: ["axes", "bar_1"] }, { ask: { question: "B?", on: "bar_2", reveal_style: "morph", reveal_order: "each" } }]))).toEqual([]);
     const typed = guessIssues(bars([{ ask: { question: "Why?", store: "w", default: "x", reveal_order: "each" } }]));

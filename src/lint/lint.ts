@@ -1148,6 +1148,14 @@ function lintGuess(spec: Spec): LintIssue[] {
       const which = c.ask.reveal_style !== undefined ? `reveal_style: "${c.ask.reveal_style}"` : `reveal_order: "${c.ask.reveal_order}"`;
       issues.push({ rule: "guess", ids: [], message: `ask ${which} shapes a reveal on the figure (a guess, cards, a tree or a formula, with on/blanks/pick) — it is ignored here`, severity: "warn" });
     }
+    // keep (spec 2026-10-03-round6 §5) keeps a guess's marks: cards, a tree, a formula or a typed answer have none to keep.
+    if (c.ask?.keep !== undefined) {
+      const on = c.ask.on;
+      const cardsOn = typeof on === "string" && cardSets.has(on);
+      if (on === undefined || cardsOn || c.ask.blanks !== undefined || c.ask.pick !== undefined || formulaOn(spec, on) !== null) {
+        issues.push({ rule: "guess", ids: [], message: `ask keep: ${c.ask.keep} keeps a guess's marks (a guess on bars, a line, a pie or a scale, with on) — it is ignored here`, severity: "warn" });
+      }
+    }
     // account_label names a budget's account bar: without a budget there is none.
     if (c.ask?.account_label !== undefined && c.ask.budget === undefined && c.ask.blanks === undefined && c.ask.pick === undefined) {
       issues.push({ rule: "guess", ids: [], message: `ask account_label: "${c.ask.account_label}" labels a budget's account bar — add budget (with on: "all" over bars), or leave it out`, severity: "warn" });
