@@ -142,6 +142,17 @@ export function besideParams(handles: GuessHandle[], prog: number[]): Record<str
   return out;
 }
 
+/** Two beside rooms laid over each other (final fix wave E): bars halved in
+ *  either stay halved (the union of beside_bars); everything else, the later wins. */
+export function mergeRooms(a: Record<string, unknown>, b: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!b) return a;
+  const out = { ...a, ...b };
+  const ab = a["beside_bars"];
+  const bb = b["beside_bars"];
+  if (Array.isArray(ab) && Array.isArray(bb)) out["beside_bars"] = [...new Set([...(ab as number[]), ...(bb as number[])])].sort((x, y) => x - y);
+  return out;
+}
+
 /** A pie's slide to its place takes the first part of its reveal; the rest
  *  is the true shares arriving. */
 const PIE_MOVE = 0.5;

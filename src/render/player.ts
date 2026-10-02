@@ -44,7 +44,7 @@ import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../fe
 import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
 import { cardsBeside, cardsParts } from "../cards/beside";
-import { BESIDE_MS, EACH_MS, FADED, WRONG, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
+import { BESIDE_MS, EACH_MS, FADED, WRONG, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, mergeRooms, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
 import { gateLang, gateWords } from "../ui/gate-words";
 import type { CardsGeometry } from "../spec/cards";
 import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
@@ -1386,7 +1386,7 @@ export class Player {
     const p0 = this.withVarOverrides(scene.params);
     // A beside reveal's room (bars in halves, the pie moved over) stands until its marks go.
     let p: Record<string, unknown> = p0;
-    for (const b of this.besides.values()) if (b.params) p = { ...p, ...b.params };
+    for (const b of this.besides.values()) if (b.params) p = mergeRooms(p, b.params);
     return scene.answers ? { ...p, answers: scene.answers } : p;
   }
 
@@ -1555,7 +1555,7 @@ export class Player {
       const patch = styles && patch0.elements ? { ...patch0, elements: patch0.elements.map((e) => (styles[e.id] ? ({ ...e, ...styles[e.id] } as SpecElement) : e)) } : patch0;
       // A beside reveal's room (extra.params) and a scale's pin dropping in (extra.offsets).
       const scene = extra?.offsets ? { ...before, offsets: { ...before.offsets, ...extra.offsets } } : before;
-      rp.frame({ ...sceneParams, ...patch.params, ...(extra?.params ?? {}) }, this.frameScene(scene, visible), { revealNew: true, overrides, ...(patch.elements ? { elements: patch.elements } : {}) });
+      rp.frame(mergeRooms({ ...sceneParams, ...patch.params }, extra?.params), this.frameScene(scene, visible), { revealNew: true, overrides, ...(patch.elements ? { elements: patch.elements } : {}) });
       this.geometryDirty = true;
       if (marks && sketched) {
         this.guessOwners.add(owner);
@@ -4067,7 +4067,7 @@ export class Player {
             const start = startAt[key] ?? step.starts[key];
             cur[key] = start === null ? targets[key] : tweenValue(start, targets[key], e, step.spaces?.[key]);
           }
-          if (besideCarry) Object.assign(cur, besideParams(carry!.truthHandles, carry!.truthHandles.map(() => e)));
+          if (besideCarry) Object.assign(cur, mergeRooms(cur, besideParams(carry!.truthHandles, carry!.truthHandles.map(() => e))));
           // reveal ids the tween mints (a 40th slice): they join the implicit final draw
           const laid = rp.frame(cur, this.frameScene(before, visible), { revealNew: true, overrides, trailProgress: Player.trailProgressAt(step.trails, e) });
           this.geometryDirty = true;

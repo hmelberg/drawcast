@@ -316,3 +316,20 @@ describe("fix round 1", () => {
     expect(new Set(prev.map((v) => v.toFixed(1))).size).toBeGreaterThan(2);
   });
 });
+
+describe("two beside rooms at once (final fix wave E)", () => {
+  const askOn = (on: string, extra: Record<string, unknown> = {}): Command =>
+    ({ ask: { question: "How tall?", on, store: `g_${on}`, right: "Yes.", wrong: "No.", ...extra } }) as Command;
+
+  test("a kept guess on one bar and a later one on another: both bars stay halved", async () => {
+    const { player, commits, frames } = makePlayer("bar_chart", BARS, [DRAW, askOn("bar_2", { keep: true }), { speak: "Then." }, askOn("bar_3"), { speak: "End." }]);
+    player.askGate = async () => "50";
+    await player.play();
+    const bars = (p: Record<string, unknown>) => (p["beside_bars"] as number[] | undefined) ?? [];
+    const both = (p: Record<string, unknown>) => bars(p).length === 2 && new Set(bars(p)).size === 2;
+    // The second reveal's frames and the commit after it hold both rooms.
+    expect(frames.some(both)).toBe(true);
+    expect(commits.some(both)).toBe(true);
+    expect(commits.every((c) => bars(c).length <= 2)).toBe(true);
+  }, 20000);
+});
