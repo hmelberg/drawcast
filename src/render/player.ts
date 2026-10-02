@@ -500,6 +500,11 @@ export class Player {
   /** Viewer preference: skip quiz/ask entirely (a skipped collect-ask still
    *  stores its default so later {var} lines keep working). */
   private skipQuestions = false;
+  /** The viewer's Skip, changed while the cast plays (the player's ⋯ menu):
+   *  the next question follows it. */
+  setSkipQuestions(skip: boolean): void {
+    this.skipQuestions = skip;
+  }
 
   /** Set by the exporter (and true in spirit for bare players): answers are
    *  the demo's, not a viewer's — gotos never fire, the path stays linear. */
@@ -2083,8 +2088,12 @@ export class Player {
     if (signal.aborted) return;
 
     const judged = g.mode !== "decide" || (g.best ?? []).some(Boolean);
-    const score = scoreCards(g, arrangement, step.tolerance ?? 0);
-    const ok = answered && score.ok;
+    // No viewer (a movie, Watch): scored as a perfect one, as every other auto
+    // answer is — the cards glide to the truth, so "0 of 6" and the wrong line
+    // would contradict the picture. The cards' own path still reads `answered`.
+    const auto = !live && !answered;
+    const score = scoreCards(g, auto ? cardsTruth(g) : arrangement, step.tolerance ?? 0);
+    const ok = (answered || auto) && score.ok;
     // check: each (round 7 §3): judged as dropped — the first drops are the
     // score, and there is nothing left to reveal.
     const checked = answered && g.each === true && arrangement.first !== undefined;
