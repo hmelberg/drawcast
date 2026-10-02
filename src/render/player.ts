@@ -3562,7 +3562,16 @@ export class Player {
           this.pendingJump = d.then !== undefined && this.plan.labels[d.then] !== undefined ? this.plan.labels[d.then] : this.plan.steps.length;
           // The figure as the chosen branch left it goes on past `then`.
           this.pendingCarry = this.stateAt(index);
-        } else if (d && step.name === d.then) this.decideBranch = null;
+          return;
+        }
+        if (d && step.name === d.then) this.decideBranch = null;
+        // No jump taken (the movie, questions off) at a branch's label: the
+        // plan starts the branch from the question's figure — so does the screen (fix round 2).
+        const after = this.planned(index);
+        if (JSON.stringify(after) !== JSON.stringify(this.stateAt(index))) {
+          this.applyKey(after);
+          this.applyScene(after);
+        }
         return;
       }
       case "text":

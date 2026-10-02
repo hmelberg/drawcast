@@ -193,3 +193,17 @@ describe("the planner starts every branch from the question's figure", () => {
     expect(plan.states[plan.labels["b"]].visible).toEqual(["door_1", "door_2"]);
   });
 });
+
+describe("no jump taken (the movie, fix round 2)", () => {
+  test("the movie plays every branch, each from the question's figure: the end matches the plan", async () => {
+    const { p, els } = run(DOORS);
+    p.autoAnswers = true;
+    await p.play();
+    // The last branch (door 3) as the plan has it — nothing of the first two left on screen.
+    expect(els.get("you")!.off).toEqual([400, 0]);
+    expect(els.get("goat_3")!.shown).toBe(false);
+    expect(els.get("goat_1")!.shown).toBe(true);
+    expect(els.get("door_3")!.alpha).toBe(1);
+    expect(els.get("door_1")!.alpha).toBeCloseTo(0.15);
+  }, 30000);
+});
