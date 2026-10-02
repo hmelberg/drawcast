@@ -130,11 +130,16 @@ export function castOwnIds(spec: Spec, minted: Record<string, string[]> = {}): (
   return (id) => own.has(id) || SUB_SUFFIXES.some((s) => id.endsWith(`_${s}`) && own.has(id.slice(0, -(s.length + 1))));
 }
 
-/** Top-level id → the population it belongs to (its sets and legend are one figure). */
+/** Top-level id → the population or deck it belongs to (its sets and legend, or its cards and boxes, are one figure). */
 export function populationFigures(spec: Spec, minted: Record<string, string[]> = {}): (id: string) => string | undefined {
   const of = new Map<string, string>();
   for (const e of spec.elements ?? []) if (e.type === "population") for (const k of minted[e.id] ?? []) of.set(k, e.id);
-  return (id) => of.get(id);
+  // A deck (cards with deck: true, up to 30) is one designed composition:
+  // its small cards in their boxes are one figure, not thirty labels. (The
+  // expanded spec keeps the flag on the cards' group.)
+  const decks = (spec.elements ?? []).filter((e) => (e.type === "cards" || e.type === "group") && (e as { deck?: unknown }).deck === true).map((e) => e.id);
+  const deckOf = (id: string) => decks.find((d) => id === d || new RegExp(`^${d.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}_(\\d+|bin_\\d+)(_|$)`).test(id));
+  return (id) => of.get(id) ?? deckOf(id);
 }
 
 /**

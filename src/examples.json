@@ -81643,50 +81643,32 @@
             {
               "text": "Tomato",
               "bin": "Fruit",
-              "icon": {
-                "of": "tomato",
-                "set": "twemoji"
-              }
+              "icon": "tomato"
             },
             {
               "text": "Carrot",
               "bin": "Not a fruit",
-              "icon": {
-                "of": "carrot",
-                "set": "twemoji"
-              }
+              "icon": "carrot"
             },
             {
               "text": "Cucumber",
               "bin": "Fruit",
-              "icon": {
-                "of": "cucumber",
-                "set": "twemoji"
-              }
+              "icon": "cucumber"
             },
             {
               "text": "Potato",
               "bin": "Not a fruit",
-              "icon": {
-                "of": "potato",
-                "set": "twemoji"
-              }
+              "icon": "potato"
             },
             {
               "text": "Chili",
               "bin": "Fruit",
-              "icon": {
-                "of": "hot-pepper",
-                "set": "twemoji"
-              }
+              "icon": "hot pepper"
             },
             {
               "text": "Broccoli",
               "bin": "Not a fruit",
-              "icon": {
-                "of": "broccoli",
-                "set": "twemoji"
-              }
+              "icon": "broccoli"
             }
           ]
         }
@@ -81703,7 +81685,7 @@
         },
         {
           "ask": {
-            "question": "Sort them: drag each one into its box.",
+            "question": "Sort them: tap or drag each one into its box.",
             "on": "food",
             "store": "f",
             "right": "{f} right.",
@@ -81916,31 +81898,19 @@
           "items": [
             {
               "text": "Mosquito",
-              "icon": {
-                "of": "mosquito",
-                "set": "twemoji"
-              }
+              "icon": "mosquito"
             },
             {
               "text": "Snake",
-              "icon": {
-                "of": "snake",
-                "set": "twemoji"
-              }
+              "icon": "snake"
             },
             {
               "text": "Dog",
-              "icon": {
-                "of": "dog",
-                "set": "twemoji"
-              }
+              "icon": "dog"
             },
             {
               "text": "Shark",
-              "icon": {
-                "of": "shark",
-                "set": "twemoji"
-              }
+              "icon": "shark"
             }
           ],
           "ends": [
@@ -81959,47 +81929,31 @@
             {
               "text": "Mosquito",
               "bin": "Carries germs",
-              "icon": {
-                "of": "mosquito",
-                "set": "twemoji"
-              }
+              "icon": "mosquito"
             },
             {
               "text": "Dog",
               "bin": "Carries germs",
-              "icon": {
-                "of": "dog",
-                "set": "twemoji"
-              }
+              "icon": "dog"
             },
             {
               "text": "Snake",
               "bin": "Attack",
-              "icon": {
-                "of": "snake",
-                "set": "twemoji"
-              }
+              "icon": "snake"
             },
             {
               "text": "Crocodile",
               "bin": "Attack",
-              "icon": {
-                "of": "crocodile",
-                "set": "twemoji"
-              }
+              "icon": "crocodile"
             },
             {
               "text": "Hippo",
               "bin": "Attack",
-              "icon": {
-                "of": "hippopotamus",
-                "set": "twemoji"
-              }
+              "icon": "hippopotamus"
             }
           ],
-          "at": {
-            "place": "right"
-          }
+          "x": 465,
+          "width": 525
         }
       ],
       "commands": [
@@ -82114,7 +82068,7 @@
         },
         {
           "ask": {
-            "question": "Sort them: drag each animal into its box.",
+            "question": "Sort them: tap or drag each animal into its box.",
             "on": "kind",
             "store": "k",
             "right": "You got {k}. Snakes, crocodiles and hippos attack; mosquitoes and dogs pass on disease.",
@@ -82169,6 +82123,244 @@
             "correct": 2,
             "right": "They carry the malaria parasite: the bite is harmless, the passenger is not."
           }
+        }
+      ]
+    }
+  },
+  {
+    "request": "Fruit or not? A quick deck of fourteen foods, sorted the way a botanist would. #interactive",
+    "spec": {
+      "title": "Fruit or not? — a quick deck",
+      "sources": [
+        {
+          "id": "britannica",
+          "title": "Fruit (plant reproductive body)",
+          "authors": "Encyclopaedia Britannica",
+          "year": 2024,
+          "url": "https://www.britannica.com/science/fruit-plant-reproductive-body",
+          "finding": "a fruit is the ripened ovary of a flowering plant, enclosing the seed or seeds"
+        }
+      ],
+      "elements": [
+        {
+          "id": "food",
+          "type": "cards",
+          "bins": [
+            "Fruit",
+            "Not a fruit"
+          ],
+          "deck": true,
+          "items": [
+            {
+              "text": "Pumpkin",
+              "bin": "Fruit"
+            },
+            {
+              "text": "Avocado",
+              "bin": "Fruit"
+            },
+            {
+              "text": "Eggplant",
+              "bin": "Fruit"
+            },
+            {
+              "text": "Zucchini",
+              "bin": "Fruit"
+            },
+            {
+              "text": "Olive",
+              "bin": "Fruit"
+            },
+            {
+              "text": "Bell pepper",
+              "bin": "Fruit"
+            },
+            {
+              "text": "Pea pod",
+              "bin": "Fruit"
+            },
+            {
+              "text": "Celery",
+              "bin": "Not a fruit"
+            },
+            {
+              "text": "Rhubarb",
+              "bin": "Not a fruit"
+            },
+            {
+              "text": "Lettuce",
+              "bin": "Not a fruit"
+            },
+            {
+              "text": "Onion",
+              "bin": "Not a fruit"
+            },
+            {
+              "text": "Ginger",
+              "bin": "Not a fruit"
+            },
+            {
+              "text": "Asparagus",
+              "bin": "Not a fruit"
+            },
+            {
+              "text": "Cauliflower",
+              "bin": "Not a fruit"
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "food"
+          ],
+          "speak": "This is a quick test of what a botanist calls a fruit: fourteen foods, dealt one at a time."
+        },
+        {
+          "speak": "The rule is simple: a fruit grows from the flower and holds the plant's seeds, so leaves, stalks, roots and buds never count, however sweet they taste."
+        },
+        {
+          "ask": {
+            "question": "Fruit or not? Tap a box for each card.",
+            "on": "food",
+            "store": "f",
+            "right": "{f} right.",
+            "wrong": "{f} right. The marks show where the rest belong.",
+            "feedback": {
+              "style": "dry",
+              "perfect": "All fourteen. The botanists would like a word.",
+              "good": "Nearly all. The kitchen only fooled you once or twice.",
+              "poor": "The kitchen sorts these differently, and it taught you well.",
+              "none": "Not one. Blame the kitchen, not yourself."
+            }
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "food_bin_1"
+            ]
+          },
+          "speak": "Pumpkins, avocados, eggplants, zucchini, olives, peppers and pea pods all grow from a flower and carry seeds inside, so all of them are fruits."
+        },
+        {
+          "highlight": {
+            "target": [
+              "food_bin_2"
+            ]
+          },
+          "speak": "The others come from the rest of the plant: celery and rhubarb are leaf stalks, lettuce is leaves, and an onion is a bulb of fleshy leaves."
+        },
+        {
+          "highlight": {
+            "target": [
+              "food_12",
+              "food_13",
+              "food_14"
+            ]
+          },
+          "speak": "Ginger is an underground stem, asparagus a young shoot, and cauliflower a tight head of flower buds that never opened."
+        },
+        {
+          "speak": "So taste is no guide: ask where on the plant it grew, and whether it holds the seeds."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Which of these animals are mammals? Tap all the mammals. #interactive",
+    "spec": {
+      "title": "Which of these are mammals?",
+      "elements": [
+        {
+          "id": "zoo",
+          "type": "cards",
+          "select": "Mammals",
+          "items": [
+            {
+              "text": "Whale",
+              "in": true,
+              "icon": "whale"
+            },
+            {
+              "text": "Bat",
+              "in": true,
+              "icon": "bat"
+            },
+            {
+              "text": "Dolphin",
+              "in": true,
+              "icon": "dolphin"
+            },
+            {
+              "text": "Hedgehog",
+              "in": true,
+              "icon": "hedgehog"
+            },
+            {
+              "text": "Penguin",
+              "in": false,
+              "icon": "penguin"
+            },
+            {
+              "text": "Shark",
+              "in": false,
+              "icon": "shark"
+            },
+            {
+              "text": "Octopus",
+              "in": false,
+              "icon": "octopus"
+            },
+            {
+              "text": "Crocodile",
+              "in": false,
+              "icon": "crocodile"
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "draw": [
+            "zoo"
+          ],
+          "speak": "This is about what makes an animal a mammal, and here are eight animals to test it on."
+        },
+        {
+          "speak": "Where an animal lives and how it moves do not decide it; what counts is that mammals breathe air, have hair at some point in life, and feed their young on milk."
+        },
+        {
+          "ask": {
+            "question": "Tap all the mammals.",
+            "on": "zoo",
+            "store": "m",
+            "right": "You got {m}.",
+            "wrong": "You got {m}. The arrows show where the rest belong."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "zoo_bin_1"
+            ]
+          },
+          "speak": "Whales and dolphins live in the sea and bats fly, yet each of them feeds its young on milk, just like the hedgehog."
+        },
+        {
+          "highlight": {
+            "target": [
+              "zoo_5",
+              "zoo_6",
+              "zoo_7",
+              "zoo_8"
+            ]
+          },
+          "speak": "The penguin, though, is a bird that swims, the shark a fish, the octopus a mollusc, and the crocodile a reptile."
+        },
+        {
+          "speak": "So to find a mammal, ask how it feeds its young, not where it swims or flies."
         }
       ]
     }
