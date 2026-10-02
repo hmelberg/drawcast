@@ -1008,6 +1008,12 @@ export interface AskArgs {
   /** "all" (default) — the truth appears at once; "each" — part by part,
    *  about 0.6 s apart, in the figure's order. */
   reveal_order?: "all" | "each";
+  /** A guess's marks (yours, the gap, the ghost) outlive their moment
+   *  (spec 2026-10-03-round6 §5): they stay through the next question and
+   *  follow the part when the figure is laid out again (an animate),
+   *  recomputed from the same answer. Default: they end at whichever comes
+   *  first — the guessed part changing shape, or the next question. */
+  keep?: boolean;
 }
 
 /** Feedback flavour (spec 2026-10-03-looks-feedback-account §4.1): a style

@@ -143,6 +143,8 @@ export type PlanStep = (
        *  beside (the default), and the truth part by part instead of at once. */
       revealStyle?: "morph";
       revealOrder?: "each";
+      /** A guess's marks outlive their moment and follow the part (spec round 6 §5). */
+      keep?: true;
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -1583,6 +1585,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...feedbackOf(cmd.ask.feedback),
         ...(cmd.ask.reveal_style === "morph" ? { revealStyle: "morph" as const } : {}),
         ...(cmd.ask.reveal_order === "each" ? { revealOrder: "each" as const } : {}),
+        ...(cmd.ask.keep === true ? { keep: true as const } : {}),
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;
     } else if (cmd.show !== undefined) {
