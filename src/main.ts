@@ -59,6 +59,7 @@ import { fileSafe, openShare, payListedFields } from "./ui/share";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
 import { openEmbedDialog, openInsertData, openInsertPortrait, unembeddedImages } from "./ui/insert";
+import { attachSpecFolding } from "./ui/spec-fold";
 import { accordionOpenState, applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
 import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
@@ -1320,6 +1321,9 @@ refreshCounts();
 // Preview column
 const previewHost = h("div", { class: "player-figure" });
 const specArea = h("textarea", { class: "spec-json", spellcheck: "false", "aria-label": "Spec source" });
+// `assets:` and long data strings show as one-line markers; `specArea.value`
+// still reads and writes the whole text (round 6 §8, ui/spec-fold.ts).
+attachSpecFolding(specArea);
 // State, not an action — filled with --muted rather than the accent (see the
 // rust allowlist in tests/palette.test.ts). Lives in the PREVIEW bar because
 // it describes the drawing, not the text.
