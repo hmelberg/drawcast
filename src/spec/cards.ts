@@ -269,7 +269,28 @@ export type BlanksOf = (mathId: string) => BBox[] | null;
  *  tile row under the formula as placed (layout/tier2.ts placeFormulaTiles). */
 export type HomesOf = (cardId: string) => Pt | null;
 
+/** The lowest a card (or a bin, or a compare value under its card) may reach: just above the canvas floor. */
+const CARD_FLOOR = 8;
+
+/** The lowest point the geometry draws: cards at home and at the truth, sort bins, compare values. */
+function lowestOf(g: CardsGeometry): number {
+  const ys = [...g.home, ...g.truth].map((p) => p[1] - g.h / 2 - (g.mode === "compare" ? 32 : 0));
+  for (const b of g.binBoxes) ys.push(b.c[1] - b.h / 2);
+  return Math.min(...ys);
+}
+
 export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => ScaleElementLike | undefined, blanksOf?: BlanksOf, homesOf?: HomesOf): CardsGeometry {
+  // Icon cards are taller (96); when the fullest layouts (sort 8, match 6,
+  // a column of 8) would run off the canvas floor, they shrink — never
+  // below a plain card — until they fit. The icon scales with the card.
+  let g = cardsGeometryAt(el, CARD_ICON_H, scaleOf, blanksOf, homesOf);
+  for (let ch = CARD_ICON_H - 2; g.h > CARD_H && ch >= CARD_H && lowestOf(g) < CARD_FLOOR; ch -= 2) {
+    g = cardsGeometryAt(el, ch, scaleOf, blanksOf, homesOf);
+  }
+  return g;
+}
+
+function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: string) => ScaleElementLike | undefined, blanksOf?: BlanksOf, homesOf?: HomesOf): CardsGeometry {
   const mode = cardsMode(el);
   const x0 = isNum(el.x) ? el.x : 100;
   const width = isNum(el.width) && el.width > 200 ? el.width : 800;
@@ -293,7 +314,8 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
   const texts = items.map((it) => it.text);
   // Round 5 §3.3: one resolved icon makes every card taller, so rows stay even.
   // (A formula's tiles are TeX; they carry no icons.)
-  const CH = mode !== "fill" && items.some(hasIcon) ? CARD_ICON_H : CARD_H;
+  const icons = mode !== "fill" && items.some(hasIcon);
+  const CH = icons ? iconH : CARD_H;
 
   if (mode === "fill") {
     // The tiles in a row (two when many), centred in [x0, x1]; the boxes are
@@ -375,7 +397,7 @@ export function cardsGeometry(el: CardsElementLike, scaleOf?: (id: string) => Sc
     const span = sg.x1 - sg.x0;
     const perRow = n > 5 ? Math.ceil(n / 2) : n;
     const w = Math.min(150, span / perRow - GAP);
-    const h = CH === CARD_ICON_H ? CARD_ICON_H : 48;
+    const h = icons ? CH : 48;
     const slotW = span / perRow;
     const trayTop = sg.y - 86 - h / 2;
     const tray: Pt[] = items.map((_, s) => [sg.x0 + slotW * ((s % perRow) + 0.5), trayTop - Math.floor(s / perRow) * (h + GAP)] as Pt);

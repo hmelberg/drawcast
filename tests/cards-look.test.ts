@@ -361,6 +361,32 @@ describe("every bundled cards example: no card overlaps a card, a bin title or t
   });
 });
 
+// Final review: one resolved icon makes the cards taller; the fullest
+// layouts must still fit the canvas — the cards shrink toward 72 when they would not.
+describe("the fullest icon layouts stay on the canvas", () => {
+  const one = (el: Record<string, unknown>): Spec => ({ elements: [el], commands: [{ draw: [el.id as string] }] }) as unknown as Spec;
+  const words = ["Rent", "Flour", "Insurance", "Packaging", "Wages", "Butter", "Lease", "Sugar"];
+  const cases: [string, Spec][] = [
+    ["sort: 8 items, 2 bins", one({ id: "s", type: "cards", bins: ["Fixed", "Variable"], items: words.map((t, i) => ({ text: t, bin: i % 2 ? "Variable" : "Fixed" })) })],
+    ["sort: 8 items, 2 bins, 6 in one", one({ id: "s", type: "cards", bins: ["Fixed", "Variable"], items: words.map((t, i) => ({ text: t, bin: i < 6 ? "Fixed" : "Variable" })) })],
+    ["match: 6 pairs", one({ id: "t", type: "cards", items: words.slice(0, 6).map((t, i) => ({ text: t, match: `M${i}` })) })],
+    ["rank: 8 in a column", one({ id: "r", type: "cards", arrange: "column", items: words })],
+    ["compare: 5 pairs", one({ id: "c", type: "cards", compare: "Which is more?", items: [...words, "A", "B"].map((t, i) => ({ text: t, value: i + 1 })) })],
+  ];
+  test.each(cases)("%s — with an icon on every card", (_n, spec) => {
+    expect(checkCards(withIcons(spec))).toEqual([]);
+  });
+  test("they shrink only as far as they must: 72+ for an even sort of 8 and 6 pairs, never under a plain card", () => {
+    const h = (spec: Spec) => cardsGeometry(withIcons(spec).elements![0] as unknown as CardsElementLike).h;
+    expect(h(cases[0][1])).toBeGreaterThanOrEqual(72);
+    expect(h(cases[2][1])).toBeGreaterThanOrEqual(72);
+    for (const [, spec] of cases) expect(h(spec)).toBeGreaterThanOrEqual(56);
+  });
+  test("a layout with room keeps the full icon height", () => {
+    expect(cardsGeometry(withIcons(one(sort as unknown as Record<string, unknown>)).elements![0] as unknown as CardsElementLike).h).toBe(96);
+  });
+});
+
 /** A one-element spec: the rank cards, or an image, with this look. */
 function spec2(look: string, type: "cards" | "image"): Spec {
   const el = type === "cards" ? { id: "r", type: "cards", items: ["A", "B", "C"], look } : { id: "r", type: "image", url: "https://example.org/a.png", look };
