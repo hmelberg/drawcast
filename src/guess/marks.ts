@@ -22,18 +22,32 @@ export interface GuessMarkLine {
   width?: number;
   /** Opacity (default 1): a ghost after the reveal is lighter. */
   opacity?: number;
+  /** Stroke colour (default: the set's colour) — a beside reveal mixes the
+   *  viewer's blue with the truth's ink and the ✓/✗ colours in one set. */
+  color?: string;
+  /** Filled (closed) with this colour at `fillOpacity` (default 0.6). */
+  fill?: string;
+  fillOpacity?: number;
+  /** false: a fill with no outline. */
+  stroke?: false;
 }
 
 /** A filled dot: a market copy's grab handles while it is asked. */
 export interface GuessMarkDot {
   at: Pt;
   r: number;
+  color?: string;
+  opacity?: number;
 }
 
 export interface GuessMarkText {
   at: Pt;
   text: string;
   anchor: "start" | "middle" | "end";
+  /** Colour (default: the set's colour), size (default 20) and opacity (default 1). */
+  color?: string;
+  size?: number;
+  opacity?: number;
 }
 
 export interface GuessMarks {
@@ -69,7 +83,7 @@ const OPEN_DOT_R = 12;
  * The marks for these handles: ghosts at `guess`; gaps grown to `t` (0..1)
  * of the way from guess to truth — the gap is drawn as the reveal runs.
  */
-export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opts: { asking?: boolean } = {}): GuessMarks {
+export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opts: { asking?: boolean; beside?: boolean } = {}): GuessMarks {
   const lines: GuessMarkLine[] = [];
   const texts: GuessMarkText[] = [];
   const dots: GuessMarkDot[] = [];
@@ -181,7 +195,8 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
         const copy = curveOfGaps(m, v);
         const runs = clipToSquare(copy, MARKET_DOMAIN.lo, MARKET_DOMAIN.hi).map((r) => r.map(h.toLogical!));
         const asking = opts.asking === true;
-        for (const pts of runs) lines.push(asking ? { pts, width: COPY_WIDTH } : { pts, dashed: true, width: GHOST_WIDTH, opacity: GHOST_OPACITY });
+        // Beside (spec 2026-10-03-round6 §3): the copy stays as it was answered, solid.
+        for (const pts of runs) lines.push(asking || opts.beside ? { pts, width: COPY_WIDTH } : { pts, dashed: true, width: GHOST_WIDTH, opacity: GHOST_OPACITY });
         if (asking && runs.length > 0) {
           const longest = runs.reduce((a, b) => (b.length > a.length ? b : a));
           for (const at of [longest[0], midOf(longest), longest[longest.length - 1]]) dots.push({ at, r: HANDLE_R });
@@ -331,18 +346,18 @@ export function accountMarks(handles: GuessHandle[], values: number[][], budget:
   return { color, lines, texts };
 }
 
-function signed(h: GuessHandle, d: number): string {
+export function signed(h: GuessHandle, d: number): string {
   return `${d > 0 ? "+" : d < 0 ? "−" : ""}${h.format(Math.abs(d))}`;
 }
 
-function signedScale(format: (v: number) => string, d: number): string {
+export function signedScale(format: (v: number) => string, d: number): string {
   // A difference of years is a number of years, not a year: "+6", never "+0006".
   const body = format(Math.abs(d));
   return `${d > 0 ? "+" : d < 0 ? "−" : ""}${body}`;
 }
 
 /** On a log scale the gap is a factor: "×43" (the truth is 43 times the guess), "÷5". */
-function ratioText(truth: number, guess: number): string {
+export function ratioText(truth: number, guess: number): string {
   if (!(truth > 0) || !(guess > 0)) return "";
   const r = truth >= guess ? truth / guess : guess / truth;
   const n = r < 10 ? String(Math.round(r * 10) / 10) : String(Math.round(r));

@@ -76,8 +76,8 @@ describe("guess asks in the player", () => {
     expect(plan.states[0].visible).toContain("bar_2");
   });
 
-  test("a live guess: scored, stored, the reveal tweens guess → truth, wrong spoken with the gap", async () => {
-    const { player, events, frames, speech } = makePlayer([ASK]);
+  test("a live guess (morph): scored, stored, the reveal tweens guess → truth, wrong spoken with the gap", async () => {
+    const { player, events, frames, speech } = makePlayer([{ ask: { ...ASK.ask!, reveal_style: "morph" } }]);
     player.askGate = async () => "40";
     await player.play();
     expect(events).toHaveLength(1);

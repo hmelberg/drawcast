@@ -139,6 +139,10 @@ export type PlanStep = (
       choose?: ChooseOption[];
       /** Choose: where the options' branches meet. */
       then?: string;
+      /** A reveal (spec 2026-10-03-round6 §3): today's glide instead of
+       *  beside (the default), and the truth part by part instead of at once. */
+      revealStyle?: "morph";
+      revealOrder?: "each";
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -1577,6 +1581,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           : {}),
         ...(Array.isArray(cmd.ask.choose) ? { choose: chooseOptions(cmd.ask.choose), ...(cmd.ask.then !== undefined ? { then: cmd.ask.then } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) } : {}),
         ...feedbackOf(cmd.ask.feedback),
+        ...(cmd.ask.reveal_style === "morph" ? { revealStyle: "morph" as const } : {}),
+        ...(cmd.ask.reveal_order === "each" ? { revealOrder: "each" as const } : {}),
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;
     } else if (cmd.show !== undefined) {

@@ -1000,6 +1000,14 @@ export interface AskArgs {
   form?: "exact";
   /** Feedback flavour for this question (spec 2026-10-03 §4.1); wins over the cast's. */
   feedback?: FeedbackArg;
+  /** A guess, cards, tree or formula reveal (spec 2026-10-03-round6 §3):
+   *  "beside" (default) — the viewer's answer stays where they put it and
+   *  the truth is drawn beside or over it; "morph" — the answer glides into
+   *  the truth (rounds 1–5). */
+  reveal_style?: "beside" | "morph";
+  /** "all" (default) — the truth appears at once; "each" — part by part,
+   *  about 0.6 s apart, in the figure's order. */
+  reveal_order?: "all" | "each";
 }
 
 /** Feedback flavour (spec 2026-10-03-looks-feedback-account §4.1): a style

@@ -2330,9 +2330,10 @@ function makeEffects(
       for (const l of m.lines) {
         if (l.pts.length < 2) continue;
         const p = document.createElementNS(SVG_NS, "path");
-        p.setAttribute("d", pathFromPts(l.pts, l.closed === true));
-        p.setAttribute("fill", "none");
-        p.setAttribute("stroke", m.color);
+        p.setAttribute("d", pathFromPts(l.pts, l.closed === true || l.fill !== undefined));
+        p.setAttribute("fill", l.fill ?? "none");
+        if (l.fill !== undefined) p.setAttribute("fill-opacity", String(l.fillOpacity ?? 0.6));
+        p.setAttribute("stroke", l.stroke === false ? "none" : (l.color ?? m.color));
         p.setAttribute("stroke-width", String(l.width ?? (l.dashed ? 3 : 2.5)));
         p.setAttribute("stroke-linecap", "round");
         p.setAttribute("stroke-linejoin", "round");
@@ -2345,17 +2346,19 @@ function makeEffects(
         c.setAttribute("cx", d.at[0].toFixed(1));
         c.setAttribute("cy", toSvgY(d.at[1]).toFixed(1));
         c.setAttribute("r", String(d.r));
-        c.setAttribute("fill", m.color);
+        c.setAttribute("fill", d.color ?? m.color);
         c.setAttribute("stroke", "#faf6ec");
         c.setAttribute("stroke-width", "2");
+        if (d.opacity !== undefined && d.opacity < 1) c.setAttribute("opacity", String(d.opacity));
         g.appendChild(c);
       }
       for (const t of m.texts) {
         const e = document.createElementNS(SVG_NS, "text");
         e.setAttribute("x", t.at[0].toFixed(1));
         e.setAttribute("y", toSvgY(t.at[1]).toFixed(1));
-        e.setAttribute("fill", m.color);
-        e.setAttribute("font-size", "20");
+        e.setAttribute("fill", t.color ?? m.color);
+        e.setAttribute("font-size", String(t.size ?? 20));
+        if (t.opacity !== undefined && t.opacity < 1) e.setAttribute("opacity", String(t.opacity));
         e.setAttribute("font-family", fontStack());
         e.setAttribute("text-anchor", t.anchor);
         e.setAttribute("dominant-baseline", "middle");

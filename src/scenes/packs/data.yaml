@@ -285,8 +285,14 @@ layout: |
   };
 
   const labelSize = n > 12 ? 13 : 17;
+  // A guess's beside reveal (spec 2026-10-03-round6 §3) sets beside_bars at
+  // run time, never an author: those bars (0-based) stand in the RIGHT half
+  // of their width — the viewer's own bar is drawn in the left half beside
+  // them. The slot, the label and the axes do not move.
+  const besideBars = Array.isArray(params.beside_bars) && m === 1 && !stacked ? params.beside_bars : [];
   for (let i = 0; i < n; i++) {
     const id = "bar_" + (i + 1);
+    const halved = besideBars.includes(i);
     const xc = plot.x0 + slotW * (i + 0.5);
     const children = [];
     let reach = base;
@@ -294,10 +300,12 @@ layout: |
       const v = value(s, i);
       // Grouped bars sit side by side within the category slot; stacked bars
       // share the whole slot width and pile on top of the running total.
-      const x = stacked
+      const x0 = stacked
         ? plot.x0 + slotW * i + (slotW - groupW) / 2
         : plot.x0 + slotW * i + (slotW - groupW) / 2 + barW * j;
-      const w = stacked ? groupW : barW;
+      const w0 = stacked ? groupW : barW;
+      const x = halved ? x0 + w0 / 2 + 1.5 : x0;
+      const w = halved ? w0 / 2 - 1.5 : w0;
       const segBase = stacked ? baseFor(i, j) : 0;
       const yBase = stacked ? Y(clamp(segBase, yMin, yMax)) : base;
       const yv = stacked ? Y(clamp(segBase + v, yMin, yMax)) : Y(clamp(v, yMin, yMax));
@@ -462,8 +470,14 @@ layout: |
   const title = str(params.title, "");
   if (title) area.y1 = Math.min(area.y1, 650);
   // Room for a label on each side: the radius leaves 150 units left and right.
-  const r = Math.max(40, Math.min((area.x1 - area.x0) / 2 - 150, (area.y1 - area.y0) / 2 - 40));
-  const cx = (area.x0 + area.x1) / 2, cy = (area.y0 + area.y1) / 2;
+  const r0 = Math.max(40, Math.min((area.x1 - area.x0) / 2 - 150, (area.y1 - area.y0) / 2 - 40));
+  const cx0 = (area.x0 + area.x1) / 2, cy0 = (area.y0 + area.y1) / 2;
+  // A guess's beside reveal (spec 2026-10-03-round6 §3) sets beside_pie
+  // [x, y, r] at run time, never an author: the slices stand there, beside
+  // the viewer's own pie; the title keeps its place.
+  const bp = params.beside_pie;
+  const besidePie = Array.isArray(bp) && bp.length === 3 && bp.every((v) => typeof v === "number" && Number.isFinite(v)) && bp[2] > 0;
+  const cx = besidePie ? bp[0] : cx0, cy = besidePie ? bp[1] : cy0, r = besidePie ? bp[2] : r0;
   const showPct = params.percent !== false;
   // Clockwise from 12 o'clock, y-up: angle a (radians from the top) → point.
   const P = (a, rr) => [cx + rr * Math.sin(a), cy + rr * Math.cos(a)];
@@ -506,9 +520,9 @@ layout: |
   }
   if (title) {
     // Over the pie, and over any slice names stacked up near 12 o'clock.
-    const ty = Math.min(730, Math.max(cy + r + 60, topLabel + 42));
-    push(kit.text("title", [cx, ty], title, { fontSize: 30 }));
-    anchors.title = [cx, ty];
+    const ty = Math.min(730, Math.max(cy0 + r0 + 60, topLabel + 42));
+    push(kit.text("title", [cx0, ty], title, { fontSize: 30 }));
+    anchors.title = [cx0, ty];
   }
   return { drawables, labels: labelReqs, anchors, order };
 ---

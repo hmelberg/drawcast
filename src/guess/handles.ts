@@ -81,6 +81,9 @@ export interface GuessHandle {
   box?: BBox;
   centre?: Pt;
   radius?: number;
+  /** angle: the pie's centre and radius in the template's own units (before
+   *  the page's fit) — a beside reveal moves the template's pie (guess/reveal.ts). */
+  pieFrame?: { centre: Pt; radius: number };
   /** market (spec 2026-10-03 §3): the asked curve, the old and the true one;
    *  the two numbers are the gaps v₁, v₂ along its axis. Painted by marks,
    *  never by params (no paths). */
@@ -352,6 +355,7 @@ function pieHandle(params: Record<string, unknown>, slice: number | null, fit: L
     pie: { paths: row.map((_, i) => `${cur.at}.${i}`), slice, total, shares: row.map((v) => v / total) },
     centre,
     radius: r,
+    pieFrame: pieGeometry(params),
   };
 }
 

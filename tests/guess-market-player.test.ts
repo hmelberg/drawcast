@@ -196,8 +196,21 @@ describe("market asks in the player", () => {
     expect(player.vars.get("e.ok")).toBe("true");
   });
 
+  test("beside (the default): the copy stays solid after the animate; the gaps as before", async () => {
+    const { player, marks } = makePlayer(COMMANDS);
+    await player.play();
+    const m = marks.get("guess_1")!;
+    expect(m.lines.filter((l) => l.dashed)).toHaveLength(0);
+    expect(m.lines.some((l) => !l.dashed && l.width === 4 && (l.opacity ?? 1) === 1)).toBe(true);
+    expect(m.dots).toBeUndefined();
+    expect(m.lines.some((l) => l.closed)).toBe(true);
+    player.renderUpTo(0);
+    expect(marks.get("guess_1")).toBeNull();
+  });
+
   test("the movie: the commonest guess (an even move), scored by shape, the why spoken; marks stay until a seek", async () => {
-    const { player, events, speech, marks, frames } = makePlayer(COMMANDS);
+    const MORPH: Command[] = [COMMANDS[0], { ask: { ...ASK.ask!, reveal_style: "morph" } }, COMMANDS[2]];
+    const { player, events, speech, marks, frames } = makePlayer(MORPH);
     await player.play();
     expect(events).toEqual([]); // the movie reports no answers
     expect(player.vars.get("t")).toBe("moved up");
