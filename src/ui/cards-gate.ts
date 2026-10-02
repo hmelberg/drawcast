@@ -7,10 +7,13 @@
 //            wrong one glides to its right box, faded; a counter keeps the
 //            score; the last card answers. check: end — a tap sends a card
 //            round the boxes and back (row → 1 → 2 → … → row) → Answer.
-//            select (one box): a tap moves it in or out
+//            select (one box): check: each — a tap puts a card in, judged (a
+//            wrong one goes back, faded); Done judges the rest. check: end —
+//            a tap moves it in or out
 //   deck     (a sort with deck: true) one large card at a time: tap a box
 //            or press 1–4; it flies there with a ✓ or ✗ and the next comes
-//            (answers itself after the last)
+//            (answers itself after the last). check: each — a wrong card
+//            then flies on to its right box, faded; a counter keeps the score
 //   place    drag each card onto the number line  → Answer
 //   match    drag from a card to its partner      → Answer
 //   compare  tap the bigger card of each pair     (answers itself)
@@ -94,18 +97,22 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       const deck = mode === "sort" && g.deck === true && Array.isArray(g.deal);
       // check: each — a plain sort judges every drop (round 7 §3.1): no Answer.
       const sortEach = mode === "sort" && g.each === true && !deck && g.select !== true;
+      /** A deck judging each card (round 7 §3.1): a wrong one flies on to its right box. */
+      const deckEach = deck && g.each === true;
+      /** A select judging each tap (round 7 §3.2): Done judges the rest. */
+      const selectEach = mode === "sort" && g.select === true && g.each === true;
       /** A counter stands while the cards are judged. */
-      const counting = sortEach;
+      const counting = sortEach || deckEach || selectEach;
       const needsAnswer = mode !== "compare" && mode !== "decide" && !deck && !sortEach;
       // A formula with one box: putting a tile in it answers.
       const dropAnswers = mode === "fill" && g.binBoxes.length === 1 && step.release !== false;
       /** fill: the tile tapped, waiting for a tap on a box (-1: none). */
       let picked = -1;
 
-      const hintKey = deck ? "deck" : g.select ? "select" : sortEach ? "sortEach" : mode;
+      const hintKey = deck ? "deck" : g.select ? (selectEach ? "selectEach" : "select") : sortEach ? "sortEach" : mode;
       const hintText = words.cards[hintKey] ?? words.cards[mode] ?? "";
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint", title: hintText }, hintText);
-      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.answer);
+      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, selectEach ? words.done : words.answer);
       answer.hidden = !needsAnswer || dropAnswers;
       const ring = h("div", { class: "cs-card-focus" });
       ring.hidden = true;
@@ -192,6 +199,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
             session.place(g.cards[c], shown[c][0] - g.home[c][0], shown[c][1] - g.home[c][1], sc);
             if (t >= 1) flights.delete(c);
           }
+          rideFlashes();
           if (flights.size > 0) deckAnim = requestAnimationFrame(frame);
         };
         frame();
@@ -200,21 +208,68 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       const dealTo = (k: number): void => {
         if (!deck || settled || dealt >= g.deal!.length || k < 0 || k >= g.bins.length) return;
         const card = g.deal![dealt++];
-        arr = { ...arr, boxes: arr.boxes.map((b, j) => (j === k ? [...b, card] : b)) };
-        const to = positions(g, arr)[card];
-        fly(card, to, 1, FLY_MS);
-        const ok = rightCards(g, arr)[card];
-        window.clearTimeout(flashTimer);
-        flashTimer = window.setTimeout(() => {
-          if (settled) return;
-          session.mark({ color: ok ? RIGHT_COLOR : WRONG_COLOR, lines: [], texts: [{ at: [to[0] + g.w / 2 + 2, to[1]], text: ok ? "✓" : "✗", anchor: "start" }] });
-          flashTimer = window.setTimeout(() => !settled && session.mark(null), FLASH_MS);
-        }, FLY_MS);
+        if (deckEach) {
+          // check: each — it flies to box k with ✓ or ✗; a wrong one then flies on to its right box, faded.
+          const { ok, arr: judged } = checkDrop(g, arr, card, k);
+          // Right: straight to its truth slot (placeRight). Wrong: into box k, for now.
+          const before = positions(g, arr);
+          arr = ok ? judged : putIn({ ...arr, first: judged.first }, card, k);
+          const after = positions(g, arr);
+          // A card that changes slot (one dealt later, already in that box) moves with it.
+          g.cards.forEach((_, c) => {
+            if (c !== card && isPlaced(arr, c) && (before[c][0] !== after[c][0] || before[c][1] !== after[c][1])) fly(c, after[c], 1, SETTLE_MS);
+          });
+          const to = after[card];
+          fly(card, to, 1, FLY_MS);
+          const now = performance.now();
+          later(() => {
+            flashes.set(card, tick([to[0] + g.w / 2 + 2, to[1]], ok, "start", 24));
+            markNow();
+          }, FLY_MS);
+          if (ok) {
+            later(() => {
+              flashes.delete(card);
+              markNow();
+            }, FLY_MS + FLASH_MS);
+            busyUntil = Math.max(busyUntil, now + FLY_MS);
+          } else {
+            later(() => {
+              const before = positions(g, arr);
+              arr = placeRight(g, arr, card);
+              const after = positions(g, arr);
+              // The cards in either box that change slot move with it.
+              g.cards.forEach((_, c) => {
+                if (c !== card && isPlaced(arr, c) && (before[c][0] !== after[c][0] || before[c][1] !== after[c][1])) fly(c, after[c], 1, SETTLE_MS);
+              });
+              // Its ✗ rides along (§3.1.3) and goes when it lands.
+              riding.add(card);
+              fly(card, after[card], 1, CORRECT_MS);
+              session.fade?.(g.cards[card], CORRECTED);
+            }, FLY_MS + CHECK_HOLD_MS);
+            later(() => {
+              riding.delete(card);
+              flashes.delete(card);
+              markNow();
+            }, FLY_MS + CHECK_HOLD_MS + CORRECT_MS);
+            busyUntil = Math.max(busyUntil, now + FLY_MS + CHECK_HOLD_MS + CORRECT_MS);
+          }
+        } else {
+          arr = { ...arr, boxes: arr.boxes.map((b, j) => (j === k ? [...b, card] : b)) };
+          const to = positions(g, arr)[card];
+          fly(card, to, 1, FLY_MS);
+          const ok = rightCards(g, arr)[card];
+          window.clearTimeout(flashTimer);
+          flashTimer = window.setTimeout(() => {
+            if (settled) return;
+            session.mark({ color: ok ? RIGHT_COLOR : WRONG_COLOR, lines: [], texts: [{ at: [to[0] + g.w / 2 + 2, to[1]], text: ok ? "✓" : "✗", anchor: "start" }] });
+            flashTimer = window.setTimeout(() => !settled && session.mark(null), FLASH_MS);
+          }, FLY_MS);
+        }
         // The next card comes to the middle (the stack's top) and grows.
         if (dealt < g.deal!.length) {
           session.show([g.cards[g.deal![dealt]]]);
           fly(g.deal![dealt], g.home[g.deal![0]], big, GROW_MS);
-        }
+        } else if (deckEach) later(() => finish(encodeArrangement(g, arr)), Math.max(0, busyUntil - performance.now()) + LAST_MS);
         else window.setTimeout(() => !settled && finish(encodeArrangement(g, arr)), FLY_MS + LAST_MS);
       };
       /** deck: the box under a logical point (padded), or -1. */
@@ -278,6 +333,29 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         placeRing();
         if (allChecked(g, arr)) later(() => finish(encodeArrangement(g, arr)), Math.max(0, busyUntil - now) + LAST_MS);
       };
+      /** select, Done (round 7 §3.2): the cards left out are judged — a missed one glides into the box, faded, ✗, one by one; one that stays out is ✓. */
+      const SWEEP_MS = 150;
+      let swept = false;
+      const sweep = (): void => {
+        if (swept) return;
+        swept = true;
+        answer.disabled = true;
+        const rest = trayOrder.filter((c) => !isPlaced(arr, c));
+        for (const c of rest) if (g.truthBin[c] < 0) arr = checkDrop(g, arr, c, -1).arr;
+        markNow();
+        const missed = rest.filter((c) => g.truthBin[c] >= 0);
+        // A wrong card still gliding back goes on undisturbed: the sweep starts once it has landed.
+        const start = Math.max(0, busyUntil - performance.now());
+        missed.forEach((c, k) =>
+          later(() => {
+            arr = checkDrop(g, arr, c, -1).arr;
+            settle(-1, CORRECT_MS);
+            session.fade?.(g.cards[c], CORRECTED);
+            markNow();
+          }, start + (k + 1) * SWEEP_MS),
+        );
+        later(() => finish(encodeArrangement(g, arr)), start + missed.length * SWEEP_MS + CORRECT_MS + LAST_MS);
+      };
 
       const finish = (result: string | null): void => {
         if (settled) return;
@@ -291,7 +369,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           flashes.clear();
           session.mark(counterMarks(g, arr));
         }
-        if (deck) session.mark(null);
+        if (deck && !deckEach) session.mark(null);
         signal.removeEventListener("abort", onAbort);
         document.removeEventListener("keydown", onKey, true);
         dock?.dispose();
@@ -466,6 +544,13 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
             }
             // Let go off the boxes: back to the tray, unjudged.
           }
+          if (selectEach) {
+            // A tap — or a drag into the box — puts it in, judged; a drag let go elsewhere goes back.
+            if (!moved || binAt(shown[card]) >= 0) {
+              judge(card, 0);
+              return;
+            }
+          }
           if ((mode === "fill" || mode === "sort") && !moved) {
             // A tap, not a drag (round 6 §7): it sends the card on round the
             // boxes and back to the row (a tile: the first empty blank first).
@@ -483,7 +568,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
             drawLinks();
             return;
           }
-          if (!sortEach) arr = drop(g, arr, card, mode === "fill" ? at : shown[card]);
+          if (!sortEach && !selectEach) arr = drop(g, arr, card, mode === "fill" ? at : shown[card]);
           if (mode === "fill") {
             picked = -1;
             maybeAnswer();
@@ -535,7 +620,10 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         if (e.key === "Enter") {
           e.preventDefault();
           if (mode === "decide" && focus >= 0) choose(focus);
-          else if (needsAnswer) finish(encodeArrangement(g, arr));
+          else if (needsAnswer) {
+            if (selectEach) sweep();
+            else finish(encodeArrangement(g, arr));
+          }
           return;
         }
         const digit = /^[0-9]$/.test(e.key) ? Number(e.key) : null;
@@ -557,7 +645,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           return;
         }
         if (focus < 0) return;
-        if (sortEach) {
+        if (sortEach || selectEach) {
           // 1–4 send the picked card; 0 means nothing (a placed card is final).
           const d = /^[1-9]$/.test(e.key) ? Number(e.key) - 1 : -1;
           if (d < 0 || d >= g.bins.length || isPlaced(arr, focus)) return;
@@ -598,7 +686,8 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
 
       answer.addEventListener("click", (e) => {
         e.stopPropagation();
-        finish(encodeArrangement(g, arr));
+        if (selectEach) sweep();
+        else finish(encodeArrangement(g, arr));
       });
       if (!step.required) {
         const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, words.skip);

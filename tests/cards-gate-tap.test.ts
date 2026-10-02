@@ -208,7 +208,7 @@ describe("tap to move", () => {
   });
 
   test("select: tap the cards that belong in; a second tap takes one out", async () => {
-    const g = cardsGeometry({ id: "z", type: "cards", select: "Mammals", items: [{ text: "Whale", in: true }, "Shark", { text: "Bat", in: true }] });
+    const g = cardsGeometry({ id: "z", type: "cards", select: "Mammals", check: "end", items: [{ text: "Whale", in: true }, "Shark", { text: "Bat", in: true }] });
     const o = await open(g);
     expect(o.stage.find("cs-figgate-hint")!.textContent).toMatch(/Tap the cards/);
     tap(o.gate, g.home[0]);
@@ -238,9 +238,11 @@ const deck: CardsElementLike = {
   items: Array.from({ length: 12 }, (_, i) => ({ text: `G${i}`, bin: i % 3 === 0 ? "Bacteria" : "Virus" })),
 };
 
+const deckEnd: CardsElementLike = { ...deck, check: "end" };
+
 describe("the deck", () => {
   test("the top card grows; taps on the boxes and keys 1/2 deal; a ✓ or ✗ each; the last answers", async () => {
-    const g = cardsGeometry(deck);
+    const g = cardsGeometry(deckEnd);
     const o = await open(g);
     expect(o.answer().hidden).toBe(true);
     await wait(300);
@@ -304,6 +306,25 @@ describe("the deck", () => {
       const last = o.placed.filter((p) => p.id === id).pop();
       if (last) expect([last.dx, last.dy, last.scale]).toEqual([0, 0, 1]);
     }
+  });
+  test("check: each — a wrong card flies on to its right box, faded; the counter keeps score; the last answers", async () => {
+    const g = cardsGeometry({ ...deck, items: (deck.items as object[]).slice(0, 4) } as CardsElementLike);
+    const o = await open(g);
+    expect(counter(last(o))).toEqual({ right: 0, wrong: 0 });
+    // Dealt quickly: the second wrong, the rest right (Review Focus 1 for a deck).
+    g.deal!.forEach((card, s) => key(String(s === 1 ? 2 - g.truthBin[card] : g.truthBin[card] + 1)));
+    await o.done;
+    const a = decodeArrangement(g, o.result()!)!;
+    const wrong = g.deal![1];
+    expect(a.boxes[g.truthBin[wrong]]).toContain(wrong);
+    expect(a.first![wrong]).toBe(1 - g.truthBin[wrong]);
+    expect(o.fades).toContainEqual({ id: g.cards[wrong], a: 0.45 });
+    expect(counter(last(o))).toEqual({ right: 3, wrong: 1 });
+    expect(inBox(g, lastAt(o, g, wrong), g.truthBin[wrong])).toBe(true);
+    // Every card ends inside its right box.
+    g.cards.forEach((_, i) => expect(inBox(g, lastAt(o, g, i), g.truthBin[i])).toBe(true));
+    // The ✗ went with the card: nothing red is left but the counter.
+    expect(last(o)!.texts.some((t) => t.text === "✗")).toBe(false);
   });
 });
 
@@ -470,5 +491,44 @@ describe("check: each (round 7 §3)", () => {
       const f = o.fades.filter((q) => q.id === id).pop();
       if (f) expect(f.a).toBe(1);
     }
+  });
+  test("select: a tap judges; a wrong one goes back to the tray, faded; Done sweeps the missed in as ✗", async () => {
+    const z = cardsGeometry({ id: "z", type: "cards", select: "Mammals", items: [{ text: "Whale", in: true }, "Shark", { text: "Bat", in: true }, "Trout"] });
+    const o = await open(z);
+    expect(o.stage.find("cs-figgate-hint")!.textContent).toMatch(/then Done/);
+    expect(o.answer().hidden).toBe(false);
+    expect(o.answer().textContent).toBe("Done ▸");
+    tap(o.gate, z.home[0]); // Whale: ✓
+    tap(o.gate, z.home[1]); // Shark: ✗, back to the tray, faded
+    await wait(1300);
+    expect(lastAt(o, z, 1)[0]).toBeCloseTo(z.home[1][0], 0);
+    expect(lastAt(o, z, 1)[1]).toBeCloseTo(z.home[1][1], 0);
+    expect(o.fades).toContainEqual({ id: z.cards[1], a: 0.45 });
+    tap(o.gate, z.home[1]); // final: nothing
+    expect(counter(last(o))).toEqual({ right: 1, wrong: 1 });
+    o.answer().click(); // Bat missed (✗, goes in, faded); Trout stays out (✓)
+    await o.done;
+    const a = decodeArrangement(z, o.result()!)!;
+    expect(a.first).toEqual([0, 0, -1, -1]);
+    expect(a.boxes).toEqual([[0, 2]]);
+    expect(o.fades).toContainEqual({ id: z.cards[2], a: 0.45 });
+    expect(counter(last(o))).toEqual({ right: 2, wrong: 2 });
+  });
+
+  test("select: Done pressed while a wrong card still glides back — it lands, then the sweep", async () => {
+    const z = cardsGeometry({ id: "z", type: "cards", select: "Mammals", items: [{ text: "Whale", in: true }, "Shark", { text: "Bat", in: true }] });
+    const o = await open(z);
+    tap(o.gate, z.home[1]); // Shark: ✗, glides back after the hold
+    await wait(600); // mid-glide
+    o.answer().click();
+    await o.done;
+    expect(lastAt(o, z, 1)[0]).toBeCloseTo(z.home[1][0], 0);
+    expect(lastAt(o, z, 1)[1]).toBeCloseTo(z.home[1][1], 0);
+    // Both missed mammals went in; all three judged.
+    expect(decodeArrangement(z, o.result()!)!.first).toEqual([-1, 0, -1]);
+    z.cards.forEach((_, i) => {
+      expect(lastAt(o, z, i)[0]).toBeCloseTo(z.truth[i][0], 0);
+      expect(lastAt(o, z, i)[1]).toBeCloseTo(z.truth[i][1], 0);
+    });
   });
 });

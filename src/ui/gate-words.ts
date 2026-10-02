@@ -24,6 +24,8 @@ export function gateLangOf(hd: RenderHandle | null | undefined): GateLang {
 export interface GateWords {
   answer: string;
   skip: string;
+  /** A select's Answer under check: each (round 7 §3.2), and connect's. */
+  done: string;
   typeNumber: string;
   guessFor(label: string): string;
   /** guess: one hint per handle kind, and the two composite ones. */
@@ -58,6 +60,7 @@ export interface GateWords {
 const EN: GateWords = {
   answer: "Answer ▸",
   skip: "Skip ▸",
+  done: "Done ▸",
   typeNumber: "Type a number",
   guessFor: (label) => `Your guess for ${label}`,
   guess: {
@@ -80,6 +83,7 @@ const EN: GateWords = {
     sort: "Tap or drag each card into its box",
     sortEach: "Tap a box, or drag a card",
     select: "Tap the cards that belong in the box",
+    selectEach: "Tap the cards that belong, then Done",
     deck: "Tap the box this card goes in (or press 1, 2, …)",
     place: "Drag each card onto the line",
     match: "Drag each card to its partner",
@@ -100,6 +104,7 @@ const EN: GateWords = {
 const NB: GateWords = {
   answer: "Svar ▸",
   skip: "Hopp over ▸",
+  done: "Ferdig ▸",
   typeNumber: "Skriv et tall",
   guessFor: (label) => `Ditt gjett for ${label}`,
   guess: {
@@ -122,6 +127,7 @@ const NB: GateWords = {
     sort: "Trykk eller dra hvert kort til riktig boks",
     sortEach: "Trykk på en boks, eller dra et kort",
     select: "Trykk på kortene som hører hjemme i boksen",
+    selectEach: "Trykk på kortene som hører hjemme, og trykk Ferdig",
     deck: "Trykk på boksen kortet hører til (eller 1, 2, …)",
     place: "Dra hvert kort på linjen",
     match: "Dra hvert kort til partneren sin",
