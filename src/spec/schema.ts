@@ -342,6 +342,11 @@ const elementSchema = {
     height: { type: "number", description: "shape rect / node / pieces strips+grid (the rectangle to cut): height in logical units. inset: box height." },
     radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40). point: the dot's radius in canvas units (default 7; e.g. 20 for a ball) — bind it to animate. node rect: corner radius (default 0)." },
     shadow: { type: "boolean", description: "node rect: true = a soft shadow behind the box." },
+    icon: {
+      oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }],
+      description: 'node rect: an icon inside the box, above its text — a keyword ("shark") or {"of", "set"} like an icon element; the box grows to fit.',
+    },
+    icon_strokes: { type: "string", description: "node: the resolved icon (machine-written; copy VERBATIM if present)." },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26). node: its text size (default 24; a text-fitted box grows with it)." },
     // sector / arc / polygon / pieces
     start: { type: "number", description: "sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up) — e.g. start: 0, end: 90 is the upper-right quarter." },

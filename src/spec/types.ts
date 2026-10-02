@@ -279,6 +279,10 @@ export interface SpecElement {
   radius?: number;
   /** node rect: a soft shadow — the same box offset (3, 4) down-right, ink at 12 %, behind it. */
   shadow?: boolean;
+  /** node rect: an icon drawn inside the box above the text — a keyword ("shark") or {of, set}, resolved like an icon element (render/icon.ts). */
+  icon?: string | { of: string; set?: string };
+  /** node: the resolved icon's rings (spec/trace.ts encodeIcon; machine-written, never edited). */
+  icon_strokes?: string;
   font_size?: number;
   // sector / arc / polygon / pieces (design §2.2) — radius/x/y reused above (tier-3 raw)
   /** sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up). */
