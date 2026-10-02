@@ -78103,7 +78103,7 @@
         },
         {
           "ask": {
-            "question": "And then?",
+            "question": "And in 1990, what share of the world's people lived like that?",
             "on": "then",
             "store": "p",
             "default": "45",
@@ -78460,7 +78460,7 @@
         },
         {
           "ask": {
-            "question": "And now?",
+            "question": "Two positive tests now: how likely is it that she has the disease?",
             "on": "bar_1",
             "revise": "g1",
             "store": "g2",
@@ -80006,11 +80006,11 @@
             "payoff_notcured",
             "value_treat"
           ],
-          "speak": "Treating is a gamble, though. Six times in ten it cures her, for nine good years; otherwise the tree fills in the other four in ten, and she gets only four."
+          "speak": "Treating is a gamble, though. Six times in ten it cures her, for nine good years; otherwise the tree fills in the other four in ten, and she gets only four. So to compare the two, treating needs one number."
         },
         {
           "ask": {
-            "question": "So to compare the two, treating needs one number. Weigh each ending by its chance: what is treating worth on average?",
+            "question": "Weigh each ending by its chance: what is treating worth on average?",
             "blanks": [
               "value_treat"
             ],
@@ -81264,7 +81264,7 @@
         },
         {
           "ask": {
-            "question": "Picture 100 people like her taking a statin for ten years. How many are spared a heart attack or stroke they would otherwise have had?",
+            "question": "Of 100 people like her on a statin for ten years, how many are spared a heart attack or stroke?",
             "on": "town_saved",
             "store": "h",
             "tolerance": 0.03,
@@ -81563,7 +81563,7 @@
         },
         {
           "ask": {
-            "question": "How do you think the average day splits? Drag each bar, then balance it: the bar on the right shows the hours left.",
+            "question": "How does the average day split? Drag each bar; the bar on the right shows the hours left.",
             "on": "all",
             "budget": 24,
             "judge": false,
@@ -82226,7 +82226,7 @@
             "on": "food",
             "store": "f",
             "right": "{f} right.",
-            "wrong": "{f} right. The marks show where the rest belong.",
+            "wrong": "{f} of {f.total} on the first try.",
             "feedback": {
               "style": "dry",
               "perfect": "All fourteen. The botanists would like a word.",
@@ -82333,11 +82333,11 @@
         },
         {
           "ask": {
-            "question": "Tap all the mammals.",
+            "question": "Which of these animals are mammals? Tap every mammal.",
             "on": "zoo",
             "store": "m",
-            "right": "You got {m}.",
-            "wrong": "You got {m}. The arrows show where the rest belong."
+            "right": "All {m.total} right.",
+            "wrong": "{m} of {m.total} on the first try."
           }
         },
         {

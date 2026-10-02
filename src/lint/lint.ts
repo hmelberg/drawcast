@@ -12,6 +12,7 @@ import { walkTree } from "../scenes/decision_tree/rollback";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { authoredScales } from "../spec/scale";
 import { authoredCards, cardsGeometry, cardsMode, type CardsElementLike } from "../spec/cards";
+import { lintAsks } from "./ask-lint";
 import { parseTarget } from "../links/resolve";
 import { CANVAS } from "../layout/canvas";
 import { MATH_DEFAULT_SIZE } from "../layout/math";
@@ -179,7 +180,11 @@ export interface LintIssue {
     /** choose on the figure: an option not drawn before the ask, a branch that leads nowhere — or decide cards that repeat drawn things */
     | "choose"
     /** a question's cards or options sit over other visible parts: stage "own" fades the rest (spec round 6 §6) — warns */
-    | "ask-stage";
+    | "ask-stage"
+    /** a figure question shorter than its task, an instruction alone, or longer than the headline (round 7 §8) — warns */
+    | "ask-question"
+    /** a sort judged on each drop whose right/wrong line points at arrows or marks (round 7 §3.6) — warns */
+    | "cards-check";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -1755,7 +1760,7 @@ function lintFeedback(spec: Spec): LintIssue[] {
 
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintTreeAsk(spec), ...lintFormulaAsk(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec), ...lintFeedback(spec), ...lintChoose(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintTreeAsk(spec), ...lintFormulaAsk(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec), ...lintFeedback(spec), ...lintChoose(spec), ...lintAsks(spec)];
 
   // A link whose href names nothing the resolver can read draws, but never
   // opens (links/resolve.ts decides the forms a target may take).

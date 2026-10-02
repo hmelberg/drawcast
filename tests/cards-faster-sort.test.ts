@@ -187,14 +187,14 @@ describe("the deck", () => {
   });
 
   test("a drawn and asked deck of 30 lays out and lints clean (its stack is one composition)", () => {
-    const spec = expandSpec({ commands: [{ draw: ["deck"] }, { ask: { question: "Which?", on: "deck" } }], elements: [many(30) as never] } as Spec);
+    const spec = expandSpec({ commands: [{ draw: ["deck"] }, { ask: { question: "Which of these germs is a virus, and which a bacterium?", on: "deck" } }], elements: [many(30) as never] } as Spec);
     expect(layoutSpec(spec).issues).toEqual([]);
     expect(lintCommands(spec)).toEqual([]);
   });
 
   test("lint: a deck card's text too long for its small card is named", () => {
     const long = { ...many(30), items: (many(30).items as { text: string; bin: string }[]).map((it, i) => (i === 3 ? { ...it, text: "Severe acute respiratory syndrome coronavirus" } : it)) };
-    const spec = expandSpec({ commands: [{ draw: ["deck"] }, { ask: { question: "Which?", on: "deck" } }], elements: [long as never] } as Spec);
+    const spec = expandSpec({ commands: [{ draw: ["deck"] }, { ask: { question: "Which of these germs is a virus, and which a bacterium?", on: "deck" } }], elements: [long as never] } as Spec);
     const w = lintCommands(spec).filter((i) => i.rule === "deck-text");
     expect(w).toHaveLength(1);
     expect(w[0].message).toMatch(/item 4/);
