@@ -33,6 +33,7 @@ import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, flattenDrawables, leafDrawables, Z_TOP, type Drawable, type Pt } from "./model";
 import { isScratchPart, scratchCards } from "../spec/scratch";
+import { authoredCards } from "../spec/cards";
 import { domainPlot, frameToCanvas, linearScale, setHeadingFloor, worldBounds, type DataFrame } from "./canvas";
 import { figureSplit } from "./figure-split";
 import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
@@ -508,9 +509,15 @@ export function layoutSpec(
     .filter((e) => e.type === "annotation")
     .map((e) => [e.id, (Array.isArray(e.target) ? e.target : e.target !== undefined ? [e.target] : []) as string[]]);
   const marks = (x: string, y: string) => annotated.some(([id, ts]) => ownsId(id, x) && ts.some((t) => ownsId(t, y)));
+  // A deck's cards wait in one stack, only the top one drawn until it is
+  // dealt (spec/cards.ts, round 6 §7): one composition, not a collision.
+  const decks = authoredCards(spec)
+    .filter((c) => c.deck === true)
+    .map((c) => (c.items ?? []).map((_, i) => `${c.id}_${i + 1}`));
+  const stacked = (a: string, b: string) => decks.some((ids) => ids.some((m) => ownsId(m, a)) && ids.some((m) => ownsId(m, b)));
   // …and a scratch card covering ink is the card's job, not a collision.
   const composed = (a: string, b: string) =>
-    onCard(a) || onCard(b) || marks(a, b) || marks(b, a) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
+    onCard(a) || onCard(b) || marks(a, b) || marks(b, a) || stacked(a, b) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
   const layoutIssues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed, world ?? undefined);
   layoutIssues.push(...headingIntrusions(drawables, measure, spec.commands));
   const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;

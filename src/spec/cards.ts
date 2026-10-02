@@ -580,9 +580,9 @@ function deckGeometry(
   const bigH = h * deckScale;
   const cx = x0 + width / 2;
   const cy = Math.max(bigH / 2 + 12, Math.min(boxBottom - bigH / 2 - 24, boxBottom / 2));
-  // The stack: the top card at the centre, the next few just under it.
-  const home: Pt[] = new Array(n);
-  deal.forEach((card, s) => (home[card] = [cx + 2 * Math.min(s, 3), cy - 2 * Math.min(s, 3)]));
+  // Every card waits in the middle; only the top one is drawn (cardsElements:
+  // the others are not the group's members — the deal shows each in turn).
+  const home: Pt[] = deal.map(() => [cx, cy] as Pt);
   // The truth fills each box in the order the cards are dealt.
   const seen = bins.map(() => 0);
   const truth: Pt[] = new Array(n);
@@ -648,7 +648,11 @@ export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => Sc
     out.push({ id: `${el.id}_end_1`, type: "text", text: column ? `↑ ${el.ends[0]}` : `← ${el.ends[0]}`, x: at(first, 1)[0], y: at(first, 1)[1], font_size: 20, style: quiet });
     out.push({ id: `${el.id}_end_2`, type: "text", text: column ? `↓ ${el.ends[1]}` : `${el.ends[1]} →`, x: at(last, -1)[0], y: at(last, -1)[1], font_size: 20, style: quiet });
   }
-  const members = out.map((e) => e.id);
+  // A deck: the cards still to come are not drawn with the group (a card's
+  // text is drawn over every card's paper, so a stack would show through);
+  // the deal shows each in turn, and the question shows them all after.
+  const waiting = new Set((g.deal ?? []).slice(1).map((i) => g.cards[i]));
+  const members = out.map((e) => e.id).filter((id) => !waiting.has(id));
   // A compare card's value is written under it — OUTSIDE the group, so
   // drawing the cards gives nothing away; the question reveals each.
   if (g.mode === "compare" && g.valueIds && g.values) {
@@ -671,7 +675,9 @@ export function authoredCards(spec: Pick<Spec, "elements">): CardsElementLike[] 
   const out: CardsElementLike[] = [];
   for (const el of spec.elements ?? []) {
     const e = el as SpecElement & Record<string, unknown>;
-    if (e.type !== "group" || !CARD_FIELDS.some((k) => Array.isArray(e[k])) || !(e.members ?? []).includes(`${e.id}_1`)) continue;
+    // A deck's group holds its top card only, which need not be card 1.
+    const first = e.deck === true ? `${e.id}_bin_1` : `${e.id}_1`;
+    if (e.type !== "group" || !CARD_FIELDS.some((k) => Array.isArray(e[k])) || !(e.members ?? []).includes(first)) continue;
     const c: CardsElementLike = { id: e.id, type: "cards" };
     for (const k of CARRIED) {
       if (e[k] !== undefined) (c as unknown as Record<string, unknown>)[k] = e[k];

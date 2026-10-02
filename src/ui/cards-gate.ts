@@ -193,7 +193,10 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           flashTimer = window.setTimeout(() => !settled && session.mark(null), FLASH_MS);
         }, FLY_MS);
         // The next card comes to the middle (the stack's top) and grows.
-        if (dealt < g.deal!.length) fly(g.deal![dealt], g.home[g.deal![0]], 1, big, GROW_MS);
+        if (dealt < g.deal!.length) {
+          session.show([g.cards[g.deal![dealt]]]);
+          fly(g.deal![dealt], g.home[g.deal![0]], 1, big, GROW_MS);
+        }
         else window.setTimeout(() => !settled && finish(encodeArrangement(g, arr)), FLY_MS + LAST_MS);
       };
       /** deck: the box under a logical point (padded), or -1. */

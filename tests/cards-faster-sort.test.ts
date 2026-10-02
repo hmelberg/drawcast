@@ -7,6 +7,8 @@ import { cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, p
 import { expandSpec } from "../src/spec/expand";
 import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
+import { layoutSpec } from "../src/layout/layout";
+import { lintCommands } from "../src/lint/lint";
 
 const two: CardsElementLike = {
   id: "costs",
@@ -174,6 +176,15 @@ describe("the deck", () => {
     expect(cards.every((c) => (c.font_size as number) < 20)).toBe(true);
     const spec = expandSpec({ commands: [], elements: [many(12) as never] } as Spec);
     expect(authoredCards(spec)[0].deck).toBe(true);
+    // Only the top card is drawn with the group: a stack's texts would show through.
+    const group = els.find((e) => e.id === "deck")!;
+    expect((group.members as string[]).filter((m) => /^deck_\d+$/.test(m))).toEqual([g12.cards[g12.deal![0]]]);
+  });
+
+  test("a drawn and asked deck of 30 lays out and lints clean (its stack is one composition)", () => {
+    const spec = expandSpec({ commands: [{ draw: ["deck"] }, { ask: { question: "Which?", on: "deck" } }], elements: [many(30) as never] } as Spec);
+    expect(layoutSpec(spec).issues).toEqual([]);
+    expect(lintCommands(spec)).toEqual([]);
   });
 
   test("validation: a deck may hold 30 cards; a sort without it 8", () => {
