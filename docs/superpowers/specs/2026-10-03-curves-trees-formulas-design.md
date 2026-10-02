@@ -363,3 +363,33 @@ pin moves once.
    simplifying; tiles stay the tool for telling likely mistakes apart (§5.3).
 3. **Terminal payoff and cost blanks are in,** with an optional `work` text
    on the node (§4.2).
+
+## 11. As built (2026-10-02/03)
+
+Built on branch `curves-trees-formulas` in 15 plan tasks plus three fix waves (a review per task, a muted browser check of every new example, three generated `#interactive` casts, and a final whole-branch review). Changes against the sections above:
+
+**Trees (§4)**
+- A tree's blanks show "?" on every boundary before their ask (plan states carry `answers`), including the poster, scrubbing and the movie — draw the whole tree first; no pre-drawing tricks.
+- While a pick is asked, that decision's best/prune marks are hidden; the reveal draws them in. Without rollback, a solid ring marks the best branch.
+- Working lines (`tree_<index>` marks) stay until the tree is erased — later guess, cards or tree asks don't clear them. A probability blank that is a complement gets "1 − 0.12 = 0.88".
+- `{c.diff}` is the best option's margin over the next best on a right pick, a skip or in the movie; best minus chosen on a wrong pick; cost-only trees use cost saved; under a wtp it is money.
+- Typed numbers accept thousands commas ("$78,000"), decimal commas ("5,8", "0,250") and percents for probabilities ("88%").
+- Stored tree numbers use the tree's own formatting (its `decimals`).
+
+**Formulas (§5)**
+- Typed expressions are in (AsciiMath-style, checked by value at random points; `form: "exact"` compares the written form). TeX control words outside the subset make a blank tiles-only, except Greek letters (kept as symbols so the printed TeX round-trips).
+- Tiles are a cards element `<id>_tiles` (cards `<id>_tiles_N`, not `<id>_tile_<k>`), placed by the layout under the formula's laid-out box (above it when there's no room), clamped inside the canvas; the shuffle is seeded from the content. After the reveal all tiles leave; erasing the formula erases them. Drag, or tap a tile then a box; a drop goes to the nearest box.
+- An empty fill keeps its box; during a morph an unfilled blank is a `\phantom` (no boxes while morphing).
+- `highlight <id>_blank_<k>_fill` lights the fill's glyphs.
+
+**Market curves (§3)**
+- The copy is drawn by guess marks (solid with grab dots while asked, a lighter dashed ghost after), clipped to the plot; the turn is relative to the grabbed point (a press alone changes nothing) and a press must land near the copy. Keys follow the screen: price axis ↑/↓ (Shift turns), quantity axis →/←.
+- A turn in the wrong sense (flatter vs steeper) is the wrong shape. The right-answer `{t.why}` follows `check` ("It moves up." / "It turns up and gets steeper."); authors prefix it ("Yes. {t.why}").
+- One curve per question (lint error otherwise).
+
+**Shared**
+- One answer dock for the guess, cards, tree and formula gates (Answer never over the caption; the hint never over the title); fields open beside their blank; the drawing shrinks a little while an ask is open.
+- The poster before Play stops before the first ask, so it never shows an answer.
+- A scale's answer marker now leaves with its scale.
+
+**Examples:** 9 new (2 tree, 3 formula, 3 market, and the generated "Statins at sixty: how much life?").
