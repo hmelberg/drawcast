@@ -429,3 +429,42 @@ describe("tree asks in the player", () => {
     }
   });
 });
+
+describe("a blank's reveal shows yours beside the truth (final fix wave E)", () => {
+  test("wrong: yours (6.5) struck through by the box and the ✗ arrive with the truth, before the tree settles", async () => {
+    const log: string[] = [];
+    const { player, marks } = makePlayer(COMMANDS);
+    const rp = player.reprojector!;
+    const commit = rp.commit.bind(rp);
+    rp.commit = (p, ...rest) => {
+      log.push("commit");
+      return commit(p, ...rest);
+    };
+    const effects = (player as unknown as { effects: Record<string, unknown> }).effects;
+    const set = effects.setGuessMarks as (o: string, m: GuessMarks | null) => void;
+    effects.setGuessMarks = (o: string, m: GuessMarks | null) => {
+      if (o === "tree_1" && m) log.push(`marks:${m.texts.map((t) => t.text).join("|")}`);
+      set(o, m);
+    };
+    player.askGate = async () => encodeTreeAnswer([6.5], null);
+    await player.play();
+    const firstX = log.findIndex((e) => e.startsWith("marks:") && e.includes("✗"));
+    expect(firstX).toBeGreaterThanOrEqual(0);
+    expect(log[firstX]).toContain("6.5");
+    expect(firstX).toBeLessThan(log.lastIndexOf("commit"));
+    const m = marks.get("tree_1")!;
+    const yours = m.texts.find((t) => t.text === "6.5")!;
+    expect(yours.color ?? m.color).not.toBe(WRONG);
+    // Struck through: a line across it.
+    expect(m.lines.some((l) => l.pts.length === 2 && Math.abs(l.pts[0][1] - yours.at[1]) < 12)).toBe(true);
+  });
+
+  test("right: a ✓ and no struck yours", async () => {
+    const { player, marks } = makePlayer(COMMANDS);
+    player.askGate = async () => encodeTreeAnswer([5.8], null);
+    await player.play();
+    const m = marks.get("tree_1")!;
+    expect(m.texts.some((t) => t.text === "✓" && t.color === RIGHT)).toBe(true);
+    expect(m.texts.some((t) => t.text === "5.8")).toBe(false);
+  });
+});

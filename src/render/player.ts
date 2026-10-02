@@ -2661,11 +2661,23 @@ export class Player {
     const spoken = this.speakLines(line, extra, step, signal);
     const order = blanks.map((b, i) => ({ b, i })).sort((a, z) => z.b.depth - a.b.depth);
     const beside = step.revealStyle !== "morph";
-    for (const { b } of order) {
+    // Beside: as each truth is written in, its ✓/✗ — and a wrong answer of
+    // the viewer's, struck through by the box — arrive with it (final fix wave E).
+    const yours = live && answered && beside ? blanks.map((b, i) => (values[i] !== null && !score.right[i] ? fmt(values[i]!, b) : null)) : undefined;
+    const shown = new Set<number>();
+    for (const { b, i } of order) {
       if (answers[b.part] === undefined) continue;
       const { [b.part]: _gone, ...rest } = answers;
       answers = rest;
       paintAnswers();
+      if (beside && answered && live) {
+        shown.add(i);
+        const m = this.treeMarks(blanks, score.right, step.tree.work, boxOf, false, undefined, undefined, true, { shown, yours });
+        if (m) {
+          this.guessOwners.add(owner);
+          this.effects?.setGuessMarks?.(owner, m);
+        }
+      }
       await this.waitScaled(beside && step.revealOrder === "each" ? EACH_MS : 300, signal);
       if (signal.aborted) return;
     }
@@ -2683,7 +2695,7 @@ export class Player {
     }
     // No marks of its own (rollback off): a solid ring round the best branch is the reveal.
     const bestEdge = pick && !after.visible.some((id) => id.startsWith(`best_${pick.node}_`)) ? edges[pick.best] : undefined;
-    const marks = this.treeMarks(blanks, score.right, step.tree.work, boxOf, !live, pick && chosen !== null && !pickRight ? edges[chosen] : undefined, bestEdge, beside && answered);
+    const marks = this.treeMarks(blanks, score.right, step.tree.work, boxOf, !live, pick && chosen !== null && !pickRight ? edges[chosen] : undefined, bestEdge, beside && answered, { yours });
     if (marks) {
       this.guessOwners.add(owner);
       this.effects?.setGuessMarks?.(owner, marks);
@@ -2700,12 +2712,31 @@ export class Player {
    *  blank with work "all"; none with work false, and in a movie under the
    *  first), a dashed box around a wrong number, a dashed ring round a
    *  wrongly picked branch. Null when there is nothing to mark. */
-  private treeMarks(blanks: TreeBlank[], right: boolean[], work: "all" | false | undefined, boxOf: (part: string) => BBox | null, movie: boolean, wrongEdge: Pt[] | undefined, bestEdge?: Pt[], verdicts = false): GuessMarks | null {
+  private treeMarks(
+    blanks: TreeBlank[],
+    right: boolean[],
+    work: "all" | false | undefined,
+    boxOf: (part: string) => BBox | null,
+    movie: boolean,
+    wrongEdge: Pt[] | undefined,
+    bestEdge?: Pt[],
+    verdicts = false,
+    more: { shown?: ReadonlySet<number>; yours?: (string | null)[] } = {},
+  ): GuessMarks | null {
     const lines: GuessMarkLine[] = [];
     const texts: GuessMarkText[] = [];
     blanks.forEach((b, i) => {
+      if (more.shown && !more.shown.has(i)) return;
       const box = boxOf(b.part);
       if (!box) return;
+      // Yours, wrong: struck through, left of the box (the truth is in it).
+      const mine = more.yours?.[i];
+      if (mine) {
+        const at: Pt = [box.x - 12, box.y + box.h / 2];
+        const half = Math.max(10, mine.length * 5.5);
+        texts.push({ at, text: mine, anchor: "end" });
+        lines.push({ pts: [[at[0] - 2 * half, at[1]], [at[0], at[1]]] });
+      }
       const wrong = !right[i];
       const withWork = work !== false && (work === "all" || wrong || (movie && i === 0));
       if (withWork && b.work) texts.push({ at: [box.x + box.w / 2, box.y - 14], text: b.work, anchor: "middle" });
