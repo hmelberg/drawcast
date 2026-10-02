@@ -100,10 +100,11 @@ describe("a rect node with an icon", () => {
   });
 
   test("an unresolved icon: exactly like no icon, plus the warning", () => {
-    const r = layoutSpec(node({ icon: "shark" }));
+    // A keyword the offline cache does not hold ("shark" is in it since round 6's examples).
+    const r = layoutSpec(node({ icon: "narwhal" }));
     expect(box(r)).toEqual(box(plain));
     expect(leafDrawables(drawablesForId(r.drawables, "b")).map((d) => d.id)).toEqual(leafDrawables(drawablesForId(plain.drawables, "b")).map((d) => d.id));
-    expect(r.warnings.join(" ")).toMatch(/no icon for "shark"/);
+    expect(r.warnings.join(" ")).toMatch(/no icon for "narwhal"/);
   });
 
   test("an unresolved {of, set} warns with its keyword", () => {

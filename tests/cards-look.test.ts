@@ -130,12 +130,13 @@ describe("icons on cards", () => {
   });
 
   test("an unresolved icon keeps the card short (text only) but still names the icon, so layout warns", () => {
-    const el: CardsElementLike = { ...rank, items: [{ text: "Sharks", icon: "shark" }, "Cows"] };
+    // A keyword the offline cache does not hold ("shark" is in it since round 6's examples).
+    const el: CardsElementLike = { ...rank, items: [{ text: "Narwhals", icon: "narwhal" }, "Cows"] };
     expect(cardsGeometry(el).h).toBe(56);
     const n = cardsElements(el).find((e) => e.id === "r_1")!;
-    expect(n.icon).toBe("shark");
+    expect(n.icon).toBe("narwhal");
     const r = layoutSpec(expandSpec({ elements: [el], commands: [{ draw: ["r"] }] } as unknown as Spec));
-    expect(r.warnings.join(" ")).toMatch(/no icon for "shark"/);
+    expect(r.warnings.join(" ")).toMatch(/no icon for "narwhal"/);
   });
 
   test.each([
@@ -323,7 +324,8 @@ function checkCards(authored: Spec): string[] {
   const bboxes = elementBBoxes(layout);
   const hooks = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l));
   const problems: string[] = [];
-  const groups = (spec.elements ?? []).filter((e) => e.type === "group" && (e.members ?? []).includes(`${e.id}_1`) && (Array.isArray(e.items) || Array.isArray(e.options)));
+  // A deck's group holds only its top card (the rest wait in the stack).
+  const groups = (spec.elements ?? []).filter((e) => e.type === "group" && ((e.members ?? []).includes(`${e.id}_1`) || (e as { deck?: unknown }).deck === true) && (Array.isArray(e.items) || Array.isArray(e.options)));
   if (groups.length === 0) problems.push("no cards element found");
   for (const grp of groups) {
     const g = hooks.cardsOn(grp.id.endsWith("_tiles") ? grp.id.slice(0, -"_tiles".length) : grp.id);
@@ -338,6 +340,8 @@ function checkCards(authored: Spec): string[] {
     for (const [when, boxes] of [["home", home], ["truth", truth]] as const) {
       boxes.forEach((b, i) => {
         if (b.x < 0 || b.y < 0 || b.x + b.w > CANVAS.w || b.y + b.h > CANVAS.h) problems.push(`${grp.id} ${when}: ${g.cards[i]} off the canvas (${Math.round(b.x)}, ${Math.round(b.y)}, ${Math.round(b.w)}×${Math.round(b.h)})`);
+        // A deck's cards wait in one stack at home, piled on purpose.
+        if (when === "home" && (grp as { deck?: unknown }).deck === true) return;
         for (let j = i + 1; j < boxes.length; j++) {
           // fill: the wrong tiles stay in the tray at the truth — only the
           // placed ones move, and they never share a blank.
