@@ -183,3 +183,59 @@ describe("every reader takes a .cast file", async () => {
     expect(share.castCardText("# made by hand\nplaylist:\n  title: Real title\n")).toEqual({ title: "Real title" });
   });
 });
+
+describe("publishing under the switch (src/cast-file.ts publishesCast)", async () => {
+  const { setPublishesCast, publishName, publishExt } = await import("../src/cast-file");
+  const { buildCastPlan, emptyCastIndex, castRegistration, privateCastTarget } = await import("../src/publish/cast");
+  const { buildPublishPlan } = await import("../src/course/publish");
+  const { parseCourse } = await import("../src/course/document");
+  const { emptyManifest, upsertCourse } = await import("../src/publish/github");
+  const repo = { owner: "hmelberg", repo: "kurs" };
+  const castArgs = { title: "Difference-in-differences", text: "# DiD\n\nHei.\n", repo, castsDir: "casts", viewerBase: "https://drawcast.app", index: emptyCastIndex() };
+  const withSwitch = <T>(on: boolean, f: () => T): T => {
+    setPublishesCast(on);
+    try {
+      return f();
+    } finally {
+      setPublishesCast(false);
+    }
+  };
+
+  test("off (the default until the server is deployed): .yaml, as before", () => {
+    expect(publishExt()).toBe(".yaml");
+    const plan = buildCastPlan(castArgs);
+    expect(plan.files.some((f) => f.path === "casts/difference-in-differences.yaml")).toBe(true);
+    expect(plan.castUrl.endsWith(".yaml")).toBe(true);
+    expect(publishName("01-a.yaml")).toBe("01-a.yaml");
+  });
+
+  test("on: a cast is published as .cast — file, link, index entry, registration and private target agree", () => {
+    withSwitch(true, () => {
+      const plan = buildCastPlan(castArgs);
+      expect(plan.files.some((f) => f.path === "casts/difference-in-differences.cast")).toBe(true);
+      expect(plan.castUrl).toBe("https://drawcast.app/#gh=hmelberg/kurs/casts/difference-in-differences.cast");
+      const index = JSON.parse(plan.files.find((f) => f.path === "casts/casts.json")!.content);
+      expect(index.casts[0].file).toBe("difference-in-differences.cast");
+      expect(castRegistration("difference-in-differences", repo, "casts", "p").target).toBe("hmelberg/kurs/casts/difference-in-differences.cast");
+      // The registry item is the same either way: the switch never moves a cast's row.
+      expect(privateCastTarget(repo, "casts", undefined, "difference-in-differences", "x").item).toBe("hmelberg/kurs/casts/difference-in-differences");
+    });
+  });
+
+  test("on: a course's recorded .yaml lectures become .cast, and the old files are deleted in the same commit", () => {
+    withSwitch(true, () => {
+      const text = "# T\nslug: t\n\n## A\nq\nstatus: done · file: 01-a.yaml\n\n## B\nq\n";
+      const course = parseCourse(text);
+      // The repo's manifest still lists the .yaml from the last publish.
+      const manifest = upsertCourse(emptyManifest(), { slug: "t", title: "T", files: ["t/01-a.yaml", "t/course.md"], updated: "2026-10-01" });
+      const plan = buildPublishPlan({ course, text, repo, coursesDir: "", viewerBase: "https://drawcast.app/", manifest, lectureYaml: () => "title: One\nelements: []\ncommands: []\n" });
+      expect(plan.fileOf.get(0)).toBe("01-a.cast");
+      expect(plan.fileOf.get(1)!.endsWith(".cast")).toBe(true);
+      expect(plan.files.some((f) => f.path === "t/01-a.cast")).toBe(true);
+      expect(plan.deletions).toContain("t/01-a.yaml");
+      // …and the lecture is written as script.
+      const lecture = plan.files.find((f) => f.path === "t/01-a.cast")!.content;
+      expect(looksLikeScript(lecture.split(/\n---\naudio:/)[0])).toBe(true);
+    });
+  });
+});

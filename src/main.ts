@@ -3,7 +3,7 @@
 //   Editor: create drawings with AI or by hand, load examples and saved work,
 //           edit the spec JSON, and change/improve the compiler prompt.
 
-import { stripDocExt } from "./cast-file";
+import { publishExt, publishFormat, publishMime, stripDocExt } from "./cast-file";
 import { setDrawingOpener, setLinkBase } from "./links/base";
 import { courseBaseForDrawing, withCourse } from "./links/course";
 import type { LinkBase } from "./links/resolve";
@@ -1092,7 +1092,7 @@ saveDiskBtn.addEventListener("click", () => {
   // Falling back to `save.title` (not the stale prefill) covers the field
   // being cleared entirely; that fallback is itself run through fileSafe,
   // since a cleared field's fallback is exactly the case fileSafe exists for.
-  downloadText(`${fileSafe(saveDiskNameInput.value, fileSafe(save.title))}.${format}`, content);
+  downloadText(`${fileSafe(saveDiskNameInput.value, fileSafe(save.title))}.${format === "script" ? "cast" : format}`, content);
 });
 function openSaveToDisk(): void {
   // Catch the drawing up to the text on screen first — same reason every
@@ -5083,9 +5083,15 @@ async function publishTextFor(
   previousText: () => Promise<string | null> = async () => {
     const repo = parseRepo(settings.githubRepo);
     if (!repo || !doc.publishedAs) return null;
-    const raw = await readFile(repo, joinPath(joinPath(settings.coursesDir, "casts"), `${doc.publishedAs}.yaml`), (input, init) =>
-      fetch(input, { ...init, signal }),
-    ).catch(() => null);
+    // The copy as it is published now — a .cast, or the .yaml it was before
+    // its first .cast republish (whose narration is just as reusable).
+    let raw: string | null = null;
+    for (const ext of new Set([publishExt(), ".cast", ".yaml"])) {
+      raw = await readFile(repo, joinPath(joinPath(settings.coursesDir, "casts"), `${doc.publishedAs}${ext}`), (input, init) =>
+        fetch(input, { ...init, signal }),
+      ).catch(() => null);
+      if (raw !== null) break;
+    }
     if (raw === null) return null;
     // A private cast reads back locked — unlock with the owner's own token
     // (unlockForAuthor, task 8). Any failure (signed out, revoked, a
@@ -5117,7 +5123,7 @@ async function publishTextFor(
   // The author's own templates travel with the published copy — a viewer
   // has none of them (2026-09-24).
   source = withAuthoredTemplates(source, myTemplateDoc);
-  const plain = formatPlaylist(source, "yaml");
+  const plain = formatPlaylist(source, publishFormat());
   if (!bake) return plain;
   // Narration credit (registry delivery 3, ruling 1): own key, then a vended
   // one — getTtsKey() already answers either, store.ts conflates the two
@@ -5172,7 +5178,7 @@ async function publishTextFor(
     .map((c) => `${c.count} line(s) re-voiced ${c.from} → ${c.to}`)
     .join("; ");
   lastBakeNote = ` Narration included — ${size.lines} line(s), ${(size.inlineBytes / 1_048_576).toFixed(1)} MB, so viewers need no key (${reused} reused from the published copy, ${stats.cached} replayed free from the local cache, ${stats.synthesized} synthesized${revoiced ? `. NOTE: ${revoiced} — a voice pick counts as a change; Settings → Playback puts it back` : ""}).`;
-  return formatPublished(source, track);
+  return formatPublished(source, track, publishFormat());
 }
 
 let lastBakeNote = "";
@@ -5311,7 +5317,7 @@ async function publishDrawcast({
     if (claim) await verifyClaim(DEFAULT_ENROLL_API, accountToken, repoStr, bounded);
     const reg = await registerItem(
       DEFAULT_ENROLL_API,
-      { key: accountToken || undefined, kind: "cast", target: `${repoStr}/${joinPath(castsDir, `${out.slug}.yaml`)}`, title: doc.title, page: out.castUrl },
+      { key: accountToken || undefined, kind: "cast", target: `${repoStr}/${joinPath(castsDir, `${out.slug}${publishExt()}`)}`, title: doc.title, page: out.castUrl },
       bounded,
     );
     // Only a name for the author's own item (or an unowned one): a name
@@ -5337,7 +5343,7 @@ async function publishDrawcast({
     // named or not, signed in or not (registry delivery 1).
     if (lock) setStatus(`Published locked — only enrolled learners can watch. ${out.castUrl}${lastEmbedNote}${regSuffix}`, "ok");
     else {
-      const link = shareLinkFor(doc.freeName ? `#${doc.freeName}` : `#gh=${repoStr}/${joinPath(castsDir, `${out.slug}.yaml`)}`);
+      const link = shareLinkFor(doc.freeName ? `#${doc.freeName}` : `#gh=${repoStr}/${joinPath(castsDir, `${out.slug}${publishExt()}`)}`);
       const text = `Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}${regSuffix}`;
       if (link) setStatusAction(text, "Share…", () => openShareBox({ link, title: doc.title, subtitle: doc.playlist.meta.subtitle, image: cardImageUrl(link) }), "ok");
       else setStatus(text, "ok");
@@ -5467,7 +5473,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
     setStatus(`"${requested}" is not a valid name — lower-case letters, digits and dashes, not starting with a reserved word like gh or me.`, "error");
     return;
   }
-  const file = `${doc.publishedAs ?? (slugify(doc.title) || "lecture")}.yaml`;
+  const file = `${doc.publishedAs ?? (slugify(doc.title) || "lecture")}${publishExt()}`;
   const cast = serverCastKey(slug, file);
   shareBtn.disabled = true;
   lastBakeNote = "";
@@ -5604,7 +5610,7 @@ async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; em
     // the publish on a failed lookup.
     const folder = doc.drivePublishedId ? null : await ensureFolder();
     const base = fileSafe(name ?? doc.title);
-    const res = await saveSpec(text, `${base}.yaml`, "text/yaml", doc.drivePublishedId ?? null, folder);
+    const res = await saveSpec(text, `${base}${publishExt()}`, publishMime(), doc.drivePublishedId ?? null, folder);
     if (!res) {
       setStatus("Google sign-in was cancelled — nothing was published.", "error");
       return;
@@ -5678,10 +5684,10 @@ async function saveToDrive(): Promise<void> {
     // may be a different document by the time the await resolves — and writing
     // file A's id onto document B would make B's next Save overwrite A.
     const target = doc;
-    // The textarea always holds YAML now (the format picker is gone), so the
-    // extension and the MIME type follow it.
-    const name = `${fileSafe(save.title)}.yaml`;
-    const mimeType = "text/yaml";
+    // The textarea holds script (the editor's one format), so the file is a
+    // .cast — it was named .yaml for a while, with script inside.
+    const name = `${fileSafe(save.title)}.cast`;
+    const mimeType = "text/plain";
     setStatus("Saving to Drive…");
     // Updates reuse target.driveFileId and never move the file, so only a
     // brand-new save needs the folder — ensureFolder degrades to null (a
