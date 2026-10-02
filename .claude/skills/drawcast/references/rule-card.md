@@ -241,6 +241,14 @@ Ask:
   `along: <scale>` + `{text, value}` = place on a line; `{text, match}` =
   match; `compare` + `{text, value}` = higher or lower; `options`
   `[{text, goto, best?}]` + `then` = decide (branches are labels ahead).
+  The guess stays; the truth is drawn beside it (`reveal_style: "morph"`
+  for the old glide).
+- Answer on the figure: options that are DRAWN things (bags, doors, bars,
+  a group) → `choose: ["door1", "door2"]` (+ `answer` to judge, or
+  `judge: false`; `{id, goto}` + `then` to branch), not decide cards. A
+  sort with many items → `deck: true` (up to 30; card text a word or
+  two). A yes/no grouping → `select: "Mammals"` + items `{text, in: true}`.
+  `stage: "own"` when the question's cards or options sit over other ink.
 - Guess extras: `predict: true` before an `animate` (it plays from the
   guess); `reveal: false` + later `revise: "<store>"` = guess, evidence,
   guess again; `budget` + `judge: false` on `on: all` = split a budget,
@@ -281,8 +289,11 @@ Ask:
   bring forward with `move` scale then back; only for referring back.
 - `icon` (`of`: keyword, `size`): a handful at most, one per category, reuse.
   A node box (rect; `radius`, `shadow`) or card item takes `icon` too:
-  keyword or `{of, set}`; prefer filled sets (twemoji, fa6-solid, ph "… fill"),
-  not lucide; one or two words per keyword.
+  keyword or `{of, set}`, one or two words — never icon data. Node and card
+  icons are pictures (own colours); an `icon` element is drawn (traced) —
+  `icon_look: "picture"` when it only illustrates, drawn only when the icon
+  is what you explain. Drawn: prefer filled sets (twemoji, fa6-solid,
+  ph "… fill"), not lucide.
 - `link` on any element: `["https://…"]` only when the request supplied it.
 - `sources` (top level: `id`, `title`, `authors`, `year`, `finding`,
   `doi`/`url` only when certain) and `cites: [id]` on the element that shows

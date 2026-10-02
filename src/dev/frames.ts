@@ -52,6 +52,7 @@ import { MARK_GLIDE_MS, MARK_IN_MS, markFrameAt } from "../render/marks";
 import type { RenderHandle } from "../render/index";
 import { toSvgY } from "../layout/canvas";
 import { resolveCode } from "../render/code";
+import { resolveIcons } from "../render/icon";
 import { expandSpec } from "../spec/expand";
 import { validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
@@ -204,7 +205,12 @@ const everyBeat = () => everyBeatFlag;
 /** Mount a spec off-screen, walk every boundary, and report what broke. */
 async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
   const validation = validateSpec(spec);
-  const expanded = expandSpec(spec);
+  // Icons are keywords (round 6): the lint judges the figure with its icons
+  // resolved, as render() draws it — an unresolved icon draws nothing, and
+  // its `at` would read as ignored.
+  const withIcons = structuredClone(spec);
+  await resolveIcons(withIcons).catch(() => {});
+  const expanded = expandSpec(withIcons);
   const report: PartReport = {
     title: spec.title ?? "(untitled)",
     template: spec.template,

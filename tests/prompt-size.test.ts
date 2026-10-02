@@ -676,7 +676,13 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // outlive their moment and follow the part) — the schema's +132. -> 392149.
 // Re-pinned UP 2026-10-03 (round 6 Task 5): ask `stage: "own"` (a question
 // on its own page) — the schema's +136. -> 392285.
-const BASELINE_SYSTEM_CHARS = 392285;
+// Re-pinned UP 2026-10-03 (round 6 Task 7, guidance): the guess and cards
+// sentences say the guess stays and the truth is drawn beside it, deck for
+// many items, the tap-all cards example, `choose` on drawn things with its
+// example ask and `stage: "own"`; the icon bullet says keywords only, pictures
+// for node/card icons, `icon_look: "picture"` for an illustrating icon element
+// (+1,032); the schema's cards clause, "✓ or ✗ with the truth beside" (+4). -> 393321.
+const BASELINE_SYSTEM_CHARS = 393321;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -764,7 +770,9 @@ const BASELINE_SYSTEM_CHARS = 392285;
 // `in`, the sort clause +789; ask `reveal_style`/`reveal_order` (Task 3) +328. -> 111176.
 // Re-pinned UP 2026-10-03 (round 6 Task 4): ask `keep`. +132. -> 111308.
 // Re-pinned UP 2026-10-03 (round 6 Task 5): ask `stage`. +136. -> 111444.
-const BASELINE_SCHEMA_CHARS = 111444;
+// Re-pinned UP 2026-10-03 (round 6 Task 7): the cards clause says "see ✓ or ✗
+// with the truth beside" instead of the glide. +4. -> 111448.
+const BASELINE_SCHEMA_CHARS = 111448;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
