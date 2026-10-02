@@ -12,7 +12,14 @@ import { Player, type AnswerEvent, type GuessRuntime, type GuessSession, type Re
 import { planCommands } from "../src/render/plan";
 import { SpeechManager } from "../src/render/speech";
 import type { GuessMarks } from "../src/guess/marks";
-import type { Command } from "../src/spec/types";
+import type { Command, Spec } from "../src/spec/types";
+import dataYaml from "../src/scenes/packs/data.yaml?raw";
+import { registerPack } from "../src/scenes/packs";
+import { layoutSpec } from "../src/layout/layout";
+import { expandSpec } from "../src/spec/expand";
+import { guessParts, guessSetup, startValues } from "../src/guess/handles";
+import { CANVAS } from "../src/layout/canvas";
+import examples from "../src/examples.json";
 
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
   setTimeout(() => cb(performance.now()), 5) as unknown as number) as typeof requestAnimationFrame;
@@ -163,7 +170,7 @@ const ask = (extra: Record<string, unknown> = {}): Command =>
   ({ ask: { question: "How would you split it?", on: "all", budget: 100, judge: false, store: "a", right: "You gave most to {a.biggest}.", ...extra } }) as Command;
 
 describe("a budget ask in the player", () => {
-  test("live: the session carries the account; the start is an even split", async () => {
+  test("live: the session carries the account; the bars start low, unbalanced", async () => {
     const { player, marks } = makePlayer([ask({ account_label: "Igjen" })]);
     let session: GuessSession | null = null;
     player.askGate = async (_s, step) => {
@@ -172,8 +179,9 @@ describe("a budget ask in the player", () => {
     };
     await player.play();
     expect(session!.account).toEqual({ budget: 100, label: "Igjen" });
-    const start = session!.start.map((r) => r[0]);
-    expect(start.reduce((a, b) => a + b, 0)).toBeCloseTo(100);
+    // Every bar at its own low start, the budget in the account: nothing is balanced yet.
+    expect(session!.start).toEqual(session!.setup.handles.map(startValues));
+    expect(budgetBalanced(session!.setup.handles, session!.start, 100)).toBe(false);
     // The account bar is painted while asked, then taken off for the reveal.
     const acc = marks.filter((x) => x.owner.endsWith("_account"));
     expect(acc.some((x) => x.m !== null && x.m.texts.some((t) => t.text === "Igjen"))).toBe(true);
@@ -206,5 +214,64 @@ describe("a budget ask in the player", () => {
     await player.play();
     expect(events[0].correct).toBe(true);
     expect(speech.said.some((t) => t.includes("You gave most to B1."))).toBe(true);
+  });
+});
+
+// —— on the real layout: the account bar stays on the canvas ——
+
+describe("the account bar on a real chart", () => {
+  registerPack("data", dataYaml);
+  const health = (examples as unknown as { spec: Spec }[]).map((e) => e.spec).find((sp) => sp?.title === "Your health budget")!;
+  const variant = (n: number): Spec => ({
+    ...health,
+    params: { ...health.params, labels: Array.from({ length: n }, (_, k) => `Item ${k + 1}`), values: Array.from({ length: n }, () => 100 / n) },
+  }) as Spec;
+  const handlesOf = (spec: Spec): GuessHandle[] => {
+    const s = expandSpec(spec);
+    const layout = layoutSpec(s);
+    return guessSetup(s, s.params ?? {}, layout, guessParts(s, "all")).handles;
+  };
+  /** Rough text extent: 20 px type, ~0.6 em a character. */
+  const textBox = (t: { at: [number, number]; text: string; anchor: string }): [number, number] => {
+    const w = t.text.length * 12;
+    const x0 = t.anchor === "middle" ? t.at[0] - w / 2 : t.anchor === "end" ? t.at[0] - w : t.at[0];
+    return [x0, x0 + w];
+  };
+
+  for (const [name, spec] of [["Your health budget (4 bars)", health], ["2 bars", variant(2)], ["10 bars", variant(10)]] as [string, Spec][]) {
+    test(`${name}: inside the canvas and clear of the bars, balanced, under- and overspent`, () => {
+      const hs = handlesOf(spec);
+      expect(hs.length).toBeGreaterThan(1);
+      const lastEdge = Math.max(...hs.map((h) => h.cx! + h.halfW!));
+      const cases = [hs.map(() => [100 / hs.length]), hs.map(startValues), hs.map((h) => [h.max]), hs.map(() => [0])];
+      for (const values of cases) {
+        const m = accountMarks(hs, values, 100, "Left");
+        for (const l of m.lines)
+          for (const [x, y] of l.pts) {
+            expect(x).toBeGreaterThanOrEqual(0);
+            expect(x).toBeLessThanOrEqual(CANVAS.w);
+            expect(y).toBeGreaterThanOrEqual(0);
+            expect(y).toBeLessThanOrEqual(CANVAS.h);
+            expect(x).toBeGreaterThan(lastEdge);
+          }
+        for (const t of m.texts) {
+          const [x0, x1] = textBox(t);
+          expect(x0).toBeGreaterThanOrEqual(0);
+          expect(x1).toBeLessThanOrEqual(CANVAS.w);
+          expect(t.at[1]).toBeGreaterThanOrEqual(10);
+          expect(t.at[1]).toBeLessThanOrEqual(CANVAS.h - 10);
+        }
+      }
+    });
+  }
+
+  test("overspent past the room below the baseline: cut, with a break mark, the number still shown", () => {
+    const hs = handlesOf(health);
+    const m = accountMarks(hs, hs.map((h) => [h.max]), 100);
+    expect(m.color).toBe(ACCOUNT_RED);
+    expect(m.texts.map((t) => t.text)).toContain(`−${hs[0].format(hs.length * hs[0].max - 100)}`);
+    // The break: two short slanted ticks (neither horizontal nor vertical).
+    const slanted = m.lines.filter((l) => l.pts.length === 2 && Math.abs(l.pts[0][0] - l.pts[1][0]) > 1 && Math.abs(l.pts[0][1] - l.pts[1][1]) > 1);
+    expect(slanted.length).toBe(2);
   });
 });

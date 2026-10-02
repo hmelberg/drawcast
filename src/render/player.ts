@@ -1504,26 +1504,22 @@ export class Player {
     if (!step.predict) await this.drawGivenIn(setup, before, visible, signal);
     if (signal.aborted) return;
     // Where the guess starts: the present (predict), the earlier guess
-    // (revise), an even split (budget), else the handle's own start.
+    // (revise), else the handle's own start (a budget too: every bar low,
+    // the budget in the account, nothing balanced until the viewer splits it).
     const prev = step.revise !== undefined ? this.guessMemory.get(step.revise.toLowerCase()) : undefined;
     const fits = (v: number[][] | undefined): v is number[][] => v !== undefined && v.length === setup.handles.length && v.every((r, k) => r.length === setup.handles[k].truth.length);
     const start: number[][] = step.predict
       ? setup.handles.map((h) => (h.kind === "market" ? startValues(h) : h.truth.slice()))
       : fits(prev)
         ? prev.map((r) => r.slice())
-        : account
-          ? setup.handles.map(() => [account.budget / setup.handles.length])
-          : setup.handles.map(startValues);
+        : setup.handles.map(startValues);
     if (fits(prev)) {
       // The first guess stays, lighter, while the viewer revises it.
       this.guessOwners.add(`${owner}_prev`);
       this.effects?.setGuessMarks?.(`${owner}_prev`, { ...guessMarks(setup.handles, prev, 0), color: GUESS_PREV_COLOR });
     }
     const live = !this.autoAnswers && this.askGate !== null;
-    // A budget's movie glides from the bars' own low start, the whole budget
-    // in the account, to its split, the account reaching zero.
-    const from = account && !live ? setup.handles.map(startValues) : start;
-    paint(from);
+    paint(start);
     let guess: number[][] = start;
     let answered = false;
     let secs: number | null = null;
@@ -1562,7 +1558,7 @@ export class Player {
       const laserAt = h0.kind === "market" ? ((demo[0]?.[0] ?? 0) * (demo[0]?.[1] ?? 0) < 0 ? 1 : 0) : (demo[0]?.length ?? 1) - 1;
       await this.progress(1400, signal, (t) => {
         const e = smoothstep(t);
-        const vals = from.map((row, k) => row.map((v, j) => v + ((demo[k]?.[j] ?? v) - v) * e));
+        const vals = start.map((row, k) => row.map((v, j) => v + ((demo[k]?.[j] ?? v) - v) * e));
         paint(vals);
         const p = pointFor(h0, vals[0], laserAt);
         effects?.setPointer(t >= 1 || !p ? null : p);
