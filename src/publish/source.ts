@@ -8,6 +8,7 @@
 // index — a missing one is the normal state of a repo nothing has been saved
 // to yet, not an error.
 
+import { DOC_EXT_RE } from "../cast-file";
 import { joinPath } from "../course/publish";
 import { commitFiles, preflight, readFile, slugify, type RepoRef } from "./github";
 
@@ -48,7 +49,7 @@ export function sourceManifest(m: SourceManifest, e: SourceEntry): SourceManifes
 export function uniqueSourcePath(candidate: string, manifest: SourceManifest): string {
   const taken = new Set(manifest.sources.map((s) => s.path));
   if (!taken.has(candidate)) return candidate;
-  const extMatch = /\.ya?ml$/.exec(candidate);
+  const extMatch = DOC_EXT_RE.exec(candidate);
   const ext = extMatch ? extMatch[0] : "";
   const base = ext ? candidate.slice(0, -ext.length) : candidate;
   for (let n = 2; ; n++) {

@@ -30,7 +30,7 @@
  * src/viewer.ts. A key the viewer can reach but the counter rejects would be
  * a drawcast that silently never counts, which is worse than a loud 400.
  */
-const CAST_KEY_RE = /^[\w.-]+\/[\w.-]+\/(?!.*\.\.)[\w./-]+\.(ya?ml|json|txt)$/;
+const CAST_KEY_RE = /^[\w.-]+\/[\w.-]+\/(?!.*\.\.)[\w./-]+\.(cast|ya?ml|json|txt)$/;
 
 /** Netlify caps Blobs keys at 600 bytes; a real key is nearer 100 because
  *  slugs are capped at 40 chars (src/publish/github.ts). 300 leaves room for

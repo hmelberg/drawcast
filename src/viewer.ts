@@ -155,7 +155,7 @@ const ANVIL_RE = /[#&]anvil[=-]([\w.-]+)\/([^&\s]+)/;
 /** base64url, padding tolerated: anything else is a damaged link, reported by decodeCast. */
 const CAST_RE = /[#&]cast[=-]([^&\s]*)/;
 /** Documents only, and never a path that climbs out of the repo. */
-const DOC_PATH_RE = /^(?!.*\.\.)[\w./-]+\.(ya?ml|json|txt)$/;
+const DOC_PATH_RE = /^(?!.*\.\.)[\w./-]+\.(cast|ya?ml|json|txt)$/;
 /** One plain segment for the server slug — dots inside are fine, `.` and `..`
  *  are not. ANVIL_RE alone would let `#anvil=../x.yaml` through as
  *  `anvil/../x.yaml`, a key DOC_PATH_RE never sees and CAST_KEY_RE accepts. */

@@ -131,3 +131,55 @@ describe("the cases real files found (dev-casts and the published repos)", () =>
     expect(same(norm(back(p)), norm(p))).toBe(true);
   });
 });
+
+describe("every reader takes a .cast file", async () => {
+  const { DOC_EXT_RE, stripDocExt } = await import("../src/cast-file");
+  const { isValidCastKey } = await import("../netlify/lib/view-key.mts");
+  const { CAST_KEY_RE } = await import("../src/learn");
+  const { parseViewerHash } = await import("../src/viewer");
+  const { registryItemKey } = await import("../src/registry");
+  const { posterPathFor, privateCastTarget } = await import("../src/publish/cast");
+  const { parseTarget } = await import("../src/links/resolve");
+  const share = await import("../netlify/lib/share-card.mts");
+
+  test("the extension rule: .cast and .yaml, stripped alike", () => {
+    expect(DOC_EXT_RE.test("a/b.cast") && DOC_EXT_RE.test("a/b.yaml") && DOC_EXT_RE.test("a/b.yml")).toBe(true);
+    expect(stripDocExt("casts/intro.cast")).toBe("casts/intro");
+    expect(stripDocExt("casts/intro.yaml")).toBe("casts/intro");
+  });
+
+  test("cast keys (views, learner events) accept .cast on both sides", () => {
+    expect(isValidCastKey("hmelberg/dcast/casts/intro.cast")).toBe(true);
+    expect(CAST_KEY_RE.test("hmelberg/dcast/casts/intro.cast")).toBe(true);
+  });
+
+  test("the viewer opens #gh= and #anvil= links to a .cast", () => {
+    expect(parseViewerHash("#gh=hmelberg/dcast/casts/intro.cast")).not.toBeNull();
+    expect(parseViewerHash("#anvil=spanish/01-intro.cast")).not.toBeNull();
+  });
+
+  test("registry keys, posters and private targets drop .cast as they drop .yaml", () => {
+    expect(registryItemKey("cast", "o/r/casts/intro.cast")).toBe("o/r/casts/intro");
+    expect(posterPathFor("casts/intro.cast")).toBe("casts/intro.png");
+    expect(privateCastTarget({ owner: "o", repo: "r" } as never, "casts", "intro", undefined, "Intro").item).toBe("o/r/casts/intro");
+  });
+
+  test("a link element may point at a .cast", () => {
+    expect(parseTarget("./next.cast")).not.toBeNull();
+    expect(parseTarget("o/r/casts/next.cast")).not.toBeNull();
+  });
+
+  test("share cards: a .cast keeps its extension in the card path, and its title is read from the script", () => {
+    const t = share.parseSharePath("/c/gh/o/r/casts/intro.cast", "/c/");
+    expect(t).toEqual({ kind: "gh", owner: "o", repo: "r", path: "casts/intro.cast" });
+    const card = share.cardPathFor(t!);
+    expect(card).toBe("/card/gh/o/r/casts/intro.cast.png");
+    expect(share.parseSharePath(card, "/card/")).toEqual(t);
+    // …while a .yaml cast's card path is unchanged.
+    expect(share.parseSharePath("/card/gh/o/r/casts/intro.png", "/card/")).toEqual({ kind: "gh", owner: "o", repo: "r", path: "casts/intro.yaml" });
+    expect(share.castCardText('# What is a QALY?\nsubtitle: "Length, quality, one number"\nprompt: Why?\n\n## Page one\nSpoken.\n')).toEqual({ title: "What is a QALY?", subtitle: "Length, quality, one number" });
+    expect(share.castCardText("# A single page\nuse: supply_demand\nwith:\n    subtitle: not this\n")).toEqual({ title: "A single page" });
+    // A YAML file that opens with a comment is still YAML.
+    expect(share.castCardText("# made by hand\nplaylist:\n  title: Real title\n")).toEqual({ title: "Real title" });
+  });
+});

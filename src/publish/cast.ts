@@ -9,6 +9,7 @@
 // deliberately: parseManifest rebuilds `{ courses }` and drops every other key,
 // so anything stored beside it would be erased by the next course publish.
 
+import { stripDocExt } from "../cast-file";
 import { coursePageStyle, escapeHtml, escapeMd } from "../course/page";
 import { joinPath } from "../course/publish";
 import {
@@ -91,7 +92,7 @@ export interface CastPlanArgs {
 /** Where a cast's poster lives: beside it, `.png` for `.yaml` (the viewer
  *  derives the same path from the link it was given). */
 export function posterPathFor(castPath: string): string {
-  return castPath.replace(/\.ya?ml$/i, "") + ".png";
+  return stripDocExt(castPath) + ".png";
 }
 
 /**
@@ -106,7 +107,7 @@ export function posterPathFor(castPath: string): string {
 export function privateCastTarget(repo: RepoRef, castsDir: string, field: string | undefined, publishedAs: string | undefined, title: string): { target: string; item: string } {
   const slug = slugify((field ?? "").trim() || publishedAs || title || "lecture");
   const target = `${repo.owner}/${repo.repo}/${joinPath(castsDir, `${slug}.yaml`)}`;
-  return { target, item: target.replace(/\.ya?ml$/i, "") };
+  return { target, item: stripDocExt(target) };
 }
 
 export function castHref(base: string, owner: string, repo: string, path: string): string {

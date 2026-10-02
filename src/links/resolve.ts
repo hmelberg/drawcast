@@ -34,7 +34,7 @@ export interface Resolved {
   docUrl?: string;
 }
 
-const DOC = /\.(ya?ml|json)$/i;
+const DOC = /\.(cast|ya?ml|json)$/i;
 const SEG = /^[\w.-]+$/;
 const DRIVE_ID = /^[A-Za-z0-9_-]{10,}$/;
 

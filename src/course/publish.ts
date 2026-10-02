@@ -7,6 +7,7 @@
 // a caller with nothing to decide; a second target (Drive) would replace
 // these functions alone.
 
+import { stripDocExt } from "../cast-file";
 import { posterPathFor } from "../publish/cast";
 import { lockLectureFiles, type LectureLock } from "../publish/lock";
 import {
@@ -199,7 +200,7 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
   // A lecture already published keeps its recorded name — reserve those first,
   // so a newly minted slug can never collide with one that is permanent.
   for (const lecture of course.lectures) {
-    if (lecture.status?.file) taken.add(lecture.status.file.replace(/\.ya?ml$/, ""));
+    if (lecture.status?.file) taken.add(stripDocExt(lecture.status.file));
   }
 
   // Names first, in their own pass: a lecture's "Next ▸" link needs the

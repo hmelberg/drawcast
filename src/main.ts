@@ -3,6 +3,7 @@
 //   Editor: create drawings with AI or by hand, load examples and saved work,
 //           edit the spec JSON, and change/improve the compiler prompt.
 
+import { stripDocExt } from "./cast-file";
 import { setDrawingOpener, setLinkBase } from "./links/base";
 import { courseBaseForDrawing, withCourse } from "./links/course";
 import type { LinkBase } from "./links/resolve";
@@ -991,7 +992,7 @@ function refreshExamples(): void {
   refreshSidebarShell();
 }
 refreshExamples();
-const importInput = h("input", { type: "file", accept: ".json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
+const importInput = h("input", { type: "file", accept: ".cast,.json,.yaml,.yml,.txt", style: "display:none" }) as HTMLInputElement;
 // Both ways a drawing gains images, under one menu: insert an image, or
 // embed every portrait/source already in the drawcast into the spec text for
 // good. Used to be a "＋ Insert" menu (Portrait alone, so it rendered as a
@@ -4963,7 +4964,7 @@ importInput.addEventListener("change", () => {
     }
     const playlist = readPlaylistText(text);
     if (!playlist) return;
-    setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, file.name.replace(/\.(json|ya?ml|txt)$/i, "")), playlist }, "Uploaded.");
+    setDoc({ id: null, driveFileId: null, sourcePath: null, title: docTitleOf(playlist, file.name.replace(/\.(cast|json|ya?ml|txt)$/i, "")), playlist }, "Uploaded.");
   });
 });
 
@@ -5412,7 +5413,7 @@ async function privateCastLock(
   if (!("key" in got)) return PRIVATE_KEY_MISSING;
   const key = got.key;
   return async (path, text) => {
-    if (`${repoStr}/${path.replace(/\.ya?ml$/i, "")}` !== item) throw new Error(`it would publish as ${path}, not the name made private — publish again under that name`);
+    if (`${repoStr}/${stripDocExt(path)}` !== item) throw new Error(`it would publish as ${path}, not the name made private — publish again under that name`);
     return lockText(text, key, item);
   };
 }
@@ -5724,7 +5725,7 @@ async function openFromDrive(): Promise<void> {
       id: null, // copy-on-write: opening creates no library entry until you change it
       driveFileId: null, // a NEW Save should not overwrite the file you opened
       sourcePath: null, // a Drive open, not a GitHub one — nothing to carry forward
-      title: docTitleOf(playlist, picked.name.replace(/\.(ya?ml|json)$/i, "")),
+      title: docTitleOf(playlist, picked.name.replace(/\.(cast|ya?ml|json)$/i, "")),
       prompt: "",
       playlist,
     }, `Opened "${picked.name}" from Drive.`);
