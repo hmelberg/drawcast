@@ -1,6 +1,6 @@
 # Looks, feedback and the account bar — round 5
 
-Date: 2026-10-03 · Status: proposed (round 5 of guess-and-reveal; builds on
+Date: 2026-10-03 · Status: approved 2026-10-03 (round 5 of guess-and-reveal; builds on
 `2026-10-02-more-ways-to-answer-design.md` and
 `2026-10-03-curves-trees-formulas-design.md`). It comes before the decision-bias
 course, which will be its first big user.
@@ -95,20 +95,27 @@ what it's about, connected sentences, short canvas text).
 ```json
 {"feedback": "dry"}                                   // cast-level default (top of the spec)
 {"ask": {"…": "…", "feedback": "warm"}}               // per ask, wins
-{"ask": {"…": "…", "feedback": {"style": "dry", "role": "pharmacist", "reward": "auto"}}}
+{"ask": {"…": "…", "feedback": {"style": "dry", "reward": "auto",
+         "perfect": "Suspiciously good. Pharmacist?",
+         "good": "Three of four — the pharmacy can stay open.",
+         "poor": "Good thing you're not a pharmacist.",
+         "none": "Bold. Wrong, but bold."}}}
 ```
 
 - `style`: `plain` (default — today's behaviour), `warm`, `dry`.
-- `role` (optional): who the viewer would be if they were good at this
-  ("pharmacist", "economist") — lets the lines say "Good thing you're not a
-  pharmacist." Without it, the lines are generic.
+- `perfect`, `good`, `poor`, `none` (optional): the lines themselves, one per
+  band, WRITTEN BY THE AUTHOR — in practice by the LLM that writes the cast, in
+  the cast's own language and about its own topic ("Good thing you're not a
+  pharmacist."). A band may hold a list; one is picked per ask.
 - `reward`: `auto` (default when the style is not plain), `none`, `confetti`,
   `picture`, `joke`.
 
 ### 4.2 The line
 
-After the author's right/wrong line, the player adds ONE short line from a
-bundled set, chosen by how well the viewer did:
+After the author's right/wrong line, the player adds ONE short line for the
+band the viewer reached — the cast's own line for that band when it has one,
+else a line from a small bundled English fallback set (only when the cast is
+in English; other languages get no fallback line). Examples of the bands:
 
 | Band | When | dry (examples) | warm (examples) |
 |---|---|---|---|
@@ -119,13 +126,14 @@ bundled set, chosen by how well the viewer did:
 
 - A guess (`on`) uses its score: within tolerance = perfect; within twice the
   tolerance = good; else poor. A single right/wrong ask uses perfect/none.
-- The set holds several lines per band and style, picked without repeating
-  within a cast (seeded by the cast, so a replay is the same).
-- `{role}` lines are only used when `role` is given.
-- Lines are bundled in `src/feedback/lines.ts`, in English and Norwegian
-  (bokmål); the cast's `lang` picks the set; other languages fall back to
-  plain.
+- A cast-level `feedback` may carry lines too; an ask's own lines win.
+  Lines are picked without repeating within a cast (seeded by the cast, so a
+  replay is the same).
+- The fallback set (`src/feedback/lines.ts`) is English only and generic (no
+  topic, no role).
 - The line is spoken and captioned like the author's line, straight after it.
+- Lines may use the ask's stored vars ("{m} of 4 — the pharmacy can stay
+  open.").
 
 ### 4.3 Rewards
 
@@ -179,14 +187,18 @@ adjust".
 - Compiler prompt and rule card: cards and boxes can carry an `icon` — use it
   for concrete things (animals, drugs, objects); `look` exists but the default
   is fine; `feedback` is optional and best for longer quizzes and lighter
-  topics (never for serious personal topics such as a diagnosis); the budget
-  ask now balances against an account.
+  topics (never for serious personal topics such as a diagnosis) — when used,
+  write the four band lines yourself, short, in the cast's language, about its
+  topic, kind rather than mean; the budget ask now balances against an
+  account.
 - `#interactive` brief: one line on icons on cards; one line on `feedback`.
 - The prompt-size pin moves once.
 
 ## 7. Lint
 
-- `feedback.role` without a non-plain style → warning (it does nothing).
+- Band lines with `style: "plain"` → warning (they do nothing).
+- A non-English cast with a non-plain style and no lines → warning (no
+  fallback lines in that language).
 - `reward: "joke"`/`"picture"` with `style: "plain"` → warning.
 - A card `icon` that is a whole sentence (more than three words) → warning:
   an icon keyword is one or two words.
@@ -198,20 +210,17 @@ adjust".
 2. **A2 — cards:** `look` presets; `icon` on nodes and card items (layout,
    cards geometry heights, moving with the card); the two examples.
 3. **C — account bar:** the gate, marks, lint, movie; "Your health budget".
-4. **B — feedback:** lines module (en + nb), bands per ask kind, player
+4. **B — feedback:** band lines (authored, English fallback), bands per ask kind, player
    integration, rewards (sparkle, confetti overlay, picture, joke), `{streak}`,
    reduced motion; flavour added to the drug-match example (`dry`, role
    "pharmacist") and one other.
 5. Guidance, prompt pin, a muted browser check of every touched example, a
    generated test cast, push.
 
-## 9. Decisions needed
+## 9. Decisions (2026-10-03)
 
-1. **Default look:** should `paper` (rounded, shadow) become the default for
-   ALL existing card examples, or only for new casts (existing ones stay
-   `outline` unless revised)? Proposed: default for all — the user asked for
-   nicer cards, and the change is purely visual.
-2. **Feedback default:** `plain` everywhere unless a cast or ask asks for more
-   (proposed), or `warm` by default for `#interactive` casts?
-3. **Norwegian lines:** write a bokmål set now (proposed, since the app has
-   Norwegian casts), or English only for now?
+1. **Default look:** `paper` becomes the default for all card examples, old
+   and new.
+2. **Feedback default:** `plain` unless a cast or ask asks for more.
+3. **Language:** the feedback lines are written by the cast's author (the LLM)
+   in the cast's language; the bundled set is only an English fallback.
