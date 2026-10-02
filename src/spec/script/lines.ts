@@ -7,7 +7,9 @@ export type ScriptLine =
   | { kind: "blank"; line: number }
   | { kind: "comment"; line: number }
   | { kind: "heading"; line: number; depth: 1 | 2; text: string }
-  | { kind: "setting"; line: number; key: string; rest: string }
+  /** `block`: a setting with nothing after its colon and the indented lines
+   *  under it — a YAML block (`with:` and its params, one per line). */
+  | { kind: "setting"; line: number; key: string; rest: string; block?: string }
   | { kind: "goto"; line: number; name: string }
   | { kind: "speech"; line: number; text: string; voice?: "a" | "b"; actions?: InlineAction[] }
   | { kind: "direction"; line: number; indent: number; head: string; rest: string }
@@ -138,7 +140,25 @@ export function scanLines(text: string): ScriptLine[] {
     const goto = GOTO_RE.exec(body);
     if (goto) { out.push({ kind: "goto", line, name: goto[1] }); continue; }
     const setting = SETTING_RE.exec(body);
-    if (setting) { out.push({ kind: "setting", line, key: setting[1], rest: (setting[2] ?? "").trim() }); continue; }
+    if (setting) {
+      const rest = (setting[2] ?? "").trim();
+      // `with:` alone, the value indented under it: a YAML block, which ends
+      // at the first blank or unindented line (the printer writes none inside).
+      const block: string[] = [];
+      if (rest === "") {
+        for (let j = i + 1; j < raw.length; j++) {
+          const next = expand(raw[j]);
+          if (next.trim() === "" || next.length === next.trimStart().length) break;
+          block.push(next);
+        }
+      }
+      if (block.length > 0) {
+        const cut = Math.min(...block.map((b) => b.length - b.trimStart().length));
+        out.push({ kind: "setting", line, key: setting[1], rest, block: block.map((b) => b.slice(cut)).join("\n") });
+        i += block.length;
+      } else out.push({ kind: "setting", line, key: setting[1], rest });
+      continue;
+    }
     const dialogue = DIALOGUE_RE.exec(body);
     if (dialogue) { out.push({ kind: "speech", line, ...liftActions(dialogue[2].trim(), line), voice: dialogue[1].toLowerCase() as "a" | "b" }); continue; }
     out.push({ kind: "speech", line, ...liftActions(body, line) });

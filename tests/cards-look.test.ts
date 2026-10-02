@@ -254,7 +254,7 @@ describe("resolving, crediting and hoisting card icons", () => {
   test("a revise that changes a card's icon drops the old rings AND their credit", () => {
     const spec = { elements: [{ ...rank, items: [{ text: "A", icon: "pill", icon_strokes: STROKES, credit: "pill from lucide · ISC" }, "B"] }], commands: [{ draw: ["r"] }] } as unknown as Spec;
     const h = hoistPortraitStrokes(formatPlaylist(singlePlaylist(spec), "script"));
-    const back = parsePlaylistText(h.text.replace('"icon":"pill"', '"icon":"syringe"'));
+    const back = parsePlaylistText(h.text.replace(/\bicon pill\b/, "icon syringe"));
     restorePortraitStrokes(back, h.blobs);
     const it = (itemsOf(back)[0].spec.elements![0].items as unknown as Record<string, string>[])[0];
     expect(it.icon).toBe("syringe");

@@ -3,7 +3,7 @@
 // holds it to over the whole bundled corpus.
 import { dump } from "js-yaml";
 import { fieldLines, formatValue } from "./values";
-import { COMMAND_ORDER, ELEMENT_ORDER, LIST_VERBS, OBJECT_VERBS, SCALAR_VERBS, TARGET_FIELD, TARGET_VERBS } from "./parse";
+import { COMMAND_ORDER, ELEMENT_KEYS, ELEMENT_ORDER, LIST_VERBS, MODIFIER_KEYS, OBJECT_VERBS, QUESTION_VERBS, SCALAR_VERBS, TARGET_FIELD, TARGET_VERBS, restValue } from "./parse";
 import { AROUND_FIELD, ELEMENT_ALIASES, FLAG_FOR, LAYOUT_HEADS, PLACE_WORDS, SIDE_TYPES, isColor } from "./sugar";
 
 /** The keys that can head a direction line. Everything else in a command
@@ -23,6 +23,19 @@ const SETTING_ORDER: [keyof Spec, string][] = [
 /** Written by machines, read by nobody: they print last, so the readable part
  *  of the file stays on top — the rule specForDump already applies to YAML. */
 const PAYLOAD_KEYS = ["assets", "subtitles", "text_map", "templates"] as const;
+
+/**
+ * A setting's value as an indented YAML block (`with:` and one param a line)
+ * when one JSON token would be long. Not when the YAML has a blank line in it:
+ * the parser ends the block at the first one.
+ */
+function settingBlock(v: unknown): string | null {
+  if (v === null || typeof v !== "object" || JSON.stringify(v).length <= 60) return null;
+  // Lists of numbers and small maps two levels down stay on one line: `price: [0, 20000]`.
+  const text = dump(v, { lineWidth: -1, noRefs: true, flowLevel: 2 }).trimEnd();
+  if (text.split("\n").some((l) => l.trim() === "")) return null;
+  return text.split("\n").map((l) => INDENT + l).join("\n");
+}
 
 /** Fields a beat carries rather than a direction. */
 const BEAT_FIELDS = new Set(["speak", "voice", "label", "cue", "cue_end"]);
@@ -137,13 +150,65 @@ function shorthands(el: SpecElement): { words: string[]; used: Set<string>; eate
   return { words, used, eaten };
 }
 
+/** A text a `key: text` line (or a bin line) gives back exactly as it is. */
+function plainText(s: string): boolean {
+  return s !== "" && s === s.trim() && !/[\n\t]/.test(s) && !s.startsWith('"') && restValue(s) === s;
+}
+
+/**
+ * A cards element's items as lines of their own (the parser's cardsLine):
+ * consecutive sort items of one bin share a `Bin: a, b` line; a rank item is
+ * `* text`; any other item is `* "text" key value`. null: something no line
+ * says exactly, and the items stay one JSON value on the head line.
+ */
+function cardsLines(el: Record<string, unknown>, indent: string): { lines: string[]; used: Set<string> } | null {
+  const items = el.items;
+  if (!Array.isArray(items) || items.length === 0) return null;
+  const sorting = Array.isArray(el.bins) && (el.bins as unknown[]).every((b) => typeof b === "string");
+  const binWord = (b: unknown): b is string => typeof b === "string" && plainText(b) && !/[:"]/.test(b) && !b.includes(".") && !ELEMENT_KEYS.has(b) && b !== "*" && b !== "+";
+  const lines: string[] = [];
+  const derived: string[] = [];
+  let run: { bin: string; texts: string[] } | null = null;
+  const close = (): void => {
+    if (run) lines.push(`${indent}${run.bin}: ${run.texts.join(", ")}`);
+    run = null;
+  };
+  for (const it of items as unknown[]) {
+    if (typeof it === "string") {
+      if (!plainText(it)) return null;
+      close();
+      lines.push(`${indent}* ${it}`);
+      continue;
+    }
+    if (!it || typeof it !== "object" || Array.isArray(it)) return null;
+    const o = it as Record<string, unknown>;
+    if (typeof o.text !== "string") return null;
+    const keys = Object.keys(o);
+    if (sorting && keys.length === 2 && binWord(o.bin) && plainText(o.text) && !o.text.includes(",")) {
+      if (!derived.includes(o.bin)) derived.push(o.bin);
+      if (run !== null && (run as { bin: string }).bin === o.bin) (run as { texts: string[] }).texts.push(o.text);
+      else { close(); run = { bin: o.bin, texts: [o.text] }; }
+      continue;
+    }
+    close();
+    const rest = pairs(o, new Set(["text"]));
+    lines.push(`${indent}* ${JSON.stringify(o.text)}${rest === "" ? "" : ` ${rest}`}`);
+  }
+  close();
+  const used = new Set(["items"]);
+  // Bins the lines already name, in that order, need not be written again.
+  if (sorting && JSON.stringify(el.bins) === JSON.stringify(derived)) used.add("bins");
+  return { lines, used };
+}
+
 /** One element, as the line that declares it. */
 function elementLine(el: SpecElement, hidden: boolean, indent: string = INDENT, inGroup?: string): string {
   const { words, used, eaten } = el.type === "code"
     ? { words: [] as string[], used: new Set<string>(), eaten: new Set<string>() }
     : shorthands(el);
   const shapeAlias = ALIAS_FOR.get(`${el.type}:${String((el as unknown as Record<string, unknown>).shape ?? "")}`);
-  const skip = new Set(["id", "type", "text", "language", "code", ...used]);
+  const cards = el.type === "cards" ? cardsLines(el as unknown as Record<string, unknown>, indent + INDENT) : null;
+  const skip = new Set(["id", "type", "text", "language", "code", ...used, ...(cards?.used ?? [])]);
   if (shapeAlias !== undefined) skip.add("shape");
   const rest = pairs(el as unknown as Record<string, unknown>, skip, ELEMENT_ORDER, eaten);
   if (el.type === "code") {
@@ -158,7 +223,8 @@ function elementLine(el: SpecElement, hidden: boolean, indent: string = INDENT, 
   // a text that needs no quotes would read back as a stray key.
   const text = typeof el.text === "string" ? ` ${JSON.stringify(el.text)}` : "";
   const tail = [words.join(" "), rest, inGroup !== undefined ? `in ${inGroup}` : "", hidden ? "hidden true" : ""].filter(Boolean).join(" ");
-  return `${indent}${head} ${el.id}${text}${tail === "" ? "" : ` ${tail}`}`;
+  const line = `${indent}${head} ${el.id}${text}${tail === "" ? "" : ` ${tail}`}`;
+  return cards ? [line, ...cards.lines].join("\n") : line;
 }
 
 /**
@@ -173,8 +239,38 @@ function verbArgs(head: string, value: unknown): string {
   return fl.map(({ path, token }) => `${path.slice(head.length + 1)} ${token}`).join(" ");
 }
 
-/** One command, as the direction line that carries it. */
-function commandLines(cmd: Command): string[] {
+/** A string argument this long goes on a line of its own under its verb —
+ *  and right/wrong always do, so a question's feedback reads as a pair. */
+const OWN_LINE = 25;
+const FEEDBACK = new Set(["right", "wrong"]);
+
+/** The long string arguments of a verb, as `key: text` lines (taken out of `args`). */
+function ownLines(args: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  for (const k of Object.keys(args).sort((a, b) => COMMAND_ORDER.indexOf(a) - COMMAND_ORDER.indexOf(b) || a.localeCompare(b))) {
+    const v = args[k];
+    if (typeof v !== "string" || !(v.length >= OWN_LINE || FEEDBACK.has(k)) || !/^[A-Za-z_]\w*$/.test(k)) continue;
+    out.push(`${INDENT}${INDENT}${k}${plainText(v) ? `: ${v}` : ` ${JSON.stringify(v)}`}`);
+    delete args[k];
+  }
+  return out;
+}
+
+/** An animate whose keys are paths and whose values are plain: `animate tax.amount -15`. */
+function flatAnimate(value: unknown): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 0) return null;
+  for (const [k, v] of entries) {
+    if (!/^[A-Za-z_][\w.]*$/.test(k) || k.endsWith(".") || MODIFIER_KEYS.has(k.split(".")[0])) return null;
+    if (v !== null && typeof v === "object") return null;
+  }
+  return entries.map(([k, v]) => `${k} ${formatValue(v)}`).join(" ");
+}
+
+/** One command, as the direction line that carries it (`oneLine`: a cued
+ *  action written inside its sentence has no room for lines under it). */
+function commandLines(cmd: Command, oneLine = false): string[] {
   const entries = Object.entries(cmd as unknown as Record<string, unknown>).filter(([k, v]) => !BEAT_FIELDS.has(k) && v !== undefined);
   if (entries.length === 0) return [];
   // The verb heads the line wherever it sits in the object; `{duration: 3,
@@ -200,14 +296,31 @@ function commandLines(cmd: Command): string[] {
     const correct = args.correct as number | undefined;
     delete args.choices;
     delete args.correct;
-    const first = join(`quiz ${verbArgs("quiz", args)}`.trim());
-    return [first, ...choices.map((c, i) => `${INDENT}${INDENT}${i + 1 === correct ? "+" : "*"} ${c}`)];
+    const lead = typeof args.question === "string" ? JSON.stringify(args.question) : "";
+    delete args.question;
+    const own = oneLine ? [] : ownLines(args);
+    const more = Object.keys(args).length > 0 ? verbArgs("quiz", args) : "";
+    const first = join(["quiz", lead, more].filter(Boolean).join(" "));
+    return [first, ...own, ...choices.map((c, i) => `${INDENT}${INDENT}${i + 1 === correct ? "+" : "*"} ${c}`)];
   }
   if (OBJECT_VERBS.has(head) || SCALAR_VERBS.has(head)) {
     if (value === true && head !== "pause") return [join(head)];
     if (head === "wait" && value === "click") return [join(head)];
     if (value !== null && typeof value === "object") {
       if (!Array.isArray(value) && Object.keys(value as object).length === 0) return [join(head)];
+      if (head === "animate") {
+        const flat = flatAnimate(value);
+        // Nested maps keep the JSON token: a flat pair is ONE literal key.
+        return [join(`${head} ${flat ?? formatValue(value)}`)];
+      }
+      if (QUESTION_VERBS.has(head) && !Array.isArray(value) && typeof (value as Record<string, unknown>).question === "string") {
+        const args = { ...(value as Record<string, unknown>) };
+        const lead = JSON.stringify(args.question);
+        delete args.question;
+        const own = oneLine ? [] : ownLines(args);
+        const more = Object.keys(args).length > 0 ? verbArgs(head, args) : "";
+        return [join([head, lead, more].filter(Boolean).join(" ")), ...own];
+      }
       return [join(`${head} ${verbArgs(head, value)}`.trim())];
     }
     // A string value is quoted even when it need not be: the parser tells a
@@ -308,7 +421,9 @@ export function printScriptPage(spec: Spec): string {
   const settings: string[] = [];
   for (const [field, name] of SETTING_ORDER) {
     const v = spec[field];
-    if (v !== undefined) settings.push(`${name}: ${formatValue(v)}`);
+    if (v === undefined) continue;
+    const block = settingBlock(v);
+    settings.push(block !== null ? `${name}:\n${block}` : `${name}: ${formatValue(v)}`);
   }
   if (settings.length > 0) blocks.push(settings.join("\n"));
 
@@ -344,7 +459,7 @@ export function printScriptPage(spec: Spec): string {
       const cued = [...(cuedOf.get(i) ?? [])].sort((a, b2) => (spec.commands![b2].cue ?? 0) - (spec.commands![a].cue ?? 0));
       for (const k of cued) {
         const at = Math.round((spec.commands![k].cue ?? 0) * cmd.speak.length);
-        const action = commandLines(spec.commands![k])[0]?.trim() ?? "";
+        const action = commandLines(spec.commands![k], true)[0]?.trim() ?? "";
         const span = `(@${action}${spec.commands![k].cue_end === true ? " ends" : ""}@)`;
         spoken = at === 0 ? `${span} ${spoken}` : `${spoken.slice(0, at)} ${span}${spoken.slice(at)}`;
       }
