@@ -97,6 +97,31 @@ function countingHandle(visible: string[] = ALL_DRAWN) {
   return { ...h, builds: () => builds };
 }
 
+// A template that lays a part out only while its number is still asked
+// ("?" in the boundary's answers): the widget must lay the figure out with
+// the tree's answers, as the player does (plan.ts boundaryParams), or a tree
+// widget could show the true numbers before the ask (final review 2026-10-03).
+scenes["host_answers"] = compileTemplateDoc({
+  ...doc,
+  template: "host_answers",
+  element_ids: { dot: "dot pad", asked: "the asked pad" },
+  layout: `
+    const drawables = [kit.pad("dot", [300, 400], "·", { r: 40 })];
+    const order = ["dot"];
+    if ((params.answers ?? {}).v === "?") { drawables.push(kit.pad("asked", [500, 400], "?", { w: 90, h: 60 })); order.push("asked"); }
+    return { drawables, labels: [], anchors: {}, order };`,
+} as TemplateDoc).module!;
+
+describe("the widget reads the boundary's answers", () => {
+  test("a part laid out from answers: \"?\" at the boundary is there for the widget", () => {
+    const { hd } = fakeHandle(["dot", "asked"], "host_answers");
+    (hd.plan.states[0] as { answers?: Record<string, string> }).answers = { v: "?" };
+    const host = widgetHostFor(hd)!;
+    expect(host.over([300, 400])).toBe(true);
+    expect(host.over([500, 400])).toBe(true);
+  });
+});
+
 describe("widgetHostFor", () => {
   test("null for a template without a widget body", () => {
     const { hd } = fakeHandle();

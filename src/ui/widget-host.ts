@@ -23,7 +23,7 @@ import type { BBox } from "../layout/geometry";
 import { makeBrowserMeasure } from "../render/svg-backend";
 import { layoutSpec } from "../layout/layout";
 import { wheelZoomFactor } from "../render/camera";
-import { sceneAt } from "../render/plan";
+import { boundaryParams, sceneAt } from "../render/plan";
 import { withNewIdsVisible, withOverrides } from "../render/params";
 import { answersMatch } from "../spec/answers";
 import { overCaption } from "./caption";
@@ -209,9 +209,12 @@ export function widgetHostFor(hd: RenderHandle, deps: WidgetHostDeps = {}): Widg
   // a supply_demand lesson that has tweened the tax to 30 must be dragged
   // FROM 30, not snapped back to the authored 18 on the first frame.
   // (`vars.*` paths are the spec's vars, not template params — left out.)
+  // boundaryParams, not the bare scene params: a tree's blanks still to be
+  // asked carry "?" in `answers`, or the widget would lay out (and could
+  // show) the true numbers before the ask.
   const templatePaths = (o: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(o).filter(([k]) => !k.startsWith("vars.")));
   const params = (): Record<string, unknown> => ({
-    ...withOverrides(withOverrides(hd.spec.params, templatePaths(sceneAt(hd.plan, hd.timeline.position).params)), templatePaths(hd.timeline.getParamOverrides())),
+    ...withOverrides(withOverrides(hd.spec.params, templatePaths(boundaryParams(hd.plan, hd.timeline.position))), templatePaths(hd.timeline.getParamOverrides())),
     ...patches,
   });
 
