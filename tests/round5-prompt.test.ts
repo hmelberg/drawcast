@@ -12,18 +12,36 @@ import type { Command, Spec } from "../src/spec/types";
 const prompt = readFileSync("src/llm/prompts/compiler-v1.md", "utf8");
 const bullet = prompt.split("\n").find((l) => l.startsWith("- `feedback` (optional")) ?? "";
 
+/** The balanced JSON object starting at `start`, as text — braces inside strings do not count. */
+function objectAt(text: string, start: number): string {
+  let depth = 0;
+  let inString = false;
+  let end = start;
+  for (; end < text.length; end++) {
+    const c = text[end];
+    if (inString) {
+      if (c === "\\") end++;
+      else if (c === '"') inString = false;
+    } else if (c === '"') inString = true;
+    else if (c === "{") depth++;
+    else if (c === "}" && --depth === 0) break;
+  }
+  return text.slice(start, end + 1);
+}
+
 /** The first balanced `{"ask": …}` JSON object in the bullet, parsed. */
 function firstAsk(text: string): Command | undefined {
   const start = text.indexOf(`{"ask":`);
   if (start < 0) return undefined;
-  let depth = 0;
-  let end = start;
-  for (; end < text.length; end++) {
-    if (text[end] === "{") depth++;
-    else if (text[end] === "}" && --depth === 0) break;
-  }
-  return JSON.parse(text.slice(start, end + 1)) as Command;
+  return JSON.parse(objectAt(text, start)) as Command;
 }
+
+describe("the brace counter", () => {
+  test("ignores braces inside strings", () => {
+    const t = `see {"ask": {"question": "Is } a brace?", "right": "Yes: {g} \\" }"}} and more }`;
+    expect(firstAsk(t)).toEqual({ ask: { question: "Is } a brace?", right: 'Yes: {g} " }' } });
+  });
+});
 
 /** A bundled example by its title (indexes move as examples are added). */
 const example = (title: string): Spec & { commands: Command[] } => {
@@ -57,6 +75,26 @@ describe("round 5 guidance in the compiler prompt", () => {
     expect(prompt).toContain("`match_icon`");
     expect(prompt).toContain("`look` (paper, flat, outline)");
     expect(prompt).toContain("`account_label`");
+  });
+
+  test("icon keywords: no near miss, no short ambiguous word; cards may carry more than a handful", () => {
+    expect(prompt).toContain("No icon rather than a near miss");
+    expect(prompt).toContain("`\"housefly\"`");
+    expect(prompt).toContain("(cards are the exception)");
+  });
+
+  test("three or more questions on a light topic: a cast-level feedback, with a valid example", () => {
+    const brief = TAGS.find((t) => t.tag === "interactive")!.brief;
+    expect(brief).toContain("three or more questions");
+    expect(brief).toContain("cast-level `feedback`");
+    expect(bullet).toContain("three or more questions");
+    // The brief's example, set beside the title of a real cast, validates.
+    const at = brief.indexOf(`{"style"`);
+    const fb = JSON.parse(objectAt(brief, at)) as Record<string, string>;
+    for (const band of ["perfect", "good", "poor", "none"]) expect(typeof fb[band]).toBe("string");
+    const spec = { ...example("Is it a fruit?"), feedback: fb };
+    const v = validateSpec(spec);
+    expect(v.ok, JSON.stringify(v)).toBe(true);
   });
 
   test("#interactive names icons on cards and feedback", () => {
