@@ -1557,7 +1557,7 @@ export class Player {
    * it while it is theirs — the part they draw would otherwise look exactly
    * like the part they were given).
    */
-  private guessPainter(setup: GuessSetup, before: SceneState, visible: ReadonlySet<string>, owner: string): GuessPaint {
+  private guessPainter(setup: GuessSetup, before: SceneState, visible: ReadonlySet<string>, owner: string, shift = true): GuessPaint {
     const rp = this.reprojector!;
     const sceneParams = this.paramsOf(before);
     const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
@@ -1576,7 +1576,7 @@ export class Player {
       this.geometryDirty = true;
       if (marks && sketched) {
         this.guessOwners.add(owner);
-        this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, values, 0, { asking: true }));
+        this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, values, 0, { asking: true, shift }));
       }
     };
   }
@@ -1745,7 +1745,7 @@ export class Player {
     const marked = setup.handles.flatMap((h) => [h.part, ...h.shows]);
     this.guessMarkParts.set(owner, marked);
     this.guessMarkParts.set(`${owner}_prev`, marked);
-    const paintFigure = this.guessPainter(setup, before, visible, owner);
+    const paintFigure = this.guessPainter(setup, before, visible, owner, step.readout !== false);
     // A budget (spec 2026-10-03-looks-feedback-account §5): the bars move on
     // their own and an account bar beside the plot shows what is left; it
     // stands while the question does and goes before the reveal.

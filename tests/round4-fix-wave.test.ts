@@ -142,6 +142,22 @@ describe("market copy marks (fix wave item 4)", async () => {
     expect(m.dots?.length).toBe(3);
   });
 
+  test("while dragged: the shift from the old curve is bracketed and written, once for a parallel move", () => {
+    const m = guessMarks([h], [[-10, -10]], 0, { asking: true });
+    const brackets = m.lines.filter((l) => l.pts.length === 2 && l.dashed);
+    expect(brackets.length).toBe(2);
+    expect(m.texts.length).toBe(1);
+    expect(m.texts[0].text.startsWith("−")).toBe(true);
+    const turn = guessMarks([h], [[-10, 5]], 0, { asking: true });
+    expect(turn.texts.map((x) => x.text[0]).sort()).toEqual(["+", "−"]);
+  });
+
+  test("no shift while untouched, with shift: false, or after the question", () => {
+    expect(guessMarks([h], [[0, 0]], 0, { asking: true }).texts).toEqual([]);
+    expect(guessMarks([h], [[-10, -10]], 0, { asking: true, shift: false }).texts).toEqual([]);
+    expect(guessMarks([h], [[-10, -10]], 0).texts).toEqual([]);
+  });
+
   test("the copy is clipped to the plot area", () => {
     for (const asking of [true, false]) {
       const m = guessMarks([h], [[-70, -70]], 0, { asking });
