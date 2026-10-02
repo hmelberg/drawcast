@@ -56,7 +56,7 @@ export function positions(g: CardsGeometry, a: Arrangement): Pt[] {
   }
   if (g.mode === "sort" || g.mode === "fill") {
     const out: Pt[] = g.home.slice();
-    a.boxes.forEach((cards, b) => cards.forEach((card, j) => (out[card] = g.binSlot(b, j))));
+    a.boxes.forEach((cards, b) => cards.forEach((card, j) => (out[card] = g.binSlot(b, j, cards.length))));
     return out;
   }
   if (g.mode === "place" && g.placeAt) return g.placeAt(a.values ?? g.cards.map(() => null));
