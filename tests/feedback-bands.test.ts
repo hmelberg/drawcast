@@ -18,6 +18,15 @@ describe("bandOf", () => {
     expect(bandOf({ ok: false, frac: 0.5, tolerance: 0.1 })).toBe("poor");
   });
 
+  test("a single guess with its relative error: good only within 25 % of the truth", () => {
+    // 50 against 163 on a 0–400 axis: 28 % of the axis, but 69 % off the truth.
+    expect(bandOf({ ok: false, frac: 0.28, tolerance: 0.15, rel: 0.69 })).toBe("poor");
+    expect(bandOf({ ok: false, frac: 0.2, tolerance: 0.15, rel: 0.25 })).toBe("good");
+    expect(bandOf({ ok: false, frac: 0.2, tolerance: 0.15, rel: 0.26 })).toBe("poor");
+    // Within tolerance (as judged) stays perfect whatever the relative error.
+    expect(bandOf({ ok: true, frac: 0.1, tolerance: 0.15, rel: 0.6 })).toBe("perfect");
+  });
+
   test("a single right/wrong ask: perfect or none", () => {
     expect(bandOf({ ok: true })).toBe("perfect");
     expect(bandOf({ ok: false })).toBe("none");
@@ -35,6 +44,16 @@ describe("guessBand", () => {
     expect(guessBand({ ok: true, within: 0, count: 2, meanFrac: 0.3 }, 0.1, true)).toBe("perfect");
     expect(guessBand({ ok: false, within: 1, count: 2, meanFrac: 0.3 }, 0.1, true)).toBe("poor");
     expect(guessBand({ ok: false, within: 0, count: 2, meanFrac: 0.3 }, 0.1, true)).toBe("none");
+  });
+
+  test("one number: perfect as judged, good within 25 % of the truth, 2× tolerance when the truth is 0", () => {
+    // The water cast: 50 L against 163 L on 0–400, tolerance 0.15.
+    expect(guessBand({ ok: false, within: 0, count: 1, meanFrac: 113 / 400, pct: 69.3 }, 0.15, false)).toBe("poor");
+    expect(guessBand({ ok: false, within: 0, count: 1, meanFrac: 40 / 400, pct: 24.5 }, 0.05, false)).toBe("good");
+    expect(guessBand({ ok: true, within: 1, count: 1, meanFrac: 0.1, pct: 80 }, 0.15, false)).toBe("perfect");
+    // Truth 0: no relative error, so twice the tolerance.
+    expect(guessBand({ ok: false, within: 0, count: 1, meanFrac: 0.15, pct: null }, 0.1, false)).toBe("good");
+    expect(guessBand({ ok: false, within: 0, count: 1, meanFrac: 0.25, pct: null }, 0.1, false)).toBe("poor");
   });
 });
 

@@ -124,8 +124,9 @@ in English; other languages get no fallback line). Examples of the bands:
 | poor | some right | "Good thing you're not a {role}." / "Let's call that a warm-up." | "A tricky one — most people miss these." |
 | none | nothing right | "Bold. Wrong, but bold." | "Everyone starts somewhere. Now you know." |
 
-- A guess (`on`) uses its score: within tolerance = perfect; within twice the
-  tolerance = good; else poor. A single right/wrong ask uses perfect/none.
+- A guess (`on`) uses its score: within tolerance (as judged) = perfect;
+  within 25 % of the true value = good (when the truth is 0: within twice the
+  tolerance); else poor. A single right/wrong ask uses perfect/none.
 - A cast-level `feedback` may carry lines too; an ask's own lines win.
   Lines are picked without repeating within a cast (seeded by the cast, so a
   replay is the same).

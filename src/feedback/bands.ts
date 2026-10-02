@@ -23,11 +23,17 @@ export interface FeedbackSpec {
  * The band an answer reached.
  * - counted tasks (`count` > 1: cards, tree blanks, formula blanks, several
  *   guesses): all right = perfect, ≥ ⅔ = good, some = poor, none = none;
- * - a single guess (`frac`, `tolerance`): within tolerance = perfect, within
- *   twice = good, else poor;
+ * - a single guess (`frac`, `tolerance`): within tolerance = perfect; else
+ *   good when within 25 % of the true value (`rel`, the error as a fraction
+ *   of the truth), or — with no `rel` (the truth is 0) — within twice the
+ *   tolerance; else poor. (Measured against the axis alone, "good" was far
+ *   too generous on a wide axis: 50 for 163 on 0–400.);
  * - a single right/wrong answer: perfect or none.
  */
-export function bandOf(r: { within?: number; count?: number; ok: boolean; frac?: number; tolerance?: number }): Band {
+/** A single guess off by at most this fraction of the truth is "good". */
+export const GOOD_REL = 0.25;
+
+export function bandOf(r: { within?: number; count?: number; ok: boolean; frac?: number; tolerance?: number; rel?: number | null }): Band {
   if (r.count !== undefined && r.count > 1 && r.within !== undefined) {
     if (r.within >= r.count) return "perfect";
     if (r.within / r.count >= 2 / 3 - 1e-9) return "good";
@@ -35,8 +41,8 @@ export function bandOf(r: { within?: number; count?: number; ok: boolean; frac?:
   }
   if (r.frac !== undefined && r.tolerance !== undefined) {
     if (r.frac <= r.tolerance + 1e-9) return "perfect";
-    if (r.frac <= 2 * r.tolerance + 1e-9) return "good";
-    return "poor";
+    const close = r.rel !== undefined && r.rel !== null ? r.rel <= GOOD_REL + 1e-9 : r.frac <= 2 * r.tolerance + 1e-9;
+    return close ? "good" : "poor";
   }
   if (r.count === 1 && r.within !== undefined) return r.within >= 1 ? "perfect" : "none";
   return r.ok ? "perfect" : "none";
@@ -143,14 +149,21 @@ export function pickLine(fb: FeedbackSpec, band: Band, lang: string | undefined 
 }
 
 /**
- * A guess's band: one number by how far off it is (tolerance, twice it);
+ * A guess's band: one number by how far off it is (perfect as judged, good
+ * within 25 % of the truth — `pct`, percent of the truth, null when it is 0 —
+ * else twice the tolerance);
  * several numbers by how many are close, kept in step with the verdict (a
  * right answer is at least good, a wrong one at most good); a market curve
  * by its check — right is perfect, else how many of its two moves are close.
  */
-export function guessBand(s: { ok: boolean; within: number; count: number; meanFrac: number }, tolerance: number, market: boolean): Band {
+export function guessBand(s: { ok: boolean; within: number; count: number; meanFrac: number; pct?: number | null }, tolerance: number, market: boolean): Band {
   if (market) return s.ok ? "perfect" : s.within > 0 ? "poor" : "none";
-  if (s.count <= 1) return bandOf({ ok: s.ok, frac: s.meanFrac, tolerance });
+  if (s.count <= 1) {
+    if (s.ok) return "perfect";
+    const rel = s.pct !== undefined && s.pct !== null ? s.pct / 100 : null;
+    const b = bandOf({ ok: false, frac: s.meanFrac, tolerance, rel });
+    return b === "perfect" ? "good" : b;
+  }
   const b = bandOf({ ok: s.ok, within: s.within, count: s.count });
   if (s.ok && (b === "poor" || b === "none")) return "good";
   if (!s.ok && b === "perfect") return "good";
