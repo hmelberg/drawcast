@@ -57,8 +57,14 @@ export function unionBoxes(boxes: BBox[]): BBox | null {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
+/**
+ * A box between a and b at t, t held to [0, 1]: a camera tween never
+ * extrapolates. (A 0.01 s zoom whose first rAF timestamp stands before its
+ * start saw t ≈ -4.8, eased to 46 — a negative-size viewBox; final fix I.)
+ */
 export function lerpBox(a: BBox, b: BBox, t: number): BBox {
-  const l = (p: number, q: number) => p + (q - p) * t;
+  const k = Number.isFinite(t) ? Math.min(1, Math.max(0, t)) : 1;
+  const l = (p: number, q: number) => p + (q - p) * k;
   return { x: l(a.x, b.x), y: l(a.y, b.y), w: l(a.w, b.w), h: l(a.h, b.h) };
 }
 

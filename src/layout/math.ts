@@ -14,6 +14,16 @@ import { matchShapes, termTex } from "./math-morph";
 import { morphPair } from "../render/morph";
 import type { SpecElement } from "../spec/types";
 import { partOfChain, type LiveMathPart } from "./live-math";
+import { roundRectPts } from "./code";
+import { GUESS_COLOR } from "../guess/color";
+import { normTeX } from "../formula/expr";
+import type { FormulaBlank } from "../formula/blanks";
+
+/** A blank's box: this much air around its glyphs, at least this many sizes
+ *  wide (about one em), corners this round. */
+const BLANK_PAD = 6;
+const BLANK_MIN_W = 0.6;
+const BLANK_R = 6;
 
 /**
  * An x-height row is this fraction of `size` — the engine normalises the
@@ -142,6 +152,19 @@ function lerpPts(a: Pt[], b: Pt[], t: number): Pt[] {
   return a.map((p, i): Pt => [p[0] + (b[i][0] - p[0]) * t, p[1] + (b[i][1] - p[1]) * t]);
 }
 
+/** How a blank's glyphs look: kept back (opacity 0) until a fill shows
+ *  them; a fill unlike the truth in the guess colour (a viewer's answer),
+ *  else the formula's ink. Null for a part that is not a blank. */
+function blankLook(part: LiveMathPart, el: SpecElement, blanks: readonly FormulaBlank[] | undefined): { opacity: number; color?: string } | null {
+  const m = /^blank_(\d+)$/.exec(part.name);
+  if (!m) return null;
+  const k = Number(m[1]);
+  const fill = el.fills?.[k - 1];
+  if (typeof fill !== "string" || fill === "") return { opacity: 0 };
+  const truth = blanks?.find((b) => b.k === k)?.tex;
+  return truth !== undefined && normTeX(fill) !== normTeX(truth) ? { opacity: 1, color: GUESS_COLOR } : { opacity: 1 };
+}
+
 /**
  * TeX → precise filled outlines (with their counters as holes), scaled so an
  * x-height row is MATH_X_HEIGHT × size, centred on (cx, cy).
@@ -165,6 +188,12 @@ export function mathDrawables(
    *  The glyphs of a part are gathered into a group of their own under the
    *  part's id, nested in the formula's group, in the live var's colour. */
   marks?: ReadonlyMap<string, LiveMathPart>,
+  /** Formula blanks (formula/blanks.ts), their truths as written; `el.fills`
+   *  says which show a fill. A blank part's glyphs are kept back (opacity 0)
+   *  until filled; a fill unlike the truth is a viewer's, in the guess
+   *  colour. Each blank gets a rounded box, `<id>_blank_<k>`, returned as a
+   *  top-level drawable beside the formula's group. */
+  blanks?: readonly FormulaBlank[],
 ): { drawables: Drawable[]; box: BBox; unusedColors: string[]; parts: Record<string, BBox> } {
   const size = mathSizeOf(el.size ?? el.font_size);
   // Display style: a fraction's numerator and denominator at full size, as
@@ -210,8 +239,14 @@ export function mathDrawables(
       slot = { part, kids: [] };
       partKids.set(part.id, slot);
       // The part's group stands where its first glyph did.
-      children.push({ id: part.id, kind: "group", role: "math", children: slot.kids, z: Z_AREA + 1, style: resolveStyle(el.style, part.color ? { color: part.color } : {}), drawOpts });
+      const look = blankLook(part, el, blanks);
+      children.push({ id: part.id, kind: "group", role: "math", children: slot.kids, z: Z_AREA + 1, style: resolveStyle(el.style, look ? { ...(look.color ? { color: look.color } : {}), opacity: look.opacity } : part.color ? { color: part.color } : {}), drawOpts });
     }
+    // The glyphs carry the look themselves too: the renderer paints leaves,
+    // so a kept-back blank must be see-through leaf by leaf.
+    d.partOf = part.id;
+    const look = blankLook(part, el, blanks);
+    if (look) d.style = resolveStyle(el.style, { color: look.color ?? color, fill: look.color ?? color, opacity: look.opacity });
     slot.kids.push(d);
   }
   const parts: Record<string, BBox> = {};
@@ -230,8 +265,27 @@ export function mathDrawables(
   }
   const unusedColors = el.colors ? Object.keys(el.colors).filter((k) => !usedKeys.has(k)) : [];
   if (children.length === 0) return { drawables: [], box, unusedColors, parts };
+  // Each blank's box, around its glyphs (hidden or filled), padded and at
+  // least about an em wide. A blank whose content drew no ink gets none.
+  const boxes: Drawable[] = [];
+  for (const b of blanks ?? []) {
+    const g = parts[b.fill];
+    if (!g) continue;
+    const w = Math.max(g.w + 2 * BLANK_PAD, size * BLANK_MIN_W);
+    const h = g.h + 2 * BLANK_PAD;
+    const x = g.x + g.w / 2 - w / 2, y = g.y + g.h / 2 - h / 2;
+    boxes.push({
+      id: b.part,
+      kind: "stroke",
+      closed: true,
+      pts: roundRectPts(x, y, w, h, BLANK_R),
+      z: Z_AREA + 1,
+      style: resolveStyle(el.style, { color: GUESS_COLOR, opacity: 0.9 }),
+      drawOpts,
+    });
+  }
   return {
-    drawables: [{ id: el.id, kind: "group", role: "math", children, z: Z_AREA + 1, style: ink, drawOpts: resolveDrawOpts(el.draw) }],
+    drawables: [{ id: el.id, kind: "group", role: "math", children, z: Z_AREA + 1, style: ink, drawOpts: resolveDrawOpts(el.draw) }, ...boxes],
     box,
     unusedColors,
     parts,

@@ -96,3 +96,16 @@ describe("a move that takes its target off the canvas (2026-09-25)", () => {
     expect(planCommands([{ draw: ["eq"] }, { move: { target: "eq", by: [300, 300] } }], ["eq"], opts).warnings).toEqual([]);
   });
 });
+
+describe("highlight a formula blank's fill", () => {
+  const fopts = { ...opts, mathOf: (id: string) => (id === "area" ? "A = \\pi \\blank{r^2}" : null), isElement: (id: string) => id === "area", formulaFor: (id: string) => (id === "area" ? { blanks: 1 } : null) };
+  test("<id>_blank_<k>_fill is accepted: a highlight on the formula, narrowed to the fill", () => {
+    const plan = planCommands([{ draw: ["area"] }, { highlight: { target: "area_blank_1_fill" } }], ["area", "area_blank_1"], fopts);
+    expect(plan.warnings).toEqual([]);
+    expect(plan.steps[1]).toMatchObject({ kind: "highlight", ids: ["area"], part: "area_blank_1_fill" });
+  });
+  test("a blank the formula does not have is still unknown", () => {
+    const plan = planCommands([{ draw: ["area"] }, { highlight: { target: "area_blank_2_fill" } }], ["area", "area_blank_1"], fopts);
+    expect(plan.warnings.some((w) => w.includes("area_blank_2_fill"))).toBe(true);
+  });
+});

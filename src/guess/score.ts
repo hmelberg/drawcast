@@ -5,11 +5,14 @@
 // fraction of its handle's range (or of its true value, `relative`).
 
 import type { GuessHandle } from "./handles";
+import { curveOfGaps, impliedMarket, marketRight, marketWhy, marketWords } from "./market";
 
 export interface GuessTolerance {
   /** Fraction of the range (default 0.1), or of the true value when relative. */
   tolerance?: number;
   relative?: boolean;
+  /** A market guess (spec 2026-10-03 §3.3): what right means (default shape). */
+  check?: "direction" | "shape" | "size";
 }
 
 export interface GuessScore {
@@ -23,9 +26,17 @@ export interface GuessScore {
   err: number | null;
   off: number | null;
   pct: number | null;
+  /** A market guess: the check it was scored by. */
+  check?: "direction" | "shape" | "size";
 }
 
 export const DEFAULT_TOLERANCE = 0.1;
+/** A market guess's size tolerance: a fraction of the axis (§3.3). */
+export const MARKET_TOLERANCE = 0.08;
+
+/** The one market handle of a setup, or null. */
+const marketOf = (handles: GuessHandle[]): GuessHandle | null => (handles.length === 1 && handles[0].kind === "market" && handles[0].market ? handles[0] : null);
+const gaps = (values: number[][]): [number, number] => [values[0]?.[0] ?? 0, values[0]?.[1] ?? 0];
 
 function entryFrac(h: GuessHandle, guess: number, truth: number, tol: GuessTolerance): number {
   if (tol.relative) return Math.abs(guess - truth) / Math.max(Math.abs(truth), 1e-9);
@@ -33,6 +44,22 @@ function entryFrac(h: GuessHandle, guess: number, truth: number, tol: GuessToler
 }
 
 export function scoreGuess(handles: GuessHandle[], values: number[][], tol: GuessTolerance = {}): GuessScore {
+  const mh = marketOf(handles);
+  if (mh) {
+    const tolerance = tol.tolerance ?? MARKET_TOLERANCE;
+    const v = gaps(values);
+    const d = [Math.abs(v[0] - mh.truth[0]), Math.abs(v[1] - mh.truth[1])];
+    return {
+      ok: marketRight(mh.market!, v, tol.check ?? "shape", tolerance),
+      meanFrac: (d[0] + d[1]) / 2 / 100,
+      within: d.filter((x) => x <= tolerance * 100 + 1e-9).length,
+      count: 2,
+      err: null,
+      off: null,
+      pct: null,
+      check: tol.check ?? "shape",
+    };
+  }
   const t = tol.tolerance ?? DEFAULT_TOLERANCE;
   let sum = 0;
   let count = 0;
@@ -63,6 +90,8 @@ export function scoreGuess(handles: GuessHandle[], values: number[][], tol: Gues
 
 /** The guess as text for {g}: one number formatted like the figure; several as "3 of 5 close". */
 export function guessText(handles: GuessHandle[], values: number[][], s: GuessScore): string {
+  const mh = marketOf(handles);
+  if (mh) return marketWords(mh.market!, gaps(values));
   if (handles.length === 1 && handles[0].truth.length === 1) return handles[0].format(values[0]?.[0] ?? handles[0].truth[0]);
   return `${s.within} of ${s.count}`;
 }
@@ -79,6 +108,28 @@ export function guessVars(store: string, handles: GuessHandle[], _values: number
     [`${base}.within`]: String(s.within),
     [`${base}.count`]: String(s.count),
   };
+  const mh = marketOf(handles);
+  if (mh) {
+    // {t.true}, {t.off}, the equilibrium each curve implies, and {t.why} (§3.4).
+    const m = mh.market!;
+    const v = gaps(_values);
+    out[`${base}.true`] = marketWords(m, m.truth);
+    out[`${base}.off`] = mh.format(s.meanFrac * 100);
+    out[`${base}.pct`] = `${Math.round(s.meanFrac * 100)}%`;
+    const level = mh.marketLevel;
+    const mine = impliedMarket(m, curveOfGaps(m, v));
+    const truth = impliedMarket(m, m.truthCurve);
+    if (level && mine) {
+      out[`${base}.price`] = level.price(mine[1]);
+      out[`${base}.quantity`] = level.quantity(mine[0]);
+    }
+    if (level && truth) {
+      out[`${base}.price_true`] = level.price(truth[1]);
+      out[`${base}.quantity_true`] = level.quantity(truth[0]);
+    }
+    out[`${base}.why`] = marketWhy(m, v, mh.marketKind ?? "shift", s.ok, s.check ?? "shape");
+    return out;
+  }
   if (handles.length === 1 && handles[0].truth.length === 1) {
     const h = handles[0];
     out[`${base}.true`] = h.format(h.truth[0]);

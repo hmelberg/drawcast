@@ -21,7 +21,8 @@
     "stamp:code": "node scripts/stamp-code-results.mjs",
     "lab": "node scripts/prompt-lab.mjs",
     "cast": "node scripts/cast.mjs",
-    "build:skill": "node scripts/build-skill.mjs"
+    "build:skill": "node scripts/build-skill.mjs",
+    "icons": "vite-node scripts/build-icon-cache.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

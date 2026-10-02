@@ -28,6 +28,7 @@ import { fractionBox, fractionPoint, parsePlace, type PictureFrame, type Rect4 }
 import type { MarkKind, MarkStop } from "./marks";
 import { cameraBox, fitZoom, restView, restZoom } from "./camera";
 import { cumulativeLengthFractions } from "./trails";
+import { resolveFeedback, type FeedbackSpec } from "../feedback/bands";
 import type { GhostSpec, MintedSpec } from "./minted";
 import type { LayoutOverrides, PoseOverride } from "../layout/posed";
 import { SpeechManager } from "./speech";
@@ -81,7 +82,7 @@ export type PlanStep = (
    *  the explore beat's own seeded walk, played just before its gate. */
   | { kind: "run"; code: string; values: Record<string, ControlValue>[]; seconds: number; demo: boolean }
   | { kind: "if"; varName: string; op: "gt" | "lt" | "gte" | "lte" | "eq" | "ne"; value: number | string; target: string }
-  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string; store?: string }
+  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string; store?: string; feedback?: FeedbackSpec }
   | {
       kind: "ask";
       question: string;
@@ -121,7 +122,33 @@ export type PlanStep = (
       predict?: true;
       revise?: string;
       budget?: number;
+      /** Budget: the account bar's label (ask.account_label). */
+      accountLabel?: string;
       judge?: false;
+      /** Round 4 (spec 2026-10-03): a tree to fill, a formula to fill, a market check. */
+      tree?: { blanks: string[]; pick?: string; work?: "all" | false };
+      formula?: string;
+      check?: "direction" | "shape" | "size";
+      others?: string[];
+      form?: "exact";
+      /** Feedback flavour in force (cast's, overridden by the ask's); absent = plain. */
+      feedback?: FeedbackSpec;
+      /** Choose on the figure (spec 2026-10-03-round6 §4): the drawn options —
+       *  each with its label ({c}), the leaf ids it stands for (a group's
+       *  members), its box where it stands (the movie's laser), its goto. */
+      choose?: ChooseOption[];
+      /** Choose: where the options' branches meet. */
+      then?: string;
+      /** A reveal (spec 2026-10-03-round6 §3, round 7 §4): as written — absent
+       *  means the form's own default (beside; reorder for rank cards). */
+      revealStyle?: "beside" | "morph" | "reorder";
+      revealOrder?: "each";
+      /** A guess's marks outlive their moment and follow the part (spec round 6 §5). */
+      keep?: true;
+      /** stage: "own" (spec round 6 §6): the ids that stay at full strength
+       *  while the question stands — the asked parts, their cards, options,
+       *  blanks and tiles; everything else on screen fades to STAGE_DIM. */
+      stage?: string[];
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -286,13 +313,18 @@ export interface SceneState {
   tex: Record<string, string>;
   /** Cloned elements minted by `copy`: new id → source element id (cumulative). */
   copies: Record<string, string>;
+  /** A decision tree's numbers drawn as something else — "?" for every blank
+   *  of a tree ask still to come (spec 2026-10-03 §4), so the tree never shows
+   *  a number before it is asked for. The template's `answers` param; absent
+   *  when there is none. */
+  answers?: Record<string, string>;
 }
 
 export const INITIAL_STATE: SceneState = { visible: [], offsets: {}, turns: {}, camera: null, params: {}, opacities: {}, shapes: {}, texts: {}, tex: {}, copies: {} };
 
 /** Scene state at a step boundary as PLANNED: after steps[0..n-1]. */
 export function boundaryAt(plan: Plan, n: number): SceneState {
-  return n > 0 ? plan.states[n - 1] : INITIAL_STATE;
+  return n > 0 ? plan.states[n - 1] : (plan.start ?? INITIAL_STATE);
 }
 
 /**
@@ -325,6 +357,105 @@ export function sceneAt(plan: Plan, n: number): SceneState {
   return boundaryAt(plan, held !== null && n > held ? held : n);
 }
 
+/** A branch's figure carried past `then` (final fix wave E): from boundary
+ *  `at` on, whatever the plan does not change itself stands as `base` (the
+ *  chosen branch's end), not as the plan's last branch left it. */
+export interface BranchCarry {
+  at: number;
+  base: SceneState;
+}
+
+type Changes = { visible: Set<string>; camera: boolean; maps: Record<MapKey, Set<string>> };
+type MapKey = "offsets" | "turns" | "params" | "opacities" | "shapes" | "texts" | "tex" | "copies" | "answers";
+const MAP_KEYS: MapKey[] = ["offsets", "turns", "params", "opacities", "shapes", "texts", "tex", "copies", "answers"];
+const stepChanges = new WeakMap<Plan, Changes[]>();
+const same = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b);
+
+/** What each step changed, per id (and per param): step k's boundary after vs before. */
+function changesOf(plan: Plan): Changes[] {
+  const memo = stepChanges.get(plan);
+  if (memo) return memo;
+  const out: Changes[] = plan.states.map((after, k) => {
+    const before = boundaryAt(plan, k);
+    const vb = new Set(before.visible);
+    const va = new Set(after.visible);
+    const visible = new Set([...before.visible.filter((id) => !va.has(id)), ...after.visible.filter((id) => !vb.has(id))]);
+    const maps = {} as Record<MapKey, Set<string>>;
+    for (const key of MAP_KEYS) {
+      const b = (before[key] ?? {}) as Record<string, unknown>;
+      const a = (after[key] ?? {}) as Record<string, unknown>;
+      maps[key] = new Set([...new Set([...Object.keys(b), ...Object.keys(a)])].filter((id) => !same(b[id], a[id])));
+    }
+    return { visible, camera: !same(before.camera, after.camera), maps };
+  });
+  stepChanges.set(plan, out);
+  return out;
+}
+
+/**
+ * The figure at boundary n when a branch was chosen (`carry`): what the plan
+ * changed from `carry.at` up to n is the plan's (`state`); everything else
+ * stands as the chosen branch left it. Before `carry.at`, or with no carry,
+ * the plan's own state.
+ */
+export function carriedState(plan: Plan, n: number, state: SceneState, carry: BranchCarry | null): SceneState {
+  if (!carry || n < carry.at) return state;
+  const changes = changesOf(plan).slice(carry.at, n);
+  const touched = (pick: (c: Changes) => Set<string>, id: string): boolean => changes.some((c) => pick(c).has(id));
+  const base = carry.base;
+  const inState = new Set(state.visible);
+  const inBase = new Set(base.visible);
+  const visible = [...state.visible.filter((id) => inBase.has(id) || touched((c) => c.visible, id)), ...base.visible.filter((id) => !inState.has(id) && !touched((c) => c.visible, id))];
+  const out: SceneState = { ...state, visible, camera: changes.some((c) => c.camera) ? state.camera : base.camera };
+  for (const key of MAP_KEYS) {
+    const s = (state[key] ?? {}) as Record<string, unknown>;
+    const b = (base[key] ?? {}) as Record<string, unknown>;
+    const merged: Record<string, unknown> = {};
+    for (const id of new Set([...Object.keys(s), ...Object.keys(b)])) {
+      const v = touched((c) => c.maps[key], id) ? s[id] : b[id];
+      if (v !== undefined) merged[id] = v;
+    }
+    if (key === "answers" && state.answers === undefined && base.answers === undefined) continue;
+    (out as unknown as Record<string, unknown>)[key] = merged;
+  }
+  return out;
+}
+
+/**
+ * The template params at boundary n as the player lays them out: the
+ * animated params, and a tree's `answers` (its blanks still to be asked show
+ * "?"). Anything that lays the figure out at a boundary — a widget, the
+ * tray, the frames harness — reads these, or it would draw a tree's true
+ * numbers before they are asked for.
+ */
+export function boundaryParams(plan: Plan, n: number): Record<string, unknown> {
+  const st = sceneAt(plan, n);
+  return st.answers && Object.keys(st.answers).length > 0 ? { ...st.params, answers: st.answers } : { ...st.params };
+}
+
+/**
+ * The poster (the frame shown before Play): the finished drawing — unless an
+ * ask's answer is drawn on the figure (a tree to fill or pick, a formula to
+ * fill, a guess on a part, cards to place). Then the finished drawing would
+ * give the answers away (the best branch, the 7 years, the right tile in
+ * its box), so the poster is the boundary before the first such ask, with
+ * the best and prune marks of every tree decision still to be asked about
+ * left out (fix wave 2026-10-03).
+ */
+export function posterOf(plan: Plan): { at: number; hide: string[] } {
+  const first = plan.steps.findIndex((s) => s.kind === "ask" && (s.tree !== undefined || s.formula !== undefined || s.cards !== undefined || (s.on !== undefined && s.on.length > 0)));
+  if (first < 0) return { at: plan.steps.length, hide: [] };
+  const nodes = new Set<string>();
+  for (const s of plan.steps.slice(first)) {
+    if (s.kind !== "ask" || !s.tree) continue;
+    if (s.tree.pick !== undefined) nodes.add(s.tree.pick);
+    for (const b of s.tree.blanks) if (b.startsWith("value_")) nodes.add(b.slice("value_".length));
+  }
+  const visible = sceneAt(plan, first).visible;
+  const hide = visible.filter((id) => [...nodes].some((n) => id.startsWith(`best_${n}_`) || id.startsWith(`prune_${n}_`)));
+  return { at: first, hide };
+}
+
 export interface Plan {
   steps: PlanStep[];
   /** states[i] = scene state after steps[0..i] have completed. */
@@ -339,9 +470,26 @@ export interface Plan {
    *  keys a boundary's layout on their poses and shapes (design 2026-09-10 §2.5).
    *  Optional so a hand-built plan in a test needs no empty list. */
   sources?: string[];
+  /** The boundary before any step, when it is not INITIAL_STATE — a tree
+   *  ask's blanks are "?" there too. */
+  start?: SceneState;
+}
+
+/** One option of a choose ask (spec 2026-10-03-round6 §4). */
+export interface ChooseOption {
+  id: string;
+  label: string;
+  /** The leaf ids it stands for: itself, or a group's members. */
+  members: string[];
+  box?: BBox;
+  goto?: string;
 }
 
 export interface PlanOptions {
+  /** A drawn thing's words for {c} (choose): its text, or its label. Null: the id humanised. */
+  labelOf?: (id: string) => string | null;
+  /** The spec's top-level `feedback` (spec 2026-10-03 §4.1): each question's step carries it resolved with its own. */
+  feedback?: unknown;
   /** Layout-time bbox per element id (logical units), for point/camera/highlight targeting. */
   bboxOf?: (id: string) => BBox | null;
   /** A picture you can point into (spec 2026-09-30-picture-regions): its shown rect and view, and its named regions. Null for anything else. */
@@ -372,6 +520,10 @@ export interface PlanOptions {
   drawnAfter?: (id: string) => string[];
   /** The other parts of one made thing — a scratch card's box for each of its lines, its lines for the box — which a focus keeps lit together. */
   partsOf?: (id: string) => string[];
+  /** What belongs to an element and goes with it: a scale's answer marker
+   *  (`<id>_answer_*`, keyed by the scale's line). An erase or hide of the
+   *  element takes these too (a move carries them: attachedTo lists them). */
+  ownedBy?: (id: string) => string[];
   /** What other ids are written on — a scratch card's box: an erase takes it after them, so no line is left floating without its paper. */
   isPaper?: (id: string) => boolean;
   /** The spec's `params` when the spec has a template; null/undefined = no template (animate then needs a var). */
@@ -380,10 +532,14 @@ export interface PlanOptions {
    *  resolves to on this figure ("all" expanded), and every id that must be
    *  on screen once the question ends. Absent: guesses resolve to nothing. */
   guessParts?: (on: string | string[], from?: number) => { parts: string[]; shows: string[] };
+  /** A math element with \blank boxes to fill (spec 2026-10-03 §5): how many. */
+  formulaFor?: (id: string) => { blanks: number } | null;
   /** Cards to rank or sort (spec 2026-10-01-rank-and-sort): for a cards
    *  element's id, its card ids and where each stands once the question is
-   *  answered (its true place, as an offset from where it is drawn). */
-  cardsFor?: (id: string) => { cards: string[]; offsets: Record<string, Pt>; shows?: string[] } | null;
+   *  answered (its true place, as an offset from where it is drawn).
+   *  `hides`: the cards the answer takes away (a formula's right tiles,
+   *  whose glyphs are written into the boxes instead, design 2026-10-03 §5.4). */
+  cardsFor?: (id: string) => { cards: string[]; offsets: Record<string, Pt>; shows?: string[]; hides?: string[]; gotos?: string[] } | null;
   /** This cast is a book's part: highlight/erase/point on an id that is not
    *  an element target the text pane (an earlier part's block included). */
   book?: boolean;
@@ -421,6 +577,9 @@ export interface PlanOptions {
   mathOf?: (id: string) => string | null;
   /** Whether an id names an element declared in the spec (as opposed to a minted or template id). */
   isElement?: (id: string) => boolean;
+  /** The template's own ids (LayoutResult.templateIds): a tree question on
+   *  its own page keeps the tree — the decision_tree template — whole. */
+  templateIds?: string[];
   /** The ORIGINAL-parse controls of a code element that HAS controls, else
    *  null — what a `run` sweeps and what the explore demo walks. */
   controlsOf?: (id: string) => ControlSpec[] | null;
@@ -460,6 +619,11 @@ const CAMERA_FIT_LIFT = 0.1;
 export function planCommands(commands: Command[] | undefined, allIds: string[], opts: PlanOptions = {}): Plan {
   /** The camera at rest: the page, or the fit of a template's world. */
   const rest = restView(opts.world);
+  /** A question's feedback, resolved with the cast's; plain with no reward (the default) leaves the step as it was. */
+  const feedbackOf = (own: unknown): { feedback?: FeedbackSpec } => {
+    const fb = resolveFeedback(opts.feedback, own);
+    return fb.style === "plain" && fb.reward === "none" ? {} : { feedback: fb };
+  };
   let bboxOf = opts.bboxOf ?? (() => null);
   const toLogical = opts.toLogical ?? ((p: Pt) => p);
   const deltaToLogical = opts.deltaToLogical ?? ((d: Pt) => d);
@@ -652,6 +816,40 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       }
     }
   };
+  /** Branching questions met so far, latest first: their branch labels and
+   *  the figure as the question left it. */
+  const branchPoints: { labels: Set<string>; scene: SceneState }[] = [];
+  const sceneNow = (): SceneState => ({
+    visible: [...visible],
+    offsets: { ...offsets },
+    turns: { ...turns },
+    camera,
+    params: { ...params },
+    opacities: { ...opacities },
+    shapes: Object.fromEntries(Object.entries(shapes).map(([id, m]) => [id, { ...m }])),
+    texts: Object.fromEntries(Object.entries(texts).map(([id, m]) => [id, { ...m }])),
+    tex: { ...tex },
+    copies: { ...copies },
+  });
+  const restoreScene = (st: SceneState): void => {
+    visible = [...st.visible];
+    visibleSet.clear();
+    for (const id of visible) visibleSet.add(id);
+    const put = <T>(into: Record<string, T>, from: Record<string, T>): void => {
+      for (const k of Object.keys(into)) delete into[k];
+      Object.assign(into, from);
+    };
+    put(offsets, st.offsets);
+    put(turns, st.turns);
+    put(opacities, st.opacities);
+    put(shapes, Object.fromEntries(Object.entries(st.shapes).map(([id, m]) => [id, { ...m }])));
+    put(texts, Object.fromEntries(Object.entries(st.texts).map(([id, m]) => [id, { ...m }])));
+    put(tex, st.tex);
+    put(copies, st.copies);
+    camera = st.camera;
+    params = { ...st.params };
+    relayoutBoxes();
+  };
   const makeVisible = (ids: string[]) => {
     for (const id of ids) {
       if (!visibleSet.has(id)) {
@@ -698,6 +896,37 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     const own = opts.expandId?.(id) ?? opts.expandGroup?.(id);
     return own && own.length > 0 ? expandOne(id, "", true) : [];
   };
+  /** What a question on its own page (stage: "own", spec round 6 §6) keeps
+   *  at full strength: what it names (and every part of it — a cards
+   *  element's cards and boxes, a formula's blanks and tiles), the parts a
+   *  guess paints, the options' members; for a tree, the tree itself — the
+   *  template's own ids (its blanks and pick are read off it), never a
+   *  spec element that merely shares a prefix. The rest of the screen fades. */
+  const stagedIds = (q: { on: string[]; others: string[]; parts: string[]; choose: string[]; tree: string[] | null }): string[] => {
+    const out = new Set<string>();
+    const rooted = (r: string) => {
+      for (const id of expandOne(r, "", true)) out.add(id);
+      for (const id of known) if (id === r || id.startsWith(`${r}_`)) out.add(id);
+    };
+    for (const r of [...q.on, ...q.others, ...q.choose]) rooted(r);
+    for (const id of q.parts) out.add(id);
+    if (q.tree) {
+      for (const r of q.tree) rooted(r);
+      for (const id of opts.templateIds ?? []) if (known.has(id)) out.add(id);
+    }
+    return [...out];
+  };
+  /** A choose ask's options as they stand now (spec 2026-10-03-round6 §4). */
+  const chooseOptions = (raw: (string | { id: string; goto?: string })[]): ChooseOption[] =>
+    raw.map((o) => {
+      const id = typeof o === "string" ? o : o.id;
+      const goto = typeof o === "string" ? undefined : o.goto;
+      const kids = standsFor(id);
+      const members = kids.length > 0 ? kids : [id];
+      const box = currentBox(id) ?? (kids.length > 0 ? unionBox(kids.map(currentBox)) : null);
+      const label = opts.labelOf?.(id) ?? id.replace(/_/g, " ");
+      return { id, label, members, ...(box ? { box } : {}), ...(goto !== undefined ? { goto } : {}) };
+    });
   const resolveIds = (raw: string[] | string | undefined, verb: string, quiet = false): string[] => {
     const requested = typeof raw === "string" ? [raw] : raw ?? [];
     // A `pieces` parent id stands for all its pieces: naming it draws,
@@ -752,6 +981,26 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     }
     return out;
   };
+  /** A formula's own parts (design 2026-10-03 §5): its blank boxes and its
+   *  tiles. An erase or hide of the formula takes them with it, so no box or
+   *  tile is left floating where the formula was — nor a scale's answer
+   *  marker where its scale was (opts.ownedBy). */
+  const formulaParts = (id: string): string[] => {
+    const f = opts.formulaFor?.(id) ?? null;
+    if (!f) return [];
+    const boxes = Array.from({ length: f.blanks }, (_, k) => `${id}_blank_${k + 1}`);
+    const tiles = [...known].filter((k) => k.startsWith(`${id}_tiles_`) && /^\d+$/.test(k.slice(id.length + 7)));
+    return [...boxes, ...tiles].filter((k) => known.has(k));
+  };
+  const withFormulaParts = (ids: string[]): string[] => {
+    const owned = ids.flatMap((id) => [...formulaParts(id), ...(opts.ownedBy?.(id) ?? [])]).filter((k) => known.has(k) && visibleSet.has(k));
+    return [...new Set([...ids, ...owned])];
+  };
+  /** Formulas whose ask has been answered: their boxes are gone for good (the
+   *  truth is written in), so drawing the formula again does not bring them. */
+  const answeredFormulas = new Set<string>();
+  const dropAnsweredBoxes = (ids: string[], named: string[]): string[] =>
+    ids.filter((id) => named.includes(id) || ![...answeredFormulas].some((f) => id.startsWith(`${f}_blank_`)));
   /** How a command's target reads back in a warning: the id(s) the author wrote, not the expanded pieces. */
   const targetLabel = (raw: string[] | string | undefined): string => (typeof raw === "string" ? raw : (raw ?? []).join(", "));
   /** Element's current visual bbox: layout bbox under its accumulated pose —
@@ -1247,7 +1496,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.speak !== undefined && !hasAction) {
       pushStep({ kind: "speak", text: cmd.speak, blocking: cmd.blocking !== false, speaker: cmd.voice, delivery: cmd.delivery });
     } else if (cmd.draw !== undefined) {
-      const ids = withCompanions(resolveIds(cmd.draw, "draw"));
+      const named = resolveIds(cmd.draw, "draw");
+      const ids = dropAnsweredBoxes(withCompanions(named), named);
       ids.forEach((id) => mentioned.add(id));
       ids.forEach((id) => lastRevealed.set(id, steps.length));
       makeVisible(ids);
@@ -1257,6 +1507,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.wait !== undefined) {
       pushStep({ kind: "wait" });
     } else if (cmd.label !== undefined) {
+      // A branch of a choose or decide starts from the figure as the question
+      // left it, not from the branch before it (final fix wave E): only the
+      // chosen branch's steps shape the figure.
+      const point = branchPoints.find((b) => b.labels.has(cmd.label!));
+      if (point) restoreScene(point.scene);
       labels[cmd.label] = steps.length;
       pushStep({ kind: "label", name: cmd.label });
     } else if (cmd.run !== undefined) {
@@ -1310,6 +1565,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.quiz.right_goto !== undefined ? { rightGoto: cmd.quiz.right_goto } : {}),
         ...(cmd.quiz.wrong_goto !== undefined ? { wrongGoto: cmd.quiz.wrong_goto } : {}),
         ...(cmd.quiz.store !== undefined ? { store: cmd.quiz.store } : {}),
+        ...feedbackOf(cmd.quiz.feedback),
       });
     } else if (cmd.ask !== undefined) {
       // The question IS the narration unless the author paired a speak; the
@@ -1343,7 +1599,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // there — at the truth — once it ends, like the drag widget's items.
       let guess: { parts: string[]; shows: string[] } | undefined;
       // Cards: after the question every card stands in its true place.
-      const oneOn = typeof cmd.ask.on === "string" ? cmd.ask.on : Array.isArray(cmd.ask.on) && cmd.ask.on.length === 1 ? cmd.ask.on[0] : undefined;
+      const treeAsk = cmd.ask.blanks !== undefined || cmd.ask.pick !== undefined;
+      const oneOn = treeAsk || cmd.ask.on === "tree" ? undefined : typeof cmd.ask.on === "string" ? cmd.ask.on : Array.isArray(cmd.ask.on) && cmd.ask.on.length === 1 ? cmd.ask.on[0] : undefined;
+      const formula = oneOn !== undefined ? (opts.formulaFor?.(oneOn) ?? null) : null;
       const cardSet = oneOn !== undefined ? (opts.cardsFor?.(oneOn) ?? null) : null;
       if (cardSet) {
         for (const id of cardSet.cards) {
@@ -1358,13 +1616,42 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         const shows = (cardSet.shows ?? []).filter((id) => known.has(id));
         shows.forEach((id) => mentioned.add(id));
         makeVisible(shows);
-      } else if (cmd.ask.on !== undefined) {
+        makeHidden((cardSet.hides ?? []).filter((id) => known.has(id)));
+      } else if (cmd.ask.on !== undefined && !treeAsk && cmd.ask.on !== "tree" && !formula) {
         guess = opts.guessParts?.(cmd.ask.on, cmd.ask.from) ?? { parts: [], shows: [] };
         if (guess.parts.length === 0) warnings.push(`ask on: nothing to guess in ${JSON.stringify(cmd.ask.on)} (the question is asked as typing instead)`);
         const shown = guess.shows.flatMap((id) => expandOne(id, "ask", true));
         shown.forEach((id) => mentioned.add(id));
         // A guess kept back (reveal: false) shows nothing: its truth is for a later revise.
         if (cmd.ask.reveal !== false) makeVisible(shown);
+      }
+      // A formula's blanks (design 2026-10-03 §5.4): once answered, the truth
+      // is written into each box (the player's `fills` patch) and the boxes go.
+      if (formula && oneOn !== undefined) {
+        const boxes = Array.from({ length: formula.blanks }, (_, k) => `${oneOn}_blank_${k + 1}`).filter((id) => known.has(id));
+        boxes.forEach((id) => mentioned.add(id));
+        makeHidden(boxes);
+        answeredFormulas.add(oneOn);
+      }
+      // A tree's blanks (spec 2026-10-03 §4.2): "?" on every boundary before
+      // the ask (the post-pass below), so the ask may draw them itself —
+      // they are there, as "?", while it is asked, and the truth once it ends.
+      if (treeAsk) {
+        const parts = (cmd.ask.blanks ?? []).flatMap((b) => {
+          const own = expandOne(b, "ask", true);
+          const m = own.length === 0 ? /^(?:effect|cost)_(.+)$/.exec(b) : null;
+          return m ? expandOne(`payoff_${m[1]}`, "ask", true) : own;
+        });
+        parts.forEach((id) => mentioned.add(id));
+        makeVisible(parts);
+      }
+      // A pick on a rolled-back tree: the decision's best and prune marks are
+      // the reveal (spec 2026-10-03 §4.3) — hidden while it is asked (the
+      // player), there once the question ends.
+      if (treeAsk && cmd.ask.pick !== undefined) {
+        const marks = [...known].filter((id) => id.startsWith(`best_${cmd.ask!.pick}_`) || id.startsWith(`prune_${cmd.ask!.pick}_`));
+        marks.forEach((id) => mentioned.add(id));
+        makeVisible(marks);
       }
       // The connect widget: the figure's own lines are the reveal. The gate hides
       // them while the viewer draws (it owns the DOM), and the plan agrees they are
@@ -1399,9 +1686,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // one question cannot be answered on two devices.
         ...(cmd.ask.code === undefined && cmd.ask.widget !== undefined && !(BUILTIN_WIDGETS as readonly string[]).includes(cmd.ask.widget) ? { widgetTemplate: true as const } : {}),
         ...(cmd.ask.code !== undefined && cmd.ask.expect !== undefined ? { expect: cmd.ask.expect } : {}),
+        ...(treeAsk
+          ? { tree: { blanks: cmd.ask.blanks ?? [], ...(cmd.ask.pick !== undefined ? { pick: cmd.ask.pick } : {}), ...(cmd.ask.work !== undefined ? { work: cmd.ask.work } : {}) }, tolerance: cmd.ask.tolerance ?? 0.02 }
+          : {}),
+        ...(formula && oneOn !== undefined ? { formula: oneOn, tolerance: cmd.ask.tolerance ?? 0.02, ...(cmd.ask.others ? { others: cmd.ask.others } : {}), ...(cmd.ask.form ? { form: cmd.ask.form } : {}), ...(cmd.ask.release === false ? { release: false as const } : {}) } : {}),
+        ...(cmd.ask.check !== undefined ? { check: cmd.ask.check } : {}),
         ...(cardSet && oneOn !== undefined ? { cards: oneOn, tolerance: cmd.ask.tolerance ?? 0 } : {}),
         ...(guess && guess.parts.length > 0
-          ? { on: guess.parts, tolerance: cmd.ask.tolerance ?? 0.1, ...(cmd.ask.from !== undefined ? { from: cmd.ask.from } : {}), ...(cmd.ask.relative === true ? { relative: true } : {}), ...(cmd.ask.release === false ? { release: false } : {}), ...(cmd.ask.predict === true ? { predict: true as const } : {}), ...(cmd.ask.revise !== undefined ? { revise: cmd.ask.revise } : {}), ...(cmd.ask.budget !== undefined ? { budget: cmd.ask.budget } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) }
+          ? { on: guess.parts, tolerance: cmd.ask.tolerance ?? 0.1, ...(cmd.ask.from !== undefined ? { from: cmd.ask.from } : {}), ...(cmd.ask.relative === true ? { relative: true } : {}), ...(cmd.ask.release === false ? { release: false } : {}), ...(cmd.ask.predict === true ? { predict: true as const } : {}), ...(cmd.ask.revise !== undefined ? { revise: cmd.ask.revise } : {}), ...(cmd.ask.budget !== undefined ? { budget: cmd.ask.budget } : {}), ...(cmd.ask.budget !== undefined && cmd.ask.account_label ? { accountLabel: cmd.ask.account_label } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) }
           : {}),
         ...(cmd.ask.code !== undefined && currentBox(cmd.ask.code) !== null ? { answerBox: currentBox(cmd.ask.code)! } : {}),
         // The movie demo points at the answer: the element's box (click), the
@@ -1419,21 +1711,44 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.widget === "chess" && cmd.ask.answer !== undefined && chessSquareBox(opts.animateBase?.["flip"] === true, cmd.ask.answer.trim().slice(-2)) !== null
           ? { answerBox: chessSquareBox(opts.animateBase?.["flip"] === true, cmd.ask.answer.trim().slice(-2))! }
           : {}),
+        ...(Array.isArray(cmd.ask.choose) ? { choose: chooseOptions(cmd.ask.choose), ...(cmd.ask.then !== undefined ? { then: cmd.ask.then } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) } : {}),
+        ...feedbackOf(cmd.ask.feedback),
+        ...(cmd.ask.reveal_style !== undefined ? { revealStyle: cmd.ask.reveal_style } : {}),
+        ...(cmd.ask.reveal_order === "each" ? { revealOrder: "each" as const } : {}),
+        ...(cmd.ask.keep === true ? { keep: true as const } : {}),
+        ...(cmd.ask.stage === "own"
+          ? {
+              stage: stagedIds({
+                on: treeAsk || cmd.ask.on === "tree" ? [] : typeof cmd.ask.on === "string" ? [cmd.ask.on] : (cmd.ask.on ?? []),
+                others: cmd.ask.others ?? [],
+                parts: [...(guess ? [...guess.parts, ...guess.shows] : []), ...(cardSet ? [...cardSet.cards, ...(cardSet.shows ?? [])] : [])],
+                choose: Array.isArray(cmd.ask.choose) ? chooseOptions(cmd.ask.choose).flatMap((o) => [o.id, ...o.members]) : [],
+                tree: treeAsk ? [...(cmd.ask.blanks ?? []), ...(cmd.ask.pick !== undefined ? [cmd.ask.pick] : [])] : null,
+              }),
+            }
+          : {}),
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;
+      // A branching question: each of its branches is planned from here.
+      const branchLabels = [
+        ...(Array.isArray(cmd.ask.choose) ? cmd.ask.choose.map((o) => (typeof o === "string" ? undefined : o.goto)) : []),
+        ...(cardSet?.gotos ?? []),
+      ].filter((l): l is string => l !== undefined);
+      if (branchLabels.length > 1) branchPoints.unshift({ labels: new Set(branchLabels), scene: sceneNow() });
     } else if (cmd.show !== undefined) {
-      const ids = withCompanions(resolveIds(cmd.show, "show"));
+      const named = resolveIds(cmd.show, "show");
+      const ids = dropAnsweredBoxes(withCompanions(named), named);
       ids.forEach((id) => mentioned.add(id));
       ids.forEach((id) => lastRevealed.set(id, steps.length));
       makeVisible(ids);
       pushStep({ kind: "show", ids });
     } else if (cmd.hide !== undefined) {
-      const ids = resolveIds(cmd.hide, "hide");
+      const ids = withFormulaParts(resolveIds(cmd.hide, "hide"));
       ids.forEach((id) => mentioned.add(id));
       makeHidden(ids);
       pushStep({ kind: "hide", ids });
     } else if (cmd.erase !== undefined) {
-      const named = resolveIds(cmd.erase, "erase");
+      const named = withFormulaParts(resolveIds(cmd.erase, "erase"));
       // Paper last: the words written on it go first, then the card.
       const ids = opts.isPaper ? [...named.filter((id) => !opts.isPaper!(id)), ...named.filter((id) => opts.isPaper!(id))] : named;
       ids.forEach((id) => mentioned.add(id));
@@ -1461,6 +1776,17 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       if (part !== undefined && raw.some((t) => hasRegion(t, part!))) {
         raw = raw.map((t) => (hasRegion(t, part!) ? `${t}:${part}` : t));
         part = undefined;
+      }
+      // A formula blank's fill (spec 2026-10-03 §5.4), `<id>_blank_<k>_fill`:
+      // a nested group of the formula, so the highlight is on the formula,
+      // narrowed to that group's glyphs (highlight-part.ts).
+      if (part === undefined && raw.length === 1) {
+        const m = /^(.+)_blank_(\d+)_fill$/.exec(raw[0]);
+        const f = m && !known.has(raw[0]) ? (opts.formulaFor?.(m[1]) ?? null) : null;
+        if (m && f && Number(m[2]) >= 1 && Number(m[2]) <= f.blanks) {
+          part = raw[0];
+          raw = [m[1]];
+        }
       }
       const places: PlaceNow[] = [];
       const placeNames: string[] = [];
@@ -2466,5 +2792,18 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     pushStep({ kind: "draw", ids: remaining, parallel: false, implicit: true });
   }
 
-  return { steps, states, labels, warnings, minted, sources: [...sourceSet] };
+  // A tree ask's blanks show "?" on every boundary before it (spec
+  // 2026-10-03 §4): drawing the tree earlier must not give its numbers away,
+  // and a scrub back to before the ask hides them again. After the ask the
+  // truth stands (unless a later ask blanks the same part).
+  let start: SceneState | undefined;
+  for (let k = steps.length - 1; k >= 0; k--) {
+    const step = steps[k];
+    if (step.kind !== "ask" || !step.tree || step.tree.blanks.length === 0) continue;
+    const hide = (st: SceneState): SceneState => ({ ...st, answers: { ...(st.answers ?? {}), ...Object.fromEntries(step.tree!.blanks.map((b) => [b, "?"])) } });
+    for (let j = 0; j < k; j++) states[j] = hide(states[j]);
+    start = hide(start ?? INITIAL_STATE);
+  }
+
+  return { steps, states, labels, warnings, minted, sources: [...sourceSet], ...(start ? { start } : {}) };
 }

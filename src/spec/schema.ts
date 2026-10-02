@@ -7,6 +7,7 @@
 // to the LLM in the repair round.
 
 import AjvModule, { type ValidateFunction } from "ajv";
+import { fillIconDataInPlace } from "./icon-data";
 import { ASSET_MAX_BYTES, assetBytes, assetRef, formatAssetSize, isDataAsset, paramAssetRefs, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
 import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement, ACTIVITY_IDS, MUSIC_SYMBOLS } from "./types";
 import { isReservedVar } from "./answers";
@@ -95,6 +96,23 @@ const SHARED_DEFS = {
       { type: "object", properties: { of: { type: "array", items: { type: "string" } }, opacity: { type: "number", minimum: 0, maximum: 1 } }, additionalProperties: false },
     ],
   },
+  feedback: {
+    anyOf: [
+      { type: "string", enum: ["plain", "warm", "dry"] },
+      {
+        type: "object",
+        properties: {
+          style: { type: "string", enum: ["plain", "warm", "dry"] },
+          reward: { type: "string", enum: ["auto", "none", "confetti", "picture", "joke"] },
+          perfect: { anyOf: [{ type: "string" }, { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 }] },
+          good: { anyOf: [{ type: "string" }, { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 }] },
+          poor: { anyOf: [{ type: "string" }, { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 }] },
+          none: { anyOf: [{ type: "string" }, { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 }] },
+        },
+        additionalProperties: false,
+      },
+    ],
+  },
   end_ref: {
     type: "object",
     properties: {
@@ -108,6 +126,10 @@ const SHARED_DEFS = {
     additionalProperties: false,
   },
 };
+
+/** Feedback flavour (spec 2026-10-03-looks-feedback-account §4.1), on the cast or one question. */
+const feedbackSchema = (description: string) => ({ allOf: [{ $ref: "#/$defs/feedback" }], description });
+const CAST_FEEDBACK = `Questions' feedback: after the right/wrong line the player adds ONE short line for how well the viewer did. plain (default, nothing added), warm or dry; or {style, perfect, good, poor, none} with YOUR OWN lines per band (all right; two thirds; some; none) — a sentence or a list, in the cast's language, about its topic ("Good thing you're not a pharmacist."). {vars} work. An ask or quiz may set its own.`;
 
 const endRefSchema = {
   allOf: [{ $ref: "#/$defs/end_ref" }],
@@ -319,6 +341,7 @@ const elementSchema = {
       description: "group: scale and centre the members into this region or box (aspect kept). population: the region or box it fills (legend included).",
     },
     tex: { type: "string", description: "math: LaTeX, drawn as handwriting; {v} writes var v's value, live (an argument needs {{v}}: \\frac{{B}}{…}, ^{{t}}). label: LaTeX instead of text." },
+    fills: { type: "array", items: { oneOf: [{ type: "string" }, { type: "null" }] }, description: "internal: the answer shown in each \\blank box of a math element (written by the player)." },
     size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26). link: card width (300)." },
     symbol: { type: "string", enum: [...MUSIC_SYMBOLS], description: "music: the symbol, drawn from a real music font — notes join their stems exactly. x/y is its centre (a note's head)." },
     stem: { type: "string", enum: ["up", "down"], description: "music: a note's stem direction (default up)." },
@@ -333,13 +356,21 @@ const elementSchema = {
     note_dx: { type: "number", description: "math with steps: the notes' column, canvas units right of the formula's centre (default 220)." },
     colors: { type: "object", additionalProperties: { type: "string" }, description: 'math: colour per term, a TeX snippet → colour ({"x": "#2f6b8f", "\\\\Delta C": "#b5482e"}); every occurrence. population: colour per state (hex or a palette name).' },
     set: { type: "string", description: "icon: icon set prefix (lucide, tabler, ph, heroicons, material-symbols; fa6-solid, twemoji as CC BY)." },
-    credit: { type: "string", description: "image/icon: attribution (machine-written; copy VERBATIM if present)." },
+    credit: { type: "string", description: "image/icon/node (its icon): attribution (machine-written; copy VERBATIM if present)." },
     crop: { type: "boolean", description: "inset: true (default) fits the source page's ink into the box so the drawing fills it; false fits the whole 1000×750 canvas, so every uncropped inset shares one scale and the source's layout is preserved." },
     x: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical x (y-up canvas) — the centre, for the shapes that have one. inset: the centre of the box; omit x, y and at to take the next slot in the right-hand thumbnail column." },
     y: { type: "number", description: "text/shape/sector/arc/polygon/pieces/ellipse: logical y (y-up canvas) — the centre, for the shapes that have one. inset: the centre of the box; omit x, y and at to take the next slot in the right-hand thumbnail column." },
     width: { type: "number", description: "shape rect / node / portrait / source / code / pieces strips+grid (the rectangle to cut): width in logical units (a source defaults to 200 for a cover, 260 for a page; a code panel to 880). / image: width. inset: box width (default 160; the height follows 4:3 unless given) — only read when x/y or at place the inset; in the column, width and height are ignored." },
     height: { type: "number", description: "shape rect / node / pieces strips+grid (the rectangle to cut): height in logical units. inset: box height." },
-    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40). point: the dot's radius in canvas units (default 7; e.g. 20 for a ball) — bind it to animate." },
+    radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40). point: the dot's radius in canvas units (default 7; e.g. 20 for a ball) — bind it to animate. node rect: corner radius (default 0)." },
+    shadow: { type: "boolean", description: "node rect: true = a soft shadow behind the box (for a filled box)." },
+    icon: {
+      oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }],
+      description: 'node rect: an icon inside the box, above its text — a keyword ("shark") or {"of", "set"} like an icon element; the box grows to fit.',
+    },
+    icon_strokes: { type: "string", description: "node rect: the resolved icon (machine-written; copy VERBATIM if present)." },
+    icon_key: { type: "string", description: "node/icon: what the icon was resolved for (machine-written; copy VERBATIM if present)." },
+    icon_look: { type: "string", enum: ["picture", "drawn"], description: 'node/cards/icon: picture (its own artwork; nodes/cards default) or drawn (traced; icon default) — drawn only when the icon is the subject.' },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26). node: its text size (default 24; a text-fitted box grows with it)." },
     // sector / arc / polygon / pieces
     start: { type: "number", description: "sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up) — e.g. start: 0, end: 90 is the upper-right quarter." },
@@ -398,7 +429,7 @@ const elementSchema = {
       description:
         "portrait/source/image: direct image, .pdf, or YOUTUBE url — ONLY when the user's request supplied one (copy it verbatim; never invent). On a source, a YouTube url draws the video's still, framed with a hand-drawn play mark, and clicking it plays the video embedded — use it when the video IS a thing the figure points at, and note that its title becomes the caption automatically.",
     },
-    look: { type: "string", enum: ["screen"], description: "image: \"screen\" keeps colour and resolution — screenshots, diagrams, paintings you point into." },
+    look: { type: "string", enum: ["screen", "paper", "flat", "outline"], description: "image: \"screen\" keeps colour and resolution — screenshots, diagrams, paintings you point into. cards: paper (default), flat or outline (plain boxes)." },
     view: { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4, description: "image: the part shown, [x, y, w, h] fractions from the top-left." },
     regions: {
       anyOf: [
@@ -567,14 +598,40 @@ const elementSchema = {
     items: {
       type: "array",
       minItems: 2,
-      maxItems: 8,
-      items: { anyOf: [{ type: "string" }, { type: "object", properties: { text: { type: "string" }, bin: { type: "string" }, value: { type: "number" }, match: { type: "string" } }, required: ["text"], additionalProperties: false }] },
+      maxItems: 30,
+      items: {
+        anyOf: [
+          { type: "string" },
+          {
+            type: "object",
+            properties: {
+              text: { type: "string" },
+              bin: { type: "string" },
+              in: { type: "boolean" },
+              value: { type: "number" },
+              match: { type: "string" },
+              blank: { type: "integer", minimum: 1 },
+              // Round 5 §3.3: an icon on the card (match_icon: on its partner), as a node's icon; the rest is machine-written.
+              icon: { oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }] },
+              match_icon: { oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }] },
+              icon_strokes: { type: "string" },
+              credit: { type: "string" },
+              match_icon_strokes: { type: "string" },
+              match_credit: { type: "string" },
+              icon_key: { type: "string" },
+              match_icon_key: { type: "string" },
+            },
+            required: ["text"],
+            additionalProperties: false,
+          },
+        ],
+      },
       description:
-        "cards: cards the viewer ORDERS or SORTS, asked with an ask on: <id> (they drag the cards, press Answer, and the cards glide to the truth). RANK: the items in their TRUE order, first = most/earliest/top (a word or three each: \"USA\", \"Norway\"), with ends naming the two ends. SORT: give bins, and each item {text, bin}. The cards are drawn SHUFFLED, so draw <id> before the ask; after it they stand in the true order. Cards are <id>_1 … in true order; sort's boxes <id>_bin_1 ….",
+        "cards: cards the viewer ORDERS or SORTS, asked with an ask on: <id> (rank: they drag the cards and press Answer, and the cards slide into the true order; sort: each card is judged as it is dropped, a wrong one moved to its right box — check: \"end\" waits for Answer). RANK: the items in their TRUE order, first = most/earliest/top (a word or three each: \"USA\", \"Norway\"), with ends naming the two ends. SORT: give bins, and each item {text, bin} (the viewer drags or TAPS a card to send it to a box); deck: true deals up to 30 cards one at a time. TAP ALL THE …: give select (the one box's title) and items {text, in: true} for those that belong; the rest stay out. 2–8 items, up to 30 with deck. The cards are drawn SHUFFLED, so draw <id> before the ask; after it they stand in the true order. Cards are <id>_1 … in true order; sort's boxes <id>_bin_1 …. An item {text, icon: \"shark\"} draws an icon on its card (match_icon: on its partner).",
     },
     bins: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" }, description: "cards: the boxes to sort into (a word or two each); every item's bin is one of them." },
     ends: { type: "array", minItems: 2, maxItems: 2, items: { type: "string" }, description: "cards (rank): what the two ends mean, first end first: [\"most\", \"least\"], [\"earliest\", \"latest\"]." },
-    arrange: { type: "string", enum: ["row", "column"], description: "cards (rank): a row of cards (default) or a column (longer names)." },
+    arrange: { type: "string", enum: ["row", "column", "drop", "side", "rise"], description: "cards: rank — a row (default) or a column (longer names); sort, select, deck — drop (default: the cards above the boxes; y is the top of the cards), side (the cards a column on the left, the boxes right; up to 8 cards) or rise (the boxes above the cards; y is the boxes' top)." },
     along: { type: "string", description: "cards: PLACE ON A SCALE — the id of a scale element; each item has a value, and the viewer drags the cards onto the line (\"put these inventions on the timeline\"). Draw the scale and the cards first." },
     compare: { type: "string", description: "cards: HIGHER OR LOWER — the question each pair answers, written over the cards (\"Which kills more people a year?\"); each item has a value; pairs of items (pairs, default consecutive) are rows, the viewer taps the bigger of each, and its numbers appear." },
     pairs: { type: "array", maxItems: 5, items: { type: "array", minItems: 2, maxItems: 2, items: { type: "integer", minimum: 0 } }, description: "cards (compare): which items face each other, as 0-based index pairs [[0, 1], [2, 3]] (default consecutive)." },
@@ -585,7 +642,11 @@ const elementSchema = {
       items: { type: "object", properties: { text: { type: "string" }, goto: { type: "string" }, best: { type: "boolean" } }, required: ["text"], additionalProperties: false },
       description: "cards: DECIDE — the choices (a few words each), each with goto: the label of the section that plays out its consequences. The viewer taps one and the cast goes there; best: true on one makes the decision scored. Movies play every branch in order, so write each to stand on its own (\"If you treat now: …\"). Give then: the label where the branches meet.",
     },
+    select: { type: "string", description: "cards: TAP ALL THE … — the title of the one box (\"Mammals\"); items {text, in: true} belong in it, the rest ({text, in: false} or a plain string) stay out. The viewer taps the cards that belong (each judged as tapped), then Done. Not with bins." },
+    deck: { type: "boolean", description: "cards (sort): a DECK — one large card at a time in the middle; the viewer taps a box (or presses 1, 2, …), the card flies there and the next comes, with a ✓ or ✗ for each. Up to 30 items: for many quick calls." },
+    check: { type: "string", enum: ["each", "end"], description: "cards (sort, select, deck): each (default) — every card is judged as it is dropped, a wrong one moved to its right box; end — sort freely, then Answer (a test-like question)." },
     then: { type: "string", description: "cards (decide): the label where every branch meets again — a live viewer who chose one branch skips the others and goes on here." },
+    fill: { type: "string", description: "cards: set by the expansion of a formula ask with others (the tiles of math <id> are cards <id>_tiles) — never write it." },
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
     states: {
       type: "object",
@@ -742,6 +803,7 @@ const commandSchema = {
           description:
             "Store the chosen option's TEXT under this simple name (letters, digits, underscores; starts with a letter): later speak lines may use {name}, {name.ok} (true/false) and {name.secs} (seconds the viewer took). Movies and skipped questions store the correct option.",
         },
+        feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
       },
       required: ["question", "choices", "correct"],
       additionalProperties: false,
@@ -887,8 +949,29 @@ const commandSchema = {
         from: { type: "number", description: "With `on` a line: the x value from which the viewer draws the rest of the line (default: the middle x). Before it the true line is shown." },
         predict: { type: "boolean", description: "With `on`, right BEFORE an animate: the viewer predicts where that animate takes the figure — the guess starts where the figure stands now, the truth is the figure after the animate, and the animate itself plays from their prediction to the truth. The part may already be drawn (it is the present)." },
         revise: { type: "string", description: "With `on`: start from an earlier guess on the same part (that ask's store), made with reveal: false — guess, show new evidence, guess again; the reveal shows both guesses and the truth. {store.moved} is how far they moved." },
-        budget: { type: "number", exclusiveMinimum: 0, description: "With on: \"all\" on a bar_chart (or a whole pie): the viewer SPLITS this total — raising one bar lowers the others, the sum always equals the budget. Pair with judge: false for 'how would you split it?'. {store.<bar_k>} keeps each share, {store.biggest} the label given most." },
-        judge: { type: "boolean", description: "With `on`: false = an opinion with no right answer — no score, `right` is spoken whatever the guess, and the reveal shows the figure's own values as the reference (what is actually done)." },
+        budget: { type: "number", exclusiveMinimum: 0, description: "With on: \"all\" on a bar_chart: the viewer SPLITS this total — each bar moves on its own, an account bar beside the plot shows what is left (red when overspent), and Answer waits until it balances. Pair with judge: false for 'how would you split it?'. {store.<bar_k>} keeps each share, {store.biggest} the label given most." },
+        account_label: { type: "string", maxLength: 24, description: "With budget: the account bar's label (default \"Left\"), a word or two in the cast's language." },
+        judge: { type: "boolean", description: "With `on`: false = an opinion with no right answer — no score, `right` is spoken whatever the guess, and the reveal shows the figure's own values as the reference (what is actually done). With `choose`: false = an opinion (which would YOU take?) — no answer, nothing scored." },
+        choose: {
+          type: "array",
+          minItems: 2,
+          maxItems: 8,
+          items: { oneOf: [{ type: "string" }, { type: "object", properties: { id: { type: "string" }, goto: { type: "string" } }, required: ["id"], additionalProperties: false }] },
+          description:
+            "CHOOSE ON THE FIGURE: the options are things ALREADY DRAWN — a node, an icon, a group, a template part — and the viewer taps the thing itself (hover rings; Tab/Enter on the keyboard). Better than cards or a quiz whose choices repeat what the figure shows. answer = the right option's id (judged); judge: false = an opinion (store it: {c} is the tapped thing's label, {c.id} its id); {id, goto} options branch like decide cards and meet again at `then`. In movies the laser taps `default`, else the answer, else the first option.",
+        },
+        then: { type: "string", description: "With `choose` options that goto: the label after the branches where they meet again." },
+        reveal_style: { enum: ["beside", "morph", "reorder"], description: "Reveal of a guess, cards, tree or formula: beside (default; the answer stays, the truth is drawn beside it), morph (the answer glides into the truth) or reorder (default for rank cards: they slide into the true order, a faint yours row behind)." },
+        reveal_order: { enum: ["all", "each"], description: "all (default), or each: the truth part by part, 0.6 s apart." },
+        keep: { type: "boolean", description: "Guess: true keeps yours past the next question and a later animate (it follows the part)." },
+        stage: { const: "own", description: "own: the rest of the figure fades while the question stands (cards or options over the figure)." },
+        blanks: { type: "array", minItems: 1, items: { type: "string" }, description: "Tree: the parts of a decision_tree the viewer fills in — value_<node>, branchlabel_<parent>_<child>, effect_<node>, cost_<node>." },
+        pick: { type: "string", description: "Tree: the decision node whose best branch the viewer taps." },
+        work: { oneOf: [{ type: "string", enum: ["all"] }, { const: false }], description: "Tree: working lines under wrong blanks (default), \"all\" for every blank, or false for none." },
+        check: { type: "string", enum: ["direction", "shape", "size"], description: "Market guess (with `on` a supply or demand curve): what right means — direction, shape (default) or size." },
+        others: { type: "array", items: { type: "string" }, description: "Formula (on a math element with \\blank): wrong tiles; the right contents are always tiles." },
+        form: { const: "exact", description: "Formula, typed: \"exact\" compares the written form, not the value." },
+        feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
         release: { type: "boolean", description: "With `on`: letting go of the drag is the answer (default true). false shows an Answer button, so the viewer can adjust before answering — for a careful estimate. Several parts (on: all, a whole pie) always get the button." },
         relative: { type: "boolean", description: "With `on`: tolerance is a fraction of the true value (within 20 % = tolerance 0.2) — for money and other quantities spanning orders of magnitude." },
         code: {
@@ -1244,6 +1327,7 @@ export const specSchema = {
         "Playlist items only: the semantic-zoom entrance. Before this item begins, the PREVIOUS figure zooms into this element id (an id of the PREVIOUS item's scene) and fades there — so the new figure feels like the inside of the old one (heart → cell, bins → bell curve). Replaces the chapter card at that junction.",
     },
     level: { type: "string", enum: ["basic", "advanced"], description: "Difficulty of the explanation, when the request states one. Shown as a badge; omit if unspecified." },
+    feedback: feedbackSchema(CAST_FEEDBACK),
     record: { type: "boolean", description: "false: keep no local record of the viewer's answers in their browser. Omit (default true)." },
     voice: {
       type: "string",
@@ -1470,6 +1554,9 @@ export function normalizeSpec(spec: unknown): unknown {
   // template, a widget and the lint all read params, and none of them should
   // have to know what a reference is (design 2026-09-20 §4.3).
   resolveParamAssetRefs(clone);
+  // An icon named by keyword only takes its data from `assets:` or the
+  // offline cache (spec/icon-data.ts) — on this clone, never the document.
+  fillIconDataInPlace(clone as Spec);
   const toList = (v: string[] | string | undefined): string[] | undefined => (typeof v === "string" ? [v] : v);
   // Malformed input flows through here before validation — guard shapes.
   for (const el of Array.isArray(clone.elements) ? clone.elements : []) {
@@ -1835,7 +1922,40 @@ function semanticErrors(spec: Spec): string[] {
       }
       // A guess on the figure (spec 2026-10-01-guess-and-reveal): the truth is
       // the figure's own number, so no answer; right/wrong are its feedback.
-      const isGuess = a.on !== undefined;
+      const isTree = a.blanks !== undefined || a.pick !== undefined;
+      const isGuess = a.on !== undefined && !isTree;
+      const isChoose = a.choose !== undefined;
+      if (isChoose) {
+        const ids: string[] = [];
+        const okList = Array.isArray(a.choose) && a.choose.length >= 2;
+        if (!okList) errors.push(`commands[${i}]: ask.choose must list two or more drawn elements (ids, or {id, goto})`);
+        for (const o of Array.isArray(a.choose) ? a.choose : []) {
+          const id = typeof o === "string" ? o : o && typeof o === "object" ? (o as { id?: unknown }).id : undefined;
+          if (typeof id !== "string" || id.trim() === "") {
+            errors.push(`commands[${i}]: ask.choose: each option is an element id or {id, goto}`);
+            continue;
+          }
+          if (ids.includes(id)) errors.push(`commands[${i}]: ask.choose names "${id}" twice`);
+          ids.push(id);
+          if (typeof o === "object") checkGoto(i, "ask", "choose goto", (o as { goto?: string }).goto);
+        }
+        if (a.answer !== undefined && typeof a.answer === "string" && ids.length > 0 && !ids.some((id) => id.toLowerCase() === a.answer!.trim().toLowerCase())) {
+          errors.push(`commands[${i}]: ask.answer "${a.answer}" is not one of the choose options (${ids.join(", ")})`);
+        }
+        if (a.default !== undefined && ids.length > 0 && !ids.some((id) => id.toLowerCase() === String(a.default).trim().toLowerCase())) {
+          errors.push(`commands[${i}]: ask.default "${a.default}" is not one of the choose options — the movie taps it`);
+        }
+        if (a.judge === false && a.answer !== undefined) errors.push(`commands[${i}]: ask.judge: false is an opinion — leave out answer (or judge)`);
+        if (a.widget !== undefined || a.items !== undefined || a.on !== undefined || a.code !== undefined || a.retry !== undefined) {
+          errors.push(`commands[${i}]: ask.choose is answered by tapping the figure — leave out widget, items, on, code and retry`);
+        }
+        if ((a.right_goto !== undefined || a.wrong_goto !== undefined) && a.answer === undefined) {
+          errors.push(`commands[${i}]: ask.right_goto and wrong_goto need answer — or give each choose option its own goto`);
+        }
+        checkGoto(i, "ask", "then", a.then);
+      } else if (a.then !== undefined) {
+        errors.push(`commands[${i}]: ask.then only applies to choose (where the options' gotos meet again)`);
+      }
       if (isGuess) {
         const onOk = typeof a.on === "string" ? a.on.trim() !== "" : Array.isArray(a.on) && a.on.length > 0 && a.on.every((x) => typeof x === "string" && x.trim() !== "");
         if (!onOk) errors.push(`commands[${i}]: ask.on must name a part (bar_2, line_1, slice_1, crowd_sick, a scale's id), a list of them, or "all"`);
@@ -1843,10 +1963,10 @@ function semanticErrors(spec: Spec): string[] {
           errors.push(`commands[${i}]: ask.on is a guess on the figure — the truth is the figure's own number, so leave out answer, widget, items and code`);
         }
         if (a.retry !== undefined) errors.push(`commands[${i}]: ask.retry does not apply to a guess (the figure shows the truth after one answer)`);
-      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.revise !== undefined || a.budget !== undefined || a.judge !== undefined) {
-        errors.push(`commands[${i}]: ask.from, relative, release, predict, revise, budget and judge only apply to a guess (with on)`);
+      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.revise !== undefined || a.budget !== undefined || a.account_label !== undefined || (a.judge !== undefined && !isChoose)) {
+        errors.push(`commands[${i}]: ask.from, relative, release, predict, revise, budget, account_label and judge only apply to a guess (with on; judge also to choose)`);
       }
-      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess) {
+      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && !isChoose && a.on === undefined) {
         errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);
       }
       if (a.answer !== undefined && (typeof a.answer !== "string" || a.answer.trim().length === 0)) {
@@ -1858,13 +1978,14 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && isReservedVar(a.store)) {
         errors.push(`commands[${i}]: ask.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
       }
-      if (a.store !== undefined && a.default === undefined && !isGuess) {
+      // A guess or a tree ask is answered on the figure: the movie fills in the truth.
+      if (a.store !== undefined && a.default === undefined && !isGuess && !isTree && !isChoose) {
         errors.push(`commands[${i}]: ask.default is required with store — the movie types it and skip falls back to it`);
       }
       // The drag widget's answer is implied by its items, so it is check mode without `answer`.
       const isDrag = a.widget === "drag";
       const isConnect = a.widget === "connect";
-      if (!isDrag && !isGuess && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
+      if (!isDrag && !isGuess && !isTree && !isChoose && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
         errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
       }
       if (a.widget !== undefined && !isDrag && a.answer === undefined) {
@@ -1887,7 +2008,7 @@ function semanticErrors(spec: Spec): string[] {
         if (isConnect && a.store !== undefined) {
           errors.push(`commands[${i}]: ask.store does not apply to the connect widget`);
         }
-        if (a.items !== undefined || (a.tolerance !== undefined && !isGuess)) {
+        if (a.items !== undefined || (a.tolerance !== undefined && !isGuess && !isTree)) {
           const named = a.widget !== undefined ? ` (this one is "${a.widget}")` : "";
           errors.push(`commands[${i}]: ask.items and tolerance only apply to widget "drag"${named}`);
         }
@@ -2017,6 +2138,17 @@ function elementErrors(el: SpecElement): string[] {
   }
   if (el.layout !== undefined && el.type !== "group" && !(el.type === "population" && (el.layout === "grid" || el.layout === "crowd"))) {
     errs.push(`element "${el.id}": layout is a group's field — wrap the parts in a group to arrange them`);
+  }
+  // look is two fields sharing a name: an image's "screen", a cards element's
+  // paper/flat/outline. Anywhere else it would be silently ignored (round 5 §7).
+  if (el.look !== undefined) {
+    if (el.type === "cards") {
+      if (el.look === "screen") errs.push(`element "${el.id}" (cards): look is paper, flat or outline — "screen" is an image's look`);
+    } else if (el.type === "image") {
+      if (el.look !== "screen") errs.push(`element "${el.id}" (image): look is "screen" — paper, flat and outline are looks of a cards element`);
+    } else {
+      errs.push(`element "${el.id}" (${el.type}): look is a cards element's field (paper, flat, outline) or an image's ("screen") — leave it out`);
+    }
   }
   if (el.walk !== undefined && el.type !== "group") {
     errs.push(`element "${el.id}": walk is a group's field — put the peers in a group and give it walk: true`);
@@ -2150,7 +2282,19 @@ function elementErrors(el: SpecElement): string[] {
         need(opts.length >= 2 && opts.length <= 4, "decide: needs 2–4 options");
         break;
       }
-      need(items.length >= 2 && items.length <= 8, "needs 2–8 items (or options, to decide)");
+      const deck = (el as { deck?: unknown }).deck;
+      const select = (el as { select?: unknown }).select;
+      const sorts = Array.isArray(el.bins) && el.bins.length > 0;
+      if (deck === true) {
+        need(sorts, "deck: true is a sort's — give bins");
+        need(items.length >= 2 && items.length <= 30, "a deck needs 2–30 items");
+      } else need(items.length >= 2 && items.length <= 8, "needs 2–8 items (or options, to decide; up to 30 in a deck)");
+      if (select !== undefined) {
+        need(typeof select === "string" && select.trim() !== "", "select: the one box's title, a word or two");
+        need(!sorts, "select is one box — leave out bins (or sort with bins, without select)");
+        need(items.some((it) => typeof it === "object" && it !== null && (it as { in?: unknown }).in === true), "select: mark the cards that belong with {text, in: true}");
+      }
+      if (items.some((it) => typeof it === "object" && it !== null && (it as { in?: unknown }).in !== undefined)) need(select !== undefined, "an item's in belongs to select — give select: the box's title");
       const hasValue = (it: unknown): boolean => typeof it === "object" && it !== null && typeof (it as { value?: unknown }).value === "number";
       if ((el as { along?: unknown }).along !== undefined || (el as { compare?: unknown }).compare !== undefined) need(items.every(hasValue), "place / compare: every item needs {text, value}");
       if (items.some((it) => typeof it === "object" && it !== null && (it as { match?: unknown }).match !== undefined)) need(items.every((it) => typeof it === "object" && it !== null && typeof (it as { match?: unknown }).match === "string"), "match: every item needs {text, match}");

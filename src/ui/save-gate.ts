@@ -11,6 +11,7 @@
 // vitest's node environment (see shell-css.test.ts's note on why main.ts
 // itself cannot be imported).
 
+import { leftoverFoldMarker, leftoverFoldMessage } from "./spec-fold";
 import { itemsOf, parsePlaylistText, type Playlist } from "../playlist/playlist";
 import { isBlankSpec, validateSpec } from "../spec/schema";
 
@@ -24,6 +25,10 @@ export function checkSaveable(text: string): SaveDecision {
   } catch (err) {
     return { ok: false, reason: `Spec unreadable: ${(err as Error).message}` };
   }
+  // Fix round 1 (round 6 §8): a folded-data marker pasted or half-edited
+  // into the text would save as content with its data gone.
+  const marker = leftoverFoldMarker(text);
+  if (marker) return { ok: false, reason: `Spec not saved: ${leftoverFoldMessage(marker)}` };
   const items = itemsOf(playlist);
   if (items.length === 0) {
     return { ok: false, reason: "The playlist has no drawable items." };

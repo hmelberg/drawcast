@@ -29,7 +29,7 @@ import { writtenAt } from "./emphasis";
 import { findPart, rowOffset, textRows, type PartHit } from "../layout/highlight-part";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import type { LayoutResult } from "../layout/layout";
-import type { BBox } from "../layout/geometry";
+import { roundedRectPts, type BBox } from "../layout/geometry";
 import type { HighlightEffect } from "../spec/types";
 import type { BackendEffects, BackendModule, FlowOpts, MountResult, RenderedElement, Squash } from "./backend";
 import type { Turn } from "./pose";
@@ -175,6 +175,10 @@ function dashedPathFromPts(pts: Pt[], dash = 11, gap = 9): string {
 /** A circle/rect hint as a closed ring of points (first point repeated at
  *  the end), so a dashed outline has real points to cut. */
 function hintRing(h: ShapeHint): Pt[] {
+  if (h.type === "rect" && h.r) {
+    const ring = roundedRectPts([h.x + h.w / 2, h.y + h.h / 2], h.w, h.h, h.r);
+    return [...ring, ring[0]];
+  }
   if (h.type === "rect") return [[h.x, h.y], [h.x + h.w, h.y], [h.x + h.w, h.y + h.h], [h.x, h.y + h.h], [h.x, h.y]];
   const n = Math.max(24, Math.min(144, Math.round(h.r / 2)));
   return Array.from({ length: n + 1 }, (_, i): Pt => [h.c[0] + h.r * Math.cos((2 * Math.PI * i) / n), h.c[1] + h.r * Math.sin((2 * Math.PI * i) / n)]);
@@ -197,7 +201,15 @@ export function dashedOutlineD(d: { pts: Pt[]; closed?: boolean; shapeHint?: Sha
 /** A circle/rect hint's exact outline as SVG path data (SVG coordinates). */
 function hintOutlineD(h: ShapeHint): string {
   if (h.type === "circle") return circlePath(h.c[0], toSvgY(h.c[1]), h.r);
+  if (h.r) return roundedRectD(h.x, toSvgY(h.y + h.h), h.w, h.h, h.r);
   return `M${h.x} ${toSvgY(h.y + h.h)} h${h.w} v${h.h} h${-h.w} Z`;
+}
+
+/** A rounded rect's exact outline (SVG coordinates, top-left x/y) with true
+ *  arcs at the corners; `r` clamped to half the shorter side. */
+function roundedRectD(x: number, y: number, w: number, h: number, r: number): string {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  return `M${x + rr} ${y} h${w - 2 * rr} a${rr} ${rr} 0 0 1 ${rr} ${rr} v${h - 2 * rr} a${rr} ${rr} 0 0 1 ${-rr} ${rr} h${-(w - 2 * rr)} a${rr} ${rr} 0 0 1 ${-rr} ${-rr} v${-(h - 2 * rr)} a${rr} ${rr} 0 0 1 ${rr} ${-rr} Z`;
 }
 
 /**
@@ -214,8 +226,14 @@ export function shapeFillD(d: { shapeHint?: ShapeHint; style: { fill?: string; f
   return hintOutlineD(d.shapeHint);
 }
 
-/** rough.js's own exact circle/rect for a hint. */
+/** A box's soft shadow (`<id>__shadow`, layout/tier2 boxShadow). */
+function isBoxShadow(id: string): boolean {
+  return id.endsWith("__shadow");
+}
+
+/** rough.js's own exact circle/rect for a hint; a rounded rect as a rough path of its outline. */
 function roughHint(rc: RoughSVG, h: ShapeHint, o: RoughOptions): SVGGElement {
+  if (h.type === "rect" && h.r) return rc.path(hintOutlineD(h), o);
   return h.type === "circle" ? rc.circle(h.c[0], toSvgY(h.c[1]), h.r * 2, o) : rc.rectangle(h.x, toSvgY(h.y + h.h), h.w, h.h, o);
 }
 
@@ -1306,6 +1324,7 @@ export function glowKindOf(leaf: Exclude<Drawable, { kind: "group" }>, filledTar
 function outlineD(leaf: Extract<Drawable, { kind: "stroke" }>): string | null {
   const h = leaf.shapeHint;
   if (h?.type === "circle") return circlePath(h.c[0], toSvgY(h.c[1]), h.r);
+  if (h?.type === "rect" && h.r) return hintOutlineD(h);
   if (h?.type === "rect") return pathFromPts([[h.x, h.y], [h.x + h.w, h.y], [h.x + h.w, h.y + h.h], [h.x, h.y + h.h]], true);
   if (leaf.closed && leaf.pts.length >= 3) return pathFromPts(leaf.pts, true);
   return null;
@@ -2005,6 +2024,34 @@ function makeEffects(
    *  NODE, so a geometry rebuild simply starts the ghost over on the new one
    *  rather than pasting a stale pose onto it. */
   const ghostBase = new WeakMap<Element, string>();
+  /** A scaled ghost's strokes (a deck's dealt card, round 6 §7): each
+   *  stroke's own width while it is divided by the scale, so the outline
+   *  keeps its weight as the card grows; scale 1 puts them back. */
+  const strokeBase = new WeakMap<Element, string>();
+  const scaledLeaves = new WeakSet<Element>();
+  const keepStrokes = (g: Element, scale: number): void => {
+    // An ordinary ghost (a drag) never scaled: nothing to touch.
+    if (scale === 1 && !scaledLeaves.has(g)) return;
+    if (scale === 1) scaledLeaves.delete(g);
+    else scaledLeaves.add(g);
+    const els = [g, ...g.querySelectorAll("[stroke-width]")].filter((el) => el.hasAttribute("stroke-width") || strokeBase.has(el));
+    for (const el of els) {
+      if (scale === 1) {
+        const w = strokeBase.get(el);
+        if (w === undefined) continue;
+        el.setAttribute("stroke-width", w);
+        strokeBase.delete(el);
+        continue;
+      }
+      let w = strokeBase.get(el);
+      if (w === undefined) {
+        w = el.getAttribute("stroke-width") ?? "";
+        strokeBase.set(el, w);
+      }
+      const n = parseFloat(w);
+      if (Number.isFinite(n)) el.setAttribute("stroke-width", (n / scale).toFixed(2));
+    }
+  };
   const keyOf = (ids: string[]) => ids.join("|");
   let pointer: SVGGElement | null = null;
   const guessGroups = new Map<string, SVGGElement>();
@@ -2031,7 +2078,10 @@ function makeEffects(
       let st = active.get(key);
       if (!st) {
         st = { nodes: [], ringPaths: [], drawn: 0, penPaths: [], written: 0 };
-        const entries = ids.flatMap((id) => leafNodes.get(id) ?? []);
+        // A box's shadow is its look, not part of what is emphasised: it
+        // would count as a fill (band → frame), be masked out of the frame
+        // and get an echo of its own, and widen the mark's box.
+        const entries = ids.flatMap((id) => (leafNodes.get(id) ?? []).filter((e) => !isBoxShadow(e.leaf.id)));
         // `part` narrows the emphasis to a piece of the targets; one that
         // names nothing leaves the whole target lit (lint says why).
         const hits = part ? findPart(entries.map((e) => e.leaf), part) : [];
@@ -2063,7 +2113,7 @@ function makeEffects(
           } else {
             arounds = markClusters(
               ids.flatMap((id) => {
-                const own = leafNodes.get(id) ?? [];
+                const own = (leafNodes.get(id) ?? []).filter((e) => !isBoxShadow(e.leaf.id));
                 const around = unionSvgBoxes(own.flatMap((e) => pieceBox(e.g, e.leaf) ?? []));
                 return around ? [{ box: around, pose: own[0]?.g.getAttribute("transform") ?? null }] : [];
               }),
@@ -2233,9 +2283,18 @@ function makeEffects(
      *  it applies after the element's pose exactly as poseTransform's own
      *  translate does (y-up in, SVG's y-down out). (0, 0) restores the
      *  remembered string and forgets it. */
-    setOffset(id: string, dx: number, dy: number): void {
+    setOffset(id: string, dx: number, dy: number, scale = 1, pivot?: Pt): void {
+      const scaled = scale !== 1 && pivot !== undefined;
       for (const { g } of leafNodes.get(id) ?? []) {
-        if (dx === 0 && dy === 0) {
+        keepStrokes(g, scaled ? scale : 1);
+        // A picture pivots its reveal on itself (transform-box: fill-box, makeLeafHandle):
+        // that origin would apply to this scale too and fling it off its card.
+        if (g.style.transformBox === "fill-box" || g.dataset.box !== undefined) {
+          if (g.dataset.box === undefined) g.dataset.box = "1";
+          g.style.transformBox = scaled ? "view-box" : "fill-box";
+          g.style.transformOrigin = scaled ? "0 0" : "center";
+        }
+        if (dx === 0 && dy === 0 && !scaled) {
           const base = ghostBase.get(g);
           if (base === undefined) continue;
           ghostBase.delete(g);
@@ -2248,7 +2307,11 @@ function makeEffects(
           base = g.getAttribute("transform") ?? "";
           ghostBase.set(g, base);
         }
-        const t = `translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`;
+        let t = `translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`;
+        if (scaled) {
+          const px = pivot![0].toFixed(1), py = (CANVAS.h - pivot![1]).toFixed(1);
+          t += ` translate(${px} ${py}) scale(${scale.toFixed(4)}) translate(${(-pivot![0]).toFixed(1)} ${(-(CANVAS.h - pivot![1])).toFixed(1)})`;
+        }
         g.setAttribute("transform", base === "" ? t : `${t} ${base}`);
       }
     },
@@ -2303,21 +2366,35 @@ function makeEffects(
       for (const l of m.lines) {
         if (l.pts.length < 2) continue;
         const p = document.createElementNS(SVG_NS, "path");
-        p.setAttribute("d", pathFromPts(l.pts, l.closed === true));
-        p.setAttribute("fill", "none");
-        p.setAttribute("stroke", m.color);
-        p.setAttribute("stroke-width", l.dashed ? "3" : "2.5");
+        p.setAttribute("d", pathFromPts(l.pts, l.closed === true || l.fill !== undefined));
+        p.setAttribute("fill", l.fill ?? "none");
+        if (l.fill !== undefined) p.setAttribute("fill-opacity", String(l.fillOpacity ?? 0.6));
+        p.setAttribute("stroke", l.stroke === false ? "none" : (l.color ?? m.color));
+        p.setAttribute("stroke-width", String(l.width ?? (l.dashed ? 3 : 2.5)));
         p.setAttribute("stroke-linecap", "round");
         p.setAttribute("stroke-linejoin", "round");
         if (l.dashed) p.setAttribute("stroke-dasharray", "9 7");
+        if (l.opacity !== undefined && l.opacity < 1) p.setAttribute("opacity", String(l.opacity));
         g.appendChild(p);
+      }
+      for (const d of m.dots ?? []) {
+        const c = document.createElementNS(SVG_NS, "circle");
+        c.setAttribute("cx", d.at[0].toFixed(1));
+        c.setAttribute("cy", toSvgY(d.at[1]).toFixed(1));
+        c.setAttribute("r", String(d.r));
+        c.setAttribute("fill", d.color ?? m.color);
+        c.setAttribute("stroke", "#faf6ec");
+        c.setAttribute("stroke-width", "2");
+        if (d.opacity !== undefined && d.opacity < 1) c.setAttribute("opacity", String(d.opacity));
+        g.appendChild(c);
       }
       for (const t of m.texts) {
         const e = document.createElementNS(SVG_NS, "text");
         e.setAttribute("x", t.at[0].toFixed(1));
         e.setAttribute("y", toSvgY(t.at[1]).toFixed(1));
-        e.setAttribute("fill", m.color);
-        e.setAttribute("font-size", "20");
+        e.setAttribute("fill", t.color ?? m.color);
+        e.setAttribute("font-size", String(t.size ?? 20));
+        if (t.opacity !== undefined && t.opacity < 1) e.setAttribute("opacity", String(t.opacity));
         e.setAttribute("font-family", fontStack());
         e.setAttribute("text-anchor", t.anchor);
         e.setAttribute("dominant-baseline", "middle");

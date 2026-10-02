@@ -14,6 +14,7 @@
 
 import type { Spec } from "../spec/types";
 import type { RenderStyle } from "./svg-backend";
+import { expandSpec } from "../spec/expand";
 
 export interface RenderResolveDeps {
   /** render/portrait.ts's resolvePortraits — mutates the spec it is given. */
@@ -57,4 +58,28 @@ export async function resolvedRenderSpec(spec: Spec, deps: RenderResolveDeps): P
     deps.resolveTemplatePictures?.(copy).catch(() => undefined),
   ]);
   return copy;
+}
+
+/** True when a cards element names an icon on an item (or its match partner). */
+function hasCardIcons(spec: Spec): boolean {
+  return (spec.elements ?? []).some(
+    (el) => el.type === "cards" && Array.isArray(el.items) && el.items.some((it) => typeof it === "object" && it !== null && (it.icon !== undefined || it.match_icon !== undefined)),
+  );
+}
+
+/**
+ * The spec render() draws: expanded (spec/expand.ts), then resolved. A
+ * cards element's item icons are resolved FIRST, on a clone of the authored
+ * spec (round 5 §3.3): a resolved icon makes every card of the element 96
+ * high, and that is decided when the cards expand — resolving after the
+ * expansion drew the icon into a 56-high card. The second resolve finds
+ * those icons already there (and cached) and fetches nothing again.
+ */
+export async function expandedRenderSpec(spec: Spec, deps: RenderResolveDeps): Promise<Spec> {
+  let authored = spec;
+  if (hasCardIcons(spec)) {
+    authored = structuredClone(spec);
+    await deps.resolveIcons(authored).catch(() => undefined);
+  }
+  return resolvedRenderSpec(expandSpec(authored), deps);
 }

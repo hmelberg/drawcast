@@ -39,7 +39,8 @@ export interface DrawResolved {
 
 export type ShapeHint =
   | { type: "circle"; c: Pt; r: number }
-  | { type: "rect"; x: number; y: number; w: number; h: number };
+  /** `r`: corner radius (canvas units) — a rounded box; absent = square. */
+  | { type: "rect"; x: number; y: number; w: number; h: number; r?: number };
 
 interface BaseDrawable {
   /** Clip rectangle in canvas space (y-up; y is the bottom), fixed even when
@@ -125,6 +126,10 @@ export interface AreaDrawable extends BaseDrawable {
    * `math.colors` does (layout/highlight-part.ts).
    */
   tex?: string[];
+  /** A formula glyph inside a nested part group (a formula blank's fill,
+   *  `<id>_blank_<k>_fill`; a live var's part): that group's id, so
+   *  `highlight.part` can name the group (layout/highlight-part.ts). */
+  partOf?: string;
 }
 
 export interface TextDrawable extends BaseDrawable {
@@ -370,12 +375,14 @@ export function leafDrawables(drawables: Drawable[]): Exclude<Drawable, GroupDra
 /**
  * Sub-drawable suffixes: `<elementId>_<suffix>` drawables animate together with
  * their parent element (e.g. a point's guides, a node's text, a label's leader,
- * a racing bar's value). This list is exhaustive by design: buildNodes
+ * a racing bar's value, a box's shadow — `<id>__shadow`, suffix "_shadow" —
+ * and the icon inside a box — `<id>__icon`, suffix "_icon").
+ * This list is exhaustive by design: buildNodes
  * (render/svg-backend.ts) walks `order` and collects each id's parts through
  * drawablesForId, so a sub-drawable whose suffix is NOT here is never painted
  * at all — silently, since it is also not an `order` entry to warn about.
  */
-export const SUB_SUFFIXES = ["text", "guides", "leader", "head", "body", "dot", "value", "wash"];
+export const SUB_SUFFIXES = ["text", "guides", "leader", "head", "body", "dot", "value", "wash", "_shadow", "_icon"];
 
 /** All top-level drawables belonging to one command-addressable element id. */
 export function drawablesForId(drawables: Drawable[], id: string): Drawable[] {

@@ -42,7 +42,8 @@ export function mapLeaf(leaf: LeafDrawable, map: (p: Pt) => Pt, scale: number, s
   }
   if (leaf.kind === "stroke" && leaf.shapeHint?.type === "rect") {
     const h = leaf.shapeHint;
-    const corners: Pt[] = [[h.x, h.y], [h.x + h.w, h.y], [h.x + h.w, h.y + h.h], [h.x, h.y + h.h]];
+    // A rounded box's `pts` is already its rounded ring: map that.
+    const corners: Pt[] = h.r ? leaf.pts : [[h.x, h.y], [h.x + h.w, h.y], [h.x + h.w, h.y + h.h], [h.x, h.y + h.h]];
     const { shapeHint: _drop, ...rest } = leaf;
     return { ...rest, pts: corners.map(map), closed: true };
   }

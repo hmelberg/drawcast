@@ -35,6 +35,8 @@ import {
 } from "./connect-model";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import type { AskGateStep } from "./controls";
+import { gateLangOf, gateWords } from "./gate-words";
+import { mountGateHead } from "./gate-dock";
 
 /** Matches the other cards' CARD_LINGER_MS. */
 const LINGER_MS = 2600;
@@ -122,11 +124,8 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       ink.setAttribute("class", "cs-connect-ink");
       ink.append(linesLayer, bandLayer, dotsLayer);
 
-      const hint = h(
-        "span",
-        { class: "cs-waitgate-pill cs-connect-hint" },
-        "Press a star and drag to the next. Click a line to remove it ▸",
-      );
+      const words = gateWords(gateLangOf(hd));
+      const hint = h("span", { class: "cs-waitgate-pill cs-connect-hint" }, words.connect);
       const counter = h("span", { class: "cs-waitgate-pill cs-connect-counter" }, connectProgress(0, key.edges.length));
       const summary = h("span", { class: "cs-waitgate-pill cs-connect-summary" });
       summary.hidden = true;
@@ -135,14 +134,16 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       // needs nothing else the round-trip through the stylesheet would earn
       // its own rule for (a stamped class with no CSS reads as live styling
       // to the next person who touches this file).
-      const doneBtn = h("button", { class: "cs-cardgate-pill ok" }, "Done ▸");
+      const doneBtn = h("button", { class: "cs-cardgate-pill ok" }, words.done);
       let skip: HTMLButtonElement | undefined;
-      // One flex row — Done, the status stack, Skip — rather than three
+      // One flex row — Skip, the status stack, Done — rather than three
       // independently absolutely-positioned pills nudged by hand: a layout
       // that cannot let a long hint run under a button, at any width,
       // instead of numbers tuned to not collide today.
-      const status = h("div", { class: "cs-connect-status" }, counter, hint, summary);
-      const bar = h("div", { class: "cs-connect-bar" }, doneBtn, status);
+      const status = h("div", { class: "cs-connect-status" }, counter, summary);
+      const bar = h("div", { class: "cs-connect-bar" }, status, doneBtn);
+      /** The question over the figure, the hint its how line (round 7 §8.1). */
+      let head: ReturnType<typeof mountGateHead> = null;
       // cs-connectgate is the ONE modifier this gate wears on itself (unlike
       // dragGateFor's cs-draggate, everything else about it — touch-action:
       // none, the position/z-index every figgate shares — comes from
@@ -253,6 +254,7 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       }
 
       const remove = (): void => {
+        head?.dispose();
         signal.removeEventListener("abort", onAbort);
         stopObserving();
         restoreLines();
@@ -283,6 +285,8 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
         const summaryText = connectSummary(grade);
         summary.textContent = summaryText;
         summary.hidden = false;
+        // The question is answered: its headline goes now, not after the linger.
+        head?.dispose();
         window.setTimeout(remove, LINGER_MS);
         // connectResolution (connect-model.ts) owns the pass→answer /
         // fail→summary decision — pinned in node, where a DOM-side inversion
@@ -426,11 +430,11 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       });
 
       if (!step.required) {
-        // cs-cardgate-pill.skip is the dashed, muted LOOK every skip pill
+        // cs-cardgate-pill.skip is the muted LOOK every skip pill
         // shares; cs-figgate-skip (the other gates' own corner positioning)
         // is deliberately left off — this one's position comes from being a
         // flex child of .cs-connect-bar instead.
-        skip = h("button", { class: "cs-cardgate-pill skip" }, "Skip ▸");
+        skip = h("button", { class: "cs-cardgate-pill skip" }, words.skip);
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           if (settled) return;
@@ -438,12 +442,15 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
           remove();
           resolve(null);
         });
-        bar.appendChild(skip);
+        bar.insertBefore(skip, status);
       }
 
       gate.addEventListener("click", (e) => e.stopPropagation());
       signal.addEventListener("abort", onAbort);
       stage.appendChild(gate);
+      head = mountGateHead(stage, { question: step.question, how: hint });
+      // No question: the hint stays in the status stack, over the counter.
+      if (!head) status.insertBefore(hint, summary);
       positionStars();
       renderMarks();
     });

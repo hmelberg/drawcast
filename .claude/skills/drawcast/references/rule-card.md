@@ -241,10 +241,48 @@ Ask:
   `along: <scale>` + `{text, value}` = place on a line; `{text, match}` =
   match; `compare` + `{text, value}` = higher or lower; `options`
   `[{text, goto, best?}]` + `then` = decide (branches are labels ahead).
+  The guess stays; the truth is drawn beside it (`reveal_style: "morph"`
+  for the old glide). Rank cards slide into the true order (a faint
+  "yours" row stays). A sort, deck or select checks each card as it is
+  dropped and moves a wrong one to its right box: `wrong` gives the score
+  ("{f} of {f.total} on the first try."); `check: "end"` for a test.
+  Cards stand above their boxes (`arrange: "side"` / `"rise"` to change).
+  The `question` is the headline over the figure: a full sentence naming
+  the task ("Which of these animals are mammals? Tap every mammal.").
+- Answer on the figure: options that are DRAWN things (bags, doors, bars,
+  a group) → `choose: ["door1", "door2"]` (+ `answer` to judge, or
+  `judge: false`; `{id, goto}` + `then` to branch), not decide cards. A
+  sort with many items → `deck: true` (up to 30; card text a word or
+  two). A yes/no grouping → `select: "Mammals"` + items `{text, in: true}`.
+  `stage: "own"` when the question's cards or options sit over other ink.
 - Guess extras: `predict: true` before an `animate` (it plays from the
   guess); `reveal: false` + later `revise: "<store>"` = guess, evidence,
-  guess again; `budget` + `judge: false` on `on: all` = split a budget. `#interactive`
+  guess again; `budget` + `judge: false` on `on: all` = split a budget,
+  balanced against an account bar (`account_label`, a word or two). `#interactive`
   asks for these about once a minute, varied.
+- Cards, nodes and bars (bar_chart `icons: [...]`, one per bar): a
+  concrete thing wears an `icon` (`match_icon` on a match partner); `look`
+  paper (default) / flat / outline — the default is fine.
+- `feedback` (cast-level, or per ask/quiz; optional): one extra line after
+  right/wrong by how well they did. For longer quizzes and lighter topics,
+  never a serious personal one (a diagnosis, grief). Write the four bands
+  yourself — `{style: "dry", perfect, good, poor, none}` — short, in the
+  cast's language, about its topic, kind rather than mean (`"Are you a
+  botanist?"`). Only English casts have fallback lines.
+- Fill the tree (`decision_tree`, `rollback: true`; draw it whole first,
+  each blank shows "?" until its ask): `blanks: ["value_treat"]` (also
+  `branchlabel_<p>_<c>`, `effect_`/`cost_<node>`), `{e.true}`, `{e.work}` =
+  the working line; then always `pick: "<decision>"` (its reveal draws
+  best/prune; don't draw them yourself) → `{c.true}`, `{c.diff}`.
+- Fill the formula: `\blank{r^2}` in a `math` tex, then ask `on` it with
+  `others: ["2r", "r"]` (the right one is always a tile; others = plausible
+  wrong ones), or no `others` = typed number or expression (`pi r^2`, `2r`,
+  `sqrt(x)`, checked by value; `form: "exact"` to simplify).
+- Move the curve (`supply_demand`; tax/shift at `amount: 0` in params from
+  the start): `on: supply_curve` or `demand_curve` (one per question),
+  `predict: true`, `check` left out (shape), `size` when the amount is
+  named, `direction` only for a vague change; right before the animate that
+  moves it; "Not quite. {t.why}" explains a miss.
 
 ## Elements with more than the schema
 
@@ -256,7 +294,15 @@ Ask:
   `<id>_quote` on its own beat; a YouTube url plays embedded). One per figure.
 - `inset` (`of`: another page's title / number / "previous"): no position;
   bring forward with `move` scale then back; only for referring back.
-- `icon` (`of`: keyword, `size`): a handful at most, one per category, reuse.
+- `icon` (`of`: keyword, `size`): when a card, node, bar or decorative picture
+  names a concrete thing, give it an icon; draw by hand only when no icon
+  fits or the drawing explains.
+  A node box (rect; `radius`, `shadow`) or card item takes `icon` too:
+  keyword or `{of, set}`, one or two words — never icon data. Node and card
+  icons are pictures (own colours); an `icon` element is drawn (traced) —
+  `icon_look: "picture"` when it only illustrates, drawn only when the icon
+  is what you explain. Drawn: prefer filled sets (twemoji, fa6-solid,
+  ph "… fill"), not lucide.
 - `link` on any element: `["https://…"]` only when the request supplied it.
 - `sources` (top level: `id`, `title`, `authors`, `year`, `finding`,
   `doi`/`url` only when certain) and `cites: [id]` on the element that shows

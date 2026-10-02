@@ -82,3 +82,16 @@ describe("the schema's code and sound halves", () => {
     expect(src).not.toMatch(/apiSchema\(\)/);
   });
 });
+
+describe("internal formula-tile fields", () => {
+  test("a tile item's blank (written by expandFormulaTiles) is not in the model's schema", () => {
+    for (const opts of [{}, { code: false }, { code: true, c64: false }]) expect(JSON.stringify(apiSchema(opts))).not.toMatch(/"blank"/);
+  });
+  test("a math element's fill and fills (written by the expansion and the player) are not in the model's schema", () => {
+    for (const opts of [{}, { code: false }, { code: true, c64: false }]) {
+      const el = props(apiSchema(opts));
+      expect(el.fill).toBeUndefined();
+      expect(el.fills).toBeUndefined();
+    }
+  });
+});

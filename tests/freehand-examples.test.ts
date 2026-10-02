@@ -6,11 +6,12 @@
 // library leaves empty). The other gates check that an exemplar renders;
 // this one checks that the set still covers all three targets, and that the
 // bundled requests are still phrased as questions (STYLE, 2026-09-07).
+import { iconAssetName, iconCreditOf, iconLookOf, storedIcon } from "../src/spec/icon-data";
 import { describe, expect, test } from "vitest";
 import examples from "../src/examples.json";
 import fewshots from "../src/llm/prompts/fewshots.json";
 
-type Ex = { request: string; spec?: { template?: string; elements?: { type: string; at?: { ref?: string }; fit?: unknown; tex?: unknown; closed?: boolean; style?: { fill?: string }; strokes?: string; credit?: string }[] } };
+type Ex = { request: string; spec?: { template?: string; elements?: { type: string; at?: { ref?: string }; fit?: unknown; tex?: unknown; closed?: boolean; style?: { fill?: string }; strokes?: string; credit?: string; of?: string; set?: string }[] } };
 const uses = (ex: Ex, pred: (e: NonNullable<NonNullable<Ex["spec"]>["elements"]>[number]) => boolean) => !!ex.spec?.elements?.some(pred);
 
 describe("freehand exemplars (spec §6.2)", () => {
@@ -32,13 +33,17 @@ describe("freehand exemplars (spec §6.2)", () => {
   });
 
   // The `icon` STAMP (compiler-v1.md, "Freehand figures" rule 7) needs its own
-  // worked examples: an icon element whose keyword has already been resolved
-  // — rings in `strokes`, the set in `set`, the attribution in `credit` — so
-  // the Examples list draws it offline and the credits collector has a line to
-  // collect. Two, so the pair covers both languages the bundle teaches in.
-  test("two bundled examples stamp resolved icons, credit and all", () => {
+  // worked examples: an icon element named by its keyword only (round 6 §8)
+  // whose artwork the offline icon cache holds — so the Examples list draws
+  // it offline and the credits collector has a line to collect (rebuilt from
+  // the data). Two, so the pair covers both languages the bundle teaches in.
+  test("two bundled examples stamp icons the offline cache holds, credit and all", () => {
     const stamped = (examples as Ex[]).filter((e) =>
-      uses(e, (x) => x.type === "icon" && typeof x.strokes === "string" && x.strokes.length > 0 && typeof x.credit === "string" && x.credit.length > 0),
+      uses(e, (x) => {
+        if (x.type !== "icon" || typeof x.of !== "string" || x.strokes !== undefined) return false;
+        const data = storedIcon(undefined, iconAssetName({ of: x.of, ...(x.set ? { set: x.set } : {}) }, iconLookOf(x)));
+        return iconCreditOf(data) !== undefined;
+      }),
     );
     expect(stamped.length).toBeGreaterThanOrEqual(2);
     // An icon is a stamp beside the drawing, never the drawing: each of these

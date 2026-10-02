@@ -87,8 +87,8 @@ export interface ImageDeps {
  */
 export const PICTURE_ENDPOINTS: readonly string[] = ["/.netlify/functions/picture", "https://drawcast.app/.netlify/functions/picture"];
 
-function defaultDeps(): ImageDeps {
-  return { fetch: globalThis.fetch, loadRaster, encode: styledPhotoDataUri, encodeScreen: faithfulDataUri, measure: measureNatural, pictureEndpoints: PICTURE_ENDPOINTS };
+export function defaultDeps(): ImageDeps {
+  return { fetch: (input, init) => globalThis.fetch(input, init), loadRaster, encode: styledPhotoDataUri, encodeScreen: faithfulDataUri, measure: measureNatural, pictureEndpoints: PICTURE_ENDPOINTS };
 }
 
 export interface ImageResolution {

@@ -105,6 +105,17 @@ describe("the player paints the held frame", () => {
     expect(elements.get("curve")!.drawn).toBe(true);
   });
 
+  test("a cast with a tree pick: the poster stops before the ask and leaves the best/prune marks out (fix wave 2026-10-03)", () => {
+    const ids = ["edge_start_a", "best_start_a", "prune_start_b", "later"];
+    const { player, elements } = makePlayer([{ show: ["edge_start_a", "best_start_a", "prune_start_b"] }, { ask: { question: "Pick", pick: "start" } }, { show: ["later"] }], ids);
+    player.showPoster();
+    expect(player.state).toBe("done");
+    expect(elements.get("edge_start_a")!.drawn).toBe(true);
+    expect(elements.get("best_start_a")!.drawn).toBe(false);
+    expect(elements.get("prune_start_b")!.drawn).toBe(false);
+    expect(elements.get("later")!.drawn).toBe(false);
+  });
+
   test("scrubbing back to the start still empties the stage", () => {
     // One element only: the planner draws every element the commands never
     // mention at the END, which would put something on screen after the clear.

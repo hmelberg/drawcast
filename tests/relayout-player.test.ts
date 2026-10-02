@@ -24,7 +24,7 @@ function stub() {
       frames.push({ params: { ...params }, overrides: opts?.overrides, offsets: { ...scene.offsets }, trailProgress: opts?.trailProgress });
     },
     commit: (params, overrides) => {
-      commits.push({ params: { ...params }, overrides });
+      commits.push({ params: { ...params } as Record<string, number>, overrides });
       return new Map<string, RenderedElement>();
     },
   };

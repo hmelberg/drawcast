@@ -51,7 +51,7 @@ function makeReprojector() {
     frame: (p) => {
       frames.push({ ...p });
     },
-    commit: (p) => { commits.push({ ...p }); return new Map<string, RenderedElement>(); },
+    commit: (p) => { commits.push({ ...p } as Record<string, number>); return new Map<string, RenderedElement>(); },
   };
   return { rp, frames, commits };
 }

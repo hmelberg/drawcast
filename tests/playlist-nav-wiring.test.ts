@@ -27,6 +27,9 @@ describe("player-nav wiring", () => {
     // The previous beforePlay (the editor's) keeps first refusal.
     expect(session).toMatch(/opts\.controls\?\.beforePlay\?\.\(\)/);
   });
+  test("forward from an item's poster (stopped before its first figure ask) still crosses: the poster counts as the end (fix round 2)", () => {
+    expect(session).toMatch(/edgeStep\(dir, \{ completed: handle\.timeline\.atPoster \? handle\.timeline\.totalSteps : handle\.timeline\.position,/);
+  });
   test("the flag that arms the whole-drawcast replay is set only by the LAST item's done and dropped on any other state", () => {
     expect(session).toMatch(/finishedLast = i === items\.length - 1/);
     expect(session).toMatch(/else \{\s*\n\s*finishedLast = false;/);

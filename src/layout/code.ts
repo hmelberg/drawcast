@@ -1112,7 +1112,7 @@ export function rectPts(x: number, y: number, w: number, h: number): Pt[] {
 
 /** A rounded rectangle as a closed point list — the display's outline. Drawn
  *  as a path (no rect shapeHint), so rough.js sketches the curves. */
-function roundRectPts(x: number, y: number, w: number, h: number, r: number, per = 4): Pt[] {
+export function roundRectPts(x: number, y: number, w: number, h: number, r: number, per = 4): Pt[] {
   const rr = Math.max(0, Math.min(r, w / 2, h / 2));
   const arc = (cx: number, cy: number, a0: number, a1: number): Pt[] =>
     Array.from({ length: per + 1 }, (_, i) => {

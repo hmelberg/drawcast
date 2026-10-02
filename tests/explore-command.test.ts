@@ -114,7 +114,7 @@ describe("settleParams and getParamOverrides", () => {
     const rp: Reprojector = {
       frame: () => {},
       commit: (p) => {
-        commits.push({ ...p });
+        commits.push({ ...p } as Record<string, number>);
         return new Map<string, RenderedElement>();
       },
     };

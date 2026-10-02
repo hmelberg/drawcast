@@ -76,8 +76,8 @@ describe("guess asks in the player", () => {
     expect(plan.states[0].visible).toContain("bar_2");
   });
 
-  test("a live guess: scored, stored, the reveal tweens guess → truth, wrong spoken with the gap", async () => {
-    const { player, events, frames, speech } = makePlayer([ASK]);
+  test("a live guess (morph): scored, stored, the reveal tweens guess → truth, wrong spoken with the gap", async () => {
+    const { player, events, frames, speech } = makePlayer([{ ask: { ...ASK.ask!, reveal_style: "morph" } }]);
     player.askGate = async () => "40";
     await player.play();
     expect(events).toHaveLength(1);
@@ -87,6 +87,18 @@ describe("guess asks in the player", () => {
     expect(painted[1]).toBeCloseTo(40, 0);
     expect(painted[painted.length - 1]).toBeCloseTo(80);
     expect(speech.said.some((t) => t.includes("You said 40; it is 80, 40 off."))).toBe(true);
+  });
+
+  test("feedback: a far guess is poor, said after the wrong line; a movie adds nothing", async () => {
+    const fb = { style: "dry" as const, poor: "Let's call that a warm-up." };
+    const live = makePlayer([{ ask: { ...ASK.ask!, feedback: fb } }]);
+    live.player.askGate = async () => "40";
+    await live.player.play();
+    expect(live.speech.said.slice(-2)).toEqual(["You said 40; it is 80, 40 off.", "Let's call that a warm-up."]);
+    const movie = makePlayer([{ ask: { ...ASK.ask!, default: "40", feedback: fb } }]);
+    (movie.player as unknown as { autoAnswers: boolean }).autoAnswers = true;
+    await movie.player.play();
+    expect(movie.speech.said).not.toContain("Let's call that a warm-up.");
   });
 
   test("a close guess speaks right", async () => {

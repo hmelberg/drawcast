@@ -38,6 +38,8 @@ export interface TreeNode {
   value?: string;
   /** Drawn as a leaf with a fan of stubs (collapsed_<id>): its subtree is not laid out, but still folded back. */
   collapsed?: boolean;
+  /** A terminal's working, shown under a wrong payoff/cost blank ("12 × £300"). */
+  work?: string;
   children?: TreeBranch[];
 }
 
@@ -74,6 +76,13 @@ export interface DecisionTreeParams {
   size?: "page" | "full";
   /** The region the tree fills: {x, y, w, h} (layout.ts resolves a region name before the template sees it). */
   box?: unknown;
+  /**
+   * Internal (tree blanks): part id → the text drawn for that number
+   * ("?", or the viewer's answer). value_<id>, effect_<id>, cost_<id>
+   * replace the whole text; branchlabel_<p>_<c> only its probability (the
+   * branch keeps its name). The fold-back itself is unchanged.
+   */
+  answers?: Record<string, string>;
 }
 
 interface Wrapped {
@@ -105,23 +114,27 @@ const MARGIN = { left: 85, right: 230, top: 95, bottom: 150 };
 interface WrapCtx {
   rolled: Rolled | null;
   fmt: Format;
+  /** DecisionTreeParams.answers: drawn in place of the numbers they name. */
+  answers: Record<string, string>;
 }
 
-function wrap(node: TreeNode, path: number[], ctx: WrapCtx, branch?: TreeBranch): Wrapped {
+function wrap(node: TreeNode, path: number[], ctx: WrapCtx, branch?: TreeBranch, parentId?: string): Wrapped {
   const cleanId = nodeId(node, path);
   const kids = node.children ?? [];
   const collapsed = node.collapsed === true && node.type !== "terminal" && kids.length > 0;
-  const { rolled, fmt } = ctx;
+  const { rolled, fmt, answers } = ctx;
   const child = (b: TreeBranch, i: number): Wrapped => {
     const key = `${cleanId}_${nodeId(b.node, [...path, i])}`;
     const filled = rolled?.filled.has(key) ? { ...b, probability: rolled.p[key] } : b;
-    return wrap(b.node, [...path, i], ctx, filled);
+    return wrap(b.node, [...path, i], ctx, filled, cleanId);
   };
   let value = node.value != null && node.value !== "" ? String(node.value) : undefined;
   // `value: ""` draws none: the root decision's value repeats its pick's, and
   // a cast that says so aloud may leave it off (it is drawn at the end
   // otherwise, as every id the cast never names is).
   if (node.value == null && rolled && node.type !== "terminal") value = nodeValueText(rolled, cleanId, fmt);
+  const over = answers[`value_${cleanId}`];
+  if (over !== undefined) value = over;
   return {
     cleanId,
     node,
@@ -129,8 +142,12 @@ function wrap(node: TreeNode, path: number[], ctx: WrapCtx, branch?: TreeBranch)
     collapsed,
     children: collapsed ? [] : kids.map(child),
     value,
-    ...(node.type === "terminal" ? terminalTexts(node, branch, fmt, rolled !== null) : {}),
-    branchLabel: branchText(branch, node.type !== "terminal" && kids.length > 0 && typeof branch?.cost === "number" && Number.isFinite(branch.cost) ? fmt.cost(branch.cost) : undefined),
+    ...(node.type === "terminal" ? terminalTexts(node, cleanId, branch, fmt, rolled !== null, answers) : {}),
+    branchLabel: branchText(
+      branch,
+      node.type !== "terminal" && kids.length > 0 && typeof branch?.cost === "number" && Number.isFinite(branch.cost) ? fmt.cost(branch.cost) : undefined,
+      parentId !== undefined ? answers[`branchlabel_${parentId}_${cleanId}`] : undefined,
+    ),
   };
 }
 
@@ -139,14 +156,15 @@ function wrap(node: TreeNode, path: number[], ctx: WrapCtx, branch?: TreeBranch)
  * rollback in the tree's decimals and locale) and the cost ("£300", or
  * "2,300" with no currency — its column's heading says what it is). They
  * were one text, "9.5, $150,000", and a payoff and a cost that close read as
- * one number (Hans, 2026-09-27: "so close it is confusing").
+ * one number (Hans, 2026-09-27: "so close it is confusing"). An answer
+ * (effect_<id>, cost_<id>) is drawn in a number's place.
  */
-function terminalTexts(node: TreeNode, branch: TreeBranch | undefined, fmt: Format, rolled: boolean): { effect?: string; cost?: string } {
+function terminalTexts(node: TreeNode, id: string, branch: TreeBranch | undefined, fmt: Format, rolled: boolean, answers: Record<string, string>): { effect?: string; cost?: string } {
   const payoff = node.payoff ?? branch?.payoff;
   const cost = node.cost ?? branch?.cost;
   return {
-    ...(typeof payoff === "number" && { effect: rolled ? fmt.num(payoff) : String(payoff) }),
-    ...(typeof cost === "number" && { cost: fmt.money(cost) }),
+    ...(typeof payoff === "number" && { effect: answers[`effect_${id}`] ?? (rolled ? fmt.num(payoff) : String(payoff)) }),
+    ...(typeof cost === "number" && { cost: answers[`cost_${id}`] ?? fmt.money(cost) }),
   };
 }
 
@@ -208,6 +226,17 @@ function formatOf(params: DecisionTreeParams): Format {
   };
 }
 
+/**
+ * A tree number as the tree draws it, for what is said about it (a tree
+ * ask's stored variables): a value or payoff in the tree's decimals and
+ * locale ("7", not "7.0"), a cost as money, a probability as a branch label
+ * shows it (up to three decimals).
+ */
+export function treeNumberText(params: DecisionTreeParams): (v: number, kind: "value" | "effect" | "cost" | "probability") => string {
+  const f = formatOf(params);
+  return (v, kind) => (kind === "probability" ? String(Number(v.toFixed(3))) : kind === "cost" ? f.money(v) : f.num(v));
+}
+
 /** Whether a terminal has numbers to draw. */
 function hasNumbers(w: Wrapped): boolean {
   return w.effect !== undefined || w.cost !== undefined;
@@ -234,7 +263,7 @@ export function layoutDecisionTree(params: DecisionTreeParams & { box?: unknown 
 function layoutTree(params: DecisionTreeParams & { box?: unknown }, full: boolean): TreeLayout {
   const rolled = params.rollback === true && params.root ? rollback(params.root, { wtp: params.wtp }) : null;
   const fmt = formatOf(params);
-  const rootWrapped = wrap(params.root, [0], { rolled, fmt });
+  const rootWrapped = wrap(params.root, [0], { rolled, fmt, answers: params.answers ?? {} });
   const h = hierarchy(rootWrapped, (d) => d.children);
 
   // The strategy table takes the bottom of the page (or of the box), and the
@@ -923,15 +952,16 @@ function valuesOf(rolled: Rolled, rootId: string, table: Table | null, wtp: numb
  * $300", "Test, $300 (p=0.4)"): the fold-back counts it, so the tree shows
  * it (2026-09-27: a $300 screening branch was in the pick and nowhere on the
  * page). On a branch into a terminal the cost is the terminal's own, drawn
- * with its payoff.
+ * with its payoff. `pText`, an answer, is drawn in the probability's place.
  */
-function branchText(branch: TreeBranch | undefined, cost?: string): string | undefined {
+function branchText(branch: TreeBranch | undefined, cost?: string, pText?: string): string | undefined {
   const name = [branch?.label || undefined, cost].filter((x): x is string => x !== undefined).join(", ") || undefined;
   // 1/3 prints as 0.3333333333333333 — a token too long to wrap. Three
   // decimals is all a tree's reader uses.
   const p = branch?.probability !== undefined ? Number(branch.probability.toFixed(3)) : undefined;
-  if (p === undefined) return name;
-  return name !== undefined ? `${name} (p=${p})` : `p=${p}`;
+  if (p === undefined && pText === undefined) return name;
+  const shown = pText ?? p;
+  return name !== undefined ? `${name} (p=${shown})` : `p=${shown}`;
 }
 
 /**

@@ -21,6 +21,8 @@ export function unionBBoxForId(drawables: Drawable[], id: string, measure: Measu
   const boxes: BBox[] = [];
   for (const d of leafDrawables(drawablesForId(drawables, id))) {
     if (d.id === `${id}_leader` || d.id === `${id}_guides` || d.id.startsWith(`${id}_guides__`)) continue;
+    // A box's shadow is its look, not its extent (round 5 §3.1).
+    if (d.id === `${id}__shadow`) continue;
     if (d.kind === "text") {
       boxes.push(bboxOfText(d, measure));
     } else if (d.kind === "image") {

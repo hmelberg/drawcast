@@ -136,8 +136,9 @@ describe("compiler prompt style rules", () => {
     expect(freehand).not.toContain('"type": "icon"');
     expect(elements).toContain('"type": "icon"');
     expect(elements).toContain("A TEMPLATE figure may use icons too");
-    // Widening without a budget is how a figure ends up decorated with stamps.
-    expect(elements).toContain("at most a handful, one per category");
+    // The rule that keeps icons from turning into stamps (round 7 §9): concrete things only; by hand when the drawing explains.
+    expect(elements).toContain("names a concrete object or animal, give it an icon keyword");
+    expect(elements).toContain("draw by hand only when no icon fits, or when the drawing itself explains something");
   });
 
   test("the freehand section names the anti-patterns", () => {

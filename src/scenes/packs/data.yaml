@@ -5,7 +5,7 @@ description: Bar charts and tables drawn from data — typed by the author or co
 template: bar_chart
 title: Bar chart
 version: 2
-kit: 11
+kit: 14
 status: ready
 description: >-
   A bar chart from data: categories along the x axis, one bar per category
@@ -58,6 +58,31 @@ params:
     value_labels:
       type: boolean
       description: "Write each bar's value above it (default false)."
+    bar_colors:
+      enum: [each, same]
+      description: "One series: each — every bar its own colour (bars that are different things); same — one colour (one quantity over years, ranges, months). Default: from the labels."
+    icons:
+      type: array
+      maxItems: 40
+      items:
+        oneOf:
+          - { type: string, x-translate: false }
+          - { type: "null" }
+          - type: object
+            properties:
+              of: { type: string, x-translate: false }
+              set: { type: string, x-translate: false }
+            required: [of]
+      description: "One icon KEYWORD per bar, as labels (\"mosquito\", or {of, set}; null for none) — shown as a picture under the bar, above its label. Up to 12 bars."
+    icon_look:
+      enum: [picture, drawn]
+      description: "picture (default) or drawn (traced by hand)."
+    icon_data:
+      type: array
+      description: "Machine-written from the icon cache or assets — never write it."
+      items:
+        type: object
+        additionalProperties: { type: string, x-translate: false }
     stacked:
       type: boolean
       description: "Stack the series on top of each other instead of grouping them side by side (requires `series`). The y scale then comes from the stack TOTAL. Use for composition — how a total splits — not for comparing series to each other. Values must all be positive: a stack of mixed signs misstates the total, so it falls back to grouped bars and reports the problem."
@@ -89,7 +114,7 @@ params:
       type: string
 element_ids:
   axes: the x and y axes with their captions (and a dashed zero line when values go negative)
-  bar_1: "the first category's bar (its fill, outline, category label and value label; bar_2, bar_3, … likewise) — one per label, at every stage"
+  bar_1: "the first category's bar (its fill, outline, icon, category label and value label; bar_2, bar_3, … likewise) — one per label, at every stage"
   legend: the series legend (only with several series)
   title: figure title, when set
   note: the refusal note, drawn only when a request could not be honoured
@@ -159,6 +184,12 @@ layout: |
   let n = labels.length;
   for (const s of series) for (const st of s.stages) n = Math.max(n, st.length);
   n = Math.min(40, n);
+  // Icons under the bars (round 7 §6): one per bar, up to 12, about 44 units,
+  // between the axis and the category label. The row is kept for the
+  // keywords, data or not, so the chart never jumps when they resolve.
+  const iconKeys = Array.isArray(params.icons) ? params.icons : [];
+  const iconData = Array.isArray(params.icon_data) ? params.icon_data : [];
+  let withIcons = n > 0 && n <= 12 && iconKeys.some((k) => k !== null && k !== undefined && k !== "");
   // The promise idiom: typed labels but no data yet → n bars of height 0, so
   // the storyboard's bar_i beats exist offline and before the script has run.
   if (series.length === 0 && n > 0) series.push({ name: "", stages: [labels.map(() => 0)] });
@@ -225,9 +256,26 @@ layout: |
   // Never below the plot's own floor: a box that already sits above 620 would
   // otherwise invert (y1 < y0) and draw the chart upside down.
   if (title) plot.y1 = Math.max(plot.y0, Math.min(plot.y1, 620));
+  // The axis rises by the icon row.
+  let iconRow = 0;
+  if (withIcons) {
+    const y0 = Math.min(plot.y1 - 40, plot.y0 + 54);
+    // A cramped plot has no room for the row: no icons rather than shrunken ones.
+    if (y0 - plot.y0 >= 34) {
+      iconRow = y0 - plot.y0;
+      plot.y0 = y0;
+    } else withIcons = false;
+  }
   const Y = (v) => plot.y0 + ((v - yMin) / (yMax - yMin)) * (plot.y1 - plot.y0);
   const base = Y(clamp(0, yMin, yMax)); // the bars' baseline: the zero line, or the axis when 0 is off-scale
   const m = series.length;
+  // Bar colours (round 7 §7): one series, not stacked — a colour per bar when
+  // the bars are different things, one colour when they count one thing over
+  // ordered levels (from the labels unless given). While a guess is on
+  // (bar_guess, set by the expansion) the blue beside the guess's own is skipped.
+  const barColors = params.bar_colors === "each" || params.bar_colors === "same" ? params.bar_colors : kit.barColorsFor(labels);
+  const perBar = m === 1 && !stacked && barColors === "each";
+  const cycle = params.bar_guess === true ? C.series.filter((_, k) => k !== 1) : C.series;
   const slotW = (plot.x1 - plot.x0) / Math.max(1, n);
   const gap = clamp(num(params.gap, 0.35), 0, 0.8);
   const groupW = slotW * (1 - gap);
@@ -253,7 +301,7 @@ layout: |
   // arrow tip rather than inline past it) sits in the same row as bar_i__l's
   // category labels — captionDrop (axisLabelPlacement, layout/axes.ts) drops
   // it one row lower so it clears them.
-  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 22, captionDrop: true }));
+  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", iconRow > 0 ? { ...plot, y0: plot.y0 - iconRow } : plot, xLab, { fontSize: 22, captionDrop: true }));
   if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
   if (yMin < 0) axesChildren.push(kit.stroke("axes__zero", [[plot.x0, base], [plot.x1, base]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
   push(kit.group("axes", axesChildren));
@@ -285,8 +333,14 @@ layout: |
   };
 
   const labelSize = n > 12 ? 13 : 17;
+  // A guess's beside reveal (spec 2026-10-03-round6 §3) sets beside_bars at
+  // run time, never an author: those bars (0-based) stand in the RIGHT half
+  // of their width — the viewer's own bar is drawn in the left half beside
+  // them. The slot, the label and the axes do not move.
+  const besideBars = Array.isArray(params.beside_bars) && m === 1 && !stacked ? params.beside_bars : [];
   for (let i = 0; i < n; i++) {
     const id = "bar_" + (i + 1);
+    const halved = besideBars.includes(i);
     const xc = plot.x0 + slotW * (i + 0.5);
     const children = [];
     let reach = base;
@@ -294,15 +348,17 @@ layout: |
       const v = value(s, i);
       // Grouped bars sit side by side within the category slot; stacked bars
       // share the whole slot width and pile on top of the running total.
-      const x = stacked
+      const x0 = stacked
         ? plot.x0 + slotW * i + (slotW - groupW) / 2
         : plot.x0 + slotW * i + (slotW - groupW) / 2 + barW * j;
-      const w = stacked ? groupW : barW;
+      const w0 = stacked ? groupW : barW;
+      const x = halved ? x0 + w0 / 2 + 1.5 : x0;
+      const w = halved ? w0 / 2 - 1.5 : w0;
       const segBase = stacked ? baseFor(i, j) : 0;
       const yBase = stacked ? Y(clamp(segBase, yMin, yMax)) : base;
       const yv = stacked ? Y(clamp(segBase + v, yMin, yMax)) : Y(clamp(v, yMin, yMax));
       const lo2 = Math.min(yBase, yv), hi2 = Math.max(yBase, yv);
-      const color = C.series[j % C.series.length];
+      const color = perBar ? cycle[i % cycle.length] : C.series[j % C.series.length];
       const rect = [[x, lo2], [x + w, lo2], [x + w, hi2], [x, hi2]];
       children.push(kit.area(id + "__f" + j, rect, color, { opacity: 0.55 }));
       children.push(kit.stroke(id + "__o" + j, rect, { closed: true, color, strokeWidth: 2.5, ms: MS.stroke }));
@@ -324,7 +380,13 @@ layout: |
       // Segment labels sit inside their segments, so the column's top edge is free.
       children.push(kit.text(id + "__total", [xc, totalY + 13], fmt(total), { fontSize: 15, color: C.guide }));
     }
-    children.push(kit.text(id + "__l", [xc, plot.y0 - 20], labels[i] !== undefined ? labels[i] : String(i + 1), { fontSize: labelSize }));
+    if (withIcons) {
+      const k = iconKeys[i];
+      const size = Math.min(44, slotW * (1 - gap), iconRow - 10);
+      const ic = k !== null && k !== undefined && k !== "" ? kit.icon(id + "__icon", iconData[i] && iconData[i].strokes, [xc, plot.y0 - 6 - size / 2], size, { look: params.icon_look === "drawn" ? "drawn" : "picture" }) : null;
+      if (ic) children.push(ic);
+    }
+    children.push(kit.text(id + "__l", [xc, plot.y0 - 20 - iconRow], labels[i] !== undefined ? labels[i] : String(i + 1), { fontSize: labelSize }));
     push(kit.group(id, children));
     anchors[id] = [xc, (base + reach) / 2];
   }
@@ -367,6 +429,14 @@ layout: |
     anchors.title = [(plot.x0 + plot.x1) / 2, ty];
   }
   return { drawables, labels: labelReqs, anchors, order, frame: { x: [-0.5, Math.max(1, n) - 0.5], y: [yMin, yMax], box: plot } };
+lint: |
+  const out = [];
+  const icons = Array.isArray(params.icons) ? params.icons : [];
+  const labels = Array.isArray(params.labels) ? params.labels : [];
+  const n = Math.max(labels.length, Array.isArray(params.values) ? params.values.length : 0);
+  if (icons.length > 0 && n > 12) out.push({ severity: "warn", message: "icons are shown on up to 12 bars — with " + n + " they are left out" });
+  if (icons.length > 0 && labels.length > 0 && icons.length !== labels.length) out.push({ severity: "warn", message: "icons: one per bar, as labels (" + icons.length + " icons, " + labels.length + " labels)" });
+  return out;
 ---
 template: pie_chart
 title: Pie chart
@@ -462,8 +532,14 @@ layout: |
   const title = str(params.title, "");
   if (title) area.y1 = Math.min(area.y1, 650);
   // Room for a label on each side: the radius leaves 150 units left and right.
-  const r = Math.max(40, Math.min((area.x1 - area.x0) / 2 - 150, (area.y1 - area.y0) / 2 - 40));
-  const cx = (area.x0 + area.x1) / 2, cy = (area.y0 + area.y1) / 2;
+  const r0 = Math.max(40, Math.min((area.x1 - area.x0) / 2 - 150, (area.y1 - area.y0) / 2 - 40));
+  const cx0 = (area.x0 + area.x1) / 2, cy0 = (area.y0 + area.y1) / 2;
+  // A guess's beside reveal (spec 2026-10-03-round6 §3) sets beside_pie
+  // [x, y, r] at run time, never an author: the slices stand there, beside
+  // the viewer's own pie; the title keeps its place.
+  const bp = params.beside_pie;
+  const besidePie = Array.isArray(bp) && bp.length === 3 && bp.every((v) => typeof v === "number" && Number.isFinite(v)) && bp[2] > 0;
+  const cx = besidePie ? bp[0] : cx0, cy = besidePie ? bp[1] : cy0, r = besidePie ? bp[2] : r0;
   const showPct = params.percent !== false;
   // Clockwise from 12 o'clock, y-up: angle a (radians from the top) → point.
   const P = (a, rr) => [cx + rr * Math.sin(a), cy + rr * Math.cos(a)];
@@ -506,9 +582,9 @@ layout: |
   }
   if (title) {
     // Over the pie, and over any slice names stacked up near 12 o'clock.
-    const ty = Math.min(730, Math.max(cy + r + 60, topLabel + 42));
-    push(kit.text("title", [cx, ty], title, { fontSize: 30 }));
-    anchors.title = [cx, ty];
+    const ty = Math.min(730, Math.max(cy0 + r0 + 60, topLabel + 42));
+    push(kit.text("title", [cx0, ty], title, { fontSize: 30 }));
+    anchors.title = [cx0, ty];
   }
   return { drawables, labels: labelReqs, anchors, order };
 ---

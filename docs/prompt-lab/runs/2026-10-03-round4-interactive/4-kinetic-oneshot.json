@@ -1,0 +1,423 @@
+{
+ "request": "Kinetic energy: where the ½mv² comes from #interactive",
+ "spec": {
+  "title": "Where ½mv² comes from",
+  "domain": {
+   "x": [
+    0,
+    12
+   ],
+   "y": [
+    0,
+    25
+   ],
+   "box": {
+    "x": 470,
+    "y": 110,
+    "w": 500,
+    "h": 520
+   }
+  },
+  "vars": {
+   "pushT": 5,
+   "v": {
+    "expr": "2*pushT"
+   },
+   "d": {
+    "expr": "pushT*pushT"
+   },
+   "W": {
+    "expr": "2*pushT*pushT"
+   }
+  },
+  "elements": [
+   {
+    "id": "brake",
+    "type": "scale",
+    "min": 0,
+    "max": 100,
+    "value": 55,
+    "ticks": 5,
+    "unit": "m",
+    "label": "Stop from 100 km/h",
+    "x": 60,
+    "y": 560,
+    "width": 360
+   },
+   {
+    "id": "eq",
+    "type": "math",
+    "tex": "W = F\\,d",
+    "x": 230,
+    "y": 660,
+    "colors": {
+     "v": "#2f6b8f"
+    },
+    "steps": [
+     "W = m\\frac{v}{t}\\cdot d",
+     "W = m\\frac{v}{t}\\cdot\\frac{1}{2}v\\,t",
+     "W = \\frac{1}{2}mv^2"
+    ],
+    "step_gap": 70,
+    "details": "With calculus the same steps hold for ANY force, steady or not: $$W=\\int F\\,dx=\\int m\\frac{dv}{dt}\\,dx=\\int_0^v m\\,v\\,dv=\\tfrac12 mv^2$$"
+   },
+   {
+    "id": "dist",
+    "type": "math",
+    "tex": "d = \\blank{\\frac{1}{2}}\\,v\\,t",
+    "x": 230,
+    "y": 300,
+    "colors": {
+     "v": "#2f6b8f"
+    }
+   },
+   {
+    "id": "ax",
+    "type": "axes",
+    "x_label": "Time pushing (s)",
+    "y_label": "Speed (m/s)"
+   },
+   {
+    "id": "floor",
+    "type": "curve",
+    "expr": "0",
+    "style": {
+     "opacity": 0
+    }
+   },
+   {
+    "id": "vline",
+    "type": "curve",
+    "expr": "2*x",
+    "x_from": 0,
+    "x_to": 5,
+    "bind": {
+     "x_to": "pushT"
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "pend",
+    "type": "point",
+    "at": {
+     "x": 5,
+     "on": "vline"
+    },
+    "bind": {
+     "at.x": "pushT"
+    },
+    "guides": {
+     "values": true
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "full",
+    "type": "curve",
+    "expr": "2*pushT",
+    "x_from": 0,
+    "x_to": 5,
+    "bind": {
+     "x_to": "pushT"
+    },
+    "style": {
+     "color": "#8f887c",
+     "dash": true
+    }
+   },
+   {
+    "id": "rect",
+    "type": "region",
+    "between": [
+     "full",
+     "floor"
+    ],
+    "x_from": 0,
+    "x_to": {
+     "ref": "pend"
+    },
+    "style": {
+     "fill": "#8f887c",
+     "opacity": 0.15
+    }
+   },
+   {
+    "id": "area",
+    "type": "region",
+    "between": [
+     "vline",
+     "floor"
+    ],
+    "x_from": 0,
+    "x_to": {
+     "ref": "pend"
+    },
+    "style": {
+     "fill": "#f2c14e"
+    }
+   },
+   {
+    "id": "label_area",
+    "type": "label",
+    "text": "d = {d} m",
+    "attach_to": "area",
+    "side": "right"
+   },
+   {
+    "id": "label_W",
+    "type": "label",
+    "text": "W = {W} kJ",
+    "attach_to": "pend",
+    "side": "above-right",
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "ev",
+    "type": "scratch",
+    "work": [
+     {
+      "tex": "2000\\,\\text{N}\\times 25\\,\\text{m} = 50\\,000\\ \\text{J}"
+     },
+     {
+      "tex": "\\tfrac12\\times 1000\\times 10^2 = 50\\,000\\ \\text{J}"
+     }
+    ],
+    "at": {
+     "place": "bottom_right"
+    },
+    "font_size": 22
+   },
+   {
+    "id": "emilie",
+    "type": "portrait",
+    "of": "Émilie du Châtelet",
+    "cameo": true
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Where ½mv² comes from"
+    }
+   },
+   {
+    "draw": [
+     "brake"
+    ],
+    "speak": "Where does kinetic energy's one-half m v squared come from, and why should a driver care? Start with a car that brakes from 50 kilometres an hour to a stop in about 14 metres."
+   },
+   {
+    "ask": {
+     "question": "Same car, same brakes, but at 100 kilometres an hour. How many metres to stop? Click your guess.",
+     "on": "brake",
+     "store": "g",
+     "default": "28",
+     "right": "You said {g} metres, and it is about {g.true}: twice the speed, four times the road. Hold on to that.",
+     "wrong": "You said {g} metres; it is about {g.true}, {g.off} off. A very common guess is 28, simply double. It is four times, and one-half m v squared says why."
+    }
+   },
+   {
+    "move": {
+     "target": [
+      "brake"
+     ],
+     "scale": 0.6,
+     "to": {
+      "x": 180,
+      "y": 160
+     },
+     "duration": 1
+    },
+    "speak": "To see why, build the energy of motion from scratch: it is the work it takes to get the car moving."
+   },
+   {
+    "draw": [
+     "eq"
+    ],
+    "speak": "Work is a force times the distance it pushes through."
+   },
+   {
+    "draw": [
+     "ax"
+    ],
+    "speak": "So push: a 1000-kilogram car, from rest, with a steady 2000 newtons."
+   },
+   {
+    "draw": [
+     "vline",
+     "pend"
+    ],
+    "speak": "A steady force gives a steady gain: two metres per second faster, every second. After five seconds, ten metres per second."
+   },
+   {
+    "pause": 0.3
+   },
+   {
+    "draw": [
+     "full",
+     "rect"
+    ],
+    "speak": "How far has it gone? At ten metres per second the whole time, it would cover this rectangle: ten times five, fifty metres."
+   },
+   {
+    "draw": [
+     "dist"
+    ],
+    "speak": "But it was not doing ten the whole time. So the distance is only some share of v times t."
+   },
+   {
+    "ask": {
+     "question": "Which tile finishes the distance?",
+     "on": "dist",
+     "others": [
+      "1",
+      "2",
+      "\\frac{1}{4}"
+     ],
+     "store": "h",
+     "right": "One half: the speed climbs evenly from zero to v, so on average it is only v over two.",
+     "wrong": "Think of the speed halfway through the push."
+    }
+   },
+   {
+    "draw": [
+     "area",
+     "label_area"
+    ],
+    "speak": "That is the triangle under the speed line: twenty-five metres, exactly half the rectangle."
+   },
+   {
+    "erase": [
+     "rect"
+    ]
+   },
+   {
+    "pause": 0.3
+   },
+   {
+    "step": "eq",
+    "speak": "Now the force: mass times acceleration, and acceleration is the speed gained, v, over the time it took, t."
+   },
+   {
+    "step": "eq",
+    "speak": "Put in the distance: one half of v times t."
+   },
+   {
+    "step": "eq",
+    "speak": "The times cancel, and out comes one-half m v squared."
+   },
+   {
+    "highlight": {
+     "target": [
+      "eq_4"
+     ],
+     "part": "\\frac{1}{2}"
+    },
+    "speak": "So the half is the triangle: anything speeding up from rest only ever averages half its final speed.",
+    "delivery": "grave"
+   },
+   {
+    "erase": [
+     "dist"
+    ]
+   },
+   {
+    "draw": [
+     "ev_box",
+     "ev_line_1",
+     "label_W"
+    ],
+    "speak": "Check it on the car: 2000 newtons over 25 metres is 50,000 joules."
+   },
+   {
+    "draw": [
+     "ev_line_2"
+    ],
+    "speak": "And one half times 1000 times ten squared: 50,000 again."
+   },
+   {
+    "erase": [
+     "ev"
+    ],
+    "speak": "The force itself has dropped out: a gentler push takes longer and goes further, and the work comes to the same."
+   },
+   {
+    "draw": [
+     "emilie"
+    ],
+    "speak": "That v squared was once hotly disputed. Émilie du Châtelet argued for it in 1740: balls dropped into soft clay at twice the speed sank four times as deep."
+   },
+   {
+    "erase": [
+     "emilie"
+    ],
+    "speak": "The half came about a century later, when engineers like Gaspard Coriolis defined work as force times distance."
+   },
+   {
+    "quiz": {
+     "question": "Which costs more work: speeding up from 0 to 10 m/s, or from 10 to 20 m/s?",
+     "choices": [
+      "About the same",
+      "0 to 10 m/s",
+      "10 to 20 m/s"
+     ],
+     "correct": 3,
+     "right": "From 10 to 20 costs three times as much: already moving fast, each second of pushing covers far more road, so the triangle underneath is much bigger.",
+     "wrong": "Same gain in speed, but is it the same distance pushed?"
+    }
+   },
+   {
+    "animate": {
+     "pushT": 10
+    },
+    "duration": 4,
+    "ghost": true,
+    "speak": "See it directly: push for ten seconds instead of five. Twice the time, twice the top speed…"
+   },
+   {
+    "highlight": {
+     "target": [
+      "area",
+      "label_area"
+     ]
+    },
+    "speak": "…and four times the triangle: a hundred metres, so 200 kilojoules instead of 50. Twice as long, at twice the average speed."
+   },
+   {
+    "highlight": {
+     "target": [
+      "brake"
+     ]
+    },
+    "speak": "Braking runs the same film backwards. The brakes' force is fixed, so four times the energy needs four times the road: 14 metres becomes about 55. You guessed {g}."
+   },
+   {
+    "highlight": {
+     "target": [
+      "eq_4"
+     ]
+    },
+    "speak": "So one-half m v squared is just force times distance: the square is speed counted twice, and the half is a triangle."
+   },
+   {
+    "quiz": {
+     "question": "A car speeds up from 30 to 90 kilometres an hour. Its kinetic energy…",
+     "choices": [
+      "Triples",
+      "Grows 6 times",
+      "Grows 9 times"
+     ],
+     "correct": 3,
+     "right": "Nine times: energy goes with speed squared, and three squared is nine, so it needs nine times the road to brake.",
+     "wrong": "Remember what doubling the speed did to the triangle."
+    }
+   }
+  ]
+ }
+}

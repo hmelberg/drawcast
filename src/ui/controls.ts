@@ -5,8 +5,12 @@
 
 import { guessGateFor } from "./guess-gate";
 import { cardsGateFor } from "./cards-gate";
+import { chooseGateFor } from "./choose-gate";
+import type { ChooseOption } from "../render/plan";
+import { treeGateFor } from "./tree-gate";
+import { formulaGateFor } from "./formula-gate";
 import { attachTestMe } from "./test-me";
-import type { CardsSession, GuessSession } from "../render/player";
+import type { CardsSession, FormulaSession, GuessSession, TreeSession } from "../render/player";
 import type { RenderHandle } from "../render";
 import type { SpeechManager } from "../render/speech";
 import { answersMatch } from "../spec/answers";
@@ -29,6 +33,8 @@ import { attachChessDrag } from "./chess-drag";
 import { toggleFullscreen } from "./fullscreen";
 import { dragGateFor } from "./drag-gate";
 import { creditsOf } from "../export/credits";
+import { rewardCredits } from "../feedback/rewards";
+import { playReward } from "./rewards";
 import { connectGateFor } from "./connect-gate";
 import { attachLinks } from "./link-host";
 import { attachMore } from "./more";
@@ -240,10 +246,18 @@ export interface AskGateStep {
   guess?: GuessSession;
   /** Guess: false keeps the Answer button for one part (default: letting go answers). */
   release?: boolean;
-  /** Guess on all bars: the numbers add up to this (ui/guess-gate.ts). */
+  /** Guess on all bars: the budget split against an account bar (the gate reads GuessSession.account). */
   budget?: number;
   /** Cards to rank or sort (ui/cards-gate.ts). */
   cardsSession?: CardsSession;
+  /** A decision tree's blanks and pick (ui/tree-gate.ts). */
+  treeSession?: TreeSession;
+  /** A formula's blanks to type into (ui/formula-gate.ts). */
+  formulaSession?: FormulaSession;
+  /** Choose on the figure (ui/choose-gate.ts): the drawn options to tap. */
+  choose?: ChooseOption[];
+  /** Choose: false = an opinion (no ✓/✗ on the tapped thing). */
+  judge?: false;
 }
 
 /**
@@ -1044,7 +1058,8 @@ export function attachPlayerControls(
   // gets no extra menu entry to fold. Built once, from the resolved spec on
   // the handle (hd.spec), not re-read on every layout() call: credits are
   // stamped once during resolution and never change for the life of a render.
-  const creditLines = creditsOf([hd.spec]);
+  // A cast whose questions can show a reaction picture owes the twemoji line too.
+  const creditLines = [...creditsOf([hd.spec]), ...rewardCredits(hd.plan.steps)];
   const creditsPanel = creditLines.length
     ? h(
         "div",
@@ -1186,14 +1201,23 @@ export function attachPlayerControls(
   const connectGate = connectGateFor(stage, hd);
   const guessGate = guessGateFor(stage, hd);
   const cardsGate = cardsGateFor(stage, hd);
+  const treeGate = treeGateFor(stage, hd);
+  const formulaGate = formulaGateFor(stage, hd);
+  const chooseGate = chooseGateFor(stage, hd);
   attachTestMe(stage, hd);
   // A template-bound ask is worked on the figure itself, so its gate needs the
   // host. Without one (the template carries no widget body — lint calls that an
   // error) the branch is unreachable, and the typed card stands in, which is
   // what the rest of the chain would have fallen through to anyway.
   const widgetGate = widgetHost ? widgetGateFor(stage, hd, widgetHost) : textGate;
-  hd.timeline.askGate = (signal, step: Parameters<NonNullable<typeof hd.timeline.askGate>>[1] & { guess?: GuessSession; cardsSession?: CardsSession }) =>
-    step.cardsSession
+  hd.timeline.askGate = (signal, step: Parameters<NonNullable<typeof hd.timeline.askGate>>[1] & { guess?: GuessSession; cardsSession?: CardsSession; treeSession?: TreeSession; formulaSession?: FormulaSession }) =>
+    step.choose
+      ? chooseGate(signal, step)
+      : step.treeSession
+      ? treeGate(signal, step)
+      : step.formulaSession
+      ? formulaGate(signal, step)
+      : step.cardsSession
       ? cardsGate(signal, step)
       : step.guess
       ? guessGate(signal, step)
@@ -1402,9 +1426,16 @@ export function attachPlayerControls(
   // and their resets would never fire. `total` is hd.plan.steps.length, which
   // is exactly what the Player passes as onStep's second argument.
   const prev = hd.timeline.callbacks;
+  // The reward on screen, if any: taken away by a pause, a rewind or a scrub,
+  // so it never outlives the moment it belongs to.
+  let stopReward = (): void => {};
+  let lastDone = 0;
   hd.timeline.callbacks = {
+    ...prev,
     onState: (s) => {
       prev.onState?.(s);
+      // Not on "done": a cast that ends on its question still shows the reward.
+      if (s === "paused" || s === "idle") stopReward();
       stage.classList.toggle("is-playing", s === "playing");
       stage.classList.toggle("is-paused", s === "paused");
       playing = s === "playing";
@@ -1415,8 +1446,23 @@ export function attachPlayerControls(
       bigPlay.replaceChildren(icon(s === "done" ? "replay" : "play"));
       nameBigPlay(s === "done" ? "Replay with narration" : "Play with narration");
     },
+    // Rewards (spec 2026-10-03 §4.3): confetti, its still badge or a picture
+    // on an overlay above the stage; confetti's soft chime only when the
+    // narration is heard (narrated mode, not muted). The player emits these
+    // live only, so a movie or an export never sees one.
+    onReward: (r) => {
+      prev.onReward?.(r);
+      stopReward();
+      stopReward = playReward(stage, r);
+      if (r.kind === "confetti" && modeSel.value === "narrated" && opts.speech && !opts.speech.muted) {
+        hd.timeline.tones?.play([{ notes: "E6:s G6:s C7:q", instrument: "piano" }], 150);
+      }
+    },
     onStep: (done) => {
       prev.onStep?.(done, total);
+      // A seek (back, or more than one step on) takes the reward away.
+      if (done < lastDone || done > lastDone + 1) stopReward();
+      lastDone = done;
       const g = globalDone(done), T = globalTotal();
       stepInd.textContent = `${g}/${T}`;
       progressFill.style.width = `${T > 0 ? (g / T) * 100 : 0}%`;

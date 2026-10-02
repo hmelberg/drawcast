@@ -6,6 +6,7 @@
 // A single document (JSON or YAML) is a one-item playlist — exactly the
 // pre-playlist behavior, so every existing drawcast keeps working.
 
+import { leftoverFoldMarker, leftoverFoldMessage } from "../ui/spec-fold";
 import { CORE_SCHEMA, dump, loadAll } from "js-yaml";
 import { cardElements, titleFont } from "../spec/card";
 import { desmartenJson } from "../spec/extract";
@@ -223,6 +224,15 @@ const SEPARATOR_RE = /^---\s*$/m;
  * are NOT validated here — callers run validateSpec per item.
  */
 export function parsePlaylistText(text: string): Playlist {
+  const playlist = parsePlaylistBody(text);
+  // A folded-data marker left in the text (ui/spec-fold.ts) names data that
+  // is not here — say so, never take it silently as content.
+  const marker = leftoverFoldMarker(text);
+  if (marker) playlist.warnings.push(leftoverFoldMessage(marker));
+  return playlist;
+}
+
+function parsePlaylistBody(text: string): Playlist {
   if (SEPARATOR_RE.test(text)) {
     // Same tolerance as single-spec parsing: Google Docs curls quotes.
     for (const candidate of [text, desmartenJson(text)]) {

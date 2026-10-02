@@ -226,8 +226,16 @@ describe("every run site resolves the chart style from the drawing (pins)", () =
   test("render() resolves the style ONCE and hands it to the resolve pass and the sweep runner", () => {
     const src = readFileSync("src/render/index.ts", "utf8");
     expect(src).toMatch(/const style: RenderStyle = options\.style \?\? "sketchy"/);
-    expect(src).toMatch(/resolvedRenderSpec\(spec, \{[^}]*style \}\)/);
+    // The resolve pass is reached through expandedRenderSpec (cards' icons
+    // first, then expand, then resolve — render/resolve.ts), with the style
+    // in its deps — at both of render()'s resolve sites — and the deps
+    // travel unchanged to resolvedRenderSpec, whose resolveCode takes the style.
+    expect(src.match(/expandedRenderSpec\((spec|source), \{[^}]*style \}\)/g)?.length).toBe(2);
+    expect(src).not.toMatch(/resolvedRenderSpec\(/);
     expect(src).toMatch(/sweepRunnerFor\(authored, \{ style \}\)/);
+    const resolve = readFileSync("src/render/resolve.ts", "utf8");
+    expect(resolve).toMatch(/return resolvedRenderSpec\(expandSpec\(authored\), deps\)/);
+    expect(resolve).toMatch(/deps\.resolveCode\(copy, \{ style: deps\.style \}\)/);
   });
 });
 

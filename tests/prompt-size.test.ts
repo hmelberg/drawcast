@@ -636,7 +636,59 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // pairs, options, then) and one paragraph in "Ask the viewer", +963. -> 381883.
 // Re-pinned UP 2026-10-02 (first #interactive test): "{g} already reads
 // '3 of 5'" — the model wrote "{g} of 3". +51. -> 381934.
-const BASELINE_SYSTEM_CHARS = 381934;
+// Re-pinned UP 2026-10-03 (curves, trees and formulas, spec 2026-10-03 §8):
+// the schema's +1126 (see its note) with +235 already measured before this
+// task, and one "Ask the viewer" bullet — fill the tree (blanks, pick), fill
+// the formula (\blank, tiles via others, typed, form exact), move the curve
+// (on a curve, predict, check) — one example each, +1811. -> 385106.
+// Re-pinned UP 2026-10-03 (round 4 fix wave, from the generated test casts):
+// a tree's blanks are ALWAYS followed by a pick (its reveal draws best/prune,
+// never drawn by hand); which `check` (left out = shape, size when the
+// amount is named, direction for a vague change); the market example drops
+// its check. +242. -> 385348.
+// Re-pinned UP 2026-10-03 (round 5, Task 1 + ask account_label): node rect
+// `radius` (corner radius) and `shadow`, plus ask's `account_label` (14f503a4,
+// which landed without a re-pin). +154. -> 385502.
+// Re-pinned UP 2026-10-03 (round 5 Task 1 fix): `shadow` says it is for a
+// filled box. +19. -> 385521.
+// Re-pinned UP 2026-10-03 (round 5 Task 2): a node's `icon` and the
+// machine-written `icon_strokes` (+437), plus the `feedback` def and fields
+// (949f9ae8, which landed without a re-pin, +1447). +1884. -> 387405.
+// Re-pinned UP 2026-10-03 (round 5 Task 9, guidance): the schema's +634 since
+// the last pin (cards `look` paper/flat/outline, card items' `icon`/`match_icon`,
+// which landed without a re-pin) and the prompt's +1141 — icons on node boxes and
+// cards (filled sets), `look` with the default fine, the account bar on budget,
+// and one `feedback` bullet with an example ask. +1775. -> 389180.
+// Re-pinned UP 2026-10-03 (round 5 fix wave W): `icon_key` on nodes, icons
+// and card items (machine-written: what an icon was resolved for) and the
+// credit/icon_strokes doc strings (+217 schema); the prompt's cast-level
+// `feedback` from three questions on, icon near misses and "(cards are the
+// exception)" (+315). +532. -> 389712.
+// Re-pinned UP 2026-10-03 (round 6 Task 2): ask `choose` and `then`, and
+// judge's choose clause — the schema's +976, carried into the prompt. -> 390688.
+// Re-pinned UP 2026-10-03 (round 6 Task 1): `icon_look` (picture / drawn)
+// on nodes, cards and icons — the schema's +212, carried into the prompt. -> 390900.
+// Re-pinned UP 2026-10-03 (round 6 Task 6): cards `select` and `deck`, card
+// items' `in`, and the sort clause (tap to move, up to 30 in a deck) +789;
+// ask `reveal_style` / `reveal_order` (round 6 Task 3, landed without a
+// re-pin) +328 — the schema's +1117, carried into the prompt. -> 392017.
+// Re-pinned UP 2026-10-03 (round 6 Task 4): ask `keep` (a guess's marks
+// outlive their moment and follow the part) — the schema's +132. -> 392149.
+// Re-pinned UP 2026-10-03 (round 6 Task 5): ask `stage: "own"` (a question
+// on its own page) — the schema's +136. -> 392285.
+// Re-pinned UP 2026-10-03 (round 6 Task 7, guidance): the guess and cards
+// sentences say the guess stays and the truth is drawn beside it, deck for
+// many items, the tap-all cards example, `choose` on drawn things with its
+// example ask and `stage: "own"`; the icon bullet says keywords only, pictures
+// for node/card icons, `icon_look: "picture"` for an illustrating icon element
+// (+1,032); the schema's cards clause, "✓ or ✗ with the truth beside" (+4). -> 393321.
+// Re-pinned UP 2026-10-02 (round 7 Task 1): cards `check` (each / end), carried into the prompt. +239. -> 393560.
+// Re-pinned UP 2026-10-02 (round 7 Task 6): ask reveal_style "reorder" (default for rank cards). +102. -> 393662.
+// Re-pinned UP 2026-10-02 (round 7 Task 7): cards arrange drop / side / rise. +231. -> 393893.
+// Re-pinned UP 2026-10-02 (round 7 Task 13, guidance): the cards sentence (rank slides, sort checks each
+// drop, the score line, check end), the headline question rule, bar icons and the icon rule; the schema's
+// cards and select clauses. +865. -> 394758.
+const BASELINE_SYSTEM_CHARS = 394758;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -700,7 +752,37 @@ const BASELINE_SYSTEM_CHARS = 381934;
 // ends and arrange. +1235. Measured 102049.
 // Re-pinned UP 2026-10-02 (more ways to answer): ask's predict, revise,
 // budget and judge; cards' along, compare, pairs, options and then. +2788. Measured 104837.
-const BASELINE_SCHEMA_CHARS = 104837;
+// Re-pinned UP 2026-10-03 (curves, trees and formulas): ask's blanks, pick,
+// work, check, others and form, and the tree/formula clauses. +1126. Measured 105963.
+// Re-pinned DOWN 2026-10-03 (final fix wave): the internal `fills` (the
+// player's answer per \blank box) withheld like `fill`. -185. Measured 105778.
+// Re-pinned UP 2026-10-03 (round 5): node rect `radius` as a corner radius and
+// `shadow` (+130, Task 1), and ask's `account_label` (+209, 14f503a4, which
+// landed without a re-pin). Measured 106117.
+// Re-pinned UP 2026-10-03 (round 5 Task 1 fix): `shadow` says it is for a
+// filled box. +19. Measured 106136 (before the icon/feedback schema work).
+// Re-pinned UP 2026-10-03 (round 5 Task 2): node `icon` (keyword or {of, set})
+// and `icon_strokes` +437; `feedback` (949f9ae8, landed without a re-pin)
+// +1447. Measured 108020.
+// Re-pinned UP 2026-10-03 (round 5 Task 9): cards `look` presets and card
+// items' `icon`/`match_icon` (+ machine-written strokes), which landed in
+// Tasks 2-8 without a re-pin. +634. Measured 108654.
+// Re-pinned UP 2026-10-03 (round 5 fix wave W): `icon_key` (node/icon, card
+// items' icon_key/match_icon_key) and the credit/icon_strokes doc strings. +217. Measured 108871.
+// Re-pinned UP 2026-10-03 (round 6 Task 2): ask `choose` (drawn things to
+// tap) and `then`, and judge's choose clause. +976. -> 109847.
+// Re-pinned UP 2026-10-03 (round 6 Task 1): `icon_look` (picture / drawn). +212. -> 110059.
+// Re-pinned UP 2026-10-03 (round 6 Task 6): cards `select`, `deck`, items'
+// `in`, the sort clause +789; ask `reveal_style`/`reveal_order` (Task 3) +328. -> 111176.
+// Re-pinned UP 2026-10-03 (round 6 Task 4): ask `keep`. +132. -> 111308.
+// Re-pinned UP 2026-10-03 (round 6 Task 5): ask `stage`. +136. -> 111444.
+// Re-pinned UP 2026-10-03 (round 6 Task 7): the cards clause says "see ✓ or ✗
+// with the truth beside" instead of the glide. +4. -> 111448.
+// Re-pinned UP 2026-10-02 (round 7 Task 1): cards `check` (each / end). +239. -> 111687.
+// Re-pinned UP 2026-10-02 (round 7 Task 6): ask reveal_style "reorder". +102. -> 111789.
+// Re-pinned UP 2026-10-02 (round 7 Task 7): cards arrange drop / side / rise. +231. -> 112020.
+// Re-pinned UP 2026-10-02 (round 7 Task 13, guidance): the cards and select clauses. +153. -> 112173.
+const BASELINE_SCHEMA_CHARS = 112173;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

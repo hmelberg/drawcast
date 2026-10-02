@@ -112,6 +112,29 @@ export interface SpecMore {
   open?: boolean;
 }
 
+/** A card (spec/cards.ts): its text and what its mode needs; an icon drawn on it (round 5 §3.3). */
+export interface CardItemSpec {
+  text: string;
+  bin?: string;
+  /** select: the card belongs in the one box. */
+  in?: boolean;
+  value?: number;
+  match?: string;
+  blank?: number;
+  /** An icon on the card — a keyword or {of, set}, resolved like a node's. */
+  icon?: string | { of: string; set?: string };
+  /** match: an icon on the partner card. */
+  match_icon?: string | { of: string; set?: string };
+  /** Machine-written by resolveIcons (render/icon.ts): the rings and their credit. */
+  icon_strokes?: string;
+  credit?: string;
+  match_icon_strokes?: string;
+  match_credit?: string;
+  /** Machine-written: the key each icon was resolved for ("keyword@set"); an edited icon no longer matches and is resolved again. */
+  icon_key?: string;
+  match_icon_key?: string;
+}
+
 export interface SpecStyle {
   color?: string;
   fill?: string;
@@ -261,6 +284,8 @@ export interface SpecElement {
   equalize?: boolean;
   /** math: LaTeX, drawn as handwriting. label: LaTeX instead of text. */
   tex?: string;
+  /** internal: the answer shown in each `\blank` box (written by the player through element patches). */
+  fills?: (string | null)[];
   /** math: font size, the same units as text font_size (default 28); scaled by text.font_size like every text. icon: box size in logical units (default 100). */
   size?: number;
   /** math: colour per term, a TeX snippet → colour; every occurrence, deepest match wins. */
@@ -273,7 +298,18 @@ export interface SpecElement {
   y?: number;
   width?: number;
   height?: number;
+  /** shape circle / sector / …: radius. node rect: corner radius in canvas units (default 0 = square). */
   radius?: number;
+  /** node rect: a soft shadow — the same box offset (3, 4) down-right, ink at 12 %, behind it. */
+  shadow?: boolean;
+  /** node rect: an icon drawn inside the box above the text — a keyword ("shark") or {of, set}, resolved like an icon element (render/icon.ts). */
+  icon?: string | { of: string; set?: string };
+  /** node rect: the resolved icon's rings (spec/trace.ts encodeIcon; machine-written, never edited). */
+  icon_strokes?: string;
+  /** node / icon: the key the icon was resolved for ("keyword@set", machine-written) — an edited `icon` / `of` no longer matches and is resolved again. */
+  icon_key?: string;
+  /** node / cards / icon: how the icon shows (round 6 §8) — "picture" (its own artwork, in colour, faded in whole; the default for nodes and cards) or "drawn" (traced by hand; the default for an icon element). */
+  icon_look?: "picture" | "drawn";
   font_size?: number;
   // sector / arc / polygon / pieces (design §2.2) — radius/x/y reused above (tier-3 raw)
   /** sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up). */
@@ -318,8 +354,8 @@ export interface SpecElement {
   of?: string;
   /** Direct image URL (user-provided; CORS-permitting hosts only). */
   url?: string;
-  /** image: "screen" — the faithful look for screenshots, diagrams and paintings: full colour, no tint, native resolution (≤ 2400 px). Default: the styled small photo. */
-  look?: "screen";
+  /** image: "screen" — the faithful look for screenshots, diagrams and paintings: full colour, no tint, native resolution (≤ 2400 px). Default: the styled small photo. cards: paper (default — rounded, paper-white, a soft shadow), flat (rounded, a soft ink tint) or outline (plain boxes). */
+  look?: "screen" | "paper" | "flat" | "outline";
   /** image: the part of the picture shown, [x, y, w, h] as fractions from the top-left (default the whole picture). */
   view?: Rect4;
   /** image: named boxes on the picture, [x, y, w, h] as fractions of the WHOLE picture from the top-left — targets as "<id>:<name>". */
@@ -415,13 +451,19 @@ export interface SpecElement {
   // population (layout/population.ts): people as person pictograms, each in a state
   // cards (spec/cards.ts — sugar: cards to rank or to sort into boxes)
   /** cards: the cards, in TRUE order (rank) or each with its bin (sort). */
-  items?: (string | { text: string; bin?: string; value?: number; match?: string })[];
+  items?: (string | CardItemSpec)[];
   /** cards: the boxes to sort into. */
   bins?: string[];
+  /** cards: tap all the … — the one box's title (items {text, in}). */
+  select?: string;
+  /** cards (sort): one large card at a time, up to 30. */
+  deck?: boolean;
+  /** cards (sort, select, deck): judge each card as it is dropped (default) or all at the end. */
+  check?: "each" | "end";
   /** cards (rank): what the two ends mean. */
   ends?: string[];
-  /** cards (rank): a row (default) or a column. */
-  arrange?: "row" | "column";
+  /** cards: rank — a row (default) or a column; sort, select, deck — drop (default), side or rise. */
+  arrange?: "row" | "column" | "drop" | "side" | "rise";
   /** cards: place on this scale (items carry value). */
   along?: string;
   /** cards: higher or lower — the question each pair answers. */
@@ -928,13 +970,75 @@ export interface AskArgs {
   /** Guess: start from an earlier guess (its store) kept back with
    *  reveal: false — guess, see evidence, guess again (§9). */
   revise?: string;
-  /** Guess on all bars (or a whole pie): the numbers always add up to this
-   *  budget — split it (§7). */
+  /** Guess on all bars: split this budget — each bar moves on its own and
+   *  an account bar beside the plot shows what is left; Answer waits until
+   *  it balances (spec 2026-10-03-looks-feedback-account §5). */
   budget?: number;
+  /** Budget: the account bar's label (default "Left", "Igjen" in a Norwegian cast), in the cast's language. */
+  account_label?: string;
   /** Guess: false = an opinion, nothing is right or wrong; the reveal shows
-   *  the figure's own values as the reference and `right` is spoken (§7). */
+   *  the figure's own values as the reference and `right` is spoken (§7).
+   *  Choose: false = an opinion (no answer, nothing scored). */
   judge?: boolean;
+  /** CHOOSE ON THE FIGURE (spec 2026-10-03-round6 §4): drawn elements the
+   *  viewer taps — a node, an icon, a group, a template part. `answer` (one
+   *  of them) judges it; `judge: false` makes it an opinion; an option's
+   *  `goto` branches like decide cards, meeting again at `then`. */
+  choose?: (string | { id: string; goto?: string })[];
+  /** Choose with gotos: the label where the branches meet. */
+  then?: string;
+  /** Tree (spec 2026-10-03 §4): the tree parts the viewer fills in —
+   *  value_<node>, branchlabel_<parent>_<child>, effect_<node>, cost_<node>. */
+  blanks?: string[];
+  /** Tree: the decision node whose best branch the viewer taps. */
+  pick?: string;
+  /** Tree: working lines under wrong blanks (default), "all", or false. */
+  work?: "all" | false;
+  /** Market guess: what "right" means — direction, shape (default), size. */
+  check?: "direction" | "shape" | "size";
+  /** Formula: wrong tiles; the right contents are always tiles. */
+  others?: string[];
+  /** Formula, typed: "exact" compares the written form, not the value. */
+  form?: "exact";
+  /** Feedback flavour for this question (spec 2026-10-03 §4.1); wins over the cast's. */
+  feedback?: FeedbackArg;
+  /** A guess, cards, tree or formula reveal (spec 2026-10-03-round6 §3):
+   *  "beside" (default) — the viewer's answer stays where they put it and
+   *  the truth is drawn beside or over it; "morph" — the answer glides into
+   *  the truth (rounds 1–5); "reorder" (round 7 §4, the default for rank
+   *  cards) — the cards slide into the true order, a faint "yours" row behind. */
+  reveal_style?: "beside" | "morph" | "reorder";
+  /** "all" (default) — the truth appears at once; "each" — part by part,
+   *  about 0.6 s apart, in the figure's order. */
+  reveal_order?: "all" | "each";
+  /** A guess's marks (yours, the gap, the ghost) outlive their moment
+   *  (spec 2026-10-03-round6 §5): they stay through the next question and
+   *  follow the part when the figure is laid out again (an animate),
+   *  recomputed from the same answer. Default: they end at whichever comes
+   *  first — the guessed part changing shape, or the next question. */
+  keep?: boolean;
+  /** "own" (spec 2026-10-03-round6 §6): the question on its own page —
+   *  while it stands the rest of the figure fades to 15 % (not removed);
+   *  the asked parts and their cards, options or blanks stay at full
+   *  strength; after the reveal and its lines the figure fades back
+   *  (~300 ms). */
+  stage?: "own";
 }
+
+/** Feedback flavour (spec 2026-10-03-looks-feedback-account §4.1): a style
+ *  name, or the style with the author's own lines per band and a reward. */
+export type FeedbackArg =
+  | "plain"
+  | "warm"
+  | "dry"
+  | {
+      style?: "plain" | "warm" | "dry";
+      reward?: "auto" | "none" | "confetti" | "picture" | "joke";
+      perfect?: string | string[];
+      good?: string | string[];
+      poor?: string | string[];
+      none?: string | string[];
+    };
 
 export interface QuizArgs {
   /** The question, spoken aloud and shown as the caption (a paired speak overrides the spoken line). */
@@ -959,6 +1063,8 @@ export interface QuizArgs {
   /** Store the chosen option's TEXT under this name; later lines may use
    *  {name}, {name.ok}, {name.secs}. Movies and skips store the correct option. */
   store?: string;
+  /** Feedback flavour for this question; wins over the cast's. */
+  feedback?: FeedbackArg;
 }
 
 /**
@@ -1014,6 +1120,8 @@ export interface Spec {
    * without this field gets read aloud by an English voice.
    */
   lang?: string;
+  /** Cast-level feedback flavour (spec 2026-10-03 §4.1): plain (default), warm, dry, or with the author's lines. */
+  feedback?: FeedbackArg;
   /**
    * Drawn text a template computes for itself, and its replacement. A scene
    * supplies its own captions ("Susceptible" for compartment "S"), so those

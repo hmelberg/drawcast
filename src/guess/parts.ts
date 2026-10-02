@@ -30,3 +30,11 @@ function allParts(spec: Pick<Spec, "template" | "params">): string[] {
   if (spec.template === "pie_chart") return ["pie"];
   return [];
 }
+
+/** The curves a market guess can move (spec 2026-10-03 §3). */
+export const MARKET_CURVES = ["supply_curve", "demand_curve"] as const;
+
+/** The parts that are market curves on this figure (a supply_demand). */
+export function marketParts(spec: Pick<Spec, "template">, parts: string[]): string[] {
+  return spec.template === "supply_demand" ? parts.filter((p) => (MARKET_CURVES as readonly string[]).includes(p)) : [];
+}

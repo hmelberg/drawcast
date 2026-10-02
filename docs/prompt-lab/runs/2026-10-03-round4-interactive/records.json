@@ -1,0 +1,113 @@
+[
+ {
+  "case": 3,
+  "kind": "statins",
+  "request": "Should a 60-year-old with high cholesterol take statins? Walk through the expected years of life #interactive",
+  "arm": "oneshot",
+  "ms": 173435,
+  "usd": 1.095,
+  "template": "decision_tree",
+  "rounds": [
+   "initial"
+  ],
+  "lintErrors": 0,
+  "lintWarns": 4,
+  "speakLines": 22,
+  "words": 410,
+  "model": "claude-opus-5-5",
+  "crowding": [],
+  "stages": [
+   {
+    "label": "initial",
+    "ms": 169455,
+    "in": 28906,
+    "out": 16400
+   }
+  ],
+  "calls": {
+   "calls": 2,
+   "input": 28935,
+   "cacheRead": 0,
+   "cacheWrite": 98559,
+   "output": 16615,
+   "usd": 1.09515275
+  }
+ },
+ {
+  "case": 4,
+  "kind": "kinetic",
+  "request": "Kinetic energy: where the ½mv² comes from #interactive",
+  "arm": "oneshot",
+  "ms": 251519,
+  "usd": 0.801,
+  "template": null,
+  "rounds": [
+   "initial",
+   "lint-repair"
+  ],
+  "lintErrors": 0,
+  "lintWarns": 3,
+  "speakLines": 21,
+  "words": 393,
+  "model": "claude-opus-5-5",
+  "crowding": [
+   "15 text items are on the page at once on the finished page (more than 14) — erase what has served, merge labels, or say it instead of writing it"
+  ],
+  "stages": [
+   {
+    "label": "initial",
+    "ms": 159994,
+    "in": 13627,
+    "out": 14333
+   },
+   {
+    "label": "lint-repair",
+    "ms": 86453,
+    "in": 17285,
+    "out": 8737
+   }
+  ],
+  "calls": {
+   "calls": 3,
+   "input": 30931,
+   "cacheRead": 98559,
+   "cacheWrite": 83264,
+   "output": 23399,
+   "usd": 0.8013855000000001
+  }
+ },
+ {
+  "case": 5,
+  "kind": "sugartax",
+  "request": "Who really pays a sugar tax? #interactive",
+  "arm": "oneshot",
+  "ms": 92665,
+  "usd": 0.348,
+  "template": "supply_demand",
+  "rounds": [
+   "initial"
+  ],
+  "lintErrors": 0,
+  "lintWarns": 2,
+  "speakLines": 17,
+  "words": 316,
+  "model": "claude-opus-5-5",
+  "crowding": [],
+  "stages": [
+   {
+    "label": "initial",
+    "ms": 89357,
+    "in": 18669,
+    "out": 8435
+   }
+  ],
+  "calls": {
+   "calls": 2,
+   "input": 18682,
+   "cacheRead": 98559,
+   "cacheWrite": 0,
+   "output": 8635,
+   "usd": 0.3483945
+  }
+ }
+]

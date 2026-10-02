@@ -9,6 +9,7 @@
 // filtering by type is how the seed credit went missing.
 
 import type { Spec } from "../spec/types";
+import { iconAssetName, iconCreditOf, iconSlots, storedIcon } from "../spec/icon-data";
 
 /**
  * Every distinct credit line across a set of specs (typically a playlist's
@@ -19,10 +20,29 @@ export function creditsOf(specs: Spec[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const spec of specs) {
+    const add = (c: unknown): void => {
+      if (typeof c !== "string" || c === "" || seen.has(c)) return;
+      seen.add(c);
+      out.push(c);
+    };
     for (const el of spec.elements ?? []) {
-      if (typeof el.credit !== "string" || el.credit === "" || seen.has(el.credit)) continue;
-      seen.add(el.credit);
-      out.push(el.credit);
+      add(el.credit);
+      // A cards element's icons (round 5 §3.3) are credited on its items.
+      if (el.type === "cards" && Array.isArray(el.items)) {
+        for (const it of el.items) {
+          if (typeof it === "object" && it !== null) {
+            add(it.credit);
+            add(it.match_credit);
+          }
+        }
+      }
+    }
+    // An icon named by keyword only (round 6 §8) carries no credit line — a
+    // published copy hoists it with its data into `assets:` — so the line is
+    // rebuilt from the data: inline, the spec's assets, or the offline cache.
+    for (const slot of iconSlots(spec)) {
+      if (typeof slot.host[slot.credit] === "string") continue;
+      add(iconCreditOf(slot.host[slot.data]) ?? iconCreditOf(storedIcon(spec, iconAssetName(slot.ask, slot.look))));
     }
   }
   return out;

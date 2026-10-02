@@ -1,6 +1,7 @@
 // The layout orchestrator: spec → backend-independent drawables + lint.
 // Template routing failures fall through to tier-2 gracefully (never hard-fail).
 
+import { formulaBlanks, hasBlanks } from "../formula/blanks";
 import { decodeCodeResult } from "../code/envelope";
 import { scenes } from "../scenes/registry";
 import { normalizeSpec } from "../spec/schema";
@@ -13,8 +14,9 @@ import { effectiveTextStyle } from "./text-style";
 import { setMathTextStyle } from "./math";
 import { setMathFont, setMathHand } from "../scenes/engines";
 import type { Spec } from "../spec/types";
-import { coVisible, idsOf, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
-import { layoutElements, type PieceGeometry } from "./tier2";
+import { coVisible, idsOf, lintAskStage, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
+import { layoutElements, noIconWarning, type PieceGeometry } from "./tier2";
+import { iconAsk, isIconData } from "../spec/icon-data";
 import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
 import { setFigureLocale } from "../scenes/kit";
@@ -32,6 +34,7 @@ import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, flattenDrawables, leafDrawables, Z_TOP, type Drawable, type Pt } from "./model";
 import { isScratchPart, scratchCards } from "../spec/scratch";
+import { authoredCards } from "../spec/cards";
 import { domainPlot, frameToCanvas, linearScale, setHeadingFloor, worldBounds, type DataFrame } from "./canvas";
 import { figureSplit } from "./figure-split";
 import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
@@ -45,6 +48,9 @@ export interface LayoutResult {
   drawables: Drawable[];
   /** Command-addressable element ids in natural draw order. */
   order: string[];
+  /** The template's own ids (its layout's order), when there is a template:
+   *  what a tree question on its own page keeps whole (spec round 6 §6). */
+  templateIds?: string[];
   issues: LintIssue[];
   warnings: string[];
   /** Windowed code panes (el.lines), keyed by element id — the plan scrolls
@@ -274,6 +280,18 @@ export function layoutSpec(
         if (sceneLayout.attached) attached = { ...sceneLayout.attached };
         if (sceneLayout.drawnWith) drawnWith = { ...sceneLayout.drawnWith };
         drawables.push(...sceneLayout.drawables);
+        // A bar's icon keyword with no artwork (round 7 §6): named, as a node's
+        // is — also when NONE of the keywords resolved (withIconData then makes
+        // no icon_data at all).
+        const bp = spec.params as Record<string, unknown> | undefined;
+        if (spec.template === "bar_chart" && bp && Array.isArray(bp.icons) && sceneLayout.order.filter((o) => /^bar_\d+$/.test(o)).length <= 12) {
+          const data = (Array.isArray(bp.icon_data) ? bp.icon_data : []) as unknown[];
+          (bp.icons as unknown[]).forEach((k, i) => {
+            const ask = iconAsk(k);
+            const host = data[i] as { strokes?: unknown } | undefined;
+            if (ask && !isIconData(host?.strokes)) warnings.push(noIconWarning(ask.of));
+          });
+        }
         labelRequests.push(...sceneLayout.labels);
         templateOwn = { drawables: sceneLayout.drawables, labels: sceneLayout.labels };
         order.push(...sceneLayout.order);
@@ -335,6 +353,11 @@ export function layoutSpec(
       // would end the cast with a phantom `{draw: ["<id>"]}` painting nothing.
       if (el.type === "measure" && pieceGroups[el.id]) continue;
       if (!order.includes(el.id)) order.push(el.id);
+      // A formula's blank boxes (formula/blanks.ts) right after it: parts the
+      // plan shows and hides, and elementBBoxes measures.
+      if (el.type === "math" && typeof el.tex === "string" && hasBlanks(el.tex)) {
+        for (const b of formulaBlanks(el.id, el.tex)) if (!order.includes(b.part) && drawables.some((d) => d.id === b.part)) order.push(b.part);
+      }
     }
     // Ids tier-2 minted itself (a source element's quote highlights) come
     // AFTER their element — order is also paint order, and a highlighter
@@ -502,11 +525,20 @@ export function layoutSpec(
     .filter((e) => e.type === "annotation")
     .map((e) => [e.id, (Array.isArray(e.target) ? e.target : e.target !== undefined ? [e.target] : []) as string[]]);
   const marks = (x: string, y: string) => annotated.some(([id, ts]) => ownsId(id, x) && ts.some((t) => ownsId(t, y)));
+  // A deck's cards wait in one stack, only the top one drawn until it is
+  // dealt (spec/cards.ts, round 6 §7): one composition, not a collision.
+  const decks = authoredCards(spec)
+    .filter((c) => c.deck === true)
+    .map((c) => (c.items ?? []).map((_, i) => `${c.id}_${i + 1}`));
+  const stacked = (a: string, b: string) => decks.some((ids) => ids.some((m) => ownsId(m, a)) && ids.some((m) => ownsId(m, b)));
   // …and a scratch card covering ink is the card's job, not a collision.
   const composed = (a: string, b: string) =>
-    onCard(a) || onCard(b) || marks(a, b) || marks(b, a) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
+    onCard(a) || onCard(b) || marks(a, b) || marks(b, a) || stacked(a, b) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
   const layoutIssues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed, world ?? undefined);
   layoutIssues.push(...headingIntrusions(drawables, measure, spec.commands));
+  // A question whose cards or options sit over the figure (spec round 6 §6).
+  const cardIds = new Set(authoredCards(spec).map((c) => c.id));
+  layoutIssues.push(...lintAskStage(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], (id) => cardIds.has(id), composed));
   const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;
   if (!codeEl || atDraw === null) {
     issues.push(...layoutIssues);
@@ -543,7 +575,7 @@ export function layoutSpec(
     const waiting = /"\{[A-Za-z_][\w]*\.[^"]*\}"/.test(JSON.stringify(spec.params ?? {}));
     if (usesData && !waiting) warnings.push(`template "${spec.template}" has no data axes — {data: [x, y]} reads a 0–100 domain on the plot area; place overlays with at.ref/anchor instead`);
   }
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, attached, drawnWith, drawnAfter, fitGroups, namedAnchors, measures, labelPins, ...(Object.keys(pictures).length > 0 ? { pictures } : {}), ...(fit ? { fit } : {}), ...(frame ? { frame } : {}), ...(world ? { world } : {}) };
+  return { drawables, order, ...(templateIds.length > 0 ? { templateIds } : {}), issues, warnings, windows, panes, pieces, pieceGroups, groups, attached, drawnWith, drawnAfter, fitGroups, namedAnchors, measures, labelPins, ...(Object.keys(pictures).length > 0 ? { pictures } : {}), ...(fit ? { fit } : {}), ...(frame ? { frame } : {}), ...(world ? { world } : {}) };
 }
 
 /** Does this template lay itself out in a `box` param? Five data templates
@@ -723,6 +755,8 @@ export function elementRings(layout: Pick<LayoutResult, "drawables" | "order">):
   for (const id of layout.order) {
     const rings: Pt[][] = [];
     for (const d of leafDrawables(drawablesForId(layout.drawables, id))) {
+      if (d.id === `${id}__shadow`) continue; // a box's shadow is not its outline
+      if (d.id.startsWith(`${id}__icon__`)) continue; // nor is the icon inside it
       if (d.kind === "area" && d.pts.length >= 3) rings.push(d.pts);
       else if (d.kind === "stroke" && d.closed && d.pts.length >= 3) rings.push(d.pts);
     }

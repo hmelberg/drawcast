@@ -1,0 +1,43 @@
+[
+ {
+  "case": 6,
+  "kind": "deadliest",
+  "request": "Which animal is deadliest to humans? #interactive",
+  "arm": "oneshot",
+  "ms": 71671,
+  "usd": 1.257,
+  "template": "bar_chart",
+  "rounds": [
+   "template-fetch",
+   "initial"
+  ],
+  "lintErrors": 0,
+  "lintWarns": 0,
+  "speakLines": 15,
+  "words": 259,
+  "model": "claude-opus-5-5",
+  "crowding": [],
+  "stages": [
+   {
+    "label": "template-fetch",
+    "ms": 4862,
+    "in": 5612,
+    "out": 313
+   },
+   {
+    "label": "initial",
+    "ms": 63472,
+    "in": 2710,
+    "out": 5839
+   }
+  ],
+  "calls": {
+   "calls": 3,
+   "input": 8337,
+   "cacheRead": 0,
+   "cacheWrite": 182024,
+   "output": 6300,
+   "usd": 1.2573400000000001
+  }
+ }
+]

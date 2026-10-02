@@ -113,3 +113,35 @@ function pointToSegment(p: Pt, a: Pt, b: Pt): number {
   const qx = a[0] + t * dx, qy = a[1] + t * dy;
   return Math.hypot(p[0] - qx, p[1] - qy);
 }
+
+/** A corner radius clamped to [0, half the shorter side]; 0 when unset or not a number. */
+export function clampRadius(r: number | undefined, w: number, h: number): number {
+  if (typeof r !== "number" || !Number.isFinite(r) || r <= 0) return 0;
+  return Math.min(r, w / 2, h / 2);
+}
+
+/**
+ * A rounded rect's ring, in tier2 rectPts' order (lower-left, lower-right,
+ * upper-right, upper-left in y-up units): each corner a quarter arc of four
+ * segments (five points). `r` is clamped to half the shorter side; 0 is the
+ * plain rect.
+ */
+export function roundedRectPts(c: Pt, w: number, h: number, r: number): Pt[] {
+  const rr = clampRadius(r, w, h);
+  const x0 = c[0] - w / 2, x1 = c[0] + w / 2, y0 = c[1] - h / 2, y1 = c[1] + h / 2;
+  if (rr <= 0) return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  const corners: [number, number, number][] = [
+    [x0 + rr, y0 + rr, 180],
+    [x1 - rr, y0 + rr, 270],
+    [x1 - rr, y1 - rr, 0],
+    [x0 + rr, y1 - rr, 90],
+  ];
+  const out: Pt[] = [];
+  for (const [cx, cy, a0] of corners) {
+    for (let k = 0; k <= 4; k++) {
+      const a = ((a0 + (k * 90) / 4) * Math.PI) / 180;
+      out.push([cx + rr * Math.cos(a), cy + rr * Math.sin(a)]);
+    }
+  }
+  return out;
+}

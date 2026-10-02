@@ -4,7 +4,7 @@
 import { CANVAS, domainPlot, linearScale, type DataFrame, type PlotArea } from "./canvas";
 import { makeAxes } from "./axes";
 import { interpolateAtX, intersectPolylines, qualitativeShape, sampleExpression, sampleParametric } from "./curves";
-import { centroid, type BBox } from "./geometry";
+import { centroid, clampRadius, roundedRectPts, type BBox } from "./geometry";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import * as M from "./measures";
 import { codeDrawables, type CodeWindow } from "./code";
@@ -12,7 +12,7 @@ import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polyli
 import { boxOfId, unionBoxes } from "./boxes";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
 import { autoRow, placeDelta } from "./places";
-import { arrangementScale, bestColumns, DEFAULT_GAP, naturalNodeSize, nodeFontSize, nodeRectHeight, slotCentres, type GroupLayout } from "./group-layout";
+import { arrangementScale, bestColumns, DEFAULT_GAP, naturalNodeSize, NODE_ICON_EXTRA, nodeFontSize, nodeIconRings, nodeRectHeight, slotCentres, type GroupLayout } from "./group-layout";
 import { columnSlots, fitPicture, isDefaultColumn, INSET_MAX, INSET_W } from "./inset";
 import { fitRegion, isFitName } from "./regions";
 import {
@@ -31,14 +31,18 @@ import {
   type AreaDrawable,
   type Drawable,
   type GroupDrawable,
+  type ImageDrawable,
   type Pt,
+  type ResolvedStyle,
   type StrokeDrawable,
   type TextDrawable,
 } from "./model";
 import { mathDrawables, mathMorphDrawables } from "./math";
+import { formulaBlanks, hasBlanks, markBlanks } from "../formula/blanks";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { catmullRom, catmullRomClosed } from "./smooth";
-import { decodeIcon, decodePhoto, decodePicture, decodeSourceImage, decodeTrace } from "../spec/trace";
+import { decodePhoto, decodePicture, decodeSourceImage, decodeTrace } from "../spec/trace";
+import { hasIconStore, iconLookOf, iconPictureOf, iconRingsOf } from "../spec/icon-data";
 import { FULL_VIEW4, handRegions, isAutoRegions, isRect4, type Rect4 } from "../spec/places";
 import { mapLabelRequest, obstacleBoxes, wrapText, type LabelRequest } from "./labels";
 import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngine, type MusicEngine } from "../scenes/engines";
@@ -535,6 +539,17 @@ export function layoutElements(
         break;
       case "node":
         drawables.push(...nodeDrawables(el, ctx));
+        // A node with `tex` and no text (a formula tile, spec/cards.ts fill):
+        // its label is TeX, drawn as `<id>_text` so it moves with the node.
+        if (typeof el.tex === "string" && el.text === undefined && enginesLoaded(["mathjax"])) {
+          try {
+            const engine = getLoadedEngines(["mathjax"]).mathjax as MathJaxEngine;
+            const c = ctx.anchors[el.id] ?? [CANVAS.w / 2, CANVAS.h / 2];
+            drawables.push(...mathDrawables({ id: `${el.id}_text`, type: "math", tex: el.tex, font_size: el.font_size ?? 22 } as SpecElement, engine, c[0], c[1]).drawables);
+          } catch (err) {
+            issues.push({ rule: "math", ids: [el.id], severity: "error", message: `node "${el.id}": ${(err as Error).message}` });
+          }
+        }
         break;
       case "arrow":
       case "edge":
@@ -615,13 +630,24 @@ export function layoutElements(
           // Live math (design 2026-09-29): `{name}` tokens written in, each
           // var occurrence a part of its own. A formula naming no var comes
           // back as the same string.
-          const live = (tex: string) =>
-            liveTeX(tex, { id: el.id, vars: ctx.vars, infos: ctx.varInfo, colors: ctx.varColors, values: ctx.templateValues, form: el.form === "symbols" || el.form === "both" ? el.form : "values", decimalComma: ctx.decimalComma });
+          // Formula blanks (design 2026-10-03 §5.2): each `\blank{…}` becomes
+          // its content (or `fills`), marked as a part of its own; the live
+          // vars are written in after (a var inside a blank is a lint error,
+          // so the two kinds of mark never nest).
+          // A morph draws every glyph it is given (no parts, no boxes), so
+          // there an unfilled blank is a \phantom: its width, never the answer.
+          const live = (tex: string, phantom = false) => {
+            const blanked = hasBlanks(tex) ? markBlanks(el.id, tex, el.fills, { phantom }) : null;
+            const written = liveTeX(blanked?.tex ?? tex, { id: el.id, vars: ctx.vars, infos: ctx.varInfo, colors: ctx.varColors, values: ctx.templateValues, form: el.form === "symbols" || el.form === "both" ? el.form : "values", decimalComma: ctx.decimalComma });
+            if (blanked) for (const [mark, part] of blanked.marks) written.marks.set(mark, part);
+            return written;
+          };
           if (ov?.from !== undefined && ov.t !== undefined && ov.t < 1) {
-            laid = mathMorphDrawables({ ...el, tex: ov.tex }, engine, cx, cy, live(ov.from).tex, live(ov.tex).tex, ov.t);
+            laid = mathMorphDrawables({ ...el, tex: ov.tex }, engine, cx, cy, live(ov.from, true).tex, live(ov.tex, true).tex, ov.t);
           } else {
-            const written = live(ov?.tex ?? el.tex ?? "");
-            laid = mathDrawables({ ...el, tex: written.tex }, engine, cx, cy, written.marks);
+            const source = ov?.tex ?? el.tex ?? "";
+            const written = live(source);
+            laid = mathDrawables({ ...el, tex: written.tex }, engine, cx, cy, written.marks, hasBlanks(source) ? formulaBlanks(el.id, source) : undefined);
           }
         } catch (err) {
           issues.push({ rule: "math", ids: [el.id], severity: "error", message: `math "${el.id}": ${(err as Error).message}` });
@@ -631,8 +657,15 @@ export function layoutElements(
         // term (θ → π) is the point of a derivation, so a key the new formula no
         // longer has is not a mistake (2026-09-25 example revisions).
         const morphed = ctx.overrides.math?.[el.id] !== undefined;
-        if (!morphed) for (const key of laid.unusedColors) ctx.warnings.push(`math "${el.id}": colors key "${key}" matches nothing`);
+        // A derivation's `steps` are its later lines, coloured with the same
+        // map: a key that names a later line's term is not unused.
+        const stepTex = Array.isArray(el.steps) ? (el.steps as unknown[]).map((st) => (typeof st === "string" ? st : typeof (st as { tex?: unknown })?.tex === "string" ? (st as { tex: string }).tex : "")).join(" ").replace(/\s+/g, "") : "";
+        if (!morphed) for (const key of laid.unusedColors) if (!stepTex.includes(key.replace(/\s+/g, ""))) ctx.warnings.push(`math "${el.id}": colors key "${key}" matches nothing`);
         drawables.push(...laid.drawables);
+        // A formula's blank boxes come with it: drawing the formula draws
+        // them (the reveal takes them away), so the viewer sees where to drop.
+        const boxIds = laid.drawables.map((d) => d.id).filter((id) => id.startsWith(`${el.id}_blank_`));
+        if (boxIds.length > 0) ctx.drawnAfter[el.id] = boxIds;
         ctx.anchors[el.id] = [laid.box.x + laid.box.w / 2, laid.box.y + laid.box.h / 2];
         ctx.namedAnchors[el.id] = Object.fromEntries(UNIVERSAL_ANCHORS.map((n) => [n, boxAnchor(laid.box, n)]));
         break;
@@ -894,6 +927,8 @@ export function layoutElements(
     }
   }
 
+  placeFormulaTiles(elements, drawables, ctx, measure);
+
   // A label attached to an OUTLINE (a path, shape, polygon or ellipse) with
   // a side the author chose goes on that side of the outline's box, not
   // beside one of its points: the anchor of a path is its middle vertex and
@@ -1022,6 +1057,54 @@ function transformOwned(
 
 /** How much larger a grid must show a written row's members before the row warns. */
 const LAYOUT_SHAPE_RATIO = 1.25;
+
+/** The gap between a formula and its tile row, and the canvas margin the row keeps. */
+const TILE_GAP = 30;
+const TILE_MARGIN = 20;
+
+/**
+ * A formula's tiles (spec/cards.ts fill mode) stand centred under the formula
+ * AS LAID OUT — in a column, placed by `at`, auto-placed — not under the x/y
+ * the expansion read (it sees only the authored ones). The whole row moves as
+ * one, after everything else is placed (like an at.ref shift), and is kept on
+ * the canvas: x within the margins; a formula too near the bottom edge has
+ * its row above it (only when neither side fits is the row clamped).
+ */
+function placeFormulaTiles(elements: SpecElement[], drawables: Drawable[], ctx: Ctx, measure: MeasureFn): void {
+  for (const el of elements) {
+    const fill = (el as { fill?: unknown }).fill;
+    if (el.type !== "group" || typeof fill !== "string") continue;
+    const tiles = (el.members ?? []).filter((m) => m.startsWith(`${el.id}_`));
+    const mine = drawables.filter((d) => tiles.some((t) => d.id === t || d.id === `${t}_text`));
+    const row = unionBoxes(tiles.map((t) => boxOfId(drawables, t, measure)));
+    const formula = boxOfId(drawables, fill, measure, ctx.groups, ctx.pieceGroups);
+    if (mine.length === 0 || !row) continue;
+    // A formula that drew nothing (a math error) has no box: the row stays
+    // where the expansion put it, but is still kept on the canvas.
+    let dx = formula ? formula.x + formula.w / 2 - (row.x + row.w / 2) : 0;
+    let dy = formula ? formula.y - TILE_GAP - (row.y + row.h) : 0;
+    if (row.x + dx < TILE_MARGIN) dx = TILE_MARGIN - row.x;
+    else if (row.x + row.w + dx > CANVAS.w - TILE_MARGIN) dx = CANVAS.w - TILE_MARGIN - row.w - row.x;
+    if (!formula) {
+      if (row.y + dy < TILE_MARGIN) dy = TILE_MARGIN - row.y;
+      else if (row.y + row.h + dy > CANVAS.h - TILE_MARGIN) dy = CANVAS.h - TILE_MARGIN - row.h - row.y;
+    } else if (row.y + dy < TILE_MARGIN) {
+      // No room below: the row stands above the formula instead — clamping it
+      // up would put it on the formula, over the very boxes it is dropped into.
+      const above = formula.y + formula.h + TILE_GAP - row.y;
+      dy = row.y + row.h + above <= CANVAS.h - TILE_MARGIN ? above : TILE_MARGIN - row.y;
+    }
+    if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) continue;
+    shiftDrawables(mine, dx, dy);
+    for (const id of [el.id, ...tiles]) {
+      const a = ctx.anchors[id];
+      if (a) ctx.anchors[id] = [a[0] + dx, a[1] + dy];
+      shiftPoints(ctx.namedAnchors[id], dx, dy);
+    }
+    const gb = ctx.groupBoxes[el.id];
+    if (gb) ctx.groupBoxes[el.id] = { x: gb.x + dx, y: gb.y + dy, w: gb.w, h: gb.h };
+  }
+}
 
 /**
  * Arrange a group's members — a row, a column, a grid — by translating each
@@ -1501,6 +1584,13 @@ function regionDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   ];
 }
 
+/** The warning for an icon with no data. Where the offline cache is loaded
+ *  (the lint, the tests, bundled examples), a keyword missing from it is
+ *  NAMED as such — never a silent empty card. */
+export function noIconWarning(keyword: string): string {
+  return hasIconStore() ? `no icon for "${keyword}" — "${keyword}" is not in the offline icon cache (npm run icons)` : `no icon for "${keyword}"`;
+}
+
 function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const c = ctx.anchors[el.id] ?? [CANVAS.w / 2, CANVAS.h / 2];
   const shape = el.shape ?? "circle";
@@ -1514,6 +1604,12 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   // conventional size (text-fitted rect, fixed decision/chance/terminal/person).
   // A round shape reads the larger of the two as its diameter.
   const declared = el.width !== undefined || el.height !== undefined ? Math.max(el.width ?? 0, el.height ?? 0) : undefined;
+
+  // An icon that never resolved (offline, no match): text only, normal
+  // height, and the same warning an icon element gives (round 5 §3.3).
+  if (el.icon !== undefined && !nodeIconRings(el)) {
+    ctx.warnings.push(shape === "rect" ? noIconWarning((typeof el.icon === "string" ? el.icon : el.icon?.of) ?? el.id) : `node "${el.id}": an icon is drawn only in a rect node`);
+  }
 
   if (shape === "person") {
     const s = el.height !== undefined ? el.height / 2 : 34; // half-height
@@ -1547,20 +1643,35 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     ctx.nodeRadius.set(el.id, s * 1.2);
     out.push(group);
   } else if (shape === "rect" || shape === "decision") {
+    const icon = nodeIconRings(el);
     const w = el.width ?? (shape === "decision" ? 56 : Math.max(130, textW + 36));
-    const h = el.height ?? (shape === "decision" ? 56 : nodeRectHeight(fontSize));
+    const h = el.height ?? (shape === "decision" ? 56 : nodeRectHeight(fontSize) + (icon ? NODE_ICON_EXTRA : 0));
     ctx.nodeRadius.set(el.id, Math.hypot(w, h) / 2);
     ctx.nodeBox.set(el.id, [w / 2, h / 2]);
+    // Rounded corners and a soft shadow (round 5 §3.1). Without either the
+    // box is exactly today's: no `r` on the hint, the four-corner ring.
+    const r = shape === "rect" ? clampRadius(el.radius, w, h) : 0;
     out.push({
       id: el.id,
       kind: "stroke",
-      pts: rectPts(c, w, h),
+      pts: r > 0 ? roundedRectPts(c, w, h, r) : rectPts(c, w, h),
       closed: true,
-      shapeHint: { type: "rect", x: c[0] - w / 2, y: c[1] - h / 2, w, h },
+      shapeHint: { type: "rect", x: c[0] - w / 2, y: c[1] - h / 2, w, h, ...(r > 0 && { r }) },
       z: Z_STROKE,
       style,
       drawOpts,
     });
+    // After the outline in reveal order (it paints under it by z).
+    if (shape === "rect" && el.shadow === true) out.push(boxShadow(el.id, c, w, h, r, drawOpts));
+    if (icon) {
+      // Round 5 §3.3: the icon sits in the upper part of the box, the text
+      // below it. nodeIconLayout is the one place both are placed.
+      const at = nodeIconLayout(c, h);
+      const picture = iconLookOf(el) === "picture" ? iconPictureOf(el.icon_strokes, style.color) : null;
+      out.push(nodeIconGroup(el.id, icon, at.icon, at.size, style, drawOpts, picture));
+      if (text) out.push(nodeText(el.id, at.text, text, fontSize, drawOpts));
+      return out;
+    }
   } else if (shape === "triangle" || shape === "terminal") {
     const s = declared !== undefined ? declared / 2 : 30;
     ctx.nodeRadius.set(el.id, s + 6);
@@ -1601,6 +1712,89 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   return out;
 }
 
+/** Icon side as a share of the box height, and the gap above it (round 5 §3.3). */
+const NODE_ICON_SHARE = 0.45;
+const NODE_ICON_TOP = 0.08;
+
+/** Where a rect node's icon (its centre and side) and its text go, in a box of height h centred on c (y-up). */
+function nodeIconLayout(c: Pt, h: number): { icon: Pt; size: number; text: Pt } {
+  const size = NODE_ICON_SHARE * h;
+  const top = c[1] + h / 2;
+  const iconBottom = top - NODE_ICON_TOP * h - size;
+  return { icon: [c[0], top - NODE_ICON_TOP * h - size / 2], size, text: [c[0], (iconBottom + (c[1] - h / 2)) / 2] };
+}
+
+/**
+ * A node's icon: its rings (0..1, y-down) redrawn hand-drawn in a size×size
+ * square centred on `at`, in the box's ink — one group `<id>__icon`, a
+ * sub-drawable (SUB_SUFFIXES "_icon"), so it reveals, moves, hides and
+ * erases with its box like the text does.
+ */
+function nodeIconGroup(
+  id: string,
+  rings: [number, number][][],
+  at: Pt,
+  size: number,
+  boxStyle: ResolvedStyle,
+  drawOpts: ReturnType<typeof resolveDrawOpts>,
+  picture: { href: string; aspect: number } | null = null,
+): GroupDrawable {
+  const [cx, cy] = at;
+  // The box's ink at a line weight for a small glyph, never the box's fill.
+  const style = defaultStyle({ color: boxStyle.color, opacity: boxStyle.opacity, strokeWidth: 2 });
+  if (picture) {
+    // Round 6 §8: the artwork itself, faded in whole, in the same square —
+    // a child of the same `<id>__icon` group, so it moves, highlights and
+    // erases with its box exactly as the traced rings do.
+    return { id: `${id}__icon`, kind: "group", z: Z_STROKE, style, drawOpts, children: [iconPictureDrawable(`${id}__icon__pic`, picture, at, size, boxStyle.opacity, drawOpts)] };
+  }
+  return {
+    id: `${id}__icon`,
+    kind: "group",
+    z: Z_STROKE,
+    style,
+    drawOpts,
+    children: rings.map((ring, k) => ({
+      id: `${id}__icon__r${k}`,
+      kind: "stroke",
+      pts: ring.map(([u, v]) => [cx - size / 2 + u * size, cy + size / 2 - v * size] as Pt),
+      closed: true,
+      z: Z_STROKE,
+      style,
+      drawOpts,
+    })),
+  };
+}
+
+/**
+ * An icon's picture (round 6 §8): its SVG as an image drawable fitted into a
+ * size×size square centred on `at` (aspect kept), figure coordinates, faded
+ * in whole — never traced.
+ */
+function iconPictureDrawable(
+  id: string,
+  picture: { href: string; aspect: number },
+  at: Pt,
+  size: number,
+  opacity: number,
+  drawOpts: ReturnType<typeof resolveDrawOpts>,
+): ImageDrawable {
+  const h = picture.aspect >= 1 ? size : size * picture.aspect;
+  const w = picture.aspect >= 1 ? size / picture.aspect : size;
+  return {
+    id,
+    kind: "image",
+    href: picture.href,
+    pos: at,
+    w,
+    h,
+    z: Z_STROKE,
+    style: defaultStyle({ opacity }),
+    reveal: "fade",
+    drawOpts: { ...drawOpts, mode: "sketch", duration: Math.min(drawOpts.duration, 700) },
+  };
+}
+
 function nodeText(id: string, pos: Pt, text: string, fontSize: number, drawOpts: ReturnType<typeof resolveDrawOpts>): TextDrawable {
   return {
     id: `${id}_text`,
@@ -1622,6 +1816,33 @@ function rectPts(c: Pt, w: number, h: number): Pt[] {
     [c[0] + w / 2, c[1] + h / 2],
     [c[0] - w / 2, c[1] + h / 2],
   ];
+}
+
+/** The shadow's offset: 3 right, 4 down (y-up logical units). */
+const SHADOW_DX = 3;
+const SHADOW_DY = -4;
+/** The shadow's reveal: a short fade after the outline. */
+const SHADOW_FADE_MS = 200;
+
+/**
+ * A box's soft shadow (round 5 §3.1): the same (rounded) shape offset (3, 4)
+ * down-right, filled with the ink at 12 %, no stroke, just under the box. An
+ * ordinary exact area — no SVG filter — so it reads the same in the sketchy,
+ * clean and mixed styles, in movies and exports. Its id `<id>__shadow` is a
+ * sub-drawable (SUB_SUFFIXES "_shadow"): it reveals, moves, hides and erases
+ * with its box — revealed AFTER the outline as a short fade, so a shadow adds
+ * at most SHADOW_FADE_MS to the box's draw.
+ */
+function boxShadow(id: string, c: Pt, w: number, h: number, r: number, drawOpts: ReturnType<typeof resolveDrawOpts>): AreaDrawable {
+  return {
+    id: `${id}__shadow`,
+    kind: "area",
+    pts: roundedRectPts([c[0] + SHADOW_DX, c[1] + SHADOW_DY], w, h, r),
+    precise: true,
+    z: Z_STROKE - 1,
+    style: defaultStyle({ color: COLORS.ink, fill: COLORS.ink, opacity: 0.12, strokeWidth: 0 }),
+    drawOpts: drawOpts.mode === "instant" ? drawOpts : { mode: "fade", duration: Math.min(SHADOW_FADE_MS, drawOpts.duration) },
+  };
 }
 
 /** A resolved endpoint, and whether it landed on an exact named/box anchor
@@ -2165,14 +2386,17 @@ function insetDrawable(el: SpecElement, ctx: Ctx, column: SpecElement[]): GroupD
  * (export/credits.ts) only — spec §3.7 keeps icon attribution off the canvas.
  */
 function iconDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
-  const rings = el.strokes ? decodeIcon(el.strokes) : null;
+  const rings = iconRingsOf(el.strokes);
   if (!rings || rings.length === 0) {
-    ctx.warnings.push(`no icon for "${el.of ?? el.id}"`);
+    ctx.warnings.push(noIconWarning(el.of ?? el.id));
     return null;
   }
   const size = el.size ?? 100;
   const [cx, cy] = originOr(el, ctx, [500, 375]);
-  const children: Drawable[] = rings.map((ring, k) => ({
+  const picture = iconLookOf(el) === "picture" ? iconPictureOf(el.strokes, resolveStyle(el.style).color) : null;
+  const children: Drawable[] = picture
+    ? [iconPictureDrawable(`${el.id}__pic`, picture, [cx, cy], size, resolveStyle(el.style).opacity, resolveDrawOpts(el.draw))]
+    : rings.map((ring, k) => ({
     id: `${el.id}__r${k}`,
     kind: "stroke",
     pts: ring.map(([u, v]) => [cx - size / 2 + u * size, cy + size / 2 - v * size] as Pt),
@@ -2703,7 +2927,7 @@ function angleDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
  * first open stroke's points.
  */
 function primaryRingSoFar(ctx: Ctx, id: string): { pts: Pt[]; closed: boolean; circle?: { c: Pt; r: number } } | null {
-  const leaves = leafDrawables(drawablesForId(ctx.drawablesSoFar, id)).filter((d): d is StrokeDrawable | AreaDrawable => d.kind === "stroke" || d.kind === "area");
+  const leaves = leafDrawables(drawablesForId(ctx.drawablesSoFar, id)).filter((d): d is StrokeDrawable | AreaDrawable => (d.kind === "stroke" || d.kind === "area") && d.id !== `${id}__shadow`);
   const circleLeaf = leaves.find((d): d is StrokeDrawable & { shapeHint: { type: "circle"; c: Pt; r: number } } => d.kind === "stroke" && d.shapeHint?.type === "circle");
   if (circleLeaf) return { pts: [], closed: true, circle: { c: circleLeaf.shapeHint.c, r: circleLeaf.shapeHint.r } };
   const closed = leaves.find((d) => d.kind === "area" || (d.kind === "stroke" && d.closed));

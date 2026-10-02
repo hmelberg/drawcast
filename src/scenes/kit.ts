@@ -33,6 +33,7 @@ import {
   type AreaDrawable,
   type Drawable,
   type GroupDrawable,
+  type ImageDrawable,
   type Pt,
   type ShapeHint,
   type StrokeDrawable,
@@ -41,8 +42,10 @@ import {
 import { FIGURE_GROUND, softAlpha } from "../layout/ink";
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
+import { barColorsFor } from "./bar-colors";
+import { iconPictureOf, iconRingsOf } from "../spec/icon-data";
 
-export const KIT_VERSION = 12; // v12: num(v, d, true) groups thousands (2026-09-30); v11: num() and say() — numbers and words in the cast's language (2026-09-25); v10: circle()/rect() point rings, pad() — a tappable labelled shape for widgets, MORSE table (widget bodies); v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
+export const KIT_VERSION = 14; // v14: icon() — an icon's picture or its traced rings (bar icons, 2026-10-02); v13: barColorsFor() — a bar chart's colours from its labels (2026-10-02); v12: num(v, d, true) groups thousands (2026-09-30); v11: num() and say() — numbers and words in the cast's language (2026-09-25); v10: circle()/rect() point rings, pad() — a tappable labelled shape for widgets, MORSE table (widget bodies); v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -282,6 +285,13 @@ export interface SceneKit {
    */
   ball(id: string, c: Pt, r: number, o?: { fill?: string; color?: string; strokeWidth?: number; opacity?: number; roughness?: number; ms?: number }): StrokeDrawable;
   group(id: string, children: Drawable[]): GroupDrawable;
+  /**
+   * An icon from its data (spec/icon-data.ts) in a size×size square centred
+   * on `at`: the picture, faded in whole (look "picture", the default), or
+   * its rings traced (look "drawn", or rings-only data). One group `id`, so
+   * it draws, highlights and erases with whatever holds it. Null without data.
+   */
+  icon(id: string, data: unknown, at: Pt, size: number, o?: { look?: "picture" | "drawn"; color?: string; ms?: number }): GroupDrawable | null;
   // ---- geometry (all return points in logical y-up coordinates) ----
   polygon(c: Pt, r: number, n: number, rot?: number): Pt[];
   arc(c: Pt, r: number, a0: number, a1: number, n?: number): Pt[];
@@ -456,6 +466,8 @@ export interface SceneKit {
    * space) where the decimal mark is a comma.
    */
   num(v: number, decimals?: number, group?: boolean): string;
+  /** A bar chart's colours from its labels (round 7 §7): "same" for ordered levels (numbers, years, ranges, months, weekdays), else "each". */
+  barColorsFor(labels: readonly string[]): "each" | "same";
   /**
    * A word in the cast's language: `say({en: "slope", nb: "stigning"})`.
    * Falls back to English, then to the first entry.
@@ -725,6 +737,21 @@ export const kit: SceneKit = {
   },
   group(id, children) {
     return { id, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: defaultDrawOpts(), children };
+  },
+  icon(id, data, at, size, o = {}) {
+    const ms = o.ms ?? SKETCH_MS.stroke;
+    const ink = o.color ?? COLORS.ink;
+    const pic = (o.look ?? "picture") === "picture" ? iconPictureOf(data, ink) : null;
+    if (pic) {
+      const h = pic.aspect >= 1 ? size : size * pic.aspect;
+      const w = pic.aspect >= 1 ? size / pic.aspect : size;
+      const img: ImageDrawable = { id: `${id}__pic`, kind: "image", href: pic.href, pos: at, w, h, z: Z_STROKE, style: defaultStyle(), reveal: "fade", drawOpts: defaultDrawOpts("sketch", Math.min(700, ms)) };
+      return { id, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: defaultDrawOpts("sketch", ms), children: [img] };
+    }
+    const rings = iconRingsOf(data);
+    if (!rings) return null;
+    const [cx, cy] = at;
+    return kit.group(id, rings.map((ring, k) => kit.stroke(`${id}__r${k}`, ring.map(([u, v]) => [cx - size / 2 + u * size, cy + size / 2 - v * size] as Pt), { closed: true, color: ink, strokeWidth: 2, ms })));
   },
   pad(id, at, label, size, o = {}) {
     const pts = "r" in size ? kit.circle(at, size.r) : kit.rect(at[0] - size.w / 2, at[1] - size.h / 2, size.w, size.h);
@@ -1613,6 +1640,7 @@ export const kit: SceneKit = {
   },
   softAlpha,
   GROUND: FIGURE_GROUND,
+  barColorsFor: (labels) => barColorsFor(labels),
   num(v, decimals, group) {
     const s = decimals === undefined ? String(v) : v.toFixed(decimals);
     const marked = figureLocale.decimalComma ? s.replace(".", ",") : s;

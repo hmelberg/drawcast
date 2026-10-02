@@ -122,8 +122,10 @@ export interface BackendEffects {
    * offset and turn), and (0, 0) puts that exact transform back. It lives
    * here rather than on the element handle because the handles hold the
    * MOUNT-TIME nodes, which every preview replaces (see swapGeometry).
+   * `scale` about `pivot` (logical, y-up; before the translation): a deck's
+   * dealt card drawn larger (round 6 §7).
    */
-  setOffset?(id: string, dx: number, dy: number): void;
+  setOffset?(id: string, dx: number, dy: number, scale?: number, pivot?: Pt): void;
   /** Show the laser dot at a logical y-up point; null hides it. */
   setPointer(p: Pt | null): void;
   /** Jump the camera to a logical y-up viewBox; null = the camera at rest (the page, or a template world's fit — render/camera.ts restView). */

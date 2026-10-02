@@ -15,13 +15,11 @@ import { scenes } from "../src/scenes/registry";
 import { flattenDrawables } from "../src/layout/model";
 import { validateSpec } from "../src/spec/schema";
 import { expandSpec } from "../src/spec/expand";
-import { guessParts, guessSetup } from "../src/guess/handles";
-import { cardsGeometryIn } from "../src/spec/cards";
 import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { boxAnchor } from "../src/layout/anchors";
 import { heuristicMeasure } from "../src/layout/measure";
 import { planCommands } from "../src/render/plan";
-import { planOptionsFor } from "../src/render/index";
+import { formulaHooksFor, guessPartsFor, planOptionsFor } from "../src/render/index";
 import { resolveInsetsSync } from "../src/render/inset";
 import { lintCommands } from "../src/lint/lint";
 import { cardTargets } from "../src/ui/card-model";
@@ -192,25 +190,28 @@ describe("bundled examples stay exemplary", () => {
     expect(validateSpec(stripPictures(spec)).ok).toBe(true);
     const layout = layoutSpec(spec);
     const bboxes = elementBBoxes(layout);
+    const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l));
     const plan = planCommands(spec.commands, layout.order, {
       book: spec.book !== undefined, // as render() passes it (a book's text verbs)
       bboxOf: (id) => bboxes.get(id) ?? null,
       windows: layout.windows ?? {},
       ...domainMapping(spec.domain, layout.fit),
       animateBase: spec.template ? spec.params ?? {} : null,
-      // Cards and a guess's parts, as render() resolves them (src/render/index.ts).
+      // Cards (a formula's tiles too), a formula's blanks and a guess's parts,
+      // as render() resolves them (src/render/index.ts).
       cardsFor: (id) => {
-        const g = cardsGeometryIn(spec, id);
+        const g = formulas.cardsOn(id);
         if (!g) return null;
         const offsets: Record<string, [number, number]> = {};
         g.cards.forEach((c, i) => (offsets[c] = [g.truth[i][0] - g.home[i][0], g.truth[i][1] - g.home[i][1]]));
-        return { cards: g.cards, offsets, shows: g.valueIds ?? [] };
+        const hides = g.mode === "fill" ? g.cards.filter((_, i) => g.truthBin[i] >= 0) : [];
+        return { cards: g.cards, offsets, shows: g.valueIds ?? [], ...(hides.length > 0 ? { hides } : {}) };
       },
-      guessParts: (on, from) => {
-        const parts = guessParts(spec, on);
-        const setup = guessSetup(spec, spec.params ?? {}, layout, parts, { from });
-        return { parts: setup.handles.length > 0 ? parts : [], shows: setup.handles.flatMap((h) => h.shows) };
+      formulaFor: (id) => {
+        const rt = formulas.formula(id);
+        return rt ? { blanks: rt.blanks.length } : null;
       },
+      guessParts: guessPartsFor(spec, layout),
       // Same shape render() builds (src/render/index.ts): after an animate
       // step the planner switches its bbox source to the post-animate
       // layout, so later steps (a move to a ref, a flip through a point)

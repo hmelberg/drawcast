@@ -1,0 +1,308 @@
+{
+ "request": "Which animal is deadliest to humans? #interactive",
+ "spec": {
+  "title": "The deadliest animal",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Shark",
+    "Hippo",
+    "Crocodile",
+    "Dog",
+    "Snake",
+    "Human",
+    "Mosquito"
+   ],
+   "values": [
+    0.01,
+    0.5,
+    1,
+    25,
+    50,
+    475,
+    725
+   ],
+   "value_labels": true,
+   "y_label": "Deaths a year (thousands)",
+   "box": "full"
+  },
+  "sources": [
+   {
+    "id": "gates",
+    "title": "The Deadliest Animal in the World",
+    "authors": "Bill Gates (Gates Notes)",
+    "year": 2014,
+    "finding": "mosquitoes kill about 725,000 people a year"
+   },
+   {
+    "id": "who_malaria",
+    "title": "World Malaria Report 2023",
+    "authors": "World Health Organization",
+    "year": 2023,
+    "finding": "about 600,000 malaria deaths in 2022"
+   }
+  ],
+  "elements": [
+   {
+    "id": "rank",
+    "type": "cards",
+    "items": [
+     {
+      "text": "Mosquito",
+      "icon": {
+       "of": "mosquito",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Snake",
+      "icon": {
+       "of": "snake",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Dog",
+      "icon": {
+       "of": "dog",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Shark",
+      "icon": {
+       "of": "shark",
+       "set": "twemoji"
+      }
+     }
+    ],
+    "ends": [
+     "most",
+     "least"
+    ]
+   },
+   {
+    "id": "kind",
+    "type": "cards",
+    "bins": [
+     "Attack",
+     "Carries germs"
+    ],
+    "items": [
+     {
+      "text": "Mosquito",
+      "bin": "Carries germs",
+      "icon": {
+       "of": "mosquito",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Dog",
+      "bin": "Carries germs",
+      "icon": {
+       "of": "dog",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Snake",
+      "bin": "Attack",
+      "icon": {
+       "of": "snake",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Crocodile",
+      "bin": "Attack",
+      "icon": {
+       "of": "crocodile",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Tsetse fly",
+      "bin": "Carries germs",
+      "icon": {
+       "of": "fly",
+       "set": "twemoji"
+      }
+     }
+    ],
+    "at": {
+     "place": "right"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "The deadliest animal"
+    }
+   },
+   {
+    "draw": [
+     "rank"
+    ],
+    "speak": "Which animal kills the most people? What we fear and what actually kills us turn out to be very different things. Here are four suspects."
+   },
+   {
+    "ask": {
+     "question": "Rank them: which kills the most people each year? Drag the cards, then press Answer.",
+     "on": "rank",
+     "store": "r",
+     "right": "You got {r}. The smallest one tops the list.",
+     "wrong": "You got {r}. The real order runs mosquito, snake, dog, and shark last by far."
+    }
+   },
+   {
+    "erase": [
+     "rank"
+    ]
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "Let's count. Each bar will be how many people one kind of animal kills in a year, in thousands."
+   },
+   {
+    "draw": [
+     "bar_1"
+    ],
+    "speak": "Sharks, the villains of a hundred films: about ten people a year. The bar barely leaves the floor."
+   },
+   {
+    "pause": 0.4
+   },
+   {
+    "draw": [
+     "bar_2",
+     "bar_3"
+    ],
+    "speak": "Hippos kill around five hundred, crocodiles about a thousand. Huge, fierce, and still almost invisible here."
+   },
+   {
+    "draw": [
+     "bar_4"
+    ],
+    "speak": "Dogs: about twenty-five thousand a year."
+   },
+   {
+    "draw": [
+     "bar_5"
+    ],
+    "speak": "Snakes: around fifty thousand, mostly farmers bitten far from any hospital with antivenom."
+   },
+   {
+    "ask": {
+     "question": "Now the mosquito. How many thousand people does it kill a year? Drag its bar to your guess.",
+     "on": "bar_7",
+     "store": "g",
+     "relative": true,
+     "tolerance": 0.25,
+     "default": "200",
+     "right": "Close: you said {g} thousand, and it is about {g.true} thousand.",
+     "wrong": "You said {g} thousand; it is about {g.true} thousand. Most people guess far lower."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_7"
+     ]
+    },
+    "speak": "Seven hundred and twenty-five thousand. One small insect outkills every predator on this chart, many times over."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "bar_7"
+     },
+     "gesture": "circle"
+    },
+    "speak": "Yet the bite itself is harmless. What kills is a parasite, malaria, slipped into your blood with the mosquito's saliva as it drinks."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_4"
+     ]
+    },
+    "speak": "And the dogs? Mostly not their teeth: rabies, a virus passed in a bite, and almost always fatal once symptoms begin."
+   },
+   {
+    "animate": {
+     "box": "left"
+    },
+    "duration": 2.5,
+    "speak": "So let's sort the killers by how they kill."
+   },
+   {
+    "draw": [
+     "kind"
+    ],
+    "speak": "Five animals, two ways to kill: by attacking you, or by the germs they carry."
+   },
+   {
+    "ask": {
+     "question": "Sort them: drag each animal into its box.",
+     "on": "kind",
+     "store": "k",
+     "right": "You got {k}. Snakes and crocodiles attack; the rest kill through germs.",
+     "wrong": "You got {k}. The tsetse fly carries sleeping sickness, and dogs carry rabies."
+    }
+   },
+   {
+    "focus": {
+     "target": [
+      "bar_7",
+      "bar_4"
+     ]
+    },
+    "speak": "That is the pattern: the deadliest animals are not the strongest, but the ones that carry disease from person to person."
+   },
+   {
+    "erase": [
+     "kind"
+    ]
+   },
+   {
+    "animate": {
+     "box": "full"
+    },
+    "duration": 2,
+    "speak": "One bar is still missing — the runner-up."
+   },
+   {
+    "draw": [
+     "bar_6"
+    ],
+    "speak": "Us. Humans kill around four hundred and seventy-five thousand other humans a year, in murders and wars.",
+    "delivery": "grave"
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1"
+     ],
+     "effect": "circle"
+    },
+    "speak": "So fear sharks if you must. But the animal worth fighting is the one you swat, which is why bed nets and malaria drugs save more lives than any shark net."
+   },
+   {
+    "quiz": {
+     "question": "Why are mosquitoes so deadly?",
+     "choices": [
+      "Their venom",
+      "They carry malaria",
+      "They bite in swarms"
+     ],
+     "correct": 2,
+     "right": "They carry the malaria parasite: the bite is harmless, the passenger is not."
+    }
+   }
+  ]
+ }
+}

@@ -52,6 +52,7 @@ import { MARK_GLIDE_MS, MARK_IN_MS, markFrameAt } from "../render/marks";
 import type { RenderHandle } from "../render/index";
 import { toSvgY } from "../layout/canvas";
 import { resolveCode } from "../render/code";
+import { resolveIcons } from "../render/icon";
 import { expandSpec } from "../spec/expand";
 import { validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
@@ -205,7 +206,12 @@ const everyBeat = () => everyBeatFlag;
 /** Mount a spec off-screen, walk every boundary, and report what broke. */
 async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
   const validation = validateSpec(spec);
-  const expanded = expandSpec(spec);
+  // Icons are keywords (round 6): the lint judges the figure with its icons
+  // resolved, as render() draws it — an unresolved icon draws nothing, and
+  // its `at` would read as ignored.
+  const withIcons = structuredClone(spec);
+  await resolveIcons(withIcons).catch(() => {});
+  const expanded = expandSpec(withIcons);
   const report: PartReport = {
     title: spec.title ?? "(untitled)",
     template: spec.template,
@@ -234,7 +240,10 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
     let prevAt = 0;
     for (const frame of frames) {
       const params = hd.plan.states[frame.at - 1]?.params ?? {};
-      const at = specAt(expanded, params);
+      // A tree's blanks still to be asked are "?" here, as on screen.
+      const answers = frame.at > 0 ? hd.plan.states[frame.at - 1]?.answers : undefined;
+      const atParams = specAt(expanded, params);
+      const at = answers && Object.keys(answers).length > 0 ? { ...atParams, params: { ...(atParams.params ?? {}), answers } } : atParams;
       // A posed frame skips the draw-beat lints, as tests/examples.test.ts does:
       // template-id-off asks whether EVERY draw's id exists in THIS state, so a
       // label a template drops at small h (tangent_secant's Δx) was reported

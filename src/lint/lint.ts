@@ -3,9 +3,16 @@
 // repair round as structured text.
 
 import { SUB_SUFFIXES } from "../layout/model";
-import { guessParts } from "../guess/parts";
+import { guessParts, marketParts } from "../guess/parts";
+import { marketMove } from "../guess/market";
+import { niceStep } from "../guess/numbers";
+import { treeBlanks, treePick } from "../tree/blanks";
+import { blankConvertible, blankIsNumber, formulaBlanks, hasBlanks, tileRight } from "../formula/blanks";
+import { walkTree } from "../scenes/decision_tree/rollback";
+import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { authoredScales } from "../spec/scale";
-import { authoredCards } from "../spec/cards";
+import { authoredCards, cardsGeometry, cardsMode, type CardsElementLike } from "../spec/cards";
+import { lintAsks } from "./ask-lint";
 import { parseTarget } from "../links/resolve";
 import { CANVAS } from "../layout/canvas";
 import { MATH_DEFAULT_SIZE } from "../layout/math";
@@ -14,7 +21,7 @@ import { AUTO_NAMESPACE, baseName, isReservedVar, VAR_RE } from "../spec/answers
 import { EXPR_BASE_VARS, varValues } from "../spec/vars";
 import { texNamesVars } from "../layout/live-math";
 import { effectiveShow } from "../spec/code-show";
-import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
+import { bboxOfPts, bboxOfText, boxesOverlap, expandBox, polylineIntersectsBox, type BBox } from "../layout/geometry";
 import { drawablesForId, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { LeafDrawable } from "../layout/posed";
 import { mathBox } from "../layout/labels";
@@ -24,6 +31,7 @@ import type { MeasureFn } from "../layout/measure";
 import { BUILTIN_WIDGETS } from "../spec/types";
 import { pacedDurations } from "../render/pacing";
 import { lineMs } from "../render/cue";
+import { castLang } from "../render/quiz-words";
 import type { Command, PlayArgs, Spec } from "../spec/types";
 import { scenes } from "../scenes/registry";
 import { resolveGame } from "../code/c64-catalogue";
@@ -37,6 +45,7 @@ import { COLOR_WORDS, FLAGS, PLACE_WORDS, SIDE_WORDS } from "../spec/script/suga
 import { MODIFIER_KEYS } from "../spec/script/parse";
 import { inlineStrokes } from "../spec/assets";
 import { decodePicture } from "../spec/trace";
+import { BANDS, isEnglish, resolveFeedback } from "../feedback/bands";
 
 /**
  * The shared traversal behind `lintableLeaves` and `flattenLintable`: a
@@ -162,7 +171,20 @@ export interface LintIssue {
     | "linked-picture"
     | "book-block-long"
     | "book-auto-id"
-    | "book-marks";
+    | "book-marks"
+    | "feedback"
+    | "card-icon"
+    | "deck-text"
+    /** cards arrange: "side" with more than 8 cards — laid out as drop (round 7 §5) — warns */
+    | "cards-side"
+    /** choose on the figure: an option not drawn before the ask, a branch that leads nowhere — or decide cards that repeat drawn things */
+    | "choose"
+    /** a question's cards or options sit over other visible parts: stage "own" fades the rest (spec round 6 §6) — warns */
+    | "ask-stage"
+    /** a figure question shorter than its task, an instruction alone, or longer than the headline (round 7 §8) — warns */
+    | "ask-question"
+    /** a sort judged on each drop whose right/wrong line points at arrows or marks (round 7 §3.6) — warns */
+    | "cards-check";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -604,6 +626,9 @@ export function lintLayoutDetailed(
     const core = { x: box.x + box.w * 0.2, y: box.y + box.h * 0.25, w: box.w * 0.6, h: box.h * 0.5 };
     for (const s of strokes) {
       if (!coexist(m.id, s.id) || composed(m.id, s.id)) continue;
+      // A formula blank's box (`<id>_blank_<k>`, layout/math.ts) is drawn round the formula's own glyphs.
+      const own = owner.get(s.id) ?? s.id;
+      if (own.startsWith(`${m.id}_blank_`) && /^\d+$/.test(own.slice(`${m.id}_blank_`.length))) continue; // /^<id>_blank_\d+$/
       if (s.pts.length >= 2 && polylineIntersectsBox(s.pts, core)) {
         (crossingPair(m, s) ? exempt : issues).push({
           rule: "overlap-math-stroke",
@@ -708,7 +733,190 @@ export function lintLayoutDetailed(
     }
   }
 
+  issues.push(...lintChooseDrawn(drawables, commands ?? [], expandId));
+
   return { issues, exempt };
+}
+
+/**
+ * A question on its own page (spec 2026-10-03-round6 §6): an ask whose
+ * cards or choose options sit over other parts on screen at that moment is
+ * hard to read and to tap — stage: "own" fades the rest while it stands.
+ * What counts as "over": another part's text or ink inside an option's or a
+ * card's box (a few units in from its edge, so a bar standing on its axis or
+ * an arrow ending at a node does not count). A panel or picture behind the
+ * whole option is its backdrop, not a collision; pairs the author composed
+ * (`composed`, as for the overlap rules) are skipped. Visibility is the
+ * plan's: drawn or shown before the ask and not taken away since.
+ */
+export function lintAskStage(
+  drawables: Drawable[],
+  measure: MeasureFn,
+  commands: Command[] | undefined,
+  expandId: ((id: string) => string[] | null | undefined) | undefined,
+  isCards: (id: string) => boolean,
+  composed?: (a: string, b: string) => boolean,
+): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const INSET = 6;
+  const kids = (id: string): string[] => expandId?.(id) ?? [];
+  const leavesOf = (id: string): LeafDrawable[] => lintableLeaves(drawablesForId(drawables, id));
+  const boxOf = (d: LeafDrawable): BBox | null => {
+    if (d.kind === "text") return d.text.trim() === "" ? null : bboxOfText(d, measure);
+    if (d.kind === "image") return { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h };
+    return d.pts.length > 0 ? bboxOfPts(d.pts) : null;
+  };
+  const owner = new Map<string, string>();
+  for (const top of drawables) for (const leaf of leafDrawables([top])) owner.set(leaf.id, top.id);
+  const ownerOf = (id: string) => owner.get(id) ?? id;
+  const contains = (outer: BBox, inner: BBox) => outer.x <= inner.x && outer.y <= inner.y && outer.x + outer.w >= inner.x + inner.w && outer.y + outer.h >= inner.y + inner.h;
+  walkVisible(commands ?? [], expandId, (c, visible) => {
+    const a = c.ask;
+    if (!a || a.stage === "own") return;
+    const subjects: string[] = [];
+    if (Array.isArray(a.choose)) for (const o of a.choose) {
+      const id = typeof o === "string" ? o : o?.id;
+      if (typeof id === "string") subjects.push(id, ...kids(id));
+    }
+    if (typeof a.on === "string") for (const id of [a.on, `${a.on}_tiles`]) if (isCards(id)) subjects.push(id, ...kids(id));
+    if (subjects.length === 0) return;
+    const own = new Set(subjects.flatMap((id) => leavesOf(id).map((l) => l.id)));
+    const mine = [...own].map((id) => leavesOf(id)[0]).filter((l): l is LeafDrawable => !!l);
+    const targets = mine.flatMap((l) => {
+      const b = boxOf(l);
+      return b && b.w > 2 * INSET && b.h > 2 * INSET ? [{ id: l.id, box: expandBox(b, -INSET) }] : [];
+    });
+    const others = [...new Set([...visible].flatMap((id) => leavesOf(id)))].filter((l) => !own.has(l.id) && !subjects.some((s) => l.id.startsWith(`${s}_`)));
+    const hit = new Set<string>();
+    for (const o of others) {
+      const ob = boxOf(o);
+      if (!ob) continue;
+      for (const t of targets) {
+        if (composed?.(ownerOf(o.id), ownerOf(t.id))) continue;
+        const over =
+          o.kind === "stroke" ? polylineIntersectsBox(o.pts, t.box)
+          : o.kind === "text" ? boxesOverlap(ob, t.box)
+          : boxesOverlap(ob, t.box) && !contains(ob, expandBox(t.box, INSET));
+        if (over) {
+          hit.add(ownerOf(o.id));
+          break;
+        }
+      }
+    }
+    if (hit.size === 0) return;
+    const what = Array.isArray(a.choose) ? "options" : "cards";
+    const list = [...hit].slice(0, 4).join(", ") + (hit.size > 4 ? ", …" : "");
+    issues.push({ rule: "ask-stage", ids: [...hit], message: `ask "${a.question}": its ${what} sit over ${list} — add stage: "own" so the rest of the figure fades while it is asked`, severity: "warn" });
+  });
+  return issues;
+}
+
+/** The plan's visibility walk, for the rules that need what is on screen at a
+ *  command: `at(c, visible)` sees the set as it stands BEFORE the command. */
+function walkVisible(commands: Command[], expandId: ((id: string) => string[] | null | undefined) | undefined, at: (c: Command, visible: ReadonlySet<string>) => void): void {
+  const kids = (id: string): string[] => expandId?.(id) ?? [];
+  const ids = (raw: string[] | string | undefined): string[] => idsOf(raw).flatMap((id) => [id, ...kids(id)]);
+  const visible = new Set<string>();
+  for (const c of commands) {
+    at(c, visible);
+    for (const id of [...ids(c.draw), ...ids(c.show), ...ids(c.reveal)]) visible.add(id);
+    if (c.copy && typeof c.copy.target === "string") visible.add(c.copy.as ?? `${c.copy.target}_copy`);
+    for (const id of [...ids(c.erase), ...ids(c.hide)]) visible.delete(id);
+    if (c.clear !== undefined) {
+      const keep = new Set(ids(c.clear.keep));
+      for (const id of [...visible]) if (!keep.has(id)) visible.delete(id);
+    }
+  }
+}
+
+/**
+ * Choose on the figure (spec 2026-10-03-round6 §4): the viewer taps the
+ * options, so each must be on screen when the question comes — drawn (or
+ * shown) before it and not taken away since. A group or a `pieces` parent is
+ * on screen when all of its members are; a part is when a draw of its
+ * parent brought it. There is no shared per-command visibility walk here
+ * (coVisible answers pairs, connectVisibility one id without expansion), so
+ * this one keeps the plan's rules itself: draw/show, a play's `reveal` and a
+ * `copy` (its new id is minted, so it is known though not laid out) bring
+ * things on; erase/hide/clear take them off.
+ */
+function lintChooseDrawn(drawables: Drawable[], commands: Command[], expandId?: (id: string) => string[] | null | undefined): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const kids = (id: string): string[] => expandId?.(id) ?? [];
+  const ids = (raw: string[] | string | undefined): string[] => idsOf(raw).flatMap((id) => [id, ...kids(id)]);
+  const visible = new Set<string>();
+  const minted = new Set<string>();
+  commands.forEach((c) => {
+    const choose = c.ask?.choose;
+    if (Array.isArray(choose)) {
+      for (const o of choose) {
+        const id = typeof o === "string" ? o : o?.id;
+        if (typeof id !== "string") continue;
+        const members = kids(id);
+        if (members.length === 0 && !minted.has(id) && drawablesForId(drawables, id).length === 0) {
+          issues.push({ rule: "choose", ids: [id], message: `ask choose: "${id}" is not drawn anywhere in this figure — name an element, a group or a template part`, severity: "error" });
+        } else if (!visible.has(id) && !(members.length > 0 && members.every((m) => visible.has(m)))) {
+          issues.push({ rule: "choose", ids: [id], message: `ask choose: "${id}" is not drawn before the question — draw it first; the viewer taps it on the figure`, severity: "error" });
+        }
+      }
+    }
+    for (const id of [...ids(c.draw), ...ids(c.show), ...ids(c.reveal)]) visible.add(id);
+    if (c.copy && typeof c.copy.target === "string") {
+      const id = c.copy.as ?? `${c.copy.target}_copy`;
+      minted.add(id);
+      visible.add(id);
+    }
+    for (const id of [...ids(c.erase), ...ids(c.hide)]) visible.delete(id);
+    if (c.clear !== undefined) {
+      const keep = new Set(ids(c.clear.keep));
+      for (const id of [...visible]) if (!keep.has(id)) visible.delete(id);
+    }
+  });
+  return issues;
+}
+
+/**
+ * Choose's branches (like decide cards'): every option's goto, and `then`,
+ * lie ahead. And decide cards whose options say what the figure already
+ * shows: the viewer could tap the things themselves (a hint to use choose).
+ */
+function lintChoose(spec: Spec): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const commands = spec.commands ?? [];
+  const cardSets = new Map(authoredCards(spec).map((cs) => [cs.id, cs]));
+  commands.forEach((c, i) => {
+    const a = c.ask;
+    if (!a) return;
+    const ahead = new Set(commands.slice(i + 1).map((d) => d.label).filter((l): l is string => typeof l === "string"));
+    if (Array.isArray(a.choose)) {
+      const gotos = a.choose.flatMap((o) => (typeof o === "object" && o && typeof o.goto === "string" ? [o.goto] : []));
+      for (const g of gotos) {
+        if (!ahead.has(g)) issues.push({ rule: "choose", ids: [], message: `ask choose: an option goes to "${g}", which is not a label after the question`, severity: "error" });
+      }
+      if (gotos.length > 0 && a.then === undefined) issues.push({ rule: "choose", ids: [], message: `ask choose: give then — the label where the branches meet; without it a live viewer runs on from their branch into the next`, severity: "warn" });
+      else if (a.then !== undefined && !ahead.has(a.then)) issues.push({ rule: "choose", ids: [], message: `ask choose: then "${a.then}" is not a label after the question`, severity: "error" });
+      return;
+    }
+    // Decide cards (cards with options) asked here.
+    const one = typeof a.on === "string" ? a.on : Array.isArray(a.on) && a.on.length === 1 ? a.on[0] : null;
+    const cs = one !== null ? cardSets.get(one) : undefined;
+    if (!cs || !Array.isArray(cs.options)) return;
+    const words = new Map<string, string>();
+    for (const el of spec.elements ?? []) {
+      if (el.id === one || !connectVisibility(commands, i, el.id).visible) continue;
+      for (const v of [el.text, el.label]) if (typeof v === "string" && v.trim() !== "") words.set(v.trim().toLowerCase(), el.id);
+    }
+    const repeated = cs.options.map((o) => words.get(String(o.text ?? "").trim().toLowerCase())).filter((id): id is string => id !== undefined);
+    if (repeated.length >= 2) {
+      issues.push({
+        rule: "choose",
+        ids: [one!, ...repeated],
+        message: `cards "${one}": the options repeat what the figure already shows (${repeated.join(", ")}) — let the viewer tap the things themselves: ask with choose: [${repeated.map((r) => `"${r}"`).join(", ")}]`,
+        severity: "warn",
+      });
+    }
+  });
+  return issues;
 }
 
 export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?: Command[], expandId?: (id: string) => string[] | null | undefined, sameGroup?: (a: string, b: string) => boolean, bounds?: BBox): LintIssue[] {
@@ -1028,9 +1236,48 @@ function lintGuess(spec: Spec): LintIssue[] {
   const scales = new Set(authoredScales(spec).map((sc) => sc.id));
   const pops = (spec.elements ?? []).filter((e) => e.type === "population");
   const cardSets = new Map(authoredCards(spec).map((cs) => [cs.id, cs]));
+  const rawCards = new Map((spec.elements ?? []).filter((e) => e.type === "cards").map((e) => [e.id, e as unknown as CardsElementLike]));
   const keptBack = new Set<string>();
   commands.forEach((c, i) => {
+    // `check` (spec 2026-10-03 §3.3) says what right means for a market curve only.
+    if (c.ask?.check !== undefined && (c.ask.on === undefined || marketParts(spec, guessParts(spec, c.ask.on)).length === 0)) {
+      issues.push({ rule: "guess", ids: [], message: `ask check: "${c.ask.check}" only means something on a supply or demand curve guess (on: supply_curve or demand_curve) — it is ignored here`, severity: "warn" });
+    }
+    // reveal_style / reveal_order (spec 2026-10-03-round6 §3) shape a reveal on
+    // the figure: a guess, cards, a tree or a formula. Anything else has none.
+    if (c.ask && (c.ask.reveal_style !== undefined || c.ask.reveal_order !== undefined) && c.ask.on === undefined && c.ask.blanks === undefined && c.ask.pick === undefined) {
+      const which = c.ask.reveal_style !== undefined ? `reveal_style: "${c.ask.reveal_style}"` : `reveal_order: "${c.ask.reveal_order}"`;
+      issues.push({ rule: "guess", ids: [], message: `ask ${which} shapes a reveal on the figure (a guess, cards, a tree or a formula, with on/blanks/pick) — it is ignored here`, severity: "warn" });
+    }
+    // reorder (round 7 §4) slides rank cards into order; anything else reveals beside.
+    if (c.ask?.reveal_style === "reorder") {
+      const on = typeof c.ask.on === "string" ? c.ask.on : null;
+      const cs = on !== null ? (cardSets.get(on) ?? rawCards.get(on)) : undefined;
+      if (!cs || cardsMode(cs) !== "rank") issues.push({ rule: "guess", ids: [], message: `ask reveal_style: "reorder" slides rank cards into the true order — on anything else it acts as beside`, severity: "warn" });
+    }
+    // stage: "own" (§6) fades the figure round a question ON it: a typed or widget question has no parts to keep.
+    if (c.ask?.stage !== undefined && c.ask.on === undefined && c.ask.blanks === undefined && c.ask.pick === undefined && !Array.isArray(c.ask.choose)) {
+      issues.push({ rule: "ask-stage", ids: [], message: `ask stage: "own" fades the rest of the figure round a question on it (on, choose, blanks or pick) — it is ignored here`, severity: "warn" });
+    }
+    // keep (spec 2026-10-03-round6 §5) keeps a guess's marks: cards, a tree, a formula or a typed answer have none to keep.
+    if (c.ask?.keep !== undefined) {
+      const on = c.ask.on;
+      const cardsOn = typeof on === "string" && cardSets.has(on);
+      if (on === undefined || cardsOn || c.ask.blanks !== undefined || c.ask.pick !== undefined || formulaOn(spec, on) !== null) {
+        issues.push({ rule: "guess", ids: [], message: `ask keep: ${c.ask.keep} keeps a guess's marks (a guess on bars, a line, a pie or a scale, with on) — it is ignored here`, severity: "warn" });
+      } else if (marketParts(spec, guessParts(spec, on)).length > 0) {
+        // A market curve's truth is the end of its animate: there is nothing to lay the copy on again.
+        issues.push({ rule: "guess", ids: [], message: `ask keep on a supply or demand curve does nothing: its marks end at the next animate or question as usual — leave keep out`, severity: "warn" });
+      }
+    }
+    // account_label names a budget's account bar: without a budget there is none.
+    if (c.ask?.account_label !== undefined && c.ask.budget === undefined && c.ask.blanks === undefined && c.ask.pick === undefined) {
+      issues.push({ rule: "guess", ids: [], message: `ask account_label: "${c.ask.account_label}" labels a budget's account bar — add budget (with on: "all" over bars), or leave it out`, severity: "warn" });
+    }
     if (c.ask?.on === undefined) return;
+    // A tree ask (blanks / pick) is linted by lintTreeAsk, a formula ask by lintFormulaAsk.
+    if (c.ask.blanks !== undefined || c.ask.pick !== undefined) return;
+    if (formulaOn(spec, c.ask.on) !== null) return;
     // Predict (spec 2026-10-02 §3): the animate it predicts must come next.
     if (c.ask.predict === true) {
       const next = commands.slice(i + 1).find((d) => d.animate !== undefined || d.ask !== undefined || d.quiz !== undefined || d.label !== undefined);
@@ -1067,7 +1314,29 @@ function lintGuess(spec: Spec): LintIssue[] {
       }
       return;
     }
+    const market = new Set(marketParts(spec, guessParts(spec, c.ask.on)));
+    if (market.size > 1) {
+      issues.push({ rule: "guess", ids: [...market], message: `ask on: one curve per question — ask about ${[...market].join(" or ")}, not both`, severity: "error" });
+      return;
+    }
+    const budgetIssue = budgetRangeIssue(spec, guessParts(spec, c.ask.on), c.ask.budget);
+    if (budgetIssue) issues.push(budgetIssue);
     for (const part of guessParts(spec, c.ask.on)) {
+      // Move the curve (spec 2026-10-03 §3): a prediction of the animate
+      // right after, which must move this curve.
+      if (market.has(part)) {
+        if (c.ask.predict !== true) {
+          issues.push({ rule: "guess", ids: [part], message: `ask on: "${part}" — a curve is guessed as a prediction: add predict: true and put the animate that moves it (tax.amount, a shift, offset or elasticity) right after`, severity: "error" });
+          continue;
+        }
+        const next = commands.slice(i + 1).find((d) => d.animate !== undefined || d.ask !== undefined || d.quiz !== undefined || d.label !== undefined);
+        if (next?.animate === undefined) continue; // the predict error above says it
+        const move = marketMove(part, (spec.params ?? {}) as Record<string, unknown>, next.animate as Record<string, unknown>);
+        if (typeof move === "string") {
+          issues.push({ rule: "guess", ids: [part], message: `ask on: "${part}" — ${move}: animate tax.amount (a tax on ${part === "supply_curve" ? "sellers" : "buyers"}), ${part === "supply_curve" ? "supply" : "demand"}_shift.amount, or ${part === "supply_curve" ? "supply" : "demand"}.offset / .elasticity`, severity: "error" });
+        }
+        continue;
+      }
       // What must stay undrawn for this part, or null when nothing here is guessable by that name.
       let hidden: string[] | null = null;
       if (/^bar_\d+$/.test(part) && spec.template === "bar_chart") {
@@ -1094,6 +1363,200 @@ function lintGuess(spec: Spec): LintIssue[] {
       }
     }
   });
+  return issues;
+}
+
+/**
+ * A budget over bar_chart bars (spec 2026-10-03-looks-feedback-account §5)
+ * the bars cannot make: each bar is capped at the axis, so the sum runs from
+ * the bars' floors to their tops. Outside that the account never balances
+ * (the gate then lets Answer through, but the question is broken). The axis
+ * is bar_chart's own: ylim, else 0 … the largest value + 8 %.
+ */
+function budgetRangeIssue(spec: Spec, parts: string[], budget: unknown): LintIssue | null {
+  if (typeof budget !== "number" || !(budget > 0) || spec.template !== "bar_chart") return null;
+  const params = (spec.params ?? {}) as Record<string, unknown>;
+  const bars = parts.filter((p) => /^bar_\d+$/.test(p));
+  if (bars.length < 2 || bars.length !== parts.length || Array.isArray(params["series"])) return null;
+  const vals = (Array.isArray(params["values"]) ? (params["values"] as unknown[]) : []).flat().filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  const ylim = Array.isArray(params["ylim"]) && params["ylim"].length === 2 && params["ylim"].every((v) => typeof v === "number" && Number.isFinite(v)) ? (params["ylim"] as number[]) : null;
+  let lo = vals.length ? Math.min(...vals) : 0;
+  let hi = vals.length ? Math.max(...vals) : 1;
+  let yMin = ylim ? Math.min(ylim[0], ylim[1]) : Math.min(0, lo);
+  let yMax = ylim ? Math.max(ylim[0], ylim[1]) : hi;
+  if (!ylim) {
+    const pad = (yMax - yMin) * 0.08;
+    if (yMax > 0) yMax += pad;
+    if (yMin < 0) yMin -= pad;
+  }
+  if (yMax - yMin < 1e-9) yMax = yMin + 1;
+  lo = bars.length * yMin;
+  hi = bars.length * yMax;
+  const slack = niceStep(yMax - yMin) / 2 + 1e-9;
+  if (budget >= lo - slack && budget <= hi + slack) return null;
+  const fmt = (v: number) => String(Math.round(v * 100) / 100);
+  return {
+    rule: "guess",
+    ids: bars,
+    message: `ask budget: ${budget} cannot be reached — each of the ${bars.length} bars stops at the axis (${fmt(yMin)}–${fmt(yMax)}), so together they make ${fmt(lo)}–${fmt(hi)}; lower the budget, or give the chart a ylim that leaves room`,
+    severity: "error",
+  };
+}
+
+/** Blanks a tree ask may hold, and nodes a tree may have, before it stops
+ *  being a question worked by hand (spec 2026-10-03 §4.4). */
+const TREE_MAX_BLANKS = 4;
+const TREE_MAX_NODES = 12;
+/** Guess fields that mean nothing on a tree ask. */
+const GUESS_ONLY = ["predict", "budget", "account_label", "from", "revise", "relative", "judge"] as const;
+/** Ask fields a tree ask ignores: it is answered in the tree, once. */
+const TREE_INERT = ["answer", "widget", "retry"] as const;
+
+/**
+ * Tree asks (spec 2026-10-03 §4): the blanks must be numbers the tree has
+ * (the same check the player makes, treeBlanks), the pick a decision node
+ * rollback picks a best branch at; and the question small enough to work
+ * by hand. Rule "guess", like every question on the figure.
+ */
+function lintTreeAsk(spec: Spec): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const params = spec.params as unknown as DecisionTreeParams | undefined;
+  const isTree = spec.template === "decision_tree" && params?.root !== undefined && typeof params.root === "object";
+  const commands = spec.commands ?? [];
+  for (const [i, c] of commands.entries()) {
+    const a = c.ask;
+    if (a === undefined || (a.blanks === undefined && a.pick === undefined)) continue;
+    if (!isTree) {
+      if (a.blanks !== undefined) issues.push({ rule: "guess", ids: [], message: `blanks: only a decision tree has blanks — use the decision_tree template, or ask on a part of this figure`, severity: "error" });
+      if (a.pick !== undefined) issues.push({ rule: "guess", ids: [], message: `pick: only a decision tree has a pick — use the decision_tree template, or a choice question`, severity: "error" });
+      continue;
+    }
+    if (a.on !== undefined && a.on !== "tree") {
+      issues.push({ rule: "guess", ids: [], message: `ask on: a tree ask (blanks or pick) is on the whole tree — leave on out, or write on: "tree"`, severity: "error" });
+    }
+    const stray = GUESS_ONLY.filter((k) => a[k] !== undefined);
+    if (stray.length > 0) {
+      issues.push({ rule: "guess", ids: [], message: `ask: ${stray.join(", ")} do nothing on a tree ask (they belong to a guess on a chart) — leave them out`, severity: "warn" });
+    }
+    const inert = TREE_INERT.filter((k) => a[k] !== undefined);
+    if (inert.length > 0) {
+      issues.push({ rule: "guess", ids: [], message: `ask: ${inert.join(", ")} do nothing on a tree ask (the blanks and the pick are the answer, and it is asked once) — leave them out`, severity: "warn" });
+    }
+    // The tree is on screen before it is asked about. Its blanks need not be
+    // drawn on their own: they show "?" until their ask, which draws them.
+    const drawnBefore = commands.slice(0, i).some((d) => [...idsOf(d.draw), ...idsOf(d.show)].some((id) => /^(node|edge|label|branchlabel|value|payoff)_/.test(id) && connectVisibility(commands, i, id).visible));
+    if (!drawnBefore) {
+      issues.push({ rule: "guess", ids: [], message: `ask: the tree is not drawn before the question — draw the tree first (its blanks show "?" until the ask, so draw them with it)`, severity: "warn" });
+    }
+    const blanks = a.blanks ?? [];
+    for (const m of treeBlanks(params!, blanks).issues) issues.push({ rule: "guess", ids: [], message: m, severity: "error" });
+    if (a.pick !== undefined) {
+      const picked = treePick(params!, a.pick);
+      if (typeof picked === "string") issues.push({ rule: "guess", ids: [a.pick], message: picked, severity: "error" });
+    }
+    if (blanks.length > TREE_MAX_BLANKS) {
+      issues.push({ rule: "guess", ids: [], message: `ask blanks: ${blanks.length} blanks — more than 4 blanks is a worksheet, not a question; ask in two steps`, severity: "warn" });
+    }
+    let nodes = 0;
+    walkTree(params!.root, () => nodes++);
+    if (nodes > TREE_MAX_NODES) {
+      issues.push({ rule: "guess", ids: [], message: `ask on a tree of ${nodes} nodes — more than ${TREE_MAX_NODES} is too many to work by hand; ask on a smaller tree (or a folded part)`, severity: "warn" });
+    }
+  }
+  if (!isTree) return issues;
+  // A blank asked twice shows "?" again between the asks: its truth, just
+  // revealed, is taken back.
+  const askedAt = new Map<string, number>();
+  for (const [i, c] of commands.entries()) {
+    for (const b of c.ask?.blanks ?? []) {
+      if (askedAt.has(b)) issues.push({ rule: "guess", ids: [b], message: `ask blanks: "${b}" is already a blank in an earlier tree ask (commands[${askedAt.get(b)}]) — it would show ? again after its answer; blank it in one ask only`, severity: "warn" });
+      else askedAt.set(b, i);
+    }
+  }
+  // After a tree's blanks, the choice is the viewer's: a pick ask's reveal
+  // draws the best and prune marks. Drawing best_<decision>_… yourself with
+  // no pick on that decision skips the question the blanks led up to.
+  const decisions: string[] = [];
+  walkTree(params!.root, (n, id) => {
+    if (n.type === "decision") decisions.push(id);
+  });
+  const decisionOf = (id: string): string | null => {
+    const d = decisions.filter((x) => id.startsWith(`best_${x}_`)).sort((a, b) => b.length - a.length)[0];
+    return d ?? null;
+  };
+  const firstBlanks = commands.findIndex((c) => (c.ask?.blanks ?? []).length > 0);
+  if (firstBlanks >= 0) {
+    const picked = new Set<string>();
+    for (const c of commands.slice(firstBlanks + 1)) {
+      if (c.ask?.pick !== undefined) picked.add(c.ask.pick);
+      for (const id of [...idsOf(c.draw), ...idsOf(c.show)]) {
+        const d = decisionOf(id);
+        if (d !== null && !picked.has(d)) issues.push({ rule: "guess", ids: [id], message: `draw "${id}" after a tree's blanks with no pick ask on "${d}" — ask {"pick": "${d}"} instead: its reveal draws the best and prune marks`, severity: "warn" });
+      }
+    }
+  }
+  return issues;
+}
+
+/** The math element an ask's `on` names (one id), or null: a formula ask. */
+function formulaOn(spec: Spec, on: string | string[] | undefined): { id: string; tex: string } | null {
+  const one = typeof on === "string" ? on : Array.isArray(on) && on.length === 1 ? on[0] : undefined;
+  if (one === undefined) return null;
+  const el = (spec.elements ?? []).find((e) => e.id === one);
+  if (!el || el.type !== "math" || typeof el.tex !== "string") return null;
+  return { id: el.id, tex: el.tex };
+}
+
+/**
+ * Formula asks (spec 2026-10-03 §5): an ask on a math element with
+ * `\blank{…}`. The formula is drawn before the question (its boxes are what
+ * the viewer fills); every blank is answerable — a number, an expression the
+ * converter reads, or tiles — and none hides in a live-math var; `others`
+ * holds only wrong tiles. A blank no ask fills, an ask on a formula with no
+ * blank, and the formula fields on another kind of ask are warned. Rule
+ * "guess", like every question on the figure.
+ */
+function lintFormulaAsk(spec: Spec): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const commands = spec.commands ?? [];
+  const vars = varValues(spec.vars);
+  const filled = new Set<string>();
+  commands.forEach((c, i) => {
+    const a = c.ask;
+    if (a === undefined) return;
+    const f = formulaOn(spec, a.on);
+    if (f === null) {
+      if (a.others !== undefined) issues.push({ rule: "guess", ids: [], message: `ask others: tiles only go with an ask on a formula with \\blank{…} — leave others out, or ask on a math element with a blank`, severity: "warn" });
+      if (a.form === "exact") issues.push({ rule: "guess", ids: [], message: `ask form: "exact" only applies to a typed answer in a formula's \\blank{…} — leave form out`, severity: "warn" });
+      return;
+    }
+    filled.add(f.id);
+    if (!connectVisibility(commands, i, f.id).visible) {
+      issues.push({ rule: "guess", ids: [f.id], message: `ask on: the formula "${f.id}" is not drawn before the question — draw it first; its boxes are what the viewer fills`, severity: "error" });
+    }
+    const blanks = formulaBlanks(f.id, f.tex);
+    if (blanks.length === 0) {
+      issues.push({ rule: "guess", ids: [f.id], message: `ask on: the formula "${f.id}" has nothing to fill — write the answer as \\blank{…} in its tex`, severity: "warn" });
+      return;
+    }
+    const others = Array.isArray(a.others) ? a.others.map(String) : null;
+    for (const b of blanks) {
+      if (texNamesVars(b.tex, vars)) {
+        issues.push({ rule: "guess", ids: [b.part], message: `math "${f.id}": blank ${b.k} holds a live var ({name}) — a blank's content must be fixed; take the var out of \\blank{…}`, severity: "error" });
+      }
+      if (others === null && !blankIsNumber(b) && !blankConvertible(b)) {
+        issues.push({ rule: "guess", ids: [b.part], message: `math "${f.id}": blank ${b.k} (${b.tex}) cannot be typed — give the ask others, so it is answered with tiles`, severity: "error" });
+      }
+      const dup = others?.find((t) => tileRight(b, t));
+      if (dup !== undefined) {
+        issues.push({ rule: "guess", ids: [b.part], message: `ask others: "${dup}" is already a tile — the right contents are always tiles; others holds only wrong ones`, severity: "warn" });
+      }
+    }
+  });
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "math" || typeof el.tex !== "string" || filled.has(el.id) || !hasBlanks(el.tex)) continue;
+    issues.push({ rule: "guess", ids: [el.id], message: `math "${el.id}": it has \\blank{…} but no ask fills it — add an ask with on: "${el.id}", or write the content without \\blank`, severity: "warn" });
+  }
   return issues;
 }
 
@@ -1217,9 +1680,87 @@ export function lintBook(spec: Spec): LintIssue[] {
   return issues;
 }
 
+/**
+ * Feedback that does nothing, and card icons that are sentences (spec
+ * 2026-10-03-looks-feedback-account §7). Band lines or a joke/picture reward
+ * under plain are never said or shown; a cast not in English gets no bundled
+ * fallback line, so a flavour there needs lines of its own; an icon keyword
+ * is a word or two, never a sentence (a search for one finds nothing).
+ */
+function lintFeedback(spec: Spec): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const seen = new Set<string>();
+  const warn = (rule: LintIssue["rule"], ids: string[], message: string): void => {
+    if (seen.has(message)) return;
+    seen.add(message);
+    issues.push({ rule, ids, message, severity: "warn" });
+  };
+  const plainWithLines = (fb: unknown, where: string): void => {
+    if (typeof fb !== "object" || fb === null) return;
+    const o = fb as Record<string, unknown>;
+    const bands = BANDS.filter((b) => o[b] !== undefined);
+    if (o.style === "plain" && bands.length > 0) {
+      warn("feedback", [], `${where}: feedback lines (${bands.join(", ")}) with style "plain" are never said — use style "warm" or "dry", or leave the lines out`);
+    }
+  };
+  plainWithLines(spec.feedback, "feedback");
+  // Each question's feedback is the cast's merged with its own; a cast with
+  // no questions is judged by its own feedback.
+  const questions: { fb: unknown; where: string }[] = [];
+  (spec.commands ?? []).forEach((c, i) => {
+    if (c.ask) questions.push({ fb: c.ask.feedback, where: `commands[${i}].ask` });
+    if (c.quiz) questions.push({ fb: c.quiz.feedback, where: `commands[${i}].quiz` });
+  });
+  if (questions.length === 0) questions.push({ fb: undefined, where: "feedback" });
+  // spec.lang, else what its lines read as (castLang) — the player's own rule.
+  const lang = castLang(spec);
+  const english = isEnglish(lang);
+  for (const q of questions) {
+    if (q.fb !== undefined) plainWithLines(q.fb, q.where);
+    if (q.fb === undefined && spec.feedback === undefined) continue;
+    const fb = resolveFeedback(spec.feedback, q.fb);
+    if (fb.style === "plain" && (fb.reward === "joke" || fb.reward === "picture")) {
+      warn("feedback", [], `${q.fb !== undefined ? q.where : "feedback"}: reward "${fb.reward}" plays only with a feedback style — add style "warm" or "dry"`);
+    }
+    if (!english && fb.style !== "plain" && Object.keys(fb.lines).length === 0) {
+      warn("feedback", [], `feedback "${fb.style}" in a cast in "${lang}" has no lines of its own, and the bundled lines are English only — write perfect/good/poor/none in the cast's language`);
+    }
+  }
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "cards" || !Array.isArray(el.items)) continue;
+    (el.items as unknown[]).forEach((item, i) => {
+      if (typeof item !== "object" || item === null) return;
+      for (const key of ["icon", "match_icon"] as const) {
+        const v = (item as Record<string, unknown>)[key];
+        const kw = typeof v === "string" ? v : typeof v === "object" && v !== null ? (v as { of?: unknown }).of : undefined;
+        if (typeof kw !== "string") continue;
+        if (kw.trim().split(/\s+/).length > 3) {
+          warn("card-icon", [el.id], `${el.id} item ${i + 1}: ${key} "${kw}" is a sentence — an icon keyword is a word or two ("cheetah", "pill")`);
+        }
+      }
+    });
+  }
+  // A deck's cards are small in their boxes (round 6 §7): a long text runs
+  // past the card's edge there. About half an em a letter at the card's font.
+  const decks = [...(spec.elements ?? []).filter((e) => e.type === "cards"), ...authoredCards(spec)].filter((e) => (e as { deck?: unknown }).deck === true) as CardsElementLike[];
+  for (const el of decks) {
+    const g = cardsGeometry(el);
+    g.texts.forEach((t, i) => {
+      if (t.length * (g.font ?? 15) * 0.5 > g.w - 16) warn("deck-text", [el.id], `${el.id} item ${i + 1}: "${t}" is too long for a deck card (${g.cards.length} cards, ${Math.floor((g.w - 16) / ((g.font ?? 15) * 0.5))} letters fit) — a word or two`);
+    });
+  }
+  // arrange: side (round 7 §5) holds up to 8 cards in its column; more are laid out as drop.
+  const sides = [...(spec.elements ?? []).filter((e) => e.type === "cards"), ...authoredCards(spec)].filter((e) => (e as { arrange?: unknown }).arrange === "side") as CardsElementLike[];
+  for (const el of sides) {
+    const n = (el.items ?? []).length;
+    if (n > 8) warn("cards-side", [el.id], `${el.id}: arrange "side" holds up to 8 cards in its column (${n} here) — it is laid out as drop`);
+  }
+  return issues;
+}
+
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintTreeAsk(spec), ...lintFormulaAsk(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec), ...lintFeedback(spec), ...lintChoose(spec), ...lintAsks(spec)];
 
   // A link whose href names nothing the resolver can read draws, but never
   // opens (links/resolve.ts decides the forms a target may take).

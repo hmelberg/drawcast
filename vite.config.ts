@@ -9,6 +9,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
+    // The offline icon cache, as the app registers it (round 6 §8).
+    setupFiles: ["tests/setup-icons.ts"],
     // A worker cap for CI stood here for an hour on 2026-09-11 and is gone
     // again: it was a wrong answer to the `onTaskUpdate` timeout described in
     // netlify.toml. Measured, capped at 2 — Netlify 114.17s against the

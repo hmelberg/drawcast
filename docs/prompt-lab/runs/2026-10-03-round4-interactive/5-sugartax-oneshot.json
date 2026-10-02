@@ -1,0 +1,241 @@
+{
+ "request": "Who really pays a sugar tax? #interactive",
+ "spec": {
+  "title": "Who really pays a sugar tax?",
+  "template": "supply_demand",
+  "params": {
+   "x_label": "Bottles sold",
+   "y_label": "Price per bottle",
+   "demand": {
+    "elasticity": 0.5
+   },
+   "supply": {
+    "elasticity": 1
+   },
+   "equilibrium": {
+    "show": true,
+    "guides": true
+   },
+   "tax": {
+    "amount": 0,
+    "side": "seller",
+    "kind": "per_unit"
+   },
+   "units": {
+    "price": [
+     0,
+     4
+    ],
+    "price_unit": "$"
+   },
+   "readout": [
+    "price_buyers",
+    "price_sellers"
+   ]
+  },
+  "elements": [
+   {
+    "id": "guess_line",
+    "type": "scale",
+    "min": 0,
+    "max": 40,
+    "value": 28,
+    "unit": "¢",
+    "label": "Rise in the shelf price",
+    "x": 150,
+    "y": 360,
+    "width": 700
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Who really pays a sugar tax?"
+    }
+   },
+   {
+    "draw": [
+     "guess_line"
+    ],
+    "speak": "Who really pays a sugar tax: the drink makers who hand it over, or the people who buy the drinks? Say the state charges makers forty cents on every two-dollar bottle."
+   },
+   {
+    "ask": {
+     "question": "How many of those forty cents do you think end up in the shelf price? Click the line.",
+     "on": "guess_line",
+     "store": "g",
+     "default": "20",
+     "right": "Close: you said {g} cents, and in this market it is {g.true}.",
+     "wrong": "You said {g} cents; in this market it is {g.true}, {g.off} cents away. Let's see where that comes from."
+    }
+   },
+   {
+    "erase": [
+     "guess_line"
+    ]
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "To see where that number comes from, draw the market for bottles of cola."
+   },
+   {
+    "draw": [
+     "demand_curve",
+     "label_D"
+    ],
+    "speak": "Demand is steep: when the price of a cola rises, most drinkers grumble and keep buying."
+   },
+   {
+    "draw": [
+     "supply_curve",
+     "label_S"
+    ],
+    "speak": "Supply slopes up: the better the price, the more bottles makers fill and ship."
+   },
+   {
+    "draw": [
+     "equilibrium_point",
+     "guide_lines",
+     "label_E",
+     "label_Pstar"
+    ],
+    "speak": "With no tax, they meet at two dollars a bottle."
+   },
+   {
+    "pause": 0.3
+   },
+   {
+    "draw": [
+     "tax_supply_curve"
+    ],
+    "speak": "Now the tax: forty cents on every bottle, paid by the maker."
+   },
+   {
+    "ask": {
+     "question": "Where does the supply curve go? Drag it, then press Answer.",
+     "on": "supply_curve",
+     "predict": true,
+     "check": "direction",
+     "store": "t",
+     "right": "Yes. {t.why}",
+     "wrong": "Not quite. {t.why}"
+    }
+   },
+   {
+    "animate": {
+     "tax.amount": 10
+    },
+    "duration": 2.5,
+    "speak": "Every bottle now costs the maker forty cents more to sell, so the whole supply curve lifts by exactly forty cents."
+   },
+   {
+    "draw": [
+     "label_S_tax",
+     "tax_equilibrium_point",
+     "tax_guide_lines"
+    ],
+    "speak": "The market settles where the raised supply crosses demand."
+   },
+   {
+    "draw": [
+     "price_buyers_point",
+     "price_sellers_point"
+    ],
+    "parallel": true,
+    "speak": "That crossing leaves two prices: one the drinker pays, and one the maker keeps after handing over the tax."
+   },
+   {
+    "ask": {
+     "question": "Which dot is the price the maker keeps?",
+     "widget": "click",
+     "answer": "price_sellers_point",
+     "right": "The lower one: what the drinker pays, minus the forty cents that go to the state."
+    }
+   },
+   {
+    "draw": [
+     "label_Pb",
+     "label_Ps",
+     "readout_price_buyers",
+     "readout_price_sellers"
+    ],
+    "speak": "Drinkers now pay about two dollars twenty-eight; makers keep about a dollar eighty-eight."
+   },
+   {
+    "highlight": {
+     "target": [
+      "demand_curve"
+     ]
+    },
+    "speak": "So drinkers carry about twenty-eight of the forty cents, against your guess of {g}. They carry more because their demand is the steeper curve: they have fewer ways out than the makers do."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "demand_curve"
+     },
+     "gesture": "underline"
+    },
+    "speak": "Now give drinkers easy ways out: tap water, the diet version, a cheaper shop across the border."
+   },
+   {
+    "animate": {
+     "demand.elasticity": 1.4
+    },
+    "duration": 3,
+    "speak": "With ways out, demand turns much flatter: a small price rise sends many drinkers elsewhere."
+   },
+   {
+    "highlight": {
+     "target": [
+      "readout_price_buyers",
+      "readout_price_sellers"
+     ]
+    },
+    "speak": "Now drinkers pay only about thirteen of the forty cents, and makers swallow the other twenty-seven."
+   },
+   {
+    "focus": {
+     "target": [
+      "tax_guide_lines",
+      "tax_equilibrium_point"
+     ]
+    },
+    "speak": "And far fewer bottles are sold. So the more a sugar tax actually cuts drinking, the less of it the drinkers pay."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "tax_supply_curve"
+     }
+    },
+    "speak": "Makers have ways out too. Britain's levy, from 2018, charged by sugar per litre, so many makers cut the sugar in their recipes before it began, and escaped most of it."
+   },
+   {
+    "focus": {
+     "target": [
+      "demand_curve",
+      "tax_supply_curve"
+     ]
+    },
+    "speak": "So the law decides who hands over the money; the market decides who pays it: whichever side finds it harder to walk away.",
+    "delivery": "grave"
+   },
+   {
+    "quiz": {
+     "question": "The same tax is collected from drinkers at the till instead of from makers. What changes?",
+     "choices": [
+      "Drinkers pay all of it",
+      "Nothing: same prices, same split",
+      "Makers pay all of it"
+     ],
+     "correct": 2,
+     "right": "Nothing changes: both sides end up facing the same two prices, whoever hands the money over, so only how easily each side walks away decides the split.",
+     "wrong": "Think about what the till price and the maker's take would be."
+    }
+   }
+  ]
+ }
+}

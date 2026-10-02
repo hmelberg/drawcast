@@ -1419,7 +1419,13 @@ const commands = {
         return;
       }
       await ensureEnginesForSpecs([spec]).catch(() => {});
-      const ex = expandSpec(spec);
+      // Icons are keywords (round 6): resolve them as the app does before it
+      // plays (offline cache, then Iconify), on a copy, so the lint sees the
+      // artwork and "no icon for X" names only a keyword that has none.
+      const { resolveIcons } = await load("/src/render/icon.ts");
+      const withIcons = structuredClone(spec);
+      await resolveIcons(withIcons).catch(() => {});
+      const ex = expandSpec(withIcons);
       const laid = layoutSpec(ex, heuristicMeasure);
       // The layout's own warnings too (a label moved off other ink, …): the
       // bundled-examples gate fails on them, so an author must see them here.

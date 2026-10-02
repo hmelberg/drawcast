@@ -333,7 +333,7 @@ export function scaleDrawables(ds: Drawable[], s: number, dx: number, dy: number
     if (d.kind === "stroke" && d.shapeHint) {
       d.shapeHint = d.shapeHint.type === "circle"
         ? { ...d.shapeHint, c: m(d.shapeHint.c), r: d.shapeHint.r * s }
-        : { ...d.shapeHint, x: d.shapeHint.x * s + dx, y: d.shapeHint.y * s + dy, w: d.shapeHint.w * s, h: d.shapeHint.h * s };
+        : { ...d.shapeHint, x: d.shapeHint.x * s + dx, y: d.shapeHint.y * s + dy, w: d.shapeHint.w * s, h: d.shapeHint.h * s, ...(d.shapeHint.r !== undefined && { r: d.shapeHint.r * s }) };
     }
   }
 }

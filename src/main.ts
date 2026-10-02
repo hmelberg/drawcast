@@ -61,6 +61,7 @@ import { fileSafe, openShare, payListedFields } from "./ui/share";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
 import { openEmbedDialog, openInsertData, openInsertPortrait, unembeddedImages } from "./ui/insert";
+import { attachSpecFolding } from "./ui/spec-fold";
 import { accordionOpenState, applySection, courseGroup, createSidebarSection, sidebarSections, type SectionInput, type SidebarSection } from "./ui/sidebar";
 import { attachReview, type ReviewHandle } from "./ui/review";
 import { type PlaybackPrefs } from "./ui/controls";
@@ -112,7 +113,7 @@ import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publi
 import { resolvePortraits } from "./render/portrait";
 import { resolveIcons } from "./render/icon";
 import { resolveImages } from "./render/image";
-import { decodeIcon } from "./spec/trace";
+import { iconSeedOf } from "./spec/icon-data";
 import { seedBlock, type SeedBlock } from "./llm/seed";
 import { resolveSources } from "./render/source";
 import { parseManifest, parseRepo, readFile, slugify, type RepoRef } from "./publish/github";
@@ -1322,6 +1323,15 @@ refreshCounts();
 // Preview column
 const previewHost = h("div", { class: "player-figure" });
 const specArea = h("textarea", { class: "spec-json", spellcheck: "false", "aria-label": "Spec source" });
+// `assets:` and long data strings show as one-line markers; `specArea.value`
+// still reads and writes the whole text (round 6 §8, ui/spec-fold.ts).
+const specFolding = attachSpecFolding(specArea);
+const showDataBtn = h("button", { class: "small", title: "Show the folded data (assets, traced strokes, pictures) in full", "aria-pressed": "false" }, "Show data");
+showDataBtn.addEventListener("click", () => {
+  specFolding.showData(!specFolding.showingData);
+  showDataBtn.setAttribute("aria-pressed", String(specFolding.showingData));
+  showDataBtn.textContent = specFolding.showingData ? "Fold data" : "Show data";
+});
 // State, not an action — filled with --muted rather than the accent (see the
 // rust allowlist in tests/palette.test.ts). Lives in the PREVIEW bar because
 // it describes the drawing, not the text.
@@ -1432,7 +1442,7 @@ const editorWrap = h(
         "div",
         { class: "pane-bar" },
         h("span", { class: "bar-group" }, openMenuHost, saveMenuHost, importInput),
-        h("span", { class: "bar-group" }, insertMenu),
+        h("span", { class: "bar-group" }, insertMenu, showDataBtn),
       ),
       specArea,
     ),
@@ -3508,10 +3518,12 @@ async function generate(): Promise<void> {
       const spec: Spec = { elements: [{ id: "seed_icon", type: "icon", of: subject, x: 0, y: 0 }], commands: [] };
       const results = await resolveIcons(spec, undefined, { forSeed: true });
       const el = spec.elements![0];
-      const rings = el.strokes ? decodeIcon(el.strokes) : null;
-      if (!results[0]?.ok || !rings) return null;
-      seededSet = el.set;
-      return seedBlock(subject, rings, el.credit ?? "");
+      // The data is `ics1:` SVG since round 6 (older `ic1:` rings still
+      // read); the set it came from is in the data or its key, not el.set.
+      const seed = iconSeedOf(el);
+      if (!results[0]?.ok || !seed) return null;
+      seededSet = seed.set;
+      return seedBlock(subject, seed.rings, el.credit ?? "");
     };
     // ---- end icon seed ----
     // The look pass shows the first version as soon as it is valid and

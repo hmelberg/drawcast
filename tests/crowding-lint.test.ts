@@ -76,3 +76,12 @@ test(`bundled examples: at most one trips the crowding lint (more than ${CROWDIN
   const trips = cases.filter(([, spec]) => lintCrowding(layoutSpec(spec), spec).length > 0).map(([req]) => req);
   expect(trips.length, trips.join("\n")).toBeLessThanOrEqual(1);
 });
+
+test("a deck's cards and boxes are one figure, however many cards", () => {
+  const items = Array.from({ length: 16 }, (_, i) => ({ text: `C${i}`, bin: i % 2 ? "A" : "B" }));
+  const s = expandSpec({
+    elements: [{ id: "deck", type: "cards", bins: ["A", "B"], deck: true, items }],
+    commands: [{ draw: ["deck"], speak: "a" }, { ask: { question: "Which?", on: "deck" } }],
+  } as unknown as Spec);
+  expect(lintCrowding(layoutSpec(s), s)).toEqual([]);
+});

@@ -2,8 +2,9 @@ import { describe, expect, test } from "vitest";
 import { Player, type AnswerEvent, type GuessRuntime, type GuessSession, type Reprojector } from "../src/render/player";
 import { planCommands } from "../src/render/plan";
 import { SpeechManager } from "../src/render/speech";
-import { formatterFor, withBudget, type GuessHandle, type GuessSetup } from "../src/guess/handles";
+import { formatterFor, type GuessHandle, type GuessSetup } from "../src/guess/handles";
 import type { Command } from "../src/spec/types";
+import { GUESS_COLOR, type GuessMarks } from "../src/guess/marks";
 
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
   setTimeout(() => cb(performance.now()), 5) as unknown as number) as typeof requestAnimationFrame;
@@ -20,7 +21,7 @@ class CapturingSpeech extends SpeechManager {
 
 /** One bar whose truth is 80 at stage 0 and 50 from stage 1 on. */
 const bar = (truth: number): GuessHandle => ({
-  part: "bar_2", shows: ["bar_2"], kind: "height", truth: [truth], min: 0, max: 100, step: 1, label: "B", format: formatterFor(1), unit: "", paths: ["values.0.1"],
+  part: "bar_2", shows: ["bar_2"], kind: "height", truth: [truth], min: 0, max: 100, step: 1, label: "B", format: formatterFor(1), unit: "", paths: ["values.0.1"], dx: 1, cx: 300, halfW: 40, toLogical: (p) => [p[0], p[1] * 5],
 });
 
 function makePlayer(commands: Command[]) {
@@ -44,9 +45,31 @@ function makePlayer(commands: Command[]) {
 }
 
 describe("predict", () => {
-  test("the guess starts at the present; the animate runs from the guess to the truth after it", async () => {
+  test("beside (the default): the animate plays from the present in the right half; the prediction stays", async () => {
     const { player, events, frames, speech } = makePlayer([
       { ask: { question: "Where?", on: "bar_2", predict: true, tolerance: 0.05, store: "p", right: "Yes {p} vs {p.true}.", wrong: "You said {p}; it is {p.true}." } },
+      { animate: { stage: 1 }, duration: 0.2 },
+    ]);
+    const marks: { owner: string; m: GuessMarks | null }[] = [];
+    (player as unknown as { effects: unknown }).effects = new Proxy({}, { get: (_t, k) => (k === "setGuessMarks" ? (owner: string, m: GuessMarks | null) => void marks.push({ owner, m }) : () => {}) });
+    player.askGate = async () => "60";
+    await player.play();
+    expect(events[0]).toMatchObject({ expected: "50", correct: false });
+    const anim = frames.filter((f) => typeof f["stage"] === "number" && (f["stage"] as number) > 0);
+    expect(anim.length).toBeGreaterThan(0);
+    // Not held at the guess: the bar is the chart's own, halved.
+    expect(anim.every((f) => f["values.0.1"] === undefined)).toBe(true);
+    expect(anim.every((f) => JSON.stringify(f["beside_bars"]) === "[1]")).toBe(true);
+    // Yours stays, blue, in the left half; the gap written at the end.
+    const last = marks.filter((x) => x.owner === "guess_0").pop()!.m!;
+    expect(last.lines.some((l) => l.fill === GUESS_COLOR)).toBe(true);
+    expect(last.texts.some((t) => t.text === "−10")).toBe(true);
+    expect(speech.said.some((t) => t.includes("You said 60; it is 50."))).toBe(true);
+  });
+
+  test("morph: the guess starts at the present; the animate runs from the guess to the truth after it", async () => {
+    const { player, events, frames, speech } = makePlayer([
+      { ask: { question: "Where?", on: "bar_2", predict: true, tolerance: 0.05, store: "p", right: "Yes {p} vs {p.true}.", wrong: "You said {p}; it is {p.true}.", reveal_style: "morph" } },
       { animate: { stage: 1 }, duration: 0.2 },
     ]);
     let started: number[][] | null = null;
@@ -93,9 +116,5 @@ describe("judge: false and budget", () => {
     expect(speech.said.some((t) => t.includes("Here is what is done."))).toBe(true);
   });
 
-  test("withBudget: the others make room in proportion", () => {
-    expect(withBudget([[60], [25], [25], [25]], 0, 100)).toEqual([[60], [13.33], [13.33], [13.33]]);
-    expect(withBudget([[10], [30], [60]], 2, 100)).toEqual([[10], [30], [60]]);
-    expect(withBudget([[150], [10]], 0, 100)).toEqual([[100], [0]]);
-  });
+  // The budget's account bar: tests/guess-account.test.ts (it replaced withBudget).
 });

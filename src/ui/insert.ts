@@ -14,6 +14,7 @@ import { resolvePortraits, traceFromBlob } from "../render/portrait";
 import { resolveSources } from "../render/source";
 import { resolveImages } from "../render/image";
 import { isLinkedPhoto } from "../spec/trace";
+import { iconCount, unembeddedIcons } from "../spec/icon-data";
 import { ASSET_MAX_BYTES, assetBytes, formatAssetSize, hoistStrokes, inlineStrokes } from "../spec/assets";
 import { resolveIcons } from "../render/icon";
 import type { SpecElement } from "../spec/types";
@@ -259,7 +260,7 @@ const EMBEDDABLE = ["portrait", "source", "image", "icon"] as const;
 const embeddable = (type: string): boolean => (EMBEDDABLE as readonly string[]).includes(type);
 
 function imageElements(playlist: Playlist): number {
-  return itemsOf(playlist).reduce((n, it) => n + (it.spec.elements ?? []).filter((e) => embeddable(e.type)).length, 0);
+  return itemsOf(playlist).reduce((n, it) => n + (it.spec.elements ?? []).filter((e) => embeddable(e.type) && e.type !== "icon").length + iconCount(it.spec), 0);
 }
 
 /**
@@ -282,7 +283,16 @@ function imageElements(playlist: Playlist): number {
 export function unembeddedImages(playlist: Playlist): number {
   // The RESOLVED strokes: a hoisted "@name" holding a linked picture is still not embedded.
   return itemsOf(playlist).reduce(
-    (n, it) => n + (it.spec.elements ?? []).filter((e) => embeddable(e.type) && (!e.strokes || isLinkedPhoto(inlineStrokes(it.spec, e)))).length,
+    (n, it) =>
+      n +
+      (it.spec.elements ?? []).filter((e) => {
+        if (!embeddable(e.type) || e.type === "icon") return false;
+        return !e.strokes || isLinkedPhoto(inlineStrokes(it.spec, e));
+      }).length +
+      // Icons go by keyword under `assets:` (round 6 §8) — every icon, not
+      // only icon elements: a node's and a card's (and its match partner's)
+      // too, or a cast whose only icons are those is never embedded.
+      unembeddedIcons(it.spec),
     0,
   );
 }

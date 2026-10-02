@@ -48,6 +48,13 @@ describe("scale", () => {
     expect(g.format(1756)).toBe("1756");
   });
 
+  test("a whole number on a fine scale is written whole: 28 ¢, ticks 0 10 20, not 28.0 / 0.0 (fix wave 2026-10-03)", () => {
+    const g = scaleGeometry(sc({ min: 0, max: 40, value: 28, unit: "¢" }));
+    expect(g.format(28)).toBe("28 ¢");
+    expect(g.format(27.5)).toBe("27.5 ¢");
+    expect(g.ticks.map((t) => g.format(t))).toEqual(["0 ¢", "10 ¢", "20 ¢", "30 ¢", "40 ¢"]);
+  });
+
   test("percent unit sticks to the number", () => {
     expect(scaleGeometry(sc({ unit: "%" })).format(12)).toBe("12%");
   });

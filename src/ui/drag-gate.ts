@@ -11,6 +11,8 @@ import { chessSquareBox, periodicCellBox, pianoKeyBox, pianoOctaves } from "../r
 import { h, logicalPoint } from "./dom";
 import { dragSummary, judgeDrop, resolveDragTargets, type DragJudgement, type DragTarget } from "./drag-model";
 import type { AskGateStep } from "./controls";
+import { gateLangOf, gateWords } from "./gate-words";
+import { mountGateHead } from "./gate-dock";
 
 /** Matches the other cards' CARD_LINGER_MS. */
 const LINGER_MS = 2600;
@@ -21,6 +23,7 @@ const GRADE_WORD: Record<DragJudgement["grade"], string> = { in: "in place", nea
 export function dragGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
   return (signal, step) =>
     new Promise<string | null>((resolve) => {
+      const words = gateWords(gateLangOf(hd));
       stage.querySelector(".cs-figgate")?.remove();
       const boxes = elementBBoxes(hd.layout, makeBrowserMeasure());
       const { targets } = resolveDragTargets(step.items ?? [], {
@@ -36,13 +39,16 @@ export function dragGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
         return;
       }
       const tolerance = step.tolerance ?? 0.25;
-      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Drag each name onto the figure ▸");
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, words.dragNames);
       const summary = h("span", { class: "cs-waitgate-pill cs-drag-summary" });
       summary.hidden = true;
       const tray = h("div", { class: "cs-drag-tray" });
-      const gate = h("div", { class: "cs-figgate cs-draggate" }, tray, hint, summary);
+      const gate = h("div", { class: "cs-figgate cs-draggate" }, tray, summary);
+      /** The question over the figure, the hint its how line (round 7 §8.1). */
+      let head: ReturnType<typeof mountGateHead> = null;
       let settled = false;
       const remove = (): void => {
+        head?.dispose();
         signal.removeEventListener("abort", onAbort);
         gate.remove();
       };
@@ -58,6 +64,7 @@ export function dragGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
         if (settled) return;
         settled = true;
         hint.remove();
+        head?.dispose();
         summary.textContent = dragSummary(targets.map((t) => judged.get(t.id)!));
         summary.hidden = false;
         window.setTimeout(remove, LINGER_MS);
@@ -124,7 +131,7 @@ export function dragGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
       for (const t of targets) tray.appendChild(chipFor(t));
 
       if (!step.required) {
-        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip ▸");
+        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, words.skip);
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           if (settled) return;
@@ -137,5 +144,7 @@ export function dragGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
       gate.addEventListener("click", (e) => e.stopPropagation());
       signal.addEventListener("abort", onAbort);
       stage.appendChild(gate);
+      head = mountGateHead(stage, { question: step.question, how: hint });
+      if (!head) gate.appendChild(hint);
     });
 }

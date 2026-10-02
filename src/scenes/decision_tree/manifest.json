@@ -17,6 +17,7 @@
           "cost": { "type": "number", "description": "Terminal cost, optional." },
           "value": { "type": "string", "description": "Chance/decision node only: its folded-back value, e.g. \"EV 11.6 y\". Shown under the node as value_<id>; draw it on the beat that computes it. With rollback the value is computed — set this only to override its text (tokens work: \"NMB ${tree.nmb_surgery:0,}\"), or to \"\" to draw none." },
           "collapsed": { "type": "boolean", "description": "Chance/decision node only: draw the node without its subtree (a fan of stubs, collapsed_<id>); under rollback its value is still computed from the hidden subtree. For showing a big tree in parts." },
+          "work": { "type": "string", "description": "Terminal only, optional: how its payoff or cost is worked out, e.g. \"12 × £300\". Shown under a wrong answer when the viewer fills in that number (an ask with blanks)." },
           "children": {
             "type": "array",
             "description": "Branches to child nodes.",

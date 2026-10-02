@@ -811,7 +811,10 @@ details > summary { cursor: pointer; color: var(--muted); }
      content-box padding grows what a thumb can land on to the --tap minimum
      (12 + 16 + 16 = 44px) while background-clip keeps the visible track
      12px, and seeking is unaffected because it maps the X axis alone. */
-  .cs-progress {
+  /* .cs-controlbar >: the base .cs-progress rule comes later in this file,
+     and at equal weight its background shorthand reset the clip — a
+     finger's 44 px hit area was painted as one tall grey slab. */
+  .cs-controlbar > .cs-progress {
     box-sizing: content-box;
     height: 12px;
     padding: 16px 0;
@@ -993,6 +996,13 @@ details > summary { cursor: pointer; color: var(--muted); }
 .cs-stage.is-playing .cs-more:not(.cs-more-open) .cs-more-chip { opacity: 0.45; }
 .cs-figure.cs-idle .cs-more { opacity: 0; pointer-events: none; }
 .cs-stage.cs-grabbing .cs-more { display: none; }
+/* A phone: the chip is its book alone (its name is the button's title), so
+   the words beside or under it keep their width (round 5 fix wave, M5). */
+@media (max-width: 560px) {
+  .cs-more-chip .cs-more-label { display: none; }
+  .cs-more-chip { padding-inline: 0.45rem; }
+  .cs-more-chip .cs-icon { width: 1.1em; height: 1.1em; }
+}
 @media (pointer: coarse) {
   .cs-more-chip { min-height: 36px; padding-inline: 0.75rem; }
 }
@@ -1163,6 +1173,17 @@ a.cs-more-title:focus-visible { outline: 2px solid #b5482e; outline-offset: 2px;
 
 .step-indicator { color: var(--muted); font-size: var(--text-xs); min-width: 3ch; text-align: center; }
 
+/* A phone's control bar (round 5 fix wave, M4): the seek bar takes a row of
+   its own over the buttons — squeezed between them it shrank to a knob —
+   and the buttons stand a little narrower (still --tap tall), so one row
+   holds them all, the editor's "✎ Edit" too. */
+@media (max-width: 560px) {
+  .cs-controlbar { justify-content: space-between; column-gap: 0; }
+  .cs-controlbar > .cs-progress { order: -1; flex: 1 0 100%; }
+  .cs-controlbar > .cs-bar-btn { min-width: 36px; padding-inline: 0.1rem; }
+  .cs-controlbar > .cs-bar-btn:not(:has(.cs-icon)) { font-size: var(--text-sm); }
+}
+
 /* ---------- lint + rating ---------- */
 
 .lint-list { margin: 0.2rem 0 0; padding-left: 1.2rem; }
@@ -1331,6 +1352,13 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
    where there is height to spend and scrolling past the frame is the norm. */
 @media (max-width: 940px) and (orientation: landscape) {
   .viewer-body { --viewer-stage-h: min(calc((min(960px, 96vw) - 1.2rem - 3px) * 0.75), calc(100dvh - 5rem)); }
+}
+/* A phone held upright: the stage is 4 : 4.1 there (figure-style.ts — room
+   under the drawing for the words), so a height of 4 : 3 of the width left
+   it a quarter narrower than the frame, with the page empty below (round 5
+   fix wave, H1). The same width-bound stage as the app's. */
+@media (max-width: 700px) and (orientation: portrait) {
+  .viewer-body { --viewer-stage-h: min(calc((min(960px, 96vw) - 1.2rem - 3px) * 4.1 / 4), calc(100dvh - 10rem)); }
 }
 .viewer-wrap {
   width: min(960px, 96vw);
@@ -1667,8 +1695,72 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* The card the keyboard is on (ui/cards-gate.ts). */
 .cs-card-focus { position: absolute; border: 2px dashed #3f6fb5; border-radius: 6px; pointer-events: none; }
 .cs-card-value { transform: translate(-50%, 6px); cursor: default; }
+/* A tree's blanks (ui/tree-gate.ts): a dashed ring round each "?", solid
+   once a number is typed in, filled while its field is open. */
+.cs-treegate { cursor: default; }
+.cs-tree-blank { position: absolute; border: 2px dashed #3f6fb5; border-radius: 8px; pointer-events: none; }
+.cs-tree-blank.filled { border-style: solid; }
+.cs-tree-blank.active { background: rgba(63, 111, 181, 0.08); }
+/* A branch lit along its own line: under the pointer, and once picked. */
+.cs-tree-edges { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.cs-tree-edge { fill: none; stroke: #3f6fb5; stroke-opacity: 0.22; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }
+.cs-tree-edge.cs-tree-picked { stroke-opacity: 0.4; }
+/* A blank whose typed text does not parse (the box keeps the last good one). */
+.cs-tree-blank.invalid { border-color: #b5482e; }
+/* A formula's typed blank (ui/formula-gate.ts): a field next to the formula
+   (the answer is drawn in the box as it is typed), what is wrong with it,
+   and the keys a phone hides under it. input.… : the app's shared
+   input[type="text"] rule must not paint it in the page's theme — the
+   figure's paper does not theme. */
+.cs-formulagate { cursor: default; }
+.cs-formula-edit { position: absolute; z-index: 25; display: flex; flex-direction: column; gap: 0.2em; }
+input.cs-formula-field {
+  box-sizing: border-box;
+  width: 100%;
+  height: 1.55em;
+  margin: 0;
+  padding: 0 0.35em;
+  font: inherit;
+  font-family: var(--sketch-font);
+  text-align: center;
+  color: #3d3833;
+  background: rgba(255, 253, 246, 0.97);
+  border: 2px solid #2f6b8f;
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  box-shadow: 1px 2px 0 rgba(61, 56, 51, 0.25);
+  outline: none;
+}
+input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; background: #fff4ef; }
+/* Why a typed blank or number was not taken: dark red on paper, readable. */
+.cs-formula-error,
+.cs-numedit-error {
+  font-family: var(--sketch-font);
+  font-size: var(--text-sm);
+  line-height: 1.25;
+  text-align: center;
+  color: #8f2f17;
+  background: rgba(255, 244, 239, 0.97);
+  border: 1px solid #b5482e;
+  border-radius: 6px;
+  padding: 0.15rem 0.45rem;
+}
+.cs-numedit-error { position: absolute; z-index: 25; box-sizing: border-box; }
+.cs-formula-keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.3rem; font-size: 0.9em; }
+/* Touch-sized: 40 px at the least. */
+.cs-formula-key {
+  min-width: max(40px, 1.8em);
+  min-height: max(40px, 1.8em);
+  padding: 0 0.3em;
+  font: inherit;
+  font-family: var(--sketch-font);
+  color: #3d3833;
+  background: #fffdf8;
+  border: 1.5px solid #9a9184;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.cs-formula-key:active { background: rgba(63, 111, 181, 0.12); }
 /* A budget's running total, under the hint. */
-.cs-guess-total { position: absolute; top: 3.6rem; left: 50%; transform: translateX(-50%); pointer-events: none; animation: none; }
 .cs-guessgate.dragging { cursor: grabbing; }
 .cs-guess-value,
 .cs-guess-field {
@@ -1687,12 +1779,6 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   pointer-events: auto;
 }
 .cs-guess-field { width: 7rem; text-align: center; color: var(--ink); background: var(--surface); border: 2px solid #3f6fb5; }
-/* The guess's own pills stand at the TOP of the figure: the bottom is the
-   caption's (the question is read there) and Skip's corner. */
-.cs-guessgate .cs-figgate-hint {
-  bottom: auto;
-  top: 0.9rem;
-}
 /* A guess is worked on the figure: the big play/replay button stands aside. */
 :has(> .cs-guessgate) > .cs-bigplay { display: none; }
 /* "Test me" (ui/test-me.ts): on the figure, bottom left (the top is the
@@ -1704,14 +1790,211 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   z-index: 4;
   font-size: 0.95rem;
 }
-/* Answer: centred at the very bottom of the figure, filled in the guess
-   colour so it reads as THE button; the caption (the question being read)
-   steps up over it while it stands. Only when several parts are guessed,
-   or release: false. */
-.cs-stage:has(.cs-guess-answer:not([hidden])):not(.cs-caption-below):not(.cs-caption-strip) .cs-caption {
-  /* !important: the caption's placement (render/caption-place.ts) writes its
-     own bottom inline, and the button must win while it stands. */
-  bottom: 3.3rem !important;
+/* A phone: down in the corner, level with the Sources chip — at 1.2rem up
+   it sat on the last line of the caption under the drawing. */
+@media (max-width: 560px) {
+  .cs-testme { bottom: 0.4rem; left: 0.5rem; font-size: var(--text-sm); }
+}
+/* The answer dock (ui/gate-dock.ts): the guess, cards, tree and formula
+   gates say and offer everything — hint, total, Answer, Skip — in one row at
+   the bottom of the stage, so nothing lies on the title or on the question.
+   Overlay captions step up over it; a caption below the drawing (below /
+   strip) keeps its place and the drawing gives up the dock's height
+   (--cs-dock-shrink), still 4 : 3, centred. The row keeps clear of a bottom
+   corner's Sources chip (--cs-more-reserve). */
+.cs-gatedock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.3rem;
+  box-sizing: border-box;
+  padding-inline: calc(0.6rem + var(--cs-more-reserve, 0px));
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  pointer-events: none;
+  z-index: 6;
+}
+.cs-gatedock > * { pointer-events: auto; flex: none; }
+.cs-gatedock > .cs-figgate-hint {
+  position: static;
+  transform: none;
+  pointer-events: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  padding: 0.25rem 0.85rem;
+  border-radius: 1rem;
+  animation: none;
+}
+.cs-gatedock > .cs-figgate-hint.cs-figgate-next { animation: gatedock-next 0.45s ease-out; }
+@keyframes gatedock-next {
+  0% { transform: scale(1.2); opacity: 0; }
+  60% { transform: scale(0.97); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.cs-gatedock > .cs-guess-answer { position: static; transform: none; }
+.cs-gatedock > .cs-figgate-skip { position: static; align-self: center; }
+/* The question over the figure while it is open (round 7 §8.1, ui/gate-dock.ts
+   mountGateHead): the whole sentence, two lines at most, the how line small
+   and muted under it. It stands where a title card's heading is — that
+   heading stands aside meanwhile. Taps go through it to the figure. */
+.cs-gatehead {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0.4rem;
+  z-index: 6;
+  padding-inline: 1rem;
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.cs-gatehead.cs-gatehead-out { opacity: 0; }
+.cs-gatehead-q {
+  font-family: var(--sketch-font);
+  font-size: 1.4rem;
+  line-height: 1.2;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-shadow: 0 0 4px var(--paper, #f5f1e6), 0 0 8px var(--paper, #f5f1e6);
+}
+.cs-gatehead > .cs-gatehead-how {
+  position: static;
+  transform: none;
+  display: block;
+  margin-top: 0.15rem;
+  padding: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  background: none;
+  border: none;
+  box-shadow: none;
+  animation: none;
+}
+.cs-gatehead > .cs-gatehead-how.cs-figgate-next { animation: gatedock-next 0.45s ease-out; }
+/* The caption would only repeat the question the headline already shows. */
+.cs-stage.cs-headline .cs-caption { visibility: hidden; }
+.cs-stage.cs-headline :is([data-leaf-id^="card_"][data-leaf-id$="_title"], [data-leaf-id^="card_"][data-leaf-id$="_line"]) {
+  opacity: 0 !important;
+  transition: opacity 0.3s ease;
+}
+@media (max-width: 560px) {
+  .cs-gatehead-q { font-size: 1.05rem; }
+  .cs-gatehead > .cs-gatehead-how { font-size: var(--text-xs); }
+}
+/* A caption below or in a strip (a phone): the drawing stands under the
+   headline — it has given up that height with the dock's (--cs-dock-shrink). */
+/* (.cs-docked too: it outranks the docked stage's own margin: 0 auto.) */
+.cs-stage.cs-headline.cs-docked:is(.cs-caption-below, .cs-caption-strip) .cs-svg { margin-top: var(--cs-head-h, 0px); }
+/* One family for the bottom bar (round 7 §8.3): Skip and Answer (or Done)
+   are pills of one shape, font, height and border, side by side — Skip on
+   the left, Answer on the right, filled. No shadow, no pulse: the headline
+   is what draws the eye. */
+.cs-gatedock > .cs-guess-answer,
+.cs-gatedock > .cs-figgate-skip,
+.cs-connect-bar > .cs-cardgate-pill,
+.cs-draggate > .cs-figgate-skip {
+  font-family: var(--sketch-font);
+  font-size: 1.05rem;
+  line-height: 1.2;
+  min-height: 36px;
+  padding: 0.3rem 1.1rem;
+  border-width: 1.5px;
+  border-style: solid;
+  border-radius: 999px;
+  box-shadow: none;
+  animation: none;
+  align-self: center;
+}
+.cs-gatedock > .cs-guess-answer,
+.cs-connect-bar > .cs-cardgate-pill.ok {
+  padding-inline: 1.6rem;
+  color: #fff;
+  background: #3f6fb5;
+  border-color: #2f5590;
+}
+.cs-gatedock > .cs-figgate-skip,
+.cs-connect-bar > .cs-cardgate-pill.skip,
+.cs-draggate > .cs-figgate-skip {
+  color: var(--muted);
+  background: var(--surface);
+  border-color: var(--muted);
+}
+.cs-stage.cs-docked:not(.cs-caption-below):not(.cs-caption-strip) .cs-caption {
+  /* !important: the caption's placement writes its own bottom inline, and
+     the dock must win while it stands. */
+  bottom: var(--cs-dock-h, 3.3rem) !important;
+}
+.cs-stage.cs-docked.cs-caption-strip .cs-svg {
+  height: calc(var(--cs-fig-h) - var(--cs-dock-shrink, 0px));
+  width: calc((var(--cs-fig-h) - var(--cs-dock-shrink, 0px)) * 4 / 3);
+}
+.cs-stage.cs-docked.cs-caption-below .cs-svg {
+  width: calc(100% - var(--cs-dock-shrink, 0px) * 4 / 3);
+  margin: 0 auto;
+}
+/* When the dock goes (ui/gate-dock.ts marks the stage cs-undocking for a
+   moment), the drawing eases back to its full size instead of jumping to it
+   just as the reveal is drawn (L3). Only then: opening the dock is instant,
+   so the gate lays its pills on the drawing's final size. */
+.cs-stage.cs-undocking .cs-svg { transition: width 0.3s ease, height 0.3s ease; }
+.cs-stage.cs-undocking.cs-caption-below .cs-svg { margin: 0 auto; }
+@media (prefers-reduced-motion: reduce) {
+  .cs-stage.cs-undocking .cs-svg { transition: none; }
+}
+.cs-gatedock.cs-gatedock-narrow { flex-wrap: wrap; row-gap: 0.25rem; }
+/* A phone (round 5 fix wave, H1): the dock is as short as it can be, so the
+   drawing gives up as little as it can — the hint is ONE line (the whole
+   sentence is its title), Answer and Skip share the row under it, and the
+   Sources chip stands aside while the question is open, taking its reserve
+   with it (ui/gate-dock.ts marks the stage cs-docked-narrow). */
+.cs-gatedock.cs-gatedock-narrow > .cs-figgate-hint {
+  flex: 1 1 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  padding: 0.15rem 0.5rem;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  box-shadow: none;
+  border-width: 1px;
+}
+.cs-stage.cs-docked-narrow .cs-more { display: none; }
+.cs-stage.cs-docked-narrow .cs-gatedock { padding-inline: 0.4rem; }
+.cs-stage.cs-docked-narrow.cs-more-bottom:is(.cs-caption-below, .cs-caption-strip) .cs-caption { padding-inline: 0.6rem; }
+/* The value pill over a drawing scaled to a phone (H2): smaller, and close
+   to the bar — at full size it covered the plot, the axis and its title. */
+.cs-stage.cs-docked-narrow .cs-guess-value,
+.cs-stage.cs-docked-narrow .cs-guess-field {
+  font-size: var(--text-xs);
+  padding: 0.05rem 0.5rem;
+  transform: translate(-50%, calc(-100% - 10px));
+}
+.cs-stage.cs-docked-narrow .cs-guess-field { width: 5rem; }
+/* Where above the bar would reach the top of the plot (the axis title), the
+   pill stands beside the bar's top instead (ui/guess-gate.ts). */
+.cs-stage .cs-guess-value.cs-guess-beside,
+.cs-stage .cs-guess-field.cs-guess-beside { transform: translate(0, -50%); }
+@media (max-width: 560px) {
+  .cs-gatedock { gap: 0.4rem; padding-inline: calc(0.4rem + var(--cs-more-reserve, 0px)); }
+  .cs-gatedock > .cs-figgate-hint { font-size: var(--text-xs); padding: 0.2rem 0.6rem; }
+  .cs-gatedock > .cs-guess-answer,
+  .cs-gatedock > .cs-figgate-skip,
+  .cs-connect-bar > .cs-cardgate-pill,
+  .cs-draggate > .cs-figgate-skip { min-height: 40px; }
+  /* Two even rows of keys rather than five and a straggler. */
+  .cs-formula-keys { display: grid; grid-template-columns: repeat(3, max(40px, 1.8em)); justify-content: center; }
 }
 .cs-guess-answer {
   position: absolute;
@@ -1725,15 +2008,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   background: #3f6fb5;
   border-color: #2f5590;
 }
-.cs-guess-answer:hover { background: #355f9e; }
+.cs-guess-answer:hover:not(:disabled) { background: #355f9e; }
 .cs-guess-answer[hidden] { display: none; }
 .cs-guessgate.answered { pointer-events: none; }
-/* Skip stands top right: the bottom right is the Sources corner's. */
-.cs-guessgate .cs-figgate-skip {
-  bottom: auto;
-  top: 0.8rem;
-  right: 1rem;
-}
 /* .cs-figgate sets no cursor of its own any more — what shows through this
    overlay (the hand, the connect question's crosshair, a widget's grab/
    grabbing) is decided together, in cascade order, down by cs-cardable. */
@@ -1886,9 +2163,9 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   text-align: center;
 }
 /* The counter and the summary are static (a count that updates every tap
-   shouldn't bob, and neither should a settled verdict); the hint keeps the
-   shared waitgate nudge, the same attention cue every other figgate's hint
-   uses to draw the eye to the one instruction the viewer needs. Named as
+   shouldn't bob, and neither should a settled verdict); the hint stands
+   still too now (round 7 §8.3): the headline over the figure is what draws
+   the eye. Named as
    two DISJOINT selectors, neither matching the other's element, rather
    than "every pill in the stack is off, except the hint" (a blanket rule
    on .cs-connect-status .cs-waitgate-pill, undone by a narrower override
@@ -1902,7 +2179,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   animation: none;
 }
 .cs-connect-hint {
-  animation: waitgate-nudge 1.6s ease-in-out infinite;
+  animation: none;
 }
 
 /* Info card: name + summary + actions at the pointer, over the paused figure. */
@@ -2156,7 +2433,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 /* Tap to type a model's number (ui/number-edit.ts): a chip laid over the
    number, in the figure's hand, on the figure's own near-white ground (fixed
    ink, like .cs-viewfit — the figure does not theme). */
-.cs-numedit {
+input.cs-numedit {
   position: absolute;
   z-index: 25;
   box-sizing: border-box;
@@ -2174,7 +2451,7 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   appearance: textfield;
 }
 .cs-numedit::-webkit-outer-spin-button, .cs-numedit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.cs-numedit[aria-invalid="true"] { border-color: #b5482e; background: #fff4ef; }
+input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; background: #fff4ef; }
 .cs-ctlinput {
   position: absolute;
   z-index: 25;
@@ -3055,3 +3332,54 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .share-box textarea { width: 100%; box-sizing: border-box; margin-bottom: 0.6rem; }
 .share-native { width: 100%; padding: 0.6rem; font-size: var(--text); margin-bottom: 0.4rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
 .share-list { list-style: none; padding: 0; margin: 0 0 0.6rem; display: flex; flex-wrap: wrap; gap: 0.4rem 0.9rem; }
+
+/* ---------- rewards after an answer (ui/rewards.ts) ---------- */
+/* Above the figure, never in it; never takes a click; removed once played. */
+.cs-reward {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+}
+.cs-reward-confetti {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.cs-reward-badge {
+  transform: translate(-50%, -120%);
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ok);
+  border: 2px solid var(--ok);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cs-reward-picture {
+  transform: translateY(-50%);
+  animation: cs-reward-pop 2s ease-out both;
+}
+.cs-reward-picture img {
+  display: block;
+  width: 120px;
+  height: 120px;
+}
+.cs-reward-picture.is-still { animation: none; }
+@keyframes cs-reward-pop {
+  0% { opacity: 0; transform: translateY(-50%) scale(0.4); }
+  15% { opacity: 1; transform: translateY(-50%) scale(1.1); }
+  25% { transform: translateY(-50%) scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-reward-picture { animation: none; }
+}
+
+/* Choose on the figure (ui/choose-gate.ts): a solid ring on the option under
+   the pointer or the keys; it stays on an opinion's pick, and a judged pick
+   gets a ✓/✗ mark on the tapped thing. */
+.cs-choose-ring { border-style: solid; border-radius: 10px; }
+.cs-choose-ring.picked { border-width: 3px; }
+.cs-choosegate .cs-figgate-mark { display: grid; place-items: center; width: 28px; height: 28px; margin: -14px 0 0 -14px; background: var(--paper, #fff); color: var(--ok); font-weight: 700; font-size: var(--text); line-height: 1; }
+.cs-choosegate .cs-figgate-mark.wrong { color: var(--loss); }

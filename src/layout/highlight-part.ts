@@ -38,6 +38,9 @@ export function textRows(leaf: Extract<Drawable, { kind: "text" }>): string[] {
 export function findPart(leaves: readonly Leaf[], part: string): PartHit[] {
   if (part.trim() === "") return [];
   const hits: PartHit[] = [];
+  // A nested part group by its id (a formula blank's `<id>_blank_<k>_fill`).
+  const grouped = leaves.filter((l) => l.kind === "area" && l.partOf === part).map((l) => l.id);
+  if (grouped.length > 0) return [{ kind: "glyphs", leafIds: grouped }];
   const want = termTex(part);
   let glyphs = leaves.filter((l) => l.kind === "area" && l.tex?.some((t) => termTex(t) === want)).map((l) => l.id);
   // No single node spells it: try a run of SIBLING nodes — `bx` in `y = bx - 1`,
