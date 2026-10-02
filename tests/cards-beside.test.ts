@@ -150,6 +150,20 @@ describe("cards in the player", () => {
     expect(counts[counts.length - 1].n).toBe(4);
   });
 
+  test("a replay that skips the question forgets the earlier answer: a seek forward shows none (fix round 2)", async () => {
+    const { player, marks } = makePlayer(rank, {});
+    player.askGate = async () => encodeArrangement(rank, wrong);
+    await player.play();
+    player.renderUpTo(3);
+    expect(marks.get("cards_1")).toBeTruthy();
+    player.renderUpTo(0);
+    player.askGate = async () => null;
+    await player.play();
+    player.renderUpTo(1);
+    player.renderUpTo(3);
+    expect(marks.get("cards_1") ?? null).toBeNull();
+  });
+
   test("a skipped question has no answer to keep: the cards glide to the truth", async () => {
     const { player, nudges } = makePlayer(rank, {});
     player.askGate = async () => null;

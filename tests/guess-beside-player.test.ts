@@ -148,6 +148,20 @@ describe("a guess on a bar: beside (the default) and morph", () => {
     expect(marks.get("guess_1")!.lines.find((l) => l.fill === YOURS)?.fillOpacity).toBeCloseTo(0.6);
   });
 
+  test("a seek while a reveal is on screen keeps the restored one: Play on from there keeps the halves (fix round 2)", async () => {
+    for (const from of [4, 2]) {
+      const { player, marks, commits } = makePlayer([DRAW, ask(), { speak: "One." }, { speak: "Two." }]);
+      player.askGate = async () => "50";
+      await player.play();
+      if (from === 2) player.renderUpTo(2);
+      player.renderUpTo(3);
+      expect(marks.get("guess_1")).toBeTruthy();
+      await player.play();
+      expect(JSON.stringify(commits[commits.length - 1]["beside_bars"])).toBe("[1]");
+      expect(marks.get("guess_1")).toBeTruthy();
+    }
+  }, 20000);
+
   test("an erase, then the part drawn again: the template is committed whole (no half bar left)", async () => {
     const { player, commits } = makePlayer([DRAW, ask(), { erase: ["bar_2"] }, { draw: ["bar_2"] }, { speak: "End." }]);
     player.askGate = async () => "50";

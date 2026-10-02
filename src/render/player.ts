@@ -954,12 +954,13 @@ export class Player {
     this.restoreFormulaFills(n);
     // A beside reveal's room goes before the boundary is laid out — and the
     // ones this boundary still shows come back (yours and the truth).
-    for (const owner of [...this.besides.keys()]) this.dropBeside(owner);
+    // Every mark and room off first (a reveal on screen now included), then
+    // the restored ones on: nothing after this may drop them.
+    this.endMarks();
     const restored = this.besidesAt(n);
     for (const [owner, b] of restored) this.putBeside(owner, b, false);
     const scene = this.stateAt(n);
     this.applyKey(scene);
-    this.endMarks(true);
     this.applyScene(scene);
     this.pendingSettle = false;
     for (const [owner, b] of restored) {
@@ -988,7 +989,8 @@ export class Player {
       const turn = scene.turns[id];
       if (turn && el.setTransform) el.setTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1, turn.mirror ?? false);
       else el.setOffset?.(dx, dy);
-      el.setOpacity?.(scene.opacities[id] ?? 1);
+      // A kept tile of a faded beside reveal stays faded.
+      el.setOpacity?.(this.besideFadedShown(id) ? FADED : (scene.opacities[id] ?? 1));
       el.setPoints?.(scene.shapes[id] ?? {});
       el.setText?.(scene.texts[id] ?? {});
       if (visible.has(id) || !this.planTimeIds.has(id) || this.besideShown(id)) el.finish();
@@ -2666,6 +2668,12 @@ export class Player {
     this.applyScene(scene);
   }
 
+  /** Whether a faded beside reveal keeps this element on screen (it is drawn at FADED). */
+  private besideFadedShown(id: string): boolean {
+    for (const b of this.besides.values()) if (b.faded && b.shown?.includes(id)) return true;
+    return false;
+  }
+
   /** Whether a beside reveal keeps this element on screen (a tile in a box). */
   private besideShown(id: string): boolean {
     for (const b of this.besides.values()) if (b.shown?.includes(id)) return true;
@@ -2714,12 +2722,14 @@ export class Player {
       if (b.faded || b.index === index) continue;
       b.faded = true;
       if (b.marks && this.guessOwners.has(owner)) this.effects?.setGuessMarks?.(owner, fadeYours(b.marks, FADED));
+      // Tiles kept in a formula's boxes are yours too.
+      for (const el of this.els(b.shown ?? [])) el.setOpacity?.(FADED);
     }
   }
 
   /** Take down every mark still on screen — a scrub, the poster, disposal. */
-  private endMarks(keepBesides = false): void {
-    if (!keepBesides) for (const owner of [...this.besides.keys()]) this.dropBeside(owner);
+  private endMarks(): void {
+    for (const owner of [...this.besides.keys()]) this.dropBeside(owner);
     this.predictCarry = null;
     this.selfTestAbort?.abort();
     this.selfTestAbort = null;
@@ -2962,6 +2972,8 @@ export class Player {
     const step = this.plan.steps[index];
     // A room taken away since the last boundary: the template whole again.
     this.settleBesides();
+    // This ask runs again: whatever it showed last time is no longer its answer.
+    if (step.kind === "ask") for (const k of ["guess", "cards", "formula"]) this.besideMemory.delete(`${k}_${index}`);
     // The next command after a beside reveal: the viewer's answer fades.
     this.fadeBesides(index);
     if (step.kind === "explore" && (this.skipQuestions || this.autoAnswers || !this.exploreGate)) {
