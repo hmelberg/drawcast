@@ -50,11 +50,16 @@ A new cards field, `check: "each" | "end"`.
    with it; nothing red is left on the figure.
 4. A placed card is final: it can no longer be dragged or tapped (taps and
    keys skip it).
-5. **Taps change meaning.** Round 6's tap-to-cycle (a tap sends a card on
-   round the boxes) would judge a card the viewer was only passing through
-   box 1. So under `"each"`, a tap on a tray card *picks* it (the ring the
-   keyboard already uses), and a tap on a box sends the picked card there.
-   Drag and the 1–4 keys work as now. Deck is unchanged: tap a box.
+5. **Tap the box, not the card.** Round 6's tap-to-cycle (first tap → box 1,
+   next → box 2, then back to the tray) would judge a card the viewer was
+   only passing through box 1. So under `"each"`, the next unplaced tray card
+   is always **picked already** (the ring the keyboard uses), and **one tap
+   on a box sends it there**. It is judged, and the next tray card is
+   picked. A tap on another tray card picks that one instead. That is one
+   tap per card for any box (today a box-2 card takes two), the same feel
+   as the deck. **Drag and drop stays**: any tray card can be dragged
+   straight to a box and is judged on release. The 1–4 keys send the picked
+   card. Deck is unchanged. Under `check: "end"`, tap-to-cycle stays as now.
 6. **The counter**: `✓ 4 · ✗ 1` in small text (20, ink; ✓ green, ✗ red),
    centred just under the boxes (or above them in `rise`, §5). It is drawn
    when the ask starts (`✓ 0 · ✗ 0`) and ticks on each drop.
