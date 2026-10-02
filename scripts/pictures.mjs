@@ -39,12 +39,18 @@ function freePort() {
 }
 
 /** Vite on a free local port, serving the repo (frames.html and src/). */
-function defaultServe(root) {
+export function defaultServe(root, make) {
   return async () => {
-    const { createServer } = await import("vite");
+    const createServer = make ?? (await import("vite")).createServer;
     const port = await freePort();
     const server = await createServer({ root, logLevel: "error", server: { host: "127.0.0.1", port, strictPort: true } });
-    await server.listen();
+    // The file watcher starts at createServer: a failed listen must not leave it running.
+    try {
+      await server.listen();
+    } catch (e) {
+      await server.close().catch(() => {});
+      throw e;
+    }
     return { url: `http://127.0.0.1:${port}/`, close: () => server.close() };
   };
 }

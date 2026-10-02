@@ -1298,7 +1298,7 @@ const commands = {
     // here — it joins below, once shouldClaim allows.)
     const { changes, real } = fileChanges(files.files, files.deletions, (p) => readBytesAtCommit(clone, upstream, p));
     console.log(changes.length ? changes.map(([k, p]) => `  ${k.padEnd(8)} ${p}`).join("\n") : "  nothing differs from GitHub");
-    if (pictureNote) console.log(`No picture drawn (${pictureNote}) — the link will show a plain card.`);
+    if (pictureNote) console.log(`No picture drawn (${pictureNote}) — the link keeps its old picture, or shows a plain card.`);
     if (!real.length) return console.log("Nothing to push.");
     if (dry) return console.log("(dry run — nothing written)");
 

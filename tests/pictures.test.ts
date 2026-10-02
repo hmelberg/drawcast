@@ -3,7 +3,7 @@
 // that cannot start is one note and no pictures, never a throw.
 import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
-import { decodePicture, drawPictures } from "../scripts/pictures.mjs";
+import { decodePicture, defaultServe, drawPictures } from "../scripts/pictures.mjs";
 
 const PNG = Buffer.from([137, 80, 78, 71]).toString("base64");
 
@@ -86,4 +86,20 @@ test("push draws pictures only for public casts and courses", () => {
   // cast branch: guarded inline; course branch: inside `if (!origin.private) {`
   expect(src).toMatch(/origin\.private \? null : \(await drawAll\(\[text\]\)\)/);
   expect(src).toMatch(/if \(!origin\.private\) \{\s*const \{ lecturePosters \}[\s\S]{0,400}drawAll\(lectureTexts\)/);
+});
+
+describe("defaultServe", () => {
+  test("a listen that throws closes the server it created, then rejects", async () => {
+    const close = vi.fn(async () => {});
+    const make = async () => ({ listen: async () => { throw new Error("port taken"); }, close });
+    await expect(defaultServe("/x", make)()).rejects.toThrow("port taken");
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+  test("a good listen returns the url and a close", async () => {
+    const close = vi.fn(async () => {});
+    const s = await defaultServe("/x", async () => ({ listen: async () => {}, close }))();
+    expect(s.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/$/);
+    await s.close();
+    expect(close).toHaveBeenCalledTimes(1);
+  });
 });

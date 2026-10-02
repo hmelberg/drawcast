@@ -220,7 +220,7 @@ YAML it writes, so a revision never leaves an old ending behind.
 
 If Chromium or the dev server is not there (the portable skill, outside the
 repo), the push goes ahead without a picture and says so in one line:
-"No picture drawn (no headless browser) — the link will show a plain card.
+"No picture drawn (no headless browser) — the link keeps its old picture, or shows a plain card.
 Publish once from the app to add it." A missing picture never stops a push.
 
 **Backfill.** `pull` then `push` adds the pictures (a new picture is a real

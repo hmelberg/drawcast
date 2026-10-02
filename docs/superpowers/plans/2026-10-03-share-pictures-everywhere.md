@@ -16,7 +16,7 @@
 - One picture per cast, made only by `posterForPlaylistText`: the author's `poster:` image if it can be fetched, otherwise the finished drawing of the last content part. 1000×750 PNG. No second drawing rule.
 - File name: `posterPathFor(path)`, the `.yaml` path with `.png`, next to the cast or lecture.
 - Public only. A private push (`origin.private`) draws nothing; `lockPrivate` still deletes old posters, as today. Unlisted public casts get pictures.
-- A missing picture never stops a push. If the browser or server can't start, or a drawing fails, push goes ahead without that picture and prints one line: `No picture drawn (<reason>) — the link will show a plain card.`
+- A missing picture never stops a push. If the browser or server can't start, or a drawing fails, push goes ahead without that picture and prints one line: `No picture drawn (<reason>) — the link keeps its old picture, or shows a plain card.`
 - Every public push redraws the picture for every cast or lecture file it writes, so a revision never leaves an old ending.
 - A picture that is byte-identical to the one on GitHub is not a change. A new or different picture *is* a real change, so `pull` then `push` adds pictures to an older repo. That replaces the spec's separate `pictures` command: same result, no new command.
 - Run muted: launch Chromium with `--mute-audio`, and the harness never plays.
@@ -441,7 +441,7 @@ Keep the `console.log` of `changes` and the `if (!real.length)` and `if (dry)` l
 (f) After the `console.log` of changes, print the note when there is one:
 
 ```js
-    if (pictureNote) console.log(`No picture drawn (${pictureNote}) — the link will show a plain card.`);
+    if (pictureNote) console.log(`No picture drawn (${pictureNote}) — the link keeps its old picture, or shows a plain card.`);
 ```
 
 `withVite` (middleware mode, for `ssrLoadModule`) and `drawPictures`' own Vite server (listening, for the browser) are separate servers. Both are closed when their work ends.

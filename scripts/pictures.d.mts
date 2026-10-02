@@ -9,3 +9,8 @@ export function drawPictures(
     perCastMs?: number;
   },
 ): Promise<{ pictures: (Uint8Array | null)[]; note: string | null }>;
+export function defaultServe(
+  root: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  make?: (config: any) => Promise<{ listen(): Promise<unknown>; close(): Promise<void> }>,
+): () => Promise<{ url: string; close(): Promise<void> }>;

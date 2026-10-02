@@ -206,9 +206,11 @@ describe("a course's picture is its first lecture's", () => {
     expect(html).toContain('og:image" content="https://drawcast.app/share-card.png"');
   });
   test("a lecture whose text can't be read: no picture streamed", async () => {
-    const res = await handleCardRequest(get("/card/qaly.png", FB), course({ fetchText: async (url) => (url.endsWith("course.md") ? MD : null) }));
+    const d = course({ fetchText: async (url) => (url.endsWith("course.md") ? MD : null) });
+    const res = await handleCardRequest(get("/card/qaly.png", FB), d);
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("https://drawcast.app/share-card.png");
+    expect(d.fetched.some((u) => u.endsWith(".png"))).toBe(false);
   });
 });
 
