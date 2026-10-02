@@ -36,8 +36,8 @@ export const DEFAULT_PREFIXES = ["lucide", "tabler", "ph", "heroicons", "materia
 /** Tried second, only once every permissive set has come up empty: attribution owed (the `credit` line pays it). */
 export const BY_PREFIXES = ["fa6-solid", "fa6-regular", "twemoji"];
 
-/** Bump when the resolver's output changes — old cache entries stop matching. 2: the SVG itself (spec/icon-data.ts `ics1:`), per look. */
-const ICON_VERSION = 2;
+/** Bump when the resolver's output changes — old cache entries stop matching. 2: the SVG itself (spec/icon-data.ts `ics1:`), per look; 3: pictures by twemoji name and alias. */
+const ICON_VERSION = 3;
 
 export function iconSearchUrl(q: string, prefixes: string[]): string {
   return `https://api.iconify.design/search?query=${encodeURIComponent(q)}&limit=5&prefixes=${prefixes.join(",")}`;
@@ -55,6 +55,30 @@ export { svgToRings };
 
 /** Tried first for a PICTURE (round 6 §8) when no set is pinned: a colour set, credited like any CC BY set. */
 export const PICTURE_PREFIXES = ["twemoji"];
+
+/** Common keywords whose twemoji goes by another name (each checked against the set). */
+export const PICTURE_ALIASES: Record<string, string> = {
+  car: "automobile", lightning: "high-voltage", heart: "red-heart", money: "money-bag", cash: "dollar-banknote",
+  phone: "mobile-phone", computer: "laptop", doctor: "health-worker", medicine: "pill", vaccine: "syringe",
+  idea: "light-bulb", bulb: "light-bulb", clock: "alarm-clock", time: "hourglass-done", book: "open-book",
+  bike: "bicycle", plane: "airplane", train: "locomotive", boat: "sailboat", virus: "microbe", bacteria: "microbe",
+  bacterium: "microbe", germ: "microbe", globe: "globe-showing-europe-africa", earth: "globe-showing-europe-africa",
+  world: "globe-showing-europe-africa", water: "droplet", trash: "wastebasket", chart: "chart-increasing",
+  graph: "chart-increasing", lock: "locked", mail: "envelope", email: "envelope", tree: "deciduous-tree",
+  flower: "blossom", home: "house", rain: "cloud-with-rain", snow: "snowflake", gift: "wrapped-gift",
+  target: "direct-hit", check: "check-mark-button", cross: "cross-mark", question: "red-question-mark",
+  dice: "game-die", die: "game-die", shop: "convenience-store", store: "convenience-store", cart: "shopping-cart",
+  food: "fork-and-knife-with-plate", apple: "red-apple", bee: "honeybee", sheep: "ewe", people: "busts-in-silhouette",
+  heartbeat: "beating-heart", plug: "electric-plug", tool: "hammer-and-wrench", tools: "hammer-and-wrench",
+  bag: "handbag", map: "world-map", flag: "triangular-flag", moon: "crescent-moon", music: "musical-note",
+  tv: "television",
+};
+
+/** The twemoji names a picture keyword tries, in order: an alias, the keyword itself, "<keyword>-face". */
+export function pictureNames(of: string): string[] {
+  const s = slug(of);
+  return [...new Set([PICTURE_ALIASES[s], s, `${s}-face`].filter((n): n is string => !!n))];
+}
 
 export interface IconDeps {
   fetch: typeof fetch;
@@ -89,15 +113,14 @@ function iconCacheKey(of: string, set: string | undefined, look: IconLook): stri
   return `ic${ICON_VERSION}|${set ? "" : look}|${set ?? "*"}|${of.trim().toLowerCase()}`;
 }
 
-/** The first `prefix:name` result whose prefix's licence class is allowed (and, given `exactName`, whose name is exactly that), or null. */
-function firstAllowed(icons: unknown, allow: ("permissive" | "by")[], exactName?: string): { prefix: string; name: string } | null {
+/** The first `prefix:name` result whose prefix's licence class is allowed, or null. */
+function firstAllowed(icons: unknown, allow: ("permissive" | "by")[]): { prefix: string; name: string } | null {
   if (!Array.isArray(icons)) return null;
   for (const entry of icons) {
     if (typeof entry !== "string") continue;
     const sep = entry.indexOf(":");
     if (sep < 0) continue;
     const prefix = entry.slice(0, sep), name = entry.slice(sep + 1);
-    if (exactName !== undefined && name !== exactName) continue;
     const row = ICON_SETS[prefix];
     if (row && (allow as string[]).includes(row.cls)) return { prefix, name };
   }
@@ -139,6 +162,9 @@ const keySet = (key: unknown): string => (typeof key === "string" && key.include
  * data asked for as a picture is resolved again for the artwork, and kept
  * when that fails — a drawn icon beats none. Throws with the reason.
  */
+/** Old rings-only icons whose picture could not be had this session: not asked again on every render (offline). */
+const pictureMisses = new Set<string>();
+
 async function fillOne(
   spec: Spec,
   host: Record<string, unknown>,
@@ -150,7 +176,8 @@ async function fillOne(
 ): Promise<void> {
   const have = host[f.data];
   const fresh = isIconData(have) && iconKeyMatches(host[f.key], req);
-  if (fresh && !(look === "picture" && decodeIconSvg(have) === null)) return;
+  const legacy = look === "picture" && decodeIconSvg(have) === null;
+  if (fresh && (!legacy || pictureMisses.has(iconAssetName(req, look)))) return;
   const kept = fresh ? { data: have, key: host[f.key], credit: host[f.credit] } : null;
   // Unresolved, or resolved for an icon since edited: never keep a wrong picture.
   delete host[f.data];
@@ -162,6 +189,7 @@ async function fillOne(
     host[f.key] = iconKey(req.of, got.set);
   } catch (err) {
     if (!kept) throw err;
+    pictureMisses.add(iconAssetName(req, look));
     host[f.data] = kept.data;
     if (kept.key !== undefined) host[f.key] = kept.key;
     if (kept.credit !== undefined) host[f.credit] = kept.credit;
@@ -247,29 +275,49 @@ async function resolveKeyword(spec: Spec, req: IconAsk, look: IconLook, deps: Ic
   const cached = await cacheGet(key);
   if (cached && decodeIconSvg(cached)) return fromData(cached);
   let prefix: string, iconName: string;
+  let svg: string | null = null;
+  let svgName = "";
   if (requestedSet) {
     prefix = requestedSet;
     iconName = slug(of);
   } else {
-    const search = async (prefixes: string[], allow: ("permissive" | "by")[], exact = false) => {
-      const res = await deps.fetch(iconSearchUrl(of, prefixes));
-      const json = res.ok ? ((await res.json()) as { icons?: unknown }) : { icons: [] };
-      const hit = firstAllowed(json.icons, allow, exact ? slug(of) : undefined);
-      return hit;
-    };
-    // The colour set only when it has the keyword itself: its search ranks
-    // "tram-car" for "car", and a wrong picture is worse than an ink one.
-    let hit = look === "picture" ? await search(PICTURE_PREFIXES, ["by"], true) : null;
-    hit ??= await search(DEFAULT_PREFIXES, ["permissive"]);
-    hit ??= await search(BY_PREFIXES, ["by"]);
-    if (!hit) throw new Error(`no icon found for "${of}"`);
-    prefix = hit.prefix;
-    iconName = hit.name;
+    // A picture tries the colour set by NAME first (fix round 1): the
+    // keyword's own twemoji, an alias (car → automobile), then "<kw>-face".
+    // Its search ranks "tram-car" for "car"; a wrong picture is worse than
+    // an ink one, so a miss simply falls through to the line icons.
+    if (look === "picture") {
+      for (const name of pictureNames(of)) {
+        const res = await deps.fetch(iconSvgUrl(PICTURE_PREFIXES[0], name));
+        if (!res.ok) continue;
+        const text = await res.text();
+        if (svgToRings(text).length === 0) continue;
+        svg = text;
+        svgName = name;
+        break;
+      }
+    }
+    if (svg !== null) {
+      prefix = PICTURE_PREFIXES[0];
+      iconName = svgName;
+    } else {
+      const search = async (prefixes: string[], allow: ("permissive" | "by")[]) => {
+        const res = await deps.fetch(iconSearchUrl(of, prefixes));
+        const json = res.ok ? ((await res.json()) as { icons?: unknown }) : { icons: [] };
+        return firstAllowed(json.icons, allow);
+      };
+      let hit = await search(DEFAULT_PREFIXES, ["permissive"]);
+      hit ??= await search(BY_PREFIXES, ["by"]);
+      if (!hit) throw new Error(`no icon found for "${of}"`);
+      prefix = hit.prefix;
+      iconName = hit.name;
+    }
   }
-  const svgRes = await deps.fetch(iconSvgUrl(prefix, iconName));
-  if (!svgRes.ok) throw new Error(`Iconify fetch failed (${svgRes.status}) for "${prefix}:${iconName}"`);
-  const svg = await svgRes.text();
-  if (svgToRings(svg).length === 0) throw new Error(`no outline found for "${prefix}:${iconName}"`);
+  if (svg === null) {
+    const svgRes = await deps.fetch(iconSvgUrl(prefix, iconName));
+    if (!svgRes.ok) throw new Error(`Iconify fetch failed (${svgRes.status}) for "${prefix}:${iconName}"`);
+    svg = await svgRes.text();
+    if (svgToRings(svg).length === 0) throw new Error(`no outline found for "${prefix}:${iconName}"`);
+  }
   const data = encodeIconSvg(prefix, iconName, svg);
   await cachePut(key, data);
   return fromData(data);
@@ -308,7 +356,9 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
     const look = iconLookOf(el);
     const have = inlineStrokes(spec, el);
     const fresh = !el.of || iconKeyMatches(el.icon_key, { of: el.of, ...(el.set ? { set: el.set } : {}) });
-    if (have && isIconData(have) && fresh && !(look === "picture" && el.of && decodeIconSvg(have) === null)) {
+    const missName = el.of ? iconAssetName({ of: el.of, ...(el.set ? { set: el.set } : {}) }, look) : "";
+    const legacy = look === "picture" && !!el.of && decodeIconSvg(have) === null && !pictureMisses.has(missName);
+    if (have && isIconData(have) && fresh && !legacy) {
       results.push({ id: el.id, ok: true });
       continue;
     }
@@ -329,12 +379,14 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
     try {
       const got = await resolveKeyword(spec, { of: el.of, ...(set ? { set } : {}) }, look, deps, opts);
       el.strokes = got.strokes;
-      el.set = got.set;
+      // `set` stays the author's (fix round 1): pinning the one found would
+      // keep a later icon_look: picture from ever reaching the colour set.
       el.credit = got.credit;
       el.icon_key = iconKey(el.of, got.set);
       results.push({ id: el.id, ok: true });
     } catch (err) {
       if (kept) {
+        pictureMisses.add(missName);
         el.strokes = kept.strokes;
         results.push({ id: el.id, ok: true });
         continue;

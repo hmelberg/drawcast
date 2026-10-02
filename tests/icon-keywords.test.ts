@@ -20,7 +20,7 @@ import {
   registerIconStore,
   withIconData,
 } from "../src/spec/icon-data";
-import { iconSearchUrl, iconSvgUrl, resolveIcons, DEFAULT_PREFIXES, PICTURE_PREFIXES } from "../src/render/icon";
+import { iconSearchUrl, iconSvgUrl, pictureNames, resolveIcons, DEFAULT_PREFIXES } from "../src/render/icon";
 import { embeddedPlaylist } from "../src/publish/embed";
 import { singlePlaylist, itemsOf } from "../src/playlist/playlist";
 import type { Spec } from "../src/spec/types";
@@ -200,21 +200,29 @@ describe("a picture prefers the colour set", () => {
       }) as unknown as typeof fetch,
     };
   };
-  test("a node's bare keyword: twemoji when it has the keyword itself", async () => {
-    const d = routes({ [iconSearchUrl("kw-frog", PICTURE_PREFIXES)]: { icons: ["twemoji:kw-frog"] }, [iconSvgUrl("twemoji", "kw-frog")]: COLOUR });
+  test("the names tried: an alias, the keyword, <keyword>-face", () => {
+    expect(pictureNames("car")).toEqual(["automobile", "car", "car-face"]);
+    expect(pictureNames("Hot pepper")).toEqual(["hot-pepper", "hot-pepper-face"]);
+  });
+  test("a node's bare keyword: twemoji by its own name, no search", async () => {
+    const d = routes({ [iconSvgUrl("twemoji", "kw-frog")]: COLOUR });
     const spec = node({ icon: "kw-frog" });
     expect(await resolveIcons(spec, d)).toEqual([{ id: "b", ok: true }]);
     expect(spec.elements![0].credit).toBe("kw-frog from twemoji · CC BY 4.0");
+    expect(d.asked).toEqual([iconSvgUrl("twemoji", "kw-frog")]);
   });
-  test("…a near miss in the colour set (tram-car for car) falls through to the line icon, in ink", async () => {
-    const d = routes({
-      [iconSearchUrl("kw-car", PICTURE_PREFIXES)]: { icons: ["twemoji:tram-kw-car"] },
-      [iconSearchUrl("kw-car", DEFAULT_PREFIXES)]: { icons: ["tabler:kw-car"] },
-      [iconSvgUrl("tabler", "kw-car")]: SVG,
-    });
+  test("…then <keyword>-face", async () => {
+    const d = routes({ [iconSvgUrl("twemoji", "kw-cat-face")]: COLOUR });
+    const spec = node({ icon: "kw-cat" });
+    await resolveIcons(spec, d);
+    expect(spec.elements![0].credit).toBe("kw-cat-face from twemoji · CC BY 4.0");
+  });
+  test("…no twemoji of that name: the line icon, in ink (never a search's near miss)", async () => {
+    const d = routes({ [iconSearchUrl("kw-car", DEFAULT_PREFIXES)]: { icons: ["tabler:kw-car"] }, [iconSvgUrl("tabler", "kw-car")]: SVG });
     const spec = node({ icon: "kw-car" });
     await resolveIcons(spec, d);
     expect(spec.elements![0].credit).toBe("kw-car from tabler · MIT");
+    expect(d.asked.some((u) => u.includes("prefixes=twemoji"))).toBe(false);
   });
   test("drawn: the colour set is not tried first", async () => {
     const d = routes({ [iconSearchUrl("kw-cow", DEFAULT_PREFIXES)]: { icons: ["lucide:kw-cow"] }, [iconSvgUrl("lucide", "kw-cow")]: SVG });
@@ -222,5 +230,30 @@ describe("a picture prefers the colour set", () => {
     await resolveIcons(spec, d);
     expect(d.asked[0]).toBe(iconSearchUrl("kw-cow", DEFAULT_PREFIXES));
     expect(spec.elements![0].credit).toBe("kw-cow from lucide · ISC");
+  });
+  test("an old rings-only icon whose picture cannot be had is asked for once a session, not every render", async () => {
+    const n = { id: "b", type: "node", shape: "rect", text: "x", icon: "kw-offline-old", icon_strokes: "ic1:[[[0,0],[1,0],[1,1]]]" };
+    const d1 = routes({});
+    await resolveIcons({ elements: [{ ...n }], commands: [] } as unknown as Spec, d1);
+    expect(d1.asked.length).toBeGreaterThan(0);
+    const d2 = routes({});
+    expect(await resolveIcons({ elements: [{ ...n }], commands: [] } as unknown as Spec, d2)).toEqual([{ id: "b", ok: true }]);
+    expect(d2.asked).toEqual([]);
+  });
+});
+
+describe("credits for icons named by keyword (fix round 1)", () => {
+  test("a published copy (data hoisted into assets) still credits its icons", async () => {
+    const { creditsOf } = await import("../src/export/credits");
+    const data = encodeIconSvg("ph", "kw-baby", SVG);
+    const spec = { elements: [{ id: "i", type: "icon", of: "kw-baby", set: "ph", strokes: data, credit: "kw-baby from ph · MIT", x: 1, y: 1 }], commands: [] } as unknown as Spec;
+    hoistIcons(spec);
+    expect(spec.elements![0].credit).toBeUndefined();
+    expect(creditsOf([spec])).toEqual(["kw-baby from ph · MIT"]);
+  });
+  test("a keyword-only example credits from the offline cache; cards too", async () => {
+    const { creditsOf } = await import("../src/export/credits");
+    const spec = { elements: [{ id: "r", type: "cards", items: [{ text: "W", icon: "kw-whale" }, "B"] }], commands: [] } as unknown as Spec;
+    expect(creditsOf([spec])).toEqual(["kw-whale from twemoji · CC BY 4.0"]);
   });
 });

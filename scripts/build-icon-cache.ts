@@ -13,7 +13,7 @@
 // Also `npm run icons`.
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolveIcons } from "../src/render/icon";
-import { iconAssetName, iconSlots, isIconData, type IconAsk, type IconLook } from "../src/spec/icon-data";
+import { iconAssetName, iconCreditOf, iconSlots, isIconData, type IconAsk, type IconLook } from "../src/spec/icon-data";
 import { itemsOf, parsePlaylistText } from "../src/playlist/playlist";
 import type { Spec } from "../src/spec/types";
 
@@ -132,7 +132,9 @@ if (args.has("--strip")) {
         stripped++;
       }
       delete host[s.data === "match_icon_strokes" ? "match_icon_key" : "icon_key"];
-      delete host[s.credit];
+      // A credit goes only when the cached data rebuilds that very line; one
+      // written by hand (or for other artwork) stays.
+      if (host[s.credit] !== undefined && host[s.credit] === iconCreditOf(next[iconAssetName(s.ask, s.look)])) delete host[s.credit];
     }
   }
   writeFileSync(EXAMPLES, `${JSON.stringify(examples, null, 2)}\n`);

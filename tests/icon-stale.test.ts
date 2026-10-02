@@ -85,11 +85,11 @@ describe("stale icon strokes", () => {
     expect(d.asked).toEqual([]);
   });
 
-  test("an icon element: its `set` was filled by the resolver, so a new `of` is searched afresh", async () => {
+  test("an icon element: the resolver never pins a `set`, so a new `of` is searched afresh", async () => {
     const el = { id: "i", type: "icon", of: "stale-cow", x: 1, y: 1 } as Record<string, unknown>;
     const spec = { elements: [el], commands: [] };
     await resolveIcons(spec as never, deps(routes));
-    expect(el.set).toBe("tabler");
+    expect(el.set).toBeUndefined();
     expect(el.icon_key).toBe("stale-cow@tabler");
     const first = el.strokes;
     el.of = "stale-pig";
@@ -125,6 +125,15 @@ describe("stale icon strokes", () => {
     const v = validateSpec(spec as never);
     expect(v.ok, JSON.stringify(v)).toBe(true);
   });
+});
+
+test("an older document whose `set` the resolver once filled: a new `of` is still searched afresh", async () => {
+  const el = { id: "i", type: "icon", of: "stale-pig", set: "ph", icon_key: "stale-cow@ph", strokes: "ic1:[[[0,0],[1,0],[1,1]]]", x: 1, y: 1 } as Record<string, unknown>;
+  const d = deps(routes);
+  expect(await resolveIcons({ elements: [el], commands: [] } as never, d)).toEqual([{ id: "i", ok: true }]);
+  // The search found tabler's pig (not ph's, nor a fetch pinned to the old key's set).
+  expect(el.icon_key).toBe("stale-pig@tabler");
+  expect(el.strokes).not.toBe("ic1:[[[0,0],[1,0],[1,1]]]");
 });
 
 describe("bundled examples carry keywords only (round 6 §8)", () => {

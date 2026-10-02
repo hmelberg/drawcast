@@ -9,6 +9,7 @@
 // filtering by type is how the seed credit went missing.
 
 import type { Spec } from "../spec/types";
+import { iconAssetName, iconCreditOf, iconSlots, storedIcon } from "../spec/icon-data";
 
 /**
  * Every distinct credit line across a set of specs (typically a playlist's
@@ -35,6 +36,13 @@ export function creditsOf(specs: Spec[]): string[] {
           }
         }
       }
+    }
+    // An icon named by keyword only (round 6 §8) carries no credit line — a
+    // published copy hoists it with its data into `assets:` — so the line is
+    // rebuilt from the data: inline, the spec's assets, or the offline cache.
+    for (const slot of iconSlots(spec)) {
+      if (typeof slot.host[slot.credit] === "string") continue;
+      add(iconCreditOf(slot.host[slot.data]) ?? iconCreditOf(storedIcon(spec, iconAssetName(slot.ask, slot.look))));
     }
   }
   return out;

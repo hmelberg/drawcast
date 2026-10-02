@@ -16,7 +16,8 @@ describe("resolveIcons", () => {
     const el = spec.elements[0] as { strokes?: string; credit?: string; set?: string };
     expect(iconRingsOf(el.strokes!)!.length).toBe(1);
     expect(el.credit).toBe("factory from lucide · ISC");
-    expect(el.set).toBe("lucide");
+    // The set found is in the key, never pinned on the element (fix round 1).
+    expect(el.set).toBeUndefined();
   });
   test("permissive miss falls back to CC BY sets", async () => {
     const spec = { elements: [{ id: "f", type: "icon", of: "flask", x: 1, y: 1 }], commands: [] };
