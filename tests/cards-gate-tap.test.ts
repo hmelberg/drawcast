@@ -283,3 +283,17 @@ describe("the deck", () => {
     }
   });
 });
+
+describe("rapid taps (final fix wave E)", () => {
+  test("a second tap on the same spot while the card is still gliding away moves it on again", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    tap(o.gate, g.home[0]);
+    await wait(60);
+    tap(o.gate, g.home[0]);
+    await wait(400);
+    o.answer().click();
+    await o.done;
+    expect(decodeArrangement(g, o.result()!)!.boxes).toEqual([[], [0]]);
+  });
+});

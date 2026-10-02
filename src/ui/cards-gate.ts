@@ -263,6 +263,10 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       // —— pointer ——
       /** `start`: where the press began, in client px (a tap's jitter is measured on the screen). */
       let dragging: { card: number; grab: Pt; start: Pt; moved: boolean; at: Pt } | null = null;
+      /** The last tap's card and where it landed: a quick second tap there
+       *  finds the card still gliding away (final fix wave E — not dropped). */
+      let lastTap: { card: number; at: Pt; t: number } | null = null;
+      const TAP_AGAIN_MS = 450;
       gate.addEventListener("pointerdown", (e) => {
         if (settled || (e.target as Element).closest("button")) return;
         e.preventDefault();
@@ -274,7 +278,8 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           dealTo(binAt(p));
           return;
         }
-        const card = cardAt(g, shown, p);
+        let card = cardAt(g, shown, p);
+        if (card < 0 && lastTap && performance.now() - lastTap.t < TAP_AGAIN_MS && Math.abs(p[0] - lastTap.at[0]) <= g.w / 2 && Math.abs(p[1] - lastTap.at[1]) <= g.h / 2) card = lastTap.card;
         if (card < 0) {
           // fill: a tapped tile, then a tap on a box, puts it there.
           if (mode === "fill" && picked >= 0) {
@@ -361,6 +366,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
             // boxes and back to the row (a tile: the first empty blank first).
             // fill: a tap on a box next puts the tapped tile there instead.
             arr = tapCard(g, arr, card);
+            lastTap = { card, at, t: performance.now() };
             if (mode === "fill") picked = card;
             focus = card;
             settle();
