@@ -49,8 +49,16 @@ function defaultServe(root) {
   };
 }
 
-function within(ms, p) {
-  return Promise.race([p, new Promise((ok) => setTimeout(() => ok(null), ms))]);
+const TIMED_OUT = Symbol("timed out");
+
+/** The promise's value, or TIMED_OUT after ms; the timer never outlives the race. */
+async function within(ms, p) {
+  let timer;
+  try {
+    return await Promise.race([p, new Promise((ok) => { timer = setTimeout(() => ok(TIMED_OUT), ms); })]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function drawPictures(texts, opts = {}) {
@@ -63,12 +71,24 @@ export async function drawPictures(texts, opts = {}) {
   try {
     server = await serve();
     browser = await launch();
-    const page = await browser.newPage({ viewport: { width: 1000, height: 750 } });
-    await page.goto(`${server.url}frames.html`);
-    await page.waitForFunction(() => typeof window.__poster === "function", null, { timeout: 60000 });
+    const open = async () => {
+      const page = await browser.newPage({ viewport: { width: 1000, height: 750 } });
+      await page.goto(`${server.url}frames.html`);
+      await page.waitForFunction(() => typeof window.__poster === "function", null, { timeout: 60000 });
+      return page;
+    };
+    let page = await open();
     const pictures = [];
     for (const text of texts) {
+      if (!page) { pictures.push(null); continue; }
       const b64 = await within(perCastMs, page.evaluate((t) => window.__poster(t), text).catch(() => null));
+      if (b64 === TIMED_OUT) {
+        // A real hang blocks the page's JS thread: later drawings would all time out too.
+        pictures.push(null);
+        await page.close?.().catch(() => undefined);
+        page = await open().catch(() => null);
+        continue;
+      }
       pictures.push(decodePicture(b64));
     }
     return { pictures, note: null };

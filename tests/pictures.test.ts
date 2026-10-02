@@ -1,14 +1,14 @@
 // Pictures drawn by the script (spec 2026-10-02-share-design §7.1): the
 // pure parts of drawPictures — order kept, failures are nulls, a launcher
 // that cannot start is one note and no pictures, never a throw.
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { decodePicture, drawPictures } from "../scripts/pictures.mjs";
 
 const PNG = Buffer.from([137, 80, 78, 71]).toString("base64");
 
-function fakeLaunch(answers: Record<string, string | null | "throw" | "hang">) {
+function fakeLaunch(answers: Record<string, string | null | "throw" | "hang">, counter = { pages: 0 }) {
   return async () => ({
-    newPage: async () => ({
+    newPage: async () => (counter.pages++, {
       goto: async () => undefined,
       waitForFunction: async () => undefined,
       evaluate: async (_fn: unknown, text: string) => {
@@ -41,6 +41,24 @@ describe("drawPictures", () => {
     const out = await drawPictures(["slow", "a"], { launch: fakeLaunch({ slow: "hang", a: PNG }), perCastMs: 50, serve: okServe });
     expect(out.pictures[0]).toBeNull();
     expect(out.pictures[1]).toEqual(new Uint8Array([137, 80, 78, 71]));
+  });
+  test("after a timeout a fresh page is opened for the next cast", async () => {
+    const counter = { pages: 0 };
+    await drawPictures(["slow", "a"], { launch: fakeLaunch({ slow: "hang", a: PNG }, counter), perCastMs: 50, serve: okServe });
+    expect(counter.pages).toBe(2);
+    const fine = { pages: 0 };
+    await drawPictures(["a", "a"], { launch: fakeLaunch({ a: PNG }, fine), serve: okServe });
+    expect(fine.pages).toBe(1);
+  });
+  test("a fast drawing leaves no timer behind", async () => {
+    vi.useFakeTimers();
+    try {
+      const out = await drawPictures(["a"], { launch: fakeLaunch({ a: PNG }), perCastMs: 60000, serve: okServe });
+      expect(out.pictures[0]).toEqual(new Uint8Array([137, 80, 78, 71]));
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
   test("no browser: every picture null, one note, no throw", async () => {
     const out = await drawPictures(["a", "b"], { launch: async () => { throw new Error("no headless Chromium — run: npx playwright-core install chromium-headless-shell"); }, serve: okServe });
