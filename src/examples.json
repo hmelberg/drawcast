@@ -78640,7 +78640,7 @@
             {
               "text": "Penicillin",
               "match": "Kills bacteria",
-              "icon": "capsule",
+              "icon": "pill",
               "match_icon": {
                 "of": "bacterium",
                 "set": "fa6-solid"
