@@ -181,8 +181,7 @@ and stacked charts keep one colour per series, as now).
 - **Not given, decided from the labels:** `"same"` when the bars are one
   quantity over ordered levels, i.e. every label is a number, a year, a
   numeric range or bin (`"0–9"`, `"10-19"`, `"<5"`, `"65+"`), a month or a
-  weekday; also when the cast says `histogram` in its template params. Otherwise
-  (names of things) `"each"`.
+  weekday. Otherwise (names of things) `"each"`.
 - The guess and the beside reveal use the bar's own colour for the true half
   (round 6 already says "in the chart's own colour"); "yours" stays blue.
   Check that blue "yours" reads clearly next to a blue-ish series colour; if
