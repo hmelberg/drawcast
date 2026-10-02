@@ -288,3 +288,22 @@ describe("market asks in the player", () => {
     expect(speech.said.some((s) => s.startsWith("No:") || s.startsWith("Yes:"))).toBe(false);
   });
 });
+
+describe("keep on a market prediction (round 6 §5, fix round 1)", () => {
+  test("does nothing: a seek past the animate shows what it shows without keep", async () => {
+    const run = async (keep: boolean) => {
+      const ask = { ask: { ...(ASK as unknown as { ask: Record<string, unknown> }).ask, ...(keep ? { keep: true } : {}) } } as Command;
+      const { player, marks } = makePlayer([{ draw: IDS }, ask, { animate: { "tax.amount": 40 }, duration: 0.2 }, { speak: "End." }]);
+      player.askGate = async () => "0;40";
+      await player.play();
+      const played = JSON.stringify(marks.get("guess_1") ?? null);
+      player.renderUpTo(0);
+      player.renderUpTo(4);
+      return { played, seek: JSON.stringify(marks.get("guess_1") ?? null) };
+    };
+    const kept = await run(true);
+    const plain = await run(false);
+    expect(kept.played).not.toBe("null");
+    expect(kept).toEqual(plain);
+  });
+});

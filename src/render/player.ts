@@ -175,6 +175,18 @@ const ownerBase = (owner: string): string => owner.replace(/_(prev|account)$/, "
 const touches = (ids: readonly string[], parts: readonly string[]): boolean =>
   ids.some((id) => parts.some((p) => id === p || id.startsWith(`${p}_`) || p.startsWith(`${id}_`)));
 
+/** Marks shifted by (dx, dy) — a kept guess's part moved; null leaves them. */
+function shiftMarks(m: GuessMarks, d: Pt | null): GuessMarks {
+  if (!d || (d[0] === 0 && d[1] === 0)) return m;
+  const at = (p: Pt): Pt => [p[0] + d[0], p[1] + d[1]];
+  return {
+    ...m,
+    lines: m.lines.map((l) => ({ ...l, pts: l.pts.map(at) })),
+    texts: m.texts.map((t) => ({ ...t, at: at(t.at) })),
+    ...(m.dots ? { dots: m.dots.map((dot) => ({ ...dot, at: at(dot.at) })) } : {}),
+  };
+}
+
 /** The ids a move, a transform or a morph reshapes (a guessed part among them ends its marks); null for any other step. */
 function reshapedIds(step: PlanStep): string[] | null {
   if (step.kind === "move") return step.ids;
@@ -1803,7 +1815,7 @@ export class Player {
       this.applyScene(after);
       this.guessOwners.add(owner);
       this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, 0));
-      this.keepGuess(owner, index, step, guess, "held", fits(prev) ? prev : undefined);
+      this.keepGuess(owner, index, step, setup.handles, guess, "held", fits(prev) ? prev : undefined);
       if (step.right) await this.speakLine(step.right, step, signal);
       return;
     }
@@ -1858,7 +1870,7 @@ export class Player {
       this.applyScene(this.plan.states[index]);
       this.effects?.setGuessMarks?.(owner, this.besides.get(owner)?.marks ?? null);
     }
-    this.keepGuess(owner, index, step, guess, step.revealStyle === "morph" ? "morph" : "beside", fits(prev) ? prev : undefined);
+    this.keepGuess(owner, index, step, setup.handles, guess, step.revealStyle === "morph" ? "morph" : "beside", fits(prev) ? prev : undefined);
     await spoken;
     if (live && answered && judged) {
       const target = ok ? step.rightGoto : step.wrongGoto;
@@ -2778,26 +2790,64 @@ export class Player {
    * (its room is a place in the old layout) and comes back once the figure
    * has settled (refollow). `except`: a prediction's own animate.
    */
-  private endWithMoment(ids: readonly string[] | null, except?: string): string[] {
+  private endWithMoment(ids: readonly string[] | null, except?: string, move = false): string[] {
     const follow: string[] = [];
     for (const owner of new Set([...this.guessOwners, ...this.besides.keys()])) {
       if (!owner.startsWith("guess_")) continue;
       const base = ownerBase(owner);
       if (base === except) continue;
       if (ids !== null && !touches(ids, this.guessMarkParts.get(base) ?? [])) continue;
-      if (!this.kept.has(base)) {
+      // Unkept — or turned, scaled or morphed, which no answer can be laid out on again.
+      if (!this.kept.has(base) || (ids !== null && !move)) {
         this.endOwner(owner);
         continue;
       }
-      if (ids !== null || owner !== base) continue;
+      if (owner !== base) continue;
+      if (ids !== null) {
+        // Moved: out of sight while it moves, then shifted with it (refollow after the move).
+        this.hideKept(owner);
+        this.keptMoving = true;
+        continue;
+      }
       const b = this.besides.get(owner);
       if (b?.params && "beside_pie" in b.params) {
         this.besides.set(owner, Player.withoutPie(b));
         this.geometryDirty = true;
-        this.effects?.setGuessMarks?.(owner, null);
+        this.hideKept(owner);
       } else follow.push(owner);
     }
     return follow;
+  }
+
+  /** A kept guess's marks (and a revise's first guess) off screen for a while; refollow draws them again. */
+  private hideKept(owner: string): void {
+    this.effects?.setGuessMarks?.(owner, null);
+    if (this.guessOwners.has(`${owner}_prev`)) this.effects?.setGuessMarks?.(`${owner}_prev`, null);
+  }
+  /** A kept guess's part is moving (its marks hidden): refollow once the move is done. */
+  private keptMoving = false;
+
+  /** Kept guesses on screen that follow their part through an animate (a pie pair steps aside instead). */
+  private keptFollowing(): string[] {
+    const out: string[] = [];
+    for (const owner of this.kept.keys()) {
+      if (!this.guessOwners.has(owner)) continue;
+      const b = this.besides.get(owner);
+      if (b?.params && "beside_pie" in b.params) continue;
+      out.push(owner);
+    }
+    return out;
+  }
+
+  /** Where a kept guess's part has been moved to (its offset, or its group's), or null. */
+  private keptOffset(owner: string, scene: SceneState): Pt | null {
+    const parts = this.guessMarkParts.get(owner) ?? [];
+    for (const p of parts) {
+      const own = scene.offsets[p];
+      if (own) return own;
+    }
+    for (const [id, off] of Object.entries(scene.offsets)) if (parts.some((p) => p.startsWith(`${id}_`))) return off;
+    return null;
   }
 
   /** A beside record without its pie's room. */
@@ -2819,18 +2869,17 @@ export class Player {
     return hs;
   }
 
-  /** A kept guess's marks on these handles (yours faded once a command has followed a beside reveal). */
-  private keptMarks(r: KeptGuess, hs: GuessHandle[], faded: boolean): GuessMarks {
-    if (r.style === "held") return guessMarks(hs, r.guess, 0);
-    if (r.style === "morph") return guessMarks(hs, r.guess, 1);
-    const m = besideMarks(hs, r.guess, hs.map(() => 1));
-    return faded ? fadeYours(m, FADED) : m;
+  /** A kept guess's marks on these handles (yours faded once a command has followed a beside reveal), shifted by its part's move. */
+  private keptMarks(r: KeptGuess, hs: GuessHandle[], faded: boolean, shift: Pt | null = null): GuessMarks {
+    const m0 = r.style === "held" ? guessMarks(hs, r.guess, 0) : r.style === "morph" ? guessMarks(hs, r.guess, 1) : besideMarks(hs, r.guess, hs.map(() => 1));
+    const m = shiftMarks(m0, shift);
+    return faded && r.style === "beside" ? fadeYours(m, FADED) : m;
   }
 
   /** Draw a kept guess (and a revise's first guess) on these handles. */
-  private drawKept(owner: string, r: KeptGuess, hs: GuessHandle[]): void {
-    this.effects?.setGuessMarks?.(owner, this.keptMarks(r, hs, this.besides.get(owner)?.faded ?? false));
-    if (r.prev && this.guessOwners.has(`${owner}_prev`)) this.effects?.setGuessMarks?.(`${owner}_prev`, { ...guessMarks(hs, r.prev, 0), color: GUESS_PREV_COLOR });
+  private drawKept(owner: string, r: KeptGuess, hs: GuessHandle[], shift: Pt | null = null): void {
+    this.effects?.setGuessMarks?.(owner, this.keptMarks(r, hs, this.besides.get(owner)?.faded ?? false, shift));
+    if (r.prev && this.guessOwners.has(`${owner}_prev`)) this.effects?.setGuessMarks?.(`${owner}_prev`, shiftMarks({ ...guessMarks(hs, r.prev, 0), color: GUESS_PREV_COLOR }, shift));
   }
 
   /**
@@ -2865,15 +2914,16 @@ export class Player {
         roomMoved = true;
         continue;
       }
+      const shift = this.keptOffset(owner, scene);
       const b = this.besides.get(owner);
       if (b) {
         const room = r.style === "beside" ? besideParams(hs, hs.map(() => 1)) : {};
         const { params: _old, ...rest } = b;
-        const next: Beside = { ...rest, marks: this.keptMarks(r, hs, false), ...(Object.keys(room).length > 0 ? { params: room } : {}) };
+        const next: Beside = { ...rest, marks: this.keptMarks(r, hs, false, shift), ...(Object.keys(room).length > 0 ? { params: room } : {}) };
         if (JSON.stringify(next.params ?? null) !== JSON.stringify(b.params ?? null)) roomMoved = true;
         this.besides.set(owner, next);
       }
-      this.drawKept(owner, r, hs);
+      this.drawKept(owner, r, hs, shift);
     }
     if (roomMoved) {
       this.geometryDirty = true;
@@ -2884,8 +2934,9 @@ export class Player {
   }
 
   /** Remember an answered guess as kept when its ask says `keep: true`. */
-  private keepGuess(owner: string, index: number, step: Extract<PlanStep, { kind: "ask" }>, guess: number[][], style: KeptGuess["style"], prev?: number[][]): void {
-    if (!step.keep || !step.on) return;
+  private keepGuess(owner: string, index: number, step: Extract<PlanStep, { kind: "ask" }>, handles: GuessHandle[], guess: number[][], style: KeptGuess["style"], prev?: number[][]): void {
+    // A market curve's truth is the end of its animate: nothing to lay it out on again (lint warns).
+    if (!step.keep || !step.on || handles.some((h) => h.kind === "market")) return;
     const r: KeptGuess = { index, on: step.on, ...(step.from !== undefined ? { from: step.from } : {}), guess: guess.map((row) => row.slice()), style, ...(prev ? { prev: prev.map((row) => row.slice()) } : {}) };
     this.kept.set(owner, r);
     this.keptMemory.set(owner, r);
@@ -2901,10 +2952,17 @@ export class Player {
     if ((st.kind === "erase" || st.kind === "hide") && touches(st.ids, parts)) return true;
     if (owner.startsWith("tree_") || owner.startsWith("formula_")) return false;
     if (st.kind === "ask") return !kept || touches(st.on ?? [], parts);
-    if (!owner.startsWith("guess_") || kept) return false;
-    if (st.kind === "animate") return true;
+    if (!owner.startsWith("guess_")) return false;
     const ids = reshapedIds(st);
-    return ids !== null && touches(ids, parts);
+    // A turn, a scale or a morph ends even a kept guess; a move carries it along.
+    if (ids !== null && touches(ids, parts)) return !kept || st.kind !== "move";
+    return st.kind === "animate" && !kept && !Player.varsOnly(st);
+  }
+
+  /** An animate of `vars.` only: the template is not laid out again (guess marks stay). */
+  private static varsOnly(st: Extract<PlanStep, { kind: "animate" }>): boolean {
+    const keys = Object.keys(st.targets);
+    return keys.length > 0 && keys.every((k) => k.startsWith("vars."));
   }
 
   /** Whether nothing in steps (from, n) ends the owner's marks. */
@@ -2985,6 +3043,7 @@ export class Player {
   private endMarks(): void {
     for (const owner of [...this.besides.keys()]) this.dropBeside(owner);
     this.kept.clear();
+    this.keptMoving = false;
     this.predictCarry = null;
     this.selfTestAbort?.abort();
     this.selfTestAbort = null;
@@ -3219,8 +3278,13 @@ export class Player {
   /** Step `index`'s action and, all at once, its partners'. */
   private runActions(index: number, signal: AbortSignal): Promise<void> {
     const partners = this.partnersOf(index);
-    if (partners.length === 0) return this.runAction(index, signal);
-    return Promise.all([index, ...partners].map((i) => this.runAction(i, signal))).then(() => undefined);
+    const run = partners.length === 0 ? this.runAction(index, signal) : Promise.all([index, ...partners].map((i) => this.runAction(i, signal))).then(() => undefined);
+    if (!this.keptMoving) return run;
+    // A kept guess's part moved: its marks come back shifted with it.
+    return run.then(() => {
+      this.keptMoving = false;
+      if (!signal.aborted) this.refollow(this.plan.states[index]);
+    });
   }
 
   private async runStep(index: number, signal: AbortSignal): Promise<void> {
@@ -3236,7 +3300,7 @@ export class Player {
     this.fadeBesides(index);
     // A guessed part moved, turned or morphed: its marks end with that moment (spec round 6 §5).
     const reshaped = reshapedIds(step);
-    if (reshaped) this.endWithMoment(reshaped);
+    if (reshaped) this.endWithMoment(reshaped, undefined, step.kind === "move");
     if (step.kind === "explore" && (this.skipQuestions || this.autoAnswers || !this.exploreGate)) {
       // Nobody is there to play (a movie, questions off): stand in the way a
       // movie answers an ask — as a perfect viewer — so later {x} lines read
@@ -3951,7 +4015,8 @@ export class Player {
         // room the truth took go before the tween — the bars whole again in
         // the animate's own frames (example 386: the chart moves to the left).
         // A kept guess (§5) stays and follows its part, frame by frame.
-        const follow = this.endWithMoment(null, carry?.owner);
+        // An animate of vars only lays nothing out again: every guess's marks stay (and redraw).
+        const follow = Player.varsOnly(step) ? this.keptFollowing() : this.endWithMoment(null, carry?.owner);
         this.pendingSettle = false; // the animate commits its own end
         const held: Record<string, unknown> = {};
         const startAt: Record<string, number> = {};
@@ -3991,7 +4056,7 @@ export class Player {
             for (const owner of follow) {
               const r = this.kept.get(owner);
               const hs = r ? this.keptHandles(r, cur, laid) : null;
-              if (r && hs) this.drawKept(owner, r, hs);
+              if (r && hs) this.drawKept(owner, r, hs, this.keptOffset(owner, before));
             }
           }
           if (carry) this.effects?.setGuessMarks?.(carry.owner, carryMarks(e));
@@ -4008,7 +4073,7 @@ export class Player {
         if (carry) {
           this.guessOwners.add(carry.owner);
           this.effects?.setGuessMarks?.(carry.owner, carryMarks(1));
-          this.keepGuess(carry.owner, index, carry.step, carry.guess, besideCarry ? "beside" : "morph");
+          this.keepGuess(carry.owner, index, carry.step, carry.truthHandles, carry.guess, besideCarry ? "beside" : "morph");
           if (spokenCarry) await spokenCarry;
           else if (carry.line || carry.extra.length > 0) {
             if (this.narrationVoice) await this.narrationVoice;

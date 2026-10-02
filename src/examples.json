@@ -78447,7 +78447,8 @@
             "reveal": false,
             "store": "g1",
             "default": "80",
-            "right": "Hold that thought: {g1}."
+            "right": "Hold that thought: {g1}.",
+            "keep": true
           }
         },
         {

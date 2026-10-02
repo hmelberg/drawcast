@@ -30,13 +30,14 @@ class QuietSpeech extends SpeechManager {
 
 /** A player whose frames and commits are laid out for real, so a guess setup
  *  re-run on what is on screen sees the figure move. */
-function makePlayer(template: string, params: Record<string, unknown>, commands: Command[]) {
+function makePlayer(template: string, params: Record<string, unknown>, commands: Command[], varsBase?: Record<string, number>) {
   const layoutAt = (p: Record<string, unknown>): LayoutResult =>
     layoutSpec(expandSpec({ template, params: withOverrides(params, p), commands: [] } as unknown as Spec));
   const spec = expandSpec({ template, params, commands: [] } as unknown as Spec);
   const mount = layoutSpec(spec);
   const plan = planCommands(commands, [...mount.order], {
     animateBase: params,
+    ...(varsBase ? { varsBase } : {}),
     guessParts: (on) => {
       const parts = guessParts(spec, on);
       return { parts, shows: parts };
@@ -78,7 +79,7 @@ function makePlayer(template: string, params: Record<string, unknown>, commands:
   /** Where a part's handle stands at these params (the honest layout). */
   const handleAt = (part: string, p: Record<string, unknown>, from?: number) =>
     guessSetup(spec, withOverrides(params, p), layoutAt(p), guessParts(spec, [part]), { from }).handles[0];
-  return { player, marks, history, frames, commits, handleAt };
+  return { player, marks, history, frames, commits, handleAt, plan };
 }
 
 const BARS = { labels: ["A", "B", "C"], values: [40, 80, 20], value_labels: true, box: "full" };
@@ -256,5 +257,62 @@ describe("scrubbing over a kept guess and its move", () => {
     expect(marks.get("guess_1")).toBeNull();
     player.renderUpTo(4);
     expect(JSON.stringify(marks.get("guess_1"))).toBe(JSON.stringify(end));
+  });
+});
+
+describe("fix round 1", () => {
+  test("a kept bar moved: yours hides while it moves and comes back shifted with it; a seek agrees", async () => {
+    const cmds: Command[] = [DRAW, ask({ keep: true }), { move: { target: "bar_2", by: [0, 20] } } as Command, { speak: "End." }];
+    const { player, marks, history, plan } = makePlayer("bar_chart", BARS, cmds);
+    player.askGate = async () => "50";
+    await player.play();
+    const off = plan.states[2].offsets["bar_2"];
+    expect(off).toBeTruthy();
+    const still = makePlayer("bar_chart", BARS, cmds.slice(0, 2));
+    still.player.askGate = async () => "50";
+    await still.player.play();
+    const [x0] = yoursX(still.marks.get("guess_1")!);
+    const ys = (m: GuessMarks) => m.lines.find((l) => l.fill === YOURS)!.pts.map((p) => p[1]);
+    const end = marks.get("guess_1")!;
+    expect(yoursX(end)[0]).toBeCloseTo(x0 + off[0], 3);
+    expect(ys(end)[0]).toBeCloseTo(ys(still.marks.get("guess_1")!)[0] + off[1], 3);
+    expect(Math.abs(off[1])).toBeGreaterThan(1);
+    // Hidden while it moved.
+    expect(history.some((h) => h.owner === "guess_1" && h.m === null)).toBe(true);
+    const shown = JSON.stringify(end);
+    player.renderUpTo(0);
+    player.renderUpTo(4);
+    expect(JSON.stringify(marks.get("guess_1"))).toBe(shown);
+  }, 20000);
+
+  test("unkept marks end when their bar moves; kept ones end when it turns", async () => {
+    const moved = makePlayer("bar_chart", BARS, [DRAW, ask(), { move: { target: "bar_2", by: [0, 20] } } as Command]);
+    moved.player.askGate = async () => "50";
+    await moved.player.play();
+    expect(moved.marks.get("guess_1")).toBeNull();
+    const turned = makePlayer("bar_chart", BARS, [DRAW, ask({ keep: true }), { move: { target: "bar_2", rotate: 20 } } as Command, { speak: "End." }]);
+    turned.player.askGate = async () => "50";
+    await turned.player.play();
+    expect(turned.marks.get("guess_1")).toBeNull();
+    turned.player.renderUpTo(4);
+    expect(turned.marks.get("guess_1") ?? null).toBeNull();
+  }, 20000);
+
+  test("an animate of vars only leaves unkept marks alone", async () => {
+    const { player, marks, plan } = makePlayer("bar_chart", BARS, [DRAW, ask(), { animate: { "vars.k": 3 }, duration: 0.2 } as unknown as Command, { speak: "End." }], { k: 1 });
+    expect(plan.steps[2].kind).toBe("animate");
+    player.askGate = async () => "50";
+    await player.play();
+    expect(marks.get("guess_1")).toBeTruthy();
+    player.renderUpTo(4);
+    expect(marks.get("guess_1")).toBeTruthy();
+  });
+
+  test("a revise's first guess follows the bar frame by frame too", async () => {
+    const { player, history } = makePlayer("bar_chart", BARS, [DRAW, ask({ reveal: false }), ask({ store: "h", revise: "g", keep: true }), LEFT]);
+    player.askGate = async () => "50";
+    await player.play();
+    const prev = history.filter((x) => x.owner === "guess_2_prev" && x.m).map((x) => Math.min(...x.m!.lines.flatMap((l) => l.pts.map((p) => p[0]))));
+    expect(new Set(prev.map((v) => v.toFixed(1))).size).toBeGreaterThan(2);
   });
 });

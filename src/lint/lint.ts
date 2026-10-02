@@ -1251,6 +1251,9 @@ function lintGuess(spec: Spec): LintIssue[] {
       const cardsOn = typeof on === "string" && cardSets.has(on);
       if (on === undefined || cardsOn || c.ask.blanks !== undefined || c.ask.pick !== undefined || formulaOn(spec, on) !== null) {
         issues.push({ rule: "guess", ids: [], message: `ask keep: ${c.ask.keep} keeps a guess's marks (a guess on bars, a line, a pie or a scale, with on) — it is ignored here`, severity: "warn" });
+      } else if (marketParts(spec, guessParts(spec, on)).length > 0) {
+        // A market curve's truth is the end of its animate: there is nothing to lay the copy on again.
+        issues.push({ rule: "guess", ids: [], message: `ask keep on a supply or demand curve does nothing: its marks end at the next animate or question as usual — leave keep out`, severity: "warn" });
       }
     }
     // account_label names a budget's account bar: without a budget there is none.

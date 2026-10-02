@@ -94,6 +94,13 @@ describe("market guess lint (spec 2026-10-03 §3)", () => {
     expect(allIssues(spec).filter((i) => i.rule === "widget")).toEqual([]);
   });
 
+  test("keep on a market prediction warns: nothing to lay it on again", () => {
+    const issues = guessIssues(market([{ draw: ["supply_curve", "demand_curve"] }, { ask: { question: "Show it", on: "supply_curve", predict: true, keep: true } }, { animate: { "tax.amount": 20 } }]));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe("warn");
+    expect(issues[0].message).toMatch(/keep/);
+  });
+
   test("an animate that does not move the asked curve errors (review focus 4)", () => {
     const issues = guessIssues(market([{ draw: ["supply_curve", "demand_curve"] }, { ask: { question: "Show it", on: "demand_curve", predict: true } }, { animate: { "tax.amount": 20 } }]));
     expect(issues).toHaveLength(1);
