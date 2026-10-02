@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { RIGHT, WRONG } from "../src/guess/reveal";
 import { Player, type AnswerEvent, type GuessRuntime, type Reprojector } from "../src/render/player";
 import type { BackendEffects } from "../src/render/backend";
 import { planCommands } from "../src/render/plan";
@@ -117,6 +118,9 @@ describe("tree asks in the player", () => {
     const m = marks.get("tree_1");
     expect(m?.texts.map((t) => t.text)).toContain("0.3 × 10 + 0.7 × 4 = 5.8");
     expect(m?.lines.some((l) => l.dashed)).toBe(true);
+    // Beside (the default): the wrong blank's box in red, a red ✗ by it.
+    expect(m?.lines.find((l) => l.dashed)?.color).toBe(WRONG);
+    expect(m?.texts.some((t) => t.text === "✗" && t.color === WRONG)).toBe(true);
     player.renderUpTo(0);
     expect(marks.get("tree_1")).toBeNull();
   });
@@ -126,7 +130,15 @@ describe("tree asks in the player", () => {
     right.player.askGate = async () => encodeTreeAnswer([5.85], null);
     await right.player.play();
     expect(right.player.vars.get("e.ok")).toBe("true");
-    expect(right.marks.get("tree_1") ?? null).toBeNull();
+    // Beside (the default): only a green ✓ by the blank — no working line, no box.
+    const m = right.marks.get("tree_1")!;
+    expect(m.lines).toEqual([]);
+    expect(m.texts.map((t) => [t.text, t.color])).toEqual([["✓", RIGHT]]);
+    // morph: nothing at all, as before.
+    const morph = makePlayer([{ draw: IDS }, { ask: { ...ASK.ask!, reveal_style: "morph" } }]);
+    morph.player.askGate = async () => encodeTreeAnswer([5.85], null);
+    await morph.player.play();
+    expect(morph.marks.get("tree_1") ?? null).toBeNull();
 
     const all = makePlayer([{ draw: IDS }, { ask: { ...ASK.ask!, work: "all" } }]);
     all.player.askGate = async () => encodeTreeAnswer([5.8], null);

@@ -3,6 +3,7 @@
 // formula gate; the reveal writes the truths into the boxes (an element
 // patch, `fills`), wrong answers keep a struck-through mark, and a seek back
 // before the ask empties the boxes again.
+import { RIGHT, WRONG } from "../src/guess/reveal";
 import { describe, expect, test } from "vitest";
 import { Player, type FormulaSession, type GuessRuntime, type Reprojector } from "../src/render/player";
 import type { BackendEffects } from "../src/render/backend";
@@ -120,6 +121,7 @@ describe("formula asks in the player", () => {
     const m = marks.get("formula_1");
     expect(m?.texts.map((t) => t.text)).toContain("2r");
     expect(m?.lines.length).toBeGreaterThan(0);
+    expect(m?.texts.some((t) => t.text === "✗" && t.color === WRONG)).toBe(true);
   });
 
   test("feedback: a right typed formula is perfect, said after the author's line; a skip adds nothing", async () => {
@@ -179,6 +181,19 @@ describe("formula asks in the player", () => {
     const t = m!.texts.find((x) => x.text === "2r")!;
     expect(t.at[1]).toBeGreaterThan(BOX.y + BOX.h);
     expect(m!.lines.some((l) => l.pts.length === 2 && Math.abs(l.pts[0][1] - l.pts[1][1]) < 1e-9)).toBe(true);
+    // Beside (the default): a red ✗ by the box; morph: none.
+    expect(m!.texts.some((x) => x.text === "✗" && x.color === WRONG)).toBe(true);
+    const morph = makePlayer([{ draw: ["area", "area_blank_1"] }, ask({ reveal_style: "morph" })]);
+    morph.player.askGate = async () => JSON.stringify(["2r"]);
+    await morph.player.play();
+    expect(morph.marks.get("formula_1")!.texts.some((x) => x.text === "✗" || x.text === "✓")).toBe(false);
+  });
+
+  test("beside: a right typed answer gets a green ✓ by its box (tiles too)", async () => {
+    const typed = makePlayer([{ draw: ["area", "area_blank_1"] }, ask()]);
+    typed.player.askGate = async () => JSON.stringify(["r^2"]);
+    await typed.player.play();
+    expect(typed.marks.get("formula_1")!.texts.map((x) => [x.text, x.color])).toEqual([["✓", RIGHT]]);
   });
 
   test("the struck-through answer sits over the box as the truth is drawn, not the preview's", async () => {

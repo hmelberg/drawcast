@@ -44,7 +44,7 @@ import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../fe
 import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
 import { cardsBeside, cardsParts } from "../cards/beside";
-import { BESIDE_MS, EACH_MS, FADED, besideMarks, besideOffsets, besideParams, besideValues, fadeYours, partProgress, revealLength, type RevealOrder } from "../guess/reveal";
+import { BESIDE_MS, EACH_MS, FADED, WRONG, besideMarks, besideOffsets, besideParams, besideValues, fadeYours, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
 import { gateLang, gateWords } from "../ui/gate-words";
 import type { CardsGeometry } from "../spec/cards";
 import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
@@ -2238,7 +2238,26 @@ export class Player {
       words.push(m.text);
       lines.push(m.line);
     });
-    if (words.length > 0) {
+    if (step.revealStyle !== "morph" && answered) {
+      // Beside (spec 2026-10-03-round6 §3): a ✓ or ✗ by each box — box by box with reveal_order each.
+      const marksUpTo = (n: number): GuessMarks => ({
+        color: GUESS_COLOR,
+        lines,
+        texts: [...words, ...boxes.flatMap((box, k) => (box && k < n ? [tick([box.x + box.w + 16, box.y + box.h / 2], right[k], "middle")] : []))],
+      });
+      if (step.revealOrder === "each") {
+        for (let k = 1; k < blanks.length; k++) {
+          this.guessOwners.add(owner);
+          this.effects?.setGuessMarks?.(owner, marksUpTo(k));
+          await this.waitScaled(EACH_MS, signal);
+          if (signal.aborted) return;
+        }
+      }
+      const marks = marksUpTo(blanks.length);
+      this.guessOwners.add(owner);
+      this.effects?.setGuessMarks?.(owner, marks);
+      this.besides.set(owner, { index, marks, faded: false });
+    } else if (words.length > 0) {
       this.guessOwners.add(owner);
       this.effects?.setGuessMarks?.(owner, { color: GUESS_COLOR, lines, texts: words });
     }
@@ -2468,12 +2487,13 @@ export class Player {
         : [];
     const spoken = this.speakLines(line, extra, step, signal);
     const order = blanks.map((b, i) => ({ b, i })).sort((a, z) => z.b.depth - a.b.depth);
+    const beside = step.revealStyle !== "morph";
     for (const { b } of order) {
       if (answers[b.part] === undefined) continue;
       const { [b.part]: _gone, ...rest } = answers;
       answers = rest;
       paintAnswers();
-      await this.waitScaled(300, signal);
+      await this.waitScaled(beside && step.revealOrder === "each" ? EACH_MS : 300, signal);
       if (signal.aborted) return;
     }
     this.applyKey(after);
@@ -2490,7 +2510,7 @@ export class Player {
     }
     // No marks of its own (rollback off): a solid ring round the best branch is the reveal.
     const bestEdge = pick && !after.visible.some((id) => id.startsWith(`best_${pick.node}_`)) ? edges[pick.best] : undefined;
-    const marks = this.treeMarks(blanks, score.right, step.tree.work, boxOf, !live, pick && chosen !== null && !pickRight ? edges[chosen] : undefined, bestEdge);
+    const marks = this.treeMarks(blanks, score.right, step.tree.work, boxOf, !live, pick && chosen !== null && !pickRight ? edges[chosen] : undefined, bestEdge, beside && answered);
     if (marks) {
       this.guessOwners.add(owner);
       this.effects?.setGuessMarks?.(owner, marks);
@@ -2507,7 +2527,7 @@ export class Player {
    *  blank with work "all"; none with work false, and in a movie under the
    *  first), a dashed box around a wrong number, a dashed ring round a
    *  wrongly picked branch. Null when there is nothing to mark. */
-  private treeMarks(blanks: TreeBlank[], right: boolean[], work: "all" | false | undefined, boxOf: (part: string) => BBox | null, movie: boolean, wrongEdge: Pt[] | undefined, bestEdge?: Pt[]): GuessMarks | null {
+  private treeMarks(blanks: TreeBlank[], right: boolean[], work: "all" | false | undefined, boxOf: (part: string) => BBox | null, movie: boolean, wrongEdge: Pt[] | undefined, bestEdge?: Pt[], verdicts = false): GuessMarks | null {
     const lines: GuessMarkLine[] = [];
     const texts: GuessMarkText[] = [];
     blanks.forEach((b, i) => {
@@ -2518,8 +2538,10 @@ export class Player {
       if (withWork && b.work) texts.push({ at: [box.x + box.w / 2, box.y - 14], text: b.work, anchor: "middle" });
       if (wrong) {
         const p = 4;
-        lines.push({ pts: [[box.x - p, box.y - p], [box.x + box.w + p, box.y - p], [box.x + box.w + p, box.y + box.h + p], [box.x - p, box.y + box.h + p]], closed: true, dashed: true });
+        lines.push({ pts: [[box.x - p, box.y - p], [box.x + box.w + p, box.y - p], [box.x + box.w + p, box.y + box.h + p], [box.x - p, box.y + box.h + p]], closed: true, dashed: true, ...(verdicts ? { color: WRONG } : {}) });
       }
+      // Beside (spec 2026-10-03-round6 §3): a ✓ or ✗ by each blank.
+      if (verdicts) texts.push(tick([box.x + box.w + 14, box.y + box.h / 2], !wrong, "middle", 22));
     });
     // A capsule round a branch: its two sides, 10 off the line — dashed
     // round a wrong choice, solid round the best one.
