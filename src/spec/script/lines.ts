@@ -80,13 +80,14 @@ function liftActions(text: string, line: number): { text: string; actions?: Inli
 
 export const SETTING_KEYS = [
   // page
-  "lang", "voice", "level", "record", "feedback", "canvas", "domain", "vars", "text", "zoom_from", "book", "use", "with", "details", "sources", "more", "chapter",
+  "lang", "voice", "level", "record", "feedback", "canvas", "domain", "vars", "text", "zoom_from", "book", "use", "with", "adjust", "details", "sources", "more", "end_page", "chapter",
   // playlist (before the first page)
   "subtitle", "advance", "gap", "transitions", "next", "enroll", "prompt", "comments", "views", "poster",
 ] as const;
 
 const SETTING_RE = new RegExp(`^(${SETTING_KEYS.join("|")}):(?:\\s+(.*))?$`);
-const HEADING_RE = /^(#{1,2})\s+(.*)$/;
+// `##` alone opens a page with no title (a course's end page is one).
+const HEADING_RE = /^(#{1,2})(?:\s+(.*))?$/;
 const GOTO_RE = /^@([A-Za-z_][\w-]*)\s*$/;
 const DIALOGUE_RE = /^([AB]):\s+(.*)$/;
 const FENCE_RE = /^```(.*)$/;
@@ -136,7 +137,7 @@ export function scanLines(text: string): ScriptLine[] {
     }
     if (body.startsWith("//")) { out.push({ kind: "comment", line }); continue; }
     const heading = HEADING_RE.exec(body);
-    if (heading) { out.push({ kind: "heading", line, depth: heading[1].length as 1 | 2, text: heading[2].trim() }); continue; }
+    if (heading) { out.push({ kind: "heading", line, depth: heading[1].length as 1 | 2, text: (heading[2] ?? "").trim() }); continue; }
     const goto = GOTO_RE.exec(body);
     if (goto) { out.push({ kind: "goto", line, name: goto[1] }); continue; }
     const setting = SETTING_RE.exec(body);

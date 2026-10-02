@@ -69,10 +69,12 @@ How to read it, in full:
   dry or {json}), `canvas:`, `domain:`,
   `vars: {json}`, `text: {json}`, `zoom_from:`, `book: {json}` (a book's
   layout — keep it as it is), `use: <template>` (the
-  spec's `template`), `with: {json}` (its `params`), `details: {json}`
+  spec's `template`), `with: {json}` (its `params`; or `with:` alone and the
+  params as indented YAML under it), `adjust: {json}`, `details: {json}`
   (formal details for a template's parts, by id), `sources: [json]` (the
   studies the narration names; an element `cites` them), `more: {json}` (the
-  viewer's corner list of sources and links; `false` hides it), `chapter:`.
+  viewer's corner list of sources and links; `false` hides it), `end_page:`
+  (a course's end page), `chapter:`.
 - **When the script has no spelling for what you need, use the escape hatch
   rather than inventing one**: a ` ```yaml ` fence holding a LIST is appended to
   the page's elements, and one holding a MAPPING is merged into the page. Both
@@ -85,6 +87,7 @@ A document is one page or many:
   simply pages one after another under `##` headings, and a revision may add,
   drop, reorder and retitle them — that is the point of being handed the whole
   document. Give each page its own `use:`/`with:`/`lang:` under its heading.
+  `##` alone starts a page with no title (keep one where you find it).
 - `chapter: Name` on its own, before a page, opens a chapter there.
 - **Document settings sit above the first page and belong to the document, never
   to a page**: `prompt:` (the founding request — provenance, keep it verbatim,

@@ -14,15 +14,15 @@ import type { Command, Spec, SpecElement } from "../types";
 const INDENT = "    ";
 
 /** The order settings print in — fixed, so a reprint never reshuffles a file's head. */
-const SETTING_ORDER: [keyof Spec, string][] = [
+export const SETTING_ORDER: [keyof Spec, string][] = [
   ["lang", "lang"], ["voice", "voice"], ["level", "level"], ["record", "record"], ["feedback", "feedback"],
   ["canvas", "canvas"], ["domain", "domain"], ["vars", "vars"], ["text", "text"],
-  ["zoom_from", "zoom_from"], ["book", "book"], ["template", "use"], ["params", "with"], ["details", "details"], ["sources", "sources"], ["more", "more"],
+  ["zoom_from", "zoom_from"], ["book", "book"], ["template", "use"], ["params", "with"], ["adjust", "adjust"], ["details", "details"], ["sources", "sources"], ["more", "more"], ["end_page", "end_page"],
 ];
 
 /** Written by machines, read by nobody: they print last, so the readable part
  *  of the file stays on top — the rule specForDump already applies to YAML. */
-const PAYLOAD_KEYS = ["assets", "subtitles", "text_map", "templates"] as const;
+export const PAYLOAD_KEYS = ["assets", "subtitles", "text_map", "templates"] as const;
 
 /**
  * A setting's value as an indented YAML block (`with:` and one param a line)
@@ -116,8 +116,12 @@ function shorthands(el: SpecElement): { words: string[]; used: Set<string>; eate
     used.add(aroundField);
   }
 
-  // Placement, in words.
-  if (at && typeof at.place === "string" && Object.keys(at).length === 1) {
+  // Placement, in words — not on an element with a `gap` of its own (a
+  // row's spacing): `gap` after a placement phrase reads as the placement's.
+  const ownGap = e.gap !== undefined;
+  if (ownGap) {
+    // at stays a pair (`at.side above at.ref x`), never a phrase.
+  } else if (at && typeof at.place === "string" && Object.keys(at).length === 1) {
     const word = [...PLACE_WORDS].find(([, anchor]) => anchor === at.place)?.[0];
     if (word !== undefined) { words.push(word); used.add("at"); }
   } else if (at && typeof at.side === "string" && typeof at.ref === "string" && Object.keys(at).every((k) => ["side", "ref", "gap"].includes(k))) {
@@ -201,14 +205,30 @@ function cardsLines(el: Record<string, unknown>, indent: string): { lines: strin
   return { lines, used };
 }
 
-/** One element, as the line that declares it. */
-function elementLine(el: SpecElement, hidden: boolean, indent: string = INDENT, inGroup?: string): string {
+/**
+ * The page's element order — which is the order its declarations print in,
+ * and so the order `in <group>` lines give a group its members back.
+ */
+let pageOrder = new Map<string, number>();
+
+/** A layout group written WITHOUT its members nested under it whose members
+ *  do not run in page order: `in` alone would give them back reordered, so
+ *  it keeps its own `members [...]`. */
+function membersOutOfOrder(el: SpecElement): boolean {
+  const members = ((el as unknown as Record<string, unknown>).members ?? []) as string[];
+  const at = members.map((m) => pageOrder.get(m) ?? -1);
+  return at.some((v, i) => i > 0 && v < at[i - 1]);
+}
+
+/** One element, as the line that declares it (`nested`: its members follow under it). */
+function elementLine(el: SpecElement, hidden: boolean, indent: string = INDENT, inGroup?: string, nested = false): string {
   const { words, used, eaten } = el.type === "code"
     ? { words: [] as string[], used: new Set<string>(), eaten: new Set<string>() }
     : shorthands(el);
   const shapeAlias = ALIAS_FOR.get(`${el.type}:${String((el as unknown as Record<string, unknown>).shape ?? "")}`);
   const cards = el.type === "cards" ? cardsLines(el as unknown as Record<string, unknown>, indent + INDENT) : null;
   const skip = new Set(["id", "type", "text", "language", "code", ...used, ...(cards?.used ?? [])]);
+  if (!nested && layoutHead(el) !== null && membersOutOfOrder(el)) skip.delete("members");
   if (shapeAlias !== undefined) skip.add("shape");
   const rest = pairs(el as unknown as Record<string, unknown>, skip, ELEMENT_ORDER, eaten);
   if (el.type === "code") {
@@ -403,6 +423,7 @@ function firstDraws(spec: Spec): Map<string, number> {
 
 export function printScriptPage(spec: Spec): string {
   const byId = new Map((spec.elements ?? []).map((el) => [el.id, el]));
+  pageOrder = new Map((spec.elements ?? []).map((el, i) => [el.id, i]));
   // member id → the layout group it belongs to.
   const groupOf = new Map<string, string>();
   for (const el of spec.elements ?? []) {
@@ -477,11 +498,11 @@ export function printScriptPage(spec: Spec): string {
         // declared handle and each member says which group it is in.
         if (!members.every((m) => declared.includes(m))) continue;
         const group = id;
-        lines.push(elementLine(byId.get(group)!, false));
+        lines.push(elementLine(byId.get(group)!, false, INDENT, undefined, true));
         nested.add(group);
         for (const m of members) {
           const child = byId.get(m)!;
-          lines.push(elementLine(child, false, INDENT + INDENT));
+          lines.push(elementLine(child, false, INDENT + INDENT, undefined, ((child.members ?? []) as string[]).length > 0));
           nested.add(m);
           for (const gm of ((child.members ?? []) as string[])) {
             lines.push(elementLine(byId.get(gm)!, false, INDENT + INDENT + INDENT));
@@ -521,7 +542,9 @@ export function printScriptPage(spec: Spec): string {
 const META_ORDER = ["subtitle", "prompt", "comments", "views", "next", "enroll", "poster", "advance", "gap", "transitions"];
 
 export function printScriptPages(meta: Record<string, unknown>, pages: { spec: Spec }[]): string {
-  const multi = pages.length > 1;
+  // One page takes the `#` for itself — unless the playlist has a name of its
+  // own as well; then the page sits under it with its own `##`.
+  const multi = pages.length > 1 || meta.title !== undefined;
   // One page takes the `#` for itself; several sit under the playlist's.
   const docTitle = multi ? meta.title : (pages[0]?.spec.title ?? meta.title);
   const head: string[] = [];
@@ -537,7 +560,9 @@ export function printScriptPages(meta: Record<string, unknown>, pages: { spec: S
   const opening = (i: number) => chapters.filter((c) => c.before === i).map((c) => `chapter: ${formatValue(c.title)}\n\n`).join("");
   const body = pages.map((p, i) => {
     const text = printScriptPage(p.spec);
-    const heading = multi && typeof p.spec.title === "string" ? `## ${p.spec.title}\n` : "";
+    // An untitled page still needs its `##`: without one it would run on as
+    // part of the page above it.
+    const heading = !multi ? "" : typeof p.spec.title === "string" && p.spec.title.trim() !== "" ? `## ${p.spec.title}\n` : "##\n";
     return opening(i) + heading + text;
   });
   // A chapter past the last page would otherwise be the one entry a round

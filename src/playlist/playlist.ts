@@ -7,7 +7,7 @@
 // pre-playlist behavior, so every existing drawcast keeps working.
 
 import { leftoverFoldMarker, leftoverFoldMessage } from "../ui/spec-fold";
-import { CORE_SCHEMA, dump, loadAll } from "js-yaml";
+import { CORE_SCHEMA, dump, load, loadAll } from "js-yaml";
 import { cardElements, titleFont } from "../spec/card";
 import { desmartenJson } from "../spec/extract";
 import { dumpSpecYaml, formatSpec, parseSpecText, type SpecFormat } from "../spec/text";
@@ -232,7 +232,37 @@ export function parsePlaylistText(text: string): Playlist {
   return playlist;
 }
 
+/**
+ * A script carries its baked narration the way a published YAML stream does:
+ * after the last `---` line, as an `audio:` document. Split there, so the
+ * script parser never meets the base64 and the YAML reader never meets the
+ * script. null when the text ends with no such document.
+ */
+export function splitAudioTail(text: string): { body: string; audio: string } | null {
+  const re = /\n---[ \t]*\r?\n(?=audio[ \t]*:)/g;
+  let at = -1;
+  let len = 0;
+  for (let m = re.exec(text); m !== null; m = re.exec(text)) {
+    at = m.index;
+    len = m[0].length;
+  }
+  return at < 0 ? null : { body: text.slice(0, at + 1), audio: text.slice(at + len) };
+}
+
 function parsePlaylistBody(text: string): Playlist {
+  // A .cast file with its narration baked in: the script, then `---`, then `audio:`.
+  const tail = splitAudioTail(text);
+  if (tail && looksLikeScript(tail.body)) {
+    const playlist = parsePlaylistBody(tail.body);
+    let doc: unknown = null;
+    try {
+      doc = load(tail.audio, { schema: CORE_SCHEMA });
+    } catch {
+      playlist.warnings.push("audio document is not valid YAML — ignored");
+    }
+    const audio = isPlainObject(doc) ? readAudio(doc.audio, playlist.warnings) : undefined;
+    return audio ? { ...playlist, audio } : playlist;
+  }
   if (SEPARATOR_RE.test(text)) {
     // Same tolerance as single-spec parsing: Google Docs curls quotes.
     for (const candidate of [text, desmartenJson(text)]) {
@@ -475,8 +505,11 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
  * A single-spec playlist is promoted to a stream: it now has a second document
  * to carry, and `---` is what says so.
  */
-export function formatPublished(playlist: Playlist, audio: AudioTrack | null): string {
-  const body = formatPlaylist(playlist, "yaml");
+export function formatPublished(playlist: Playlist, audio: AudioTrack | null, format: "yaml" | "script" = "yaml"): string {
+  // A .cast file is the same stream with a script in front: the audio
+  // document after it is identical, so the server's split and the viewer's
+  // join (publish/server.ts, viewer.ts) never learn which one they carry.
+  const body = formatPlaylist(playlist, format);
   if (!audio || Object.keys(audio.lines).length === 0) return body;
   // lineWidth:-1 (YAML_OPTS) is load-bearing here: js-yaml folds long scalars
   // across lines by default, which would corrupt every base64 payload at once.
