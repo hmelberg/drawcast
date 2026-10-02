@@ -20,7 +20,7 @@ import { AUTO_NAMESPACE, baseName, isReservedVar, VAR_RE } from "../spec/answers
 import { EXPR_BASE_VARS, varValues } from "../spec/vars";
 import { texNamesVars } from "../layout/live-math";
 import { effectiveShow } from "../spec/code-show";
-import { bboxOfPts, bboxOfText, boxesOverlap, polylineIntersectsBox, type BBox } from "../layout/geometry";
+import { bboxOfPts, bboxOfText, boxesOverlap, expandBox, polylineIntersectsBox, type BBox } from "../layout/geometry";
 import { drawablesForId, leafDrawables, type Drawable, type GroupDrawable, type StrokeDrawable, type TextDrawable } from "../layout/model";
 import type { LeafDrawable } from "../layout/posed";
 import { mathBox } from "../layout/labels";
@@ -175,7 +175,9 @@ export interface LintIssue {
     | "card-icon"
     | "deck-text"
     /** choose on the figure: an option not drawn before the ask, a branch that leads nowhere — or decide cards that repeat drawn things */
-    | "choose";
+    | "choose"
+    /** a question's cards or options sit over other visible parts: stage "own" fades the rest (spec round 6 §6) — warns */
+    | "ask-stage";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -730,6 +732,97 @@ export function lintLayoutDetailed(
 }
 
 /**
+ * A question on its own page (spec 2026-10-03-round6 §6): an ask whose
+ * cards or choose options sit over other parts on screen at that moment is
+ * hard to read and to tap — stage: "own" fades the rest while it stands.
+ * What counts as "over": another part's text or ink inside an option's or a
+ * card's box (a few units in from its edge, so a bar standing on its axis or
+ * an arrow ending at a node does not count). A panel or picture behind the
+ * whole option is its backdrop, not a collision; pairs the author composed
+ * (`composed`, as for the overlap rules) are skipped. Visibility is the
+ * plan's: drawn or shown before the ask and not taken away since.
+ */
+export function lintAskStage(
+  drawables: Drawable[],
+  measure: MeasureFn,
+  commands: Command[] | undefined,
+  expandId: ((id: string) => string[] | null | undefined) | undefined,
+  isCards: (id: string) => boolean,
+  composed?: (a: string, b: string) => boolean,
+): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const INSET = 6;
+  const kids = (id: string): string[] => expandId?.(id) ?? [];
+  const leavesOf = (id: string): LeafDrawable[] => lintableLeaves(drawablesForId(drawables, id));
+  const boxOf = (d: LeafDrawable): BBox | null => {
+    if (d.kind === "text") return d.text.trim() === "" ? null : bboxOfText(d, measure);
+    if (d.kind === "image") return { x: d.pos[0] - d.w / 2, y: d.pos[1] - d.h / 2, w: d.w, h: d.h };
+    return d.pts.length > 0 ? bboxOfPts(d.pts) : null;
+  };
+  const owner = new Map<string, string>();
+  for (const top of drawables) for (const leaf of leafDrawables([top])) owner.set(leaf.id, top.id);
+  const ownerOf = (id: string) => owner.get(id) ?? id;
+  const contains = (outer: BBox, inner: BBox) => outer.x <= inner.x && outer.y <= inner.y && outer.x + outer.w >= inner.x + inner.w && outer.y + outer.h >= inner.y + inner.h;
+  walkVisible(commands ?? [], expandId, (c, visible) => {
+    const a = c.ask;
+    if (!a || a.stage === "own") return;
+    const subjects: string[] = [];
+    if (Array.isArray(a.choose)) for (const o of a.choose) {
+      const id = typeof o === "string" ? o : o?.id;
+      if (typeof id === "string") subjects.push(id, ...kids(id));
+    }
+    if (typeof a.on === "string") for (const id of [a.on, `${a.on}_tiles`]) if (isCards(id)) subjects.push(id, ...kids(id));
+    if (subjects.length === 0) return;
+    const own = new Set(subjects.flatMap((id) => leavesOf(id).map((l) => l.id)));
+    const mine = [...own].map((id) => leavesOf(id)[0]).filter((l): l is LeafDrawable => !!l);
+    const targets = mine.flatMap((l) => {
+      const b = boxOf(l);
+      return b && b.w > 2 * INSET && b.h > 2 * INSET ? [{ id: l.id, box: expandBox(b, -INSET) }] : [];
+    });
+    const others = [...new Set([...visible].flatMap((id) => leavesOf(id)))].filter((l) => !own.has(l.id) && !subjects.some((s) => l.id.startsWith(`${s}_`)));
+    const hit = new Set<string>();
+    for (const o of others) {
+      const ob = boxOf(o);
+      if (!ob) continue;
+      for (const t of targets) {
+        if (composed?.(ownerOf(o.id), ownerOf(t.id))) continue;
+        const over =
+          o.kind === "stroke" ? polylineIntersectsBox(o.pts, t.box)
+          : o.kind === "text" ? boxesOverlap(ob, t.box)
+          : boxesOverlap(ob, t.box) && !contains(ob, expandBox(t.box, INSET));
+        if (over) {
+          hit.add(ownerOf(o.id));
+          break;
+        }
+      }
+    }
+    if (hit.size === 0) return;
+    const what = Array.isArray(a.choose) ? "options" : "cards";
+    const list = [...hit].slice(0, 4).join(", ") + (hit.size > 4 ? ", …" : "");
+    issues.push({ rule: "ask-stage", ids: [...hit], message: `ask "${a.question}": its ${what} sit over ${list} — add stage: "own" so the rest of the figure fades while it is asked`, severity: "warn" });
+  });
+  return issues;
+}
+
+/** The plan's visibility walk, for the rules that need what is on screen at a
+ *  command: `at(c, visible)` sees the set as it stands BEFORE the command. */
+function walkVisible(commands: Command[], expandId: ((id: string) => string[] | null | undefined) | undefined, at: (c: Command, visible: ReadonlySet<string>) => void): void {
+  const kids = (id: string): string[] => expandId?.(id) ?? [];
+  const ids = (raw: string[] | string | undefined): string[] => idsOf(raw).flatMap((id) => [id, ...kids(id)]);
+  const visible = new Set<string>();
+  for (const c of commands) {
+    at(c, visible);
+    for (const id of [...ids(c.draw), ...ids(c.show), ...ids(c.reveal)]) visible.add(id);
+    if (c.copy && typeof c.copy.target === "string") visible.add(c.copy.as ?? `${c.copy.target}_copy`);
+    for (const id of [...ids(c.erase), ...ids(c.hide)]) visible.delete(id);
+    if (c.clear !== undefined) {
+      const keep = new Set(ids(c.clear.keep));
+      for (const id of [...visible]) if (!keep.has(id)) visible.delete(id);
+    }
+  }
+}
+
+/**
  * Choose on the figure (spec 2026-10-03-round6 §4): the viewer taps the
  * options, so each must be on screen when the question comes — drawn (or
  * shown) before it and not taken away since. A group or a `pieces` parent is
@@ -1147,6 +1240,10 @@ function lintGuess(spec: Spec): LintIssue[] {
     if (c.ask && (c.ask.reveal_style !== undefined || c.ask.reveal_order !== undefined) && c.ask.on === undefined && c.ask.blanks === undefined && c.ask.pick === undefined) {
       const which = c.ask.reveal_style !== undefined ? `reveal_style: "${c.ask.reveal_style}"` : `reveal_order: "${c.ask.reveal_order}"`;
       issues.push({ rule: "guess", ids: [], message: `ask ${which} shapes a reveal on the figure (a guess, cards, a tree or a formula, with on/blanks/pick) — it is ignored here`, severity: "warn" });
+    }
+    // stage: "own" (§6) fades the figure round a question ON it: a typed or widget question has no parts to keep.
+    if (c.ask?.stage !== undefined && c.ask.on === undefined && c.ask.blanks === undefined && c.ask.pick === undefined && !Array.isArray(c.ask.choose)) {
+      issues.push({ rule: "ask-stage", ids: [], message: `ask stage: "own" fades the rest of the figure round a question on it (on, choose, blanks or pick) — it is ignored here`, severity: "warn" });
     }
     // keep (spec 2026-10-03-round6 §5) keeps a guess's marks: cards, a tree, a formula or a typed answer have none to keep.
     if (c.ask?.keep !== undefined) {

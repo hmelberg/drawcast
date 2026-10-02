@@ -145,6 +145,10 @@ export type PlanStep = (
       revealOrder?: "each";
       /** A guess's marks outlive their moment and follow the part (spec round 6 §5). */
       keep?: true;
+      /** stage: "own" (spec round 6 §6): the ids that stay at full strength
+       *  while the question stands — the asked parts, their cards, options,
+       *  blanks and tiles; everything else on screen fades to STAGE_DIM. */
+      stage?: string[];
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -408,6 +412,10 @@ export interface Plan {
 }
 
 /** One option of a choose ask (spec 2026-10-03-round6 §4). */
+/** A decision tree's own drawing (scenes/decision_tree/layout.ts ids):
+ *  a tree question on its own page keeps the tree whole. */
+const TREE_PART = /^(?:edge|node|label|branchlabel|p|payoff|value|effect|cost|ev|best|prune|collapsed|dcost|deffect|icer|nmb|strategy)_/;
+
 export interface ChooseOption {
   id: string;
   label: string;
@@ -790,6 +798,25 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const standsFor = (id: string): string[] => {
     const own = opts.expandId?.(id) ?? opts.expandGroup?.(id);
     return own && own.length > 0 ? expandOne(id, "", true) : [];
+  };
+  /** What a question on its own page (stage: "own", spec round 6 §6) keeps
+   *  at full strength: what it names (and every part of it — a cards
+   *  element's cards and boxes, a formula's blanks and tiles), the parts a
+   *  guess paints, the options' members; for a tree, the tree itself (its
+   *  blanks and pick are read off it). The rest of the screen fades. */
+  const stagedIds = (q: { on: string[]; others: string[]; parts: string[]; choose: string[]; tree: string[] | null }): string[] => {
+    const out = new Set<string>();
+    const rooted = (r: string) => {
+      for (const id of expandOne(r, "", true)) out.add(id);
+      for (const id of known) if (id === r || id.startsWith(`${r}_`)) out.add(id);
+    };
+    for (const r of [...q.on, ...q.others, ...q.choose]) rooted(r);
+    for (const id of q.parts) out.add(id);
+    if (q.tree) {
+      for (const r of q.tree) rooted(r);
+      for (const id of known) if (TREE_PART.test(id)) out.add(id);
+    }
+    return [...out];
   };
   /** A choose ask's options as they stand now (spec 2026-10-03-round6 §4). */
   const chooseOptions = (raw: (string | { id: string; goto?: string })[]): ChooseOption[] =>
@@ -1586,6 +1613,17 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.reveal_style === "morph" ? { revealStyle: "morph" as const } : {}),
         ...(cmd.ask.reveal_order === "each" ? { revealOrder: "each" as const } : {}),
         ...(cmd.ask.keep === true ? { keep: true as const } : {}),
+        ...(cmd.ask.stage === "own"
+          ? {
+              stage: stagedIds({
+                on: treeAsk || cmd.ask.on === "tree" ? [] : typeof cmd.ask.on === "string" ? [cmd.ask.on] : (cmd.ask.on ?? []),
+                others: cmd.ask.others ?? [],
+                parts: [...(guess ? [...guess.parts, ...guess.shows] : []), ...(cardSet ? [...cardSet.cards, ...(cardSet.shows ?? [])] : [])],
+                choose: Array.isArray(cmd.ask.choose) ? chooseOptions(cmd.ask.choose).flatMap((o) => [o.id, ...o.members]) : [],
+                tree: treeAsk ? [...(cmd.ask.blanks ?? []), ...(cmd.ask.pick !== undefined ? [cmd.ask.pick] : [])] : null,
+              }),
+            }
+          : {}),
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;
     } else if (cmd.show !== undefined) {

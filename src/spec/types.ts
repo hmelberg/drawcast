@@ -1014,6 +1014,12 @@ export interface AskArgs {
    *  recomputed from the same answer. Default: they end at whichever comes
    *  first — the guessed part changing shape, or the next question. */
   keep?: boolean;
+  /** "own" (spec 2026-10-03-round6 §6): the question on its own page —
+   *  while it stands the rest of the figure fades to 15 % (not removed);
+   *  the asked parts and their cards, options or blanks stay at full
+   *  strength; after the reveal and its lines the figure fades back
+   *  (~300 ms). */
+  stage?: "own";
 }
 
 /** Feedback flavour (spec 2026-10-03-looks-feedback-account §4.1): a style

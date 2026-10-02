@@ -674,7 +674,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // re-pin) +328 — the schema's +1117, carried into the prompt. -> 392017.
 // Re-pinned UP 2026-10-03 (round 6 Task 4): ask `keep` (a guess's marks
 // outlive their moment and follow the part) — the schema's +132. -> 392149.
-const BASELINE_SYSTEM_CHARS = 392149;
+// Re-pinned UP 2026-10-03 (round 6 Task 5): ask `stage: "own"` (a question
+// on its own page) — the schema's +136. -> 392285.
+const BASELINE_SYSTEM_CHARS = 392285;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -761,7 +763,8 @@ const BASELINE_SYSTEM_CHARS = 392149;
 // Re-pinned UP 2026-10-03 (round 6 Task 6): cards `select`, `deck`, items'
 // `in`, the sort clause +789; ask `reveal_style`/`reveal_order` (Task 3) +328. -> 111176.
 // Re-pinned UP 2026-10-03 (round 6 Task 4): ask `keep`. +132. -> 111308.
-const BASELINE_SCHEMA_CHARS = 111308;
+// Re-pinned UP 2026-10-03 (round 6 Task 5): ask `stage`. +136. -> 111444.
+const BASELINE_SCHEMA_CHARS = 111444;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

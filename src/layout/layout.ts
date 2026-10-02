@@ -14,7 +14,7 @@ import { effectiveTextStyle } from "./text-style";
 import { setMathTextStyle } from "./math";
 import { setMathFont, setMathHand } from "../scenes/engines";
 import type { Spec } from "../spec/types";
-import { coVisible, idsOf, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
+import { coVisible, idsOf, lintAskStage, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
 import { layoutElements, type PieceGeometry } from "./tier2";
 import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
@@ -520,6 +520,9 @@ export function layoutSpec(
     onCard(a) || onCard(b) || marks(a, b) || marks(b, a) || stacked(a, b) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
   const layoutIssues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed, world ?? undefined);
   layoutIssues.push(...headingIntrusions(drawables, measure, spec.commands));
+  // A question whose cards or options sit over the figure (spec round 6 §6).
+  const cardIds = new Set(authoredCards(spec).map((c) => c.id));
+  layoutIssues.push(...lintAskStage(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], (id) => cardIds.has(id), composed));
   const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;
   if (!codeEl || atDraw === null) {
     issues.push(...layoutIssues);

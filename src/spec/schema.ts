@@ -963,6 +963,7 @@ const commandSchema = {
         reveal_style: { enum: ["beside", "morph"], description: "Reveal of a guess, cards, tree or formula: beside (default; the answer stays, the truth is drawn beside it) or morph (the answer glides into the truth)." },
         reveal_order: { enum: ["all", "each"], description: "all (default), or each: the truth part by part, 0.6 s apart." },
         keep: { type: "boolean", description: "Guess: true keeps yours past the next question and a later animate (it follows the part)." },
+        stage: { const: "own", description: "own: the rest of the figure fades while the question stands (cards or options over the figure)." },
         blanks: { type: "array", minItems: 1, items: { type: "string" }, description: "Tree: the parts of a decision_tree the viewer fills in — value_<node>, branchlabel_<parent>_<child>, effect_<node>, cost_<node>." },
         pick: { type: "string", description: "Tree: the decision node whose best branch the viewer taps." },
         work: { oneOf: [{ type: "string", enum: ["all"] }, { const: false }], description: "Tree: working lines under wrong blanks (default), \"all\" for every blank, or false for none." },

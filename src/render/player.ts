@@ -126,6 +126,10 @@ export interface Reprojector {
 const GUESS_REVEAL_MS = 800;
 /** A formula's wrong tiles, home again after the reveal, fade out over this. */
 const TILE_FADE_MS = 350;
+/** A question on its own page (stage: "own", spec round 6 §6): the rest of
+ *  the figure at this strength while it stands, faded there and back over STAGE_MS. */
+export const STAGE_DIM = 0.15;
+const STAGE_MS = 300;
 /** A line's given part drawing itself in before the viewer draws on. */
 const GIVEN_DRAW_MS = 2200;
 /** A revised guess's earlier one: the guess colour, faded. */
@@ -418,6 +422,10 @@ export class Player {
   private besides = new Map<string, Beside>();
   /** Every answered beside reveal, by owner: a seek forward past its ask puts
    *  it back (faded once a command has followed) while nothing since has ended it. */
+  /** The question on its own page now standing (stage: "own"): the ids
+   *  faded and how far (1 = not at all). Every opacity the player writes —
+   *  applyScene's and a frame's — multiplies by it; a scrub drops it. */
+  private staged: { ids: ReadonlySet<string>; alpha: number } | null = null;
   private besideMemory = new Map<string, Beside>();
   /** Kept guesses on the figure (ask `keep: true`, spec round 6 §5), by
    *  owner: their marks outlive the next question and follow their part
@@ -989,6 +997,9 @@ export class Player {
     this.restoreFormulaFills(n);
     // A beside reveal's room goes before the boundary is laid out — and the
     // ones this boundary still shows come back (yours and the truth).
+    // A question on its own page that was standing is over: the boundary's
+    // own opacities, nothing faded on top.
+    this.staged = null;
     // Every mark and room off first (a reveal on screen now included), then
     // the restored ones on: nothing after this may drop them.
     this.endMarks();
@@ -1032,8 +1043,9 @@ export class Player {
       const turn = scene.turns[id];
       if (turn && el.setTransform) el.setTransform(dx, dy, turn.deg, turn.pivot, turn.scale ?? 1, turn.mirror ?? false);
       else el.setOffset?.(dx, dy);
-      // A kept tile of a faded beside reveal stays faded.
-      el.setOpacity?.(this.besideFadedShown(id) ? FADED : (scene.opacities[id] ?? 1));
+      // A kept tile of a faded beside reveal stays faded; a question on its
+      // own page keeps the rest of the figure faded while it stands.
+      el.setOpacity?.(this.baseOpacity(id, scene) * this.stageAlpha(id));
       el.setPoints?.(scene.shapes[id] ?? {});
       el.setText?.(scene.texts[id] ?? {});
       if (visible.has(id) || !this.planTimeIds.has(id) || this.besideShown(id)) el.finish();
@@ -1149,7 +1161,53 @@ export class Player {
   }
 
   private frameScene(scene: SceneState, visible: ReadonlySet<string> = new Set(scene.visible)): FrameScene {
-    return { visible, offsets: scene.offsets, turns: scene.turns, opacities: scene.opacities, shapes: scene.shapes, texts: scene.texts };
+    // A frame paints fresh nodes: a question on its own page must ride on it.
+    const st = this.staged;
+    const opacities = st && st.alpha < 1 ? { ...scene.opacities, ...Object.fromEntries([...st.ids].map((id) => [id, (scene.opacities[id] ?? 1) * st.alpha])) } : scene.opacities;
+    return { visible, offsets: scene.offsets, turns: scene.turns, opacities, shapes: scene.shapes, texts: scene.texts };
+  }
+
+  /** An element's own opacity at a scene: a kept tile of a faded beside reveal stays faded. */
+  private baseOpacity(id: string, scene: SceneState): number {
+    return this.besideFadedShown(id) ? FADED : (scene.opacities[id] ?? 1);
+  }
+
+  /** How far a question on its own page fades this id now (1 = not at all). */
+  private stageAlpha(id: string): number {
+    return this.staged?.ids.has(id) ? this.staged.alpha : 1;
+  }
+
+  /**
+   * A question on its own page (stage: "own", spec 2026-10-03-round6 §6):
+   * everything on screen but the asked parts (the plan's `stage`) fades to
+   * STAGE_DIM as the question opens — not removed — and comes back over
+   * STAGE_MS once the question (its reveal and its lines) is done. The fade
+   * in runs beside the question, never before it, and the way back is a
+   * plain tween: a movie never waits on either. Aborted (a pause, a scrub),
+   * the figure is put back at once — unless a scrub already took the stage
+   * down and repainted (renderUpTo/jumpTo).
+   */
+  private async onOwnPage(step: Extract<PlanStep, { kind: "ask" }>, before: SceneState, signal: AbortSignal, run: () => Promise<void>): Promise<void> {
+    if (!step.stage) return run();
+    const keep = new Set(step.stage);
+    const ids = new Set(before.visible.filter((id) => !keep.has(id)));
+    if (ids.size === 0) return run();
+    const mine = { ids, alpha: 1 };
+    this.staged = mine;
+    const paint = (a: number): void => {
+      if (this.staged !== mine) return;
+      mine.alpha = a;
+      for (const id of ids) this.elements.get(id)?.setOpacity?.(this.baseOpacity(id, before) * a);
+    };
+    try {
+      await Promise.all([this.progress(STAGE_MS, signal, (t) => paint(1 - (1 - STAGE_DIM) * t)), run()]);
+      if (!signal.aborted) await this.progress(STAGE_MS, signal, (t) => paint(STAGE_DIM + (1 - STAGE_DIM) * t));
+    } finally {
+      if (this.staged === mine) {
+        paint(1);
+        this.staged = null;
+      }
+    }
   }
 
   /**
@@ -3508,11 +3566,11 @@ export class Player {
         return;
       }
       case "ask": {
-        if (step.choose !== undefined) return this.chooseAsk(index, step, signal);
-        if (step.tree !== undefined) return this.treeAsk(index, step, before, signal);
-        if (step.cards !== undefined) return this.cardsAsk(index, step, signal);
-        if (step.formula !== undefined) return this.formulaAsk(index, step, before, signal);
-        if (step.on !== undefined) return this.guessAsk(index, step, before, signal);
+        if (step.choose !== undefined) return this.onOwnPage(step, before, signal, () => this.chooseAsk(index, step, signal));
+        if (step.tree !== undefined) return this.onOwnPage(step, before, signal, () => this.treeAsk(index, step, before, signal));
+        if (step.cards !== undefined) return this.onOwnPage(step, before, signal, () => this.cardsAsk(index, step, signal));
+        if (step.formula !== undefined) return this.onOwnPage(step, before, signal, () => this.formulaAsk(index, step, before, signal));
+        if (step.on !== undefined) return this.onOwnPage(step, before, signal, () => this.guessAsk(index, step, before, signal));
         await this.narrationBarrier();
         if (signal.aborted) return;
         // The auto path (movie/bare player) "types" the answer in check mode,
