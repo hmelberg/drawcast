@@ -121,6 +121,8 @@ export type PlanStep = (
       predict?: true;
       revise?: string;
       budget?: number;
+      /** Budget: the account bar's label (ask.account_label). */
+      accountLabel?: string;
       judge?: false;
       /** Round 4 (spec 2026-10-03): a tree to fill, a formula to fill, a market check. */
       tree?: { blanks: string[]; pick?: string; work?: "all" | false };
@@ -1515,7 +1517,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.check !== undefined ? { check: cmd.ask.check } : {}),
         ...(cardSet && oneOn !== undefined ? { cards: oneOn, tolerance: cmd.ask.tolerance ?? 0 } : {}),
         ...(guess && guess.parts.length > 0
-          ? { on: guess.parts, tolerance: cmd.ask.tolerance ?? 0.1, ...(cmd.ask.from !== undefined ? { from: cmd.ask.from } : {}), ...(cmd.ask.relative === true ? { relative: true } : {}), ...(cmd.ask.release === false ? { release: false } : {}), ...(cmd.ask.predict === true ? { predict: true as const } : {}), ...(cmd.ask.revise !== undefined ? { revise: cmd.ask.revise } : {}), ...(cmd.ask.budget !== undefined ? { budget: cmd.ask.budget } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) }
+          ? { on: guess.parts, tolerance: cmd.ask.tolerance ?? 0.1, ...(cmd.ask.from !== undefined ? { from: cmd.ask.from } : {}), ...(cmd.ask.relative === true ? { relative: true } : {}), ...(cmd.ask.release === false ? { release: false } : {}), ...(cmd.ask.predict === true ? { predict: true as const } : {}), ...(cmd.ask.revise !== undefined ? { revise: cmd.ask.revise } : {}), ...(cmd.ask.budget !== undefined ? { budget: cmd.ask.budget } : {}), ...(cmd.ask.budget !== undefined && cmd.ask.account_label ? { accountLabel: cmd.ask.account_label } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) }
           : {}),
         ...(cmd.ask.code !== undefined && currentBox(cmd.ask.code) !== null ? { answerBox: currentBox(cmd.ask.code)! } : {}),
         // The movie demo points at the answer: the element's box (click), the

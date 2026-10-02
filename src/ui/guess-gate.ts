@@ -19,7 +19,7 @@
 
 import type { RenderHandle } from "../render";
 import type { GuessSession } from "../render/player";
-import { encodeGuess, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, pickHandle, pointFor, valueAt, withBudget, type GuessHandle } from "../guess/handles";
+import { budgetHint, encodeGuess, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, pickHandle, pointFor, valueAt, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
@@ -53,21 +53,10 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       let entry = 0;
       let settled = false;
       // Letting go answers: one part, worked in one gesture.
-      // A budget (spec 2026-10-02 §7): bars that always add up to it.
-      const budget = typeof step.budget === "number" && handles.length > 1 && handles.every((x) => x.truth.length === 1) ? step.budget : null;
-      const total = h("span", { class: "cs-waitgate-pill cs-guess-total" });
-      const showTotal = (): void => {
-        if (budget === null) return;
-        const sum = values.reduce((a, r) => a + r[0], 0);
-        total.textContent = `Total ${handles[0].format(sum)} of ${handles[0].format(budget)}`;
-      };
-      /** After handle k changed: the others make room within the budget. */
-      const constrain = (k: number): void => {
-        if (budget === null) return;
-        const next = withBudget(values, k, budget);
-        next.forEach((row, i) => (values[i] = row));
-        showTotal();
-      };
+      // A budget (spec 2026-10-03-looks-feedback-account §5): each bar moves
+      // on its own; the player paints the account bar beside the plot, and
+      // Answer waits until it balances.
+      const budget = session.account?.budget ?? null;
       // A market curve is moved AND turned (spec 2026-10-03 §3.2): one gesture
       // is rarely the whole answer, so it waits for Answer unless release: true.
       const onRelease =
@@ -85,8 +74,17 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
             : HINT[handles[0].kind];
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, onRelease ? (handles[0].kind === "point" ? hintText : `${hintText} — let go to answer`) : `${hintText}, then Answer`);
       const pill = h("button", { class: "cs-guess-value", type: "button", title: "Type a number" });
-      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸");
+      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, "Answer ▸") as HTMLButtonElement;
       answer.hidden = onRelease;
+      const hintDefault = hint.textContent ?? "";
+      /** A budget: the hint says what is left or over; Answer only when balanced. */
+      const balanced = (): boolean => budget === null || budgetHint(handles, values, budget) === null;
+      const balance = (): void => {
+        if (budget === null) return;
+        const msg = budgetHint(handles, values, budget);
+        hint.textContent = msg ?? hintDefault;
+        answer.disabled = msg !== null;
+      };
       const gate = h("div", { class: "cs-figgate cs-guessgate" }, pill);
       let dock: GateDock | null = null;
 
@@ -160,7 +158,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         focus = k;
         if (grab !== undefined && g.kind !== "market") entry = grab;
         values[k] = valueAt(g, p, values[k], null, grab);
-        constrain(k);
+        balance();
         gate.classList.add("dragging");
         repaint();
       });
@@ -171,7 +169,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         if (!p) return;
         const g = handles[dragging.k];
         values[dragging.k] = valueAt(g, p, values[dragging.k], dragging.prev, dragging.grab, dragging.anchor);
-        constrain(dragging.k);
+        balance();
         dragging.prev = p;
         repaint();
       });
@@ -204,6 +202,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         }
         if (e.key === "Enter") {
           e.preventDefault();
+          if (!balanced()) return;
           finish(encodeGuess(values));
           return;
         }
@@ -230,7 +229,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
         e.preventDefault();
         e.stopPropagation();
         values[focus] = nudge(g, values[focus], multiEntry(g) ? entry : 0, up ? 1 : -1, e.shiftKey);
-        constrain(focus);
+        balance();
         repaint();
       };
 
@@ -254,7 +253,7 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
               const row = values[focus].slice();
               row[j] = Math.max(g.min, Math.min(g.max, n));
               values[focus] = row;
-              constrain(focus);
+              balance();
             }
           }
           field.replaceWith(pill);
@@ -273,10 +272,11 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
 
       answer.addEventListener("click", (e) => {
         e.stopPropagation();
+        if (!balanced()) return;
         finish(encodeGuess(values));
       });
-      // The dock: the hint (and a budget's total), Answer, Skip.
-      const docked: HTMLElement[] = budget !== null ? [hint, total, answer] : [hint, answer];
+      // The dock: the hint (a budget's balance), Answer, Skip.
+      const docked: HTMLElement[] = [hint, answer];
       if (!step.required) {
         const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip", type: "button" }, "Skip ▸");
         skip.addEventListener("click", (e) => {
@@ -287,9 +287,9 @@ export function guessGateFor(stage: HTMLElement, _hd: RenderHandle): (signal: Ab
       }
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
-      if (budget !== null) showTotal();
       stage.appendChild(gate);
       dock = mountGateDock(stage, gate, docked, placePill);
+      balance();
       dock.relayout();
     });
 }

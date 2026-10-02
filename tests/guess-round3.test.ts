@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { Player, type AnswerEvent, type GuessRuntime, type GuessSession, type Reprojector } from "../src/render/player";
 import { planCommands } from "../src/render/plan";
 import { SpeechManager } from "../src/render/speech";
-import { formatterFor, withBudget, type GuessHandle, type GuessSetup } from "../src/guess/handles";
+import { formatterFor, type GuessHandle, type GuessSetup } from "../src/guess/handles";
 import type { Command } from "../src/spec/types";
 
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
@@ -93,9 +93,5 @@ describe("judge: false and budget", () => {
     expect(speech.said.some((t) => t.includes("Here is what is done."))).toBe(true);
   });
 
-  test("withBudget: the others make room in proportion", () => {
-    expect(withBudget([[60], [25], [25], [25]], 0, 100)).toEqual([[60], [13.33], [13.33], [13.33]]);
-    expect(withBudget([[10], [30], [60]], 2, 100)).toEqual([[10], [30], [60]]);
-    expect(withBudget([[150], [10]], 0, 100)).toEqual([[100], [0]]);
-  });
+  // The budget's account bar: tests/guess-account.test.ts (it replaced withBudget).
 });

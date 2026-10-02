@@ -5,7 +5,7 @@
 // layer (render/svg-backend.ts setGuessMarks) draws what this returns.
 
 import type { Pt } from "../layout/model";
-import { angleOf, pointFor, type GuessHandle } from "./handles";
+import { accountOf, angleOf, budgetBalanced, pointFor, type GuessHandle } from "./handles";
 import { scaleGeometry } from "../spec/scale";
 import { MARKET_DOMAIN, along, clipToSquare, curveOfGaps, impliedEquilibrium } from "./market";
 import { GUESS_COLOR } from "./color";
@@ -213,6 +213,52 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
     }
   });
   return { color: GUESS_COLOR, lines, texts, ...(dots.length > 0 ? { dots } : {}) };
+}
+
+/** The account bar overspent (spec 2026-10-03-looks-feedback-account §5). */
+export const ACCOUNT_RED = "#b3412e";
+
+/**
+ * A budget's account bar (spec 2026-10-03-looks-feedback-account §5): a bar
+ * standing right of the plot, on the bars' own scale, its value budget − sum,
+ * labelled `label` with its number. Overspent, it hangs below the baseline in
+ * red. A guess mark, so the chart's layout and data are untouched.
+ */
+export function accountMarks(handles: GuessHandle[], values: number[][], budget: number, label = "Left"): GuessMarks {
+  const lines: GuessMarkLine[] = [];
+  const texts: GuessMarkText[] = [];
+  const bars = handles.filter((h) => h.kind === "height" && h.cx !== undefined && h.halfW !== undefined && h.toLogical);
+  const balanced = budgetBalanced(handles, values, budget);
+  const account = balanced ? 0 : accountOf(values, budget);
+  const color = account < 0 ? ACCOUNT_RED : GUESS_COLOR;
+  if (bars.length === 0) return { color, lines, texts };
+  const h0 = bars[0];
+  const cxs = bars.map((b) => b.cx!);
+  const last = Math.max(...cxs);
+  const pitch = bars.length > 1 ? (last - Math.min(...cxs)) / (bars.length - 1) : h0.halfW! * 4;
+  const halfW = Math.min(h0.halfW!, pitch * 0.4);
+  const cx = last + Math.max(pitch, h0.halfW! * 2 + 24);
+  // On the same scale; past the axis either way it stops at the bar's own range.
+  const shown = Math.max(-h0.max, Math.min(h0.max, account));
+  const base = h0.toLogical!([0, Math.max(h0.min, Math.min(h0.max, 0))])[1];
+  const end = h0.toLogical!([0, Math.max(h0.min, Math.min(h0.max, 0)) + shown])[1];
+  const x0 = cx - halfW, x1 = cx + halfW;
+  if (Math.abs(end - base) > 0.5) {
+    lines.push({ pts: [[x0, base], [x0, end], [x1, end], [x1, base]], closed: true });
+    // A light hatch: a solid bar, unlike the dashed ghost of a guess.
+    const dir = end > base ? 1 : -1;
+    for (let y = base + dir * 8; dir * (end - y) > 3; y += dir * 8) lines.push({ pts: [[x0 + 3, y], [x1 - 3, y]], width: 1.5, opacity: 0.45 });
+  }
+  lines.push({ pts: [[x0 - 8, base], [x1 + 8, base]], width: 2 });
+  const number = `${account < 0 ? "−" : ""}${h0.format(Math.abs(account))}`;
+  if (account < 0) {
+    texts.push({ at: [cx, base + 20], text: label, anchor: "middle" });
+    texts.push({ at: [cx, end - 20], text: number, anchor: "middle" });
+  } else {
+    texts.push({ at: [cx, base - 26], text: label, anchor: "middle" });
+    texts.push({ at: [cx, end + 20], text: number, anchor: "middle" });
+  }
+  return { color, lines, texts };
 }
 
 function signed(h: GuessHandle, d: number): string {

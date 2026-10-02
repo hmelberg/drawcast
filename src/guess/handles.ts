@@ -895,19 +895,40 @@ export function hitDistance(h: GuessHandle, p: Pt, values: number[]): number {
 }
 
 /**
- * A budget (spec 2026-10-02 §7): handle `k` was just set; the others take up
- * the rest in proportion to what they had, so the numbers always add up to
- * `budget`. Single-value handles only (bars); a whole pie is already a split.
+ * A budget (spec 2026-10-03-looks-feedback-account §5): the viewer splits it
+ * over the bars, each bar moving on its own; an account bar shows what is
+ * left. Null unless it applies: a positive budget over two or more bars
+ * (single-value handles).
  */
-export function withBudget(values: number[][], k: number, budget: number): number[][] {
-  const vk = Math.max(0, Math.min(budget, values[k][0]));
-  const rest = budget - vk;
-  const others = values.map((row, i) => (i === k ? 0 : Math.max(0, row[0])));
-  const sum = others.reduce((a, b) => a + b, 0);
-  const n = values.length - 1;
-  return values.map((_, i) => {
-    if (i === k) return [vk];
-    const share = sum > 1e-9 ? (others[i] / sum) * rest : n > 0 ? rest / n : 0;
-    return [Math.round(share * 100) / 100];
-  });
+export function budgetOf(handles: GuessHandle[], budget: number | undefined): number | null {
+  return typeof budget === "number" && budget > 0 && handles.length > 1 && handles.every((h) => h.kind === "height" && h.truth.length === 1) ? budget : null;
+}
+
+/** The account: budget − the sum of the bars (negative when overspent). */
+export function accountOf(values: number[][], budget: number): number {
+  const sum = values.reduce((a, r) => a + (r[0] ?? 0), 0);
+  return Math.round((budget - sum) * 1e6) / 1e6;
+}
+
+/** Balanced: the account is zero within half a step (the finest bar's). */
+export function budgetBalanced(handles: GuessHandle[], values: number[][], budget: number): boolean {
+  const step = Math.min(...handles.map((h) => (h.step > 0 ? h.step : 1)));
+  return Math.abs(accountOf(values, budget)) <= step / 2 + 1e-9;
+}
+
+/** The dock's hint while unbalanced ("Balance the budget: 10 left" / "5 over"); null when balanced. */
+export function budgetHint(handles: GuessHandle[], values: number[][], budget: number): string | null {
+  if (budgetBalanced(handles, values, budget)) return null;
+  const a = accountOf(values, budget);
+  return `Balance the budget: ${handles[0].format(Math.abs(a))} ${a > 0 ? "left" : "over"}`;
+}
+
+/** A split that balances: `values` scaled to add up to `budget` (an even
+ *  split when they add up to nothing) — the movie's demo of a budget. */
+export function balancedSplit(values: number[][], budget: number): number[][] {
+  const xs = values.map((r) => Math.max(0, r[0] ?? 0));
+  const sum = xs.reduce((a, b) => a + b, 0);
+  const shares = xs.map((x) => Math.round((sum > 1e-9 ? (x / sum) * budget : budget / xs.length) * 100) / 100);
+  if (shares.length > 0) shares[shares.length - 1] = Math.round((budget - shares.slice(0, -1).reduce((a, b) => a + b, 0)) * 100) / 100;
+  return shares.map((v) => [v]);
 }

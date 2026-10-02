@@ -36,10 +36,10 @@ import { isIdentity, type Turn } from "./pose";
 import { decodeFigures } from "./decode-figures";
 import { smoothstep } from "./sweep";
 import { chunkCaption, pageTimes } from "./caption-chunks";
-import { defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessEnd, type GuessHandle, type GuessSetup } from "../guess/handles";
+import { balancedSplit, budgetOf, defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessEnd, type GuessHandle, type GuessSetup } from "../guess/handles";
 import { gapsOf } from "../guess/market";
 import { guessText, guessVars, scoreGuess } from "../guess/score";
-import { guessMarks } from "../guess/marks";
+import { accountMarks, guessMarks } from "../guess/marks";
 import type { CardsGeometry } from "../spec/cards";
 import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
 import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
@@ -199,7 +199,12 @@ export interface CardsSession {
 export interface GuessSession {
   setup: GuessSetup;
   start: number[][];
+  /** Paints the figure at `values` (and, for a budget, the account bar beside it). */
   paint(values: number[][]): void;
+  /** A budget question (spec 2026-10-03-looks-feedback-account §5): the bars
+   *  are split against it, the account bar labelled `label`; Answer waits
+   *  until the account balances. The bars' geometry is in setup.handles. */
+  account?: { budget: number; label: string };
 }
 
 /** One graded answer from a LIVE viewer (never a movie's auto path): what
@@ -1475,7 +1480,24 @@ export class Player {
     const marked = setup.handles.flatMap((h) => [h.part, ...h.shows]);
     this.guessMarkParts.set(owner, marked);
     this.guessMarkParts.set(`${owner}_prev`, marked);
-    const paint = this.guessPainter(setup, before, visible, owner);
+    const paintFigure = this.guessPainter(setup, before, visible, owner);
+    // A budget (spec 2026-10-03-looks-feedback-account §5): the bars move on
+    // their own and an account bar beside the plot shows what is left; it
+    // stands while the question does and goes before the reveal.
+    const budget = budgetOf(setup.handles, step.budget);
+    const account = budget !== null ? { budget, label: step.accountLabel ?? "Left" } : null;
+    const accountOwner = `${owner}_account`;
+    const paint = (values: number[][], marks = true): void => {
+      paintFigure(values, marks);
+      if (!account || !marks) return;
+      this.guessOwners.add(accountOwner);
+      this.effects?.setGuessMarks?.(accountOwner, accountMarks(setup.handles, values, account.budget, account.label));
+    };
+    const endAccount = (): void => {
+      if (!account) return;
+      this.effects?.setGuessMarks?.(accountOwner, null);
+      this.guessOwners.delete(accountOwner);
+    };
     // A line not drawn yet: its given part draws itself in while the
     // question is read, before the viewer takes over (Hans 2026-10-02:
     // "it should draw the first part of the line while talking").
@@ -1489,22 +1511,26 @@ export class Player {
       ? setup.handles.map((h) => (h.kind === "market" ? startValues(h) : h.truth.slice()))
       : fits(prev)
         ? prev.map((r) => r.slice())
-        : step.budget !== undefined && setup.handles.every((h) => h.truth.length === 1)
-          ? setup.handles.map(() => [step.budget! / setup.handles.length])
+        : account
+          ? setup.handles.map(() => [account.budget / setup.handles.length])
           : setup.handles.map(startValues);
     if (fits(prev)) {
       // The first guess stays, lighter, while the viewer revises it.
       this.guessOwners.add(`${owner}_prev`);
       this.effects?.setGuessMarks?.(`${owner}_prev`, { ...guessMarks(setup.handles, prev, 0), color: GUESS_PREV_COLOR });
     }
-    paint(start);
     const live = !this.autoAnswers && this.askGate !== null;
+    // A budget's movie glides from the bars' own low start, the whole budget
+    // in the account, to its split, the account reaching zero.
+    const from = account && !live ? setup.handles.map(startValues) : start;
+    paint(from);
     let guess: number[][] = start;
     let answered = false;
     let secs: number | null = null;
     if (live) {
       const from = performance.now();
-      const typed = await this.askGate!(signal, Object.assign({}, step, { guess: { setup, start, paint } satisfies GuessSession }));
+      const session: GuessSession = { setup, start, paint, ...(account ? { account } : {}) };
+      const typed = await this.askGate!(signal, Object.assign({}, step, { guess: session }));
       if (signal.aborted) return;
       secs = (performance.now() - from) / 1000;
       const decoded = typed !== null ? decodeGuess(typed, setup.handles) : null;
@@ -1525,9 +1551,10 @@ export class Player {
         if (h.truth[0] * h.truth[1] < 0) return h.truth.slice();
         return gapsOf(h.market, (h.truth[0] + h.truth[1]) / 2, 1);
       };
-      const demo =
-        defaultGuess(step.fallback, setup.handles) ??
-        (setup.handles.some((h) => h.kind === "market") ? setup.handles.map(commonest) : start);
+      const authored = defaultGuess(step.fallback, setup.handles);
+      const demo = account
+        ? balancedSplit(authored ?? start, account.budget)
+        : (authored ?? (setup.handles.some((h) => h.kind === "market") ? setup.handles.map(commonest) : start));
       const effects = this.effects;
       // Where the laser holds: a market curve's middle to move it, its end to
       // turn it (a demo whose gaps differ in sign is a turn); else the last entry.
@@ -1535,7 +1562,7 @@ export class Player {
       const laserAt = h0.kind === "market" ? ((demo[0]?.[0] ?? 0) * (demo[0]?.[1] ?? 0) < 0 ? 1 : 0) : (demo[0]?.length ?? 1) - 1;
       await this.progress(1400, signal, (t) => {
         const e = smoothstep(t);
-        const vals = start.map((row, k) => row.map((v, j) => v + ((demo[k]?.[j] ?? v) - v) * e));
+        const vals = from.map((row, k) => row.map((v, j) => v + ((demo[k]?.[j] ?? v) - v) * e));
         paint(vals);
         const p = pointFor(h0, vals[0], laserAt);
         effects?.setPointer(t >= 1 || !p ? null : p);
@@ -1547,6 +1574,7 @@ export class Player {
     }
     if (this.narrationVoice) await this.narrationVoice;
     if (signal.aborted) return;
+    endAccount();
     if (step.store) this.guessMemory.set(step.store.toLowerCase(), guess.map((r) => r.slice()));
 
     // Kept back (reveal: false): stored, its ghost left, nothing revealed or scored.

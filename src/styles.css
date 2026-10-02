@@ -1733,7 +1733,6 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
 }
 .cs-formula-key:active { background: rgba(63, 111, 181, 0.12); }
 /* A budget's running total, under the hint. */
-.cs-guess-total { position: absolute; top: 3.6rem; left: 50%; transform: translateX(-50%); pointer-events: none; animation: none; }
 .cs-guessgate.dragging { cursor: grabbing; }
 .cs-guess-value,
 .cs-guess-field {
@@ -1810,7 +1809,6 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   60% { transform: scale(0.97); opacity: 1; }
   100% { transform: scale(1); }
 }
-.cs-gatedock > .cs-guess-total { position: static; transform: none; }
 .cs-gatedock > .cs-guess-answer { position: static; transform: none; }
 .cs-gatedock > .cs-figgate-skip { position: static; align-self: center; }
 .cs-stage.cs-docked:not(.cs-caption-below):not(.cs-caption-strip) .cs-caption {
@@ -1858,7 +1856,7 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   background: #3f6fb5;
   border-color: #2f5590;
 }
-.cs-guess-answer:hover { background: #355f9e; }
+.cs-guess-answer:hover:not(:disabled) { background: #355f9e; }
 .cs-guess-answer[hidden] { display: none; }
 .cs-guessgate.answered { pointer-events: none; }
 /* Skip stands top right: the bottom right is the Sources corner's. */

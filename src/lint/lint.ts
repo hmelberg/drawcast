@@ -1137,7 +1137,7 @@ function lintGuess(spec: Spec): LintIssue[] {
 const TREE_MAX_BLANKS = 4;
 const TREE_MAX_NODES = 12;
 /** Guess fields that mean nothing on a tree ask. */
-const GUESS_ONLY = ["predict", "budget", "from", "revise", "relative", "judge"] as const;
+const GUESS_ONLY = ["predict", "budget", "account_label", "from", "revise", "relative", "judge"] as const;
 /** Ask fields a tree ask ignores: it is answered in the tree, once. */
 const TREE_INERT = ["answer", "widget", "retry"] as const;
 

@@ -1,0 +1,210 @@
+// The account bar (spec 2026-10-03-looks-feedback-account §5): in a budget
+// question each bar moves on its own; a "Left" bar beside the plot shows
+// budget − sum (red, hanging below the baseline, when overspent); Answer
+// waits until it balances. The movie glides to the default split and ends
+// balanced, never waiting.
+
+import { describe, expect, test } from "vitest";
+import * as handles from "../src/guess/handles";
+import { accountOf, balancedSplit, budgetBalanced, budgetHint, budgetOf, formatterFor, nudge, type GuessHandle, type GuessSetup } from "../src/guess/handles";
+import { ACCOUNT_RED, accountMarks, GUESS_COLOR } from "../src/guess/marks";
+import { Player, type AnswerEvent, type GuessRuntime, type GuessSession, type Reprojector } from "../src/render/player";
+import { planCommands } from "../src/render/plan";
+import { SpeechManager } from "../src/render/speech";
+import type { GuessMarks } from "../src/guess/marks";
+import type { Command } from "../src/spec/types";
+
+globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
+  setTimeout(() => cb(performance.now()), 5) as unknown as number) as typeof requestAnimationFrame;
+
+/** Bar k of a 0–100 chart: centres 100, 200, 300 …, 1 logical unit per unit of value, baseline at y 50. */
+const bar = (k: number, truth: number): GuessHandle => ({
+  part: `bar_${k + 1}`,
+  shows: [`bar_${k + 1}`],
+  kind: "height",
+  truth: [truth],
+  min: 0,
+  max: 100,
+  step: 1,
+  label: `B${k + 1}`,
+  format: formatterFor(1),
+  unit: "",
+  paths: [`values.${k}`],
+  cx: 100 * (k + 1),
+  halfW: 30,
+  toLogical: ([x, y]) => [x, 50 + y],
+  toDomain: ([x, y]) => [x, y - 50],
+});
+const bars = (...truth: number[]): GuessHandle[] => truth.map((t, k) => bar(k, t));
+
+describe("the account", () => {
+  test("is budget − sum", () => {
+    expect(accountOf([[40], [20], [15]], 100)).toBe(25);
+    expect(accountOf([[60], [50]], 100)).toBe(-10);
+    expect(accountOf([[33.3], [33.3], [33.4]], 100)).toBe(0);
+  });
+
+  test("a budget needs two or more bars", () => {
+    expect(budgetOf(bars(1, 2, 3), 100)).toBe(100);
+    expect(budgetOf(bars(1), 100)).toBeNull();
+    expect(budgetOf(bars(1, 2), undefined)).toBeNull();
+  });
+
+  test("balanced within half a step", () => {
+    const hs = bars(1, 2);
+    expect(budgetBalanced(hs, [[50], [50]], 100)).toBe(true);
+    expect(budgetBalanced(hs, [[50], [49.6]], 100)).toBe(true);
+    expect(budgetBalanced(hs, [[50], [49]], 100)).toBe(false);
+    expect(budgetBalanced(hs, [[50], [51]], 100)).toBe(false);
+  });
+
+  test("the hint says what is left or over", () => {
+    const hs = bars(1, 2);
+    expect(budgetHint(hs, [[40], [50]], 100)).toBe("Balance the budget: 10 left");
+    expect(budgetHint(hs, [[60], [45]], 100)).toBe("Balance the budget: 5 over");
+    expect(budgetHint(hs, [[60], [40]], 100)).toBeNull();
+  });
+
+  test("moving one bar leaves the others unchanged (no rebalancing)", () => {
+    expect((handles as Record<string, unknown>).withBudget).toBeUndefined();
+    const hs = bars(1, 2, 3);
+    const values = [[30], [30], [40]];
+    values[0] = nudge(hs[0], values[0], 0, 1);
+    expect(values).toEqual([[35], [30], [40]]);
+    expect(accountOf(values, 100)).toBe(-5);
+  });
+
+  test("the movie's split balances: a default that does not add up is scaled to the budget", () => {
+    expect(balancedSplit([[40], [20], [15], [25]], 100)).toEqual([[40], [20], [15], [25]]);
+    expect(balancedSplit([[40], [20], [20]], 100)).toEqual([[50], [25], [25]]);
+    expect(accountOf(balancedSplit([[1], [1], [1]], 100), 100)).toBe(0);
+    expect(balancedSplit([[0], [0]], 10)).toEqual([[5], [5]]);
+  });
+
+  test("a bar dragged, or a number typed, past the budget: the account goes red", () => {
+    const hs = bars(1, 2);
+    const values = [[100], [30]]; // the most a bar may be, past what is left
+    expect(accountOf(values, 100)).toBe(-30);
+    expect(budgetBalanced(hs, values, 100)).toBe(false);
+    expect(budgetHint(hs, values, 100)).toBe("Balance the budget: 30 over");
+    expect(accountMarks(hs, values, 100).color).toBe(ACCOUNT_RED);
+  });
+});
+
+describe("the account bar mark", () => {
+  const ys = (m: GuessMarks): number[] => m.lines.flatMap((l) => l.pts.map((p) => p[1]));
+  const xs = (m: GuessMarks): number[] => m.lines.flatMap((l) => l.pts.map((p) => p[0]));
+
+  test("stands right of the plot, on the same scale, labelled Left, with its number", () => {
+    const hs = bars(10, 20, 30);
+    const m = accountMarks(hs, [[20], [20], [20]], 100);
+    expect(m.color).toBe(GUESS_COLOR);
+    expect(Math.min(...xs(m))).toBeGreaterThan(300 + 30);
+    // 40 left: from the baseline (50) up to 90.
+    expect(Math.min(...ys(m))).toBeCloseTo(50);
+    expect(Math.max(...ys(m))).toBeCloseTo(90);
+    expect(m.texts.map((t) => t.text)).toEqual(expect.arrayContaining(["Left", "40"]));
+  });
+
+  test("negative: hangs below the baseline, red, with its number", () => {
+    const hs = bars(10, 20);
+    const m = accountMarks(hs, [[70], [50]], 100, "Kvar");
+    expect(m.color).toBe(ACCOUNT_RED);
+    expect(ACCOUNT_RED).toBe("#b3412e");
+    expect(Math.min(...ys(m))).toBeCloseTo(30);
+    expect(Math.max(...ys(m))).toBeCloseTo(50);
+    expect(m.texts.map((t) => t.text)).toEqual(expect.arrayContaining(["Kvar", "−20"]));
+  });
+
+  test("balanced: the number is 0, in the guess colour", () => {
+    const m = accountMarks(bars(1, 2), [[50], [50]], 100);
+    expect(m.color).toBe(GUESS_COLOR);
+    expect(m.texts.map((t) => t.text)).toContain("0");
+  });
+});
+
+// —— the player ——
+
+class CapturingSpeech extends SpeechManager {
+  said: string[] = [];
+  override get available(): boolean { return false; }
+  override speak(text: string): Promise<void> {
+    this.said.push(text);
+    return Promise.resolve();
+  }
+  override cancel(): void {}
+}
+
+function makePlayer(commands: Command[]) {
+  const ids = ["axes", "bar_1", "bar_2", "bar_3"];
+  const plan = planCommands(commands, ids, {
+    animateBase: { values: [61, 18, 21] },
+    guessParts: () => ({ parts: ["bar_1", "bar_2", "bar_3"], shows: ["bar_1", "bar_2", "bar_3"] }),
+  });
+  const speech = new CapturingSpeech();
+  const player = new Player(plan, new Map(), speech, null, { mode: "narrated" });
+  const rp: Reprojector = { frame: () => {}, commit: () => new Map(), committed: () => null };
+  player.reprojector = rp;
+  const runtime: GuessRuntime = {
+    setup: (): GuessSetup => ({ handles: bars(61, 18, 21), pin: {}, warnings: [] }),
+    patch: (_s, values) => ({ params: Object.fromEntries(values.map((r, k) => [`values.${k}`, r[0]])) }),
+  };
+  player.guess = runtime;
+  const marks: { owner: string; m: GuessMarks | null }[] = [];
+  const setGuessMarks = (owner: string, m: GuessMarks | null): void => void marks.push({ owner, m });
+  // Every other effect is a no-op.
+  (player as unknown as { effects: unknown }).effects = new Proxy({}, { get: (_t, k) => (k === "setGuessMarks" ? setGuessMarks : () => {}) });
+  const events: AnswerEvent[] = [];
+  player.callbacks = { onAnswer: (a) => events.push(a) };
+  return { player, events, speech, marks };
+}
+
+const ask = (extra: Record<string, unknown> = {}): Command =>
+  ({ ask: { question: "How would you split it?", on: "all", budget: 100, judge: false, store: "a", right: "You gave most to {a.biggest}.", ...extra } }) as Command;
+
+describe("a budget ask in the player", () => {
+  test("live: the session carries the account; the start is an even split", async () => {
+    const { player, marks } = makePlayer([ask({ account_label: "Igjen" })]);
+    let session: GuessSession | null = null;
+    player.askGate = async (_s, step) => {
+      session = (step as unknown as { guess: GuessSession }).guess;
+      return "50,30,20";
+    };
+    await player.play();
+    expect(session!.account).toEqual({ budget: 100, label: "Igjen" });
+    const start = session!.start.map((r) => r[0]);
+    expect(start.reduce((a, b) => a + b, 0)).toBeCloseTo(100);
+    // The account bar is painted while asked, then taken off for the reveal.
+    const acc = marks.filter((x) => x.owner.endsWith("_account"));
+    expect(acc.some((x) => x.m !== null && x.m.texts.some((t) => t.text === "Igjen"))).toBe(true);
+    expect(acc[acc.length - 1].m).toBeNull();
+  });
+
+  test("the movie ends balanced and never waits", async () => {
+    const { player, events, marks } = makePlayer([ask({ default: "40,20,15" })]);
+    (player as unknown as { autoAnswers: boolean }).autoAnswers = true;
+    let waited = false;
+    player.askGate = async () => {
+      waited = true;
+      return null;
+    };
+    await player.play();
+    expect(waited).toBe(false);
+    // A default that does not add up is scaled to the budget: 40:20:15 of 100.
+    const given = events.length > 0 ? events[0].given : [];
+    expect(given).toEqual([]); // the movie reports no answers
+    const acc = marks.filter((x) => x.owner.endsWith("_account") && x.m !== null).map((x) => x.m!);
+    expect(acc.length).toBeGreaterThan(1);
+    // The account starts with money left and reaches zero.
+    expect(acc[0].texts.some((t) => t.text !== "0" && /\d/.test(t.text))).toBe(true);
+    expect(acc[acc.length - 1].texts.map((t) => t.text)).toContain("0");
+  });
+
+  test("judge: false is unchanged: right is spoken, nothing is wrong", async () => {
+    const { player, events, speech } = makePlayer([ask()]);
+    player.askGate = async () => "70,20,10";
+    await player.play();
+    expect(events[0].correct).toBe(true);
+    expect(speech.said.some((t) => t.includes("You gave most to B1."))).toBe(true);
+  });
+});

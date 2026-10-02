@@ -242,7 +242,7 @@ export interface AskGateStep {
   guess?: GuessSession;
   /** Guess: false keeps the Answer button for one part (default: letting go answers). */
   release?: boolean;
-  /** Guess on all bars: the numbers add up to this (ui/guess-gate.ts). */
+  /** Guess on all bars: the budget split against an account bar (the gate reads GuessSession.account). */
   budget?: number;
   /** Cards to rank or sort (ui/cards-gate.ts). */
   cardsSession?: CardsSession;

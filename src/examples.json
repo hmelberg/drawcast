@@ -78533,7 +78533,7 @@
         },
         {
           "ask": {
-            "question": "How would you split it? Drag the bars; they always add up to a hundred.",
+            "question": "How would you split it? Drag each bar, then balance it: the bar on the right shows what is left.",
             "on": "all",
             "budget": 100,
             "judge": false,
