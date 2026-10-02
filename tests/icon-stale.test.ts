@@ -117,3 +117,22 @@ describe("stale icon strokes", () => {
     expect(v.ok, JSON.stringify(v)).toBe(true);
   });
 });
+
+describe("bundled examples ship their icons resolved", () => {
+  test("every icon in every bundled example resolves with nothing fetched, its key matching", async () => {
+    const { default: bundled } = await import("../src/examples.json");
+    const specs: unknown[] = [];
+    for (const e of bundled as { spec?: unknown; playlist?: { items?: { spec?: unknown }[] } }[]) {
+      if (e.spec) specs.push(e.spec);
+      for (const it of e.playlist?.items ?? []) if (it.spec) specs.push(it.spec);
+    }
+    const d = deps({});
+    const failed: string[] = [];
+    for (const s of specs) {
+      const copy = JSON.parse(JSON.stringify(s)) as { title?: string; assets?: unknown };
+      for (const r of await resolveIcons(copy as never, d)) if (!r.ok) failed.push(`${copy.title}: ${r.id} (${r.error})`);
+    }
+    expect(failed).toEqual([]);
+    expect(d.asked).toEqual([]);
+  }, 30000);
+});
