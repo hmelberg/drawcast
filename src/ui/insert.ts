@@ -14,6 +14,7 @@ import { resolvePortraits, traceFromBlob } from "../render/portrait";
 import { resolveSources } from "../render/source";
 import { resolveImages } from "../render/image";
 import { isLinkedPhoto } from "../spec/trace";
+import { iconEmbedded } from "../spec/icon-data";
 import { ASSET_MAX_BYTES, assetBytes, formatAssetSize, hoistStrokes, inlineStrokes } from "../spec/assets";
 import { resolveIcons } from "../render/icon";
 import type { SpecElement } from "../spec/types";
@@ -282,7 +283,14 @@ function imageElements(playlist: Playlist): number {
 export function unembeddedImages(playlist: Playlist): number {
   // The RESOLVED strokes: a hoisted "@name" holding a linked picture is still not embedded.
   return itemsOf(playlist).reduce(
-    (n, it) => n + (it.spec.elements ?? []).filter((e) => embeddable(e.type) && (!e.strokes || isLinkedPhoto(inlineStrokes(it.spec, e)))).length,
+    (n, it) =>
+      n +
+      (it.spec.elements ?? []).filter((e) => {
+        if (!embeddable(e.type)) return false;
+        // An icon's artwork goes by its keyword under `assets:` (round 6 §8).
+        if (e.type === "icon" && iconEmbedded(it.spec, e)) return false;
+        return !e.strokes || isLinkedPhoto(inlineStrokes(it.spec, e));
+      }).length,
     0,
   );
 }

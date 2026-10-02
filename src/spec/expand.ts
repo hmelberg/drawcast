@@ -9,6 +9,7 @@ import { expandDerivations } from "./derive";
 import { expandSound } from "./sound";
 import { expandWalks } from "./walk";
 import { expandScales } from "./scale";
+import { withIconData } from "./icon-data";
 import { expandCards as expandCardSets, shuffleOrder, type CardItem } from "./cards";
 import { formulaBlanks, hasBlanks } from "../formula/blanks";
 import { expandEquationPreset } from "../scenes/equation_plot/presets";
@@ -67,5 +68,8 @@ export function expandFormulaTiles(spec: Spec): Spec {
 /** Scales (spec/scale.ts), formula tiles, cards, derivations (math `steps`), sound, then walks — and an equation_plot
  *  `preset` written out into its params. The same object back when there is nothing to expand. */
 export function expandSpec(spec: Spec): Spec {
-  return expandWalks(expandSound(expandDerivations(expandCards(expandScratch(expandCardSets(expandFormulaTiles(expandScales(expandEquationPreset(spec)))))))));
+  // Icons named by keyword take their data from `assets:` or the offline
+  // cache FIRST (spec/icon-data.ts): a card's height depends on whether its
+  // icon is there, and that is decided when the cards expand.
+  return expandWalks(expandSound(expandDerivations(expandCards(expandScratch(expandCardSets(expandFormulaTiles(expandScales(expandEquationPreset(withIconData(spec))))))))));
 }

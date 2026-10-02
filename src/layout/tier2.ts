@@ -31,6 +31,7 @@ import {
   type AreaDrawable,
   type Drawable,
   type GroupDrawable,
+  type ImageDrawable,
   type Pt,
   type ResolvedStyle,
   type StrokeDrawable,
@@ -40,7 +41,8 @@ import { mathDrawables, mathMorphDrawables } from "./math";
 import { formulaBlanks, hasBlanks, markBlanks } from "../formula/blanks";
 import { resolveDrawOpts, resolveStyle } from "./resolve";
 import { catmullRom, catmullRomClosed } from "./smooth";
-import { decodeIcon, decodePhoto, decodePicture, decodeSourceImage, decodeTrace } from "../spec/trace";
+import { decodePhoto, decodePicture, decodeSourceImage, decodeTrace } from "../spec/trace";
+import { hasIconStore, iconLookOf, iconPictureOf, iconRingsOf } from "../spec/icon-data";
 import { FULL_VIEW4, handRegions, isAutoRegions, isRect4, type Rect4 } from "../spec/places";
 import { mapLabelRequest, obstacleBoxes, wrapText, type LabelRequest } from "./labels";
 import { currentMathFontName, enginesLoaded, getLoadedEngines, type MathJaxEngine, type MusicEngine } from "../scenes/engines";
@@ -1582,6 +1584,13 @@ function regionDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   ];
 }
 
+/** The warning for an icon with no data. Where the offline cache is loaded
+ *  (the lint, the tests, bundled examples), a keyword missing from it is
+ *  NAMED as such — never a silent empty card. */
+function noIconWarning(keyword: string): string {
+  return hasIconStore() ? `no icon for "${keyword}" — "${keyword}" is not in the offline icon cache (npm run icons)` : `no icon for "${keyword}"`;
+}
+
 function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const c = ctx.anchors[el.id] ?? [CANVAS.w / 2, CANVAS.h / 2];
   const shape = el.shape ?? "circle";
@@ -1599,7 +1608,7 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   // An icon that never resolved (offline, no match): text only, normal
   // height, and the same warning an icon element gives (round 5 §3.3).
   if (el.icon !== undefined && !nodeIconRings(el)) {
-    ctx.warnings.push(shape === "rect" ? `no icon for "${(typeof el.icon === "string" ? el.icon : el.icon?.of) ?? el.id}"` : `node "${el.id}": an icon is drawn only in a rect node`);
+    ctx.warnings.push(shape === "rect" ? noIconWarning((typeof el.icon === "string" ? el.icon : el.icon?.of) ?? el.id) : `node "${el.id}": an icon is drawn only in a rect node`);
   }
 
   if (shape === "person") {
@@ -1658,7 +1667,8 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
       // Round 5 §3.3: the icon sits in the upper part of the box, the text
       // below it. nodeIconLayout is the one place both are placed.
       const at = nodeIconLayout(c, h);
-      out.push(nodeIconGroup(el.id, icon, at.icon, at.size, style, drawOpts));
+      const picture = iconLookOf(el) === "picture" ? iconPictureOf(el.icon_strokes, style.color) : null;
+      out.push(nodeIconGroup(el.id, icon, at.icon, at.size, style, drawOpts, picture));
       if (text) out.push(nodeText(el.id, at.text, text, fontSize, drawOpts));
       return out;
     }
@@ -1720,10 +1730,24 @@ function nodeIconLayout(c: Pt, h: number): { icon: Pt; size: number; text: Pt } 
  * sub-drawable (SUB_SUFFIXES "_icon"), so it reveals, moves, hides and
  * erases with its box like the text does.
  */
-function nodeIconGroup(id: string, rings: [number, number][][], at: Pt, size: number, boxStyle: ResolvedStyle, drawOpts: ReturnType<typeof resolveDrawOpts>): GroupDrawable {
+function nodeIconGroup(
+  id: string,
+  rings: [number, number][][],
+  at: Pt,
+  size: number,
+  boxStyle: ResolvedStyle,
+  drawOpts: ReturnType<typeof resolveDrawOpts>,
+  picture: { href: string; aspect: number } | null = null,
+): GroupDrawable {
   const [cx, cy] = at;
   // The box's ink at a line weight for a small glyph, never the box's fill.
   const style = defaultStyle({ color: boxStyle.color, opacity: boxStyle.opacity, strokeWidth: 2 });
+  if (picture) {
+    // Round 6 §8: the artwork itself, faded in whole, in the same square —
+    // a child of the same `<id>__icon` group, so it moves, highlights and
+    // erases with its box exactly as the traced rings do.
+    return { id: `${id}__icon`, kind: "group", z: Z_STROKE, style, drawOpts, children: [iconPictureDrawable(`${id}__icon__pic`, picture, at, size, boxStyle.opacity, drawOpts)] };
+  }
   return {
     id: `${id}__icon`,
     kind: "group",
@@ -1739,6 +1763,35 @@ function nodeIconGroup(id: string, rings: [number, number][][], at: Pt, size: nu
       style,
       drawOpts,
     })),
+  };
+}
+
+/**
+ * An icon's picture (round 6 §8): its SVG as an image drawable fitted into a
+ * size×size square centred on `at` (aspect kept), figure coordinates, faded
+ * in whole — never traced.
+ */
+function iconPictureDrawable(
+  id: string,
+  picture: { href: string; aspect: number },
+  at: Pt,
+  size: number,
+  opacity: number,
+  drawOpts: ReturnType<typeof resolveDrawOpts>,
+): ImageDrawable {
+  const h = picture.aspect >= 1 ? size : size * picture.aspect;
+  const w = picture.aspect >= 1 ? size / picture.aspect : size;
+  return {
+    id,
+    kind: "image",
+    href: picture.href,
+    pos: at,
+    w,
+    h,
+    z: Z_STROKE,
+    style: defaultStyle({ opacity }),
+    reveal: "fade",
+    drawOpts: { ...drawOpts, mode: "sketch", duration: Math.min(drawOpts.duration, 700) },
   };
 }
 
@@ -2333,14 +2386,17 @@ function insetDrawable(el: SpecElement, ctx: Ctx, column: SpecElement[]): GroupD
  * (export/credits.ts) only — spec §3.7 keeps icon attribution off the canvas.
  */
 function iconDrawable(el: SpecElement, ctx: Ctx): GroupDrawable | null {
-  const rings = el.strokes ? decodeIcon(el.strokes) : null;
+  const rings = iconRingsOf(el.strokes);
   if (!rings || rings.length === 0) {
-    ctx.warnings.push(`no icon for "${el.of ?? el.id}"`);
+    ctx.warnings.push(noIconWarning(el.of ?? el.id));
     return null;
   }
   const size = el.size ?? 100;
   const [cx, cy] = originOr(el, ctx, [500, 375]);
-  const children: Drawable[] = rings.map((ring, k) => ({
+  const picture = iconLookOf(el) === "picture" ? iconPictureOf(el.strokes, resolveStyle(el.style).color) : null;
+  const children: Drawable[] = picture
+    ? [iconPictureDrawable(`${el.id}__pic`, picture, [cx, cy], size, resolveStyle(el.style).opacity, resolveDrawOpts(el.draw))]
+    : rings.map((ring, k) => ({
     id: `${el.id}__r${k}`,
     kind: "stroke",
     pts: ring.map(([u, v]) => [cx - size / 2 + u * size, cy + size / 2 - v * size] as Pt),

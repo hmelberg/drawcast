@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { iconSearchUrl, iconSvgUrl, resolveIcons, svgToRings, DEFAULT_PREFIXES, BY_PREFIXES } from "../src/render/icon";
 import { ICON_SETS } from "../src/render/icon-sets";
-import { decodeIcon } from "../src/spec/trace";
+import { iconRingsOf } from "../src/spec/icon-data";
 
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 20h20v-8l-6 4v-4l-6 4V8H2z"/></svg>';
 const deps = (routes: Record<string, unknown>) => ({
@@ -14,7 +14,7 @@ describe("resolveIcons", () => {
     const r = await resolveIcons(spec as never, deps({ [iconSearchUrl("factory", DEFAULT_PREFIXES)]: { icons: ["lucide:factory"] }, [iconSvgUrl("lucide", "factory")]: SVG }));
     expect(r).toEqual([{ id: "f", ok: true }]);
     const el = spec.elements[0] as { strokes?: string; credit?: string; set?: string };
-    expect(decodeIcon(el.strokes!)!.length).toBe(1);
+    expect(iconRingsOf(el.strokes!)!.length).toBe(1);
     expect(el.credit).toBe("factory from lucide · ISC");
     expect(el.set).toBe("lucide");
   });

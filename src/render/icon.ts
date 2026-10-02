@@ -12,9 +12,21 @@
 
 import type { Spec, SpecElement } from "../spec/types";
 import { inlineStrokes } from "../spec/assets";
-import type { Pt } from "../layout/model";
-import { sampleSvgPath } from "../scenes/svgpath";
-import { decodeIcon, encodeIcon } from "../spec/trace";
+import {
+  decodeIconSvg,
+  encodeIconSvg,
+  iconAsk,
+  iconAssetName,
+  iconCreditOf,
+  iconLookOf,
+  iconSlug,
+  isIconData,
+  registerIconStore,
+  storedIcon,
+  svgToRings,
+  type IconAsk,
+  type IconLook,
+} from "../spec/icon-data";
 import { cacheGet, cachePut } from "./portrait";
 import { ICON_SETS } from "./icon-sets";
 
@@ -24,8 +36,8 @@ export const DEFAULT_PREFIXES = ["lucide", "tabler", "ph", "heroicons", "materia
 /** Tried second, only once every permissive set has come up empty: attribution owed (the `credit` line pays it). */
 export const BY_PREFIXES = ["fa6-solid", "fa6-regular", "twemoji"];
 
-/** Bump when the resolver's output changes — old cache entries stop matching. */
-const ICON_VERSION = 1;
+/** Bump when the resolver's output changes — old cache entries stop matching. 2: the SVG itself (spec/icon-data.ts `ics1:`), per look. */
+const ICON_VERSION = 2;
 
 export function iconSearchUrl(q: string, prefixes: string[]): string {
   return `https://api.iconify.design/search?query=${encodeURIComponent(q)}&limit=5&prefixes=${prefixes.join(",")}`;
@@ -36,40 +48,24 @@ export function iconSvgUrl(prefix: string, name: string): string {
 }
 
 /** lower-case, runs of whitespace → one hyphen: how a free-text `of` becomes an Iconify icon name. */
-function slug(of: string): string {
-  return of.trim().toLowerCase().replace(/\s+/g, "-");
-}
+const slug = iconSlug;
 
-/**
- * An Iconify SVG's `<path>` outlines, each flattened to a ring and
- * normalised into the SVG's own `viewBox` (default `0 0 24 24`) so every
- * icon comes back in 0..1 coordinates regardless of its native grid.
- * Non-path shapes (`<rect>`, `<circle>`, …) are ignored — Iconify normalises
- * the sets `icon.ts` draws from to paths.
- */
-export function svgToRings(svg: string): Pt[][] {
-  const vbMatch = svg.match(/viewBox="([^"]+)"/);
-  const [minX, minY, w, h] = (vbMatch ? vbMatch[1].trim().split(/\s+/).map(Number) : [0, 0, 24, 24]) as [
-    number,
-    number,
-    number,
-    number,
-  ];
-  const rings: Pt[][] = [];
-  for (const m of svg.matchAll(/<path\b[^>]*\bd="([^"]+)"/g)) {
-    for (const ring of sampleSvgPath(m[1], 6)) {
-      rings.push(ring.map(([x, y]) => [(x - minX) / w, (y - minY) / h] as Pt));
-    }
-  }
-  return rings;
-}
+/** An Iconify SVG's outlines as 0..1 rings — spec/icon-data.ts, where the layout traces a drawn icon too. */
+export { svgToRings };
+
+/** Tried first for a PICTURE (round 6 §8) when no set is pinned: a colour set, credited like any CC BY set. */
+export const PICTURE_PREFIXES = ["twemoji"];
 
 export interface IconDeps {
   fetch: typeof fetch;
+  /** The offline icon cache (src/scenes/icon-cache.json), loaded on first
+   *  need and registered with spec/icon-data.ts. Optional: a test's deps
+   *  without it never read the bundled cache. */
+  offline?: () => Promise<Record<string, string>>;
 }
 
 export function defaultDeps(): IconDeps {
-  return { fetch: (input, init) => globalThis.fetch(input, init) };
+  return { fetch: (input, init) => globalThis.fetch(input, init), offline: loadOfflineIcons };
 }
 
 export interface IconResolveOpts {
@@ -89,18 +85,19 @@ export interface IconResolution {
 /** Cache key for an icon keyword: keyed by `set` too (default "*"): the same
  *  keyword can resolve to a different icon depending on which set the author
  *  pinned it to. An icon element and a node's icon share it. */
-function iconCacheKey(of: string, set: string | undefined): string {
-  return `ic${ICON_VERSION}|${set ?? "*"}|${of.trim().toLowerCase()}`;
+function iconCacheKey(of: string, set: string | undefined, look: IconLook): string {
+  return `ic${ICON_VERSION}|${set ? "" : look}|${set ?? "*"}|${of.trim().toLowerCase()}`;
 }
 
-/** The first `prefix:name` result whose prefix's licence class is allowed, or null. */
-function firstAllowed(icons: unknown, allow: ("permissive" | "by")[]): { prefix: string; name: string } | null {
+/** The first `prefix:name` result whose prefix's licence class is allowed (and, given `exactName`, whose name is exactly that), or null. */
+function firstAllowed(icons: unknown, allow: ("permissive" | "by")[], exactName?: string): { prefix: string; name: string } | null {
   if (!Array.isArray(icons)) return null;
   for (const entry of icons) {
     if (typeof entry !== "string") continue;
     const sep = entry.indexOf(":");
     if (sep < 0) continue;
     const prefix = entry.slice(0, sep), name = entry.slice(sep + 1);
+    if (exactName !== undefined && name !== exactName) continue;
     const row = ICON_SETS[prefix];
     if (row && (allow as string[]).includes(row.cls)) return { prefix, name };
   }
@@ -115,12 +112,6 @@ export function nodeIconRequest(el: Pick<SpecElement, "type" | "icon">): { of: s
   return typeof icon.set === "string" && icon.set !== "" ? { of: icon.of, set: icon.set } : { of: icon.of };
 }
 
-/** An `icon` / `match_icon` value as {of, set}, or null when unusable. */
-function iconRequest(icon: unknown): { of: string; set?: string } | null {
-  const req = typeof icon === "string" ? { of: icon } : (icon as { of?: unknown; set?: unknown } | null | undefined);
-  if (!req || typeof req.of !== "string" || req.of.trim() === "") return null;
-  return typeof req.set === "string" && req.set !== "" ? { of: req.of, set: req.set } : { of: req.of };
-}
 
 /** What a resolution is stored under beside its strokes (`icon_key`): the keyword and the set it came from. */
 export function iconKey(of: string, set: string): string {
@@ -143,6 +134,41 @@ export function iconKeyMatches(key: unknown, req: { of: string; set?: string }):
 const keySet = (key: unknown): string => (typeof key === "string" && key.includes("@") ? key.slice(key.lastIndexOf("@") + 1) : "");
 
 /**
+ * Fill one icon's data, IN PLACE on `host`: kept when it is there and still
+ * answers the ask (its key), else resolved (resolveKeyword). Legacy rings-only
+ * data asked for as a picture is resolved again for the artwork, and kept
+ * when that fails — a drawn icon beats none. Throws with the reason.
+ */
+async function fillOne(
+  spec: Spec,
+  host: Record<string, unknown>,
+  f: { data: string; key: string; credit: string },
+  req: IconAsk,
+  look: IconLook,
+  deps: IconDeps,
+  opts: IconResolveOpts,
+): Promise<void> {
+  const have = host[f.data];
+  const fresh = isIconData(have) && iconKeyMatches(host[f.key], req);
+  if (fresh && !(look === "picture" && decodeIconSvg(have) === null)) return;
+  const kept = fresh ? { data: have, key: host[f.key], credit: host[f.credit] } : null;
+  // Unresolved, or resolved for an icon since edited: never keep a wrong picture.
+  delete host[f.data];
+  delete host[f.key];
+  try {
+    const got = await resolveKeyword(spec, req, look, deps, opts);
+    host[f.data] = got.strokes;
+    host[f.credit] = got.credit;
+    host[f.key] = iconKey(req.of, got.set);
+  } catch (err) {
+    if (!kept) throw err;
+    host[f.data] = kept.data;
+    if (kept.key !== undefined) host[f.key] = kept.key;
+    if (kept.credit !== undefined) host[f.credit] = kept.credit;
+  }
+}
+
+/**
  * A cards element's icons (round 5 §3.3): each item's `icon` into its
  * `icon_strokes` and `credit`, and a match item's `match_icon` (its
  * partner's) into `match_icon_strokes` and `match_credit` — the fields
@@ -150,31 +176,21 @@ const keySet = (key: unknown): string => (typeof key === "string" && key.include
  * for (`icon_key`, `match_icon_key`), so an edited icon is resolved again.
  * Reported under the card's id.
  */
-async function resolveCardIcons(el: SpecElement, results: IconResolution[], deps: IconDeps, opts: IconResolveOpts): Promise<void> {
+async function resolveCardIcons(spec: Spec, el: SpecElement, results: IconResolution[], deps: IconDeps, opts: IconResolveOpts): Promise<void> {
   const items = Array.isArray(el.items) ? el.items : [];
+  const look = iconLookOf(el);
   const sides = [
-    { icon: "icon", strokes: "icon_strokes", credit: "credit", key: "icon_key", id: (i: number) => `${el.id}_${i + 1}` },
-    { icon: "match_icon", strokes: "match_icon_strokes", credit: "match_credit", key: "match_icon_key", id: (i: number) => `${el.id}_m_${i + 1}` },
+    { icon: "icon", data: "icon_strokes", credit: "credit", key: "icon_key", id: (i: number) => `${el.id}_${i + 1}` },
+    { icon: "match_icon", data: "match_icon_strokes", credit: "match_credit", key: "match_icon_key", id: (i: number) => `${el.id}_m_${i + 1}` },
   ] as const;
   for (const [i, it] of items.entries()) {
     if (typeof it !== "object" || it === null) continue;
     const item = it as unknown as Record<string, unknown>;
     for (const side of sides) {
-      const req = iconRequest(item[side.icon]);
+      const req = iconAsk(item[side.icon]);
       if (!req) continue;
-      const have = item[side.strokes];
-      if (typeof have === "string" && decodeIcon(have) && iconKeyMatches(item[side.key], req)) {
-        results.push({ id: side.id(i), ok: true });
-        continue;
-      }
-      // Unresolved, or resolved for an `icon` since edited: never keep a wrong picture.
-      delete item[side.strokes];
-      delete item[side.key];
       try {
-        const got = await resolveKeyword(req.of, req.set, deps, opts);
-        item[side.strokes] = got.strokes;
-        item[side.credit] = got.credit;
-        item[side.key] = iconKey(req.of, got.set);
+        await fillOne(spec, item, side, req, look, deps, opts);
         results.push({ id: side.id(i), ok: true });
       } catch (err) {
         results.push({ id: side.id(i), ok: false, error: (err as Error).message });
@@ -183,12 +199,30 @@ async function resolveCardIcons(el: SpecElement, results: IconResolution[], deps
   }
 }
 
+let offlineLoad: Promise<Record<string, string>> | null = null;
+
+/** The offline icon cache, loaded once (its own chunk: only a spec with icons pays for it) and registered for the layout too. */
+export function loadOfflineIcons(): Promise<Record<string, string>> {
+  offlineLoad ??= import("../scenes/icon-cache.json")
+    .then((m) => {
+      const store = ((m as { default?: unknown }).default ?? m) as Record<string, string>;
+      registerIconStore(store);
+      return store;
+    })
+    .catch(() => ({}));
+  return offlineLoad;
+}
+
 /**
- * One keyword → rings: from the cache, or Iconify search (or a named `set`
- * straight to the SVG endpoint) → licence check → outline trace, on a miss.
- * Throws with the reason; the caller turns it into a result.
+ * One keyword → icon data (spec/icon-data.ts `ics1:`, the SVG): from the
+ * spec's `assets:` or the offline cache, the IndexedDB cache, or Iconify
+ * search (or a named `set` straight to the SVG endpoint) → licence check,
+ * on a miss. A picture with no set pinned tries the colour set first
+ * (PICTURE_PREFIXES). Throws with the reason; the caller turns it into a result.
  */
-async function resolveKeyword(of: string, requestedSet: string | undefined, deps: IconDeps, opts: IconResolveOpts): Promise<{ strokes: string; set: string; credit: string }> {
+async function resolveKeyword(spec: Spec, req: IconAsk, look: IconLook, deps: IconDeps, opts: IconResolveOpts): Promise<{ strokes: string; set: string; credit: string }> {
+  const { of } = req;
+  const requestedSet = req.set;
   // Policy checks apply on every call, cache hit or miss: whether a
   // set may be used here depends on THIS call's `opts.forSeed`, not on
   // whether some earlier call already fetched the SVG.
@@ -198,68 +232,72 @@ async function resolveKeyword(of: string, requestedSet: string | undefined, deps
     if (row.cls === "logo") throw new Error(`logo sets are not allowed ("${requestedSet}")`);
     if (row.cls === "by-sa" && opts.forSeed) throw new Error(`share-alike set cannot be a seed ("${requestedSet}")`);
   }
-  const key = iconCacheKey(of, requestedSet);
-  let cached = await cacheGet(key);
-  if (!cached) {
-    let prefix: string, name: string;
-    if (requestedSet) {
-      prefix = requestedSet;
-      name = slug(of);
-    } else {
-      const searchRes = await deps.fetch(iconSearchUrl(of, DEFAULT_PREFIXES));
-      const searchJson = searchRes.ok ? ((await searchRes.json()) as { icons?: unknown }) : { icons: [] };
-      let hit = firstAllowed(searchJson.icons, ["permissive"]);
-      if (!hit) {
-        const byRes = await deps.fetch(iconSearchUrl(of, BY_PREFIXES));
-        const byJson = byRes.ok ? ((await byRes.json()) as { icons?: unknown }) : { icons: [] };
-        hit = firstAllowed(byJson.icons, ["by"]);
-      }
-      if (!hit) throw new Error(`no icon found for "${of}"`);
-      prefix = hit.prefix;
-      name = hit.name;
-    }
-    const svgRes = await deps.fetch(iconSvgUrl(prefix, name));
-    if (!svgRes.ok) throw new Error(`Iconify fetch failed (${svgRes.status}) for "${prefix}:${name}"`);
-    const svg = await svgRes.text();
-    const rings = svgToRings(svg);
-    if (rings.length === 0) throw new Error(`no outline found for "${prefix}:${name}"`);
-    const strokes = encodeIcon(rings);
-    const credit = `${name} from ${prefix} · ${ICON_SETS[prefix].licence}`;
-    cached = JSON.stringify({ strokes, set: prefix, credit });
-    await cachePut(key, cached);
+  const name = iconAssetName(req, look);
+  let stored = storedIcon(spec, name);
+  if (stored === undefined && deps.offline) {
+    await deps.offline().catch(() => undefined);
+    stored = storedIcon(spec, name);
   }
-  return JSON.parse(cached) as { strokes: string; set: string; credit: string };
+  const fromData = (data: string): { strokes: string; set: string; credit: string } => {
+    const d = decodeIconSvg(data);
+    return { strokes: data, set: d?.set ?? requestedSet ?? "", credit: iconCreditOf(data) ?? "" };
+  };
+  if (stored !== undefined) return fromData(stored);
+  const key = iconCacheKey(of, requestedSet, look);
+  const cached = await cacheGet(key);
+  if (cached && decodeIconSvg(cached)) return fromData(cached);
+  let prefix: string, iconName: string;
+  if (requestedSet) {
+    prefix = requestedSet;
+    iconName = slug(of);
+  } else {
+    const search = async (prefixes: string[], allow: ("permissive" | "by")[], exact = false) => {
+      const res = await deps.fetch(iconSearchUrl(of, prefixes));
+      const json = res.ok ? ((await res.json()) as { icons?: unknown }) : { icons: [] };
+      const hit = firstAllowed(json.icons, allow, exact ? slug(of) : undefined);
+      return hit;
+    };
+    // The colour set only when it has the keyword itself: its search ranks
+    // "tram-car" for "car", and a wrong picture is worse than an ink one.
+    let hit = look === "picture" ? await search(PICTURE_PREFIXES, ["by"], true) : null;
+    hit ??= await search(DEFAULT_PREFIXES, ["permissive"]);
+    hit ??= await search(BY_PREFIXES, ["by"]);
+    if (!hit) throw new Error(`no icon found for "${of}"`);
+    prefix = hit.prefix;
+    iconName = hit.name;
+  }
+  const svgRes = await deps.fetch(iconSvgUrl(prefix, iconName));
+  if (!svgRes.ok) throw new Error(`Iconify fetch failed (${svgRes.status}) for "${prefix}:${iconName}"`);
+  const svg = await svgRes.text();
+  if (svgToRings(svg).length === 0) throw new Error(`no outline found for "${prefix}:${iconName}"`);
+  const data = encodeIconSvg(prefix, iconName, svg);
+  await cachePut(key, data);
+  return fromData(data);
 }
 
 /**
  * Resolve every `icon` element of a spec IN PLACE — fill `strokes`, `set` and
  * `credit` — and every node's `icon` (round 5 §3.3) — fill `icon_strokes` and
- * `credit`. Each also gets `icon_key`, what it was resolved for: strokes
- * whose key no longer matches the `icon` / `of` (an edit) are resolved again. Licence-gated (see icon-sets.ts): an unknown set, a logo set, or a
- * share-alike set picked as an unattended seed is rejected outright — no
- * strokes, no credit. Failures are reported, never thrown.
+ * `credit`. Each also gets `icon_key`, what it was resolved for: data
+ * whose key no longer matches the `icon` / `of` (an edit) is resolved again.
+ * The data is the icon's SVG (spec/icon-data.ts); its look decides how the
+ * layout shows it, and which set a bare keyword prefers. Licence-gated (see
+ * icon-sets.ts): an unknown set, a logo set, or a share-alike set picked as
+ * an unattended seed is rejected outright — no data, no credit. Failures are
+ * reported, never thrown.
  */
 export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), opts: IconResolveOpts = {}): Promise<IconResolution[]> {
   const results: IconResolution[] = [];
   for (const el of spec.elements ?? []) {
     if (el.type === "cards") {
-      await resolveCardIcons(el, results, deps, opts);
+      await resolveCardIcons(spec, el, results, deps, opts);
       continue;
     }
     if (el.type === "node") {
       const req = nodeIconRequest(el);
       if (!req) continue;
-      if (el.icon_strokes && decodeIcon(el.icon_strokes) && iconKeyMatches(el.icon_key, req)) {
-        results.push({ id: el.id, ok: true });
-        continue;
-      }
-      delete el.icon_strokes;
-      delete el.icon_key;
       try {
-        const got = await resolveKeyword(req.of, req.set, deps, opts);
-        el.icon_strokes = got.strokes;
-        el.credit = got.credit;
-        el.icon_key = iconKey(req.of, got.set);
+        await fillOne(spec, el as unknown as Record<string, unknown>, { data: "icon_strokes", key: "icon_key", credit: "credit" }, req, iconLookOf(el), deps, opts);
         results.push({ id: el.id, ok: true });
       } catch (err) {
         results.push({ id: el.id, ok: false, error: (err as Error).message });
@@ -267,32 +305,40 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
       continue;
     }
     if (el.type !== "icon") continue;
+    const look = iconLookOf(el);
     const have = inlineStrokes(spec, el);
     const fresh = !el.of || iconKeyMatches(el.icon_key, { of: el.of, ...(el.set ? { set: el.set } : {}) });
-    if (have && decodeIcon(have) && fresh) {
+    if (have && isIconData(have) && fresh && !(look === "picture" && el.of && decodeIconSvg(have) === null)) {
       results.push({ id: el.id, ok: true });
       continue;
     }
     // Resolved for an `of` since edited: the strokes go, and a `set` the
     // resolver filled in (the key's) no longer binds the search.
     let set = el.set;
+    const kept = fresh && have && isIconData(have) ? { strokes: el.strokes, credit: el.credit, key: el.icon_key } : null;
     if (!fresh) {
       delete el.strokes;
       if (set && set === keySet(el.icon_key)) set = undefined;
       delete el.icon_key;
     }
+    if (kept) delete el.strokes;
     if (el.strokes || !el.of) {
       results.push({ id: el.id, ok: false, error: "icon has no description or readable strokes" });
       continue;
     }
     try {
-      const got = await resolveKeyword(el.of, set, deps, opts);
+      const got = await resolveKeyword(spec, { of: el.of, ...(set ? { set } : {}) }, look, deps, opts);
       el.strokes = got.strokes;
       el.set = got.set;
       el.credit = got.credit;
       el.icon_key = iconKey(el.of, got.set);
       results.push({ id: el.id, ok: true });
     } catch (err) {
+      if (kept) {
+        el.strokes = kept.strokes;
+        results.push({ id: el.id, ok: true });
+        continue;
+      }
       results.push({ id: el.id, ok: false, error: (err as Error).message });
     }
   }

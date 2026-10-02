@@ -6,7 +6,7 @@
 import { heuristicMeasure } from "./measure";
 import type { Pt } from "./model";
 import type { SpecElement } from "../spec/types";
-import { decodeIcon } from "../spec/trace";
+import { iconRingsOf } from "../spec/icon-data";
 
 /** Space between neighbours. Written rarely: the point is not to write it. */
 export const DEFAULT_GAP = 40;
@@ -153,8 +153,8 @@ export const NODE_ICON_EXTRA = 40;
  */
 export function nodeIconRings(el: SpecElement): [number, number][][] | null {
   if (el.type !== "node" || (el.shape ?? "circle") !== "rect" || el.icon === undefined || !el.icon_strokes) return null;
-  const rings = decodeIcon(el.icon_strokes);
-  return rings && rings.length > 0 ? rings : null;
+  // Either form of icon data (spec/icon-data.ts): an SVG is traced, rings are read.
+  return iconRingsOf(el.icon_strokes);
 }
 
 /** A text-fitted rect node's height: 62 at the default size, taller for a larger font. */

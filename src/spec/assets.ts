@@ -13,6 +13,7 @@
 // embedded.
 
 import type { Spec, SpecElement } from "./types";
+import { hoistIcons } from "./icon-data";
 
 /** `@name`: the whole strokes string is a reference into `spec.assets`. */
 const ASSET_REF = /^@([A-Za-z0-9_][\w.-]*)$/;
@@ -63,10 +64,13 @@ export const HOIST_MIN_LENGTH = 120;
  * the element's id (`_2`, `_3`… when that name already holds something
  * else). What the Embed dialog and the file insert call before writing the
  * document back, so the editor shows `strokes: "@foto"` and the bytes at the
- * bottom. Returns how many were moved.
+ * bottom. Icons' data goes by keyword instead (hoistIcons). Returns how many
+ * were moved.
  */
 export function hoistStrokes(spec: Spec, minLength = HOIST_MIN_LENGTH): number {
-  let moved = 0;
+  // Icons first, by keyword (round 6 §8): the element keeps the keyword only,
+  // never an `@id` reference — the name is the keyword's (spec/icon-data.ts).
+  let moved = hoistIcons(spec);
   for (const el of spec.elements ?? []) {
     const s = el.strokes;
     if (typeof s !== "string" || s.length < minLength || assetRef(s) !== null) continue;

@@ -83,6 +83,8 @@ export interface CardsElementLike {
   fill?: string;
   /** paper (default), flat or outline (the plain boxes of before). */
   look?: CardsLook | string;
+  /** How the cards' icons show (round 6 §8): picture (default) or drawn — copied onto every card node. */
+  icon_look?: "picture" | "drawn";
   x?: number;
   y?: number;
   width?: number;
@@ -493,7 +495,8 @@ export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => Sc
     if (icon === undefined) return {};
     const strokes = partner ? it.match_icon_strokes : it.icon_strokes;
     const credit = partner ? it.match_credit : it.credit;
-    return { icon, ...(strokes ? { icon_strokes: strokes } : {}), ...(credit ? { credit } : {}) } as Partial<SpecElement>;
+    const iconLook = el.icon_look === "picture" || el.icon_look === "drawn" ? { icon_look: el.icon_look } : {};
+    return { icon, ...(strokes ? { icon_strokes: strokes } : {}), ...(credit ? { credit } : {}), ...iconLook } as Partial<SpecElement>;
   };
   if (g.mode === "sort") {
     g.binBoxes.forEach((b, k) => {

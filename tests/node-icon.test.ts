@@ -10,7 +10,8 @@ import { drawablesForId, leafDrawables, type Drawable } from "../src/layout/mode
 import { hoistPortraitStrokes, restorePortraitStrokes } from "../src/llm/hoist";
 import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
 import { iconSearchUrl, iconSvgUrl, resolveIcons, DEFAULT_PREFIXES } from "../src/render/icon";
-import { decodeIcon, encodeIcon } from "../src/spec/trace";
+import { encodeIcon } from "../src/spec/trace";
+import { iconRingsOf } from "../src/spec/icon-data";
 import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
 
@@ -30,7 +31,7 @@ describe("resolveIcons fills a node's icon_strokes", () => {
     const r = await resolveIcons(spec, deps({ [iconSearchUrl("node-shark", DEFAULT_PREFIXES)]: { icons: ["lucide:fish"] }, [iconSvgUrl("lucide", "fish")]: SVG }));
     expect(r).toEqual([{ id: "b", ok: true }]);
     const el = spec.elements![0];
-    expect(decodeIcon(el.icon_strokes!)!.length).toBe(1);
+    expect(iconRingsOf(el.icon_strokes!)!.length).toBe(1);
     expect(el.credit).toBe("fish from lucide · ISC");
   });
   test("{of, set} goes straight to the named set; a logo set is refused, no strokes", async () => {

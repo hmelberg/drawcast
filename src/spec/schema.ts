@@ -7,6 +7,7 @@
 // to the LLM in the repair round.
 
 import AjvModule, { type ValidateFunction } from "ajv";
+import { fillIconDataInPlace } from "./icon-data";
 import { ASSET_MAX_BYTES, assetBytes, assetRef, formatAssetSize, isDataAsset, paramAssetRefs, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
 import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement, ACTIVITY_IDS, MUSIC_SYMBOLS } from "./types";
 import { isReservedVar } from "./answers";
@@ -369,6 +370,7 @@ const elementSchema = {
     },
     icon_strokes: { type: "string", description: "node rect: the resolved icon (machine-written; copy VERBATIM if present)." },
     icon_key: { type: "string", description: "node/icon: what the icon was resolved for (machine-written; copy VERBATIM if present)." },
+    icon_look: { type: "string", enum: ["picture", "drawn"], description: 'node/cards/icon: picture (its own artwork; nodes/cards default) or drawn (traced; icon default) — drawn only when the icon is the subject.' },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26). node: its text size (default 24; a text-fitted box grows with it)." },
     // sector / arc / polygon / pieces
     start: { type: "number", description: "sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up) — e.g. start: 0, end: 90 is the upper-right quarter." },
@@ -1544,6 +1546,9 @@ export function normalizeSpec(spec: unknown): unknown {
   // template, a widget and the lint all read params, and none of them should
   // have to know what a reference is (design 2026-09-20 §4.3).
   resolveParamAssetRefs(clone);
+  // An icon named by keyword only takes its data from `assets:` or the
+  // offline cache (spec/icon-data.ts) — on this clone, never the document.
+  fillIconDataInPlace(clone as Spec);
   const toList = (v: string[] | string | undefined): string[] | undefined => (typeof v === "string" ? [v] : v);
   // Malformed input flows through here before validation — guard shapes.
   for (const el of Array.isArray(clone.elements) ? clone.elements : []) {

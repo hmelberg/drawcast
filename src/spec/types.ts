@@ -306,6 +306,8 @@ export interface SpecElement {
   icon_strokes?: string;
   /** node / icon: the key the icon was resolved for ("keyword@set", machine-written) — an edited `icon` / `of` no longer matches and is resolved again. */
   icon_key?: string;
+  /** node / cards / icon: how the icon shows (round 6 §8) — "picture" (its own artwork, in colour, faded in whole; the default for nodes and cards) or "drawn" (traced by hand; the default for an icon element). */
+  icon_look?: "picture" | "drawn";
   font_size?: number;
   // sector / arc / polygon / pieces (design §2.2) — radius/x/y reused above (tier-3 raw)
   /** sector/arc: start angle in degrees, counter-clockwise from +x (0 = right, 90 = up). */

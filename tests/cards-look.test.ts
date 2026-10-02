@@ -18,7 +18,8 @@ import { iconSearchUrl, iconSvgUrl, resolveIcons, DEFAULT_PREFIXES } from "../sr
 import { creditsOf } from "../src/export/credits";
 import { hoistPortraitStrokes, restorePortraitStrokes } from "../src/llm/hoist";
 import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
-import { decodeIcon, encodeIcon } from "../src/spec/trace";
+import { encodeIcon } from "../src/spec/trace";
+import { iconRingsOf } from "../src/spec/icon-data";
 import type { BBox } from "../src/layout/geometry";
 import type { Spec, SpecElement } from "../src/spec/types";
 
@@ -204,9 +205,9 @@ describe("resolving, crediting and hoisting card icons", () => {
     );
     expect(r).toEqual([{ id: "t_1", ok: true }, { id: "t_m_1", ok: true }]);
     const it = (spec.elements![0].items as unknown as Record<string, string>[])[0];
-    expect(decodeIcon(it.icon_strokes)!.length).toBe(1);
+    expect(iconRingsOf(it.icon_strokes)!.length).toBe(1);
     expect(it.credit).toBe("pill from lucide · ISC");
-    expect(decodeIcon(it.match_icon_strokes)!.length).toBe(1);
+    expect(iconRingsOf(it.match_icon_strokes)!.length).toBe(1);
     expect(it.match_credit).toBe("droplet from lucide · ISC");
   });
 
@@ -239,9 +240,9 @@ describe("resolving, crediting and hoisting card icons", () => {
     const card = spec.elements!.find((e) => e.id === "t_1")!;
     const partner = spec.elements!.find((e) => e.id === "t_m_1")!;
     expect(card).toMatchObject({ type: "node", height: 96, icon: "cards-order-pill" });
-    expect(decodeIcon(card.icon_strokes!)).toBeTruthy();
+    expect(iconRingsOf(card.icon_strokes!)).toBeTruthy();
     expect(partner).toMatchObject({ height: 96, icon: "cards-order-drop" });
-    expect(decodeIcon(partner.icon_strokes!)).toBeTruthy();
+    expect(iconRingsOf(partner.icon_strokes!)).toBeTruthy();
     expect(cardsGeometryIn(spec, "t")!.h).toBe(96);
     const box = elementBBoxes(layoutSpec(spec)).get("t_1")!;
     expect(box.h).toBeGreaterThanOrEqual(96);

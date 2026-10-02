@@ -21,6 +21,7 @@
 
 import { itemsOf, playlistWithSpecs, type Playlist } from "../playlist/playlist";
 import type { Spec } from "../spec/types";
+import { hoistIcons } from "../spec/icon-data";
 
 export interface EmbedDeps {
   /** `render/portrait.ts`'s resolvePortraits — mutates the spec it is given. */
@@ -62,6 +63,8 @@ export async function embeddedPlaylist(playlist: Playlist, deps: EmbedDeps): Pro
       deps.resolveIcons(s),
     ]),
   );
+  // Icons travel as keywords, their artwork under `assets:` (round 6 §8).
+  for (const s of specs) hoistIcons(s);
   return playlistWithSpecs(playlist, specs);
 }
 
