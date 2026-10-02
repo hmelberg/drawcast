@@ -659,7 +659,12 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // which landed without a re-pin) and the prompt's +1141 — icons on node boxes and
 // cards (filled sets), `look` with the default fine, the account bar on budget,
 // and one `feedback` bullet with an example ask. +1775. -> 389180.
-const BASELINE_SYSTEM_CHARS = 389180;
+// Re-pinned UP 2026-10-03 (round 5 fix wave W): `icon_key` on nodes, icons
+// and card items (machine-written: what an icon was resolved for) and the
+// credit/icon_strokes doc strings (+217 schema); the prompt's cast-level
+// `feedback` from three questions on, icon near misses and "(cards are the
+// exception)" (+315). +532. -> 389712.
+const BASELINE_SYSTEM_CHARS = 389712;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -738,7 +743,9 @@ const BASELINE_SYSTEM_CHARS = 389180;
 // Re-pinned UP 2026-10-03 (round 5 Task 9): cards `look` presets and card
 // items' `icon`/`match_icon` (+ machine-written strokes), which landed in
 // Tasks 2-8 without a re-pin. +634. Measured 108654.
-const BASELINE_SCHEMA_CHARS = 108654;
+// Re-pinned UP 2026-10-03 (round 5 fix wave W): `icon_key` (node/icon, card
+// items' icon_key/match_icon_key) and the credit/icon_strokes doc strings. +217. Measured 108871.
+const BASELINE_SCHEMA_CHARS = 108871;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
