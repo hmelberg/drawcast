@@ -51,6 +51,8 @@ export interface GateWords {
   formula: { number: string; one: string; many: string };
   tree: { blanks: string; branch: string; nowBranch: string };
   dragNames: string;
+  /** choose: tap one of the drawn options. */
+  choose: string;
 }
 
 const EN: GateWords = {
@@ -89,6 +91,7 @@ const EN: GateWords = {
   },
   tree: { blanks: "Tap a ? and type the number", branch: "Tap the best branch", nowBranch: "Now tap the best branch" },
   dragNames: "Drag each name onto the figure ▸",
+  choose: "Tap your choice on the figure",
 };
 
 const NB: GateWords = {
@@ -127,6 +130,7 @@ const NB: GateWords = {
   },
   tree: { blanks: "Trykk på et ? og skriv tallet", branch: "Trykk på den beste grenen", nowBranch: "Trykk nå på den beste grenen" },
   dragNames: "Dra hvert navn til figuren ▸",
+  choose: "Trykk på valget ditt i figuren",
 };
 
 export function gateWords(lang: GateLang): GateWords {

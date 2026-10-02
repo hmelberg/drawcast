@@ -133,6 +133,12 @@ export type PlanStep = (
       form?: "exact";
       /** Feedback flavour in force (cast's, overridden by the ask's); absent = plain. */
       feedback?: FeedbackSpec;
+      /** Choose on the figure (spec 2026-10-03-round6 §4): the drawn options —
+       *  each with its label ({c}), the leaf ids it stands for (a group's
+       *  members), its box where it stands (the movie's laser), its goto. */
+      choose?: ChooseOption[];
+      /** Choose: where the options' branches meet. */
+      then?: string;
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -395,7 +401,19 @@ export interface Plan {
   start?: SceneState;
 }
 
+/** One option of a choose ask (spec 2026-10-03-round6 §4). */
+export interface ChooseOption {
+  id: string;
+  label: string;
+  /** The leaf ids it stands for: itself, or a group's members. */
+  members: string[];
+  box?: BBox;
+  goto?: string;
+}
+
 export interface PlanOptions {
+  /** A drawn thing's words for {c} (choose): its text, or its label. Null: the id humanised. */
+  labelOf?: (id: string) => string | null;
   /** The spec's top-level `feedback` (spec 2026-10-03 §4.1): each question's step carries it resolved with its own. */
   feedback?: unknown;
   /** Layout-time bbox per element id (logical units), for point/camera/highlight targeting. */
@@ -767,6 +785,17 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     const own = opts.expandId?.(id) ?? opts.expandGroup?.(id);
     return own && own.length > 0 ? expandOne(id, "", true) : [];
   };
+  /** A choose ask's options as they stand now (spec 2026-10-03-round6 §4). */
+  const chooseOptions = (raw: (string | { id: string; goto?: string })[]): ChooseOption[] =>
+    raw.map((o) => {
+      const id = typeof o === "string" ? o : o.id;
+      const goto = typeof o === "string" ? undefined : o.goto;
+      const kids = standsFor(id);
+      const members = kids.length > 0 ? kids : [id];
+      const box = currentBox(id) ?? (kids.length > 0 ? unionBox(kids.map(currentBox)) : null);
+      const label = opts.labelOf?.(id) ?? id.replace(/_/g, " ");
+      return { id, label, members, ...(box ? { box } : {}), ...(goto !== undefined ? { goto } : {}) };
+    });
   const resolveIds = (raw: string[] | string | undefined, verb: string, quiet = false): string[] => {
     const requested = typeof raw === "string" ? [raw] : raw ?? [];
     // A `pieces` parent id stands for all its pieces: naming it draws,
@@ -1546,6 +1575,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.widget === "chess" && cmd.ask.answer !== undefined && chessSquareBox(opts.animateBase?.["flip"] === true, cmd.ask.answer.trim().slice(-2)) !== null
           ? { answerBox: chessSquareBox(opts.animateBase?.["flip"] === true, cmd.ask.answer.trim().slice(-2))! }
           : {}),
+        ...(Array.isArray(cmd.ask.choose) ? { choose: chooseOptions(cmd.ask.choose), ...(cmd.ask.then !== undefined ? { then: cmd.ask.then } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) } : {}),
         ...feedbackOf(cmd.ask.feedback),
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;

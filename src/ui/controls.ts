@@ -5,6 +5,8 @@
 
 import { guessGateFor } from "./guess-gate";
 import { cardsGateFor } from "./cards-gate";
+import { chooseGateFor } from "./choose-gate";
+import type { ChooseOption } from "../render/plan";
 import { treeGateFor } from "./tree-gate";
 import { formulaGateFor } from "./formula-gate";
 import { attachTestMe } from "./test-me";
@@ -252,6 +254,10 @@ export interface AskGateStep {
   treeSession?: TreeSession;
   /** A formula's blanks to type into (ui/formula-gate.ts). */
   formulaSession?: FormulaSession;
+  /** Choose on the figure (ui/choose-gate.ts): the drawn options to tap. */
+  choose?: ChooseOption[];
+  /** Choose: false = an opinion (no ✓/✗ on the tapped thing). */
+  judge?: false;
 }
 
 /**
@@ -1197,6 +1203,7 @@ export function attachPlayerControls(
   const cardsGate = cardsGateFor(stage, hd);
   const treeGate = treeGateFor(stage, hd);
   const formulaGate = formulaGateFor(stage, hd);
+  const chooseGate = chooseGateFor(stage, hd);
   attachTestMe(stage, hd);
   // A template-bound ask is worked on the figure itself, so its gate needs the
   // host. Without one (the template carries no widget body — lint calls that an
@@ -1204,7 +1211,9 @@ export function attachPlayerControls(
   // what the rest of the chain would have fallen through to anyway.
   const widgetGate = widgetHost ? widgetGateFor(stage, hd, widgetHost) : textGate;
   hd.timeline.askGate = (signal, step: Parameters<NonNullable<typeof hd.timeline.askGate>>[1] & { guess?: GuessSession; cardsSession?: CardsSession; treeSession?: TreeSession; formulaSession?: FormulaSession }) =>
-    step.treeSession
+    step.choose
+      ? chooseGate(signal, step)
+      : step.treeSession
       ? treeGate(signal, step)
       : step.formulaSession
       ? formulaGate(signal, step)

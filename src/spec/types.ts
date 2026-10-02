@@ -967,8 +967,16 @@ export interface AskArgs {
   /** Budget: the account bar's label (default "Left", "Igjen" in a Norwegian cast), in the cast's language. */
   account_label?: string;
   /** Guess: false = an opinion, nothing is right or wrong; the reveal shows
-   *  the figure's own values as the reference and `right` is spoken (§7). */
+   *  the figure's own values as the reference and `right` is spoken (§7).
+   *  Choose: false = an opinion (no answer, nothing scored). */
   judge?: boolean;
+  /** CHOOSE ON THE FIGURE (spec 2026-10-03-round6 §4): drawn elements the
+   *  viewer taps — a node, an icon, a group, a template part. `answer` (one
+   *  of them) judges it; `judge: false` makes it an opinion; an option's
+   *  `goto` branches like decide cards, meeting again at `then`. */
+  choose?: (string | { id: string; goto?: string })[];
+  /** Choose with gotos: the label where the branches meet. */
+  then?: string;
   /** Tree (spec 2026-10-03 §4): the tree parts the viewer fills in —
    *  value_<node>, branchlabel_<parent>_<child>, effect_<node>, cost_<node>. */
   blanks?: string[];

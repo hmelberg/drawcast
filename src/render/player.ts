@@ -6,7 +6,7 @@
 // precomputed scene state (visibility, offsets, camera) at any boundary.
 
 import { tweenValue } from "./tween-space";
-import type { MeasureFollow, MorphItem, Plan, PlanStep, SceneState, TextOp, TrailProgress, TransformItem } from "./plan";
+import type { ChooseOption, MeasureFollow, MorphItem, Plan, PlanStep, SceneState, TextOp, TrailProgress, TransformItem } from "./plan";
 import { moveFrame, morphFrame, transformFrame } from "./tween";
 import { overridesKey, type LayoutOverrides } from "../layout/posed";
 import { answersMatch, AUTO_NAMESPACE, subVars } from "../spec/answers";
@@ -1908,6 +1908,99 @@ export class Player {
     }
   }
 
+  /** The option a movie (or a skipped question) stands in with: `default`, else the answer, else the first. */
+  private static chooseDefault(step: Extract<PlanStep, { kind: "ask" }>): ChooseOption | undefined {
+    const opts = step.choose ?? [];
+    const find = (want: string | undefined): ChooseOption | undefined =>
+      want === undefined ? undefined : opts.find((o) => o.id.toLowerCase() === want.trim().toLowerCase());
+    return find(step.fallback) ?? find(step.answer) ?? opts[0];
+  }
+
+  /**
+   * Choose on the figure (spec 2026-10-03-round6 §4): the options are drawn
+   * things and the viewer taps one. With `answer` it is judged (the answer
+   * glows green when found, in the highlight colour when revealed); with
+   * `judge: false` (or no answer) it is an opinion; an option's `goto`
+   * branches like a decide card, meeting again at `then`. {store} is the
+   * tapped thing's label, {store.id} its id. The movie's laser taps `default`,
+   * else the answer, else the first option, and plays on.
+   */
+  private async chooseAsk(index: number, step: Extract<PlanStep, { kind: "ask" }>, signal: AbortSignal): Promise<void> {
+    await this.narrationBarrier();
+    if (signal.aborted) return;
+    const opts = step.choose ?? [];
+    this.decideBranch = null;
+    const live = !this.autoAnswers && this.askGate !== null;
+    const judged = step.answer !== undefined && step.judge !== false;
+    let picked: ChooseOption | undefined;
+    let secs: number | null = null;
+    if (live) {
+      const from = performance.now();
+      const typed = await this.askGate!(signal, step);
+      if (signal.aborted) return;
+      secs = (performance.now() - from) / 1000;
+      picked = typed === null ? undefined : opts.find((o) => o.id.toLowerCase() === typed.trim().toLowerCase());
+      if (typed !== null) this.cutQuestionVoice();
+    } else {
+      picked = Player.chooseDefault(step);
+      if (picked?.box && this.effects) await this.tapAt(picked.box, 1400);
+      else await this.waitScaled(1200, signal);
+      if (signal.aborted) return;
+    }
+    if (this.narrationVoice) await this.narrationVoice;
+    if (signal.aborted) return;
+
+    const answerOpt = judged ? opts.find((o) => answersMatch(o.id, step.answer!)) : undefined;
+    const ok = judged && picked !== undefined && picked === answerOpt;
+    // A skip stores what the movie would: the default's words.
+    const stands = picked ?? Player.chooseDefault(step);
+    this.recordAnswer(index, step.store, stands?.label ?? "", judged ? ok : null, secs);
+    if (step.store) this.vars.set(`${step.store.toLowerCase()}.id`, stands?.id ?? "");
+    if (judged) {
+      this.outcomes.set(index, ok);
+      this.updateScoreVars(index, ok);
+    }
+    if (live) {
+      this.callbacks.onAnswer?.({
+        index,
+        kind: "ask",
+        id: this.answerId(index, step.store),
+        question: step.question,
+        given: picked ? [picked.id] : [],
+        expected: step.answer ?? "",
+        correct: judged ? ok : true,
+        ...(secs !== null ? { secs } : {}),
+      });
+    }
+
+    if (judged && answerOpt) {
+      const extra = live && picked ? this.feedbackAfter(step, ok ? "perfect" : "none", { parts: answerOpt.members, sparkle: !ok }, signal) : [];
+      if (ok) {
+        await this.glowWhile(live ? [{ ids: answerOpt.members, color: ANSWER_OK_COLOR }] : [], signal, () => this.speakLines(step.right, extra, step, signal));
+      } else {
+        if (picked && step.wrong) await this.speakLine(step.wrong, step, signal);
+        if (signal.aborted) return;
+        if (step.reveal) await this.glowWhile(live ? [{ ids: answerOpt.members }] : [], signal, () => this.speakLines(step.right ?? answerOpt.label, extra, step, signal));
+        else if (extra.length > 0) await this.speakLines(null, extra, step, signal);
+      }
+      if (signal.aborted) return;
+      if (live && picked) {
+        const target = ok ? step.rightGoto : step.wrongGoto;
+        if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
+      }
+    } else {
+      // An opinion or a branch: its line is spoken whatever was chosen.
+      const line = step.right ?? step.wrong;
+      if (line) await this.glowWhile(live && picked ? [{ ids: picked.members }] : [], signal, () => this.speakLines(line, [], step, signal));
+      if (signal.aborted) return;
+    }
+    // Live: to the chosen branch; the others are skipped on the way to `then`.
+    if (live && picked?.goto !== undefined && this.plan.labels[picked.goto] !== undefined) {
+      this.pendingJump = this.plan.labels[picked.goto];
+      this.decideBranch = { labels: opts.map((o) => o.goto).filter((l): l is string => l !== undefined), chosen: picked.goto, ...(step.then !== undefined ? { then: step.then } : {}) };
+    }
+  }
+
   /**
    * A formula to fill by typing (design 2026-10-03 §5.3–5.4): a number box
    * or an AsciiMath-style field per blank, the answer drawn into the box as
@@ -2609,7 +2702,11 @@ export class Player {
     if (this.skipQuestions && (step.kind === "quiz" || step.kind === "ask")) {
       // Preference: no question, no narration, no gate — but a collect-ask
       // still stores its default so later {var} lines keep working.
-      if (step.kind === "ask" && step.store) this.vars.set(step.store.toLowerCase(), step.fallback ?? step.answer ?? "");
+      if (step.kind === "ask" && step.store && step.choose) {
+        const o = Player.chooseDefault(step);
+        this.vars.set(step.store.toLowerCase(), o?.label ?? "");
+        this.vars.set(`${step.store.toLowerCase()}.id`, o?.id ?? "");
+      } else if (step.kind === "ask" && step.store) this.vars.set(step.store.toLowerCase(), step.fallback ?? step.answer ?? "");
       if (step.kind === "quiz" && step.store) this.vars.set(step.store.toLowerCase(), step.choices[step.correct]);
       return;
     }
@@ -2918,6 +3015,7 @@ export class Player {
         return;
       }
       case "ask": {
+        if (step.choose !== undefined) return this.chooseAsk(index, step, signal);
         if (step.tree !== undefined) return this.treeAsk(index, step, before, signal);
         if (step.cards !== undefined) return this.cardsAsk(index, step, signal);
         if (step.formula !== undefined) return this.formulaAsk(index, step, before, signal);

@@ -3284,3 +3284,11 @@ input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; b
 @media (prefers-reduced-motion: reduce) {
   .cs-reward-picture { animation: none; }
 }
+
+/* Choose on the figure (ui/choose-gate.ts): a solid ring on the option under
+   the pointer or the keys; it stays on an opinion's pick, and a judged pick
+   gets a ✓/✗ mark on the tapped thing. */
+.cs-choose-ring { border-style: solid; border-radius: 10px; }
+.cs-choose-ring.picked { border-width: 3px; }
+.cs-choosegate .cs-figgate-mark { display: grid; place-items: center; width: 28px; height: 28px; margin: -14px 0 0 -14px; background: var(--paper, #fff); color: var(--ok); font-weight: 700; font-size: var(--text); line-height: 1; }
+.cs-choosegate .cs-figgate-mark.wrong { color: var(--loss); }

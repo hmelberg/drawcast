@@ -664,7 +664,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // credit/icon_strokes doc strings (+217 schema); the prompt's cast-level
 // `feedback` from three questions on, icon near misses and "(cards are the
 // exception)" (+315). +532. -> 389712.
-const BASELINE_SYSTEM_CHARS = 389712;
+// Re-pinned UP 2026-10-03 (round 6 Task 2): ask `choose` and `then`, and
+// judge's choose clause — the schema's +976, carried into the prompt. -> 390688.
+const BASELINE_SYSTEM_CHARS = 390688;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -745,7 +747,9 @@ const BASELINE_SYSTEM_CHARS = 389712;
 // Tasks 2-8 without a re-pin. +634. Measured 108654.
 // Re-pinned UP 2026-10-03 (round 5 fix wave W): `icon_key` (node/icon, card
 // items' icon_key/match_icon_key) and the credit/icon_strokes doc strings. +217. Measured 108871.
-const BASELINE_SCHEMA_CHARS = 108871;
+// Re-pinned UP 2026-10-03 (round 6 Task 2): ask `choose` (drawn things to
+// tap) and `then`, and judge's choose clause. +976. -> 109847.
+const BASELINE_SCHEMA_CHARS = 109847;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

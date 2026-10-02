@@ -220,7 +220,7 @@ const DATA_KINDS = new Set<string>(["point", "curve", "region", "arrow", "edge",
 export function planOptionsFor(
   spec: Spec,
   layout: LayoutResult,
-): Pick<PlanOptions, "attachedTo" | "ownedBy" | "drawnWith" | "drawnAfter" | "partsOf" | "isPaper" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf" | "dataToLogical" | "inDataUnits" | "pictureOf"> {
+): Pick<PlanOptions, "attachedTo" | "ownedBy" | "drawnWith" | "drawnAfter" | "partsOf" | "isPaper" | "pieceOf" | "expandId" | "expandGroup" | "anchorOf" | "leafPointsOf" | "measureOf" | "measuresDependingOn" | "dependentsOf" | "sourceIds" | "mathOf" | "isElement" | "controlsOf" | "dataToLogical" | "inDataUnits" | "pictureOf" | "labelOf"> {
   // Definitions hold (design 2026-09-10 §2.5): what is defined in terms of
   // what. A source that is a group or a pieces cut is moved through its
   // members (the planner expands it), so its dependents are attached to every
@@ -260,7 +260,17 @@ export function planOptionsFor(
     const marker = [`${sc.id}_answer_pin`, `${sc.id}_answer_num`].filter((x) => layout.order.includes(x));
     if (marker.length > 0) owned.set(`${sc.id}_line`, marker);
   }
+  /** The words a drawn thing goes by (choose's {c}): its text, its label, or the text it draws. */
+  const textIn = (id: string): string | null => {
+    const t = leafDrawables(drawablesForId(layout.drawables, id)).find((d) => d.kind === "text");
+    return t && t.kind === "text" && typeof t.text === "string" && t.text.trim() !== "" ? t.text.trim() : null;
+  };
   return {
+    labelOf: (id) => {
+      const el = spec.elements?.find((e) => e.id === id);
+      for (const v of [el?.text, el?.label]) if (typeof v === "string" && v.trim() !== "") return v.trim();
+      return textIn(id) ?? textIn(`label_${id}`);
+    },
     ownedBy: (id) => owned.get(id) ?? [],
     partsOf: (id) => parts.get(id) ?? [],
     isPaper: (id) => papers.has(id),

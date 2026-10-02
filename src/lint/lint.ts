@@ -172,7 +172,9 @@ export interface LintIssue {
     | "book-auto-id"
     | "book-marks"
     | "feedback"
-    | "card-icon";
+    | "card-icon"
+    /** choose on the figure: an option not drawn before the ask, a branch that leads nowhere — or decide cards that repeat drawn things */
+    | "choose";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -721,7 +723,89 @@ export function lintLayoutDetailed(
     }
   }
 
+  issues.push(...lintChooseDrawn(drawables, commands ?? [], expandId));
+
   return { issues, exempt };
+}
+
+/**
+ * Choose on the figure (spec 2026-10-03-round6 §4): the viewer taps the
+ * options, so each must be on screen when the question comes — drawn (or
+ * shown) before it and not taken away since. A group or a `pieces` parent is
+ * on screen when all of its members are; a part is when a draw of its
+ * parent brought it.
+ */
+function lintChooseDrawn(drawables: Drawable[], commands: Command[], expandId?: (id: string) => string[] | null | undefined): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const kids = (id: string): string[] => expandId?.(id) ?? [];
+  const ids = (raw: string[] | string | undefined): string[] => idsOf(raw).flatMap((id) => [id, ...kids(id)]);
+  const visible = new Set<string>();
+  commands.forEach((c) => {
+    const choose = c.ask?.choose;
+    if (Array.isArray(choose)) {
+      for (const o of choose) {
+        const id = typeof o === "string" ? o : o?.id;
+        if (typeof id !== "string") continue;
+        const members = kids(id);
+        if (members.length === 0 && drawablesForId(drawables, id).length === 0) {
+          issues.push({ rule: "choose", ids: [id], message: `ask choose: "${id}" is not drawn anywhere in this figure — name an element, a group or a template part`, severity: "error" });
+        } else if (!visible.has(id) && !(members.length > 0 && members.every((m) => visible.has(m)))) {
+          issues.push({ rule: "choose", ids: [id], message: `ask choose: "${id}" is not drawn before the question — draw it first; the viewer taps it on the figure`, severity: "error" });
+        }
+      }
+    }
+    for (const id of [...ids(c.draw), ...ids(c.show)]) visible.add(id);
+    for (const id of [...ids(c.erase), ...ids(c.hide)]) visible.delete(id);
+    if (c.clear !== undefined) {
+      const keep = new Set(ids(c.clear.keep));
+      for (const id of [...visible]) if (!keep.has(id)) visible.delete(id);
+    }
+  });
+  return issues;
+}
+
+/**
+ * Choose's branches (like decide cards'): every option's goto, and `then`,
+ * lie ahead. And decide cards whose options say what the figure already
+ * shows: the viewer could tap the things themselves (a hint to use choose).
+ */
+function lintChoose(spec: Spec): LintIssue[] {
+  const issues: LintIssue[] = [];
+  const commands = spec.commands ?? [];
+  const cardSets = new Map(authoredCards(spec).map((cs) => [cs.id, cs]));
+  commands.forEach((c, i) => {
+    const a = c.ask;
+    if (!a) return;
+    const ahead = new Set(commands.slice(i + 1).map((d) => d.label).filter((l): l is string => typeof l === "string"));
+    if (Array.isArray(a.choose)) {
+      const gotos = a.choose.flatMap((o) => (typeof o === "object" && o && typeof o.goto === "string" ? [o.goto] : []));
+      for (const g of gotos) {
+        if (!ahead.has(g)) issues.push({ rule: "choose", ids: [], message: `ask choose: an option goes to "${g}", which is not a label after the question`, severity: "error" });
+      }
+      if (gotos.length > 0 && a.then === undefined) issues.push({ rule: "choose", ids: [], message: `ask choose: give then — the label where the branches meet; without it a live viewer runs on from their branch into the next`, severity: "warn" });
+      else if (a.then !== undefined && !ahead.has(a.then)) issues.push({ rule: "choose", ids: [], message: `ask choose: then "${a.then}" is not a label after the question`, severity: "error" });
+      return;
+    }
+    // Decide cards (cards with options) asked here.
+    const one = typeof a.on === "string" ? a.on : Array.isArray(a.on) && a.on.length === 1 ? a.on[0] : null;
+    const cs = one !== null ? cardSets.get(one) : undefined;
+    if (!cs || !Array.isArray(cs.options)) return;
+    const words = new Map<string, string>();
+    for (const el of spec.elements ?? []) {
+      if (el.id === one || !connectVisibility(commands, i, el.id).visible) continue;
+      for (const v of [el.text, el.label]) if (typeof v === "string" && v.trim() !== "") words.set(v.trim().toLowerCase(), el.id);
+    }
+    const repeated = cs.options.map((o) => words.get(String(o.text ?? "").trim().toLowerCase())).filter((id): id is string => id !== undefined);
+    if (repeated.length >= 2) {
+      issues.push({
+        rule: "choose",
+        ids: [one!, ...repeated],
+        message: `cards "${one}": the options repeat what the figure already shows (${repeated.join(", ")}) — let the viewer tap the things themselves: ask with choose: [${repeated.map((r) => `"${r}"`).join(", ")}]`,
+        severity: "warn",
+      });
+    }
+  });
+  return issues;
 }
 
 export function lintLayout(drawables: Drawable[], measure: MeasureFn, commands?: Command[], expandId?: (id: string) => string[] | null | undefined, sameGroup?: (a: string, b: string) => boolean, bounds?: BBox): LintIssue[] {
@@ -1522,7 +1606,7 @@ function lintFeedback(spec: Spec): LintIssue[] {
 
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
-  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintTreeAsk(spec), ...lintFormulaAsk(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec), ...lintFeedback(spec)];
+  const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintTreeAsk(spec), ...lintFormulaAsk(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec), ...lintFeedback(spec), ...lintChoose(spec)];
 
   // A link whose href names nothing the resolver can read draws, but never
   // opens (links/resolve.ts decides the forms a target may take).

@@ -945,7 +945,16 @@ const commandSchema = {
         revise: { type: "string", description: "With `on`: start from an earlier guess on the same part (that ask's store), made with reveal: false — guess, show new evidence, guess again; the reveal shows both guesses and the truth. {store.moved} is how far they moved." },
         budget: { type: "number", exclusiveMinimum: 0, description: "With on: \"all\" on a bar_chart: the viewer SPLITS this total — each bar moves on its own, an account bar beside the plot shows what is left (red when overspent), and Answer waits until it balances. Pair with judge: false for 'how would you split it?'. {store.<bar_k>} keeps each share, {store.biggest} the label given most." },
         account_label: { type: "string", maxLength: 24, description: "With budget: the account bar's label (default \"Left\"), a word or two in the cast's language." },
-        judge: { type: "boolean", description: "With `on`: false = an opinion with no right answer — no score, `right` is spoken whatever the guess, and the reveal shows the figure's own values as the reference (what is actually done)." },
+        judge: { type: "boolean", description: "With `on`: false = an opinion with no right answer — no score, `right` is spoken whatever the guess, and the reveal shows the figure's own values as the reference (what is actually done). With `choose`: false = an opinion (which would YOU take?) — no answer, nothing scored." },
+        choose: {
+          type: "array",
+          minItems: 2,
+          maxItems: 8,
+          items: { oneOf: [{ type: "string" }, { type: "object", properties: { id: { type: "string" }, goto: { type: "string" } }, required: ["id"], additionalProperties: false }] },
+          description:
+            "CHOOSE ON THE FIGURE: the options are things ALREADY DRAWN — a node, an icon, a group, a template part — and the viewer taps the thing itself (hover rings; Tab/Enter on the keyboard). Better than cards or a quiz whose choices repeat what the figure shows. answer = the right option's id (judged); judge: false = an opinion (store it: {c} is the tapped thing's label, {c.id} its id); {id, goto} options branch like decide cards and meet again at `then`. In movies the laser taps `default`, else the answer, else the first option.",
+        },
+        then: { type: "string", description: "With `choose` options that goto: the label after the branches where they meet again." },
         blanks: { type: "array", minItems: 1, items: { type: "string" }, description: "Tree: the parts of a decision_tree the viewer fills in — value_<node>, branchlabel_<parent>_<child>, effect_<node>, cost_<node>." },
         pick: { type: "string", description: "Tree: the decision node whose best branch the viewer taps." },
         work: { oneOf: [{ type: "string", enum: ["all"] }, { const: false }], description: "Tree: working lines under wrong blanks (default), \"all\" for every blank, or false for none." },
@@ -1902,6 +1911,38 @@ function semanticErrors(spec: Spec): string[] {
       // the figure's own number, so no answer; right/wrong are its feedback.
       const isTree = a.blanks !== undefined || a.pick !== undefined;
       const isGuess = a.on !== undefined && !isTree;
+      const isChoose = a.choose !== undefined;
+      if (isChoose) {
+        const ids: string[] = [];
+        const okList = Array.isArray(a.choose) && a.choose.length >= 2;
+        if (!okList) errors.push(`commands[${i}]: ask.choose must list two or more drawn elements (ids, or {id, goto})`);
+        for (const o of Array.isArray(a.choose) ? a.choose : []) {
+          const id = typeof o === "string" ? o : o && typeof o === "object" ? (o as { id?: unknown }).id : undefined;
+          if (typeof id !== "string" || id.trim() === "") {
+            errors.push(`commands[${i}]: ask.choose: each option is an element id or {id, goto}`);
+            continue;
+          }
+          if (ids.includes(id)) errors.push(`commands[${i}]: ask.choose names "${id}" twice`);
+          ids.push(id);
+          if (typeof o === "object") checkGoto(i, "ask", "choose goto", (o as { goto?: string }).goto);
+        }
+        if (a.answer !== undefined && typeof a.answer === "string" && ids.length > 0 && !ids.some((id) => id.toLowerCase() === a.answer!.trim().toLowerCase())) {
+          errors.push(`commands[${i}]: ask.answer "${a.answer}" is not one of the choose options (${ids.join(", ")})`);
+        }
+        if (a.default !== undefined && ids.length > 0 && !ids.some((id) => id.toLowerCase() === String(a.default).trim().toLowerCase())) {
+          errors.push(`commands[${i}]: ask.default "${a.default}" is not one of the choose options — the movie taps it`);
+        }
+        if (a.judge === false && a.answer !== undefined) errors.push(`commands[${i}]: ask.judge: false is an opinion — leave out answer (or judge)`);
+        if (a.widget !== undefined || a.items !== undefined || a.on !== undefined || a.code !== undefined || a.retry !== undefined) {
+          errors.push(`commands[${i}]: ask.choose is answered by tapping the figure — leave out widget, items, on, code and retry`);
+        }
+        if ((a.right_goto !== undefined || a.wrong_goto !== undefined) && a.answer === undefined) {
+          errors.push(`commands[${i}]: ask.right_goto and wrong_goto need answer — or give each choose option its own goto`);
+        }
+        checkGoto(i, "ask", "then", a.then);
+      } else if (a.then !== undefined) {
+        errors.push(`commands[${i}]: ask.then only applies to choose (where the options' gotos meet again)`);
+      }
       if (isGuess) {
         const onOk = typeof a.on === "string" ? a.on.trim() !== "" : Array.isArray(a.on) && a.on.length > 0 && a.on.every((x) => typeof x === "string" && x.trim() !== "");
         if (!onOk) errors.push(`commands[${i}]: ask.on must name a part (bar_2, line_1, slice_1, crowd_sick, a scale's id), a list of them, or "all"`);
@@ -1909,10 +1950,10 @@ function semanticErrors(spec: Spec): string[] {
           errors.push(`commands[${i}]: ask.on is a guess on the figure — the truth is the figure's own number, so leave out answer, widget, items and code`);
         }
         if (a.retry !== undefined) errors.push(`commands[${i}]: ask.retry does not apply to a guess (the figure shows the truth after one answer)`);
-      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.revise !== undefined || a.budget !== undefined || a.account_label !== undefined || a.judge !== undefined) {
-        errors.push(`commands[${i}]: ask.from, relative, release, predict, revise, budget, account_label and judge only apply to a guess (with on)`);
+      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.revise !== undefined || a.budget !== undefined || a.account_label !== undefined || (a.judge !== undefined && !isChoose)) {
+        errors.push(`commands[${i}]: ask.from, relative, release, predict, revise, budget, account_label and judge only apply to a guess (with on; judge also to choose)`);
       }
-      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && a.on === undefined) {
+      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && !isChoose && a.on === undefined) {
         errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);
       }
       if (a.answer !== undefined && (typeof a.answer !== "string" || a.answer.trim().length === 0)) {
@@ -1925,13 +1966,13 @@ function semanticErrors(spec: Spec): string[] {
         errors.push(`commands[${i}]: ask.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
       }
       // A guess or a tree ask is answered on the figure: the movie fills in the truth.
-      if (a.store !== undefined && a.default === undefined && !isGuess && !isTree) {
+      if (a.store !== undefined && a.default === undefined && !isGuess && !isTree && !isChoose) {
         errors.push(`commands[${i}]: ask.default is required with store — the movie types it and skip falls back to it`);
       }
       // The drag widget's answer is implied by its items, so it is check mode without `answer`.
       const isDrag = a.widget === "drag";
       const isConnect = a.widget === "connect";
-      if (!isDrag && !isGuess && !isTree && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
+      if (!isDrag && !isGuess && !isTree && !isChoose && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
         errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
       }
       if (a.widget !== undefined && !isDrag && a.answer === undefined) {
