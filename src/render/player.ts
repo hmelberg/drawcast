@@ -35,6 +35,7 @@ import type { ToneLike } from "./tones";
 import { isIdentity, type Turn } from "./pose";
 import { decodeFigures } from "./decode-figures";
 import { smoothstep } from "./sweep";
+import { deckCardMs, deckFlight } from "../cards/deck";
 import { chunkCaption, pageTimes } from "./caption-chunks";
 import { balancedSplit, budgetOf, defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessEnd, type GuessHandle, type GuessSetup } from "../guess/handles";
 import { gapsOf } from "../guess/market";
@@ -189,7 +190,8 @@ export interface TreeSession {
 export interface CardsSession {
   geometry: CardsGeometry;
   start: Arrangement;
-  place(cardId: string, dx: number, dy: number): void;
+  /** `scale` (default 1): a deck's dealt card, drawn larger about its centre. */
+  place(cardId: string, dx: number, dy: number, scale?: number): void;
   /** Show drawn-later parts now (a compare pair's numbers). */
   show(ids: string[]): void;
   /** The answer's marks while it is being given (match lines, compare ticks); null clears. */
@@ -1321,8 +1323,9 @@ export class Player {
    *  widget's drag ghost; (0, 0) restores it. Through the EFFECTS, not the
    *  element handles: the handles hold the nodes this figure mounted with, and
    *  any preview since (a slider, the widget's own patch) has replaced them. */
-  nudge(id: string, dx: number, dy: number): void {
-    this.effects?.setOffset?.(id, dx, dy);
+  nudge(id: string, dx: number, dy: number, scale = 1, pivot?: Pt): void {
+    if (scale !== 1 && pivot) this.effects?.setOffset?.(id, dx, dy, scale, pivot);
+    else this.effects?.setOffset?.(id, dx, dy);
   }
 
   /**
@@ -1731,7 +1734,8 @@ export class Player {
     const owner = formula ? `formula_${index}` : `cards_${index}`;
     this.guessMarkParts.set(owner, formula ? [step.formula!] : [...g.cards, ...(g.valueIds ?? [])]);
     const start = initialArrangement(g);
-    const place = (id: string, dx: number, dy: number): void => this.nudge(id, dx, dy);
+    // A deck's dealt card is drawn larger, about where the card is drawn (round 6 §7).
+    const place = (id: string, dx: number, dy: number, scale = 1): void => this.nudge(id, dx, dy, scale, g.home[g.cards.indexOf(id)]);
     const show = (ids: string[]): void => {
       for (const el of this.els(ids)) el.finish();
     };
@@ -1794,6 +1798,24 @@ export class Player {
         });
         if (signal.aborted) return;
         boxes[k] = [i];
+      }
+      arrangement = { ...start, boxes };
+      answered = true;
+    } else if (g.deck && g.deal) {
+      // The movie (round 6 §7): the cards go to their boxes one by one, each
+      // dealt large and flown small — never a wait, however many there are.
+      const boxes = start.boxes.map((b) => b.slice());
+      const ms = deckCardMs(g.cards.length);
+      const [cx, cy] = g.home[g.deal[0]];
+      for (const i of g.deal) {
+        const [hx, hy] = g.home[i];
+        const [tx, ty] = g.truth[i];
+        await this.progress(ms, signal, (t) => {
+          const f = deckFlight(t, g.deckScale ?? 1);
+          place(g.cards[i], cx - hx + (tx - cx) * f.along, cy - hy + (ty - cy) * f.along, f.scale);
+        });
+        if (signal.aborted) return;
+        boxes[g.truthBin[i]]?.push(i);
       }
       arrangement = { ...start, boxes };
       answered = true;

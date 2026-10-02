@@ -2255,9 +2255,10 @@ function makeEffects(
      *  it applies after the element's pose exactly as poseTransform's own
      *  translate does (y-up in, SVG's y-down out). (0, 0) restores the
      *  remembered string and forgets it. */
-    setOffset(id: string, dx: number, dy: number): void {
+    setOffset(id: string, dx: number, dy: number, scale = 1, pivot?: Pt): void {
+      const scaled = scale !== 1 && pivot !== undefined;
       for (const { g } of leafNodes.get(id) ?? []) {
-        if (dx === 0 && dy === 0) {
+        if (dx === 0 && dy === 0 && !scaled) {
           const base = ghostBase.get(g);
           if (base === undefined) continue;
           ghostBase.delete(g);
@@ -2270,7 +2271,11 @@ function makeEffects(
           base = g.getAttribute("transform") ?? "";
           ghostBase.set(g, base);
         }
-        const t = `translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`;
+        let t = `translate(${dx.toFixed(1)} ${(-dy).toFixed(1)})`;
+        if (scaled) {
+          const px = pivot![0].toFixed(1), py = (CANVAS.h - pivot![1]).toFixed(1);
+          t += ` translate(${px} ${py}) scale(${scale.toFixed(4)}) translate(${(-pivot![0]).toFixed(1)} ${(-(CANVAS.h - pivot![1])).toFixed(1)})`;
+        }
         g.setAttribute("transform", base === "" ? t : `${t} ${base}`);
       }
     },
