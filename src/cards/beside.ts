@@ -62,6 +62,8 @@ function routedArrow(c: Pt, w: number, h: number, to: { c: Pt; w: number; h: num
   for (const d of [40, 70, 100, 140, 180, 230]) ways.push([mid[0] + nx * d, mid[1] + ny * d], [mid[0] - nx * d, mid[1] - ny * d]);
   ways.push([c[0], to.c[1]], [to.c[0], c[1]]);
   for (const m of ways) {
+    // On the canvas: a bend off the figure is no way round.
+    if (m[0] < 12 || m[0] > 988 || m[1] < 12 || m[1] > 738) continue;
     const a = edgeToward(c, w, h, m);
     const b = edgeToward(to.c, to.w, to.h, m, pad);
     if (hits(a, m, others) || hits(m, b, others)) continue;
@@ -119,6 +121,10 @@ export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: num
   const texts: GuessMarkText[] = [];
   // The badge sits on the card's top-right corner, haloed in paper.
   const badge = (c: Pt, ok: boolean): GuessMarkText => tick([c[0] + g.w / 2 - 2, c[1] + g.h / 2 - 2], ok, "middle", 24);
+  /** Sort: the cards no arrow can reach their box from, by the box they
+   *  stand in (-1: the row) and where they belong — named in one line
+   *  under that box (a dense box has no room by each card). */
+  const unrouted = new Map<string, { from: number; to: number; names: string[] }>();
   switch (g.mode) {
     case "rank": {
       const column = g.slots.length > 1 && Math.abs(g.slots[0][0] - g.slots[1][0]) < 1;
@@ -145,7 +151,13 @@ export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: num
         const others = pos.filter((_, j) => j !== i).map((p) => rectOf(p, g.w, g.h, 2));
         const routed = routedArrow(pos[i], g.w, g.h, box ?? { c: g.home[i], w: g.w, h: g.h }, others, box ? 2 : 4);
         if (routed) lines.push(...routed);
-        else texts.push({ at: [pos[i][0], pos[i][1] - g.h / 2 - 14], text: box ? `→ ${short(g.bins[t], 14)}` : "→ out", anchor: "middle", color: WRONG, size: 16 });
+        else {
+          const from = a.boxes.findIndex((b) => b.includes(i));
+          const key = `${from}:${t}`;
+          const u = unrouted.get(key) ?? { from, to: t, names: [] };
+          u.names.push(short(g.texts[i], 14));
+          unrouted.set(key, u);
+        }
       });
       break;
     case "place": {
@@ -230,6 +242,16 @@ export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: num
       });
       break;
     }
+  }
+  // One line per source box and target: "Onion, Ginger → Not a fruit", under the box.
+  const rows = new Map<number, number>();
+  for (const u of unrouted.values()) {
+    const bx = u.from >= 0 ? g.binBoxes[u.from] : null;
+    if (!bx) continue;
+    const k = rows.get(u.from) ?? 0;
+    rows.set(u.from, k + 1);
+    const names = short(u.names.join(", "), 44);
+    texts.push({ at: [bx.c[0], bx.c[1] - bx.h / 2 - 16 - k * 20], text: `${names} → ${u.to >= 0 ? short(g.bins[u.to], 16) : "out"}`, anchor: "middle", color: WRONG, size: 16 });
   }
   return { color: YOURS, lines, texts };
 }
