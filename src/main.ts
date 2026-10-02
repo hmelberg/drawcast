@@ -1323,7 +1323,13 @@ const previewHost = h("div", { class: "player-figure" });
 const specArea = h("textarea", { class: "spec-json", spellcheck: "false", "aria-label": "Spec source" });
 // `assets:` and long data strings show as one-line markers; `specArea.value`
 // still reads and writes the whole text (round 6 §8, ui/spec-fold.ts).
-attachSpecFolding(specArea);
+const specFolding = attachSpecFolding(specArea);
+const showDataBtn = h("button", { class: "small", title: "Show the folded data (assets, traced strokes, pictures) in full", "aria-pressed": "false" }, "Show data");
+showDataBtn.addEventListener("click", () => {
+  specFolding.showData(!specFolding.showingData);
+  showDataBtn.setAttribute("aria-pressed", String(specFolding.showingData));
+  showDataBtn.textContent = specFolding.showingData ? "Fold data" : "Show data";
+});
 // State, not an action — filled with --muted rather than the accent (see the
 // rust allowlist in tests/palette.test.ts). Lives in the PREVIEW bar because
 // it describes the drawing, not the text.
@@ -1434,7 +1440,7 @@ const editorWrap = h(
         "div",
         { class: "pane-bar" },
         h("span", { class: "bar-group" }, openMenuHost, saveMenuHost, importInput),
-        h("span", { class: "bar-group" }, insertMenu),
+        h("span", { class: "bar-group" }, insertMenu, showDataBtn),
       ),
       specArea,
     ),
