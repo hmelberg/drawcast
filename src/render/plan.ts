@@ -28,6 +28,7 @@ import { fractionBox, fractionPoint, parsePlace, type PictureFrame, type Rect4 }
 import type { MarkKind, MarkStop } from "./marks";
 import { cameraBox, fitZoom, restView, restZoom } from "./camera";
 import { cumulativeLengthFractions } from "./trails";
+import { resolveFeedback, type FeedbackSpec } from "../feedback/bands";
 import type { GhostSpec, MintedSpec } from "./minted";
 import type { LayoutOverrides, PoseOverride } from "../layout/posed";
 import { SpeechManager } from "./speech";
@@ -81,7 +82,7 @@ export type PlanStep = (
    *  the explore beat's own seeded walk, played just before its gate. */
   | { kind: "run"; code: string; values: Record<string, ControlValue>[]; seconds: number; demo: boolean }
   | { kind: "if"; varName: string; op: "gt" | "lt" | "gte" | "lte" | "eq" | "ne"; value: number | string; target: string }
-  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string; store?: string }
+  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string; store?: string; feedback?: FeedbackSpec }
   | {
       kind: "ask";
       question: string;
@@ -130,6 +131,8 @@ export type PlanStep = (
       check?: "direction" | "shape" | "size";
       others?: string[];
       form?: "exact";
+      /** Feedback flavour in force (cast's, overridden by the ask's); absent = plain. */
+      feedback?: FeedbackSpec;
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -393,6 +396,8 @@ export interface Plan {
 }
 
 export interface PlanOptions {
+  /** The spec's top-level `feedback` (spec 2026-10-03 §4.1): each question's step carries it resolved with its own. */
+  feedback?: unknown;
   /** Layout-time bbox per element id (logical units), for point/camera/highlight targeting. */
   bboxOf?: (id: string) => BBox | null;
   /** A picture you can point into (spec 2026-09-30-picture-regions): its shown rect and view, and its named regions. Null for anything else. */
@@ -519,6 +524,11 @@ const CAMERA_FIT_LIFT = 0.1;
 export function planCommands(commands: Command[] | undefined, allIds: string[], opts: PlanOptions = {}): Plan {
   /** The camera at rest: the page, or the fit of a template's world. */
   const rest = restView(opts.world);
+  /** A question's feedback, resolved with the cast's; plain (the default) leaves the step as it was. */
+  const feedbackOf = (own: unknown): { feedback?: FeedbackSpec } => {
+    const fb = resolveFeedback(opts.feedback, own);
+    return fb.style === "plain" ? {} : { feedback: fb };
+  };
   let bboxOf = opts.bboxOf ?? (() => null);
   const toLogical = opts.toLogical ?? ((p: Pt) => p);
   const deltaToLogical = opts.deltaToLogical ?? ((d: Pt) => d);
@@ -1390,6 +1400,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.quiz.right_goto !== undefined ? { rightGoto: cmd.quiz.right_goto } : {}),
         ...(cmd.quiz.wrong_goto !== undefined ? { wrongGoto: cmd.quiz.wrong_goto } : {}),
         ...(cmd.quiz.store !== undefined ? { store: cmd.quiz.store } : {}),
+        ...feedbackOf(cmd.quiz.feedback),
       });
     } else if (cmd.ask !== undefined) {
       // The question IS the narration unless the author paired a speak; the
@@ -1535,6 +1546,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.ask.widget === "chess" && cmd.ask.answer !== undefined && chessSquareBox(opts.animateBase?.["flip"] === true, cmd.ask.answer.trim().slice(-2)) !== null
           ? { answerBox: chessSquareBox(opts.animateBase?.["flip"] === true, cmd.ask.answer.trim().slice(-2))! }
           : {}),
+        ...feedbackOf(cmd.ask.feedback),
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;
     } else if (cmd.show !== undefined) {

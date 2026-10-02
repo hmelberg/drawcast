@@ -89,6 +89,18 @@ describe("guess asks in the player", () => {
     expect(speech.said.some((t) => t.includes("You said 40; it is 80, 40 off."))).toBe(true);
   });
 
+  test("feedback: a far guess is poor, said after the wrong line; a movie adds nothing", async () => {
+    const fb = { style: "dry" as const, poor: "Let's call that a warm-up." };
+    const live = makePlayer([{ ask: { ...ASK.ask!, feedback: fb } }]);
+    live.player.askGate = async () => "40";
+    await live.player.play();
+    expect(live.speech.said.slice(-2)).toEqual(["You said 40; it is 80, 40 off.", "Let's call that a warm-up."]);
+    const movie = makePlayer([{ ask: { ...ASK.ask!, default: "40", feedback: fb } }]);
+    (movie.player as unknown as { autoAnswers: boolean }).autoAnswers = true;
+    await movie.player.play();
+    expect(movie.speech.said).not.toContain("Let's call that a warm-up.");
+  });
+
   test("a close guess speaks right", async () => {
     const { player, events, speech } = makePlayer([ASK]);
     player.askGate = async () => "75";

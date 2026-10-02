@@ -13,7 +13,8 @@ const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvM
 describe("the schema's shared shapes", () => {
   test("the repeated shapes are defined once", () => {
     const s = apiSchema() as { $defs?: Record<string, unknown> };
-    expect(Object.keys(s.$defs ?? {}).sort()).toEqual(["end_ref", "ghost", "point_ref"]);
+    // feedback (round 5, 2026-10-03): the cast's, an ask's and a quiz's share one shape.
+    expect(Object.keys(s.$defs ?? {}).sort()).toEqual(["end_ref", "feedback", "ghost", "point_ref"]);
     // The bodies are gone from the call sites: each of the 8 point_ref call
     // sites, 5 ghost call sites and 2 $ref-wrapped end_ref sites (at/center —
     // the other 2 end_ref sites read .properties directly, per the trap) now
@@ -33,6 +34,7 @@ describe("the schema's shared shapes", () => {
     expect((text.match(/"\$ref":"#\/\$defs\/point_ref"/g) ?? []).length).toBe(8);
     expect((text.match(/"\$ref":"#\/\$defs\/ghost"/g) ?? []).length).toBe(5);
     expect((text.match(/"\$ref":"#\/\$defs\/end_ref"/g) ?? []).length).toBe(2);
+    expect((text.match(/"\$ref":"#\/\$defs\/feedback"/g) ?? []).length).toBe(3);
   });
 
   test("every call site keeps its own description", () => {

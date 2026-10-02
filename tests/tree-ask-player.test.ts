@@ -169,6 +169,14 @@ describe("tree asks in the player", () => {
     expect(marks.get("tree_1")?.lines.some((l) => l.dashed)).toBe(true);
   });
 
+  test("feedback: the blanks and the pick are counted — one of two right is poor, after the author's line", async () => {
+    const fb = { style: "dry" as const, perfect: "Flawless.", poor: "Half a tree.", none: "Bold." };
+    const { player, speech } = makePlayer([{ draw: IDS }, { ask: { question: "EV, then which?", blanks: ["value_treat"], pick: "start", right: "Yes", wrong: "No", feedback: fb } }]);
+    player.askGate = async () => encodeTreeAnswer([6.5], "treat");
+    await player.play();
+    expect(speech.said.slice(-2)).toEqual(["No", "Half a tree."]);
+  });
+
   // The poster before the first ask (posterOf) and the playhead must agree
   // (final review 2026-10-03): Test me, the tray, a widget read the
   // boundary the viewer SEES, not the end the playhead used to sit at.

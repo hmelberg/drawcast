@@ -122,6 +122,26 @@ describe("formula asks in the player", () => {
     expect(m?.lines.length).toBeGreaterThan(0);
   });
 
+  test("feedback: a right typed formula is perfect, said after the author's line; a skip adds nothing", async () => {
+    const fb = { style: "warm" as const, perfect: "Spot on.", none: "Not this time." };
+    const right = makePlayer([{ draw: ["area", "area_blank_1"] }, ask({ feedback: fb })]);
+    right.player.askGate = async () => JSON.stringify(["r*r"]);
+    await right.player.play();
+    expect(right.speech.said.slice(-2)).toEqual(["Yes", "Spot on."]);
+    const skip = makePlayer([{ draw: ["area", "area_blank_1"] }, ask({ feedback: fb })]);
+    skip.player.askGate = async () => null;
+    await skip.player.play();
+    expect(skip.speech.said).not.toContain("Not this time.");
+  });
+
+  test("feedback on tiles (the cards path): a wrong tile is none", async () => {
+    const fb = { style: "dry" as const, none: "Bold." };
+    const { player, speech } = makePlayer([{ draw: ["area", "area_blank_1"] }, ask({ others: ["2r", "d"], feedback: fb })], { tiles: true });
+    player.askGate = async (_s, step) => ((step as { cardsSession?: unknown }).cardsSession ? "0" : null);
+    await player.play();
+    expect(speech.said[speech.said.length - 1]).toBe("Bold.");
+  });
+
   test("typed r*r is right: scored by value, stored", async () => {
     const { player, fillsOf, lastPatch } = makePlayer([{ draw: ["area", "area_blank_1"] }, ask()]);
     let session: FormulaSession | null = null;

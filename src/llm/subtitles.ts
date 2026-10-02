@@ -11,6 +11,7 @@
 // YouTube. A subtitle track is text under the picture: the labels stay put, the
 // voice stays put, and only what the caption displays is sent.
 
+import { feedbackLines } from "../feedback/bands";
 import { correctWord } from "../render/quiz-words";
 import { callForJson, makeClient, type CallOpts } from "./client";
 import { controlsOfFor, planCommands } from "../render/plan";
@@ -98,6 +99,7 @@ export function captionLines(spec: Spec): string[] {
   const dummyLeaf = [{ leafId: "x", pts: [[0, 0], [1, 0], [1, 1]] as Pt[], closed: true }];
   const plan = planCommands(spec.commands ?? [], mentionedIds(spec), {
     book: spec.book !== undefined,
+    ...(spec.feedback !== undefined ? { feedback: spec.feedback } : {}),
     bboxOf: () => ({ x: 0, y: 0, w: 0, h: 0 }),
     leafPointsOf: () => dummyLeaf,
     // A `run` (and an explore beat's demo) is planned only when its script's
@@ -122,6 +124,8 @@ export function captionLines(spec: Spec): string[] {
       add(step.wrong);
       add(step.right ?? step.answer);
     }
+    // The feedback band's line said after them (spec 2026-10-03 §4.2).
+    if ((step.kind === "quiz" || step.kind === "ask") && step.feedback) for (const l of feedbackLines(step.feedback, spec.lang)) add(l);
   }
   return [...out];
 }

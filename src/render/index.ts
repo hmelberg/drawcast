@@ -561,6 +561,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
 
   const plan = planCommands(spec.commands, layout.order, {
     book: spec.book !== undefined,
+    ...(spec.feedback !== undefined ? { feedback: spec.feedback } : {}),
     bboxOf: (id) => bboxes.get(id) ?? null,
     windows: layout.windows ?? {},
     // The layout's own frame when it has one: it is the RESOLVED domain

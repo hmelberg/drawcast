@@ -39,6 +39,7 @@ import { chunkCaption, pageTimes } from "./caption-chunks";
 import { balancedSplit, budgetOf, defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessEnd, type GuessHandle, type GuessSetup } from "../guess/handles";
 import { gapsOf } from "../guess/market";
 import { guessText, guessVars, scoreGuess } from "../guess/score";
+import { bandOf, guessBand, pickLine, seedOf, type Band } from "../feedback/bands";
 import { accountMarks, guessMarks } from "../guess/marks";
 import type { CardsGeometry } from "../spec/cards";
 import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
@@ -368,6 +369,8 @@ export class Player {
     guess: number[][];
     owner: string;
     line: string | undefined;
+    /** The feedback band's line, said after `line`. */
+    extra: string | null;
     live: boolean;
     answered: boolean;
     ok: boolean;
@@ -1609,14 +1612,16 @@ export class Player {
       });
     }
     const line = !judged ? (step.right ?? step.wrong) : ok ? step.right : (step.wrong ?? step.right);
+    const market = truthHandles.length === 1 && truthHandles[0].kind === "market";
+    const extra = live && answered && judged ? this.bandLine(step, guessBand(score, step.tolerance ?? 0.1, market)) : null;
     if (animIndex >= 0) {
       // The animate after this step is the reveal: it starts from the guess.
-      this.predictCarry = { animIndex, step, setup, truthHandles, guess, owner, line, live, answered, ok, judged };
+      this.predictCarry = { animIndex, step, setup, truthHandles, guess, owner, line, extra, live, answered, ok, judged };
       return;
     }
     // The feedback is spoken AS the figure moves to the truth, not after it:
     // waiting for the glide and then the voice left a gap after answering.
-    const spoken = line ? this.speakLine(line, step, signal) : Promise.resolve();
+    const spoken = this.speakLines(line, extra, step, signal);
     if (!(await this.revealGuess(setup, guess, paint, owner, signal))) return;
     this.applyKey(this.plan.states[index]);
     this.applyScene(this.plan.states[index]);
@@ -1814,7 +1819,8 @@ export class Player {
       });
     }
     const line = !judged ? (step.right ?? step.wrong) : ok ? step.right : (step.wrong ?? step.right);
-    const spoken = line ? this.speakLine(line, step, signal) : Promise.resolve();
+    const extra = live && answered && judged ? this.bandLine(step, bandOf({ ok, within: score.within, count: score.count })) : null;
+    const spoken = this.speakLines(line, extra, step, signal);
     // The cards that move glide from where the viewer left them to the truth.
     const from = positions(g, arrangement);
     const moves = g.cards.some((_, i) => Math.abs(from[i][0] - g.truth[i][0]) > 0.5 || Math.abs(from[i][1] - g.truth[i][1]) > 0.5);
@@ -1973,7 +1979,8 @@ export class Player {
     // The reveal, as the line is spoken: the truths written into the boxes
     // (the plan takes the boxes away), each wrong answer struck through above.
     const line = ok ? step.right : (step.wrong ?? step.right);
-    const spoken = line ? this.speakLine(line, step, signal) : Promise.resolve();
+    const extra = live && answered ? this.bandLine(step, bandOf({ ok, within, count: blanks.length })) : null;
+    const spoken = this.speakLines(line, extra, step, signal);
     this.setFills(id, blanks.map((b) => b.tex));
     this.applyKey(after);
     this.applyScene(after);
@@ -2212,7 +2219,9 @@ export class Player {
     // The reveal, as the line is spoken: the truths written in from the
     // right of the tree to the left, then the working lines and the miss.
     const line = ok ? step.right : (step.wrong ?? step.right);
-    const spoken = line ? this.speakLine(line, step, signal) : Promise.resolve();
+    // Counted: each blank, and the pick as one more.
+    const extra = live && answered ? this.bandLine(step, bandOf({ ok, within: score.within + (pickRight ? 1 : 0), count: score.count + (pick ? 1 : 0) })) : null;
+    const spoken = this.speakLines(line, extra, step, signal);
     const order = blanks.map((b, i) => ({ b, i })).sort((a, z) => z.b.depth - a.b.depth);
     for (const { b } of order) {
       if (answers[b.part] === undefined) continue;
@@ -2339,6 +2348,28 @@ export class Player {
   private setState(s: PlayerState): void {
     this.state = s;
     this.callbacks.onState?.(s);
+  }
+
+  /** Feedback lines already said in this cast — none is said twice (spec 2026-10-03 §4.2). */
+  private readonly feedbackUsed = new Set<string>();
+  /** The cast's seed for picking feedback lines: its questions, so a replay picks the same. */
+  private feedbackSeed: number | null = null;
+
+  /**
+   * The feedback line for the band a LIVE viewer reached (spec 2026-10-03
+   * §4.2), or null: plain (no step.feedback), a skip (band null) or a movie
+   * (the caller passes null) adds nothing.
+   */
+  private bandLine(step: Extract<PlanStep, { kind: "quiz" | "ask" }>, band: Band | null): string | null {
+    if (!step.feedback || band === null) return null;
+    this.feedbackSeed ??= seedOf(this.plan.steps.map((s) => (s.kind === "quiz" || s.kind === "ask" ? s.question : "")).join("\n"));
+    return pickLine(step.feedback, band, this.sourceLang, this.feedbackSeed, this.feedbackUsed);
+  }
+
+  /** The author's right/wrong line, then the band's line straight after it. */
+  private async speakLines(line: string | null | undefined, extra: string | null, step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): Promise<void> {
+    if (line) await this.speakLine(line, step, signal);
+    if (extra && !signal.aborted) await this.speakLine(extra, step, signal);
   }
 
   /** Speak a runtime-chosen line (quiz/ask feedback): narrated mode voices it,
@@ -2757,6 +2788,9 @@ export class Player {
           // who pressed Skip skipped the question AND its explanation.
           lines.push(reveal);
         }
+        // The feedback band's line: a live viewer who answered, right or wrong.
+        const extra = liveQuiz && chosen !== null ? this.bandLine(step, chosen === step.correct ? "perfect" : "none") : null;
+        if (extra) lines.push(extra);
         if (lines.length > 0) {
           if (liveQuiz) this.feedbackHook?.(true);
           try {
@@ -2899,13 +2933,13 @@ export class Player {
         } else if (step.widget === "click" && step.answerBox && live) {
           groups = [{ ids: [answer], ...(isRight(typed) ? { color: ANSWER_OK_COLOR } : {}) }];
         }
+        // The feedback band's line: a live viewer who answered, right or wrong.
+        const extra = live && typed !== null ? this.bandLine(step, isRight(typed) ? "perfect" : "none") : null;
         if (isRight(typed)) {
-          await this.glowWhile(groups, signal, async () => {
-            if (step.right) await this.speakLine(step.right, step, signal);
-          });
+          await this.glowWhile(groups, signal, () => this.speakLines(step.right, extra, step, signal));
         } else if (step.reveal) {
-          await this.glowWhile(groups, signal, () => this.speakLine(step.right ?? answer, step, signal));
-        }
+          await this.glowWhile(groups, signal, () => this.speakLines(step.right ?? answer, extra, step, signal));
+        } else if (extra) await this.speakLine(extra, step, signal);
         if (!this.autoAnswers && this.askGate !== null && typed !== null) {
           const target = isRight(typed) ? step.rightGoto : step.wrongGoto;
           if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
@@ -3163,7 +3197,7 @@ export class Player {
             }),
           );
         }
-        const spokenCarry = carry?.line && step.narration === undefined ? this.speakLine(carry.line, carry.step, signal) : null;
+        const spokenCarry = carry && (carry.line || carry.extra) && step.narration === undefined ? this.speakLines(carry.line, carry.extra, carry.step, signal) : null;
         await this.progress(step.seconds * 1000, signal, (t) => {
           const e = ease(t);
           const cur: Record<string, unknown> = { ...this.paramsOf(before), ...held };
@@ -3183,9 +3217,9 @@ export class Player {
           this.guessOwners.add(carry.owner);
           this.effects?.setGuessMarks?.(carry.owner, guessMarks(carry.truthHandles, carry.guess, 1));
           if (spokenCarry) await spokenCarry;
-          else if (carry.line) {
+          else if (carry.line || carry.extra) {
             if (this.narrationVoice) await this.narrationVoice;
-            if (!signal.aborted) await this.speakLine(carry.line, carry.step, signal);
+            if (!signal.aborted) await this.speakLines(carry.line, carry.extra, carry.step, signal);
           }
           if (carry.live && carry.answered && carry.judged) {
             const target = carry.ok ? carry.step.rightGoto : carry.step.wrongGoto;

@@ -104,6 +104,13 @@ function isEnglish(lang: string | undefined | null): boolean {
   return !lang || lang.toLowerCase().split(/[-_]/)[0] === "en";
 }
 
+/** Every line pickLine could say for this feedback — what a subtitle track must translate. */
+export function feedbackLines(fb: FeedbackSpec, lang: string | undefined | null): string[] {
+  const style = fb.style;
+  if (style === "plain") return [];
+  return BANDS.flatMap((b) => fb.lines[b] ?? (isEnglish(lang) ? FALLBACK_LINES[style][b] : []));
+}
+
 /**
  * ONE line for the band, or null: the cast's own lines first; else the
  * bundled English set, only for a cast in English (or with no `lang`);
@@ -121,4 +128,19 @@ export function pickLine(fb: FeedbackSpec, band: Band, lang: string | undefined 
   const line = fresh[k];
   used.add(line);
   return line;
+}
+
+/**
+ * A guess's band: one number by how far off it is (tolerance, twice it);
+ * several numbers by how many are close, kept in step with the verdict (a
+ * right answer is at least good, a wrong one at most good); a market curve
+ * by its check — right is perfect, else how many of its two moves are close.
+ */
+export function guessBand(s: { ok: boolean; within: number; count: number; meanFrac: number }, tolerance: number, market: boolean): Band {
+  if (market) return s.ok ? "perfect" : s.within > 0 ? "poor" : "none";
+  if (s.count <= 1) return bandOf({ ok: s.ok, frac: s.meanFrac, tolerance });
+  const b = bandOf({ ok: s.ok, within: s.within, count: s.count });
+  if (s.ok && (b === "poor" || b === "none")) return "good";
+  if (!s.ok && b === "perfect") return "good";
+  return b;
 }

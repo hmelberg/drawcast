@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { bandOf, pickLine, resolveFeedback, seedOf, type FeedbackSpec } from "../src/feedback/bands";
+import { bandOf, guessBand, pickLine, resolveFeedback, seedOf, type FeedbackSpec } from "../src/feedback/bands";
 import { FALLBACK_LINES } from "../src/feedback/lines";
 
 describe("bandOf", () => {
@@ -21,6 +21,20 @@ describe("bandOf", () => {
   test("a single right/wrong ask: perfect or none", () => {
     expect(bandOf({ ok: true })).toBe("perfect");
     expect(bandOf({ ok: false })).toBe("none");
+  });
+});
+
+describe("guessBand", () => {
+  test("one number by distance; several by count, in step with the verdict; a market by its check", () => {
+    expect(guessBand({ ok: true, within: 1, count: 1, meanFrac: 0.05 }, 0.1, false)).toBe("perfect");
+    expect(guessBand({ ok: false, within: 0, count: 1, meanFrac: 0.15 }, 0.1, false)).toBe("good");
+    expect(guessBand({ ok: false, within: 0, count: 1, meanFrac: 0.4 }, 0.1, false)).toBe("poor");
+    expect(guessBand({ ok: true, within: 1, count: 4, meanFrac: 0.09 }, 0.1, false)).toBe("good");
+    expect(guessBand({ ok: false, within: 4, count: 4, meanFrac: 0.11 }, 0.1, false)).toBe("good");
+    expect(guessBand({ ok: false, within: 0, count: 4, meanFrac: 0.5 }, 0.1, false)).toBe("none");
+    expect(guessBand({ ok: true, within: 0, count: 2, meanFrac: 0.3 }, 0.1, true)).toBe("perfect");
+    expect(guessBand({ ok: false, within: 1, count: 2, meanFrac: 0.3 }, 0.1, true)).toBe("poor");
+    expect(guessBand({ ok: false, within: 0, count: 2, meanFrac: 0.3 }, 0.1, true)).toBe("none");
   });
 });
 
@@ -122,5 +136,38 @@ describe("feedback in the schema", () => {
     expect(ok.ok).toBe(true);
     const bad = validateSpec({ feedback: "snarky", elements: [{ id: "t", type: "text", text: "x", x: 100, y: 100 }], commands: [] });
     expect(bad.ok).toBe(false);
+  });
+});
+
+describe("feedback in the script format", () => {
+  test("the cast's, an ask's and a quiz's feedback survive print → parse", async () => {
+    const { parseScriptPages } = await import("../src/spec/script/parse");
+    const { printScriptPages } = await import("../src/spec/script/print");
+    const spec = {
+      title: "T",
+      lang: "nb",
+      feedback: { style: "dry", poor: ["Godt du ikke er farmasøyt.", "Oppvarming."] },
+      elements: [{ id: "t", type: "text", text: "x", x: 1, y: 1 }],
+      commands: [
+        { ask: { question: "Q?", answer: "4", feedback: "warm" } },
+        { quiz: { question: "Q", choices: ["a", "b"], correct: 1, feedback: { style: "dry", perfect: "P" } } },
+      ],
+    };
+    const back = parseScriptPages(printScriptPages({}, [{ spec: spec as never }])).pages[0].spec;
+    expect(back.feedback).toEqual(spec.feedback);
+    expect(back.commands).toEqual(spec.commands);
+  });
+});
+
+describe("feedback lines in the subtitle tracks", () => {
+  test("the author's lines are among the caption lines to translate", async () => {
+    const { captionLines } = await import("../src/llm/subtitles");
+    const lines = captionLines({
+      lang: "nb",
+      feedback: { style: "dry", poor: "Godt du ikke er farmasøyt." },
+      elements: [{ id: "t", type: "text", text: "x", x: 1, y: 1 }],
+      commands: [{ ask: { question: "Q?", answer: "4", right: "Fire." } }, { ask: { question: "P?", answer: "5", feedback: "plain" } }],
+    } as never);
+    expect(lines).toContain("Godt du ikke er farmasøyt.");
   });
 });
