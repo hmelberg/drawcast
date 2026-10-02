@@ -930,9 +930,12 @@ export interface AskArgs {
   /** Guess: start from an earlier guess (its store) kept back with
    *  reveal: false — guess, see evidence, guess again (§9). */
   revise?: string;
-  /** Guess on all bars (or a whole pie): the numbers always add up to this
-   *  budget — split it (§7). */
+  /** Guess on all bars: split this budget — each bar moves on its own and
+   *  an account bar beside the plot shows what is left; Answer waits until
+   *  it balances (spec 2026-10-03-looks-feedback-account §5). */
   budget?: number;
+  /** Budget: the account bar's label (default "Left"), in the cast's language. */
+  account_label?: string;
   /** Guess: false = an opinion, nothing is right or wrong; the reveal shows
    *  the figure's own values as the reference and `right` is spoken (§7). */
   judge?: boolean;
