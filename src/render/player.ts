@@ -13,7 +13,7 @@ import { answersMatch, AUTO_NAMESPACE, subVars } from "../spec/answers";
 import { notationBeats } from "../spec/notation";
 import { ACTIVITY_QUESTIONS } from "../spec/types";
 import type { LayoutResult } from "../layout/layout";
-import { heldFrom, posterOf, sceneAt } from "./plan";
+import { carriedState, heldFrom, posterOf, sceneAt, type BranchCarry } from "./plan";
 import { breathAfterMs } from "./breath";
 import { FOCUS_DIM, type BackendEffects, type RenderedElement } from "./backend";
 import { EASINGS, lerpBox, pointerPath } from "./effects";
@@ -874,6 +874,8 @@ export class Player {
       if (this.pendingJump !== null) {
         const n = this.pendingJump;
         this.pendingJump = null;
+        if (this.pendingCarry) this.carry = { at: n, base: this.pendingCarry };
+        this.pendingCarry = null;
         this.jumpTo(n, true);
         continue;
       }
@@ -962,8 +964,18 @@ export class Player {
   /** Scene state PAINTED at a step boundary (after steps[0..n-1]) — the
    *  held last frame past holdFrom, the planned state everywhere else. */
   private stateAt(n: number): SceneState {
-    return sceneAt(this.plan, n);
+    return carriedState(this.plan, n, sceneAt(this.plan, n), this.carry);
   }
+
+  /** The planned state after step `index` (plan.states[index]), with the chosen branch carried. */
+  private planned(index: number): SceneState {
+    return carriedState(this.plan, index + 1, this.plan.states[index], this.carry);
+  }
+
+  /** The chosen branch's figure, carried past `then` (final fix wave E). */
+  private carry: BranchCarry | null = null;
+  /** Set with a pendingJump out of a branch: the branch's end, carried from the jump on. */
+  private pendingCarry: SceneState | null = null;
 
   /** Whether a step that only takes things away is past the held frame —
    *  performed, it would wipe the frame the drawcast is meant to end on. */
@@ -997,6 +1009,8 @@ export class Player {
    *  history out of order, and the next scrub would show the wrong patch. */
   jumpTo(n: number, keepPlaying: boolean): void {
     this.posterRestart = false;
+    // Back before a branch's end: the plan's own figure again.
+    if (this.carry && n < this.carry.at) this.carry = null;
     // A question on its own page that was standing is over: the boundary's
     // own opacities, nothing faded on top.
     this.staged = null;
@@ -1695,7 +1709,7 @@ export class Player {
     const animIndex = step.predict ? this.nextAnimate(index) : -1;
     const animStep = animIndex >= 0 ? this.plan.steps[animIndex] : null;
     const end: GuessEnd | undefined =
-      animStep?.kind === "animate" ? { params: this.tplParamsOf(this.plan.states[animIndex]), targets: animStep.targets } : undefined;
+      animStep?.kind === "animate" ? { params: this.tplParamsOf(this.planned(animIndex)), targets: animStep.targets } : undefined;
     const setup = this.guessSetupAt(step.on, step.from, before, false, end);
     if (!setup) return;
     // Earlier guesses' marks end with this question — a kept one only when it asks about the same part.
@@ -1703,12 +1717,12 @@ export class Player {
     const truthHandles = (() => {
       // A market handle carries its own truth (the curve at the animate's end).
       if (animIndex < 0 || setup.handles.some((h) => h.kind === "market")) return setup.handles;
-      const later = this.guessSetupAt(step.on, step.from, this.plan.states[animIndex], true);
+      const later = this.guessSetupAt(step.on, step.from, this.planned(animIndex), true);
       return later && later.handles.length === setup.handles.length ? setup.handles.map((h, k) => ({ ...h, truth: later.handles[k].truth })) : setup.handles;
     })();
     // What the question shows: everything the plan reveals at this step (the
     // guessed parts), painted from the guess instead of the truth.
-    const after = this.plan.states[index];
+    const after = this.planned(index);
     const visible = new Set([...before.visible, ...after.visible, ...setup.handles.flatMap((h) => h.shows)]);
     const owner = `guess_${index}`;
     const marked = setup.handles.flatMap((h) => [h.part, ...h.shows]);
@@ -1860,14 +1874,14 @@ export class Player {
     const spoken = this.speakLines(line, extra, step, signal);
     if (step.revealStyle === "morph") {
       if (!(await this.revealGuess(setup, guess, paint, owner, signal))) return;
-      this.applyKey(this.plan.states[index]);
-      this.applyScene(this.plan.states[index]);
+      this.applyKey(this.planned(index));
+      this.applyScene(this.planned(index));
       this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, guess, 1));
     } else {
       // Beside (the default): yours stays, the truth arrives beside it.
       if (!(await this.revealBeside(setup, guess, paint, owner, signal, index, step.revealOrder ?? "all"))) return;
-      this.applyKey(this.plan.states[index]);
-      this.applyScene(this.plan.states[index]);
+      this.applyKey(this.planned(index));
+      this.applyScene(this.planned(index));
       this.effects?.setGuessMarks?.(owner, this.besides.get(owner)?.marks ?? null);
     }
     this.keepGuess(owner, index, step, setup.handles, guess, step.revealStyle === "morph" ? "morph" : "beside", fits(prev) ? prev : undefined);
@@ -2143,10 +2157,10 @@ export class Player {
       for (const id of g.cards) place(id, 0, 0);
       this.putBeside(owner, { index, marks: null, faded: false, offsets, ...(placedTiles.length > 0 ? { shown: placedTiles } : {}) });
     }
-    this.applyKey(this.plan.states[index]);
+    this.applyKey(this.planned(index));
     // Hidden now: their own opacity back, for a replay that draws them again.
     leaving.forEach((el) => el.setOpacity?.(1));
-    this.applyScene(this.plan.states[index]);
+    this.applyScene(this.planned(index));
     if (beside) {
       const tolerance = step.tolerance ?? 0;
       const n = cardsParts(g);
@@ -2168,7 +2182,8 @@ export class Player {
       // Live: to the chosen branch; the others are skipped on the way to `then`.
       const go = g.gotos?.[choice];
       if (live && go !== undefined && this.plan.labels[go] !== undefined) {
-        this.pendingJump = this.plan.labels[go];
+        // Past the label: its boundary is the figure the question left (the planner starts each branch there).
+        this.pendingJump = this.plan.labels[go] + 1;
         this.decideBranch = { labels: (g.gotos ?? []).filter((l): l is string => l !== undefined), chosen: go, then: g.then };
       }
       return;
@@ -2267,7 +2282,8 @@ export class Player {
     }
     // Live: to the chosen branch; the others are skipped on the way to `then`.
     if (live && picked?.goto !== undefined && this.plan.labels[picked.goto] !== undefined) {
-      this.pendingJump = this.plan.labels[picked.goto];
+      // Past the label: its boundary is the figure the question left (the planner starts each branch there).
+      this.pendingJump = this.plan.labels[picked.goto] + 1;
       this.decideBranch = { labels: opts.map((o) => o.goto).filter((l): l is string => l !== undefined), chosen: picked.goto, ...(step.then !== undefined ? { then: step.then } : {}) };
     }
   }
@@ -2294,7 +2310,7 @@ export class Player {
     const { blanks } = rt;
     const owner = `formula_${index}`;
     this.guessMarkParts.set(owner, [id]);
-    const after = this.plan.states[index];
+    const after = this.planned(index);
     const visible = new Set([...before.visible, ...after.visible]);
     const sceneParams = this.paramsOf(before);
     const overrides = this.overridesOf(before.offsets, before.turns, before.shapes, before.tex, before.copies);
@@ -2501,7 +2517,7 @@ export class Player {
     const treeText = treeNumberText(params);
     const fmt = (v: number, b: TreeBlank): string => treeText(v, b.kind);
     const fmtNum = (v: number): string => treeText(v, "value");
-    const after = this.plan.states[index];
+    const after = this.planned(index);
     // A decision's best and prune marks give its answer away: hidden while
     // asked (the picked decision's, and those of a decision whose value is a
     // blank), drawn in at the reveal (spec §4.3).
@@ -3054,6 +3070,7 @@ export class Player {
 
   private abortRun(): void {
     this.pendingJump = null;
+    this.pendingCarry = null;
     this.pausedFlag = false;
     this.pendingSpeech = null;
     this.speech.cancel();
@@ -3256,7 +3273,7 @@ export class Player {
     this.captionEl.classList.toggle("cs-caption-empty", text === "");
     // Written on the drawing, a caption over something dark (a photo, a C64
     // screen) takes the band instead (figure-style.ts .cs-caption-dark).
-    const scene = this.plan.states[Math.min(this.completed, this.plan.states.length - 1)];
+    const scene = this.planned(Math.min(this.completed, this.plan.states.length - 1));
     this.captionEl.classList.toggle("cs-caption-dark", text !== "" && !!this.captionOnDark && !!scene && this.captionOnDark(scene.visible));
   }
 
@@ -3283,7 +3300,7 @@ export class Player {
     // A kept guess's part moved: its marks come back shifted with it.
     return run.then(() => {
       this.keptMoving = false;
-      if (!signal.aborted) this.refollow(this.plan.states[index]);
+      if (!signal.aborted) this.refollow(this.planned(index));
     });
   }
 
@@ -3467,7 +3484,7 @@ export class Player {
         // re-running the series to find that out would stall the scrub.
         this.runResults.set(index, results);
         this.activeRun = { index, id: step.code, results };
-        const scene = this.plan.states[index];
+        const scene = this.planned(index);
         const overrides = this.overridesOf(scene.offsets, scene.turns, scene.shapes, scene.tex, scene.copies);
         let last = -1;
         await this.progress(step.seconds * 1000, signal, (t) => {
@@ -3500,6 +3517,8 @@ export class Player {
         if (d && step.name !== d.chosen && d.labels.includes(step.name)) {
           this.decideBranch = null;
           this.pendingJump = d.then !== undefined && this.plan.labels[d.then] !== undefined ? this.plan.labels[d.then] : this.plan.steps.length;
+          // The figure as the chosen branch left it goes on past `then`.
+          this.pendingCarry = this.stateAt(index);
         } else if (d && step.name === d.then) this.decideBranch = null;
         return;
       }
@@ -4066,10 +4085,10 @@ export class Player {
           const room = besideParams(carry.truthHandles, carry.truthHandles.map(() => 1));
           this.putBeside(carry.owner, { index, marks: carryMarks(1), faded: false, ...(Object.keys(room).length > 0 ? { params: room } : {}) });
         }
-        this.applyKey(this.plan.states[index]);
-        this.applyScene(this.plan.states[index]);
+        this.applyKey(this.planned(index));
+        this.applyScene(this.planned(index));
         // Kept guesses settle where their parts now stand.
-        this.refollow(this.plan.states[index]);
+        this.refollow(this.planned(index));
         if (carry) {
           this.guessOwners.add(carry.owner);
           this.effects?.setGuessMarks?.(carry.owner, carryMarks(1));
@@ -4107,7 +4126,7 @@ export class Player {
           this.tweenTransformItems(step.extraTransforms, e);
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
-        this.settleMeasures(step, this.plan.states[index]);
+        this.settleMeasures(step, this.planned(index));
         return;
       }
       case "transform": {
@@ -4135,7 +4154,7 @@ export class Player {
           this.tweenTransformItems(step.extraTransforms, e);
         });
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
-        this.settleMeasures(step, this.plan.states[index]);
+        this.settleMeasures(step, this.planned(index));
         return;
       }
       case "fade": {
@@ -4172,7 +4191,7 @@ export class Player {
         // a `reset` (whose boundary carries no shapes entry at all) must be
         // re-applied here or the element keeps its resampled path until the
         // next applyScene (a scrub).
-        const after = this.plan.states[index];
+        const after = this.planned(index);
         for (const { it, el } of items) el!.setPoints!(after.shapes[it.id] ?? {});
         this.settleMeasures(step, after);
         return;
@@ -4185,7 +4204,7 @@ export class Player {
         // is a no-op and applyScene finds nothing to show for it — fine.
         await this.narrationBarrier();
         if (signal.aborted) return;
-        const after = this.plan.states[index];
+        const after = this.planned(index);
         this.applyKey(after);
         this.applyScene(after);
         return;
@@ -4316,7 +4335,7 @@ export class Player {
       this.geometryDirty = true;
     });
     if (signal.aborted) return; // a scrub's renderUpTo owns the state now
-    const after = this.plan.states[index];
+    const after = this.planned(index);
     this.applyKey(after);
     this.applyScene(after);
   }
@@ -4370,7 +4389,7 @@ export class Player {
    */
   private async tweenScroll(index: number, signal: AbortSignal): Promise<void> {
     const before = this.stateAt(index);
-    const after = this.plan.states[index];
+    const after = this.planned(index);
     const ids = new Set([...Object.keys(before.offsets), ...Object.keys(after.offsets)]);
     const moves: { el: RenderedElement; from: Pt; to: Pt }[] = [];
     for (const id of ids) {

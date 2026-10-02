@@ -357,6 +357,70 @@ export function sceneAt(plan: Plan, n: number): SceneState {
   return boundaryAt(plan, held !== null && n > held ? held : n);
 }
 
+/** A branch's figure carried past `then` (final fix wave E): from boundary
+ *  `at` on, whatever the plan does not change itself stands as `base` (the
+ *  chosen branch's end), not as the plan's last branch left it. */
+export interface BranchCarry {
+  at: number;
+  base: SceneState;
+}
+
+type Changes = { visible: Set<string>; camera: boolean; maps: Record<MapKey, Set<string>> };
+type MapKey = "offsets" | "turns" | "params" | "opacities" | "shapes" | "texts" | "tex" | "copies" | "answers";
+const MAP_KEYS: MapKey[] = ["offsets", "turns", "params", "opacities", "shapes", "texts", "tex", "copies", "answers"];
+const stepChanges = new WeakMap<Plan, Changes[]>();
+const same = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) === JSON.stringify(b);
+
+/** What each step changed, per id (and per param): step k's boundary after vs before. */
+function changesOf(plan: Plan): Changes[] {
+  const memo = stepChanges.get(plan);
+  if (memo) return memo;
+  const out: Changes[] = plan.states.map((after, k) => {
+    const before = boundaryAt(plan, k);
+    const vb = new Set(before.visible);
+    const va = new Set(after.visible);
+    const visible = new Set([...before.visible.filter((id) => !va.has(id)), ...after.visible.filter((id) => !vb.has(id))]);
+    const maps = {} as Record<MapKey, Set<string>>;
+    for (const key of MAP_KEYS) {
+      const b = (before[key] ?? {}) as Record<string, unknown>;
+      const a = (after[key] ?? {}) as Record<string, unknown>;
+      maps[key] = new Set([...new Set([...Object.keys(b), ...Object.keys(a)])].filter((id) => !same(b[id], a[id])));
+    }
+    return { visible, camera: !same(before.camera, after.camera), maps };
+  });
+  stepChanges.set(plan, out);
+  return out;
+}
+
+/**
+ * The figure at boundary n when a branch was chosen (`carry`): what the plan
+ * changed from `carry.at` up to n is the plan's (`state`); everything else
+ * stands as the chosen branch left it. Before `carry.at`, or with no carry,
+ * the plan's own state.
+ */
+export function carriedState(plan: Plan, n: number, state: SceneState, carry: BranchCarry | null): SceneState {
+  if (!carry || n < carry.at) return state;
+  const changes = changesOf(plan).slice(carry.at, n);
+  const touched = (pick: (c: Changes) => Set<string>, id: string): boolean => changes.some((c) => pick(c).has(id));
+  const base = carry.base;
+  const inState = new Set(state.visible);
+  const inBase = new Set(base.visible);
+  const visible = [...state.visible.filter((id) => inBase.has(id) || touched((c) => c.visible, id)), ...base.visible.filter((id) => !inState.has(id) && !touched((c) => c.visible, id))];
+  const out: SceneState = { ...state, visible, camera: changes.some((c) => c.camera) ? state.camera : base.camera };
+  for (const key of MAP_KEYS) {
+    const s = (state[key] ?? {}) as Record<string, unknown>;
+    const b = (base[key] ?? {}) as Record<string, unknown>;
+    const merged: Record<string, unknown> = {};
+    for (const id of new Set([...Object.keys(s), ...Object.keys(b)])) {
+      const v = touched((c) => c.maps[key], id) ? s[id] : b[id];
+      if (v !== undefined) merged[id] = v;
+    }
+    if (key === "answers" && state.answers === undefined && base.answers === undefined) continue;
+    (out as unknown as Record<string, unknown>)[key] = merged;
+  }
+  return out;
+}
+
 /**
  * The template params at boundary n as the player lays them out: the
  * animated params, and a tree's `answers` (its blanks still to be asked show
@@ -475,7 +539,7 @@ export interface PlanOptions {
    *  answered (its true place, as an offset from where it is drawn).
    *  `hides`: the cards the answer takes away (a formula's right tiles,
    *  whose glyphs are written into the boxes instead, design 2026-10-03 §5.4). */
-  cardsFor?: (id: string) => { cards: string[]; offsets: Record<string, Pt>; shows?: string[]; hides?: string[] } | null;
+  cardsFor?: (id: string) => { cards: string[]; offsets: Record<string, Pt>; shows?: string[]; hides?: string[]; gotos?: string[] } | null;
   /** This cast is a book's part: highlight/erase/point on an id that is not
    *  an element target the text pane (an earlier part's block included). */
   book?: boolean;
@@ -751,6 +815,40 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         else offsets[id] = [0, scroll];
       }
     }
+  };
+  /** Branching questions met so far, latest first: their branch labels and
+   *  the figure as the question left it. */
+  const branchPoints: { labels: Set<string>; scene: SceneState }[] = [];
+  const sceneNow = (): SceneState => ({
+    visible: [...visible],
+    offsets: { ...offsets },
+    turns: { ...turns },
+    camera,
+    params: { ...params },
+    opacities: { ...opacities },
+    shapes: Object.fromEntries(Object.entries(shapes).map(([id, m]) => [id, { ...m }])),
+    texts: Object.fromEntries(Object.entries(texts).map(([id, m]) => [id, { ...m }])),
+    tex: { ...tex },
+    copies: { ...copies },
+  });
+  const restoreScene = (st: SceneState): void => {
+    visible = [...st.visible];
+    visibleSet.clear();
+    for (const id of visible) visibleSet.add(id);
+    const put = <T>(into: Record<string, T>, from: Record<string, T>): void => {
+      for (const k of Object.keys(into)) delete into[k];
+      Object.assign(into, from);
+    };
+    put(offsets, st.offsets);
+    put(turns, st.turns);
+    put(opacities, st.opacities);
+    put(shapes, Object.fromEntries(Object.entries(st.shapes).map(([id, m]) => [id, { ...m }])));
+    put(texts, Object.fromEntries(Object.entries(st.texts).map(([id, m]) => [id, { ...m }])));
+    put(tex, st.tex);
+    put(copies, st.copies);
+    camera = st.camera;
+    params = { ...st.params };
+    relayoutBoxes();
   };
   const makeVisible = (ids: string[]) => {
     for (const id of ids) {
@@ -1409,6 +1507,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.wait !== undefined) {
       pushStep({ kind: "wait" });
     } else if (cmd.label !== undefined) {
+      // A branch of a choose or decide starts from the figure as the question
+      // left it, not from the branch before it (final fix wave E): only the
+      // chosen branch's steps shape the figure.
+      const point = branchPoints.find((b) => b.labels.has(cmd.label!));
+      if (point) restoreScene(point.scene);
       labels[cmd.label] = steps.length;
       pushStep({ kind: "label", name: cmd.label });
     } else if (cmd.run !== undefined) {
@@ -1626,6 +1729,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           : {}),
       });
       if (cmd.ask.store !== undefined && cmd.ask.default !== undefined) storeDefaults[cmd.ask.store.toLowerCase()] = cmd.ask.default;
+      // A branching question: each of its branches is planned from here.
+      const branchLabels = [
+        ...(Array.isArray(cmd.ask.choose) ? cmd.ask.choose.map((o) => (typeof o === "string" ? undefined : o.goto)) : []),
+        ...(cardSet?.gotos ?? []),
+      ].filter((l): l is string => l !== undefined);
+      if (branchLabels.length > 1) branchPoints.unshift({ labels: new Set(branchLabels), scene: sceneNow() });
     } else if (cmd.show !== undefined) {
       const named = resolveIds(cmd.show, "show");
       const ids = dropAnsweredBoxes(withCompanions(named), named);

@@ -161,11 +161,12 @@ export function guessPartsFor(
  * give way to the truth's own glyphs in the boxes, the wrong ones slide home
  * and leave (fix wave 2026-10-03: none may stay to the end of the cast).
  */
-export function cardsPlanFor(g: CardsGeometry | null): { cards: string[]; offsets: Record<string, Pt>; shows: string[]; hides?: string[] } | null {
+export function cardsPlanFor(g: CardsGeometry | null): { cards: string[]; offsets: Record<string, Pt>; shows: string[]; hides?: string[]; gotos?: string[] } | null {
   if (!g) return null;
   const offsets: Record<string, Pt> = {};
   g.cards.forEach((c, i) => (offsets[c] = [g.truth[i][0] - g.home[i][0], g.truth[i][1] - g.home[i][1]]));
-  return { cards: g.cards, offsets, shows: g.valueIds ?? [], ...(g.mode === "fill" ? { hides: [...g.cards] } : {}) };
+  const gotos = g.mode === "decide" ? (g.gotos ?? []).filter((l): l is string => l !== undefined) : [];
+  return { cards: g.cards, offsets, shows: g.valueIds ?? [], ...(g.mode === "fill" ? { hides: [...g.cards] } : {}), ...(gotos.length > 0 ? { gotos } : {}) };
 }
 
 /**
