@@ -276,7 +276,8 @@ choose, drag, formula, connect), so they all change together.
 ## 10. Build order
 
 1. Sort `check: "each"`: model (`checkDrop`, `first`), gate (land → ✓/✗ →
-   glide → fade; final cards; tap-to-pick), counter, score, seek restore.
+   glide → fade; final cards; next card pre-picked, tap a box), counter,
+   score, seek restore.
 2. Deck under `"each"` (the flash exists; add the glide, fade, counter).
 3. Select under `"each"` (tap judgement, Done → missed cards glide in).
 4. Rank `reveal_style: "reorder"` (marks, "yours" row, arcs, connectors).
