@@ -68,8 +68,8 @@ export interface IconDeps {
   fetch: typeof fetch;
 }
 
-function defaultDeps(): IconDeps {
-  return { fetch: globalThis.fetch };
+export function defaultDeps(): IconDeps {
+  return { fetch: (input, init) => globalThis.fetch(input, init) };
 }
 
 export interface IconResolveOpts {
