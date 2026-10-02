@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from "vitest";
 import * as handles from "../src/guess/handles";
-import { accountOf, balancedSplit, budgetBalanced, budgetHint, budgetOf, formatterFor, nudge, type GuessHandle, type GuessSetup } from "../src/guess/handles";
+import { accountOf, balancedSplit, budgetBalanced, budgetOf, formatterFor, nudge, type GuessHandle, type GuessSetup } from "../src/guess/handles";
 import { ACCOUNT_RED, accountMarks, GUESS_COLOR } from "../src/guess/marks";
 import { Player, type AnswerEvent, type GuessRuntime, type GuessSession, type Reprojector } from "../src/render/player";
 import { planCommands } from "../src/render/plan";
@@ -65,13 +65,6 @@ describe("the account", () => {
     expect(budgetBalanced(hs, [[50], [51]], 100)).toBe(false);
   });
 
-  test("the hint says what is left or over", () => {
-    const hs = bars(1, 2);
-    expect(budgetHint(hs, [[40], [50]], 100)).toBe("Balance the budget: 10 left");
-    expect(budgetHint(hs, [[60], [45]], 100)).toBe("Balance the budget: 5 over");
-    expect(budgetHint(hs, [[60], [40]], 100)).toBeNull();
-  });
-
   test("moving one bar leaves the others unchanged (no rebalancing)", () => {
     expect((handles as Record<string, unknown>).withBudget).toBeUndefined();
     const hs = bars(1, 2, 3);
@@ -93,7 +86,6 @@ describe("the account", () => {
     const values = [[100], [30]]; // the most a bar may be, past what is left
     expect(accountOf(values, 100)).toBe(-30);
     expect(budgetBalanced(hs, values, 100)).toBe(false);
-    expect(budgetHint(hs, values, 100)).toBe("Balance the budget: 30 over");
     expect(accountMarks(hs, values, 100).color).toBe(ACCOUNT_RED);
   });
 });

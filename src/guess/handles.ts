@@ -933,13 +933,6 @@ export function budgetReachable(handles: GuessHandle[], budget: number): boolean
   return budget >= lo - step / 2 - 1e-9 && budget <= hi + step / 2 + 1e-9;
 }
 
-/** The dock's hint while unbalanced ("Balance the budget: 10 left" / "5 over"); null when balanced. */
-export function budgetHint(handles: GuessHandle[], values: number[][], budget: number): string | null {
-  if (budgetBalanced(handles, values, budget)) return null;
-  const a = accountOf(values, budget);
-  return `Balance the budget: ${handles[0].format(Math.abs(a))} ${a > 0 ? "left" : "over"}`;
-}
-
 /** A split that balances: `values` scaled to add up to `budget` (an even
  *  split when they add up to nothing) — the movie's demo of a budget. */
 export function balancedSplit(values: number[][], budget: number): number[][] {
