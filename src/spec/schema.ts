@@ -95,6 +95,23 @@ const SHARED_DEFS = {
       { type: "object", properties: { of: { type: "array", items: { type: "string" } }, opacity: { type: "number", minimum: 0, maximum: 1 } }, additionalProperties: false },
     ],
   },
+  feedback: {
+    anyOf: [
+      { type: "string", enum: ["plain", "warm", "dry"] },
+      {
+        type: "object",
+        properties: {
+          style: { type: "string", enum: ["plain", "warm", "dry"] },
+          reward: { type: "string", enum: ["auto", "none", "confetti", "picture", "joke"] },
+          perfect: { anyOf: [{ type: "string" }, { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 }] },
+          good: { anyOf: [{ type: "string" }, { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 }] },
+          poor: { anyOf: [{ type: "string" }, { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 }] },
+          none: { anyOf: [{ type: "string" }, { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 }] },
+        },
+        additionalProperties: false,
+      },
+    ],
+  },
   end_ref: {
     type: "object",
     properties: {
@@ -108,6 +125,10 @@ const SHARED_DEFS = {
     additionalProperties: false,
   },
 };
+
+/** Feedback flavour (spec 2026-10-03-looks-feedback-account §4.1), on the cast or one question. */
+const feedbackSchema = (description: string) => ({ allOf: [{ $ref: "#/$defs/feedback" }], description });
+const CAST_FEEDBACK = `Questions' feedback: after the right/wrong line the player adds ONE short line for how well the viewer did. plain (default, nothing added), warm or dry; or {style, perfect, good, poor, none} with YOUR OWN lines per band (all right; two thirds; some; none) — a sentence or a list, in the cast's language, about its topic ("Good thing you're not a pharmacist."). {vars} work. An ask or quiz may set its own.`;
 
 const endRefSchema = {
   allOf: [{ $ref: "#/$defs/end_ref" }],
@@ -750,6 +771,7 @@ const commandSchema = {
           description:
             "Store the chosen option's TEXT under this simple name (letters, digits, underscores; starts with a letter): later speak lines may use {name}, {name.ok} (true/false) and {name.secs} (seconds the viewer took). Movies and skipped questions store the correct option.",
         },
+        feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
       },
       required: ["question", "choices", "correct"],
       additionalProperties: false,
@@ -904,6 +926,7 @@ const commandSchema = {
         check: { type: "string", enum: ["direction", "shape", "size"], description: "Market guess (with `on` a supply or demand curve): what right means — direction, shape (default) or size." },
         others: { type: "array", items: { type: "string" }, description: "Formula (on a math element with \\blank): wrong tiles; the right contents are always tiles." },
         form: { const: "exact", description: "Formula, typed: \"exact\" compares the written form, not the value." },
+        feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
         release: { type: "boolean", description: "With `on`: letting go of the drag is the answer (default true). false shows an Answer button, so the viewer can adjust before answering — for a careful estimate. Several parts (on: all, a whole pie) always get the button." },
         relative: { type: "boolean", description: "With `on`: tolerance is a fraction of the true value (within 20 % = tolerance 0.2) — for money and other quantities spanning orders of magnitude." },
         code: {
@@ -1259,6 +1282,7 @@ export const specSchema = {
         "Playlist items only: the semantic-zoom entrance. Before this item begins, the PREVIOUS figure zooms into this element id (an id of the PREVIOUS item's scene) and fades there — so the new figure feels like the inside of the old one (heart → cell, bins → bell curve). Replaces the chapter card at that junction.",
     },
     level: { type: "string", enum: ["basic", "advanced"], description: "Difficulty of the explanation, when the request states one. Shown as a badge; omit if unspecified." },
+    feedback: feedbackSchema(CAST_FEEDBACK),
     record: { type: "boolean", description: "false: keep no local record of the viewer's answers in their browser. Omit (default true)." },
     voice: {
       type: "string",
