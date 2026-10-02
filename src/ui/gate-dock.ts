@@ -88,7 +88,9 @@ export function mountGateHead(stage: HTMLElement, head: GateHead): { relayout():
     dispose: () => {
       if (gone) return;
       gone = true;
-      stage.classList.remove(HEADLINE);
+      // A newer question's headline may stand already: the stage's class is its.
+      const newer = stage.querySelector(".cs-gatehead");
+      if (newer === null || newer === el) stage.classList.remove(HEADLINE);
       el.classList.add("cs-gatehead-out");
       setTimeout(() => el.remove(), HEAD_FADE_MS);
     },

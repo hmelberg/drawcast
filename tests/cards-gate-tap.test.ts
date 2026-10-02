@@ -541,3 +541,37 @@ test("the step's question stands as the headline; the hint is its how line (roun
   o.ac.abort();
   await o.done;
 });
+
+describe("check: each — review fixes (round 7)", () => {
+  test("a correction glide leaves the card being dragged under the finger; its drop is judged", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    const [a, b] = trayOrder(g);
+    tap(o.gate, g.binBoxes[1 - g.truthBin[a]].c); // a: wrong — it glides after the hold
+    fire(o.gate, "pointerdown", at(g.home[b]));
+    fire(o.gate, "pointermove", at(g.binBoxes[g.truthBin[b]].c));
+    await wait(800); // mid-correction
+    fire(o.gate, "pointermove", at(g.binBoxes[g.truthBin[b]].c));
+    fire(o.gate, "pointerup", at(g.binBoxes[g.truthBin[b]].c));
+    expect(counter(last(o))).toEqual({ right: 1, wrong: 1 });
+    o.ac.abort();
+    await o.done;
+  });
+
+  test("select: a tap during Done's sweep earns nothing; a judged card is not judged again", async () => {
+    const z = cardsGeometry({ id: "z", type: "cards", select: "Mammals", items: [{ text: "Whale", in: true }, "Shark", { text: "Bat", in: true }, "Trout"] });
+    const o = await open(z);
+    tap(o.gate, z.home[1]); // Shark: wrong, back to the tray
+    await wait(1300);
+    tap(o.gate, z.home[1]); // already judged: nothing — no second ✗, no second fade
+    await wait(1300);
+    expect(o.fades.filter((f) => f.id === z.cards[1] && f.a < 1)).toHaveLength(1);
+    const crosses = o.marks.filter((m, i) => m?.texts.some((t) => t.text === "✗") && !o.marks[i - 1]?.texts.some((t) => t.text === "✗")).length;
+    expect(crosses).toBe(1);
+    o.answer().click();
+    tap(o.gate, z.home[0]); // Whale, missed: the sweep's, not the viewer's
+    tap(o.gate, z.home[2]);
+    await o.done;
+    expect(decodeArrangement(z, o.result()!)!.first).toEqual([-1, 0, -1, -1]);
+  });
+});

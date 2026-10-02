@@ -16,7 +16,7 @@ export const HEADLINE_MAX_CHARS = 110;
 /** An instruction with no object: "Sort them.", "Your turn.", "Sorter dem.", "Din tur." */
 const INSTRUCTION_ONLY = /^((now\s+)?(sort|order|rank|match|place|drag|tap|try|sorter|ranger|plasser|dra|trykk på|prøv)\s+(them|it|these|this|dem|det|disse)(\s+(now|again|nå|igjen))?|your turn|din tur)[.!]?$/i;
 /** "The arrows show …", "The marks show …", "Pilene viser …", "Merkene viser …" */
-const POINTS_AT = /\b(arrows?|marks?|pilene|pilen|merkene|merket)\b[^.]*\b(show|shows|point|points|viser|peker)\b/i;
+const POINTS_AT = /\b(the|these|those)\s+(arrows?|marks?)\s+(show|shows|point|points)\b|\b(pilene|pilen|merkene|merket)\s+(viser|peker)\b/i;
 
 export function lintAsks(spec: Spec): LintIssue[] {
   const issues: LintIssue[] = [];

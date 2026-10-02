@@ -189,7 +189,7 @@ layout: |
   // keywords, data or not, so the chart never jumps when they resolve.
   const iconKeys = Array.isArray(params.icons) ? params.icons : [];
   const iconData = Array.isArray(params.icon_data) ? params.icon_data : [];
-  const withIcons = n > 0 && n <= 12 && iconKeys.some((k) => k !== null && k !== undefined && k !== "");
+  let withIcons = n > 0 && n <= 12 && iconKeys.some((k) => k !== null && k !== undefined && k !== "");
   // The promise idiom: typed labels but no data yet → n bars of height 0, so
   // the storyboard's bar_i beats exist offline and before the script has run.
   if (series.length === 0 && n > 0) series.push({ name: "", stages: [labels.map(() => 0)] });
@@ -260,8 +260,11 @@ layout: |
   let iconRow = 0;
   if (withIcons) {
     const y0 = Math.min(plot.y1 - 40, plot.y0 + 54);
-    iconRow = y0 - plot.y0;
-    plot.y0 = y0;
+    // A cramped plot has no room for the row: no icons rather than shrunken ones.
+    if (y0 - plot.y0 >= 34) {
+      iconRow = y0 - plot.y0;
+      plot.y0 = y0;
+    } else withIcons = false;
   }
   const Y = (v) => plot.y0 + ((v - yMin) / (yMax - yMin)) * (plot.y1 - plot.y0);
   const base = Y(clamp(0, yMin, yMax)); // the bars' baseline: the zero line, or the axis when 0 is off-scale

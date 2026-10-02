@@ -285,6 +285,8 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
         const summaryText = connectSummary(grade);
         summary.textContent = summaryText;
         summary.hidden = false;
+        // The question is answered: its headline goes now, not after the linger.
+        head?.dispose();
         window.setTimeout(remove, LINGER_MS);
         // connectResolution (connect-model.ts) owns the pass→answer /
         // fail→summary decision — pinned in node, where a DOM-side inversion

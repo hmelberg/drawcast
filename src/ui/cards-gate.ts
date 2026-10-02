@@ -319,7 +319,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           later(() => {
             arr = placeRight(g, arr, card);
             riding.add(card);
-            settle(-1, CORRECT_MS);
+            settle(dragging?.card ?? -1, CORRECT_MS);
             session.fade?.(g.cards[card], CORRECTED);
           }, CHECK_HOLD_MS);
           // Landed: the ✗ goes with the glide — nothing red is left.
@@ -351,7 +351,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         missed.forEach((c, k) =>
           later(() => {
             arr = checkDrop(g, arr, c, -1).arr;
-            settle(-1, CORRECT_MS);
+            settle(dragging?.card ?? -1, CORRECT_MS);
             session.fade?.(g.cards[c], CORRECTED);
             markNow();
           }, start + (k + 1) * SWEEP_MS),
@@ -547,6 +547,11 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
             // Let go off the boxes: back to the tray, unjudged.
           }
           if (selectEach) {
+            // Judged once, and never while Done sweeps the rest in.
+            if (swept || isPlaced(arr, card)) {
+              settle();
+              return;
+            }
             // A tap — or a drag into the box — puts it in, judged; a drag let go elsewhere goes back.
             if (!moved || binAt(shown[card]) >= 0) {
               judge(card, 0);
