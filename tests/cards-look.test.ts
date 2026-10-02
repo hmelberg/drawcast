@@ -103,6 +103,12 @@ describe("looks", () => {
     for (const l of ["paper", "flat", "outline"]) expect(validateSpec(spec(l)).errors).toEqual([]);
     expect(validateSpec(spec("glossy")).ok).toBe(false);
   });
+
+  test("the looks stay on their own elements: screen on cards, paper/flat/outline on an image, are errors", () => {
+    expect(validateSpec(spec2("screen", "cards")).errors.join(" ")).toMatch(/look is paper, flat or outline/);
+    for (const l of ["paper", "flat", "outline"]) expect(validateSpec(spec2(l, "image")).errors.join(" ")).toMatch(/look is "screen"/);
+    expect(validateSpec(spec2("screen", "image")).errors).toEqual([]);
+  });
 });
 
 describe("icons on cards", () => {
@@ -354,3 +360,9 @@ describe("every bundled cards example: no card overlaps a card, a bin title or t
     expect(checkCards(withIcons(spec))).toEqual([]);
   });
 });
+
+/** A one-element spec: the rank cards, or an image, with this look. */
+function spec2(look: string, type: "cards" | "image"): Spec {
+  const el = type === "cards" ? { id: "r", type: "cards", items: ["A", "B", "C"], look } : { id: "r", type: "image", url: "https://example.org/a.png", look };
+  return { elements: [el], commands: [{ draw: ["r"] }] } as unknown as Spec;
+}

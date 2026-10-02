@@ -168,7 +168,9 @@ export interface LintIssue {
     | "linked-picture"
     | "book-block-long"
     | "book-auto-id"
-    | "book-marks";
+    | "book-marks"
+    | "feedback"
+    | "card-icon";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -1424,7 +1426,7 @@ export function lintBook(spec: Spec): LintIssue[] {
 function lintFeedback(spec: Spec): LintIssue[] {
   const issues: LintIssue[] = [];
   const seen = new Set<string>();
-  const warn = (rule: string, ids: string[], message: string): void => {
+  const warn = (rule: LintIssue["rule"], ids: string[], message: string): void => {
     if (seen.has(message)) return;
     seen.add(message);
     issues.push({ rule, ids, message, severity: "warn" });
