@@ -202,3 +202,49 @@ describe("fill beside (final fix wave E): the tiles stand clear of the formula",
     expect(m.texts.some((t) => t.text === "✗")).toBe(true);
   });
 });
+
+describe("reveal arrows keep off other cards (final fix wave E)", () => {
+  const rects = (g: CardsGeometry, pos: Pt[]) => pos.map((p) => ({ l: p[0] - g.w / 2 + 1, r: p[0] + g.w / 2 - 1, b: p[1] - g.h / 2 + 1, t: p[1] + g.h / 2 - 1 }));
+  const crosses = (g: CardsGeometry, pos: Pt[], m: GuessMarks): boolean => {
+    const rs = rects(g, pos);
+    for (const l of m.lines) {
+      if (l.color !== WRONG) continue;
+      for (let s = 1; s < l.pts.length; s++) {
+        const [a, b] = [l.pts[s - 1], l.pts[s]];
+        const n = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 3));
+        for (let k = 0; k <= n; k++) {
+          const x = a[0] + ((b[0] - a[0]) * k) / n, y = a[1] + ((b[1] - a[1]) * k) / n;
+          if (rs.some((r) => x > r.l && x < r.r && y > r.b && y < r.t)) return true;
+        }
+      }
+    }
+    return false;
+  };
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+  test("select: an arrow from a card in the box to its place in the row goes round the cards on the way", () => {
+    const g = cardsGeometry({ id: "m", type: "cards", select: "Mammals", items: [{ text: "Whale", in: true }, "Shark", { text: "Bat", in: true }, "Penguin", { text: "Hedgehog", in: true }, "Crocodile", "Octopus", { text: "Dolphin", in: true }] } as unknown as CardsElementLike);
+    for (let trial = 0; trial < 40; trial++) {
+      const inBox = g.cards.map((_, i) => i).filter(() => rnd() < 0.5);
+      const a: Arrangement = { order: [], boxes: [inBox] };
+      const m = cardsBeside(g, a);
+      expect(crosses(g, besidePositions(g, a), m)).toBe(false);
+    }
+  });
+
+  test("sort: arrows to the right box go round the cards in between", () => {
+    const g = cardsGeometry({ id: "s", type: "cards", bins: ["Fruit", "Not"], items: ["Apple", "Carrot", "Pear", "Potato", "Plum", "Leek"].map((t, i) => ({ text: t, bin: i % 2 === 0 ? "Fruit" : "Not" })) } as unknown as CardsElementLike);
+    for (let trial = 0; trial < 40; trial++) {
+      const boxes: number[][] = [[], []];
+      g.cards.forEach((_, i) => {
+        const r = rnd();
+        if (r < 0.45) boxes[0].push(i);
+        else if (r < 0.9) boxes[1].push(i);
+      });
+      const a: Arrangement = { order: [], boxes };
+      const m = cardsBeside(g, a);
+      expect(crosses(g, besidePositions(g, a), m)).toBe(false);
+    }
+  });
+});

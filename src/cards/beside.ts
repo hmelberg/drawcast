@@ -27,6 +27,51 @@ function edgeToward(c: Pt, w: number, h: number, to: Pt, pad = 4): Pt {
   return [c[0] + dx * s, c[1] + dy * s];
 }
 
+interface Rect {
+  l: number;
+  r: number;
+  b: number;
+  t: number;
+}
+const rectOf = (c: Pt, w: number, h: number, pad = 0): Rect => ({ l: c[0] - w / 2 - pad, r: c[0] + w / 2 + pad, b: c[1] - h / 2 - pad, t: c[1] + h / 2 + pad });
+
+/** Whether the segment a→b passes through any of the rects (sampled every few units). */
+function hits(a: Pt, b: Pt, rects: Rect[]): boolean {
+  const n = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 3));
+  for (let k = 0; k <= n; k++) {
+    const x = a[0] + ((b[0] - a[0]) * k) / n, y = a[1] + ((b[1] - a[1]) * k) / n;
+    if (rects.some((r) => x > r.l && x < r.r && y > r.b && y < r.t)) return true;
+  }
+  return false;
+}
+
+/**
+ * A thin red arrow from the card at `c` (w×h) to the box `to` (its centre and
+ * size), kept off the other cards (final fix wave E): straight when that is
+ * clear, else bent once round them — through a point beside the straight
+ * line's middle, or an L — and null when no such route is clear.
+ */
+function routedArrow(c: Pt, w: number, h: number, to: { c: Pt; w: number; h: number }, others: Rect[], pad: number): GuessMarkLine[] | null {
+  const straightFrom = edgeToward(c, w, h, to.c);
+  const straightTo = edgeToward(to.c, to.w, to.h, c, pad);
+  if (!hits(straightFrom, straightTo, others)) return arrow(straightFrom, straightTo, WRONG, 2);
+  const mid: Pt = [(c[0] + to.c[0]) / 2, (c[1] + to.c[1]) / 2];
+  const len = Math.hypot(to.c[0] - c[0], to.c[1] - c[1]) || 1;
+  const nx = -(to.c[1] - c[1]) / len, ny = (to.c[0] - c[0]) / len;
+  const ways: Pt[] = [];
+  for (const d of [40, 70, 100, 140, 180, 230]) ways.push([mid[0] + nx * d, mid[1] + ny * d], [mid[0] - nx * d, mid[1] - ny * d]);
+  ways.push([c[0], to.c[1]], [to.c[0], c[1]]);
+  for (const m of ways) {
+    const a = edgeToward(c, w, h, m);
+    const b = edgeToward(to.c, to.w, to.h, m, pad);
+    if (hits(a, m, others) || hits(m, b, others)) continue;
+    const head = arrow(m, b, WRONG, 2);
+    if (head.length === 0) continue;
+    return [{ pts: [a, m, b], color: WRONG, width: 2 }, head[1]];
+  }
+  return null;
+}
+
 /** The parts the reveal walks through one by one ("each"): cards (rank,
  *  sort, place), left cards (match), pairs (compare), blanks (fill), the choice. */
 export function cardsParts(g: CardsGeometry): number {
@@ -93,13 +138,14 @@ export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: num
         if (i >= upTo) return;
         texts.push(badge(pos[i], right[i]));
         if (right[i]) return;
-        // To where it belongs: its box, or (select) back to the row.
+        // To where it belongs: its box, or (select) back to the row — round the
+        // other cards; when no way round is clear, a word by the card instead.
         const t = g.truthBin[i];
         const box = t >= 0 ? g.binBoxes[t] : null;
-        const target: Pt = box ? box.c : g.home[i];
-        const from = edgeToward(pos[i], g.w, g.h, target);
-        const to = box ? edgeToward(box.c, box.w, box.h, pos[i], 2) : edgeToward(target, g.w, g.h, pos[i]);
-        lines.push(...arrow(from, to, WRONG, 2));
+        const others = pos.filter((_, j) => j !== i).map((p) => rectOf(p, g.w, g.h, 2));
+        const routed = routedArrow(pos[i], g.w, g.h, box ?? { c: g.home[i], w: g.w, h: g.h }, others, box ? 2 : 4);
+        if (routed) lines.push(...routed);
+        else texts.push({ at: [pos[i][0], pos[i][1] - g.h / 2 - 14], text: box ? `→ ${short(g.bins[t], 14)}` : "→ out", anchor: "middle", color: WRONG, size: 16 });
       });
       break;
     case "place": {
