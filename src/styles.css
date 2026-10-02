@@ -1866,7 +1866,7 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   overflow: hidden;
   text-shadow: 0 0 4px var(--paper, #f5f1e6), 0 0 8px var(--paper, #f5f1e6);
 }
-.cs-gatehead > .cs-figgate-hint {
+.cs-gatehead > .cs-gatehead-how {
   position: static;
   transform: none;
   display: block;
@@ -1879,18 +1879,52 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   box-shadow: none;
   animation: none;
 }
-.cs-gatehead > .cs-figgate-hint.cs-figgate-next { animation: gatedock-next 0.45s ease-out; }
+.cs-gatehead > .cs-gatehead-how.cs-figgate-next { animation: gatedock-next 0.45s ease-out; }
 .cs-stage.cs-headline :is([data-leaf-id^="card_"][data-leaf-id$="_title"], [data-leaf-id^="card_"][data-leaf-id$="_line"]) {
   opacity: 0 !important;
   transition: opacity 0.3s ease;
 }
 @media (max-width: 560px) {
   .cs-gatehead-q { font-size: 1.05rem; }
-  .cs-gatehead > .cs-figgate-hint { font-size: var(--text-xs); }
+  .cs-gatehead > .cs-gatehead-how { font-size: var(--text-xs); }
 }
 /* A caption below or in a strip (a phone): the drawing stands under the
    headline — it has given up that height with the dock's (--cs-dock-shrink). */
 .cs-stage.cs-headline:is(.cs-caption-below, .cs-caption-strip) .cs-svg { margin-top: var(--cs-head-h, 0px); }
+/* One family for the bottom bar (round 7 §8.3): Skip and Answer (or Done)
+   are pills of one shape, font, height and border, side by side — Skip on
+   the left, Answer on the right, filled. No shadow, no pulse: the headline
+   is what draws the eye. */
+.cs-gatedock > .cs-guess-answer,
+.cs-gatedock > .cs-figgate-skip,
+.cs-connect-bar > .cs-cardgate-pill,
+.cs-draggate > .cs-figgate-skip {
+  font-family: var(--sketch-font);
+  font-size: 1.05rem;
+  line-height: 1.2;
+  min-height: 36px;
+  padding: 0.3rem 1.1rem;
+  border-width: 1.5px;
+  border-style: solid;
+  border-radius: 999px;
+  box-shadow: none;
+  animation: none;
+  align-self: center;
+}
+.cs-gatedock > .cs-guess-answer,
+.cs-connect-bar > .cs-cardgate-pill.ok {
+  padding-inline: 1.6rem;
+  color: #fff;
+  background: #3f6fb5;
+  border-color: #2f5590;
+}
+.cs-gatedock > .cs-figgate-skip,
+.cs-connect-bar > .cs-cardgate-pill.skip,
+.cs-draggate > .cs-figgate-skip {
+  color: var(--muted);
+  background: var(--surface);
+  border-color: var(--muted);
+}
 .cs-stage.cs-docked:not(.cs-caption-below):not(.cs-caption-strip) .cs-caption {
   /* !important: the caption's placement writes its own bottom inline, and
      the dock must win while it stands. */
@@ -1952,8 +1986,10 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
 @media (max-width: 560px) {
   .cs-gatedock { gap: 0.4rem; padding-inline: calc(0.4rem + var(--cs-more-reserve, 0px)); }
   .cs-gatedock > .cs-figgate-hint { font-size: var(--text-xs); padding: 0.2rem 0.6rem; }
-  .cs-gatedock > .cs-guess-answer { font-size: 1.05rem; padding: 0.35rem 1rem; min-height: 40px; }
-  .cs-gatedock > .cs-figgate-skip { min-height: 40px; }
+  .cs-gatedock > .cs-guess-answer,
+  .cs-gatedock > .cs-figgate-skip,
+  .cs-connect-bar > .cs-cardgate-pill,
+  .cs-draggate > .cs-figgate-skip { min-height: 40px; }
   /* Two even rows of keys rather than five and a straggler. */
   .cs-formula-keys { display: grid; grid-template-columns: repeat(3, max(40px, 1.8em)); justify-content: center; }
 }
@@ -2124,9 +2160,9 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   text-align: center;
 }
 /* The counter and the summary are static (a count that updates every tap
-   shouldn't bob, and neither should a settled verdict); the hint keeps the
-   shared waitgate nudge, the same attention cue every other figgate's hint
-   uses to draw the eye to the one instruction the viewer needs. Named as
+   shouldn't bob, and neither should a settled verdict); the hint stands
+   still too now (round 7 §8.3): the headline over the figure is what draws
+   the eye. Named as
    two DISJOINT selectors, neither matching the other's element, rather
    than "every pill in the stack is off, except the hint" (a blanket rule
    on .cs-connect-status .cs-waitgate-pill, undone by a narrower override
@@ -2140,7 +2176,7 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   animation: none;
 }
 .cs-connect-hint {
-  animation: waitgate-nudge 1.6s ease-in-out infinite;
+  animation: none;
 }
 
 /* Info card: name + summary + actions at the pointer, over the paused figure. */

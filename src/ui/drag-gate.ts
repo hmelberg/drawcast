@@ -12,6 +12,7 @@ import { h, logicalPoint } from "./dom";
 import { dragSummary, judgeDrop, resolveDragTargets, type DragJudgement, type DragTarget } from "./drag-model";
 import type { AskGateStep } from "./controls";
 import { gateLangOf, gateWords } from "./gate-words";
+import { mountGateHead } from "./gate-dock";
 
 /** Matches the other cards' CARD_LINGER_MS. */
 const LINGER_MS = 2600;
@@ -42,9 +43,12 @@ export function dragGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
       const summary = h("span", { class: "cs-waitgate-pill cs-drag-summary" });
       summary.hidden = true;
       const tray = h("div", { class: "cs-drag-tray" });
-      const gate = h("div", { class: "cs-figgate cs-draggate" }, tray, hint, summary);
+      const gate = h("div", { class: "cs-figgate cs-draggate" }, tray, summary);
+      /** The question over the figure, the hint its how line (round 7 §8.1). */
+      let head: ReturnType<typeof mountGateHead> = null;
       let settled = false;
       const remove = (): void => {
+        head?.dispose();
         signal.removeEventListener("abort", onAbort);
         gate.remove();
       };
@@ -60,6 +64,7 @@ export function dragGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
         if (settled) return;
         settled = true;
         hint.remove();
+        head?.dispose();
         summary.textContent = dragSummary(targets.map((t) => judged.get(t.id)!));
         summary.hidden = false;
         window.setTimeout(remove, LINGER_MS);
@@ -139,5 +144,7 @@ export function dragGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
       gate.addEventListener("click", (e) => e.stopPropagation());
       signal.addEventListener("abort", onAbort);
       stage.appendChild(gate);
+      head = mountGateHead(stage, { question: step.question, how: hint });
+      if (!head) gate.appendChild(hint);
     });
 }

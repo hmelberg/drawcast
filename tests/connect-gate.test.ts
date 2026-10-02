@@ -16,6 +16,7 @@
 // any of them inline — the wiring itself stays on the by-hand checklist.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { gateWords } from "../src/ui/gate-words";
 
 const source = readFileSync(new URL("../src/ui/connect-gate.ts", import.meta.url), "utf8");
 
@@ -174,8 +175,8 @@ describe("connect-gate.ts", () => {
 
   it("tells the viewer both halves of the gesture, like every other figgate's hint", () => {
     expect(source).toMatch(/cs-connect-hint/);
-    expect(source).toMatch(/Press a star and drag to the next/);
-    expect(source).toMatch(/[Cc]lick a line to remove it/);
+    expect(gateWords("en").connect).toMatch(/Press a star and drag to the next/);
+    expect(gateWords("en").connect).toMatch(/[Cc]lick a line to remove it/);
   });
 
   it("lays out Done, the status stack, and Skip so they cannot collide, rather than nudged pixel offsets", () => {
@@ -298,7 +299,7 @@ describe("connect-gate.ts", () => {
 describe("connect gate CSS (src/styles.css)", () => {
   const css = () => readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 
-  it("the hint keeps the shared waitgate nudge; the counter and summary do not — via disjoint selectors, not a specificity fight", () => {
+  it("the hint stands still (round 7 §8.3), and the counter and summary — via disjoint selectors, not a specificity fight", () => {
     // Review round 3, finding 1: .cs-connect-status .cs-waitgate-pill {
     // animation: none } was specificity (0,2,0) and matched the hint too
     // (it's a .cs-waitgate-pill inside .cs-connect-status); .cs-connect-hint
@@ -314,6 +315,6 @@ describe("connect gate CSS (src/styles.css)", () => {
     const offRule = /\.cs-connect-counter,\s*\n?\s*\.cs-connect-summary\s*\{([^}]*)\}/.exec(text)?.[1] ?? "";
     expect(offRule).toMatch(/animation:\s*none/);
     const hintRule = /\.cs-connect-hint\s*\{([^}]*)\}/.exec(text)?.[1] ?? "";
-    expect(hintRule).toMatch(/animation:\s*waitgate-nudge/);
+    expect(hintRule).toMatch(/animation:\s*none/);
   });
 });

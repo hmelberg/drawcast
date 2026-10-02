@@ -28,6 +28,8 @@ export interface GateWords {
   done: string;
   /** The reorder's row of the viewer's own order (round 7 §4). */
   yours: string;
+  /** connect: press a star and drag; a click on a line removes it. */
+  connect: string;
   typeNumber: string;
   guessFor(label: string): string;
   /** guess: one hint per handle kind, and the two composite ones. */
@@ -64,6 +66,7 @@ const EN: GateWords = {
   skip: "Skip ▸",
   done: "Done ▸",
   yours: "yours",
+  connect: "Press a star and drag to the next. Click a line to remove it",
   typeNumber: "Type a number",
   guessFor: (label) => `Your guess for ${label}`,
   guess: {
@@ -109,6 +112,7 @@ const NB: GateWords = {
   skip: "Hopp over ▸",
   done: "Ferdig ▸",
   yours: "din",
+  connect: "Trykk på en stjerne og dra til den neste. Klikk på en linje for å fjerne den",
   typeNumber: "Skriv et tall",
   guessFor: (label) => `Ditt gjett for ${label}`,
   guess: {
