@@ -228,6 +228,15 @@ describe("the choose gate", () => {
     expect(wrong.result()).toBe("door_1");
   });
 
+  test("a pick takes the Skip pill away with the gate's controls; only the verdict lingers (final fix wave E)", async () => {
+    const g = await open({ answer: "door_2" });
+    expect(g.gate.find("skip")).not.toBe(null);
+    fire(g.gate, "click", at(350, 150));
+    await g.done;
+    expect(g.gate.find("skip")).toBe(null);
+    expect(g.gate.find("cs-figgate-mark")).not.toBe(null);
+  });
+
   test("an opinion: no mark, the ring stays on the pick", async () => {
     const g = await open({ judge: false });
     fire(g.gate, "click", at(150, 150));

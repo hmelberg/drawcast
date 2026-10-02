@@ -121,7 +121,8 @@ export function chooseGateFor(
         settled = true;
         const id = targets[i].id;
         setFocus(i);
-        hint.remove();
+        // The gate's controls go with the pick (the hint, Skip): only the verdict lingers.
+        for (const d of docked) d.remove();
         if (judged) {
           const ok = answersMatch(id, step.answer!);
           const r = ringBox(i);
