@@ -64,3 +64,22 @@ test("select: the cards' text is read on a phone (≥ 26 canvas units, about 10 
   const g = cardsGeometry({ id: "m", type: "cards", select: "Mammals", items: ["Whale", "Shark", "Bat", "Penguin", "Hedgehog", "Crocodile", "Octopus", "Dolphin"] } as unknown as CardsElementLike);
   expect(g.font ?? 20).toBeGreaterThanOrEqual(26);
 });
+
+describe("sort with many boxes stays on the canvas (fix round 2)", () => {
+  for (const k of [3, 4, 5])
+    for (let n = 6; n <= 12; n++) {
+      test(`${k} boxes, ${n} cards: boxes, tray and every slot inside 1000×750; all cards fit in any one box`, () => {
+        const bins = ["A", "B", "C", "D", "E"].slice(0, k);
+        const g = cardsGeometry({ id: "s", type: "cards", bins, items: items(n, bins) } as unknown as CardsElementLike);
+        const m = g.cards.length;
+        const onCanvas = (p: [number, number], w: number, h: number) => p[0] - w / 2 >= 0 && p[0] + w / 2 <= 1000 && p[1] - h / 2 >= 0 && p[1] + h / 2 <= 750;
+        for (const bx of g.binBoxes) expect(onCanvas(bx.c as [number, number], bx.w, bx.h)).toBe(true);
+        for (const p of g.home) expect(onCanvas(p as [number, number], g.w, g.h)).toBe(true);
+        for (let b = 0; b < g.binBoxes.length; b++) {
+          const ps = Array.from({ length: m }, (_, j) => g.binSlot(b, j, m) as [number, number]);
+          expect(ps.every((p) => inside(g, b, p))).toBe(true);
+          expect(apart(g, ps)).toBe(true);
+        }
+      });
+    }
+});

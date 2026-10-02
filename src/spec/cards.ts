@@ -510,21 +510,26 @@ function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: str
   const perRow = n > 5 ? Math.ceil(n / 2) : n;
   const slotW = width / perRow;
   let w = Math.min(180, slotW - GAP, binW - 20);
-  // Any box may get every card (final fix wave E): its grid holds all n —
-  // a second (third…) column when one would grow past the old height, the
-  // cards a little narrower when that is what makes a column fit.
+  // Any box may get every card (final fix wave E): its grid holds all n in
+  // the old number of rows — more columns (the cards narrower, never under
+  // 56) — and when even that is too many rows, shorter cards (fix round 2):
+  // the boxes and the row of cards below them stay on the canvas.
   const room = Math.max(2, ...perBin, Math.ceil(n / 2));
   let cols = 1;
-  while (Math.ceil(n / cols) > room && (binW - 12) / (cols + 1) - 10 >= 90) {
+  while (Math.ceil(n / cols) > room && (binW - 12) / (cols + 1) - 10 >= 56) {
     cols++;
     w = Math.min(w, (binW - 12) / cols - 10);
   }
   const rows = Math.max(room, Math.ceil(n / cols));
   const binTop = isNum(el.y) ? el.y : 660;
-  const binH = 44 + rows * (CH + 8) + 8;
+  const trayRows = Math.ceil(n / perRow);
+  const lowest = (h: number): number => binTop - (52 + rows * (h + 8)) - 40 - trayRows * (h + GAP) + GAP;
+  let ch = CH;
+  while (ch > 28 && lowest(ch) < CARD_FLOOR) ch -= 2;
+  const binH = 44 + rows * (ch + 8) + 8;
   const binBoxes: CardBox[] = bins.map((_, b) => ({ c: [x0 + (width / k) * (b + 0.5), binTop - binH / 2] as Pt, w: binW, h: binH }));
   const trayTop = binTop - binH - 40;
-  const tray: Pt[] = items.map((_, s) => [x0 + slotW * ((s % perRow) + 0.5), trayTop - CH / 2 - Math.floor(s / perRow) * (CH + GAP)] as Pt);
+  const tray: Pt[] = items.map((_, s) => [x0 + slotW * ((s % perRow) + 0.5), trayTop - ch / 2 - Math.floor(s / perRow) * (ch + GAP)] as Pt);
   const home: Pt[] = new Array(n);
   perm.forEach((card, s) => (home[card] = tray[s]));
   // Down the first column, then the next: a box holding no more than a
@@ -533,11 +538,13 @@ function cardsGeometryAt(el: CardsElementLike, iconH: number, scaleOf?: (id: str
     const box = binBoxes[b];
     const col = Math.floor(j / rows), row = j % rows;
     const used = Math.max(1, Math.min(cols, Math.ceil(Math.max(count, j + 1) / rows)));
-    return [box.c[0] + (col - (used - 1) / 2) * (w + 10), box.c[1] + box.h / 2 - 44 - CH / 2 - row * (CH + 8)];
+    return [box.c[0] + (col - (used - 1) / 2) * (w + 10), box.c[1] + box.h / 2 - 44 - ch / 2 - row * (ch + 8)];
   };
   const seen = bins.map(() => 0);
   const truth = truthBin.map((b) => binSlot(b, seen[b]++, perBin[b]));
-  return { ...base, mode, cards, texts, truthBin, bins, w, h: CH, home, slots: tray, binBoxes, binSlot, truth };
+  // Shorter cards, smaller text (narrow ones too); else the mode's own size.
+  const font = ch < CH || w < 90 ? Math.round(Math.min(20 * (ch / CH), w < 90 ? 16 : 20)) : undefined;
+  return { ...base, mode, cards, texts, truthBin, bins, w, h: ch, home, slots: tray, binBoxes, binSlot, truth, ...(font !== undefined && !icons ? { font } : {}) };
 }
 
 /** A deck holds at most this many cards (round 6 §7). */
