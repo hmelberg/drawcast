@@ -1892,7 +1892,8 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
 }
 /* A caption below or in a strip (a phone): the drawing stands under the
    headline — it has given up that height with the dock's (--cs-dock-shrink). */
-.cs-stage.cs-headline:is(.cs-caption-below, .cs-caption-strip) .cs-svg { margin-top: var(--cs-head-h, 0px); }
+/* (.cs-docked too: it outranks the docked stage's own margin: 0 auto.) */
+.cs-stage.cs-headline.cs-docked:is(.cs-caption-below, .cs-caption-strip) .cs-svg { margin-top: var(--cs-head-h, 0px); }
 /* One family for the bottom bar (round 7 §8.3): Skip and Answer (or Done)
    are pills of one shape, font, height and border, side by side — Skip on
    the left, Answer on the right, filled. No shadow, no pulse: the headline
