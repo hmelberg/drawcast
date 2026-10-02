@@ -2,13 +2,19 @@
 // to-answer): the viewer answers on the drawn cards —
 //
 //   rank     drag the cards into order            → Answer
-//   sort     drag each card into its box          → Answer
+//   sort     drag each card into its box, or tap it: a tap sends it to a
+//            box (two boxes: then to the other side; more: on round to
+//            the row) → Answer. select (one box): a tap moves it in or out
+//   deck     (a sort with deck: true) one large card at a time: tap a box
+//            or press 1–4; it flies there with a ✓ or ✗ and the next comes
+//            (answers itself after the last)
 //   place    drag each card onto the number line  → Answer
 //   match    drag from a card to its partner      → Answer
 //   compare  tap the bigger card of each pair     (answers itself)
 //   decide   tap a choice                         (answers itself)
-//   fill     drag a tile into each of a formula's boxes, or tap a tile
-//            and then a box → Answer (one box: the drop answers, unless
+//   fill     drag a tile into each of a formula's boxes, or tap a tile (it
+//            goes to the first empty box, then on as sort's) and, if you
+//            like, then a box → Answer (one box: the drop answers, unless
 //            the ask says release: false)
 //
 // A pressed card follows the pointer on the figure (it is the figure's own
@@ -24,7 +30,8 @@
 
 import type { RenderHandle } from "../render";
 import type { CardsSession } from "../render/player";
-import { cardAt, cardsMarks, drop, encodeArrangement, matchLines, placePins, positions, type Arrangement } from "../cards/model";
+import { cardAt, cardsMarks, drop, encodeArrangement, matchLines, placePins, positions, rightCards, tapCard, type Arrangement } from "../cards/model";
+import { DEAL_GROW } from "../cards/deck";
 import { GUESS_COLOR } from "../guess/marks";
 import type { Pt } from "../layout/model";
 import { clientPointFor, h, logicalPoint } from "./dom";
@@ -44,6 +51,16 @@ const TAP_SLOP_PX = 8;
 /** fill: a held tile floats this far (logical) above the pointer, so the
  *  finger's point — where it drops — and the box under it stay in sight. */
 const HOLD_LIFT = 14;
+/** deck: a dealt card's flight into its box, and the next card's growing. */
+const FLY_MS = 280;
+const GROW_MS = Math.round(FLY_MS * DEAL_GROW * 2);
+/** deck: how long a card's ✓ or ✗ stands. */
+const FLASH_MS = 700;
+/** deck: after the last card lands, a beat before it answers. */
+const LAST_MS = 450;
+/** The ✓ and ✗ colours (spec 2026-10-03-round6 Global Constraints). */
+const RIGHT_COLOR = "#4a7c59";
+const WRONG_COLOR = "#b3412e";
 
 export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
   return (signal, step) =>
@@ -65,13 +82,16 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       let focus = -1;
       /** compare: the pair being asked. */
       let row = 0;
-      const needsAnswer = mode !== "compare" && mode !== "decide";
+      const deck = mode === "sort" && g.deck === true && Array.isArray(g.deal);
+      const needsAnswer = mode !== "compare" && mode !== "decide" && !deck;
       // A formula with one box: putting a tile in it answers.
       const dropAnswers = mode === "fill" && g.binBoxes.length === 1 && step.release !== false;
       /** fill: the tile tapped, waiting for a tap on a box (-1: none). */
       let picked = -1;
 
-      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint", title: words.cards[mode] ?? "" }, words.cards[mode] ?? "");
+      const hintKey = deck ? "deck" : g.select ? "select" : mode;
+      const hintText = words.cards[hintKey] ?? words.cards[mode] ?? "";
+      const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint", title: hintText }, hintText);
       const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.answer);
       answer.hidden = !needsAnswer || dropAnswers;
       const ring = h("div", { class: "cs-card-focus" });
@@ -132,10 +152,60 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         ring.hidden = false;
       };
 
+      // —— deck: one card at a time (round 6 §7) ——
+      /** deck: how many cards have been dealt; deal[dealt] is the one in the middle. */
+      let dealt = 0;
+      let deckAnim = 0;
+      let flashTimer = 0;
+      /** deck: cards in motion — from, to, scale from and to, start, length. */
+      const flights = new Map<number, { from: Pt; to: Pt; s0: number; s1: number; t0: number; ms: number }>();
+      const big = g.deckScale ?? 1;
+      const fly = (card: number, to: Pt, s0: number, s1: number, ms: number): void => {
+        flights.set(card, { from: shown[card], to, s0, s1, t0: performance.now(), ms });
+        cancelAnimationFrame(deckAnim);
+        const frame = (): void => {
+          if (settled) return;
+          const now = performance.now();
+          for (const [c, f] of flights) {
+            const t = Math.min(1, (now - f.t0) / f.ms);
+            const e = t * t * (3 - 2 * t);
+            shown[c] = [f.from[0] + (f.to[0] - f.from[0]) * e, f.from[1] + (f.to[1] - f.from[1]) * e];
+            const sc = f.s0 + (f.s1 - f.s0) * e;
+            session.place(g.cards[c], shown[c][0] - g.home[c][0], shown[c][1] - g.home[c][1], sc);
+            if (t >= 1) flights.delete(c);
+          }
+          if (flights.size > 0) deckAnim = requestAnimationFrame(frame);
+        };
+        frame();
+      };
+      /** deck: the dealt card goes to box k; its ✓ or ✗ flashes; the next card comes. */
+      const dealTo = (k: number): void => {
+        if (!deck || settled || dealt >= g.deal!.length || k < 0 || k >= g.bins.length) return;
+        const card = g.deal![dealt++];
+        arr = { ...arr, boxes: arr.boxes.map((b, j) => (j === k ? [...b, card] : b)) };
+        const to = positions(g, arr)[card];
+        fly(card, to, big, 1, FLY_MS);
+        const ok = rightCards(g, arr)[card];
+        window.clearTimeout(flashTimer);
+        flashTimer = window.setTimeout(() => {
+          if (settled) return;
+          session.mark({ color: ok ? RIGHT_COLOR : WRONG_COLOR, lines: [], texts: [{ at: [to[0] + g.w / 2 + 2, to[1]], text: ok ? "✓" : "✗", anchor: "start" }] });
+          flashTimer = window.setTimeout(() => !settled && session.mark(null), FLASH_MS);
+        }, FLY_MS);
+        // The next card comes to the middle (the stack's top) and grows.
+        if (dealt < g.deal!.length) fly(g.deal![dealt], g.home[g.deal![0]], 1, big, GROW_MS);
+        else window.setTimeout(() => !settled && finish(encodeArrangement(g, arr)), FLY_MS + LAST_MS);
+      };
+      /** deck: the box under a logical point (padded), or -1. */
+      const binAt = (p: Pt): number => g.binBoxes.findIndex((bx) => Math.abs(p[0] - bx.c[0]) <= bx.w / 2 + 10 && Math.abs(p[1] - bx.c[1]) <= bx.h / 2 + 10);
+
       const finish = (result: string | null): void => {
         if (settled) return;
         settled = true;
         cancelAnimationFrame(anim);
+        cancelAnimationFrame(deckAnim);
+        window.clearTimeout(flashTimer);
+        if (deck) session.mark(null);
         signal.removeEventListener("abort", onAbort);
         document.removeEventListener("keydown", onKey, true);
         dock?.dispose();
@@ -192,6 +262,11 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         e.stopPropagation();
         const p = logicalPoint(stage, e);
         if (!p) return;
+        if (deck) {
+          // A deck answers with taps on the boxes; the cards are not dragged.
+          dealTo(binAt(p));
+          return;
+        }
         const card = cardAt(g, shown, p);
         if (card < 0) {
           // fill: a tapped tile, then a tap on a box, puts it there.
@@ -274,22 +349,15 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         valuePill.hidden = true;
         const p = logicalPoint(stage, e);
         if (e.type === "pointerup") {
-          if (mode === "fill" && !moved) {
-            // A tap, not a drag. On a tile already in a box while another
-            // waits: the waiting one goes in (a swap). Else this one waits
-            // for a tap on a box.
-            const inBox = arr.boxes.findIndex((b) => b.includes(card));
-            if (picked >= 0 && picked !== card && inBox >= 0) {
-              arr = drop(g, arr, picked, g.binBoxes[inBox].c);
-              picked = -1;
-              focus = -1;
-              settle();
-              maybeAnswer();
-              return;
-            }
-            picked = card;
+          if ((mode === "fill" || mode === "sort") && !moved) {
+            // A tap, not a drag (round 6 §7): it sends the card to a box —
+            // the first empty blank for a tile, then on round the boxes.
+            // fill: a tap on a box next puts the tapped tile there instead.
+            arr = tapCard(g, arr, card);
+            if (mode === "fill") picked = card;
             focus = card;
-            placeRing();
+            settle();
+            if (mode === "fill") maybeAnswer();
             return;
           }
           if (mode === "match") {
@@ -316,6 +384,13 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         // button's Enter is its own click) — not the Play button that kept
         // the focus (gates.ts keysBelongElsewhere).
         if (keysBelongElsewhere(e.target, e.key)) return;
+        if (deck) {
+          const k = /^[1-9]$/.test(e.key) ? Number(e.key) - 1 : -1;
+          if (k < 0 || k >= g.bins.length) return;
+          e.preventDefault();
+          dealTo(k);
+          return;
+        }
         if (mode === "compare" && !keyed) {
           keyed = true;
           placeRing();
@@ -408,5 +483,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         focus = g.rows![0][0];
         placeRing();
       }
+      // deck: the top card grows in the middle.
+      if (deck && g.deal!.length > 0) fly(g.deal![0], g.home[g.deal![0]], 1, big, GROW_MS);
     });
 }

@@ -77,12 +77,14 @@ const EN: GateWords = {
   budgetOver: (n) => `Balance the budget: ${n} over`,
   cards: {
     rank: "Drag the cards into order",
-    sort: "Drag each card into its box",
+    sort: "Tap or drag each card into its box",
+    select: "Tap the cards that belong in the box",
+    deck: "Tap the box this card goes in (or press 1, 2, …)",
     place: "Drag each card onto the line",
     match: "Drag each card to its partner",
     compare: "Tap one in each pair",
     decide: "Choose one",
-    fill: "Drag a tile into each box",
+    fill: "Tap or drag a tile into each box",
   },
   formula: {
     number: "Tap the box and type the number",
@@ -116,12 +118,14 @@ const NB: GateWords = {
   budgetOver: (n) => `Fordel budsjettet: ${n} for mye`,
   cards: {
     rank: "Dra kortene i riktig rekkefølge",
-    sort: "Dra hvert kort i riktig boks",
+    sort: "Trykk eller dra hvert kort til riktig boks",
+    select: "Trykk på kortene som hører hjemme i boksen",
+    deck: "Trykk på boksen kortet hører til (eller 1, 2, …)",
     place: "Dra hvert kort på linjen",
     match: "Dra hvert kort til partneren sin",
     compare: "Trykk på ett i hvert par",
     decide: "Velg ett",
-    fill: "Dra en brikke til hver boks",
+    fill: "Trykk eller dra en brikke til hver boks",
   },
   formula: {
     number: "Trykk på boksen og skriv tallet",

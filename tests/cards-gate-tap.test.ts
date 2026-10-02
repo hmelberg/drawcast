@@ -1,0 +1,265 @@
+// The cards gate's faster sorting (spec 2026-10-03-round6 §7) on a minimal
+// fake DOM (the one tests/choose-gate.test.ts uses: an svg 1000×750 px on a
+// 1000×750 viewBox, so client pixels are logical units, y flipped): a tap
+// sends a card to a box; select taps cards in and out; a deck deals one
+// large card at a time to the box tapped or keyed, with a ✓ or ✗ each.
+
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import type { AskGateStep } from "../src/ui/controls";
+import type { CardsSession } from "../src/render/player";
+import { cardsGeometry, type CardsElementLike, type CardsGeometry } from "../src/spec/cards";
+import { cardsTruth, decodeArrangement, encodeArrangement, initialArrangement } from "../src/cards/model";
+import type { GuessMarks } from "../src/guess/marks";
+
+
+type Listener = (e: unknown) => void;
+
+class FakeEl {
+  className = "";
+  attrs: Record<string, string> = {};
+  children: FakeEl[] = [];
+  text = "";
+  hidden = false;
+  disabled = false;
+  offsetHeight = 0;
+  parent: FakeEl | null = null;
+  listeners: Record<string, Listener[]> = {};
+  style: Record<string, unknown> = { setProperty: () => {}, removeProperty: () => {} };
+  classList = {
+    set: new Set<string>(),
+    add: (c: string) => void this.classList.set.add(c),
+    remove: (c: string) => void this.classList.set.delete(c),
+    toggle: (c: string, on?: boolean) => void ((on ?? !this.classList.set.has(c)) ? this.classList.set.add(c) : this.classList.set.delete(c)),
+    contains: (c: string) => this.classList.set.has(c),
+  };
+  constructor(public tag: string) {}
+  get textContent(): string {
+    return this.text + this.children.map((c) => c.textContent).join("");
+  }
+  set textContent(v: string) {
+    this.text = v;
+    this.children = [];
+  }
+  setAttribute(k: string, v: string): void {
+    this.attrs[k] = v;
+  }
+  append(...xs: (FakeEl | string)[]): void {
+    for (const x of xs) typeof x === "string" ? (this.text += x) : this.appendChild(x);
+  }
+  appendChild(x: FakeEl): FakeEl {
+    x.parent = this;
+    this.children.push(x);
+    return x;
+  }
+  remove(): void {
+    if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this);
+    this.parent = null;
+  }
+  replaceWith(x: FakeEl): void {
+    if (!this.parent) return;
+    const p = this.parent;
+    p.children = p.children.map((c) => (c === this ? x : c));
+    x.parent = p;
+    this.parent = null;
+  }
+  addEventListener(t: string, f: Listener): void {
+    (this.listeners[t] ??= []).push(f);
+  }
+  removeEventListener(): void {}
+  querySelector(): null {
+    return null;
+  }
+  closest(): null {
+    return null;
+  }
+  getBoundingClientRect() {
+    return { left: 0, top: 0, width: 800, height: 600 };
+  }
+  setPointerCapture(): void {}
+  click(): void {
+    for (const f of this.listeners["click"] ?? []) f({ stopPropagation: () => {}, preventDefault: () => {} });
+  }
+  find(cls: string): FakeEl | null {
+    if (this.className.split(" ").includes(cls)) return this;
+    for (const c of this.children) {
+      const f = c.find(cls);
+      if (f) return f;
+    }
+    return null;
+  }
+}
+
+const docListeners: Record<string, Listener[]> = {};
+const g = globalThis as Record<string, unknown>;
+const saved = { document: g.document, window: g.window };
+
+beforeAll(() => {
+  g.document = {
+    createElement: (tag: string) => new FakeEl(tag),
+    addEventListener: (t: string, f: Listener) => void (docListeners[t] ??= []).push(f),
+    removeEventListener: (t: string, f: Listener) => void (docListeners[t] = (docListeners[t] ?? []).filter((x) => x !== f)),
+  };
+  g.window = globalThis;
+  g.requestAnimationFrame ??= (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0) as unknown as number;
+  g.cancelAnimationFrame ??= (id: number) => clearTimeout(id);
+});
+afterAll(() => {
+  g.document = saved.document;
+  g.window = saved.window;
+});
+
+const key = (k: string, shiftKey = false): void => {
+  for (const f of [...(docListeners["keydown"] ?? [])]) f({ key: k, shiftKey, target: null, preventDefault: () => {}, stopPropagation: () => {} });
+};
+
+const svg = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 1000, height: 750 }), viewBox: { baseVal: { x: 0, y: 0, width: 1000, height: 750 } } };
+const makeStage = (): FakeEl => {
+  const s = new FakeEl("div");
+  (s as unknown as { querySelector: (q: string) => unknown }).querySelector = (q: string) => (q === "svg.cs-svg" ? svg : null);
+  (s as unknown as { getBoundingClientRect: () => unknown }).getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 750 });
+  return s;
+};
+const target = { closest: () => null };
+/** Logical (x, y-up) → the pointer event the gate reads. */
+const at = (p: [number, number]) => ({ clientX: p[0], clientY: 750 - p[1], pointerId: 1, type: "", target, stopPropagation: () => {}, preventDefault: () => {} });
+const fire = (el: FakeEl, type: string, e: Record<string, unknown>): void => {
+  for (const f of el.listeners[type] ?? []) f({ ...e, type });
+};
+const tap = (gate: FakeEl, p: [number, number]): void => {
+  fire(gate, "pointerdown", at(p));
+  fire(gate, "pointerup", at(p));
+};
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function open(g: CardsGeometry, extra: Partial<AskGateStep> = {}) {
+  return import("../src/ui/cards-gate").then(({ cardsGateFor }) => {
+    const stage = makeStage();
+    const ac = new AbortController();
+    const placed: { id: string; dx: number; dy: number; scale: number }[] = [];
+    const marks: (GuessMarks | null)[] = [];
+    const session: CardsSession = {
+      geometry: g,
+      start: initialArrangement(g),
+      place: (id, dx, dy, scale = 1) => void placed.push({ id, dx, dy, scale }),
+      show: () => {},
+      mark: (m) => void marks.push(m),
+    };
+    let result: string | null | undefined;
+    const step = { question: "Sort them", retry: false, required: false, cardsSession: session, ...extra } as unknown as AskGateStep;
+    const done = cardsGateFor(stage as unknown as HTMLElement, null as never)(ac.signal, step).then((r) => (result = r));
+    const gate = stage.find("cs-cardsgate")!;
+    return { stage, gate, done, ac, placed, marks, result: () => result, answer: () => stage.find("cs-guess-answer")! };
+  });
+}
+
+const two: CardsElementLike = { id: "c", type: "cards", bins: ["Fixed", "Variable"], items: [{ text: "Rent", bin: "Fixed" }, { text: "Flour", bin: "Variable" }, { text: "Tax", bin: "Fixed" }] };
+
+describe("tap to move", () => {
+  test("sort: a tap sends the card to box 1, the next tap to the other side; Answer gives the arrangement", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    tap(o.gate, g.home[0]);
+    tap(o.gate, g.home[1]);
+    await wait(200);
+    // card 1 is in box 1 now: a tap on it there sends it to box 2.
+    tap(o.gate, g.binSlot(0, 1));
+    o.answer().click();
+    await o.done;
+    expect(decodeArrangement(g, o.result()!)).toEqual({ order: [], boxes: [[0], [1]] });
+  });
+
+  test("a drag still works (a move past the slop is not a tap)", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    fire(o.gate, "pointerdown", at(g.home[2]));
+    fire(o.gate, "pointermove", at(g.binBoxes[1].c));
+    fire(o.gate, "pointerup", at(g.binBoxes[1].c));
+    o.answer().click();
+    await o.done;
+    expect(decodeArrangement(g, o.result()!)!.boxes).toEqual([[], [2]]);
+  });
+
+  test("select: tap the cards that belong in; a second tap takes one out", async () => {
+    const g = cardsGeometry({ id: "z", type: "cards", select: "Mammals", items: [{ text: "Whale", in: true }, "Shark", { text: "Bat", in: true }] });
+    const o = await open(g);
+    expect(o.stage.find("cs-figgate-hint")!.textContent).toMatch(/Tap the cards/);
+    tap(o.gate, g.home[0]);
+    tap(o.gate, g.home[1]);
+    tap(o.gate, g.home[2]);
+    await wait(200);
+    tap(o.gate, g.binSlot(0, 1)); // Shark, out again
+    o.answer().click();
+    await o.done;
+    expect(o.result()).toBe(encodeArrangement(g, cardsTruth(g)));
+  });
+
+  test("fill: a tapped tile goes to the first empty box; with one box it answers", async () => {
+    const g = cardsGeometry({ id: "t", type: "cards", fill: "m", items: [{ text: "x" }, { text: "2", blank: 1 }] });
+    const o = await open(g);
+    tap(o.gate, g.home[1]);
+    await o.done;
+    expect(o.result()).toBe("1");
+  });
+});
+
+const deck: CardsElementLike = {
+  id: "d",
+  type: "cards",
+  deck: true,
+  bins: ["Virus", "Bacteria"],
+  items: Array.from({ length: 12 }, (_, i) => ({ text: `G${i}`, bin: i % 3 === 0 ? "Bacteria" : "Virus" })),
+};
+
+describe("the deck", () => {
+  test("the top card grows; taps on the boxes and keys 1/2 deal; a ✓ or ✗ each; the last answers", async () => {
+    const g = cardsGeometry(deck);
+    const o = await open(g);
+    expect(o.answer().hidden).toBe(true);
+    await wait(300);
+    const top = g.cards[g.deal![0]];
+    expect(Math.max(...o.placed.filter((p) => p.id === top).map((p) => p.scale))).toBeCloseTo(g.deckScale!, 1);
+    // Deal every card: the first right by a tap on its box, the second wrong by key, the rest right by key.
+    g.deal!.forEach((card, s) => {
+      const right = g.truthBin[card];
+      if (s === 0) tap(o.gate, g.binBoxes[right].c);
+      else if (s === 1) key(String(2 - right));
+      else key(String(right + 1));
+    });
+    await o.done;
+    const a = decodeArrangement(g, o.result()!)!;
+    const wrong = g.deal![1];
+    expect(a.boxes[1 - g.truthBin[wrong]]).toContain(wrong);
+    expect(a.boxes.flat()).toHaveLength(12);
+    // A tap on the paper between, or a key past the boxes, deals nothing.
+    const flashes = o.marks.filter((m): m is GuessMarks => m !== null && m.texts.length > 0);
+    expect(flashes.length).toBeGreaterThan(0);
+    expect(flashes.every((m) => m.texts[0].text === "✓" || m.texts[0].text === "✗")).toBe(true);
+  });
+
+  test("a tap off the boxes or a key past them deals nothing", async () => {
+    const g = cardsGeometry({ ...deck, items: (deck.items as object[]).slice(0, 2) } as CardsElementLike);
+    const o = await open(g);
+    tap(o.gate, [500, 5]);
+    key("3");
+    key("Enter");
+    await wait(900);
+    expect(o.result()).toBeUndefined();
+    key("1");
+    key("2");
+    await o.done;
+    expect(decodeArrangement(g, o.result()!)!.boxes.flat()).toHaveLength(2);
+  });
+
+  test("an abort puts every card back, unscaled", async () => {
+    const g = cardsGeometry(deck);
+    const o = await open(g);
+    key("1");
+    o.ac.abort();
+    await o.done;
+    expect(o.result()).toBe(null);
+    for (const id of g.cards) {
+      const last = o.placed.filter((p) => p.id === id).pop();
+      if (last) expect([last.dx, last.dy, last.scale]).toEqual([0, 0, 1]);
+    }
+  });
+});
