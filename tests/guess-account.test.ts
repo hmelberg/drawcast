@@ -130,6 +130,19 @@ describe("the account bar mark", () => {
   });
 });
 
+describe("the gap's number at the reveal", () => {
+  test("a guess a little above the truth: the number clears the bar's value label (centred 13 over the true top)", async () => {
+    const { guessMarks } = await import("../src/guess/marks");
+    for (const g of [8, 12, 20, 40]) {
+      const m = guessMarks([bar(0, 3)], [[g]], 1);
+      const t = m.texts[0];
+      const truthTop = 50 + 3;
+      // 20-unit type centred on its point; the value label is 15-unit type centred at truthTop + 13.
+      expect(t.at[1] - 10).toBeGreaterThanOrEqual(truthTop + 13 + 7.5 + 2);
+    }
+  });
+});
+
 // —— the player ——
 
 class CapturingSpeech extends SpeechManager {
@@ -222,6 +235,7 @@ describe("a budget ask in the player", () => {
 describe("the account bar on a real chart", () => {
   registerPack("data", dataYaml);
   const health = (examples as unknown as { spec: Spec }[]).map((e) => e.spec).find((sp) => sp?.title === "Your health budget")!;
+  const hours = (examples as unknown as { spec: Spec }[]).map((e) => e.spec).find((sp) => sp?.title === "Where do your 24 hours go?")!;
   const variant = (n: number): Spec => ({
     ...health,
     params: { ...health.params, labels: Array.from({ length: n }, (_, k) => `Item ${k + 1}`), values: Array.from({ length: n }, () => 100 / n) },
@@ -264,6 +278,54 @@ describe("the account bar on a real chart", () => {
       }
     });
   }
+
+  /** The x-axis arrow's tip, from the real layout. */
+  const tipOf = (spec: Spec): { x: number; y: number } => {
+    const s = expandSpec(spec);
+    const find = (ds: { id?: string; children?: unknown[]; pts?: [number, number][] }[]): [number, number] | null => {
+      for (const d of ds) {
+        if (d.id === "axes__x" && d.pts) return d.pts[d.pts.length - 1];
+        const c = d.children ? find(d.children as never) : null;
+        if (c) return c;
+      }
+      return null;
+    };
+    const t = find(layoutSpec(s).drawables as never)!;
+    return { x: t[0], y: t[1] };
+  };
+
+  for (const [name, spec, label] of [["Your health budget", health, "Left"], ["Where do your 24 hours go?", hours, "Hours left"]] as [string, Spec, string][]) {
+    test(`${name}: the account bar and its words stay clear of the x-axis arrowhead`, () => {
+      const hs = handlesOf(spec);
+      const tip = tipOf(spec);
+      const budget = name.startsWith("Where") ? 24 : 100;
+      const cases = [hs.map(startValues), hs.map(() => [budget / hs.length]), hs.map((h) => [h.max])];
+      for (const values of cases) {
+        const m = accountMarks(hs, values, budget, label);
+        // The arrowhead: its arms reach ~13 back from the tip and ~7 either side of the axis.
+        for (const l of m.lines) for (const [x, y] of l.pts) expect(x > tip.x + 3 || Math.abs(y - tip.y) > 12 || x < tip.x - 20).toBe(true);
+        for (const t of m.texts) {
+          const [x0, x1] = textBox(t);
+          const clearX = x0 > tip.x + 3 || x1 < tip.x - 20;
+          // 20-unit type, centred on its point (with some slack).
+          const clearY = t.at[1] - 4 > tip.y + 10 || t.at[1] + 16 < tip.y - 10;
+          expect(clearX || clearY).toBe(true);
+        }
+      }
+    });
+  }
+
+  test("plenty left, past the top of the canvas: cut, but no break mark (that means overspent)", () => {
+    const hs = handlesOf(hours);
+    const m = accountMarks(hs, hs.map(startValues), 24, "Hours left");
+    expect(m.color).toBe(GUESS_COLOR);
+    const slanted = m.lines.filter((l) => l.pts.length === 2 && Math.abs(l.pts[0][0] - l.pts[1][0]) > 1 && Math.abs(l.pts[0][1] - l.pts[1][1]) > 1);
+    expect(slanted).toEqual([]);
+    // The label, wrapped to the room beside the bars, reads top to bottom.
+    const words = m.texts.slice(1).reverse().map((t) => t.text).join(" ");
+    expect(words).toBe("Hours left");
+    for (const t of m.texts) expect(t.at[1]).toBeLessThanOrEqual(CANVAS.h - 10);
+  });
 
   test("overspent past the room below the baseline: cut, with a break mark, the number still shown", () => {
     const hs = handlesOf(health);

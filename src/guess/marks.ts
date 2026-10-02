@@ -10,6 +10,7 @@ import { scaleGeometry } from "../spec/scale";
 import { MARKET_DOMAIN, along, clipToSquare, curveOfGaps, impliedEquilibrium } from "./market";
 import { GUESS_COLOR } from "./color";
 import { CANVAS } from "../layout/canvas";
+import { AXIS_OVERHANG } from "../layout/axes";
 
 export { GUESS_COLOR };
 
@@ -94,7 +95,10 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
             const gap = Math.abs(y1 - top[1]);
             const hi = Math.max(top[1], y1);
             const guessAbove = top[1] > y1;
-            const y = guessAbove ? (gap > 70 ? (top[1] + y1) / 2 + 12 : hi + 22) : gap > 30 ? (top[1] + y1) / 2 : hi + 34;
+            // Over the ghost, and never on the value label (15-unit type
+            // centred 13 over the true top): a guess just above the truth
+            // wrote "−1" across its "3" (round 5).
+            const y = guessAbove ? (gap > 70 ? (top[1] + y1) / 2 + 12 : Math.max(hi + 22, truthTop[1] + 34)) : gap > 30 ? (top[1] + y1) / 2 : hi + 34;
             texts.push({ at: [h.cx, y], text: signed(h, h.truth[0] - g[0]), anchor: "middle" });
           }
         }
@@ -220,14 +224,29 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
 export const ACCOUNT_RED = "#b3412e";
 
 /** Account bar geometry: its half width at most, the gap from the canvas
- *  edge, from the last bar, and the lowest/highest y it is drawn to. */
+ *  edge, from the last bar, and the lowest/highest y it is drawn to (the top
+ *  leaves room for the number and the label above it). */
 const ACCOUNT_HALF_W = 22;
-const ACCOUNT_EDGE = 12;
+const ACCOUNT_EDGE = 4;
 const ACCOUNT_GAP = 10;
 const ACCOUNT_FLOOR = 15;
-const ACCOUNT_CEIL = CANVAS.h - 40;
+/** The words' line height, and the space they keep from the canvas top. */
+const ACCOUNT_LINE = 24;
+const ACCOUNT_TOP = CANVAS.h - 10;
+/** The baseline tick runs this far past each side of the account bar. */
+const ACCOUNT_TICK = 6;
 /** Rough half width of a 20-unit label: ~0.6 em a character. */
 const textHalf = (t: string): number => t.length * 6;
+/** A label's words on as few lines as fit `width` (one word a line at worst). */
+function wrapLabel(label: string, width: number): string[] {
+  const out: string[] = [];
+  for (const w of label.split(/\s+/).filter(Boolean)) {
+    const last = out[out.length - 1];
+    if (last !== undefined && 2 * textHalf(`${last} ${w}`) <= width) out[out.length - 1] = `${last} ${w}`;
+    else out.push(w);
+  }
+  return out.length > 0 ? out : [label];
+}
 
 /**
  * A budget's account bar (spec 2026-10-03-looks-feedback-account §5): a bar
@@ -235,12 +254,15 @@ const textHalf = (t: string): number => t.length * 6;
  * labelled `label` with its number. Overspent, it hangs below the baseline in
  * red. A guess mark, so the chart's layout and data are untouched.
  *
- * It always stays on the canvas: it stands in the margin right of the last
- * bar (one bar's pitch out, pulled in to fit, narrower than a bar), and a
- * value past the room it has — above the plot, or below the baseline, where
- * a chart has only a strip — is cut there with a break mark (two slanted
- * ticks). Overspent, the label and the number stand above the baseline, in
- * the free space beside the bars, so the number is read however deep it goes.
+ * It always stays on the canvas, clear of the x-axis arrow: past the arrow's
+ * tip when there is room (a bar chart's axis runs half a pitch past the last
+ * bar and AXIS_OVERHANG on), else in the margin right of the last bar. A
+ * value past the room it has is cut there: overspent (below the baseline,
+ * where a chart has only a strip) with a break mark (two slanted ticks);
+ * plenty left (above the canvas) open-topped, with no break mark, which would
+ * read as overspent. The number and the label stand above the bar (overspent:
+ * above the baseline, in the free space beside the bars, so the number is
+ * read however deep it goes), the label wrapped to the room there.
  */
 export function accountMarks(handles: GuessHandle[], values: number[][], budget: number, label = "Left"): GuessMarks {
   const lines: GuessMarkLine[] = [];
@@ -256,17 +278,31 @@ export function accountMarks(handles: GuessHandle[], values: number[][], budget:
   const lastEdge = Math.max(...bars.map((b) => b.cx! + b.halfW!));
   const pitch = bars.length > 1 ? (last - Math.min(...cxs)) / (bars.length - 1) : h0.halfW! * 4;
   const number = `${account < 0 ? "−" : ""}${h0.format(Math.abs(account))}`;
-  // The room right of the last bar: the bar (and its baseline tick, 6 past
-  // each side) between the bars and the edge; it narrows before it overlaps.
-  const room = CANVAS.w - ACCOUNT_EDGE - (lastEdge + ACCOUNT_GAP);
-  const halfW = Math.max(4, Math.min(ACCOUNT_HALF_W, h0.halfW!, pitch * 0.4, room / 2 - 6));
-  const reach = Math.max(halfW + 6, textHalf(label), textHalf(number));
-  const cx = Math.max(lastEdge + ACCOUNT_GAP + halfW + 6, Math.min(last + pitch, CANVAS.w - ACCOUNT_EDGE - reach));
+  const widest = Math.min(ACCOUNT_HALF_W, h0.halfW!, pitch * 0.4);
+  // Past the x-axis arrow's tip, its tick clear of the head.
+  const tip = Math.max(lastEdge, last + pitch / 2) + AXIS_OVERHANG;
+  const past = tip + 4 + ACCOUNT_TICK;
+  const right = CANVAS.w - ACCOUNT_EDGE - ACCOUNT_TICK;
+  let halfW: number, cx: number;
+  if ((right - past) / 2 >= 8) {
+    halfW = Math.min(widest, (right - past) / 2);
+    cx = past + halfW;
+  } else {
+    // No room past the arrow: in the margin right of the last bar, narrowed before it overlaps.
+    const room = CANVAS.w - ACCOUNT_EDGE - (lastEdge + ACCOUNT_GAP);
+    halfW = Math.max(4, Math.min(widest, room / 2 - ACCOUNT_TICK));
+    cx = Math.max(lastEdge + ACCOUNT_GAP + halfW + ACCOUNT_TICK, Math.min(last + pitch, right - halfW));
+  }
   // On the same scale, cut where the canvas (or the chart's strip below the baseline) ends.
   const zero = Math.max(h0.min, Math.min(h0.max, 0));
   const base = h0.toLogical!([0, zero])[1];
   const want = h0.toLogical!([0, zero + account])[1];
-  const end = Math.max(ACCOUNT_FLOOR, Math.min(ACCOUNT_CEIL, want));
+  // The words: centred on the bar, pulled in to the room right of the last bar.
+  const roomL = lastEdge + 6, roomR = CANVAS.w - 2;
+  const words = wrapLabel(label, roomR - roomL);
+  // The bar's top leaves room above it for the number and the label's lines.
+  const ceil = ACCOUNT_TOP - ACCOUNT_LINE * (1 + words.length);
+  const end = Math.max(ACCOUNT_FLOOR, Math.min(ceil, want));
   const cut = Math.abs(want - end) > 0.5;
   const x0 = cx - halfW, x1 = cx + halfW;
   if (Math.abs(end - base) > 0.5) {
@@ -275,7 +311,7 @@ export function accountMarks(handles: GuessHandle[], values: number[][], budget:
     // A light hatch: a solid bar, unlike the dashed ghost of a guess.
     const dir = end > base ? 1 : -1;
     for (let y = base + dir * 8; dir * (end - y) > 3; y += dir * 8) lines.push({ pts: [[x0 + 3, y], [x1 - 3, y]], width: 1.5, opacity: 0.45 });
-    if (cut) {
+    if (cut && account < 0) {
       // The break: two short slanted ticks across the cut end.
       for (const off of [3, 10]) {
         const y = end - dir * off;
@@ -283,13 +319,13 @@ export function accountMarks(handles: GuessHandle[], values: number[][], budget:
       }
     }
   }
-  lines.push({ pts: [[x0 - 6, base], [x1 + 6, base]], width: 2 });
-  if (account < 0) {
-    texts.push({ at: [cx, base + 46], text: label, anchor: "middle" });
-    texts.push({ at: [cx, base + 22], text: number, anchor: "middle" });
-  } else {
-    texts.push({ at: [cx, Math.max(12, base - 26)], text: label, anchor: "middle" });
-    texts.push({ at: [cx, Math.min(CANVAS.h - 12, end + 20)], text: number, anchor: "middle" });
+  lines.push({ pts: [[x0 - ACCOUNT_TICK, base], [x1 + ACCOUNT_TICK, base]], width: 2 });
+  const at = (t: string): number => Math.max(roomL + textHalf(t), Math.min(roomR - textHalf(t), cx));
+  let y = account < 0 ? base + 30 : Math.max(end, base) + ACCOUNT_LINE;
+  texts.push({ at: [at(number), y], text: number, anchor: "middle" });
+  for (const w of words.slice().reverse()) {
+    y += ACCOUNT_LINE;
+    texts.push({ at: [at(w), y], text: w, anchor: "middle" });
   }
   return { color, lines, texts };
 }
