@@ -225,3 +225,31 @@ adjust".
 2. **Feedback default:** `plain` unless a cast or ask asks for more.
 3. **Language:** the feedback lines are written by the cast's author (the LLM)
    in the cast's language; the bundled set is only an English fallback.
+
+## 10. As built (2026-10-03)
+
+Built on branch `round5-looks-feedback` in 10 plan tasks, two fix waves (a muted browser check of every touched example at desktop and phone width, a generated `#interactive` cast) and a final whole-branch review. Changes against the sections above:
+
+**Looks and icons (§3)**
+- Rect nodes take `radius` and `shadow`; the shadow (`<id>__shadow`) is outside highlights and fades in after the outline (≤ 200 ms), so a box draws about as fast as before.
+- A node or card icon is resolved BEFORE the cards expand (`expandedRenderSpec`), so cards with icons really are taller in the player. An edited icon is resolved again (`icon_key`). Match partners take `match_icon`.
+- Icon cards shrink to fit the canvas when there are many (an 8-card sort, a 6-pair match).
+- Filled icon sets trace best; stroke-only sets (lucide) trace badly. Bundled examples ship their icon drawings.
+
+**Account bar (§5)**
+- The bar stands just past the plot (clear of the axis arrow), is slim, is cut with a break mark when it would leave the canvas, and its label is in the cast's language (Left / Igjen). Live bars start low, so the viewer must balance.
+- A budget the bars cannot reach is a lint error; the gate never leaves the viewer stuck.
+- The dock text uses `account_label` ("Hours left: 22").
+
+**Feedback (§4)**
+- An ask's lines without a style keep the cast's style. When a band's lines run out they come round again.
+- A single guess: perfect = judged right; good = not right but within 25 % of the true value; else poor.
+- The English fallback is used only for English casts, judged by `lang` or, when absent, by the language the cast is written in. The dock and buttons follow the same language.
+- Rewards fire when the answer is scored: sparkle for a right single answer; confetti on a perfect long task and on every third right answer in a row (`{streak}` resets on rewind and does not count re-answers); bundled reaction pictures (no network); jokes in English casts only; plain plays no extras. Rewards are removed on a scrub and never play in movies or on a skip.
+
+**Phone and UI**
+- During a question on a phone the figure keeps most of the stage (one-line hint, Answer and Skip side by side, Sources hidden); captions page at two lines; the figure eases back after the reveal.
+
+**Examples:** revised "What is more dangerous", "What each drug does", "Your health budget"; new "How fast can they run?", "Where do your 24 hours go?", "Is it a fruit?", "Hvor mye vann bruker vi?" and the generated "The deadliest animal".
+
+**Left for later:** canvas text on phones is still small for dense charts; hidden answer values are in the accessibility tree before answering; widget gates (click, staff, piano, chess) are not localised; on a skip an ask still speaks its `wrong` line.
