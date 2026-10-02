@@ -1844,13 +1844,17 @@ export class Player {
       });
     }
     const line = !judged ? (step.right ?? step.wrong) : ok ? step.right : (step.wrong ?? step.right);
+    // Where the viewer left the cards (in their bins, their slots) — the
+    // reward bursts from there, not from the cards' home row.
+    const from = positions(g, arrangement);
+    const shift: Record<string, Pt> = {};
+    g.cards.forEach((id, i) => (shift[id] = [from[i][0] - g.home[i][0], from[i][1] - g.home[i][1]]));
     const extra =
       live && answered && judged
-        ? this.feedbackAfter(step, bandOf({ ok, within: score.within, count: score.count }), { long: isLong({ items: score.count }), parts: formula ? [step.formula!] : g.cards }, signal)
+        ? this.feedbackAfter(step, bandOf({ ok, within: score.within, count: score.count }), { long: isLong({ items: score.count }), parts: formula ? [step.formula!] : g.cards, ...(formula ? {} : { shift }) }, signal)
         : [];
     const spoken = this.speakLines(line, extra, step, signal);
     // The cards that move glide from where the viewer left them to the truth.
-    const from = positions(g, arrangement);
     const moves = g.cards.some((_, i) => Math.abs(from[i][0] - g.truth[i][0]) > 0.5 || Math.abs(from[i][1] - g.truth[i][1]) > 0.5);
     if (moves) {
       await this.progress(GUESS_REVEAL_MS, signal, (t) => {
@@ -2426,7 +2430,7 @@ export class Player {
   private feedbackAfter(
     step: Extract<PlanStep, { kind: "quiz" | "ask" }>,
     band: Band,
-    task: { long?: boolean; parts?: string[]; sparkle?: boolean },
+    task: { long?: boolean; parts?: string[]; sparkle?: boolean; shift?: Record<string, Pt> },
     signal: AbortSignal,
   ): string[] {
     const out: string[] = [];
@@ -2443,7 +2447,7 @@ export class Player {
       if (joke) out.push(joke);
     }
     if (kind === "sparkle" && task.sparkle !== false) this.sparkle(parts, signal);
-    this.callbacks.onReward?.({ kind, band, box: this.boxOfParts(parts), streak, n: this.rewardCount++ });
+    this.callbacks.onReward?.({ kind, band, box: this.boxOfParts(parts, task.shift), streak, n: this.rewardCount++ });
     return out;
   }
 
@@ -2456,12 +2460,15 @@ export class Player {
     );
   }
 
-  /** The box around the parts, or null when none is known. */
-  private boxOfParts(ids: string[]): BBox | null {
+  /** The box around the parts — each moved by its `shift` (a card the viewer
+   *  dragged off its layout place) — or null when none is known. */
+  private boxOfParts(ids: string[], shift?: Record<string, Pt>): BBox | null {
     let box: BBox | null = null;
     for (const id of ids) {
-      const b = this.partBox?.(id);
-      if (!b) continue;
+      const at = this.partBox?.(id);
+      if (!at) continue;
+      const [dx, dy] = shift?.[id] ?? [0, 0];
+      const b = { x: at.x + dx, y: at.y + dy, w: at.w, h: at.h };
       if (!box) box = { ...b };
       else {
         const x = Math.min(box.x, b.x), y = Math.min(box.y, b.y);

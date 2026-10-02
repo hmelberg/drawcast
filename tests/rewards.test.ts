@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
 import { vi } from "vitest";
 import type { Command } from "../src/spec/types";
 import { cardsGeometry, type CardsElementLike } from "../src/spec/cards";
-import { cardsTruth, encodeArrangement } from "../src/cards/model";
+import { cardsTruth, encodeArrangement, positions } from "../src/cards/model";
 
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
   setTimeout(() => cb(performance.now()), 5) as unknown as number) as typeof requestAnimationFrame;
@@ -245,6 +245,44 @@ describe("rewards on a long task", () => {
     await player.play();
     expect(rewards.map((r) => r.kind)).toEqual(["confetti"]);
     expect(rewards[0].box).toEqual({ x: 10, y: 20, w: 30, h: 40 });
+  });
+
+  test("sorted cards: the confetti bursts from where the cards now sit (their bins), not their home row", async () => {
+    const sortEl: CardsElementLike = {
+      id: "s",
+      type: "cards",
+      bins: ["Fruit", "Not a fruit"],
+      items: [
+        { text: "Tomato", bin: "Fruit" },
+        { text: "Potato", bin: "Not a fruit" },
+        { text: "Apple", bin: "Fruit" },
+      ],
+    } as CardsElementLike;
+    const gs = cardsGeometry(sortEl);
+    const plan = planCommands([{ ask: { question: "Sort them.", on: "s", right: "Yes.", feedback: { style: "warm", reward: "confetti" } } as never }], [...gs.cards], {
+      cardsFor: (id) => (id === "s" ? { cards: gs.cards, offsets: {}, hides: [] } : null),
+    });
+    const player = new Player(plan, new Map(), new CapturingSpeech(), null, { mode: "narrated", effects });
+    player.reprojector = { frame: () => {}, commit: () => new Map(), committed: () => null };
+    player.guess = { setup: () => ({ handles: [], pin: {}, warnings: [] }), patch: () => ({ params: {} }), cards: (id) => (id === "s" ? gs : null) };
+    // Each card's layout box sits at its HOME place.
+    player.partBox = (id) => {
+      const i = gs.cards.indexOf(id);
+      return i < 0 ? null : { x: gs.home[i][0] - gs.w / 2, y: gs.home[i][1] - gs.h / 2, w: gs.w, h: gs.h };
+    };
+    const rewards: RewardEvent[] = [];
+    player.callbacks = { onReward: (e) => rewards.push(e) };
+    const truth = cardsTruth(gs);
+    player.askGate = async () => encodeArrangement(gs, truth);
+    await player.play();
+    expect(rewards.map((r) => r.kind)).toEqual(["confetti"]);
+    const at = positions(gs, truth);
+    const x0 = Math.min(...at.map((p) => p[0])) - gs.w / 2, y0 = Math.min(...at.map((p) => p[1])) - gs.h / 2;
+    const box = rewards[0].box!;
+    expect(box.x).toBeCloseTo(x0);
+    expect(box.y).toBeCloseTo(y0);
+    expect(box.w).toBeCloseTo(Math.max(...at.map((p) => p[0])) + gs.w / 2 - x0);
+    expect(box.h).toBeCloseTo(Math.max(...at.map((p) => p[1])) + gs.h / 2 - y0);
   });
 
   test("a joke, when asked for, is said after the band line", async () => {
