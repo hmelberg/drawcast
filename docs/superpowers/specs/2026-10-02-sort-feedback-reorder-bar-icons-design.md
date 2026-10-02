@@ -59,7 +59,11 @@ A new cards field, `check: "each" | "end"`.
    tap per card for any box (today a box-2 card takes two), the same feel
    as the deck. **Drag and drop stays**: any tray card can be dragged
    straight to a box and is judged on release. The 1–4 keys send the picked
-   card. Deck is unchanged. Under `check: "end"`, tap-to-cycle stays as now.
+   card. Deck is unchanged.
+   **`check: "end"` is the no-immediate-feedback option:** the viewer sorts
+   and changes freely (tap-to-cycle, drag in and out) and nothing is judged
+   until Answer; then the round-6 beside reveal. Authors choose it for
+   test-like questions or when changing one's mind is part of the task.
 6. **The counter**: `✓ 4 · ✗ 1` in small text (20, ink; ✓ green, ✗ red),
    centred just under the boxes (or above them in `rise`, §5). It is drawn
    when the ask starts (`✓ 0 · ✗ 0`) and ticks on each drop.
@@ -192,7 +196,66 @@ and stacked charts keep one colour per series, as now).
   Check that blue "yours" reads clearly next to a blue-ish series colour; if
   not, skip that colour from the per-bar cycle while a guess is on.
 
-## 8. Content and guidance
+## 8. F — The question on screen, and a calmer bottom bar
+
+Seen: on figure questions (ask with `on:`: sort, rank, guess, choose,
+formula…) the question itself is only spoken and captioned. On screen there
+is a generic hint ("Tap or drag each card into its box"), so the viewer
+reads the hint as the question. The bottom bar mixes three unrelated
+styles: the hint (hand-lettered pill, black border, drop shadow, pulsing),
+Answer (blue filled box, 8 px corners, larger type) and Skip (small grey
+dashed pill).
+
+### 8.1 The question as a headline
+
+- While a figure question is open, the ask's `question` stands **at the top
+  of the figure as a headline**: the full sentence, sketch font, about
+  1.3 rem, ink, at most two lines (phone: it wraps; longer is clipped with
+  an ellipsis and lint warns).
+- Under it, in small muted type, the **how** line: today's gate hint
+  ("Tap a box, or drag a card"). The hint leaves the bottom bar.
+- The headline replaces the guess gate's top hint (which already stands at
+  the top), so all figure questions put the task in the same place. It
+  takes the place of a figure title card while the question is open; it
+  fades out when the question is answered, and the title comes back. This
+  also fixes the open round-5 issue of the guess hint overlapping a card
+  title.
+- Multiple-choice quizzes already show the question on their card; no change.
+
+### 8.2 The question says the whole task
+
+- Prompt rule: an ask's `question` is a full sentence that names the task
+  and what counts as right, so the viewer understands it without the
+  narration: "Which of these animals are mammals? Tap every mammal." rather
+  than "Tap all the mammals."; "Sort each food the way a botanist would:
+  fruit or not a fruit?" rather than "Fruit or not?".
+- Lint: warn when a figure question's `question` is under 6 words, or is
+  only an instruction with no object ("Sort them.", "Your turn.").
+- Example revisions: every bundled example's figure question is checked
+  against this rule (§9).
+
+### 8.3 One family for the bottom bar
+
+The bar keeps only buttons: **Answer** and **Skip** (and, in a select under
+`check: "each"`, **Done** in Answer's place).
+
+- Both are **pills with the same shape, font (sketch font), height and
+  border weight**, side by side and centred: Skip on the left, Answer on the
+  right.
+- **Answer** is primary: filled with the guess blue, white text, a little
+  wider.
+- **Skip** is secondary: no fill, a solid thin border in muted ink, muted
+  text, same height. No dashes and no smaller type.
+- No shadows or pulsing on either. The headline is the one thing that
+  draws the eye at the start.
+- Under `check: "each"` (no Answer), Skip stands alone, centred.
+- The counter (§3.1) is drawn on the figure under the boxes, not in the bar.
+- Phone: same pair, min-height 40 px as now.
+
+The same bar is used by every gate that docks buttons (cards, guess,
+choose, drag, formula, connect), so they all change together.
+
+## 9. Content and guidance
 
 - **Prompt rule (icons):** when a card, node, bar or decorative picture
   names a concrete object or animal, give it an icon keyword. Draw by hand
@@ -210,7 +273,7 @@ and stacked charts keep one colour per series, as now).
 - Every bundled example with a sort or rank: re-checked under the new
   defaults (`check: "each"`, `arrange: "drop"`, `reveal_style: "reorder"`).
 
-## 9. Build order
+## 10. Build order
 
 1. Sort `check: "each"`: model (`checkDrop`, `first`), gate (land → ✓/✗ →
    glide → fade; final cards; tap-to-pick), counter, score, seek restore.
@@ -219,22 +282,25 @@ and stacked charts keep one colour per series, as now).
 4. Rank `reveal_style: "reorder"` (marks, "yours" row, arcs, connectors).
 5. `arrange: "drop"` and `"side"` for sort/select/deck; re-check examples.
 6. Bar `icons` and `bar_colors` with the label rule.
-7. Lint, prompt guidance, example revisions (§8).
+7. Question headline + how line; the bottom bar as one family (§8).
+8. Lint, prompt guidance, example revisions (§8.2, §9).
 
-## 10. Testing
+## 11. Testing
 
 - Unit (pure): `checkDrop` (right, wrong, select in/out, last card),
   scoring with and without `first`, the label rule for `bar_colors` (names,
   years, ranges, `65+`, months, mixed → `"each"`), the drop/side geometry
   stays on the canvas for 2–4 boxes × 4–14 cards (and deck 30), and reorder
   arc sides never cross.
-- Lint tests: the arrows-in-wrong-line warning, `side` > 8 cards, icons >
+- Lint tests: short-question warning, the arrows-in-wrong-line warning, `side` > 8 cards, icons >
   12 bars.
 - In the browser, muted (narration and WebAudio), for each changed example:
   a wrong drop lands, flashes, glides and fades; the counter's numbers; no
-  red left on the figure; seek forward/back; a movie run; phone width.
+  red left on the figure; seek forward/back; a movie run; phone width; the
+  headline and bar on every gate kind (cards, guess, choose, drag, formula,
+  connect), screenshots before/after.
 
-## 11. Open points
+## 12. Open points
 
 - Should the faded corrected cards also carry a tiny ↺ so they read as
   "moved for you" in a screenshot? Default: no, fading only.
