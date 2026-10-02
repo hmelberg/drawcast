@@ -13,8 +13,10 @@
 ## Global Constraints
 
 - `check: "each" | "end"` is a CARDS ELEMENT field. **Default `"each"`** for sort (with `bins`), select (`select:`) and deck; `"end"` keeps today's behaviour exactly (sort everything, Answer, beside reveal with arrows). Other modes ignore `check`. Never confuse it with the ask-level market `check` ("direction" | "shape" | "size").
-- Wrong drop: "a red ✗ flashes beside it in box k. After about 0.5 s the card glides to its right box (… about 0.6 s) and settles there faded to 45 %, with no mark."
-- Counter: "`✓ 4 · ✗ 1` in small text (20, ink; ✓ green, ✗ red), centred just under the boxes (or above them in `rise`)". Colours: ✓ `#4a7c59`, ✗ `#b3412e`, yours `#3f6fb5`.
+- Wrong drop: "a red ✗ flashes beside it in box k. After about 0.5 s the card glides to its right box (… about 0.6 s) and settles there faded to 45 %, with no mark. The ✗ goes with it; nothing red is left on the figure." The ✗ rides beside the gliding card and goes when the glide ends.
+- A card judged (right, or corrected) goes into its right box AT ITS TRUTH SLOT (`placeRight`), so once the last card is placed every card already stands where the truth puts it: nothing reshuffles after the answer.
+- Counter: "`✓ 4 · ✗ 1` in small text (20, ink; ✓ green, ✗ red), centred just under the boxes". Colours: ✓ `#4a7c59`, ✗ `#b3412e`, yours `#3f6fb5`. **Deviation from spec §3.1.6, on purpose:** in `rise` the counter also stands under the boxes (in the 40-unit gap between the boxes and the tray), not above them — above the boxes is where the headline (§8.1) stands.
+- Headline room: by default nothing of a drop/side sort, select or deck stands above y = 660 (`HEAD_ROOM_Y`): the top 90 units are the headline's (the same strip a title card's heading uses). On a phone (caption below or strip) the drawing gives up the headline's height, as it does for the dock (Task 10).
 - Score under `"each"`: first-drop right count. `{f}` is that count, `{f.total}` the number of cards; `right` only when every first drop was right. Under `"end"` `{f}` stays "x of y".
 - Movies (questions off) and demo: "no counter and nothing is faded".
 - Rank: `reveal_style: "reorder"` is the default for rank cards; an explicit `"beside"` or `"morph"` wins. Verdicts ~0.8 s, "yours" row font 16 in the YOURS blue, slide ~0.9 s, arcs above/below by direction.
@@ -37,7 +39,9 @@
 2. Scrub or pause while a corrected card is gliding: every card back at offset 0 and full opacity. Test: Task 2 ("an abort mid-glide …").
 3. Seek forward past an answered each-sort, then back before it: forward shows the counter and the faded cards; back clears both (opacity 1). Test: Task 3 ("seek …").
 4. An answer string with no `;first` part (check: end, or stored before round 7) on a sort that now defaults to `"each"`: it still decodes, scores by final boxes and gets the beside reveal. Tests: Task 1 ("old strings still decode"), Task 3 ("an answer without first keeps the beside reveal").
-5. A Norwegian cast: Done, the each-hints and "yours" read in Norwegian; an icon keyword missing from the cache warns by name rather than drawing an empty slot. Tests: Task 5 (gate words tables), Task 6 (`yours`), Task 9 (missing keyword warning).
+5. A Norwegian cast: Done, the each-hints and "yours" read in Norwegian; an icon keyword missing from the cache warns by name rather than drawing an empty slot — also when NONE of a chart's keywords is in the cache. Tests: Task 5 (gate words tables), Task 6 (`yours`), Task 9 (missing keyword warnings).
+6. The headline never hides the cards: on desktop the drop/side tray and the dealt card stay under y = 660; on a phone (caption below/strip) the drawing gives up the headline's height. Tests: Task 7 ("headline room"), Task 10 (`dockShrink` with `headH`); browser: Task 15 Step 5.
+7. A corrected card stays faded through anything that re-applies the scene while the gate is open (a resize commit): the player keeps the gate's fades (`gateDim`). Test: Task 3 ("a re-applied scene keeps the gate's fades").
 
 ---
 
@@ -47,7 +51,7 @@
 - Modify: `src/spec/cards.ts` — `CardsElementLike` (line 66), `CardsGeometry` (line 111), `base` in `cardsGeometryAt` (line 322), `deckGeometry`'s `base` parameter type (line 563), `CARRIED` (line 630)
 - Modify: `src/spec/types.ts` — the cards element fields (lines 453-462, next to `deck`)
 - Modify: `src/spec/schema.ts` — element property next to `deck` (line 646)
-- Modify: `src/cards/model.ts` — `Arrangement` (line 14), `rightCards` sort case (line 192), `encodeArrangement` (line 238), `decodeArrangement` sort case (line 266); new `putIn`, `isPlaced`, `checkDrop`, `allChecked`, `checkTally`
+- Modify: `src/cards/model.ts` — `Arrangement` (line 14), `rightCards` sort case (line 192), `encodeArrangement` (line 238), `decodeArrangement` sort case (line 266); new `putIn`, `placeRight`, `isPlaced`, `checkDrop`, `fadedCards`, `allChecked`, `checkTally`
 - Modify: `tests/prompt-size.test.ts` (re-pin)
 - Test: `tests/cards-check.test.ts` (new)
 
@@ -59,7 +63,9 @@
   - `Arrangement.first?: (number | null)[]` — per card, the first box it was dropped in; `-1` = the tray (a select card left out on Done); `null` = not judged yet.
   - `putIn(a: Arrangement, card: number, box: number): Arrangement` — card moved to box `box` (`-1`: the tray), nothing judged.
   - `isPlaced(a: Arrangement, card: number): boolean` — `a.first?.[card]` is a number.
-  - `checkDrop(g: CardsGeometry, a: Arrangement, card: number, box: number): { ok: boolean; arr: Arrangement }` — records `first[card] = box` if unset; `ok = first[card] === g.truthBin[card]`; `arr` has the card in its RIGHT box (select out-card: the tray).
+  - `placeRight(g: CardsGeometry, a: Arrangement, card: number): Arrangement` — the card in its RIGHT box (select out-card: the tray), inserted at its truth slot (the order `cardsTruth` uses: `g.deal`, else item order), so a complete arrangement's `positions` equal `g.truth`.
+  - `checkDrop(g: CardsGeometry, a: Arrangement, card: number, box: number): { ok: boolean; arr: Arrangement; faded: number[] }` — records `first[card] = box` if unset; `ok = first[card] === g.truthBin[card]`; `arr = placeRight(…)`; `faded` = `fadedCards(g, arr)` (spec §3.5: "and a `faded` set").
+  - `fadedCards(g: CardsGeometry, a: Arrangement): number[]` — the cards judged wrong so far (first box ≠ truth): the ones drawn faded. The player's `Beside.dim` (Task 3) is built from it, never re-derived.
   - `allChecked(g: CardsGeometry, a: Arrangement): boolean`; `checkTally(g: CardsGeometry, a: Arrangement): { right: number; wrong: number }`.
   - `rightCards` / `scoreCards` for sort read `first` when present, else final boxes.
   - Encoding for sort: `"<boxes>;<first>"`, e.g. `"0|;1,,"` (first values comma-joined, `null` as empty). No `;` part when `first` is absent.
@@ -73,7 +79,7 @@ Create `tests/cards-check.test.ts`:
 // is dropped — the first drop is the answer, the card goes to its right box.
 import { describe, expect, test } from "vitest";
 import { authoredCards, cardsGeometry, type CardsElementLike } from "../src/spec/cards";
-import { allChecked, checkDrop, checkTally, decodeArrangement, encodeArrangement, initialArrangement, isPlaced, positions, putIn, scoreCards } from "../src/cards/model";
+import { allChecked, checkDrop, checkTally, decodeArrangement, encodeArrangement, fadedCards, initialArrangement, isPlaced, placeRight, positions, putIn, scoreCards } from "../src/cards/model";
 import { expandSpec } from "../src/spec/expand";
 import type { Spec } from "../src/spec/types";
 
@@ -147,6 +153,31 @@ describe("checkDrop", () => {
   test("putIn lands a card where it was dropped, nothing judged", () => {
     expect(putIn(initialArrangement(g), 0, 1).boxes).toEqual([[], [0]]);
     expect(putIn({ order: [], boxes: [[], [0]] }, 0, -1).boxes).toEqual([[], []]);
+  });
+
+  test("the faded set: the cards whose first drop was wrong", () => {
+    let a = initialArrangement(g);
+    const r1 = checkDrop(g, a, 0, 1);
+    expect(r1.faded).toEqual([0]);
+    a = checkDrop(g, r1.arr, 1, 1).arr;
+    expect(fadedCards(g, a)).toEqual([0]);
+    expect(checkDrop(g, a, 2, 1).faded).toEqual([0, 2]);
+  });
+
+  test("placeRight: the truth slot, whatever the order the cards come in — the last card leaves every card at its truth", () => {
+    // Tax (2) before Rent (0): Rent still takes the first slot of Fixed.
+    const a = placeRight(g, placeRight(g, initialArrangement(g), 2), 0);
+    expect(a.boxes).toEqual([[0, 2], []]);
+    for (const order of [[0, 1, 2], [2, 1, 0], [1, 2, 0]]) {
+      let b = initialArrangement(g);
+      for (const c of order) b = checkDrop(g, b, c, c === 1 ? 0 : 1).arr; // every first drop wrong
+      expect(positions(g, b)).toEqual(g.truth);
+    }
+    // A deck's truth slots follow its deal.
+    const d = cardsGeometry({ ...two, deck: true });
+    let b = initialArrangement(d);
+    for (const c of [...d.deal!].reverse()) b = checkDrop(d, b, c, d.truthBin[c]).arr;
+    expect(positions(d, b)).toEqual(d.truth);
   });
 });
 
@@ -273,15 +304,39 @@ export function isPlaced(a: Arrangement, card: number): boolean {
 }
 
 /**
+ * check: each — the card in its right box (a select's out card: the tray),
+ * at the slot the truth gives it (the deal's order, else the items'), so the
+ * last card leaves every card where the truth stands: nothing reshuffles
+ * after the answer.
+ */
+export function placeRight(g: CardsGeometry, a: Arrangement, card: number): Arrangement {
+  const truth = g.truthBin[card];
+  const boxes = a.boxes.map((cs) => cs.filter((c) => c !== card));
+  if (truth >= 0 && truth < boxes.length) {
+    const order = g.deal ?? g.cards.map((_, i) => i);
+    const rank = (c: number): number => order.indexOf(c);
+    const box = boxes[truth];
+    const at = box.findIndex((c) => rank(c) > rank(card));
+    box.splice(at < 0 ? box.length : at, 0, card);
+  }
+  return { ...a, boxes };
+}
+
+/** check: each — the cards judged wrong so far: drawn faded (round 7 §3.1.3). */
+export function fadedCards(g: CardsGeometry, a: Arrangement): number[] {
+  return g.cards.map((_, i) => i).filter((i) => isPlaced(a, i) && a.first![i] !== g.truthBin[i]);
+}
+
+/**
  * A drop judged at once (round 7 §3.5): `box` (-1: the tray — a select's
  * card left out on Done) is kept as the card's first box, and the card goes
- * to its right box (a select's out card: the tray). The gate animates; this decides.
+ * to its right box (placeRight). The gate animates; this decides.
  */
-export function checkDrop(g: CardsGeometry, a: Arrangement, card: number, box: number): { ok: boolean; arr: Arrangement } {
+export function checkDrop(g: CardsGeometry, a: Arrangement, card: number, box: number): { ok: boolean; arr: Arrangement; faded: number[] } {
   const first = (a.first ?? g.cards.map(() => null)).slice();
   if (first[card] === null || first[card] === undefined) first[card] = box;
-  const truth = g.truthBin[card];
-  return { ok: first[card] === truth, arr: { ...putIn(a, card, truth), first } };
+  const arr = { ...placeRight(g, a, card), first };
+  return { ok: first[card] === g.truthBin[card], arr, faded: fadedCards(g, arr) };
 }
 
 /** check: each — every card judged (the last one answers). */
@@ -373,14 +428,14 @@ Claude-Session: https://claude.ai/code/session_01A1vsD5SQX5gKYDo4aucaMp"
 - Test: `tests/cards-counter.test.ts` (new)
 
 **Interfaces:**
-- Consumes (Task 1): `checkDrop`, `putIn`, `isPlaced`, `allChecked`, `checkTally`, `Arrangement.first`, `CardsGeometry.each`.
+- Consumes (Task 1): `checkDrop`, `putIn`, `placeRight`, `isPlaced`, `allChecked`, `checkTally`, `Arrangement.first`, `CardsGeometry.each`.
 - Produces:
   - `CardsGeometry.layout?: "drop" | "side" | "rise"` — absent means `"rise"` (today's layout; Task 7 sets it).
-  - `src/spec/cards.ts`: `export const COUNTER_ROOM = 34;` and `export function counterAt(g: CardsGeometry): Pt` — centred over the boxes' span; rise: 22 above the highest box top (at most 736); drop/side: 22 under the lowest box bottom.
+  - `src/spec/cards.ts`: `export const COUNTER_ROOM = 34;` and `export function counterAt(g: CardsGeometry): Pt` — centred over the boxes' span, 22 under the lowest box bottom, in every layout (rise: in the 40-unit gap between the boxes and the tray — see Global Constraints for why not above).
   - `src/cards/counter.ts`: `export const CORRECTED = 0.45;` `export const COUNTER_SIZE = 20;` `export function counterMarks(g: CardsGeometry, a: Arrangement, extra?: GuessMarkText[]): GuessMarks` — texts in this order: `"✓ n"` (RIGHT, anchor end), `"·"` (TRUTH, middle), `"✗ m"` (WRONG, start), all `size: 20, gap: true`, then `extra`.
   - `CardsSession.fade?(cardId: string, alpha: number): void` — player wires it to the element handle's `setOpacity`.
   - Gate word `words.cards.sortEach` (EN "Tap a box, or drag a card", NB "Trykk på en boks, eller dra et kort").
-  - In `cards-gate.ts` (used by Tasks 4 and 5): constants `CHECK_HOLD_MS = 500`, `CORRECT_MS = 600`; locals `sortEach`, `counting` (true while a counter stands; Tasks 4/5 widen it), `timers`, `later(f, ms)`, `flashes: Map<number, GuessMarkText>`, `busyUntil`, `markNow()`, `trayOrder`, `nextPick()`, `judge(card, k)`; `settle(held = -1, ms = SETTLE_MS)`.
+  - In `cards-gate.ts` (used by Tasks 4 and 5): constants `CHECK_HOLD_MS = 500`, `CORRECT_MS = 600`; locals `sortEach`, `counting` (true while a counter stands; Tasks 4/5 widen it), `timers`, `later(f, ms)`, `flashes: Map<number, GuessMarkText>`, `riding: Set<number>` (cards whose ✗ travels with them), `rideFlashes()`, `busyUntil`, `markNow()`, `trayOrder`, `nextPick()`, `judge(card, k)`; `settle(held = -1, ms = SETTLE_MS)`.
   - Test helpers added to `tests/cards-gate-tap.test.ts` (used by Tasks 4 and 5): `last(o)`, `counter(m)`, `trayOrder(g)`, `lastAt(o, g, i)`, `inBox(g, p, b)`; `open()` returns `fades: { id: string; a: number }[]`.
 
 - [ ] **Step 1: Write the failing pure test**
@@ -410,12 +465,13 @@ test("✓ n · ✗ m, in green, ink and red, all fading at the next command", ()
   expect(counterMarks(g, a, [{ at: [0, 0], text: "✗", anchor: "start" }]).texts).toHaveLength(4);
 });
 
-test("rise (today's layout): centred above the boxes, on the canvas", () => {
+test("rise (today's layout): centred under the boxes, clear of the tray and of the headline strip", () => {
   const g = cardsGeometry(two);
   const [x, y] = counterAt(g);
-  const top = Math.max(...g.binBoxes.map((b) => b.c[1] + b.h / 2));
-  expect(y).toBeGreaterThan(top);
-  expect(y).toBeLessThanOrEqual(736);
+  const bottom = Math.min(...g.binBoxes.map((b) => b.c[1] - b.h / 2));
+  const trayTop = Math.max(...g.home.map((p) => p[1] + g.h / 2));
+  expect(y + 10).toBeLessThan(bottom);
+  expect(y - 10).toBeGreaterThan(trayTop);
   const left = Math.min(...g.binBoxes.map((b) => b.c[0] - b.w / 2));
   const right = Math.max(...g.binBoxes.map((b) => b.c[0] + b.w / 2));
   expect(x).toBeCloseTo((left + right) / 2, 5);
@@ -442,11 +498,10 @@ After `CARD_FLOOR` (line 296):
 /** check: each (round 7 §3.1.6): the counter's row under the boxes (drop, side). */
 export const COUNTER_ROOM = 34;
 
-/** Where the counter stands: centred on the boxes — above them in rise, under them otherwise. */
+/** Where the counter stands: centred under the boxes (rise: in the gap over the tray — above the boxes is the headline's). */
 export function counterAt(g: CardsGeometry): Pt {
   const bs = g.binBoxes;
   const x = (Math.min(...bs.map((b) => b.c[0] - b.w / 2)) + Math.max(...bs.map((b) => b.c[0] + b.w / 2))) / 2;
-  if ((g.layout ?? "rise") === "rise") return [x, Math.min(736, Math.max(...bs.map((b) => b.c[1] + b.h / 2)) + 22)];
   return [x, Math.min(...bs.map((b) => b.c[1] - b.h / 2)) - 22];
 }
 ```
@@ -547,8 +602,15 @@ describe("check: each (round 7 §3)", () => {
     expect(last(o)!.texts.some((t) => t.text === "✓")).toBe(true);
     tap(o.gate, g.binBoxes[1 - g.truthBin[b]].c);
     expect(counter(last(o))).toEqual({ right: 1, wrong: 1 });
-    expect(last(o)!.texts.some((t) => t.text === "✗")).toBe(true);
-    await wait(1300);
+    const cross = () => last(o)!.texts.find((t) => t.text === "✗");
+    const x0 = cross()!.at[0];
+    // Mid-glide (hold 500 + about half of 600): the ✗ rides beside the card, on its way.
+    await wait(800);
+    const x1 = cross()?.at[0];
+    expect(x1).toBeDefined();
+    expect(Math.abs(x1! - x0)).toBeGreaterThan(5);
+    expect(Math.abs(x1! - (lastAt(o, g, b)[0] + g.w / 2 + 2))).toBeLessThan(1);
+    await wait(500);
     expect(inBox(g, lastAt(o, g, b), g.truthBin[b])).toBe(true);
     expect(o.fades).toContainEqual({ id: g.cards[b], a: 0.45 });
     // Nothing red left on the figure but the counter.
@@ -560,6 +622,45 @@ describe("check: each (round 7 §3)", () => {
     expect(ans.boxes.flat().sort()).toEqual([0, 1, 2]);
     // The counter stands after the answer.
     expect(counter(last(o))).toEqual({ right: 2, wrong: 1 });
+    // Every card already where the truth puts it: nothing reshuffles after (placeRight).
+    g.cards.forEach((_, i) => {
+      expect(lastAt(o, g, i)[0]).toBeCloseTo(g.truth[i][0], 0);
+      expect(lastAt(o, g, i)[1]).toBeCloseTo(g.truth[i][1], 0);
+    });
+  });
+
+  test("a tap on another tray card picks it; the next tap on a box sends that one (§3.1.5)", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    const [a, , c] = trayOrder(g);
+    tap(o.gate, g.home[c]);
+    tap(o.gate, g.binBoxes[g.truthBin[c]].c);
+    await wait(250);
+    expect(inBox(g, lastAt(o, g, c), g.truthBin[c])).toBe(true);
+    // The first tray card was never sent: still at home.
+    const pa = o.placed.filter((q) => q.id === g.cards[a]).pop();
+    expect(pa ? [pa.dx, pa.dy] : [0, 0]).toEqual([0, 0]);
+    // And the pick moves on to it.
+    tap(o.gate, g.binBoxes[g.truthBin[a]].c);
+    expect(counter(last(o))).toEqual({ right: 2, wrong: 0 });
+    o.ac.abort();
+    await o.done;
+  });
+
+  test("Tab skips the placed cards (§3.1.4)", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    const [a, b, c] = trayOrder(g);
+    tap(o.gate, g.binBoxes[g.truthBin[a]].c); // a placed; b picked
+    key("Tab"); // → c
+    key("Tab"); // → b again: a is skipped
+    key(String(g.truthBin[b] + 1));
+    await wait(250);
+    expect(inBox(g, lastAt(o, g, b), g.truthBin[b])).toBe(true);
+    const pc = o.placed.filter((q) => q.id === g.cards[c]).pop();
+    expect(pc ? [pc.dx, pc.dy] : [0, 0]).toEqual([0, 0]);
+    o.ac.abort();
+    await o.done;
   });
 
   test("a placed card stays put: pressing it is a tap on its box, never a drag", async () => {
@@ -677,7 +778,7 @@ and the session literal at line 1987 becomes `{ geometry: g, start, place, show,
 
 - [ ] **Step 7: The gate (src/ui/cards-gate.ts)**
 
-Imports: extend the model import with `allChecked, checkDrop, isPlaced, putIn`; add
+Imports: extend the model import with `allChecked, checkDrop, isPlaced, placeRight, putIn`; add
 
 ```ts
 import { CORRECTED, counterMarks } from "../cards/counter";
@@ -722,7 +823,7 @@ Replace `const needsAnswer = …` (line 86) with:
       const hintKey = deck ? "deck" : g.select ? "select" : sortEach ? "sortEach" : mode;
 ```
 
-`settle` takes a duration: its first line becomes `const settle = (held = -1, ms = SETTLE_MS): void => {` and `/ SETTLE_MS` inside it becomes `/ ms`.
+`settle` takes a duration: its first line becomes `const settle = (held = -1, ms = SETTLE_MS): void => {` and `/ SETTLE_MS` inside it becomes `/ ms`. In its `stepFrame`, after `placeRing();`, add `rideFlashes();` (a riding ✗ follows its card every frame; `rideFlashes` is declared further down, and `settle` only runs after mount, so the closure reads it initialised).
 
 After `const binAt = …` (line 207), add:
 
@@ -733,16 +834,28 @@ After `const binAt = …` (line 207), add:
       const later = (f: () => void, ms: number): void => void timers.push(window.setTimeout(() => !settled && f(), ms));
       /** Each card's ✓ or ✗ while it stands — one map, so a quick next drop never wipes the last. */
       const flashes = new Map<number, GuessMarkText>();
+      /** Cards gliding to their right box with their ✗ beside them (round 7 §3.1.3: "the ✗ goes with it"). */
+      const riding = new Set<number>();
       /** Until when a card still lands or glides: the last answers after. */
       let busyUntil = 0;
       const markNow = (): void => session.mark(counterMarks(g, arr, [...flashes.values()]));
+      /** A riding ✗ keeps beside its card, wherever the card is drawn this frame. */
+      const rideFlashes = (): void => {
+        if (riding.size === 0) return;
+        for (const c of riding) {
+          const f = flashes.get(c);
+          if (f) flashes.set(c, { ...f, at: [shown[c][0] + g.w / 2 + 2, shown[c][1]] });
+        }
+        markNow();
+      };
       /** The tray, top row first, left to right: the order cards are picked in. */
       const trayOrder = g.cards.map((_, i) => i).sort((a, b) => g.home[b][1] - g.home[a][1] || g.home[a][0] - g.home[b][0]);
       const nextPick = (): number => trayOrder.find((c) => !isPlaced(arr, c)) ?? -1;
-      /** Card dropped in box k (-1: the tray): it lands there, ✓ or ✗; a wrong one then glides to its right box, faded. */
+      /** Card dropped in box k (-1: the tray): it lands there, ✓ or ✗; a wrong one then glides to its right box, faded, its ✗ riding with it. */
       const judge = (card: number, k: number): void => {
         const { ok, arr: judged } = checkDrop(g, arr, card, k);
-        arr = putIn({ ...arr, first: judged.first }, card, k);
+        // Right: straight to its truth slot. Wrong: where it was dropped, for now.
+        arr = ok ? judged : putIn({ ...arr, first: judged.first }, card, k);
         settle();
         const at = positions(g, arr)[card];
         flashes.set(card, tick([at[0] + g.w / 2 + 2, at[1]], ok, "start", 24));
@@ -756,12 +869,17 @@ After `const binAt = …` (line 207), add:
           busyUntil = Math.max(busyUntil, now + SETTLE_MS);
         } else {
           later(() => {
-            flashes.delete(card);
-            arr = putIn(arr, card, g.truthBin[card]);
+            arr = placeRight(g, arr, card);
+            riding.add(card);
             settle(-1, CORRECT_MS);
             session.fade?.(g.cards[card], CORRECTED);
-            markNow();
           }, CHECK_HOLD_MS);
+          // Landed: the ✗ goes with the glide — nothing red is left.
+          later(() => {
+            riding.delete(card);
+            flashes.delete(card);
+            markNow();
+          }, CHECK_HOLD_MS + CORRECT_MS);
           busyUntil = Math.max(busyUntil, now + CHECK_HOLD_MS + CORRECT_MS);
         }
         focus = nextPick();
@@ -907,15 +1025,16 @@ Claude-Session: https://claude.ai/code/session_01A1vsD5SQX5gKYDo4aucaMp"
 ### Task 3: The player under `check: "each"` — score vars, nothing to reveal, faded cards and counter that survive seeks (spec §3.1.7–8, §3.3–3.4, build order 1)
 
 **Files:**
-- Modify: `src/render/player.ts` — `interface Beside` (line 147), `baseOpacity` (line 1197), new `besideDim`, `fadeBesides` (line 3091), `dropBeside` (line 2814), `cardsAsk` (lines 2062-2190); imports (line 50)
+- Modify: `src/render/player.ts` — `interface Beside` (line 147), new field `gateDim`, `baseOpacity` (line 1197), new `besideDim`, `fadeBesides` (line 3091), `dropBeside` (line 2814), `cardsAsk` (lines 1975-2190: the session's `fade`, then the reveal); imports (the `../guess/reveal` import is line 47, `gate-words` line 48 — add the new imports beside them)
 - Test: `tests/cards-check-player.test.ts` (new)
 
 **Interfaces:**
-- Consumes: `counterMarks`, `CORRECTED` (Task 2, `src/cards/counter.ts`); `Arrangement.first`, `CardsGeometry.each` (Task 1).
+- Consumes: `counterMarks`, `CORRECTED` (Task 2, `src/cards/counter.ts`); `Arrangement.first`, `fadedCards`, `checkDrop`, `CardsGeometry.each` (Task 1).
 - Produces:
   - `Beside.dim?: string[]` — card ids drawn at `CORRECTED` (0.45) while the reveal stands, `FADED` (0.35) once it has faded.
   - In `cardsAsk`: `const checked = answered && g.each === true && arrangement.first !== undefined;` (Task 6 builds on it). Under `checked`: `{store}` = first-drop right count, the beside reveal is skipped, cards glide into their truth slots (the existing `moves` glide), the counter becomes the beside's marks.
-  - `{store}.total` is set for every cards ask (`String(score.count)`).
+  - `{store}.total` is set for every cards ask with a `store` (`String(score.count)`), beside the existing `.within` / `.count` — the automatic `_answers.N` names carry only the value, `.ok` and `.secs` for every ask kind, and stay so.
+  - `Player.gateDim` — the fades an open gate made; `baseOpacity` reads it first.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1042,7 +1161,62 @@ describe("check: each in the player", () => {
     expect(ms.some((m) => m.texts.some((t) => t.text === "✓"))).toBe(true);
     expect(ms.some((m) => m.texts.some((t) => /^✓ \d+$/.test(t.text)))).toBe(false);
   });
+
+  test("a re-applied scene keeps the gate's fades while it is open (Review Focus 7)", async () => {
+    const { player } = makePlayer(sort, {});
+    let seen: number | null = null;
+    player.askGate = async (_signal, step) => {
+      (step as { cardsSession?: { fade?(id: string, a: number): void } }).cardsSession!.fade!(sort.cards[0], 0.45);
+      // What any applyScene (a resize commit) would give the card now.
+      seen = (player as unknown as { baseOpacity(id: string, s: { opacities: Record<string, number> }): number }).baseOpacity(sort.cards[0], { opacities: {} });
+      return encodeArrangement(sort, answered());
+    };
+    await player.play();
+    expect(seen).toBe(0.45);
+  });
 });
+
+// The deck and the tap-all go through the same reveal (spec §3.3–3.4).
+const deck = cardsGeometry({ id: "d", type: "cards", deck: true, bins: ["Odd", "Even"], items: [{ text: "1", bin: "Odd" }, { text: "2", bin: "Even" }, { text: "3", bin: "Odd" }, { text: "4", bin: "Even" }] } as CardsElementLike);
+const zoo = cardsGeometry({ id: "z", type: "cards", select: "Mammals", items: [{ text: "Whale", in: true }, "Shark", { text: "Bat", in: true }, "Trout"] } as CardsElementLike);
+/** Card 0 first dropped wrong (a select's in-card: missed, -1), the rest right. */
+function answeredOf(g: CardsGeometry): Arrangement {
+  let a = initialArrangement(g);
+  g.cards.forEach((_, i) => {
+    const right = g.truthBin[i];
+    const wrong = g.select ? (right === 0 ? -1 : 0) : (right + 1) % g.bins.length;
+    a = checkDrop(g, a, i, i === 0 ? wrong : right).arr;
+  });
+  return a;
+}
+
+for (const [name, g] of [["deck", deck], ["select", zoo]] as const) {
+  describe(`check: each in the player — ${name}`, () => {
+    const n = g.cards.length;
+    test("the counter is the marks; seek forward restores it and the faded card; back clears both; the next command fades them", async () => {
+      const { player, marks, opacity } = makePlayer(g, {});
+      player.askGate = async () => encodeArrangement(g, answeredOf(g));
+      await player.play();
+      expect(player.vars.get("s")).toBe(String(n - 1));
+      expect(marks.get("cards_1")!.texts.every((t) => t.opacity === FADED)).toBe(true);
+      expect(opacity.get(g.cards[0])).toBe(FADED);
+      player.renderUpTo(1);
+      expect(marks.get("cards_1") ?? null).toBeNull();
+      expect(opacity.get(g.cards[0])).toBe(1);
+      player.renderUpTo(2);
+      expect(counterText(marks.get("cards_1"))).toEqual([`✓ ${n - 1}`, "·", "✗ 1"]);
+      expect(opacity.get(g.cards[0])).toBe(0.45);
+      expect(opacity.get(g.cards[1])).toBe(1);
+    });
+
+    test("the movie: no counter, nothing faded", async () => {
+      const { player, marks, opacity } = makePlayer(g, {});
+      await player.play();
+      expect(marks.get("cards_1") ?? null).toBeNull();
+      expect([...opacity.values()].every((a) => a === 1)).toBe(true);
+    });
+  });
+}
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -1059,13 +1233,22 @@ Expected: FAIL — `{s}` reads "2 of 3", `s.total` is undefined, the marks are t
   dim?: string[];
 ```
 
-Imports: add `import { CORRECTED, counterMarks } from "../cards/counter";`.
+Imports: add `import { CORRECTED, counterMarks } from "../cards/counter";` and `fadedCards` to the `../cards/model` import.
+
+A field on `Player`, next to `besides`:
+
+```ts
+  /** check: each — the cards a gate has faded while it is still open (round 7 §3.1): a scene applied meanwhile (a resize commit) keeps them faded. */
+  private gateDim = new Map<string, number>();
+```
 
 `baseOpacity` (line 1197) becomes:
 
 ```ts
-  /** An element's own opacity at a scene: a kept tile of a faded beside reveal stays faded; a corrected card stays dimmed. */
+  /** An element's own opacity at a scene: a card the open gate faded stays so; a kept tile of a faded beside reveal stays faded; a corrected card stays dimmed. */
   private baseOpacity(id: string, scene: SceneState): number {
+    const gate = this.gateDim.get(id);
+    if (gate !== undefined) return gate;
     if (this.besideFadedShown(id)) return FADED;
     return this.besideDim(id) ?? (scene.opacities[id] ?? 1);
   }
@@ -1091,6 +1274,18 @@ Imports: add `import { CORRECTED, counterMarks } from "../cards/counter";`.
 ```
 
 - [ ] **Step 4: `cardsAsk`**
+
+Replace Task 2's one-line `fade` arrow with one that records what it does, so `baseOpacity` keeps it until the gate is gone:
+
+```ts
+    const fade = (id: string, a: number): void => {
+      if (a >= 1) this.gateDim.delete(id);
+      else this.gateDim.set(id, a);
+      this.elements.get(id)?.setOpacity?.(a);
+    };
+```
+
+and right after the `askGate` call returns (`const typed = await this.askGate!(…)`), before anything else: `this.gateDim.clear();` (from here `Beside.dim` holds the corrected cards; an abort has already put them back to 1).
 
 After `const ok = answered && score.ok;` (line 2064):
 
@@ -1126,7 +1321,8 @@ Before `this.applyKey(this.planned(index));` (line 2172):
     if (checked) {
       // The corrected cards stay faded and the counter is the marks — through
       // the commit below and a seek forward (besidesAt needs the marks).
-      const dim = g.cards.filter((_, i) => arrangement.first![i] !== g.truthBin[i]);
+      // The model's faded set (cards/model.ts fadedCards), not a second rule here.
+      const dim = fadedCards(g, arrangement).map((i) => g.cards[i]);
       this.putBeside(owner, { index, marks: null, faded: false, ...(dim.length > 0 ? { dim } : {}) });
     }
 ```
@@ -1167,7 +1363,7 @@ Claude-Session: https://claude.ai/code/session_01A1vsD5SQX5gKYDo4aucaMp"
 - Modify: `tests/cards-gate-tap.test.ts` — the deck describe (line 210)
 
 **Interfaces:**
-- Consumes (Task 2, in `cards-gate.ts`): `later`, `flashes`, `markNow`, `busyUntil`, `CHECK_HOLD_MS`, `CORRECT_MS`, `CORRECTED`, `counting`; the deck's own `fly(card, to, s1, ms)`, `FLY_MS`, `FLASH_MS`, `LAST_MS`. Model: `checkDrop`, `putIn`, `isPlaced`.
+- Consumes (Task 2, in `cards-gate.ts`): `later`, `flashes`, `riding`, `rideFlashes`, `markNow`, `busyUntil`, `CHECK_HOLD_MS`, `CORRECT_MS`, `CORRECTED`, `counting`; the deck's own `fly(card, to, s1, ms)`, `FLY_MS`, `FLASH_MS`, `LAST_MS`. Model: `checkDrop`, `putIn`, `placeRight`, `isPlaced`.
 - Consumes (test file, Task 2): `last(o)`, `counter(m)`, `lastAt(o, g, i)`, `inBox(g, p, b)`, `o.fades`.
 - Produces: `deckEach` local; `counting = sortEach || deckEach`.
 
@@ -1192,6 +1388,8 @@ In `tests/cards-gate-tap.test.ts`, the deck fixture stays; add `const deckEnd: C
     expect(inBox(g, lastAt(o, g, wrong), g.truthBin[wrong])).toBe(true);
     // Every card ends inside its right box.
     g.cards.forEach((_, i) => expect(inBox(g, lastAt(o, g, i), g.truthBin[i])).toBe(true));
+    // The ✗ went with the card: nothing red is left but the counter.
+    expect(last(o)!.texts.some((t) => t.text === "✗")).toBe(false);
   });
 ```
 
@@ -1219,8 +1417,15 @@ In `dealTo`, replace everything from `arr = { ...arr, boxes: … }` through the 
         if (deckEach) {
           // check: each — it flies to box k with ✓ or ✗; a wrong one then flies on to its right box, faded.
           const { ok, arr: judged } = checkDrop(g, arr, card, k);
-          arr = putIn({ ...arr, first: judged.first }, card, k);
-          const to = positions(g, arr)[card];
+          // Right: straight to its truth slot (placeRight). Wrong: into box k, for now.
+          const before = positions(g, arr);
+          arr = ok ? judged : putIn({ ...arr, first: judged.first }, card, k);
+          const after = positions(g, arr);
+          // A card that changes slot (one dealt later, already in that box) moves with it.
+          g.cards.forEach((_, c) => {
+            if (c !== card && isPlaced(arr, c) && (before[c][0] !== after[c][0] || before[c][1] !== after[c][1])) fly(c, after[c], 1, SETTLE_MS);
+          });
+          const to = after[card];
           fly(card, to, 1, FLY_MS);
           const now = performance.now();
           later(() => {
@@ -1235,18 +1440,23 @@ In `dealTo`, replace everything from `arr = { ...arr, boxes: … }` through the 
             busyUntil = Math.max(busyUntil, now + FLY_MS);
           } else {
             later(() => {
-              flashes.delete(card);
               const before = positions(g, arr);
-              arr = putIn(arr, card, g.truthBin[card]);
+              arr = placeRight(g, arr, card);
               const after = positions(g, arr);
-              // The cards dealt after it into that box move up a slot.
+              // The cards in either box that change slot move with it.
               g.cards.forEach((_, c) => {
                 if (c !== card && isPlaced(arr, c) && (before[c][0] !== after[c][0] || before[c][1] !== after[c][1])) fly(c, after[c], 1, SETTLE_MS);
               });
+              // Its ✗ rides along (§3.1.3) and goes when it lands.
+              riding.add(card);
               fly(card, after[card], 1, CORRECT_MS);
               session.fade?.(g.cards[card], CORRECTED);
-              markNow();
             }, FLY_MS + CHECK_HOLD_MS);
+            later(() => {
+              riding.delete(card);
+              flashes.delete(card);
+              markNow();
+            }, FLY_MS + CHECK_HOLD_MS + CORRECT_MS);
             busyUntil = Math.max(busyUntil, now + FLY_MS + CHECK_HOLD_MS + CORRECT_MS);
           }
         } else {
@@ -1273,7 +1483,11 @@ The end of `dealTo` becomes:
         else window.setTimeout(() => !settled && finish(encodeArrangement(g, arr)), FLY_MS + LAST_MS);
 ```
 
-(`later`, `flashes`, `markNow` and `busyUntil` are declared after `dealTo` in the file; `dealTo` only runs after mount, so the closure reads them initialised.)
+(`later`, `flashes`, `riding`, `markNow` and `busyUntil` are declared after `dealTo` in the file; `dealTo` only runs after mount, so the closure reads them initialised.)
+
+In `fly`'s `frame`, after the `for (const [c, f] of flights)` loop, add `rideFlashes();` — a riding ✗ follows its card on the deck's own animation too.
+
+Timing: a deck under each answers `busyUntil + LAST_MS` after the last card — up to FLY + HOLD + CORRECT + LAST ≈ 1.8 s when the last card is wrong. The existing deck tests that `await o.done` (12 cards; "a tap off the boxes") stay inside vitest's 5 s; if one does not, give that test a `{ timeout: 10000 }`, never shorten the gate's durations.
 
 In `finish`, `if (deck) session.mark(null);` becomes `if (deck && !deckEach) session.mark(null);`. Header comment, the `deck` line gets: `check: each — a wrong card then flies on to its right box, faded; a counter keeps the score`.
 
@@ -1353,6 +1567,23 @@ In `tests/cards-gate-tap.test.ts`: the select test "select: tap the cards that b
     expect(a.boxes).toEqual([[0, 2]]);
     expect(o.fades).toContainEqual({ id: z.cards[2], a: 0.45 });
     expect(counter(last(o))).toEqual({ right: 2, wrong: 2 });
+  });
+
+  test("select: Done pressed while a wrong card still glides back — it lands, then the sweep", async () => {
+    const z = cardsGeometry({ id: "z", type: "cards", select: "Mammals", items: [{ text: "Whale", in: true }, "Shark", { text: "Bat", in: true }] });
+    const o = await open(z);
+    tap(o.gate, z.home[1]); // Shark: ✗, glides back after the hold
+    await wait(600); // mid-glide
+    o.answer().click();
+    await o.done;
+    expect(lastAt(o, z, 1)[0]).toBeCloseTo(z.home[1][0], 0);
+    expect(lastAt(o, z, 1)[1]).toBeCloseTo(z.home[1][1], 0);
+    // Both missed mammals went in; all three judged.
+    expect(decodeArrangement(z, o.result()!)!.first).toEqual([-1, 0, -1]);
+    z.cards.forEach((_, i) => {
+      expect(lastAt(o, z, i)[0]).toBeCloseTo(z.truth[i][0], 0);
+      expect(lastAt(o, z, i)[1]).toBeCloseTo(z.truth[i][1], 0);
+    });
   });
 ```
 
@@ -1437,16 +1668,17 @@ After `judge` (Task 2's block), add:
         for (const c of rest) if (g.truthBin[c] < 0) arr = checkDrop(g, arr, c, -1).arr;
         markNow();
         const missed = rest.filter((c) => g.truthBin[c] >= 0);
+        // A wrong card still gliding back goes on undisturbed: the sweep starts once it has landed.
+        const start = Math.max(0, busyUntil - performance.now());
         missed.forEach((c, k) =>
           later(() => {
             arr = checkDrop(g, arr, c, -1).arr;
             settle(-1, CORRECT_MS);
             session.fade?.(g.cards[c], CORRECTED);
             markNow();
-          }, (k + 1) * SWEEP_MS),
+          }, start + (k + 1) * SWEEP_MS),
         );
-        const wait = Math.max(busyUntil - performance.now(), missed.length * SWEEP_MS + CORRECT_MS);
-        later(() => finish(encodeArrangement(g, arr)), Math.max(0, wait) + LAST_MS);
+        later(() => finish(encodeArrangement(g, arr)), start + missed.length * SWEEP_MS + CORRECT_MS + LAST_MS);
       };
 ```
 
@@ -1520,7 +1752,7 @@ import { cardsGeometry, type CardsElementLike, type CardsGeometry } from "../src
 import { encodeArrangement, positions, type Arrangement } from "../src/cards/model";
 import { reorderAt, reorderLanded, reorderSide, yoursRow } from "../src/cards/reorder";
 import type { GuessMarks } from "../src/guess/marks";
-import { YOURS } from "../src/guess/reveal";
+import { FADED, YOURS } from "../src/guess/reveal";
 import { lintCommands } from "../src/lint/lint";
 import type { Command, Spec } from "../src/spec/types";
 import type { Pt } from "../src/layout/model";
@@ -1604,6 +1836,16 @@ describe("the slide, pure", () => {
     }
   });
 
+  test("the ends (most / least) stay where they are, clear of the yours row (spec §4)", () => {
+    const g = rankOf(4, { ends: ["most", "least"] });
+    // Where cardsElements puts a row's ends (spec/cards.ts): under the first and last slot.
+    const ends = [g.slots[0], g.slots[3]].map((p) => [p[0], p[1] - g.h / 2 - 26]);
+    for (const t of yoursRow(g, { order: [3, 1, 2, 0], boxes: [] }, "yours"))
+      for (const e of ends) expect(Math.abs(t.at[1] - e[1])).toBeGreaterThan(20);
+    // Nothing but the cards is moved: the ends are not among them.
+    expect(g.cards.some((id) => /_end_\d$/.test(id))).toBe(false);
+  });
+
   test("landed: ✓ on the cards that never moved, a blue connector for each that did, no ✗", () => {
     const m = reorderLanded(rank, wrong, "yours");
     expect(m.texts.filter((t) => t.text === "✓")).toHaveLength(2);
@@ -1669,6 +1911,18 @@ describe("reorder in the player (the default for rank)", () => {
     expect(marks.get("cards_1")!.lines).toHaveLength(2);
     player.renderUpTo(1);
     expect(marks.get("cards_1") ?? null).toBeNull();
+  });
+
+  test("at the next command the yours row and the connectors fade; the ✓ on the unmoved cards stay (spec §4.5, round 6 rule)", async () => {
+    const { player, marks } = makePlayer(rank, {});
+    player.askGate = async () => encodeArrangement(rank, wrong);
+    await player.play(); // the ask, then "Next."
+    const m = marks.get("cards_1")!;
+    expect(m.lines.length).toBe(2);
+    expect(m.lines.every((l) => l.opacity === FADED)).toBe(true);
+    expect(m.texts.filter((t) => t.color === YOURS).every((t) => t.opacity === FADED)).toBe(true);
+    // Pinned on purpose: the truth's ✓ is not yours and keeps its strength.
+    expect(m.texts.filter((t) => t.text === "✓").every((t) => t.opacity === undefined)).toBe(true);
   });
 
   test("the movie slides the same way, with no marks", async () => {
@@ -1944,7 +2198,7 @@ and inside `commands.forEach`, after the existing reveal_style block:
 - [ ] **Step 7: Run the tests, re-pin, type-check**
 
 Run: `npx vitest run tests/cards-reorder.test.ts tests/cards-beside.test.ts tests/gate-words-round7.test.ts tests/ask-stage.test.ts tests/guess-lint.test.ts tests/cards.test.ts tests/cards-look.test.ts`
-Expected: PASS. Then `npx vitest run tests/prompt-size.test.ts`, re-pin both baselines ("Re-pinned UP 2026-10-02 (round 7 Task 6): ask reveal_style \"reorder\" …"), and `npx tsc --noEmit` clean. Run the whole plan/guess suite once: `npx vitest run tests/ask-plan.test.ts tests/guess-beside-player.test.ts tests/guess-keep-player.test.ts tests/tree-ask-player.test.ts` (whichever exist; `ls tests | grep -E "plan|beside|keep"`).
+Expected: PASS. A rank now takes VERDICT_MS + REORDER_MS (about 1.7 s) longer when answered, and REORDER_MS longer in a movie: a rank test that times out (ask-stage's cards rank, the cards-beside replay) gets a `{ timeout: 10000 }`; the durations stay. Then `npx vitest run tests/prompt-size.test.ts`, re-pin both baselines ("Re-pinned UP 2026-10-02 (round 7 Task 6): ask reveal_style \"reorder\" …"), and `npx tsc --noEmit` clean. Run the whole plan/guess suite once: `npx vitest run tests/ask-plan.test.ts tests/guess-beside-player.test.ts tests/guess-keep-player.test.ts tests/tree-ask-player.test.ts` (whichever exist; `ls tests | grep -E "plan|beside|keep"`).
 
 - [ ] **Step 8: Commit**
 
@@ -1974,7 +2228,10 @@ Claude-Session: https://claude.ai/code/session_01A1vsD5SQX5gKYDo4aucaMp"
 - Produces:
   - `CardsElementLike.arrange?: "row" | "column" | "drop" | "side" | "rise"` (rank reads row/column only).
   - `export function sortLayout(el: Pick<CardsElementLike, "arrange">, n: number): "drop" | "side" | "rise"` — rise when asked; side when asked and `n <= 8`; else drop.
-  - Sort, select and deck geometries carry `layout`. `el.y` under drop/side is the top of the whole block (the tray's top; a deck: the dealt card's band top); under rise it is the boxes' top, as before.
+  - Sort, select and deck geometries carry `layout`. `el.y` under drop/side is the top of the whole block (the tray's top; a deck: the dealt card's band top); under rise it is the boxes' top, as before. (No bundled example sets `y` on a sort, select or deck — checked: the only cards `y` is 372's `compare`, which keeps its own layout. The schema's `arrange` description says what `y` means under drop, so authors of other casts read it there.)
+  - `export const HEAD_ROOM_Y = 660` — by default nothing of a drop/side layout stands above it (the headline's strip, Task 10). The deck's default top under drop/side is 660 (rise keeps 720).
+  - side with 4 boxes: the tray takes a quarter of the width (a third otherwise), so the boxes' cards keep w ≥ 90 and 20-unit text.
+  - rise deck under check each: the dealt card keeps `COUNTER_ROOM` clear under the boxes for the counter.
   - Lint rule `"cards-side"`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -1986,7 +2243,7 @@ Create `tests/cards-arrange.test.ts`:
 // the boxes below), side (a column of cards on the left), rise (as before) —
 // every layout on the canvas, the counter's row included.
 import { describe, expect, test } from "vitest";
-import { cardsGeometry, counterAt, sortLayout, type CardsElementLike, type CardsGeometry } from "../src/spec/cards";
+import { HEAD_ROOM_Y, cardsGeometry, counterAt, sortLayout, type CardsElementLike, type CardsGeometry } from "../src/spec/cards";
 import { lintCommands } from "../src/lint/lint";
 import type { Spec } from "../src/spec/types";
 
@@ -2006,15 +2263,28 @@ const allOnCanvas = (g: CardsGeometry) => {
   for (const p of [...g.home, ...g.truth]) expect(onCanvas(p as P, g.w, g.h)).toBe(true);
   expect(counterAt(g)[1] - 12).toBeGreaterThanOrEqual(0);
 };
+/** The highest anything reaches: the tray, or the dealt card at its size. */
+const topOf = (g: CardsGeometry) => Math.max(...g.home.map((p) => p[1] + (g.h * (g.deck ? g.deckScale ?? 1 : 1)) / 2), ...g.binBoxes.map((b) => b.c[1] + b.h / 2));
+/** The counter (20 high) clear of every card where it can stand (tray, dealt card, truth slots). */
+const counterClear = (g: CardsGeometry) => {
+  const [cx, cy] = counterAt(g);
+  const s = g.deck ? g.deckScale ?? 1 : 1;
+  for (const p of g.home) expect(Math.abs(p[1] - cy) >= (g.h * s) / 2 + 10 || Math.abs(p[0] - cx) >= (g.w * s) / 2 + 40).toBe(true);
+  for (const p of g.truth) expect(Math.abs(p[1] - cy) >= g.h / 2 + 10 || Math.abs(p[0] - cx) >= g.w / 2 + 40).toBe(true);
+};
 
 describe("drop (the default): the cards above the boxes", () => {
+  // Spec §11: 2–4 boxes × 4–14 cards.
   for (const bins of BINS)
-    for (let n = 4; n <= 8; n++) {
+    for (let n = 4; n <= 14; n++) {
       test(`sort: ${n} cards, ${bins.length} boxes`, () => {
         const g = cardsGeometry({ id: "s", type: "cards", bins, items: items(n, bins) } as CardsElementLike);
         expect(g.layout).toBe("drop");
         expect(Math.min(...g.home.map((p) => p[1] - g.h / 2))).toBeGreaterThan(boxTop(g));
         allOnCanvas(g);
+        counterClear(g);
+        // The headline's strip is left free (Review Focus 6).
+        expect(topOf(g)).toBeLessThanOrEqual(HEAD_ROOM_Y + 0.5);
         for (let b = 0; b < bins.length; b++) for (let j = 0; j < n; j++) expect(inside(g, b, g.binSlot(b, j, n) as P)).toBe(true);
       });
     }
@@ -2025,28 +2295,51 @@ describe("drop (the default): the cards above the boxes", () => {
         const s = g.deckScale!;
         const [, cy] = g.home[0];
         expect(cy - (g.h * s) / 2).toBeGreaterThan(boxTop(g));
-        expect(cy + (g.h * s) / 2).toBeLessThanOrEqual(750);
+        expect(topOf(g)).toBeLessThanOrEqual(HEAD_ROOM_Y + 0.5);
         allOnCanvas(g);
+        counterClear(g);
       });
     }
-  test("select: the cards above the one box", () => {
-    const g = cardsGeometry({ id: "z", type: "cards", select: "Mammals", items: [{ text: "Whale", in: true }, "Shark", { text: "Bat", in: true }, "Trout", "Eel", "Crab"] } as CardsElementLike);
-    expect(g.layout).toBe("drop");
-    expect(Math.min(...g.home.map((p) => p[1] - g.h / 2))).toBeGreaterThan(boxTop(g));
+  for (const n of [4, 6, 8, 10, 14])
+    test(`select: ${n} cards above the one box`, () => {
+      const g = cardsGeometry({ id: "z", type: "cards", select: "Mammals", items: Array.from({ length: n }, (_, i) => (i % 2 ? `Fish ${i}` : { text: `Mammal ${i}`, in: true })) } as CardsElementLike);
+      expect(g.layout).toBe("drop");
+      expect(Math.min(...g.home.map((p) => p[1] - g.h / 2))).toBeGreaterThan(boxTop(g));
+      expect(topOf(g)).toBeLessThanOrEqual(HEAD_ROOM_Y + 0.5);
+      allOnCanvas(g);
+      counterClear(g);
+      for (let j = 0; j < Math.ceil(n / 2); j++) expect(inside(g, 0, g.binSlot(0, j, n) as P)).toBe(true);
+    });
+  test("an explicit y is the top of the whole block (the tray), not the boxes' top", () => {
+    const g = cardsGeometry({ id: "s", type: "cards", y: 600, bins: ["A", "B"], items: items(6, ["A", "B"]) } as CardsElementLike);
+    expect(Math.max(...g.home.map((p) => p[1] + g.h / 2))).toBeCloseTo(600, 5);
     allOnCanvas(g);
   });
 });
 
 describe("side: the cards a column on the left, the boxes on the right", () => {
   for (const bins of BINS)
-    for (const n of [4, 8]) {
+    for (let n = 4; n <= 8; n++) {
       test(`sort: ${n} cards, ${bins.length} boxes`, () => {
         const g = cardsGeometry({ id: "s", type: "cards", arrange: "side", bins, items: items(n, bins) } as CardsElementLike);
         expect(g.layout).toBe("side");
         expect(Math.max(...g.home.map((p) => p[0] + g.w / 2))).toBeLessThan(boxLeft(g));
         allOnCanvas(g);
+        counterClear(g);
+        expect(topOf(g)).toBeLessThanOrEqual(HEAD_ROOM_Y + 0.5);
+        // Readable on a phone: the cards never narrow to the 16-unit text (4 boxes: the tray takes a quarter).
+        expect(g.w).toBeGreaterThanOrEqual(90);
+        expect(g.font ?? 20).toBeGreaterThanOrEqual(18);
       });
     }
+  for (const n of [4, 6, 8])
+    test(`select: ${n} cards in a column, the box on the right`, () => {
+      const g = cardsGeometry({ id: "z", type: "cards", select: "Mammals", arrange: "side", items: Array.from({ length: n }, (_, i) => (i % 2 ? `Fish ${i}` : { text: `Mammal ${i}`, in: true })) } as CardsElementLike);
+      expect(g.layout).toBe("side");
+      expect(Math.max(...g.home.map((p) => p[0] + g.w / 2))).toBeLessThan(boxLeft(g));
+      allOnCanvas(g);
+      counterClear(g);
+    });
   test("a deck of 8: the dealt card on the left of the boxes", () => {
     const g = cardsGeometry({ id: "d", type: "cards", deck: true, arrange: "side", bins: ["A", "B"], items: items(8, ["A", "B"]) } as CardsElementLike);
     expect(g.layout).toBe("side");
@@ -2063,12 +2356,19 @@ describe("side: the cards a column on the left, the boxes on the right", () => {
 });
 
 describe("rise: the boxes on top, as before", () => {
-  test("sort: the boxes' top at 660, the cards below them", () => {
+  test("sort: the boxes' top at 660, the cards below them, the counter between", () => {
     const g = cardsGeometry({ id: "s", type: "cards", arrange: "rise", bins: ["A", "B"], items: items(6, ["A", "B"]) } as CardsElementLike);
     expect(g.layout).toBe("rise");
     expect(boxTop(g)).toBeCloseTo(660, 5);
     expect(Math.max(...g.home.map((p) => p[1] + g.h / 2))).toBeLessThan(boxBottom(g));
+    counterClear(g);
   });
+  for (const n of [4, 12, 30])
+    test(`deck of ${n}: the counter clear of the dealt card under the boxes`, () => {
+      const g = cardsGeometry({ id: "d", type: "cards", deck: true, arrange: "rise", bins: ["A", "B"], items: items(n, ["A", "B"]) } as CardsElementLike);
+      allOnCanvas(g);
+      counterClear(g);
+    });
   test("rank keeps row and column", () => {
     const col = cardsGeometry({ id: "r", type: "cards", arrange: "column", items: ["A", "B", "C"] } as CardsElementLike);
     expect(col.slots[0][0]).toBeCloseTo(col.slots[1][0], 5);
@@ -2080,9 +2380,9 @@ describe("rise: the boxes on top, as before", () => {
 `tests/cards-counter.test.ts`: the second test becomes the rise case and a drop case is added:
 
 ```ts
-test("rise: centred above the boxes, on the canvas", () => {
+test("rise (today's layout): centred under the boxes, clear of the tray and of the headline strip", () => {
   const g = cardsGeometry({ ...two, arrange: "rise" });
-  // (body unchanged)
+  // (the rest of the body unchanged)
 });
 
 test("drop (the default): centred under the boxes, above the floor", () => {
@@ -2131,6 +2431,9 @@ Expected: FAIL — `sortLayout` is not exported, `layout` is undefined, boxes ar
 After `counterAt`:
 
 ```ts
+/** sort, select, deck under drop / side (round 7 §5, §8.1): nothing stands above this by default — the top strip is the headline's. */
+export const HEAD_ROOM_Y = 660;
+
 /** sort, select, deck (round 7 §5): where the cards stand against the boxes — drop unless asked; side only up to 8 cards. */
 export function sortLayout(el: Pick<CardsElementLike, "arrange">, n: number): "drop" | "side" | "rise" {
   if (el.arrange === "rise") return "rise";
@@ -2150,7 +2453,7 @@ export function sortLayout(el: Pick<CardsElementLike, "arrange">, n: number): "d
 `src/spec/schema.ts:634`:
 
 ```ts
-    arrange: { type: "string", enum: ["row", "column", "drop", "side", "rise"], description: "cards: rank — a row (default) or a column (longer names); sort, select, deck — drop (default: the cards above the boxes), side (the cards a column on the left, the boxes right; up to 8 cards) or rise (the boxes above the cards)." },
+    arrange: { type: "string", enum: ["row", "column", "drop", "side", "rise"], description: "cards: rank — a row (default) or a column (longer names); sort, select, deck — drop (default: the cards above the boxes; y is the top of the cards), side (the cards a column on the left, the boxes right; up to 8 cards) or rise (the boxes above the cards; y is the boxes' top)." },
 ```
 
 - [ ] **Step 4: Select and sort**
@@ -2208,12 +2511,14 @@ Replace the sort branch (from `// Sort: the boxes across the top…` to its `ret
   const layout = sortLayout(el, n);
   const side = layout === "side";
   const k = bins.length;
-  const bx0 = side ? x0 + width / 3 + GAP : x0;
+  // side: the tray takes a third — a quarter with 4 boxes, so their cards keep 20-unit text.
+  const trayW = k >= 4 ? width / 4 : width / 3;
+  const bx0 = side ? x0 + trayW + GAP : x0;
   const bWidth = x1 - bx0;
   const binW = bWidth / k - 2 * GAP;
   const perBin = bins.map((_, b) => truthBin.filter((t) => t === b).length);
   const perRow = side ? 1 : n > 5 ? Math.ceil(n / 2) : n;
-  const slotW = side ? width / 3 : width / perRow;
+  const slotW = side ? trayW : width / perRow;
   let w = Math.min(180, slotW - GAP, binW - 20);
   // Any box may get every card (final fix wave E): its grid holds all n in
   // the old number of rows — more columns (the cards narrower, never under
@@ -2240,7 +2545,7 @@ Replace the sort branch (from `// Sort: the boxes across the top…` to its `ret
   const binBoxes: CardBox[] = bins.map((_, b) => ({ c: [bx0 + (bWidth / k) * (b + 0.5), boxTop - binH / 2] as Pt, w: binW, h: binH }));
   const trayTop = layout === "rise" ? topY - binH - 40 : topY;
   const tray: Pt[] = items.map((_, s) =>
-    (side ? [x0 + width / 6, trayTop - ch / 2 - s * (ch + GAP)] : [x0 + slotW * ((s % perRow) + 0.5), trayTop - ch / 2 - Math.floor(s / perRow) * (ch + GAP)]) as Pt,
+    (side ? [x0 + trayW / 2, trayTop - ch / 2 - s * (ch + GAP)] : [x0 + slotW * ((s % perRow) + 0.5), trayTop - ch / 2 - Math.floor(s / perRow) * (ch + GAP)]) as Pt,
   );
   const home: Pt[] = new Array(n);
   perm.forEach((card, s) => (home[card] = tray[s]));
@@ -2275,7 +2580,8 @@ The call (line 456): `if (deck) return deckGeometry(el, base, items.map((it) => 
   const bx0 = side ? x0 + width / 3 + GAP : x0;
   const bWidth = x0 + width - bx0;
   const binW = bWidth / k - 2 * GAP;
-  const topY = isNum(el.y) ? el.y : 720;
+  // drop / side: the dealt card stays under the headline's strip (HEAD_ROOM_Y); rise: as before.
+  const topY = isNum(el.y) ? el.y : layout === "rise" ? 720 : HEAD_ROOM_Y;
   const h0 = icons ? CARD_H : 32;
   const PAD = 8, GX = 8, GY = 6, TITLE = 40;
   // The counter's row under the boxes (drop, side).
@@ -2308,10 +2614,12 @@ The call (line 456): `if (deck) return deckGeometry(el, base, items.map((it) => 
   let cx: number;
   let cy: number;
   if (layout === "rise") {
-    deckScale = Math.max(1, Math.min(600 / w, (icons ? 160 : 110) / h, (boxBottom - 40) / h));
+    // check: each — the counter stands just under the boxes: the dealt card keeps clear of it.
+    const under = 24 + (base.each ? COUNTER_ROOM : 0);
+    deckScale = Math.max(1, Math.min(600 / w, (icons ? 160 : 110) / h, (boxBottom - 16 - under) / h));
     const bigH = h * deckScale;
     cx = x0 + width / 2;
-    cy = Math.max(bigH / 2 + 12, Math.min(boxBottom - bigH / 2 - 24, boxBottom / 2));
+    cy = Math.max(bigH / 2 + 12, Math.min(boxBottom - bigH / 2 - under, boxBottom / 2));
   } else if (layout === "drop") {
     // Over the boxes: the dealt card flies down into one.
     deckScale = Math.max(1, Math.min(600 / w, (icons ? 160 : 110) / h, (topY - binTop - 40) / h));
@@ -2330,6 +2638,8 @@ The call (line 456): `if (deck) return deckGeometry(el, base, items.map((it) => 
 ```
 
 and the `return` adds `layout`: `return { ...base, cards, texts, truthBin, bins, w, h, home, slots: home.slice(), binBoxes, binSlot, truth, deck: true, deal, deckScale, font, layout };`.
+
+Run the deck's size floors now, before going on — the drop band over the boxes is smaller than rise's: `npx vitest run tests/cards-box-capacity.test.ts tests/cards-faster-sort.test.ts tests/cards-arrange.test.ts`. If a floor fails (the dealt card under 240 wide, or a box's text under 26 at deckScale), lower the dealt card's height cap (`icons ? 160 : 110` → `140 : 100`) under drop only; never raise `HEAD_ROOM_Y`.
 
 - [ ] **Step 6: The unrouted line, the lint, the examples**
 
@@ -2363,7 +2673,7 @@ and in `lintFeedback` after the deck-text loop:
 Then run the bundled examples: `npx vitest run tests/examples.test.ts tests/cards-look.test.ts tests/round6-prompt.test.ts`. If an example's layout lint now fails because of the drop layout (the one with explicit geometry is index 386 "The deadliest animal", cards `kind` with `x: 485, width: 505`), give that cards element `arrange: "rise"`:
 
 ```bash
-node -e 'const fs=require("fs");const p="src/examples.json";const e=JSON.parse(fs.readFileSync(p,"utf8"));const el=e[386].spec.elements.find(x=>x.id==="kind");el.arrange="rise";fs.writeFileSync(p,JSON.stringify(e,null,2)+"\n")'
+node -e 'const fs=require("fs");const p="src/examples.json";const e=JSON.parse(fs.readFileSync(p,"utf8"));const ex=(i,t)=>{if(e[i].spec.title!==t)throw new Error(`examples[${i}] is "${e[i].spec.title}", not "${t}"`);return e[i].spec};const el=ex(386,"The deadliest animal").elements.find(x=>x.id==="kind");el.arrange="rise";fs.writeFileSync(p,JSON.stringify(e,null,2)+"\n")'
 ```
 
 (and likewise for any other example the run names), then re-run.
@@ -2391,7 +2701,7 @@ Claude-Session: https://claude.ai/code/session_01A1vsD5SQX5gKYDo4aucaMp"
 **Files:**
 - Create: `src/scenes/bar-colors.ts`
 - Modify: `src/scenes/kit.ts` — `KIT_VERSION` 13 (line 45), `SceneKit.barColorsFor`, `kit.barColorsFor`
-- Modify: `src/scenes/packs/data.yaml` — bar_chart `kit: 13` (line 8), param `bar_colors`, the layout body (after `const m = series.length;` and line 313)
+- Modify: `src/scenes/packs/data.yaml` — bar_chart `kit: 11` → `kit: 13` (line 8; the pack declares the lowest kit it needs, so it jumps from 11), param `bar_colors`, the layout body (after `const m = series.length;` and line 313)
 - Modify: `src/spec/expand.ts` — new `markBarGuess`, applied last in `expandSpec`
 - Modify: `tests/scene-kit.test.ts:166-167`, `tests/prompt-size.test.ts`
 - Test: `tests/bar-colors.test.ts` (new)
@@ -2416,6 +2726,7 @@ import { layoutSpec } from "../src/layout/layout";
 import { expandSpec } from "../src/spec/expand";
 import { COLORS, flattenDrawables, type AreaDrawable } from "../src/layout/model";
 import { barColorsFor } from "../src/scenes/bar-colors";
+import { YOURS } from "../src/guess/reveal";
 import type { Spec } from "../src/spec/types";
 
 beforeAll(() => {
@@ -2469,10 +2780,37 @@ describe("the chart", () => {
     expect(fill(l, "bar_2__f0")).toBe(S[0]);
     expect(fill(l, "bar_2__f1")).toBe(S[1]);
   });
+  test("stacked series keep one colour per series", () => {
+    const l = layoutSpec(chart({ labels: ["Shark", "Dog"], stacked: true, series: [{ name: "x", values: [1, 2] }, { name: "y", values: [3, 4] }] }));
+    expect(fill(l, "bar_1__f0")).toBe(S[0]);
+    expect(fill(l, "bar_2__f0")).toBe(S[0]);
+    expect(fill(l, "bar_2__f1")).toBe(S[1]);
+  });
   test("a guess on the chart skips the blue next to yours", () => {
     const spec = expandSpec(chart({ labels: ["Shark", "Dog", "Snake"], values: [1, 2, 3] }, [{ ask: { question: "How many people does the dog kill each year? Drag its bar.", on: "bar_2" } }]));
     expect(spec.params!.bar_guess).toBe(true);
     expect(fills(spec, 3)).toEqual([S[0], S[2], S[3]]);
+  });
+  test("the beside reveal's true half is drawn in the bar's own colour (spec §7)", () => {
+    // besideParams (guess/reveal.ts) halves the guessed bar: beside_bars, 0-based.
+    const spec = expandSpec(chart({ labels: ["Shark", "Dog", "Snake"], values: [1, 2, 3], beside_bars: [1] }, [{ ask: { question: "How many people does the dog kill each year? Drag its bar.", on: "bar_2" } }]));
+    expect(fills(spec, 3)).toEqual([S[0], S[2], S[3]]);
+  });
+});
+
+describe("blue yours beside a blue-ish bar (spec §7: check, and skip that colour while a guess is on)", () => {
+  /** Hue in degrees of #rrggbb. */
+  const hue = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (d === 0) return 0;
+    const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return (h * 60 + 360) % 360;
+  };
+  const gap = (a: string, b: string) => Math.min(Math.abs(hue(a) - hue(b)), 360 - Math.abs(hue(a) - hue(b)));
+  test("series[1] is the only series colour within 30° of yours — the one the guess cycle skips", () => {
+    // If the palette changes, this fails: re-decide which colour to skip in data.yaml.
+    expect(S.map((c) => gap(c, YOURS) < 30)).toEqual(S.map((_, k) => k === 1));
   });
 });
 ```
@@ -2614,9 +2952,9 @@ Claude-Session: https://claude.ai/code/session_01A1vsD5SQX5gKYDo4aucaMp"
 - Modify: `src/scenes/compile.ts:124-162` — `validateDrawableNode` accepts `image`
 - Modify: `src/spec/icon-data.ts` — `iconSlots` (line 212) reads bar_chart `params.icons`; `fillIconDataInPlace` (line 265) creates hosts; `hoistIcons` (line 298) drops an emptied `icon_data`
 - Modify: `src/render/icon.ts` — `resolveIcons` (line 337) resolves bar icons
-- Modify: `src/llm/hoist.ts` — `stripStrokesForModel` (line 224) drops `params.icon_data`
-- Modify: `src/layout/layout.ts` — after the template block (line ~245) warns on a keyword with no data; `src/layout/tier2.ts:1590` exports `noIconWarning`
-- Modify: `src/scenes/packs/data.yaml` — bar_chart `kit: 14`, params `icons`, `icon_look`, `icon_data`, `element_ids.bar_1`, layout body, a `lint: |` hook
+- Modify: `src/llm/hoist.ts` — `stripStrokesForModel` (starts at line 225) drops `params.icon_data` — BEFORE its early `return spec` (line 227), or a spec whose only blob is `params.icon_data` is never stripped
+- Modify: `src/layout/layout.ts` — in the template block, right after `drawables.push(...sceneLayout.drawables);` (line 281; line 245 is the `scene.lint` loop), warns on a keyword with no data; `src/layout/tier2.ts:1590` exports `noIconWarning`
+- Modify: `src/scenes/packs/data.yaml` — bar_chart `kit: 14`, params `icons`, `icon_look`, `icon_data` (in the schema with `x-translate: false`: a param string the schema does not cover counts as text for translation — `src/spec/i18n.ts` `paramIsText`), `element_ids.bar_1`, layout body, a `lint: |` hook
 - Modify: `tests/scene-kit.test.ts`, `tests/spec-i18n.test.ts`, `tests/prompt-size.test.ts`
 - Test: `tests/bar-icons.test.ts` (new)
 
@@ -2678,6 +3016,24 @@ describe("icons under the bars", () => {
   test("a keyword missing from the cache is named in a warning (Review Focus 5)", () => {
     const l = layoutSpec(expandSpec(chart({ ...params, icons: ["shark", "zzqxblorp", "snake"] })));
     expect(l.warnings.some((w) => /zzqxblorp/.test(w))).toBe(true);
+  });
+
+  test("every keyword missing (no icon_data is made at all): each is still named", () => {
+    const spec = expandSpec(chart({ ...params, icons: ["zzqxblorp", "qqvwmph", null] }));
+    expect(spec.params!.icon_data).toBeUndefined();
+    const l = layoutSpec(spec);
+    expect(l.warnings.some((w) => /zzqxblorp/.test(w))).toBe(true);
+    expect(l.warnings.some((w) => /qqvwmph/.test(w))).toBe(true);
+  });
+
+  test("the icon keeps its id and its place through a re-layout at new values (a staged chart, animate)", () => {
+    const a = layoutSpec(expandSpec(chart(params)));
+    const b = layoutSpec(expandSpec(chart({ ...params, values: [5, 10, 20] })));
+    const pa = find(a, "bar_2__icon__pic") as ImageDrawable;
+    const pb = find(b, "bar_2__icon__pic") as ImageDrawable;
+    expect(pb).toBeDefined();
+    expect(pb.pos).toEqual(pa.pos);
+    expect(pb.href).toBe(pa.href);
   });
 
   test("more than 12 bars: no icons, and the template lint says so", () => {
@@ -2916,10 +3272,12 @@ lint: |
 `src/layout/tier2.ts:1590`: `export function noIconWarning(…)`. `src/layout/layout.ts`: import `noIconWarning` from `./tier2` and `iconAsk, isIconData` from `../spec/icon-data`; inside the template `try`, after `drawables.push(...sceneLayout.drawables);`:
 
 ```ts
-        // A bar's icon keyword with no artwork (round 7 §6): named, as a node's is.
+        // A bar's icon keyword with no artwork (round 7 §6): named, as a node's
+        // is — also when NONE of the keywords resolved (withIconData then makes
+        // no icon_data at all).
         const bp = spec.params as Record<string, unknown> | undefined;
-        if (spec.template === "bar_chart" && bp && Array.isArray(bp.icons) && Array.isArray(bp.icon_data) && sceneLayout.order.filter((o) => /^bar_\d+$/.test(o)).length <= 12) {
-          const data = bp.icon_data as unknown[];
+        if (spec.template === "bar_chart" && bp && Array.isArray(bp.icons) && sceneLayout.order.filter((o) => /^bar_\d+$/.test(o)).length <= 12) {
+          const data = (Array.isArray(bp.icon_data) ? bp.icon_data : []) as unknown[];
           (bp.icons as unknown[]).forEach((k, i) => {
             const ask = iconAsk(k);
             const host = data[i] as { strokes?: unknown } | undefined;
@@ -2928,7 +3286,7 @@ lint: |
         }
 ```
 
-(`icon_data` exists once the icons have been filled — by `withIconData` in `expandSpec` or the resolver; a bare layout with keywords only warns nothing, which keeps the "bare" test above quiet.)
+(A node's icon warns whenever its rings are missing (tier2.ts:1610); a bar's does the same — with keywords and no data, filled or not. The "bare" test above compares positions only, so its warnings do not matter.)
 
 - [ ] **Step 6: The i18n case**
 
@@ -2945,7 +3303,7 @@ lint: |
 - [ ] **Step 7: Run, re-pin, type-check**
 
 Run: `npx vitest run tests/bar-icons.test.ts tests/spec-i18n.test.ts tests/scene-kit.test.ts tests/data-pack.test.ts tests/template-compile.test.ts tests/icon-keywords.test.ts tests/icon-stale.test.ts tests/cards-look.test.ts tests/examples.test.ts tests/bar-colors.test.ts`
-Expected: PASS. Re-pin `tests/prompt-size.test.ts` ("round 7 Task 9: bar_chart icons, icon_look, icon_data"), check `tests/pack-defaults.test.ts` (one catalog entry under 16,000 chars) passes, `npx tsc --noEmit` clean.
+Expected: PASS. Then the paths an image child of a template group now travels — the staged/animate tweens, `box:` moves, highlight and erase: `npx vitest run tests/animate.test.ts tests/animate-fills.test.ts tests/box-animate.test.ts tests/highlight-part.test.ts tests/highlight-per-target.test.ts tests/highlight-emphasis.test.ts` → PASS. Re-pin `tests/prompt-size.test.ts` ("round 7 Task 9: bar_chart icons, icon_look, icon_data"), run `tests/pack-defaults.test.ts` (one catalog entry under 16,000 chars) — if bar_chart's entry is over, shorten the three new descriptions (icon_data's to "Machine-written — never write it."), never raise the cap — and `npx tsc --noEmit` clean.
 
 - [ ] **Step 8: Commit**
 
@@ -2964,15 +3322,20 @@ Claude-Session: https://claude.ai/code/session_01A1vsD5SQX5gKYDo4aucaMp"
 - Modify: `src/ui/gate-dock.ts` — new `GateHead`, `mountGateHead`; `mountGateDock` takes an optional `head`
 - Modify: `src/ui/guess-gate.ts:312-326`, `src/ui/cards-gate.ts` (docked list, Skip, mount), `src/ui/formula-gate.ts:67,340,346`, `src/ui/tree-gate.ts:87,332,338`, `src/ui/choose-gate.ts:70,195,200`
 - Modify: `src/render/player.ts` — the gate calls at lines ~1778, 1987, 2237, 2353, 2578 pass the question with its `{vars}` filled
-- Modify: `src/styles.css` — headline rules, the title-card hide, delete the dead `.cs-guessgate .cs-figgate-hint` (lines 1782-1787) and `.cs-guessgate .cs-figgate-skip` (lines 1928-1933) rules
+- Modify: `src/styles.css` — headline rules, the title-card hide, the phone rule that puts the drawing under the headline, delete the dead `.cs-guessgate .cs-figgate-hint` (lines 1782-1787) and `.cs-guessgate .cs-figgate-skip` (lines 1928-1933) rules
+- Modify: `tests/cards-gate-tap.test.ts`, `tests/cards-check-player.test.ts` (behaviour of the headline and the filled question)
 - Test: `tests/gate-headline.test.ts` (new)
+
+A title card's heading is the text leaf `card_<n>_title` over the path `card_<n>_line` (`src/spec/card.ts:52-53`); the CSS hide matches those `data-leaf-id`s. A sort box's title is `<cards id>_bin_<k>_title` (`src/spec/cards.ts:655-659`) and never starts with `card_` unless an author names a cards element `card_…` — the browser check (Task 15 Step 5) confirms the heading hides and the box titles stay.
 
 **Interfaces:**
 - Consumes: `AskGateStep.question` (`src/ui/controls.ts:235`); each gate's existing `hint` span (class `cs-figgate-hint`).
 - Produces:
   - `export interface GateHead { question: string; how: HTMLElement }`
   - `export function mountGateHead(stage: HTMLElement, head: GateHead): { relayout(): void; dispose(): void } | null` — null (and nothing mounted) for an empty question. Mounts `div.cs-gatehead` on the STAGE (not the gate: it fades after the gate is removed) holding `div.cs-gatehead-q` and the how element (which gains `cs-gatehead-how`, loses `cs-waitgate-pill`, keeps `cs-figgate-hint`); adds `cs-headline` to the stage; `dispose()` removes the class, adds `cs-gatehead-out`, removes the node after 300 ms. A new mount removes any `.cs-gatehead` still fading.
-  - `mountGateDock(stage, gate, items, onLayout, head?: GateHead): GateDock` — with a head and a question, the how line is in the headline and the bar holds only `items`; with an empty question the how line is the bar's first item (as before).
+  - `mountGateDock(stage, gate, items, onLayout, head?: GateHead): GateDock` — with a head and a question, the how line is in the headline and the bar holds only `items`; with an empty question the how line is the bar's first item (as before). A bar with nothing in it (a required choose: no Skip, no Answer) is not shown (`hidden`).
+  - `dockShrink(m)` takes an optional `headH`: with a caption below or in a strip (a phone), the drawing gives up the headline's height too and stands under it (`--cs-head-h`), so the headline never lies on the figure there. With an overlay caption (desktop) the headline stands over the figure's top strip, which the layouts leave free (`HEAD_ROOM_Y`, Task 7).
+  - `mountGateHead(…).height(): number` — the headline's height in px (0 when gone).
   - Gate bars list Skip first, then Answer (or Done).
 
 - [ ] **Step 1: Write the failing test**
@@ -3079,6 +3442,33 @@ describe("the headline", () => {
     expect(m.stage.classList.contains("cs-headline")).toBe(false);
   });
 
+  test("a phone (caption below): the drawing gives up the headline's height and stands under it", async () => {
+    const { dockShrink } = await import("../src/ui/gate-dock");
+    expect(dockShrink({ mode: "below", stageH: 700, svgH: 500, captionH: 100, dockH: 50, headH: 60 })).toBe(10);
+    expect(dockShrink({ mode: "overlay", stageH: 700, svgH: 500, captionH: 100, dockH: 50, headH: 60 })).toBe(0);
+    const stage = new El("div");
+    stage.classList.add("cs-caption-below");
+    const props: Record<string, string> = {};
+    stage.style.setProperty = (k: string, v: string) => void (props[k] = v);
+    const m = await mount(Q, stage);
+    const [head] = m.heads();
+    expect(head.style.top).toBe("0px");
+    expect(props["--cs-head-h"]).toBe(`${head.offsetHeight + 6}px`);
+    m.dock.dispose();
+  });
+
+  test("a bar with no buttons (a required choose) is not shown", async () => {
+    const { mountGateDock } = await import("../src/ui/gate-dock");
+    const { h } = await import("../src/ui/dom");
+    const stage = new El("div");
+    const gate = new El("div");
+    stage.appendChild(gate);
+    const how = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Tap one") as unknown as El;
+    mountGateDock(stage as unknown as HTMLElement, gate as unknown as HTMLElement, [], () => {}, { question: Q, how: how as unknown as HTMLElement });
+    const bar = gate.children.find((c) => c.className === "cs-gatedock")! as unknown as { hidden?: boolean };
+    expect(bar.hidden).toBe(true);
+  });
+
   test("a new question takes down a headline still fading", async () => {
     const a = await mount(Q);
     a.dock.dispose();
@@ -3091,8 +3481,11 @@ describe("the headline", () => {
 describe("every docked gate", () => {
   for (const f of ["guess-gate", "cards-gate", "choose-gate", "formula-gate", "tree-gate"]) {
     test(`${f}: the question goes to the headline; Skip comes first in the bar`, () => {
+      // A light check of the wiring; the behaviour is tested in the gates' own
+      // fake-DOM tests (cards-gate-tap: the headline shows the step's question)
+      // and in the player (the question arrives with its {vars} filled).
       const src = readFileSync(new URL(`../src/ui/${f}.ts`, import.meta.url), "utf8");
-      expect(src).toMatch(/mountGateDock\([^;]*\{ question: step\.question, how: hint \}\)/);
+      expect(src).toMatch(/mountGateDock\([^;]*question:/);
       expect(src).not.toMatch(/docked\.push\(skip\)/);
     });
   }
@@ -3107,10 +3500,41 @@ describe("every docked gate", () => {
 });
 ```
 
+Behaviour, not only wiring — in `tests/cards-gate-tap.test.ts` (its `open(g, extra)` passes `question: "Sort them"` unless `extra` says otherwise) add:
+
+```ts
+test("the step's question stands as the headline; the hint is its how line (round 7 §8.1)", async () => {
+  const q = "Which box does each card belong in? Sort every card.";
+  const o = await open(cardsGeometry(two), { question: q });
+  expect(o.stage.find("cs-gatehead-q")!.textContent).toBe(q);
+  expect(o.stage.find("cs-gatehead")!.textContent).toContain("Tap a box, or drag a card");
+  o.ac.abort();
+  await o.done;
+});
+```
+
+(if the file's fake `find` matches one class only, look the headline up by `cs-gatehead-q`), and in `tests/cards-check-player.test.ts`:
+
+```ts
+test("the gate gets the question with its {vars} filled (round 7 §8.1)", async () => {
+  const { player } = makePlayer(sort, { question: "Where does each of {who}'s numbers go? Sort every card." });
+  player.vars.set("who", "Ola");
+  let asked = "";
+  player.askGate = async (_signal, step) => {
+    asked = step.question;
+    return encodeArrangement(sort, answered());
+  };
+  await player.play();
+  expect(asked).toBe("Where does each of Ola's numbers go? Sort every card.");
+});
+```
+
+(`makePlayer`'s `ask` spreads over the default question, so the override wins.)
+
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `npx vitest run tests/gate-headline.test.ts`
-Expected: FAIL — no `.cs-gatehead`; the how line is not moved; the source checks fail.
+Run: `npx vitest run tests/gate-headline.test.ts tests/cards-gate-tap.test.ts tests/cards-check-player.test.ts`
+Expected: FAIL — no `.cs-gatehead`; the how line is not moved; the source checks fail; the gate gets `{who}` unfilled.
 
 - [ ] **Step 3: The dock (src/ui/gate-dock.ts)**
 
@@ -3142,7 +3566,7 @@ export interface GateHead {
  * Mount the headline on the STAGE (a gate is removed at once when it
  * finishes; the headline fades out after it). Null for no question.
  */
-export function mountGateHead(stage: HTMLElement, head: GateHead): { relayout(): void; dispose(): void } | null {
+export function mountGateHead(stage: HTMLElement, head: GateHead): { relayout(): void; height(): number; dispose(): void } | null {
   // A headline still fading from the last question goes at once.
   stage.querySelector(".cs-gatehead")?.remove();
   if (head.question.trim() === "") return null;
@@ -3154,7 +3578,14 @@ export function mountGateHead(stage: HTMLElement, head: GateHead): { relayout():
   let gone = false;
   const relayout = (): void => {
     if (gone) return;
-    // Under the drawing's own top edge (below / strip move the drawing; overlay letterboxes it).
+    // A caption below or in a strip (a phone): the drawing stands under the
+    // headline (the dock gives it room, --cs-head-h), so the headline takes
+    // the stage's top. An overlay caption: just under the drawing's own top
+    // edge, in the strip the layouts leave free (HEAD_ROOM_Y).
+    if (stage.classList.contains("cs-caption-below") || stage.classList.contains("cs-caption-strip")) {
+      el.style.top = "0px";
+      return;
+    }
     const svg = stage.querySelector<SVGSVGElement>("svg.cs-svg");
     const top = svg ? svg.getBoundingClientRect().top - stage.getBoundingClientRect().top : 0;
     el.style.top = `${Math.max(0, top) + 6}px`;
@@ -3162,6 +3593,7 @@ export function mountGateHead(stage: HTMLElement, head: GateHead): { relayout():
   relayout();
   return {
     relayout,
+    height: () => (gone ? 0 : el.offsetHeight + 6),
     dispose: () => {
       if (gone) return;
       gone = true;
@@ -3178,10 +3610,32 @@ export function mountGateHead(stage: HTMLElement, head: GateHead): { relayout():
 ```ts
   const top = head ? mountGateHead(stage, head) : null;
   // No headline (no question): the how line stays in the dock, first.
-  const el = h("div", { class: "cs-gatedock" }, ...(head && !top ? [head.how, ...items] : items));
+  const inBar = head && !top ? [head.how, ...items] : items;
+  const el = h("div", { class: "cs-gatedock" }, ...inBar);
+  // Nothing to press (a required choose): no empty bar.
+  el.hidden = inBar.length === 0;
 ```
 
-In `relayout`, before `onLayout();`: `top?.relayout();`. In `dispose`, after `disposed = true;`: `top?.dispose();`.
+`dockShrink` takes the headline too:
+
+```ts
+export function dockShrink(m: { mode: "overlay" | "below" | "strip"; stageH: number; svgH: number; captionH: number; dockH: number; headH?: number }): number {
+  if (m.mode === "overlay") return 0;
+  return Math.max(0, Math.ceil(m.svgH + m.captionH + m.dockH + (m.headH ?? 0) - m.stageH));
+}
+```
+
+In `relayout`, after `const mode = …`:
+
+```ts
+    // A phone (caption below / strip): the drawing stands under the headline.
+    const headH = mode !== "overlay" && top ? top.height() : 0;
+    stage.style.setProperty("--cs-head-h", `${headH}px`);
+```
+
+pass `headH` to `dockShrink({ mode, stageH: …, svgH, captionH, dockH, headH })`; before `onLayout();` add `top?.relayout();`. In `dispose`, after `disposed = true;`: `top?.dispose(); stage.style.removeProperty("--cs-head-h");`.
+
+(`drag` and `connect` mount the headline without a dock (Task 11): there it stands over the figure's top in every caption mode — their figures keep their own layout; Task 15 checks them on a phone.)
 
 - [ ] **Step 4: The five docked gates**
 
@@ -3274,17 +3728,20 @@ Delete the rule `.cs-guessgate .cs-figgate-hint { bottom: auto; top: 0.9rem; }` 
   .cs-gatehead-q { font-size: 1.05rem; }
   .cs-gatehead > .cs-figgate-hint { font-size: var(--text-xs); }
 }
+/* A caption below or in a strip (a phone): the drawing stands under the
+   headline — it has given up that height with the dock's (--cs-dock-shrink). */
+.cs-stage.cs-headline:is(.cs-caption-below, .cs-caption-strip) .cs-svg { margin-top: var(--cs-head-h, 0px); }
 ```
 
 - [ ] **Step 7: Run the gate tests**
 
-Run: `npx vitest run tests/gate-headline.test.ts tests/cards-gate-tap.test.ts tests/guess-account-gate.test.ts tests/guess-gate-field.test.ts tests/choose-gate.test.ts tests/gates.test.ts tests/gate-layout.test.ts tests/cursor.test.ts tests/bigplay.test.ts tests/choose-player.test.ts tests/formula-player.test.ts tests/tree-ask-player.test.ts`
-Expected: PASS (the hint is still found by its class `cs-figgate-hint`, now under the stage's headline). `npx tsc --noEmit` clean.
+Run: `npx vitest run tests/gate-headline.test.ts tests/cards-gate-tap.test.ts tests/cards-check-player.test.ts tests/guess-account-gate.test.ts tests/guess-gate-field.test.ts tests/choose-gate.test.ts tests/gates.test.ts tests/gate-layout.test.ts tests/cursor.test.ts tests/bigplay.test.ts tests/choose-player.test.ts tests/formula-player.test.ts tests/tree-ask-player.test.ts`
+Expected: PASS (the hint is still found by its class `cs-figgate-hint`, now under the stage's headline). Then `grep -rn "cs-figgate-hint\|dock.el.children\|gate.children" src` — any code that reaches the hint through the gate or the dock (not the stage) now misses it: point it at the stage. `npx tsc --noEmit` clean.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/ui/gate-dock.ts src/ui/guess-gate.ts src/ui/cards-gate.ts src/ui/formula-gate.ts src/ui/tree-gate.ts src/ui/choose-gate.ts src/render/player.ts src/styles.css tests/gate-headline.test.ts
+git add src/ui/gate-dock.ts src/ui/guess-gate.ts src/ui/cards-gate.ts src/ui/formula-gate.ts src/ui/tree-gate.ts src/ui/choose-gate.ts src/render/player.ts src/styles.css tests/gate-headline.test.ts tests/cards-gate-tap.test.ts tests/cards-check-player.test.ts
 git commit -m "Round 7: the question as a headline over the figure; the how line under it
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -3338,6 +3795,13 @@ describe("the bar's pills", () => {
   });
   test("connect's hint no longer pulses", () => {
     expect(rule(/\.cs-connect-hint\s*\{([^}]*)\}/)).toMatch(/animation:\s*none/);
+  });
+  test("check: each (no Answer): Skip stands alone, centred — a hidden Answer takes no room (spec §8.3)", () => {
+    // The global rule wins over any pill's own display, and the bar centres what is left.
+    expect(css).toMatch(/\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/);
+    expect(rule(/\.cs-gatedock\s*\{([^}]*)\}/)).toMatch(/justify-content:\s*center/);
+    // And nothing in the family gives the pills a fixed slot or an auto margin.
+    expect(css).not.toMatch(/\.cs-gatedock > \.cs-figgate-skip[^{]*\{[^}]*margin-(right|left):\s*auto/);
   });
 });
 
@@ -3498,7 +3962,7 @@ Claude-Session: https://claude.ai/code/session_01A1vsD5SQX5gKYDo4aucaMp"
 - Create: `src/lint/ask-lint.ts`
 - Modify: `src/lint/lint.ts` — rule union (line ~178) `"ask-question"`, `"cards-check"`; `lintCommands` (line 1743) adds `...lintAsks(spec)`
 - Modify: `tests/cards-faster-sort.test.ts:188-200` (lengthen "Which?")
-- Modify: `src/examples.json` — the figure questions and wrong lines the new rules flag (indices 361, 366, 387, 388)
+- Modify: `src/examples.json` — the figure questions and wrong lines the new rules flag (indices 361, 366, 373, 381, 383, 387, 388 — each edit checks the title first)
 - Test: `tests/round7-lint.test.ts` (new)
 
 **Interfaces:**
@@ -3631,31 +4095,36 @@ Import `import { lintAsks } from "./ask-lint";` and append `...lintAsks(spec)` t
 
 - [ ] **Step 4: Fixtures and the bundled examples the rules flag**
 
-`tests/cards-faster-sort.test.ts` lines 189 and 196: `question: "Which?"` → `question: "Which of these germs is a virus, and which a bacterium?"`.
+`tests/cards-faster-sort.test.ts` lines 189 and 196 (both `{ ask: { question: "Which?", on: "deck" } }` — confirm with `grep -n '"Which?"' tests/cards-faster-sort.test.ts` before editing): `question: "Which?"` → `question: "Which of these germs is a virus, and which a bacterium?"`.
 
-The examples (indices from `src/examples.json`; run from the repo root):
+The examples. Running the new rules over `src/examples.json` (done while revising this plan) flags exactly these seven asks — four short, three over 110 characters, and one wrong line: 361 cmd 3 "And then?", 366 cmd 3 "And now?", 373 cmd 4 (117 chars), 381 cmd 16 (134), 383 cmd 1 (115), 388 cmd 2 "Tap all the mammals." (4 words), and 387 cmd 2's wrong line (cards-check). Every edit checks the example's title first, so nothing lands on a shifted index (Task 7 Step 6 may have rewritten the file):
 
 ```bash
 node -e '
 const fs=require("fs");const p="src/examples.json";const e=JSON.parse(fs.readFileSync(p,"utf8"));
-const ask=(i,k)=>e[i].spec.commands[k].ask;
-ask(361,3).question="And in 1990, what share of the world'"'"'s people lived like that?";
-ask(366,3).question="Two positive tests now: how likely is it that she has the disease?";
-ask(387,2).wrong="{f} of {f.total} on the first try.";
-ask(388,2).question="Which of these animals are mammals? Tap every mammal.";
-ask(388,2).right="All {m.total} right.";
-ask(388,2).wrong="{m} of {m.total} on the first try.";
+const ask=(i,title,k)=>{if(e[i].spec.title!==title)throw new Error(`examples[${i}] is "${e[i].spec.title}", not "${title}"`);const a=e[i].spec.commands[k].ask;if(!a)throw new Error(`examples[${i}] command ${k} is not an ask`);return a};
+ask(361,"Extreme poverty",3).question="And in 1990, what share of the world'"'"'s people lived like that?";
+ask(366,"A second positive test",3).question="Two positive tests now: how likely is it that she has the disease?";
+ask(373,"Treat or wait? Expected values by hand",4).question="Weigh each ending by its chance: what is treating worth on average?";
+ask(381,"Statins at sixty: how much life?",16).question="Of 100 people like her on a statin for ten years, how many are spared a heart attack or stroke?";
+ask(383,"Where do your 24 hours go?",1).question="How does the average day split? Drag each bar; the bar on the right shows the hours left.";
+ask(387,"Fruit or not? — a quick deck",2).wrong="{f} of {f.total} on the first try.";
+ask(388,"Which of these are mammals?",2).question="Which of these animals are mammals? Tap every mammal.";
+ask(388,"Which of these are mammals?",2).right="All {m.total} right.";
+ask(388,"Which of these are mammals?",2).wrong="{m} of {m.total} on the first try.";
 fs.writeFileSync(p,JSON.stringify(e,null,2)+"\n")'
 ```
 
-Then find any other flagged ask (bundled examples and their playlists):
+(373's dropped lead-in "So to compare the two, treating needs one number." moves into the speak line before the ask if that line does not already say it — read commands 3–4 and keep the narration whole.)
+
+Then confirm nothing else is flagged (bundled examples and their playlists):
 
 Run: `npx vitest run tests/examples.test.ts tests/round5-prompt.test.ts tests/round6-prompt.test.ts tests/tree-ask-lint.test.ts tests/fewshots.test.ts`
-For every example the "no command-level lint issue" case names, rewrite its question by hand as one full sentence naming the task, read from the speak lines around it (same node pattern as above), and re-run until green.
+Expected: PASS. If an example is still named, fix it with the same guarded `ask(i, title, k)` pattern.
 
-- [ ] **Step 5: Run the whole suite**
+- [ ] **Step 5: Run the whole suite; keep the fixture churn small**
 
-Run: `npx vitest run tests/round7-lint.test.ts` → PASS. Then `npx vitest run` (the whole suite: other tests assert `lintCommands(...)` is empty on fixtures with short questions — lengthen those questions the same way) → PASS. `npx tsc --noEmit` clean.
+Run: `npx vitest run tests/round7-lint.test.ts` → PASS. Then `npx vitest run` once and collect every failure the new rules cause. Many fixtures use short questions on purpose ("Order", "Which?", "B?", "Show it") — `tests/ask-stage.test.ts`, `tests/cards.test.ts`, `tests/choose-lint.test.ts`, `tests/crowding-lint.test.ts`, `tests/feedback-lint.test.ts`, `tests/formula-lint.test.ts`, `tests/guess-lint.test.ts`, `tests/cards-round3.test.ts`, `tests/epidemic-templates.test.ts`, `tests/anatomy-template.test.ts`, `tests/guess-account.test.ts` are the ones to expect (tests that only plan commands, like `tests/ask-plan.test.ts`, never lint). One rule for all of them: where a test asserts a whole issue list (empty, or a count) and its question is NOT what it is about, filter the new rules out — `.filter((i) => i.rule !== "ask-question")` — rather than rewriting the question; lengthen the question only where the test is about questions. Then `npx vitest run` → PASS, `npx tsc --noEmit` clean.
 
 - [ ] **Step 6: Commit**
 
@@ -3678,7 +4147,7 @@ Claude-Session: https://claude.ai/code/session_01A1vsD5SQX5gKYDo4aucaMp"
 - Modify: `src/spec/schema.ts:630` (cards description), `:645` (`select` description)
 - Modify: `src/llm/tags.ts:323` (the `interactive` brief's icon line)
 - Modify: `.claude/skills/drawcast/references/rule-card.md:239-258, 290-296`
-- Modify: `tests/prompt-size.test.ts`; `tests/round5-prompt.test.ts` only if its parse of the feedback ask needs the new text
+- Modify: `tests/prompt-size.test.ts`; `tests/prompt.test.ts:140` (it pins the phrase "at most a handful, one per category", which Step 1 removes on purpose — the spec's icon rule replaces the budget); `tests/round5-prompt.test.ts` only if its parse of the feedback ask needs the new text
 - Test: `tests/round5-prompt.test.ts`, `tests/round6-prompt.test.ts`, `tests/build-skill.test.ts`, `tests/prompt-size.test.ts`
 
 **Interfaces:**
@@ -3745,7 +4214,7 @@ with
 "Cards, bars (a bar_chart's `icons`) and pictures of concrete things (animals, foods, drugs) wear an `icon` each — a keyword of one or two words, shown as a picture; a thing with no clear icon of its own goes without one rather than a near miss. A question on the figure is a full sentence naming the task (\"Which of these animals are mammals? Tap every mammal.\"); a sort checks each card as it is dropped, so its wrong line gives the score (\"{f} of {f.total} on the first try.\"). " +
 ```
 
-`.claude/skills/drawcast/references/rule-card.md`: lines 247-248 (`The guess stays; the truth is drawn beside it (`reveal_style: "morph"` for the old glide).`) become
+`.claude/skills/drawcast/references/rule-card.md`: lines 244-245 (`The guess stays; the truth is drawn beside it (`reveal_style: "morph"` for the old glide).`) become
 
 ```
   The guess stays; the truth is drawn beside it (`reveal_style: "morph"`
@@ -3758,19 +4227,34 @@ with
   the task ("Which of these animals are mammals? Tap every mammal.").
 ```
 
-Line 257 (`- Cards: a concrete thing may wear an `icon` …`) becomes `- Cards, nodes and bars (bar_chart `icons: [...]`, one per bar): a concrete thing wears an `icon` (`match_icon` on a match partner); `look` paper (default) / flat / outline — the default is fine.` Line 290 (`- `icon` (`of`: keyword, `size`): a handful at most, one per category, reuse.`) becomes `- `icon` (`of`: keyword, `size`): when a card, node, bar or decorative picture names a concrete thing, give it an icon; draw by hand only when no icon fits or the drawing explains.`
+Lines 257-258 (`- Cards: a concrete thing may wear an `icon` (`match_icon` on a match partner); `look` …`) become `- Cards, nodes and bars (bar_chart `icons: [...]`, one per bar): a concrete thing wears an `icon` (`match_icon` on a match partner); `look` paper (default) / flat / outline — the default is fine.` Line 290 (`- `icon` (`of`: keyword, `size`): a handful at most, one per category, reuse.`) becomes `- `icon` (`of`: keyword, `size`): when a card, node, bar or decorative picture names a concrete thing, give it an icon; draw by hand only when no icon fits or the drawing explains.`
+
+`tests/prompt.test.ts:139-140` — the budget the old phrase stood for is now the spec's rule (an icon for a concrete thing; by hand only when none fits or the drawing explains). Replace
+
+```ts
+    // Widening without a budget is how a figure ends up decorated with stamps.
+    expect(elements).toContain("at most a handful, one per category");
+```
+
+with
+
+```ts
+    // The rule that keeps icons from turning into stamps (round 7 §9): concrete things only; by hand when the drawing explains.
+    expect(elements).toContain("names a concrete object or animal, give it an icon keyword");
+    expect(elements).toContain("draw by hand only when no icon fits, or when the drawing itself explains something");
+```
 
 - [ ] **Step 3: Re-pin and run**
 
 Run: `npx vitest run tests/prompt-size.test.ts` and re-pin both baselines ("Re-pinned UP 2026-10-02 (round 7 Task 13, guidance): the cards sentence (rank slides, sort checks each drop, the score line, check end), the headline question rule, bar icons and the icon rule; the schema's cards and select clauses. +N. -> NNN."). Then:
 
-Run: `npx vitest run tests/prompt-size.test.ts tests/round5-prompt.test.ts tests/round6-prompt.test.ts tests/build-skill.test.ts tests/formula-prompt.test.ts tests/fewshots.test.ts`
+Run: `npx vitest run tests/prompt-size.test.ts tests/prompt.test.ts tests/round5-prompt.test.ts tests/round6-prompt.test.ts tests/build-skill.test.ts tests/formula-prompt.test.ts tests/fewshots.test.ts`
 Expected: PASS (if `round5-prompt` parses the feedback ask by its old question text, update its anchor to the new question). `npm run build:skill` succeeds.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/llm/prompts/compiler-v1.md src/spec/schema.ts src/llm/tags.ts .claude/skills/drawcast/references/rule-card.md tests/prompt-size.test.ts
+git add src/llm/prompts/compiler-v1.md src/spec/schema.ts src/llm/tags.ts .claude/skills/drawcast/references/rule-card.md tests/prompt-size.test.ts tests/prompt.test.ts
 git commit -m "Round 7 guidance: check each, rank reorder, full-sentence questions, icons on bars
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -3784,7 +4268,7 @@ Claude-Session: https://claude.ai/code/session_01A1vsD5SQX5gKYDo4aucaMp"
 ### Task 14: Content — the examples' icons and lines; the decision-mistakes course (spec §9)
 
 **Files:**
-- Modify: `src/examples.json` — 364 "Virus or bacterium", 384 "Is it a fruit?", 386 "The deadliest animal", 387 "Fruit or not? — a quick deck"
+- Modify: `src/examples.json` — 364 "Virus or bacterium", 371 "Treat or test again", 381 "Statins at sixty: how much life?" (cmd 13), 384 "Is it a fruit?", 386 "The deadliest animal", 387 "Fruit or not? — a quick deck" (every edit guarded by the title)
 - Modify: `src/scenes/icon-cache.json` (rebuilt by `npm run icons`)
 - Not in git: `dev-casts/courses/decision-mistakes/*.yaml` (revised by hand, linted, not committed)
 
@@ -3793,38 +4277,58 @@ Claude-Session: https://claude.ai/code/session_01A1vsD5SQX5gKYDo4aucaMp"
 
 - [ ] **Step 1: The lines**
 
+Every edit checks the example's title first (the same guard as Task 12), so a shifted index fails loudly instead of editing the wrong cast:
+
 ```bash
 node -e '
 const fs=require("fs");const p="src/examples.json";const e=JSON.parse(fs.readFileSync(p,"utf8"));
-const ask=(i,k)=>e[i].spec.commands[k].ask;
-ask(364,1).question="Which of these diseases is caused by a virus, and which by a bacterium?";
-ask(364,1).wrong="{s} of {s.total} on the first try.";
-ask(384,2).question="Sort each food the way a botanist would: fruit or not a fruit?";
-ask(384,2).wrong="{f} of {f.total} on the first try.";
-ask(386,16).right="{k} of {k.total}. Snakes, crocodiles and hippos attack; mosquitoes and dogs pass on disease.";
-ask(386,16).wrong="{k} of {k.total} on the first try. Dogs kill mostly through rabies, a virus passed in the bite.";
-ask(387,2).question="Sort each food the way a botanist would: is it a fruit or not?";
+const ex=(i,title)=>{if(e[i].spec.title!==title)throw new Error(`examples[${i}] is "${e[i].spec.title}", not "${title}"`);return e[i].spec};
+const ask=(i,title,k)=>{const a=ex(i,title).commands[k].ask;if(!a)throw new Error(`examples[${i}] command ${k} is not an ask`);return a};
+ask(364,"Virus or bacterium",1).question="Which of these diseases is caused by a virus, and which by a bacterium?";
+ask(364,"Virus or bacterium",1).wrong="{s} of {s.total} on the first try.";
+ask(371,"Treat or test again",1).question="You are the doctor: treat her now, or test again first?";
+ask(384,"Is it a fruit?",2).question="Sort each food the way a botanist would: fruit or not a fruit?";
+ask(384,"Is it a fruit?",2).wrong="{f} of {f.total} on the first try.";
+ask(386,"The deadliest animal",16).question="Does each animal kill by attacking, or by carrying germs? Sort every card.";
+ask(386,"The deadliest animal",16).right="{k} of {k.total}. Snakes, crocodiles and hippos attack; mosquitoes and dogs pass on disease.";
+ask(386,"The deadliest animal",16).wrong="{k} of {k.total} on the first try. Dogs kill mostly through rabies, a virus passed in the bite.";
+ask(387,"Fruit or not? — a quick deck",2).question="Sort each food the way a botanist would: is it a fruit or not?";
 fs.writeFileSync(p,JSON.stringify(e,null,2)+"\n")'
 ```
 
-(Check the indices first: `node -e 'const e=require("./src/examples.json");for(const i of [364,384,386,387])console.log(i,e[i].spec.title)'` must print "Virus or bacterium", "Is it a fruit?", "The deadliest animal", "Fruit or not? — a quick deck".)
+(The store names `s`, `f`, `k` are each ask's own `store` — check them in the same run: `node -e 'const e=require("./src/examples.json");for(const [i,k] of [[364,1],[384,2],[386,16]])console.log(i,e[i].spec.commands[k].ask.store)'` must print s, f, k.)
+
+**Every bundled figure question, reviewed against §8.2** (a full sentence naming the task and what counts as right). Print them all:
+
+```bash
+node -e 'const e=require("./src/examples.json");e.forEach((x,i)=>(x.spec?.commands??[]).forEach((c,k)=>{const a=c.ask;if(a&&(a.on!==undefined||a.blanks!==undefined||a.pick!==undefined||Array.isArray(a.choose)))console.log(i,k,JSON.stringify(x.spec.title),JSON.stringify(a.question))}))'
+```
+
+When this plan was revised the list was 47 asks over examples 354–388. Decided:
+- Rewritten here or in Task 12: 361/3, 364/1, 366/3, 371/1, 373/4, 381/16, 383/1, 384/2, 386/16, 387/2, 388/2; and 381/13 "So which does the square choose?" → "So which does the square choose: <branch a>, or <branch b>?" with the two branch labels the tree draws (read them from the tree's params before writing).
+- Kept (each already names its task and what counts — a drag/tap/click with its target, an order with its direction, a pair with its criterion): 354, 355, 356, 357/1, 357/3, 358, 359, 360, 361/1, 362, 363, 365, 366/1, 367, 368, 369, 370, 372/3, 372/8, 373/5, 374/5, 374/6, 375, 376, 377, 378, 379, 380, 381/2, 381/12, 382, 385/1, 385/4, 386/2, 386/10.
+If the printed list has an ask not named in either line (an example added since), read it against the rule and decide it the same way; record the decision in the commit message.
 
 - [ ] **Step 2: The icons**
 
-"The deadliest animal" (386): `params.icons` one per label `["Shark","Hippo","Crocodile","Dog","Snake","Human","Mosquito"]`:
+"The deadliest animal" (386): `params.icons` one per label `["Shark","Hippo","Crocodile","Dog","Snake","Human","Mosquito"]`. "Fruit or not?" (387): all fourteen items get an icon (spec §9):
 
 ```bash
 node -e '
 const fs=require("fs");const p="src/examples.json";const e=JSON.parse(fs.readFileSync(p,"utf8"));
-e[386].spec.params.icons=["shark","hippopotamus","crocodile","dog","snake","person standing","mosquito"];
-const food=e[387].spec.elements.find(x=>x.id==="food");
+const ex=(i,title)=>{if(e[i].spec.title!==title)throw new Error(`examples[${i}] is "${e[i].spec.title}", not "${title}"`);return e[i].spec};
+ex(386,"The deadliest animal").params.icons=["shark","hippopotamus","crocodile","dog","snake","person standing","mosquito"];
+const food=ex(387,"Fruit or not? — a quick deck").elements.find(x=>x.id==="food");
 const kw={Pumpkin:"pumpkin",Avocado:"avocado",Eggplant:"eggplant",Zucchini:"zucchini",Olive:"olive","Bell pepper":"bell pepper","Pea pod":"pea pod",Celery:"celery",Rhubarb:"rhubarb",Lettuce:"leafy green",Onion:"onion",Ginger:"ginger root",Asparagus:"asparagus",Cauliflower:"cauliflower"};
-for(const it of food.items) it.icon=kw[it.text];
+for(const it of food.items){if(!kw[it.text])throw new Error(`no keyword for "${it.text}"`);it.icon=kw[it.text]}
 fs.writeFileSync(p,JSON.stringify(e,null,2)+"\n")'
 npm run icons
 ```
 
-`npm run icons` (network) prints the keywords it could not resolve. For each one not resolved, and for each resolved picture that is a near miss when seen (Task 15 checks them in the browser — a jack-o'-lantern for "pumpkin", a cucumber for "zucchini"), remove that keyword: a card item loses its `icon`; a bar's entry becomes `null`. Re-run `npm run icons` after removing. Note in the commit message which items have no icon.
+`npm run icons` (network) prints the keywords it could not resolve. "All fourteen" is the target, so a keyword that does not resolve — or resolves to a near miss when seen (Task 15 looks at each: a jack-o'-lantern for "pumpkin", a cucumber for "zucchini") — gets a replacement, tried in this order, re-running `npm run icons` after each change:
+- pea pod → peas → green peas; leafy green → lettuce → salad; ginger root → ginger; bell pepper → pepper → green pepper; eggplant → aubergine; zucchini → courgette; person standing → person → man;
+- any other: the item's own name, then its singular/plural, then the name of its kind ("squash" for pumpkin).
+Only when every alternative misses does an item go without (a card loses its `icon`; a bar's entry becomes `null`) — name each such item and the keywords tried in the commit message, so the next icon-cache refresh can try again. `tests/icon-stale.test.ts` and the examples' layout warnings name any keyword left without data: none may remain.
 
 - [ ] **Step 3: Run the example tests**
 
@@ -3878,11 +4382,21 @@ Confirm it returned "muted" before every Play. Take screenshots at desktop width
 
 - [ ] **Step 2: Sort, deck, select (check: each)**
 
-Open each of "Is it a fruit?", "Virus or bacterium", "Fruit or not? — a quick deck", "Which of these are mammals?", and "The deadliest animal" (its sort `kind`). For each:
+Spec §9: EVERY bundled example with a sort or rank is re-checked under the new defaults. List them first, so none is missed:
+
+```bash
+node -e 'const e=require("./src/examples.json");e.forEach((x,i)=>{const cs=(x.spec?.elements??[]).filter(c=>c.type==="cards"&&(c.bins||c.select||c.deck||(!c.along&&!c.compare&&!c.options&&!c.fill&&!(c.items??[]).some(t=>typeof t==="object"&&t&&t.match))));if(cs.length)console.log(i,JSON.stringify(x.spec.title),cs.map(c=>c.id+":"+(c.deck?"deck":c.select?"select":c.bins?"sort":"rank")).join(" "))})'
+```
+
+When this plan was revised that list was: 363 "What kills us" (rank), 364 "Virus or bacterium" (sort), 382 "How fast can they run?" (rank), 384 "Is it a fruit?" (sort), 386 "The deadliest animal" (rank `rank`, sort `kind`), 387 "Fruit or not? — a quick deck" (deck), 388 "Which of these are mammals?" (select) — Steps 2 and 3 cover exactly these. Any example the command prints beyond them gets the same checks.
+
+Open each sort, deck and select: "Is it a fruit?", "Virus or bacterium", "Fruit or not? — a quick deck", "Which of these are mammals?", and "The deadliest animal" (its sort `kind`). For each:
 - [ ] the cards stand above the boxes (drop); nothing overlaps the boxes' titles or the counter; on the deadliest animal the sort sits clear of the chart (if not: `arrange: "rise"` on `kind`, or move it, and re-run Task 7's example check);
-- [ ] the first tray card shows the ring; one tap on a box sends it; a tap on another tray card picks that one; a drag still works;
+- [ ] the first tray card shows the ring; one tap on a box sends it; a tap on another tray card picks that one; Tab skips placed cards; a drag still works;
 - [ ] a right drop: green ✓ beside it, the card stays at full strength;
-- [ ] a wrong drop: lands in the tapped box, red ✗, about half a second, glides (about 0.6 s) to its right box and stays faded; no red is left on the figure;
+- [ ] a wrong drop: lands in the tapped box, red ✗, about half a second, glides (about 0.6 s) to its right box with the ✗ riding beside it, and stays faded; the ✗ is gone when it lands — no red is left on the figure;
+- [ ] after the last card nothing reshuffles: every card already stands at its slot;
+- [ ] resize the window while a corrected card is faded and the question is still open: it stays faded;
 - [ ] two quick wrong drops in a row both end in their right boxes;
 - [ ] the counter `✓ n · ✗ m` under the boxes ticks on each drop, its numbers right;
 - [ ] a placed card ignores taps and drags;
@@ -3911,7 +4425,8 @@ Open "What kills us", "How fast can they run?" and "The deadliest animal" (its r
 For one example of each — cards (any of the above), guess (the deadliest animal's bar guess, "Extreme poverty"), choose (the deadliest animal's choose, or the course's door), drag, formula ("What number goes in the box?" or a formula-tile example), tree ("So which does the square choose?"), connect:
 - [ ] the question stands at the top as a headline (two lines at most, ellipsis beyond), the how line small under it; a title card's heading is hidden meanwhile and comes back when the question is answered;
 - [ ] the bottom bar holds only Skip (left) and Answer/Done (right), one pill family, Answer filled blue, no shadow, no pulse; Skip alone centred where there is no Answer;
-- [ ] phone width (390): the headline wraps, buttons at least 40 px tall, nothing covers the cards or the plot's top beyond the heading strip;
+- [ ] phone width (390): the headline wraps, buttons at least 40 px tall; with the caption below (or in a strip) the drawing stands UNDER the headline — the drop tray's first row and the deck's dealt card fully visible; desktop: the headline sits in the top strip and covers no card (the layouts keep it free, `HEAD_ROOM_Y`); drag and connect (overlay headline) — note if the headline covers anything that matters, and fix by moving the headline, not the figure;
+- [ ] a choose with `required: true`: no empty bar at the bottom;
 - [ ] a Norwegian cast (any bundled cast with `lang: nb`, or set `lang: nb` on a copy): Ferdig, the Norwegian hints, "din" on the rank row.
 
 - [ ] **Step 6: Record and fix**
