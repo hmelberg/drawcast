@@ -2287,6 +2287,13 @@ function makeEffects(
       const scaled = scale !== 1 && pivot !== undefined;
       for (const { g } of leafNodes.get(id) ?? []) {
         keepStrokes(g, scaled ? scale : 1);
+        // A picture pivots its reveal on itself (transform-box: fill-box, makeLeafHandle):
+        // that origin would apply to this scale too and fling it off its card.
+        if (g.style.transformBox === "fill-box" || g.dataset.box !== undefined) {
+          if (g.dataset.box === undefined) g.dataset.box = "1";
+          g.style.transformBox = scaled ? "view-box" : "fill-box";
+          g.style.transformOrigin = scaled ? "0 0" : "center";
+        }
         if (dx === 0 && dy === 0 && !scaled) {
           const base = ghostBase.get(g);
           if (base === undefined) continue;

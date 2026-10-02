@@ -32,9 +32,9 @@ test("rise (today's layout): centred under the boxes, clear of the tray and of t
   expect(x).toBeCloseTo((left + right) / 2, 5);
 });
 
-test("drop (the default): centred under the boxes, above the floor", () => {
+test("drop (the default): in the gap between the cards and the boxes — under the boxes is the bottom bar's", () => {
   const g = cardsGeometry(two);
   const [, y] = counterAt(g);
-  expect(y).toBeLessThan(Math.min(...g.binBoxes.map((b) => b.c[1] - b.h / 2)));
-  expect(y - 12).toBeGreaterThanOrEqual(0);
+  expect(y - 10).toBeGreaterThan(Math.max(...g.binBoxes.map((b) => b.c[1] + b.h / 2)));
+  expect(y + 10).toBeLessThan(Math.min(...g.home.map((p) => p[1] - g.h / 2)));
 });

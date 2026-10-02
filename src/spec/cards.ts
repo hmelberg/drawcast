@@ -304,10 +304,13 @@ const CARD_FLOOR = 8;
 /** check: each (round 7 §3.1.6): the counter's row under the boxes (drop, side). */
 export const COUNTER_ROOM = 34;
 
-/** Where the counter stands: centred under the boxes (rise: in the gap over the tray — above the boxes is the headline's). */
+/** Where the counter stands, centred on the boxes: drop — in the gap between
+ *  the cards and the boxes (under the boxes is the bottom bar's, over the
+ *  figure); side — under the boxes; rise — in the gap over the tray. */
 export function counterAt(g: CardsGeometry): Pt {
   const bs = g.binBoxes;
   const x = (Math.min(...bs.map((b) => b.c[0] - b.w / 2)) + Math.max(...bs.map((b) => b.c[0] + b.w / 2))) / 2;
+  if (g.layout === "drop") return [x, Math.max(...bs.map((b) => b.c[1] + b.h / 2)) + 21];
   return [x, Math.min(...bs.map((b) => b.c[1] - b.h / 2)) - 22];
 }
 
@@ -686,10 +689,11 @@ function deckGeometry(
     cy = Math.max(bigH / 2 + 12, Math.min(boxBottom - bigH / 2 - under, boxBottom / 2));
   } else if (layout === "drop") {
     // Over the boxes: the dealt card flies down into one.
-    deckScale = Math.max(1, Math.min(600 / w, (icons ? 160 : 110) / h, (topY - binTop - 40) / h));
+    // The counter stands in the gap between the dealt card and the boxes.
+    deckScale = Math.max(1, Math.min(600 / w, (icons ? 160 : 110) / h, (topY - binTop - 64) / h));
     const bigH = h * deckScale;
     cx = x0 + width / 2;
-    cy = Math.min(topY - bigH / 2 - 12, Math.max(binTop + bigH / 2 + 24, (topY + binTop) / 2));
+    cy = Math.min(topY - bigH / 2 - 12, Math.max(binTop + bigH / 2 + 48, (topY + binTop) / 2));
   } else {
     // side: in the left third, level with the boxes.
     deckScale = Math.max(1, Math.min((width / 3 - GAP) / w, (icons ? 160 : 110) / h, (topY - floor) / h));
