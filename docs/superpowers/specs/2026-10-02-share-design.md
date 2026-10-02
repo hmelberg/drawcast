@@ -199,7 +199,8 @@ published can share without opening the player.
 
 One picture per cast, the same everywhere: the author's `poster:`, else the
 last real page — `posterForPlaylistText`, unchanged. What changes is that
-every route that can show a card makes and stores it.
+every route that can show a card makes and stores it. A course's card uses
+its first lecture's picture.
 
 | Route | Today | This version |
 |---|---|---|
@@ -222,9 +223,9 @@ repo), the push goes ahead without a picture and says so in one line:
 "No picture drawn (no headless browser) — the link will show a plain card.
 Publish once from the app to add it." A missing picture never stops a push.
 
-**Backfill.** `node scripts/cast.mjs pictures <workdir>` redraws and commits
-the picture for every cast in a published folder, for casts published before
-this change or edited by hand on GitHub. It respects private casts: none.
+**Backfill.** `pull` then `push` adds the pictures (a new picture is a real
+change), for casts published before this change or edited by hand on GitHub.
+It respects private casts: none.
 
 ### 7.2 The drawcast server — version 2
 
@@ -291,8 +292,8 @@ Never per person — the same rule as the existing visit records.
 2. **Share box.** The ⋯ item, the dialog, device share sheet, the desktop
    list, Copy link and Copy image, the comment, the `s` tag. The same link
    and preview at the top of the editor's Share panel.
-3. **Pictures everywhere.** `cast.mjs push` draws and commits; the
-   `pictures` backfill command.
+3. **Pictures everywhere.** `cast.mjs push` draws and commits; `pull` then
+   `push` adds the pictures (a new picture is a real change).
 4. **Stats by destination.** The `s` count in `name.mts` and its line in the
    stats view.
 

@@ -71,3 +71,25 @@ export function takenSlugs({ kind, listed, tree }) {
   const fromTree = kind === "course" ? tree.map(stem) : tree.filter((n) => /\.ya?ml$/i.test(n)).map(stem);
   return [...new Set([...listed, ...fromTree, ...(kind === "course" ? ["casts"] : [])])];
 }
+
+/** Bookkeeping a publish rewrites every time: on its own it is no change
+ *  (the manifests' dates, READMEs, index pages, the registry claim). */
+const BOOKKEEPING_RE = /(^|\/)(courses\.json|casts\.json|index\.html|README\.md|\.drawcast\/claim)$/;
+
+/**
+ * What a push would change against upstream (cast.mjs push), compared by
+ * bytes — a redrawn picture identical to GitHub's is no change, a new or
+ * different one is (spec 2026-10-02-share-design §7.1: pull then push adds
+ * pictures to an older repo). `real` is what is worth a commit.
+ */
+export function fileChanges(files, deletions, readAt) {
+  const changes = [];
+  for (const f of files) {
+    const now = readAt(f.path);
+    const want = f.bytes ? Buffer.from(f.bytes) : Buffer.from(f.content, "utf8");
+    if (now === null) changes.push(["new", f.path]);
+    else if (!now.equals(want)) changes.push(["changed", f.path]);
+  }
+  for (const p of deletions) changes.push(["deleted", p]);
+  return { changes, real: changes.filter(([, p]) => !BOOKKEEPING_RE.test(p)) };
+}

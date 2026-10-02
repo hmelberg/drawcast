@@ -21,6 +21,8 @@ public repo the user chooses; after that it is revised like anything published.
 3. `push <workdir> --dry-run`, show the file list, and on a yes `push <workdir> --direct`
    (it is the user's own repo; a PR to themselves is noise — unless they want one, or the
    repo is someone else's: then plain `push` opens a PR from a fork).
+   A public push also commits each cast's link-card picture (`<file>.png`, drawn the way
+   the app draws it); to give an older published repo its pictures, `pull` it and `push` again.
 4. Report the player link (`drawcast.app/#gh=…`) and, for a course, the course page (Pages
    can take a minute the first time). Narration is the browser's voice until the course is
    published with narration from the app. Later revisions: references/revise.md from its step 2 (unpack), on the same workdir — no new pull.

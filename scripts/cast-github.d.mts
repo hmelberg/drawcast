@@ -18,3 +18,9 @@ export interface PublishOriginArgs {
 export function publishOrigin(args: PublishOriginArgs): { slug: string; origin: Record<string, unknown> & { path: string } };
 export function pagesUrlFor(owner: string, repo: string, path: string): string;
 export function takenSlugs(args: { kind: "course" | "cast"; listed: string[]; tree: string[] }): string[];
+export type FileChange = ["new" | "changed" | "deleted", string];
+export function fileChanges(
+  files: { path: string; content: string; bytes?: Uint8Array }[],
+  deletions: string[],
+  readAt: (path: string) => Buffer | null,
+): { changes: FileChange[]; real: FileChange[] };

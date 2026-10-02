@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "../scripts/cast-github.mjs";
+import { fileChanges, pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "../scripts/cast-github.mjs";
 import { slugFor } from "../src/publish/github";
 import { coursePage, doorlessNote, type DoorlessReason } from "../src/course/page";
 import { parseCourse } from "../src/course/document";
@@ -88,5 +88,44 @@ describe("takenSlugs (publish-target never overwrites)", () => {
   it("a cast: the index's slugs and every .yaml already in casts/", () => {
     const t = takenSlugs({ kind: "cast", listed: ["a"], tree: ["b.yaml", "c.yml", "casts.json", "README.md"] });
     expect(t).toEqual(expect.arrayContaining(["a", "b", "c"]));
+  });
+});
+
+describe("fileChanges (cast.mjs push)", () => {
+  const png = (n: number) => new Uint8Array([137, 80, 78, n]);
+  const at = (files: Record<string, string | Uint8Array>) => (p: string) => (p in files ? Buffer.from(files[p] as string | Uint8Array) : null);
+
+  it("text and pictures are compared by their bytes", () => {
+    const files = [
+      { path: "casts/a.yaml", content: "same" },
+      { path: "casts/a.png", content: "", bytes: png(1) },
+      { path: "casts/b.yaml", content: "new text" },
+      { path: "casts/b.png", content: "", bytes: png(2) },
+      { path: "casts/c.png", content: "", bytes: png(3) },
+    ];
+    const { changes, real } = fileChanges(files, [], at({ "casts/a.yaml": "same", "casts/a.png": png(1), "casts/b.yaml": "old text", "casts/b.png": png(9) }));
+    expect(changes).toEqual([["changed", "casts/b.yaml"], ["changed", "casts/b.png"], ["new", "casts/c.png"]]);
+    expect(real).toEqual(changes);
+  });
+
+  it("an identical redrawn picture is no change, so an unchanged cast is nothing to push", () => {
+    const { changes, real } = fileChanges([{ path: "casts/a.yaml", content: "x" }, { path: "casts/a.png", content: "", bytes: png(1) }], [], at({ "casts/a.yaml": "x", "casts/a.png": png(1) }));
+    expect(changes).toEqual([]);
+    expect(real).toEqual([]);
+  });
+
+  it("a picture alone is a real change — pull then push adds pictures to an older repo", () => {
+    const { real } = fileChanges([{ path: "q/01.yaml", content: "x" }, { path: "q/01.png", content: "", bytes: png(1) }, { path: "q/README.md", content: "r2" }], [], at({ "q/01.yaml": "x", "q/README.md": "r1" }));
+    expect(real).toEqual([["new", "q/01.png"]]);
+  });
+
+  it("bookkeeping files alone are not real; deletions are", () => {
+    const { changes, real } = fileChanges(
+      [{ path: "casts/casts.json", content: "2" }, { path: "q/index.html", content: "2" }, { path: ".drawcast/claim", content: "n" }],
+      ["q/01.png"],
+      at({ "casts/casts.json": "1", "q/index.html": "1" }),
+    );
+    expect(changes.map(([, p]) => p)).toEqual(["casts/casts.json", "q/index.html", ".drawcast/claim", "q/01.png"]);
+    expect(real).toEqual([["deleted", "q/01.png"]]);
   });
 });

@@ -32,7 +32,8 @@
 //   node scripts/cast.mjs revise-prompt <parts-dir | cast.json> "<change>" [out.md]   the app's rules, the document's templates in full
 //   node scripts/cast.mjs repack <parts-dir>             parts → the YAML again; narration kept for every unchanged line
 //   node scripts/cast.mjs push <workdir> [--dry-run | --no-push] [--direct] [-m msg] [--body text] [--new-pr]
-//        regenerates what the app's publish would (course page, READMEs, manifests, end pages) and commits it:
+//        regenerates what the app's publish would (course page, READMEs, manifests, end pages, link-card pictures)
+//        and commits it:
 //        a branch + PR by default (from a fork without push rights; later pushes update the same PR), --direct to
 //        the default branch. Refuses if the files changed on GitHub since the pull. Signed in (see below), the
 //        commit also carries a claim file (only on a repo you can push to — never from a fork), and a --direct push registers with Anvil and prints its free link
@@ -40,6 +41,8 @@
 //        origin.private true: quotes first (refusing, with the price and the exact `private` command, if more is
 //        due), fetches the item key and locks every lecture file of the plan before anything is written — no
 //        poster rides along, and a lock failure leaves nothing committed.
+//        Pictures: every public cast/lecture written gets `<file>.png` (cast.mjs poster draws one by hand); a repo
+//        published before pictures existed gets them with `pull` then `push`.
 //   node scripts/cast.mjs register <workdir>   after a PR-published first publish merges: verifies the claim
 //        and registers the item (a --direct push already does this on its own, right after the commit)
 //
@@ -97,7 +100,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFile
 import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
-import { pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "./cast-github.mjs";
+import { fileChanges, pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "./cast-github.mjs";
 import {
   apiUrl,
   boundedFetch,
@@ -321,6 +324,12 @@ function findViewerBase(clone, folder) {
 /** A file as it is at `commit` (the clone is sparse and blob-less, so not from the worktree); null if absent. */
 function readAtCommit(clone, commit, path) {
   const r = spawnSync("git", ["-C", clone, "show", `${commit}:${path}`], { encoding: "utf8", maxBuffer: 1 << 30 });
+  return r.status === 0 ? r.stdout : null;
+}
+
+/** The same, as bytes (a picture is compared by its bytes, not as text). */
+function readBytesAtCommit(clone, commit, path) {
+  const r = spawnSync("git", ["-C", clone, "show", `${commit}:${path}`], { maxBuffer: 1 << 30 });
   return r.status === 0 ? r.stdout : null;
 }
 
@@ -1109,6 +1118,17 @@ const commands = {
     // push rights are known (shouldClaim, below — final review C2); a
     // source revision never asks for one (M4).
     let claim = null;
+    // The link-card pictures (spec 2026-10-02-share-design §7.1): one browser
+    // session for every public cast or lecture this push writes. Never a
+    // reason to stop a push — what cannot be drawn is said once.
+    let pictureNote = null;
+    const drawAll = async (texts) => {
+      const { drawPictures } = await import("./pictures.mjs");
+      const { pictures, note } = await drawPictures(texts, { root: ROOT });
+      if (note) pictureNote = note;
+      else if (pictures.some((p) => p === null)) pictureNote = `${pictures.filter((p) => p === null).length} of ${pictures.length} could not be drawn`;
+      return new Map(texts.map((t, i) => [t, pictures[i]]));
+    };
     const files = await withVite(async (load) => {
       // Registry delivery 2 (fix round 1, #5): signed in and registrable, the
       // server itself is asked (once — `lockPrivate` below reuses this SAME
@@ -1192,7 +1212,8 @@ const commands = {
         const title = p.meta.title ?? itemsOf(p)[0]?.spec.title ?? "";
         const indexText = readAtCommit(clone, upstream, joinRepo(origin.castsDir, "casts.json"));
         const slug = origin.file.replace(/\.ya?ml$/i, "");
-        const plan = buildCastPlan({ title, text, slug, previousSlug: slug, repo, castsDir: origin.castsDir, viewerBase: origin.viewerBase, index: indexText ? parseCastIndex(indexText) : emptyCastIndex() });
+        const picture = origin.private ? null : (await drawAll([text])).get(text) ?? null;
+        const plan = buildCastPlan({ title, text, slug, previousSlug: slug, repo, castsDir: origin.castsDir, viewerBase: origin.viewerBase, index: indexText ? parseCastIndex(indexText) : emptyCastIndex(), poster: picture });
         if (!origin.private) return { files: plan.files, deletions: [] };
         const castPath = joinRepo(origin.castsDir, `${plan.slug}.yaml`);
         const locked = await lockPrivate(plan.files, [castPath]);
@@ -1253,28 +1274,31 @@ const commands = {
           ? { name: origin.registered, app: "https://drawcast.app/" }
           : pageDoor(readAtCommit(clone, upstream, joinRepo(origin.path, "index.html")), doorlessNote),
       });
-      if (!origin.private) return { files: plan.files, deletions: plan.deletions };
+      if (!origin.private) {
+        const { lecturePosters } = await load("/src/course/publish.ts");
+        const lectureTexts = [...plan.fileOf.values()]
+          .map((name) => plan.files.find((f) => f.path === name || f.path.endsWith(`/${name}`))?.content)
+          .filter((t) => typeof t === "string");
+        const drawn = await drawAll(lectureTexts);
+        const posters = await lecturePosters(plan, async (yaml) => drawn.get(yaml) ?? null);
+        return { files: [...plan.files, ...posters], deletions: plan.deletions };
+      }
       const courseDir = joinRepo(origin.coursesDir, plan.slug);
       const lecturePaths = [...plan.fileOf.values()].map((name) => joinRepo(courseDir, name));
       const locked = await lockPrivate(plan.files, lecturePaths);
       return { files: locked.files, deletions: [...plan.deletions, ...locked.deletions] };
     });
 
-    // What would change, against the repo as it is now.
-    const changes = [];
-    for (const f of files.files) {
-      const now = readAtCommit(clone, upstream, f.path);
-      if (now === null) changes.push(["new", f.path]);
-      else if (now !== f.content) changes.push(["changed", f.path]);
-    }
-    for (const p of files.deletions) changes.push(["deleted", p]);
-    // The date in the manifests changes on every publish; alone it is no
-    // change — nor is the claim file (registry delivery 1): a first push
-    // adds it and a stale pending nonce (older than an hour) rotates it, so
-    // on its own it must never turn "nothing to push" into a push. (It is
-    // not in `files` yet here — it joins below, once shouldClaim allows.)
-    const real = changes.filter(([, p]) => !/(^|\/)(courses\.json|casts\.json|index\.html|README\.md|\.drawcast\/claim)$/.test(p));
+    // What would change, against the repo as it is now — by bytes, so a
+    // redrawn picture identical to GitHub's is no change. The manifests'
+    // dates, READMEs, index pages and the claim file (registry delivery 1)
+    // alone are no change (fileChanges's `real`): a first push adds the
+    // claim and a stale pending nonce rotates it, so on its own it must
+    // never turn "nothing to push" into a push. (It is not in `files` yet
+    // here — it joins below, once shouldClaim allows.)
+    const { changes, real } = fileChanges(files.files, files.deletions, (p) => readBytesAtCommit(clone, upstream, p));
     console.log(changes.length ? changes.map(([k, p]) => `  ${k.padEnd(8)} ${p}`).join("\n") : "  nothing differs from GitHub");
+    if (pictureNote) console.log(`No picture drawn (${pictureNote}) — the link will show a plain card.`);
     if (!real.length) return console.log("Nothing to push.");
     if (dry) return console.log("(dry run — nothing written)");
 

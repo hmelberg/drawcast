@@ -1,6 +1,7 @@
 // Pictures drawn by the script (spec 2026-10-02-share-design §7.1): the
 // pure parts of drawPictures — order kept, failures are nulls, a launcher
 // that cannot start is one note and no pictures, never a throw.
+import { readFileSync } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
 import { decodePicture, drawPictures } from "../scripts/pictures.mjs";
 
@@ -76,4 +77,13 @@ describe("drawPictures", () => {
     expect(out).toEqual({ pictures: [], note: null });
     expect(started).toBe(false);
   });
+});
+
+test("push draws pictures only for public casts and courses", () => {
+  const src = readFileSync("scripts/cast.mjs", "utf8");
+  const calls = [...src.matchAll(/drawAll\(/g)].length;
+  expect(calls).toBeGreaterThanOrEqual(2);
+  // cast branch: guarded inline; course branch: inside `if (!origin.private) {`
+  expect(src).toMatch(/origin\.private \? null : \(await drawAll\(\[text\]\)\)/);
+  expect(src).toMatch(/if \(!origin\.private\) \{\s*const \{ lecturePosters \}[\s\S]{0,400}drawAll\(lectureTexts\)/);
 });

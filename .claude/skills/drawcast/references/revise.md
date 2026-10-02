@@ -52,7 +52,10 @@ the GitHub one.
    Push regenerates what the app's own publish would (the course page with
    its Join door as it was, READMEs, courses.json/casts.json, Next links and
    cards) and refuses if those files changed on GitHub since the pull: pull
-   again into a fresh workdir and carry the edit over.
+   again into a fresh workdir and carry the edit over. A public push also
+   commits each cast's link-card picture (`<file>.png`, drawn the way the app
+   draws it); to give an older published repo its pictures, `pull` it and
+   `push` again.
 
 Report what changed per lecture and the PR link, and say two things when
 they apply:
