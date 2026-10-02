@@ -163,3 +163,17 @@ keywords; "`icon_look: drawn` only when the icon is what you explain".
 
 1. Bars beside: halves (your half left, the true half right).
 2. Your answer fades to 35 % at the next command.
+
+## 13. As built (2026-10-03)
+
+Built on branch `round6-reveals-choices-icons` in 7 plan tasks, each reviewed (multi-lens workflows for the larger ones), a muted browser check, a final whole-branch review and two final fix waves.
+
+- **Icons (§8):** specs carry keywords; data comes from an offline cache (`src/scenes/icon-cache.json`, `npm run icons`) or `assets:`; pictures (original artwork, twemoji first by name and a ~70-word alias table, else the line icon in ink) are the default for card/node icons; `icon_look: drawn` traces. Publish and the Embed dialog hoist node and card icons too; credits are rebuilt from the data for exports. The editor folds only machine payloads (drawcast-encoded forms, `data:<mime>`, base64 runs) with a per-fold nonce; copy/cut carry the real data; a "Show data" toggle; a leftover marker blocks saving.
+- **Choose (§4):** hit-testing and rings use the painted layout and current poses; Enter/digits (not Space); branches keep decide's semantics and the figure follows only the chosen branch.
+- **Beside reveals (§3):** bar halves via a player-set `beside_bars` param, a second pie via `beside_pie`; the scale's true pin in ink; cards ✓/✗ with the truth in ink and arrows routed round other cards; formula tiles stay put with the truth typeset; tree blanks show yours beside the truth. "Yours" and its gap labels fade to 35 % at the next command; a forward seek restores answered reveals; an animate ends the reveal (unless kept).
+- **Marks (§5):** `keep: true` keeps and follows (recomputed per frame through an animate; shifted after a move; ended by a transform/morph); vars-only animates don't end marks; kept market predictions are not recorded (lint warns).
+- **Own page (§6):** `stage: "own"` dims to 15 % everything but the asked parts (a tree's own template parts only).
+- **Sorting (§7):** tap cycles row → box 1 → … → row; `select` ("tap all"); `deck` (up to 30, one dealt card, boxes grow columns to hold every card); rapid taps are not dropped; `deck-text` lint for long card text.
+- **Examples:** "Fruit or not? — a quick deck", "Which of these are mammals?"; the deadliest animal and Is it a fruit? revised; the decision course (dev-casts) uses `choose` for doors, bags, cash/coin, Allais rows, tickets and menus.
+
+Left for later: page layout on a 390 px phone gives the figure little room while a question is open; after a branch's `then`, a later move *by a delta* of something a branch also moved starts from the last branch's position; parts that first appear during an own-page question are not dimmed; the frames harness's math typesetting error.
