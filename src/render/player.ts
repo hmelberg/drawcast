@@ -44,7 +44,7 @@ import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../fe
 import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
 import { cardsBeside, cardsParts } from "../cards/beside";
-import { BESIDE_MS, EACH_MS, FADED, WRONG, besideMarks, besideOffsets, besideParams, besideValues, fadeYours, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
+import { BESIDE_MS, EACH_MS, FADED, WRONG, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
 import { gateLang, gateWords } from "../ui/gate-words";
 import type { CardsGeometry } from "../spec/cards";
 import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
@@ -133,7 +133,22 @@ const GUESS_PREV_COLOR = "#9fb6d8";
 
 /** Paint a guess at these numbers (marks: the sketch copy too); `extra`: a
  *  beside reveal's room (template params) and frame offsets (a pin dropping in). */
-type GuessPaint = (values: number[][], marks?: boolean, extra?: { params?: Record<string, unknown>; offsets?: Record<string, Pt> }) => void;
+type GuessPaint = (values: number[][], marks?: boolean, extra?: { params?: Record<string, unknown>; offsets?: Record<string, Pt>; styles?: Record<string, Record<string, unknown>> }) => void;
+
+/** A beside reveal on the figure (spec 2026-10-03-round6 §3): the step whose
+ *  reveal drew it, its marks at full strength, faded yet, and what keeps the
+ *  truth beside the viewer's answer — template params (bars in halves, the
+ *  pie moved over), element offsets (cards and tiles where the viewer left
+ *  them), elements kept on screen (tiles), element styles (a scale's true pin in ink). */
+interface Beside {
+  index: number;
+  marks: GuessMarks | null;
+  faded: boolean;
+  params?: Record<string, unknown>;
+  offsets?: Record<string, Pt>;
+  shown?: string[];
+  styles?: Record<string, Record<string, unknown>>;
+}
 
 /** What render() gives the player for guess asks (see Player.guess). */
 export interface GuessRuntime {
@@ -372,7 +387,13 @@ export class Player {
    *  truth beside the viewer's answer — template params (bars in halves, the
    *  pie moved over), card offsets (the cards where the viewer left them).
    *  They go with the owner's marks: an erase, a clear, the next question, a scrub. */
-  private besides = new Map<string, { index: number; marks: GuessMarks | null; faded: boolean; params?: Record<string, unknown>; offsets?: Record<string, Pt> }>();
+  private besides = new Map<string, Beside>();
+  /** Every answered beside reveal, by owner: a seek forward past its ask puts
+   *  it back (faded once a command has followed) while nothing since has ended it. */
+  private besideMemory = new Map<string, Beside>();
+  /** A beside reveal's room was taken away mid-run (an erase, a hide, a clear):
+   *  the template is committed afresh at the next boundary. */
+  private pendingSettle = false;
   /** Every stored guess, for a later revise (spec 2026-10-02 §9). */
   private guessMemory = new Map<string, number[][]>();
   /** A decision's branches (spec 2026-10-02 §8): reaching another option's
@@ -770,6 +791,9 @@ export class Player {
     // frame() leaves handle-less DOM, and the run's actions need honest
     // elements. No-op when nothing is dirty and params already match; a
     // commit's fresh handles get the boundary's scene, as in settleParams.
+    // A finished "Test me" is not part of the cast: its marks and room go.
+    this.endOwner("guess_self");
+    this.pendingSettle = false;
     const boundary = this.stateAt(this.completed);
     if (this.applyKey(boundary)) this.applyScene(boundary);
 
@@ -810,6 +834,8 @@ export class Player {
       this.callbacks.onStep?.(this.completed, this.plan.steps.length);
     }
     if (!ac.signal.aborted) {
+      // A room taken away by the last steps: the end frame whole again.
+      this.settleBesides();
       this.ac = null;
       this.setState("done");
     }
@@ -865,6 +891,7 @@ export class Player {
     const poster = posterOf(this.plan);
     const end = this.stateAt(poster.at);
     for (const owner of [...this.besides.keys()]) this.dropBeside(owner);
+    this.pendingSettle = false;
     if (poster.at < this.plan.steps.length) {
       this.restoreFormulaFills(poster.at);
       this.applyKey(end);
@@ -925,12 +952,20 @@ export class Player {
     if (!keepPlaying) this.restoreRunPatches(n);
     // …and a formula's boxes are empty before its ask, written in after it.
     this.restoreFormulaFills(n);
-    // A beside reveal's room goes before the boundary is laid out.
+    // A beside reveal's room goes before the boundary is laid out — and the
+    // ones this boundary still shows come back (yours and the truth).
     for (const owner of [...this.besides.keys()]) this.dropBeside(owner);
+    const restored = this.besidesAt(n);
+    for (const [owner, b] of restored) this.putBeside(owner, b, false);
     const scene = this.stateAt(n);
     this.applyKey(scene);
-    this.endMarks();
+    this.endMarks(true);
     this.applyScene(scene);
+    this.pendingSettle = false;
+    for (const [owner, b] of restored) {
+      this.guessOwners.add(owner);
+      this.effects?.setGuessMarks?.(owner, b.faded && b.marks ? fadeYours(b.marks, FADED) : b.marks);
+    }
     this.completed = n;
     // Show the most recent narration line at this boundary.
     let caption = "";
@@ -956,7 +991,7 @@ export class Player {
       el.setOpacity?.(scene.opacities[id] ?? 1);
       el.setPoints?.(scene.shapes[id] ?? {});
       el.setText?.(scene.texts[id] ?? {});
-      if (visible.has(id) || !this.planTimeIds.has(id)) el.finish();
+      if (visible.has(id) || !this.planTimeIds.has(id) || this.besideShown(id)) el.finish();
       else el.hide();
     }
     this.effects?.setPointer(null);
@@ -1385,7 +1420,10 @@ export class Player {
     // copy is a mark — the template is never painted from it).
     const sketched = setup.handles.some((h) => h.kind === "curve" || h.kind === "market");
     return (values, marks = true, extra) => {
-      const patch = this.guess!.patch(setup, values, baseElements);
+      const patch0 = this.guess!.patch(setup, values, baseElements);
+      // A beside reveal's truth in ink (extra.styles: a scale's own pin and number).
+      const styles = extra?.styles;
+      const patch = styles && patch0.elements ? { ...patch0, elements: patch0.elements.map((e) => (styles[e.id] ? ({ ...e, ...styles[e.id] } as SpecElement) : e)) } : patch0;
       // A beside reveal's room (extra.params) and a scale's pin dropping in (extra.offsets).
       const scene = extra?.offsets ? { ...before, offsets: { ...before.offsets, ...extra.offsets } } : before;
       rp.frame({ ...sceneParams, ...patch.params, ...(extra?.params ?? {}) }, this.frameScene(scene, visible), { revealNew: true, overrides, ...(patch.elements ? { elements: patch.elements } : {}) });
@@ -1422,9 +1460,10 @@ export class Player {
     this.guessOwners.add(owner);
     const hs = setup.handles;
     const total = revealLength(hs.length, BESIDE_MS, order);
+    const styles = besideStyles(hs);
     await this.progress(total, signal, (t) => {
       const prog = hs.map((_, k) => partProgress(k, t * total, BESIDE_MS, order));
-      paint(besideValues(hs, guess, prog), false, { params: besideParams(hs, prog), offsets: besideOffsets(hs, prog) });
+      paint(besideValues(hs, guess, prog), false, { params: besideParams(hs, prog), offsets: besideOffsets(hs, prog), styles });
       this.effects?.setGuessMarks?.(owner, besideMarks(hs, guess, prog));
     });
     if (signal.aborted) {
@@ -1433,7 +1472,7 @@ export class Player {
     }
     const ones = hs.map(() => 1);
     const room = besideParams(hs, ones);
-    this.besides.set(owner, { index, marks: besideMarks(hs, guess, ones), faded: false, ...(Object.keys(room).length > 0 ? { params: room } : {}) });
+    this.putBeside(owner, { index, marks: besideMarks(hs, guess, ones), faded: false, ...(Object.keys(room).length > 0 ? { params: room } : {}), ...(Object.keys(styles).length > 0 ? { styles } : {}) });
     return true;
   }
 
@@ -1500,10 +1539,13 @@ export class Player {
 
   /** Drop a self test in progress (playback starting): its gate closes, its marks go. */
   cancelSelfTest(): void {
-    if (!this.selfTestAbort) return;
-    this.selfTestAbort.abort();
-    this.selfTestAbort = null;
-    this.endGuessMarks(true);
+    if (this.selfTestAbort) {
+      this.selfTestAbort.abort();
+      this.selfTestAbort = null;
+      this.endGuessMarks(true);
+    }
+    // A finished one: its marks and its room go too (play commits the boundary afresh).
+    this.endOwner("guess_self");
   }
 
   /** The boundary on screen: the poster's (before the first ask) while it
@@ -1787,7 +1829,8 @@ export class Player {
     // formula's, and stay until it is erased.
     const formula = g.mode === "fill" && step.formula !== undefined ? (this.guess?.formula?.(step.formula) ?? null) : null;
     const owner = formula ? `formula_${index}` : `cards_${index}`;
-    this.guessMarkParts.set(owner, formula ? [step.formula!] : [...g.cards, ...(g.valueIds ?? [])]);
+    // A formula's marks go with the formula, or with the tiles a beside reveal keeps on it.
+    this.guessMarkParts.set(owner, formula ? [step.formula!, g.id] : [...g.cards, ...(g.valueIds ?? [])]);
     const start = initialArrangement(g);
     // A deck's dealt card is drawn larger, about where the card is drawn (round 6 §7).
     const place = (id: string, dx: number, dy: number, scale = 1): void => this.nudge(id, dx, dy, scale, g.home[g.cards.indexOf(id)]);
@@ -1939,8 +1982,10 @@ export class Player {
     // the viewer left it, ✓/✗ on each card and the truth in ink beside. A
     // skipped question (and a movie's breath on the cards as drawn) has no
     // answer to keep: its cards glide to the truth, as with morph. Tiles in a
-    // formula's boxes go through the formula's own reveal.
-    const beside = step.revealStyle !== "morph" && answered && !formula;
+    // formula's boxes stay in them too, the truth written into the boxes.
+    const beside = step.revealStyle !== "morph" && answered;
+    // Tiles the viewer put in a box (the answer): kept on screen beside a formula's truth.
+    const placedTiles = formula ? g.cards.filter((_, i) => arrangement.boxes.some((b) => b.includes(i))) : [];
     // The cards that move glide from where the viewer left them to the truth.
     const moves = !beside && g.cards.some((_, i) => Math.abs(from[i][0] - g.truth[i][0]) > 0.5 || Math.abs(from[i][1] - g.truth[i][1]) > 0.5);
     if (moves) {
@@ -1962,7 +2007,8 @@ export class Player {
     // plan takes the tiles and the boxes away). The wrong tiles, home again,
     // fade out first: no tile stays to the end of the cast.
     if (formula) this.setFills(step.formula!, formula.blanks.map((b) => b.tex));
-    const leaving = formula ? this.els(g.cards.filter((_, i) => g.truthBin[i] < 0)) : [];
+    // Beside: the tiles left in the row go; morph: the wrong tiles, home again, go.
+    const leaving = formula ? this.els(g.cards.filter((id, i) => (beside ? !placedTiles.includes(id) : g.truthBin[i] < 0))) : [];
     if (leaving.length > 0) {
       await this.progress(TILE_FADE_MS, signal, (t) => leaving.forEach((el) => el.setOpacity?.(1 - t)));
       if (signal.aborted) {
@@ -1977,7 +2023,7 @@ export class Player {
       const offsets: Record<string, Pt> = {};
       g.cards.forEach((id, i) => (offsets[id] = [from[i][0] - g.home[i][0], from[i][1] - g.home[i][1]]));
       for (const id of g.cards) place(id, 0, 0);
-      this.besides.set(owner, { index, marks: null, faded: false, offsets });
+      this.putBeside(owner, { index, marks: null, faded: false, offsets, ...(placedTiles.length > 0 ? { shown: placedTiles } : {}) });
     }
     this.applyKey(this.plan.states[index]);
     // Hidden now: their own opacity back, for a replay that draws them again.
@@ -1997,13 +2043,6 @@ export class Player {
       mark(marks);
       const b = this.besides.get(owner);
       if (b) b.marks = marks;
-    } else if (answered && formula && step.revealStyle !== "morph") {
-      // Tiles: as before, with ✓/✗ by each box.
-      const own = cardsMarks(g, arrangement);
-      const ticks = cardsBeside(g, arrangement);
-      const marks = { ...own, lines: [...own.lines, ...ticks.lines], texts: [...own.texts, ...ticks.texts] };
-      mark(marks);
-      this.besides.set(owner, { index, marks, faded: false });
     } else if (answered) mark(cardsMarks(g, arrangement));
     await spoken;
     if (signal.aborted) return;
@@ -2256,7 +2295,7 @@ export class Player {
       const marks = marksUpTo(blanks.length);
       this.guessOwners.add(owner);
       this.effects?.setGuessMarks?.(owner, marks);
-      this.besides.set(owner, { index, marks, faded: false });
+      this.putBeside(owner, { index, marks, faded: false });
     } else if (words.length > 0) {
       this.guessOwners.add(owner);
       this.effects?.setGuessMarks?.(owner, { color: GUESS_COLOR, lines, texts: words });
@@ -2584,20 +2623,80 @@ export class Player {
       this.guessOwners.delete(owner);
       dropped = this.dropBeside(owner) || dropped;
     }
-    if (dropped && settle) {
-      const scene = this.stateAt(this.completed);
-      if (this.applyKey(scene)) this.applyScene(scene);
-      else this.applyOffsets(scene);
-    }
+    if (dropped && settle) this.settleBesides();
   }
 
-  /** Forget a beside reveal's room; true when it kept any (params or offsets). */
+  /** Forget a beside reveal's room; true when it kept any. The template is
+   *  committed afresh at the next boundary (pendingSettle) unless the caller
+   *  commits first (a seek, the next question). */
   private dropBeside(owner: string): boolean {
     const b = this.besides.get(owner);
     if (!b) return false;
     this.besides.delete(owner);
-    if (b.params) this.geometryDirty = true;
-    return b.params !== undefined || b.offsets !== undefined;
+    for (const id of Object.keys(b.styles ?? {})) this.reprojector?.setElementPatch?.(id, null);
+    if (b.params || b.styles) this.geometryDirty = true;
+    const room = b.params !== undefined || b.offsets !== undefined || b.shown !== undefined || b.styles !== undefined;
+    if (room) this.pendingSettle = true;
+    return room;
+  }
+
+  /** Put a beside reveal on the figure's state (its element styles patched
+   *  in); `remember`: kept for a later seek forward past its ask. */
+  private putBeside(owner: string, b: Beside, remember = true): void {
+    this.besides.set(owner, b);
+    for (const [id, fields] of Object.entries(b.styles ?? {})) this.reprojector?.setElementPatch?.(id, fields);
+    if (b.params || b.styles) this.geometryDirty = true;
+    if (remember && b.index >= 0) this.besideMemory.set(owner, b);
+  }
+
+  /** Take one owner's marks and room off the figure. */
+  private endOwner(owner: string): void {
+    if (!this.guessOwners.has(owner) && !this.besides.has(owner)) return;
+    this.effects?.setGuessMarks?.(owner, null);
+    this.guessOwners.delete(owner);
+    this.dropBeside(owner);
+  }
+
+  /** The figure committed afresh after a beside reveal's room went (at a boundary). */
+  private settleBesides(): void {
+    if (!this.pendingSettle) return;
+    this.pendingSettle = false;
+    const scene = this.stateAt(this.completed);
+    this.applyKey(scene);
+    this.applyScene(scene);
+  }
+
+  /** Whether a beside reveal keeps this element on screen (a tile in a box). */
+  private besideShown(id: string): boolean {
+    for (const b of this.besides.values()) if (b.shown?.includes(id)) return true;
+    return false;
+  }
+
+  /**
+   * The beside reveals boundary `n` shows (Review Focus 5: a seek forward past
+   * an answered ask shows yours and the truth again): each remembered one
+   * whose ask lies before `n` and that nothing between has ended — the next
+   * question (a tree's and a formula's marks outlive it), an animate of the
+   * template, a clear, or its parts erased or hidden. Faded when a command has
+   * followed its reveal.
+   */
+  private besidesAt(n: number): [string, Beside][] {
+    const out: [string, Beside][] = [];
+    for (const [owner, b] of this.besideMemory) {
+      if (b.index >= n || !b.marks) continue;
+      const parts = this.guessMarkParts.get(owner) ?? [];
+      const keeps = owner.startsWith("tree_") || owner.startsWith("formula_");
+      let alive = true;
+      for (let j = b.index + 1; j < n && alive; j++) {
+        const st = this.plan.steps[j];
+        if (st.kind === "ask" && !keeps) alive = false;
+        else if (st.kind === "animate" && owner.startsWith("guess_")) alive = false;
+        else if (st.kind === "clear") alive = false;
+        else if ((st.kind === "erase" || st.kind === "hide") && st.ids.some((id) => parts.some((p) => id === p || id.startsWith(`${p}_`) || p.startsWith(`${id}_`)))) alive = false;
+      }
+      if (alive) out.push([owner, { ...b, faded: n > b.index + 1 }]);
+    }
+    return out;
   }
 
   /** Where a beside reveal keeps this element (a card left where the viewer put it), or null. */
@@ -2607,15 +2706,6 @@ export class Player {
       if (o) return o;
     }
     return null;
-  }
-
-  /** Every element's offset as the scene (and any beside reveal) has it. */
-  private applyOffsets(scene: SceneState): void {
-    for (const [id, el] of this.elements) {
-      if (scene.turns[id]) continue;
-      const [dx, dy] = this.besideOffset(id) ?? scene.offsets[id] ?? [0, 0];
-      el.setOffset?.(dx, dy);
-    }
   }
 
   /** The next command after a beside reveal: the viewer's answer fades to FADED. */
@@ -2628,8 +2718,8 @@ export class Player {
   }
 
   /** Take down every mark still on screen — a scrub, the poster, disposal. */
-  private endMarks(): void {
-    for (const owner of [...this.besides.keys()]) this.dropBeside(owner);
+  private endMarks(keepBesides = false): void {
+    if (!keepBesides) for (const owner of [...this.besides.keys()]) this.dropBeside(owner);
     this.predictCarry = null;
     this.selfTestAbort?.abort();
     this.selfTestAbort = null;
@@ -2870,6 +2960,8 @@ export class Player {
 
   private async runStep(index: number, signal: AbortSignal): Promise<void> {
     const step = this.plan.steps[index];
+    // A room taken away since the last boundary: the template whole again.
+    this.settleBesides();
     // The next command after a beside reveal: the viewer's answer fades.
     this.fadeBesides(index);
     if (step.kind === "explore" && (this.skipQuestions || this.autoAnswers || !this.exploreGate)) {
@@ -3581,6 +3673,12 @@ export class Player {
         // the truth is drawn as it moves.
         const carry = this.predictCarry && this.predictCarry.animIndex === index ? this.predictCarry : null;
         this.predictCarry = null;
+        // A beside reveal on the template ends with its moment (spec round 6
+        // §3, §5): the figure is about to change, so yours, its gap and the
+        // room the truth took go before the tween — the bars whole again in
+        // the animate's own frames (example 386: the chart moves to the left).
+        for (const owner of [...this.besides.keys()]) if (owner.startsWith("guess_") && owner !== carry?.owner) this.endOwner(owner);
+        this.pendingSettle = false; // the animate commits its own end
         const held: Record<string, unknown> = {};
         const startAt: Record<string, number> = {};
         // Beside (the default): the animate plays from the present as written,
@@ -3620,7 +3718,7 @@ export class Player {
         if (signal.aborted) return; // a scrub's renderUpTo owns the state now
         if (carry && besideCarry) {
           const room = besideParams(carry.truthHandles, carry.truthHandles.map(() => 1));
-          this.besides.set(carry.owner, { index, marks: carryMarks(1), faded: false, ...(Object.keys(room).length > 0 ? { params: room } : {}) });
+          this.putBeside(carry.owner, { index, marks: carryMarks(1), faded: false, ...(Object.keys(room).length > 0 ? { params: room } : {}) });
         }
         this.applyKey(this.plan.states[index]);
         this.applyScene(this.plan.states[index]);

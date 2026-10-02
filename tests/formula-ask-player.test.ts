@@ -3,7 +3,7 @@
 // formula gate; the reveal writes the truths into the boxes (an element
 // patch, `fills`), wrong answers keep a struck-through mark, and a seek back
 // before the ask empties the boxes again.
-import { RIGHT, WRONG } from "../src/guess/reveal";
+import { RIGHT, TRUTH, WRONG } from "../src/guess/reveal";
 import { describe, expect, test } from "vitest";
 import { Player, type FormulaSession, type GuessRuntime, type Reprojector } from "../src/render/player";
 import type { BackendEffects } from "../src/render/backend";
@@ -118,10 +118,22 @@ describe("formula asks in the player", () => {
     await player.play();
     expect(player.vars.get("f.ok")).toBe("false");
     expect(lastPatch()).toEqual({ fills: ["r^2"] });
+    // Beside (the default): the tile stays in the box; ✗ by it, the true tile's text in ink
+    // over it, and a thin red arrow sending the wrong tile back to the row.
+    const m = marks.get("formula_1");
+    expect(m?.texts.some((t) => t.text === "✗" && t.color === WRONG)).toBe(true);
+    expect(m?.texts.some((t) => t.text === "r^2" && t.color === TRUTH)).toBe(true);
+    expect(m?.lines.some((l) => l.color === WRONG)).toBe(true);
+    expect(m?.texts.map((t) => t.text)).not.toContain("2r");
+  });
+
+  test("live tiles, morph: a wrong tile is struck through above its box", async () => {
+    const { player, marks } = makePlayer([{ draw: ["area", "area_blank_1"] }, ask({ others: ["2r", "d"], reveal_style: "morph" })], { tiles: true });
+    player.askGate = async (_s, step) => ((step as { cardsSession?: unknown }).cardsSession ? "0" : null);
+    await player.play();
     const m = marks.get("formula_1");
     expect(m?.texts.map((t) => t.text)).toContain("2r");
     expect(m?.lines.length).toBeGreaterThan(0);
-    expect(m?.texts.some((t) => t.text === "✗" && t.color === WRONG)).toBe(true);
   });
 
   test("feedback: a right typed formula is perfect, said after the author's line; a skip adds nothing", async () => {

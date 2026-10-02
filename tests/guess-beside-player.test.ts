@@ -138,8 +138,46 @@ describe("a guess on a bar: beside (the default) and morph", () => {
     player.renderUpTo(1);
     expect(marks.get("guess_1")).toBeNull();
     expect(commits[commits.length - 1]["beside_bars"]).toBeUndefined();
-    // Forward again: the plan's honest figure, the bars whole.
+    // Forward again (Review Focus 5): yours and the truth come back — faded, a command has followed.
     player.renderUpTo(3);
+    expect(JSON.stringify(commits[commits.length - 1]["beside_bars"])).toBe("[1]");
+    const back = marks.get("guess_1")!;
+    expect(back.lines.find((l) => l.fill === YOURS)?.fillOpacity).toBeCloseTo(0.6 * FADED);
+    // Right after the ask: at full strength.
+    player.renderUpTo(2);
+    expect(marks.get("guess_1")!.lines.find((l) => l.fill === YOURS)?.fillOpacity).toBeCloseTo(0.6);
+  });
+
+  test("an erase, then the part drawn again: the template is committed whole (no half bar left)", async () => {
+    const { player, commits } = makePlayer([DRAW, ask(), { erase: ["bar_2"] }, { draw: ["bar_2"] }, { speak: "End." }]);
+    player.askGate = async () => "50";
+    await player.play();
+    expect(commits[commits.length - 1]["beside_bars"]).toBeUndefined();
+    // A seek past the erase does not bring yours back.
+    player.renderUpTo(4);
+    expect(commits[commits.length - 1]["beside_bars"]).toBeUndefined();
+  });
+
+  test("an animate of the chart ends yours and the halves before it plays (example 386)", async () => {
+    const { player, marks, frames } = makePlayer([DRAW, ask(), { animate: { "values.1": 20 }, duration: 0.2 } as Command, { speak: "End." }]);
+    player.askGate = async () => "50";
+    await player.play();
+    expect(marks.get("guess_1")).toBeNull();
+    // After the reveal's last halved frame: the animate's frames, the bars whole, values.1 on its way to 20.
+    const lastHalved = frames.map((f) => f.p["beside_bars"] !== undefined).lastIndexOf(true);
+    const after = frames.slice(lastHalved + 1);
+    expect(after.some((f) => typeof f.p["values.1"] === "number" && (f.p["values.1"] as number) < 79 && (f.p["values.1"] as number) > 21)).toBe(true);
+    expect(after.every((f) => f.p["beside_bars"] === undefined)).toBe(true);
+  });
+
+  test("Test me's reveal goes when the cast plays on", async () => {
+    const { player, marks, commits } = makePlayer([{ draw: ["axes", "bar_1", "bar_2", "bar_3"] }, { speak: "Look." }, { speak: "More." }]);
+    player.renderUpTo(1);
+    expect(await player.selfTest(async () => "10;10;10")).toBe(true);
+    expect(marks.get("guess_self")).toBeTruthy();
+    player.cancelSelfTest();
+    await player.play();
+    expect(marks.get("guess_self")).toBeNull();
     expect(commits[commits.length - 1]["beside_bars"]).toBeUndefined();
   });
 

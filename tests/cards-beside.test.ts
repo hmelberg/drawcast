@@ -29,6 +29,13 @@ const sort = cardsGeometry({ id: "s", type: "cards", bins: ["Odd", "Even"], item
 const ticks = (m: GuessMarks) => m.texts.filter((t) => t.text === "✓" || t.text === "✗");
 
 describe("cardsBeside, pure", () => {
+  test("a row rank's true order stands a line under the end labels", () => {
+    const m = cardsBeside(rank, { order: [1, 0, 2, 3], boxes: [] });
+    const column = m.texts.filter((x) => x.color === TRUTH);
+    // The end labels sit 26 under the cards (spec/cards.ts); the true order clear below them.
+    expect(column.every((x) => x.at[1] <= rank.slots[0][1] - rank.h / 2 - 45)).toBe(true);
+  });
+
   test("rank: ✓/✗ where each card stands, and an ink true-order column beside the slots", () => {
     expect(rank.mode).toBe("rank");
     // Slot 0 holds card 1, slot 1 card 0: those two wrong, the rest right.

@@ -15,6 +15,7 @@ import type { LayoutResult } from "../layout/layout";
 import { domainMapping, elementBBoxes, inverseDomainMapping } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
+import { leafDrawables } from "../layout/model";
 import type { MeasureFn } from "../layout/measure";
 import { readParam } from "../render/params";
 import type { Spec, SpecElement } from "../spec/types";
@@ -83,7 +84,7 @@ export interface GuessHandle {
   radius?: number;
   /** angle: the pie's centre and radius in the template's own units (before
    *  the page's fit) — a beside reveal moves the template's pie (guess/reveal.ts). */
-  pieFrame?: { centre: Pt; radius: number };
+  pieFrame?: { centre: Pt; radius: number; bounds?: [number, number] };
   /** market (spec 2026-10-03 §3): the asked curve, the old and the true one;
    *  the two numbers are the gaps v₁, v₂ along its axis. Painted by marks,
    *  never by params (no paths). */
@@ -205,7 +206,7 @@ export function guessSetup(
     if (spec.template === "pie_chart" && (part === "pie" || /^slice_\d+$/.test(part))) {
       if (pieParts.length > 1 && part !== pieParts[0]) continue; // one pie handle covers them
       const whole = part === "pie" || pieParts.length > 1;
-      const h = pieHandle(params, whole ? null : Number(part.slice(6)) - 1, layout.fit);
+      const h = pieHandle(params, whole ? null : Number(part.slice(6)) - 1, layout.fit, drawnPie(layout.drawables));
       if (typeof h === "string") warnings.push(h);
       else handles.push(h);
       continue;
@@ -329,7 +330,23 @@ export function pieGeometry(params: Record<string, unknown>, fit?: LayoutResult[
   return { centre: [((area.x0 + area.x1) / 2) * s + dx, ((area.y0 + area.y1) / 2) * s + dy], radius: r * s };
 }
 
-function pieHandle(params: Record<string, unknown>, slice: number | null, fit: LayoutResult["fit"]): GuessHandle | string {
+/** The pie as laid out (logical): a slice's wedge starts at the centre and
+ *  runs along the rim. A named box ("right") places the template's pie on the
+ *  page by a transform pieGeometry cannot see; the drawing has it. */
+function drawnPie(drawables: LayoutResult["drawables"]): { centre: Pt; radius: number } | null {
+  for (const d of leafDrawables(drawables)) {
+    if (!/^slice_\d+__f$/.test(d.id)) continue;
+    const pts = (d as { pts?: Pt[] }).pts;
+    if (!pts || pts.length < 3) continue;
+    const r = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]);
+    const r2 = Math.hypot(pts[2][0] - pts[0][0], pts[2][1] - pts[0][1]);
+    // A wedge: its first point is the centre (both rim points equally far). A whole circle is not.
+    if (r > 1 && Math.abs(r - r2) < 0.5) return { centre: pts[0], radius: r };
+  }
+  return null;
+}
+
+function pieHandle(params: Record<string, unknown>, slice: number | null, fit: LayoutResult["fit"], drawn: { centre: Pt; radius: number } | null = null): GuessHandle | string {
   const cur = currentRow(params["values"], isNum(params["stage"]) ? params["stage"] : 0, "values");
   if (!cur || cur.row.some((v) => v === null || v < 0)) return "guess: the pie has no numbers yet";
   const row = cur.row as number[];
@@ -337,7 +354,11 @@ function pieHandle(params: Record<string, unknown>, slice: number | null, fit: L
   if (!(total > 0) || row.length < 2) return "guess: a pie needs two slices or more";
   if (slice !== null && (slice < 0 || slice >= row.length)) return `guess: "slice_${slice + 1}" — no such slice`;
   const ids = row.map((_, i) => `slice_${i + 1}`);
-  const { centre, radius: r } = pieGeometry(params, fit);
+  const { centre, radius: r } = drawn ?? pieGeometry(params, fit);
+  // The template's own frame (before any transform), and the room a boxed pie keeps to.
+  const tpl = pieGeometry(params);
+  const b = params["box"] as { x?: unknown; w?: unknown } | undefined;
+  const bounds: [number, number] | undefined = b && typeof b === "object" && isNum(b.x) && isNum(b.w) ? [b.x, b.x + b.w] : undefined;
   const pct = row.map((v) => (v / total) * 100);
   const labels = Array.isArray(params["labels"]) ? (params["labels"] as unknown[]) : [];
   return {
@@ -355,7 +376,7 @@ function pieHandle(params: Record<string, unknown>, slice: number | null, fit: L
     pie: { paths: row.map((_, i) => `${cur.at}.${i}`), slice, total, shares: row.map((v) => v / total) },
     centre,
     radius: r,
-    pieFrame: pieGeometry(params),
+    pieFrame: { ...tpl, ...(bounds ? { bounds } : {}) },
   };
 }
 

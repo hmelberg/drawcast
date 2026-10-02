@@ -20,6 +20,7 @@ import {
   besideMarks,
   besideOffsets,
   besideParams,
+  besideStyles,
   besideValues,
   fadeYours,
   partProgress,
@@ -106,8 +107,13 @@ describe("bars: halves", () => {
     const { setup } = setupFor(bars, "bar_2");
     const m = fadeYours(besideMarks(setup.handles, [[30]], [1]), FADED);
     const filled = m.lines.find((l) => l.fill !== undefined)!;
+    // Fill and outline each fade once: the fill through fill-opacity, the outline through opacity.
     expect(filled.fillOpacity).toBeCloseTo(0.6 * FADED);
-    expect(m.lines.filter((l) => l.color === YOURS).every((l) => Math.abs((l.opacity ?? 1) - FADED) < 1e-9)).toBe(true);
+    expect(filled.opacity ?? 1).toBe(1);
+    expect(m.lines.filter((l) => l.color === YOURS && l.fill === undefined).every((l) => Math.abs((l.opacity ?? 1) - FADED) < 1e-9)).toBe(true);
+    // besideMarks' own fade is the same.
+    const own = besideMarks(setup.handles, [[30]], [1], FADED).lines.find((l) => l.fill !== undefined)!;
+    expect((own.fillOpacity ?? 0) * (own.opacity ?? 1)).toBeCloseTo(0.6 * FADED);
     expect(m.texts.find((t) => t.color === TRUTH)?.opacity).toBeUndefined();
   });
 });
@@ -187,5 +193,40 @@ describe("marks helpers", () => {
     expect(a[0].pts[1]).toEqual([100, 0]);
     expect(a[1].pts[1]).toEqual([100, 0]);
     expect(a.every((l) => l.color === WRONG)).toBe(true);
+  });
+});
+
+describe("fix round 1", () => {
+  test("negative bars: the gap is written under the lower end, clear of both halves", () => {
+    const neg: Spec = { template: "bar_chart", params: { labels: ["A", "B", "C"], values: [5, -8, 3], value_labels: true }, commands: [] } as Spec;
+    const { setup } = setupFor(neg, "bar_2");
+    const h = setup.handles[0];
+    const m = besideMarks(setup.handles, [[-4]], [1]);
+    const fill = m.lines.find((l) => l.fill === YOURS)!;
+    const gap = m.texts.find((t) => t.color === TRUTH)!;
+    const truthEnd = h.toLogical!([0, -8])[1];
+    expect(gap.at[1]).toBeLessThan(Math.min(...fill.pts.map((p) => p[1])));
+    expect(gap.at[1]).toBeLessThan(truthEnd - 20);
+  });
+
+  test("a scale's true pin and number are drawn in ink", () => {
+    const scale: Spec = { elements: [{ id: "year", type: "scale", min: 1700, max: 1800, value: 1756 }], commands: [] } as unknown as Spec;
+    const { setup } = setupFor(scale, "year");
+    const st = besideStyles(setup.handles);
+    expect(st["year_answer_pin"]).toEqual({ style: { color: TRUTH, fill: TRUTH, fill_style: "wash" } });
+    expect(st["year_answer_num"]).toEqual({ style: { color: TRUTH } });
+    expect(besideStyles(setupFor(bars, "bar_2").setup.handles)).toEqual({});
+  });
+
+  test("a boxed pie keeps the pair inside its box; a named box uses the pie as drawn", () => {
+    const boxed: Spec = { template: "pie_chart", params: { labels: ["A", "B", "C"], values: [5, 3, 2], box: { x: 500, y: 100, w: 450, h: 500 } }, commands: [] } as Spec;
+    const pair = piePair(setupFor(boxed, "slice_1").setup.handles[0])!;
+    expect(pair.yours.c[0] - pair.yours.r).toBeGreaterThanOrEqual(500);
+    expect(pair.truth.c[0] + pair.truth.r + 150).toBeLessThanOrEqual(950 + 1e-6);
+    const named: Spec = { template: "pie_chart", params: { labels: ["A", "B", "C"], values: [5, 3, 2], box: "right" }, commands: [] } as unknown as Spec;
+    const h = setupFor(named, "slice_1").setup.handles[0];
+    expect(h.centre![0]).toBeGreaterThan(600);
+    const p2 = piePair(h)!;
+    expect(p2.yours.c[0] - p2.yours.r).toBeGreaterThan(500);
   });
 });

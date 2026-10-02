@@ -84,17 +84,21 @@ export function piePair(h: GuessHandle): PiePair | null {
   const d: Pt = [h.centre[0] - tpl.centre[0] * s, h.centre[1] - tpl.centre[1] * s];
   const toL = (p: Pt): Pt => [p[0] * s + d[0], p[1] * s + d[1]];
   const [cx, cy] = tpl.centre;
-  const r2 = Math.min(tpl.radius, PIE_MAX_R);
+  // The room the pair has: the pie's own box (a boxed pie stays in it), else the canvas.
+  const [x0, x1] = tpl.bounds ?? [0, CANVAS_W];
+  // Both pies, the true pie's names on each side of it, a margin left of yours.
+  const fit = (x1 - x0 - 2 * PIE_NAMES - 3 * PIE_GAP) / 4;
+  const r2 = Math.max(20, Math.min(tpl.radius, PIE_MAX_R, fit));
   const span = 2 * r2 + PIE_NAMES + PIE_GAP; // centre to centre
   let cL = cx - span / 2;
   let cR = cx + span / 2;
   // Pulled in from the edges: the true pie's names on its right, yours alone on the left.
-  const over = cR + r2 + PIE_NAMES - (CANVAS_W - PIE_GAP);
+  const over = cR + r2 + PIE_NAMES - (x1 - PIE_GAP);
   if (over > 0) {
     cL -= over;
     cR -= over;
   }
-  const under = PIE_GAP + 20 - (cL - r2);
+  const under = x0 + PIE_GAP - (cL - r2);
   if (under > 0) {
     cL += under;
     cR += under;
@@ -184,6 +188,18 @@ export function besideOffsets(handles: GuessHandle[], prog: number[]): Record<st
   return out;
 }
 
+/** The truth's own elements recoloured in ink for a beside reveal: a scale's
+ *  answer pin and its number (their authored accent reads as "wrong" red). */
+export function besideStyles(handles: GuessHandle[]): Record<string, Record<string, unknown>> {
+  const out: Record<string, Record<string, unknown>> = {};
+  for (const h of handles) {
+    if (h.kind !== "point") continue;
+    out[`${h.part}_pin`] = { style: { color: TRUTH, fill: TRUTH, fill_style: "wash" } };
+    out[`${h.part}_num`] = { style: { color: TRUTH } };
+  }
+  return out;
+}
+
 /** A rectangle from (x0, y0) to (x1, y1). */
 const rect = (x0: number, y0: number, x1: number, y1: number): Pt[] => [[x0, y0], [x0, y1], [x1, y1], [x1, y0]];
 
@@ -207,7 +223,8 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
   const fills: GuessMarkLine[] = [];
   const lines: GuessMarkLine[] = [];
   const texts: GuessMarkText[] = [];
-  const yours = (l: GuessMarkLine): GuessMarkLine => ({ ...l, color: YOURS, opacity: fade, ...(l.fill !== undefined ? { fillOpacity: (l.fillOpacity ?? 0.6) * fade } : {}) });
+  // A fill fades through its fill-opacity, an outline through its opacity — never both (they multiply).
+  const yours = (l: GuessMarkLine): GuessMarkLine => ({ ...l, color: YOURS, ...(l.fill !== undefined ? { fillOpacity: (l.fillOpacity ?? 0.6) * fade } : { opacity: fade }) });
   handles.forEach((h, k) => {
     const g = guess[k] ?? h.truth;
     const p = Math.max(0, Math.min(1, prog[k] ?? 1));
@@ -225,9 +242,12 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
         if (p >= 1) {
           const d = h.truth[0] - g[0];
           if (Math.abs(d) > 1e-9) {
-            // Over the two halves' higher top, clear of the true bar's value label (13 over its top).
             const hi = Math.max(top[1], truthTop[1]);
-            texts.push({ at: [h.cx - h.halfW / 2, hi + (truthTop[1] >= top[1] ? 34 : 22)], text: signed(h, d), anchor: "middle", color: TRUTH, size: 18 });
+            const lo = Math.min(top[1], truthTop[1]);
+            // Clear of both halves and of the true bar's value label (13 past its end):
+            // over the higher top when a bar rises, under the lower end when both hang below zero.
+            const y = hi > base + 0.5 ? hi + (truthTop[1] >= top[1] ? 34 : 22) : lo - (truthTop[1] <= top[1] ? 34 : 22);
+            texts.push({ at: [h.cx - h.halfW / 2, y], text: signed(h, d), anchor: "middle", color: TRUTH, size: 18 });
           }
         }
         break;
@@ -371,7 +391,8 @@ export function fadeYours(m: GuessMarks, fade: number): GuessMarks {
   const blue = (c: string | undefined): boolean => (c ?? m.color) === YOURS;
   return {
     ...m,
-    lines: m.lines.map((l) => (blue(l.color) ? { ...l, opacity: (l.opacity ?? 1) * fade, ...(l.fill !== undefined ? { fillOpacity: (l.fillOpacity ?? 0.6) * fade } : {}) } : l)),
+    // A fill fades through its fill-opacity, an outline through its opacity — never both (they multiply).
+    lines: m.lines.map((l) => (blue(l.color) ? (l.fill !== undefined ? { ...l, fillOpacity: (l.fillOpacity ?? 0.6) * fade } : { ...l, opacity: (l.opacity ?? 1) * fade }) : l)),
     texts: m.texts.map((t) => (blue(t.color) ? { ...t, opacity: (t.opacity ?? 1) * fade } : t)),
     ...(m.dots ? { dots: m.dots.map((d) => (blue(d.color) ? { ...d, opacity: (d.opacity ?? 1) * fade } : d)) } : {}),
   };

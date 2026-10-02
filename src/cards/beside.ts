@@ -9,7 +9,7 @@ import type { Pt } from "../layout/model";
 import type { CardsGeometry } from "../spec/cards";
 import type { GuessMarkLine, GuessMarkText, GuessMarks } from "../guess/marks";
 import { TRUTH, WRONG, YOURS, arrow, tick } from "../guess/reveal";
-import { matchLines, placePins, positions, rightCards, rightPick, type Arrangement } from "./model";
+import { matchLines, placePins, plainTeX, positions, rightCards, rightPick, type Arrangement } from "./model";
 
 /** A card's text for the true-order column: short canvas text. */
 function short(t: string, n = 22): string {
@@ -65,7 +65,8 @@ export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: num
         if (s >= upTo) return;
         texts.push(badge(pos[card], right[card]));
         // The true order, beside the slots: the card that belongs in slot s.
-        const at: Pt = column ? [g.slots[s][0] + g.w / 2 + 34, g.slots[s][1]] : [g.slots[s][0], g.slots[s][1] - g.h / 2 - 24];
+        // A row's names go a line under the end labels ("← Most", "Least →") that stand 26 under the cards.
+        const at: Pt = column ? [g.slots[s][0] + g.w / 2 + 34, g.slots[s][1]] : [g.slots[s][0], g.slots[s][1] - g.h / 2 - 54];
         texts.push({ at, text: column ? `${s + 1}. ${short(g.texts[s])}` : short(g.texts[s], 14), anchor: column ? "start" : "middle", color: TRUTH, size: 18 });
       });
       break;
@@ -143,13 +144,31 @@ export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: num
         if ((g.best ?? []).some(Boolean)) texts.push(badge(pos[a.choice!], right[0] === true));
       }
       break;
-    case "fill":
-      // Tiles go through the formula's own reveal (the truth written into the boxes).
+    case "fill": {
+      // The tiles stay where the viewer put them: ✓/✗ by each box, the true
+      // tile's text in ink over a box a wrong tile covers, and a
+      // thin red arrow from each misplaced tile to the box it belongs in (a
+      // tile that belongs nowhere: back to its place in the row).
+      const inBox = new Map<number, number>();
+      a.boxes.forEach((cards, k) => cards.forEach((c) => inBox.set(c, k)));
       g.binBoxes.forEach((bx, k) => {
         if (k >= upTo) return;
         texts.push(tick([bx.c[0] + bx.w / 2 + 14, bx.c[1]], right[k] === true, "middle", 24));
+        const truth = g.truthBin.indexOf(k);
+        if (!right[k] && truth >= 0 && (a.boxes[k]?.length ?? 0) > 0) texts.push({ at: [bx.c[0], bx.c[1] + bx.h / 2 + 18], text: plainTeX(g.texts[truth]), anchor: "middle", color: TRUTH, size: 18 });
+      });
+      g.cards.forEach((_, i) => {
+        const k = inBox.get(i);
+        if (k === undefined || k >= upTo || right[k]) return;
+        const t = g.truthBin[i];
+        const box = t >= 0 ? g.binBoxes[t] : null;
+        const target: Pt = box ? box.c : g.home[i];
+        const from = edgeToward(pos[i], g.w, g.h, target);
+        const to = box ? edgeToward(box.c, box.w, box.h, pos[i], 2) : edgeToward(target, g.w, g.h, pos[i]);
+        lines.push(...arrow(from, to, WRONG, 2));
       });
       break;
+    }
   }
   return { color: YOURS, lines, texts };
 }
