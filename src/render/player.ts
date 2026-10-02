@@ -47,7 +47,8 @@ import { besidePositions, cardsBeside, cardsParts } from "../cards/beside";
 import { BESIDE_MS, EACH_MS, FADED, WRONG, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, mergeRooms, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
 import { gateLang, gateWords } from "../ui/gate-words";
 import type { CardsGeometry } from "../spec/cards";
-import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
+import { CORRECTED, counterMarks } from "../cards/counter";
+import { cardsMarks, cardsTruth, fadedCards, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
 import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
 import { decodeTreeAnswer, encodeTreeAnswer, pickDiff, scoreBlanks, treeBlanks, treePick, type TreeBlank, type TreePick } from "../tree/blanks";
 import { treeNumberText, type DecisionTreeParams } from "../scenes/decision_tree/layout";
@@ -152,6 +153,8 @@ interface Beside {
   offsets?: Record<string, Pt>;
   shown?: string[];
   styles?: Record<string, Record<string, unknown>>;
+  /** check: each (round 7 §3): the cards corrected for the viewer — drawn at CORRECTED, at FADED once the reveal fades. */
+  dim?: string[];
 }
 
 /** A kept guess (ask `keep: true`, spec 2026-10-03-round6 §5): what its
@@ -438,6 +441,8 @@ export class Player {
    *  pie moved over), card offsets (the cards where the viewer left them).
    *  They go with the owner's marks: an erase, a clear, the next question, a scrub. */
   private besides = new Map<string, Beside>();
+  /** check: each — the cards a gate has faded while it is still open (round 7 §3.1): a scene applied meanwhile (a resize commit) keeps them faded. */
+  private gateDim = new Map<string, number>();
   /** Every answered beside reveal, by owner: a seek forward past its ask puts
    *  it back (faded once a command has followed) while nothing since has ended it. */
   private besideMemory = new Map<string, Beside>();
@@ -1197,7 +1202,16 @@ export class Player {
 
   /** An element's own opacity at a scene: a kept tile of a faded beside reveal stays faded. */
   private baseOpacity(id: string, scene: SceneState): number {
-    return this.besideFadedShown(id) ? FADED : (scene.opacities[id] ?? 1);
+    const gate = this.gateDim.get(id);
+    if (gate !== undefined) return gate;
+    if (this.besideFadedShown(id)) return FADED;
+    return this.besideDim(id) ?? (scene.opacities[id] ?? 1);
+  }
+
+  /** A corrected card's strength (check: each), or null. */
+  private besideDim(id: string): number | null {
+    for (const b of this.besides.values()) if (b.dim?.includes(id)) return b.faded ? FADED : CORRECTED;
+    return null;
   }
 
   /** How far a question on its own page fades this id now (1 = not at all). */
@@ -1975,7 +1989,11 @@ export class Player {
       this.guessOwners.add(owner);
       this.effects?.setGuessMarks?.(owner, m);
     };
-    const fade = (id: string, a: number): void => this.elements.get(id)?.setOpacity?.(a);
+    const fade = (id: string, a: number): void => {
+      if (a >= 1) this.gateDim.delete(id);
+      else this.gateDim.set(id, a);
+      this.elements.get(id)?.setOpacity?.(a);
+    };
     // The cards are the question: if the cast did not draw them first, the
     // question shows them (never a compare pair's numbers — those are the answer).
     // (Nor a deck's waiting cards: the deal shows each in turn.)
@@ -1988,6 +2006,7 @@ export class Player {
     if (live) {
       const from = performance.now();
       const typed = await this.askGate!(signal, Object.assign({}, step, { cardsSession: { geometry: g, start, place, show, mark, fade } satisfies CardsSession }));
+      this.gateDim.clear();
       if (signal.aborted) return;
       secs = (performance.now() - from) / 1000;
       const decoded = typed !== null ? decodeArrangement(g, typed) : null;
@@ -2065,19 +2084,23 @@ export class Player {
     const judged = g.mode !== "decide" || (g.best ?? []).some(Boolean);
     const score = scoreCards(g, arrangement, step.tolerance ?? 0);
     const ok = answered && score.ok;
+    // check: each (round 7 §3): judged as dropped — the first drops are the
+    // score, and there is nothing left to reveal.
+    const checked = answered && g.each === true && arrangement.first !== undefined;
     const choice = arrangement.choice ?? -1;
     // A formula's tiles: what each box holds, as the blank's answer.
     const tileIn = g.binBoxes.map((_, k) => {
       const card = arrangement.boxes[k]?.[0];
       return card !== undefined ? g.texts[card] : null;
     });
-    const text = g.mode === "decide" ? (choice >= 0 ? g.texts[choice] : "") : formula && formula.blanks.length === 1 ? (tileIn[0] ?? "") : `${score.within} of ${score.count}`;
+    const text = g.mode === "decide" ? (choice >= 0 ? g.texts[choice] : "") : formula && formula.blanks.length === 1 ? (tileIn[0] ?? "") : checked ? String(score.within) : `${score.within} of ${score.count}`;
     this.recordAnswer(index, step.store, text, judged ? ok : null, secs);
     if (formula && step.store) this.setFormulaVars(step.store, formula.blanks, tileIn);
     if (step.store) {
       const base = step.store.toLowerCase();
       this.vars.set(`${base}.within`, String(score.within));
       this.vars.set(`${base}.count`, String(score.count));
+      this.vars.set(`${base}.total`, String(score.count));
       const off = g.mode === "place" ? placeOff(g, arrangement) : null;
       if (off !== null && g.scale) {
         // A distance is a number of units, never a year: "40 years", "40".
@@ -2118,7 +2141,9 @@ export class Player {
     // skipped question (and a movie's breath on the cards as drawn) has no
     // answer to keep: its cards glide to the truth, as with morph. Tiles in a
     // formula's boxes stay in them too, the truth written into the boxes.
-    const beside = step.revealStyle !== "morph" && answered;
+    // check: each — a movie shows the truth itself: no marks at all (round 7 §3.4).
+    const quietMovie = !live && g.each === true;
+    const beside = !checked && !quietMovie && step.revealStyle !== "morph" && answered;
     // Tiles the viewer put in a box (the answer): kept on screen beside a formula's truth.
     const placedTiles = formula ? g.cards.filter((_, i) => arrangement.boxes.some((b) => b.includes(i))) : [];
     // The cards that move glide from where the viewer left them to the truth.
@@ -2172,6 +2197,13 @@ export class Player {
       for (const id of g.cards) place(id, 0, 0);
       this.putBeside(owner, { index, marks: null, faded: false, offsets, ...(placedTiles.length > 0 ? { shown: placedTiles } : {}) });
     }
+    if (checked) {
+      // The corrected cards stay faded and the counter is the marks — through
+      // the commit below and a seek forward (besidesAt needs the marks).
+      // The model's faded set (cards/model.ts fadedCards), not a second rule here.
+      const dim = fadedCards(g, arrangement).map((i) => g.cards[i]);
+      this.putBeside(owner, { index, marks: null, faded: false, ...(dim.length > 0 ? { dim } : {}) });
+    }
     this.applyKey(this.planned(index));
     // Hidden now: their own opacity back, for a replay that draws them again.
     leaving.forEach((el) => el.setOpacity?.(1));
@@ -2190,6 +2222,13 @@ export class Player {
       mark(marks);
       const b = this.besides.get(owner);
       if (b) b.marks = marks;
+    } else if (checked) {
+      const marks = counterMarks(g, arrangement);
+      mark(marks);
+      const b = this.besides.get(owner);
+      if (b) b.marks = marks;
+    } else if (quietMovie) {
+      // Nothing marked.
     } else if (answered) mark(cardsMarks(g, arrangement));
     await spoken;
     if (signal.aborted) return;
@@ -2820,7 +2859,7 @@ export class Player {
     this.besides.delete(owner);
     for (const id of Object.keys(b.styles ?? {})) this.reprojector?.setElementPatch?.(id, null);
     if (b.params || b.styles) this.geometryDirty = true;
-    const room = b.params !== undefined || b.offsets !== undefined || b.shown !== undefined || b.styles !== undefined;
+    const room = b.params !== undefined || b.offsets !== undefined || b.shown !== undefined || b.styles !== undefined || b.dim !== undefined;
     if (room) this.pendingSettle = true;
     return room;
   }
@@ -3098,6 +3137,8 @@ export class Player {
       if (b.marks && this.guessOwners.has(owner)) this.effects?.setGuessMarks?.(owner, fadeYours(b.marks, FADED));
       // Tiles kept in a formula's boxes are yours too.
       for (const el of this.els(b.shown ?? [])) el.setOpacity?.(FADED);
+      // Cards corrected for the viewer are yours too.
+      for (const el of this.els(b.dim ?? [])) el.setOpacity?.(FADED);
     }
   }
 
