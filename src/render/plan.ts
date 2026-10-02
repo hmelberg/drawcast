@@ -412,10 +412,6 @@ export interface Plan {
 }
 
 /** One option of a choose ask (spec 2026-10-03-round6 §4). */
-/** A decision tree's own drawing (scenes/decision_tree/layout.ts ids):
- *  a tree question on its own page keeps the tree whole. */
-const TREE_PART = /^(?:edge|node|label|branchlabel|p|payoff|value|effect|cost|ev|best|prune|collapsed|dcost|deffect|icer|nmb|strategy)_/;
-
 export interface ChooseOption {
   id: string;
   label: string;
@@ -517,6 +513,9 @@ export interface PlanOptions {
   mathOf?: (id: string) => string | null;
   /** Whether an id names an element declared in the spec (as opposed to a minted or template id). */
   isElement?: (id: string) => boolean;
+  /** The template's own ids (LayoutResult.templateIds): a tree question on
+   *  its own page keeps the tree — the decision_tree template — whole. */
+  templateIds?: string[];
   /** The ORIGINAL-parse controls of a code element that HAS controls, else
    *  null — what a `run` sweeps and what the explore demo walks. */
   controlsOf?: (id: string) => ControlSpec[] | null;
@@ -802,8 +801,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   /** What a question on its own page (stage: "own", spec round 6 §6) keeps
    *  at full strength: what it names (and every part of it — a cards
    *  element's cards and boxes, a formula's blanks and tiles), the parts a
-   *  guess paints, the options' members; for a tree, the tree itself (its
-   *  blanks and pick are read off it). The rest of the screen fades. */
+   *  guess paints, the options' members; for a tree, the tree itself — the
+   *  template's own ids (its blanks and pick are read off it), never a
+   *  spec element that merely shares a prefix. The rest of the screen fades. */
   const stagedIds = (q: { on: string[]; others: string[]; parts: string[]; choose: string[]; tree: string[] | null }): string[] => {
     const out = new Set<string>();
     const rooted = (r: string) => {
@@ -814,7 +814,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     for (const id of q.parts) out.add(id);
     if (q.tree) {
       for (const r of q.tree) rooted(r);
-      for (const id of known) if (TREE_PART.test(id)) out.add(id);
+      for (const id of opts.templateIds ?? []) if (known.has(id)) out.add(id);
     }
     return [...out];
   };

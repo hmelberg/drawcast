@@ -41,6 +41,17 @@ class QuietSpeech extends SpeechManager {
   override cancel(): void {}
 }
 
+const TREE_ROOT = {
+  id: "start", type: "decision", label: "Choose",
+  children: [
+    { label: "Treat", node: { id: "treat", type: "chance", label: "", children: [
+      { label: "Cured", probability: 0.3, node: { id: "cured", type: "terminal", label: "", payoff: 10 } },
+      { label: "Not", node: { id: "not", type: "terminal", label: "", payoff: 4 } },
+    ] } },
+    { label: "Wait", node: { id: "wait", type: "terminal", label: "", payoff: 5 } },
+  ],
+};
+
 const BOXES: Record<string, { x: number; y: number; w: number; h: number }> = {
   door_1: { x: 0, y: 0, w: 100, h: 200 },
   door_2: { x: 200, y: 0, w: 100, h: 200 },
@@ -119,11 +130,35 @@ describe("the plan: what a staged question keeps at full strength", () => {
     expect(ask?.kind === "ask" && ask.stage?.sort()).toEqual(["area", "area_blank_1", "area_tiles_1"]);
   });
 
-  test("a tree: the tree whole, not the notes beside it", () => {
-    const ids = ["edge_start_treat", "value_treat", "node_treat", "note"];
-    const plan = planCommands([{ draw: ids }, { ask: { question: "Fill", blanks: ["value_treat"], stage: "own" } } as Command], ids, {});
+  test("a tree: the template's own parts whole, never a user element that shares a prefix", () => {
+    const tree = ["edge_start_treat", "value_treat", "node_treat"];
+    const ids = [...tree, "note", "label_x", "p_x"];
+    const plan = planCommands([{ draw: ids }, { ask: { question: "Fill", blanks: ["value_treat"], stage: "own" } } as Command], ids, { templateIds: tree });
     const ask = plan.steps.find((s) => s.kind === "ask");
     expect(ask?.kind === "ask" && ask.stage?.sort()).toEqual(["edge_start_treat", "node_treat", "value_treat"]);
+  });
+
+  test("a real decision tree with label_x and p_x beside it: those two are not the tree", () => {
+    const spec = expandSpec({
+      template: "decision_tree",
+      params: { root: TREE_ROOT, rollback: true },
+      elements: [
+        { id: "label_x", type: "text", text: "Note", x: 80, y: 80 },
+        { id: "p_x", type: "text", text: "p", x: 900, y: 80 },
+      ],
+      commands: [],
+    } as unknown as Spec);
+    const layout = layoutSpec(spec);
+    expect(layout.templateIds).toBeDefined();
+    expect(layout.templateIds).not.toContain("label_x");
+    expect(layout.templateIds).not.toContain("p_x");
+    const plan = planCommands([{ draw: layout.order }, { ask: { question: "EV?", blanks: ["value_treat"], stage: "own" } } as Command], layout.order, { templateIds: layout.templateIds });
+    const ask = plan.steps.find((s) => s.kind === "ask");
+    if (ask?.kind !== "ask") throw new Error("no ask");
+    expect(ask.stage).toContain("value_treat");
+    expect(ask.stage!.some((id) => id.startsWith("edge_"))).toBe(true);
+    expect(ask.stage).not.toContain("label_x");
+    expect(ask.stage).not.toContain("p_x");
   });
 });
 
@@ -277,7 +312,7 @@ describe("the player: every ask kind with figure parts", () => {
     for (const id of ids) expect(at(id)).toBe(1);
   });
 
-  test("a tree: the tree full, a note beside it faded; a movie runs straight through", async () => {
+  test("a tree: the tree full, user elements label_x and p_x beside it faded; a movie runs straight through", async () => {
     const root = {
       id: "start", type: "decision", label: "Choose",
       children: [
@@ -288,9 +323,11 @@ describe("the player: every ask kind with figure parts", () => {
         { label: "Wait", node: { id: "wait", type: "terminal", label: "", payoff: 5 } },
       ],
     };
-    const ids = ["edge_start_treat", "value_treat", "note"];
+    const ids = ["edge_start_treat", "value_treat", "label_x", "p_x"];
     const make = () => {
-      const plan = planCommands([{ draw: ids }, { ask: { question: "EV?", blanks: ["value_treat"], stage: "own" } } as Command, { speak: "After." }], ids, {});
+      const plan = planCommands([{ draw: ids }, { ask: { question: "EV?", blanks: ["value_treat"], stage: "own" } } as Command, { speak: "After." }], ids, {
+        templateIds: ["edge_start_treat", "value_treat"],
+      });
       const { els, at } = fakeElements(ids);
       const speech = new QuietSpeech();
       const player = new Player(plan, els, speech, null, { mode: "narrated", breath: false, effects: effects() });
@@ -314,7 +351,8 @@ describe("the player: every ask kind with figure parts", () => {
       return encodeTreeAnswer([5.8], null);
     };
     await live.player.play();
-    expect(during.note).toBeCloseTo(STAGE_DIM);
+    expect(during.label_x).toBeCloseTo(STAGE_DIM);
+    expect(during.p_x).toBeCloseTo(STAGE_DIM);
     expect(during.edge_start_treat).toBe(1);
     expect(during.value_treat).toBe(1);
     for (const id of ids) expect(live.at(id)).toBe(1);
@@ -324,6 +362,42 @@ describe("the player: every ask kind with figure parts", () => {
     await movie.player.play();
     expect(movie.speech.said).toContain("After.");
     for (const id of ids) expect(movie.at(id)).toBe(1);
+  });
+});
+
+describe("the player: a market prediction on its own page", () => {
+  test("the curve full, the rest faded, back after", async () => {
+    const params = { demand: { steepness: "medium" }, supply: { steepness: "medium" }, tax: { amount: 0, side: "seller", kind: "ad_valorem" } };
+    const spec = expandSpec({ template: "supply_demand", params, commands: [] } as unknown as Spec);
+    const layout = layoutSpec(spec);
+    const ids = [...layout.order];
+    const plan = planCommands(
+      [{ draw: ids }, { ask: { question: "Show it", on: "supply_curve", predict: true, stage: "own" } } as Command, { animate: { "tax.amount": 40 }, duration: 0.2 }],
+      ids,
+      { animateBase: params, guessParts: (on) => ({ parts: Array.isArray(on) ? on : [on], shows: Array.isArray(on) ? on : [on] }) },
+    );
+    const { els, at } = fakeElements(ids);
+    const player = new Player(plan, els, new QuietSpeech(), null, { mode: "narrated", breath: false, effects: effects() });
+    player.reprojector = { frame: () => {}, commit: () => els, committed: () => null };
+    player.guess = {
+      setup: (on, from, p, _onScreen, o) =>
+        guessSetup(spec, withOverrides(params, p), layout, guessParts(spec, on), {
+          from,
+          ...(o?.end ? { end: { params: withOverrides(params, o.end.params), targets: o.end.targets } } : {}),
+        }),
+      patch: (setup, values) => patchFor(spec, setup, values),
+    };
+    const other = ids.find((id) => id !== "supply_curve")!;
+    let during: Record<string, number> = {};
+    player.askGate = async () => {
+      await new Promise((r) => setTimeout(r, 400));
+      during = { curve: at("supply_curve"), other: at(other) };
+      return "0;40";
+    };
+    await player.play();
+    expect(during.curve).toBe(1);
+    expect(during.other).toBeCloseTo(STAGE_DIM);
+    for (const id of ids) expect(at(id)).toBe(1);
   });
 });
 

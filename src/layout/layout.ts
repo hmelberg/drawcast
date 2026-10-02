@@ -47,6 +47,9 @@ export interface LayoutResult {
   drawables: Drawable[];
   /** Command-addressable element ids in natural draw order. */
   order: string[];
+  /** The template's own ids (its layout's order), when there is a template:
+   *  what a tree question on its own page keeps whole (spec round 6 §6). */
+  templateIds?: string[];
   issues: LintIssue[];
   warnings: string[];
   /** Windowed code panes (el.lines), keyed by element id — the plan scrolls
@@ -559,7 +562,7 @@ export function layoutSpec(
     const waiting = /"\{[A-Za-z_][\w]*\.[^"]*\}"/.test(JSON.stringify(spec.params ?? {}));
     if (usesData && !waiting) warnings.push(`template "${spec.template}" has no data axes — {data: [x, y]} reads a 0–100 domain on the plot area; place overlays with at.ref/anchor instead`);
   }
-  return { drawables, order, issues, warnings, windows, panes, pieces, pieceGroups, groups, attached, drawnWith, drawnAfter, fitGroups, namedAnchors, measures, labelPins, ...(Object.keys(pictures).length > 0 ? { pictures } : {}), ...(fit ? { fit } : {}), ...(frame ? { frame } : {}), ...(world ? { world } : {}) };
+  return { drawables, order, ...(templateIds.length > 0 ? { templateIds } : {}), issues, warnings, windows, panes, pieces, pieceGroups, groups, attached, drawnWith, drawnAfter, fitGroups, namedAnchors, measures, labelPins, ...(Object.keys(pictures).length > 0 ? { pictures } : {}), ...(fit ? { fit } : {}), ...(frame ? { frame } : {}), ...(world ? { world } : {}) };
 }
 
 /** Does this template lay itself out in a `box` param? Five data templates

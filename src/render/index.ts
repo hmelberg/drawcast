@@ -579,6 +579,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     ...domainMapping(spec.domain && layout.frame ? layout.frame : spec.domain, layout.fit),
     animateBase: spec.template ? spec.params ?? {} : null,
     cardsFor: (id) => cardsPlanFor(formulas.cardsOn(id)),
+    ...(layout.templateIds ? { templateIds: layout.templateIds } : {}),
     formulaFor: (id) => {
       const rt = formulas.formula(id);
       return rt ? { blanks: rt.blanks.length } : null;

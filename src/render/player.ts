@@ -413,6 +413,10 @@ export class Player {
   askGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<string | null>) | null = null;
   /** The code widget's gate — ui/tray.ts sets it, ui/controls.ts routes to it. */
   codeGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "ask" }>) => Promise<string | null>) | null = null;
+  /** The question on its own page now standing (stage: "own"): the ids
+   *  faded and how far (1 = not at all). Every opacity the player writes —
+   *  applyScene's and a frame's — multiplies by it; a scrub drops it. */
+  private staged: { ids: ReadonlySet<string>; alpha: number } | null = null;
 
   /**
    * Guess asks (spec 2026-10-01-guess-and-reveal), set by render(): the
@@ -434,10 +438,6 @@ export class Player {
   private besides = new Map<string, Beside>();
   /** Every answered beside reveal, by owner: a seek forward past its ask puts
    *  it back (faded once a command has followed) while nothing since has ended it. */
-  /** The question on its own page now standing (stage: "own"): the ids
-   *  faded and how far (1 = not at all). Every opacity the player writes —
-   *  applyScene's and a frame's — multiplies by it; a scrub drops it. */
-  private staged: { ids: ReadonlySet<string>; alpha: number } | null = null;
   private besideMemory = new Map<string, Beside>();
   /** Kept guesses on the figure (ask `keep: true`, spec round 6 §5), by
    *  owner: their marks outlive the next question and follow their part
@@ -997,6 +997,9 @@ export class Player {
    *  history out of order, and the next scrub would show the wrong patch. */
   jumpTo(n: number, keepPlaying: boolean): void {
     this.posterRestart = false;
+    // A question on its own page that was standing is over: the boundary's
+    // own opacities, nothing faded on top.
+    this.staged = null;
     if (n < this.completed || n === 0) this.resetStreak(n === 0);
     // A sweep's patch belongs to the step that set it: scrubbing to before
     // that step undoes it (back to the previous run's result, or to what the
@@ -1009,9 +1012,6 @@ export class Player {
     this.restoreFormulaFills(n);
     // A beside reveal's room goes before the boundary is laid out — and the
     // ones this boundary still shows come back (yours and the truth).
-    // A question on its own page that was standing is over: the boundary's
-    // own opacities, nothing faded on top.
-    this.staged = null;
     // Every mark and room off first (a reveal on screen now included), then
     // the restored ones on: nothing after this may drop them.
     this.endMarks();
