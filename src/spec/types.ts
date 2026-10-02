@@ -959,7 +959,24 @@ export interface AskArgs {
   others?: string[];
   /** Formula, typed: "exact" compares the written form, not the value. */
   form?: "exact";
+  /** Feedback flavour for this question (spec 2026-10-03 §4.1); wins over the cast's. */
+  feedback?: FeedbackArg;
 }
+
+/** Feedback flavour (spec 2026-10-03-looks-feedback-account §4.1): a style
+ *  name, or the style with the author's own lines per band and a reward. */
+export type FeedbackArg =
+  | "plain"
+  | "warm"
+  | "dry"
+  | {
+      style?: "plain" | "warm" | "dry";
+      reward?: "auto" | "none" | "confetti" | "picture" | "joke";
+      perfect?: string | string[];
+      good?: string | string[];
+      poor?: string | string[];
+      none?: string | string[];
+    };
 
 export interface QuizArgs {
   /** The question, spoken aloud and shown as the caption (a paired speak overrides the spoken line). */
@@ -984,6 +1001,8 @@ export interface QuizArgs {
   /** Store the chosen option's TEXT under this name; later lines may use
    *  {name}, {name.ok}, {name.secs}. Movies and skips store the correct option. */
   store?: string;
+  /** Feedback flavour for this question; wins over the cast's. */
+  feedback?: FeedbackArg;
 }
 
 /**
@@ -1039,6 +1058,8 @@ export interface Spec {
    * without this field gets read aloud by an English voice.
    */
   lang?: string;
+  /** Cast-level feedback flavour (spec 2026-10-03 §4.1): plain (default), warm, dry, or with the author's lines. */
+  feedback?: FeedbackArg;
   /**
    * Drawn text a template computes for itself, and its replacement. A scene
    * supplies its own captions ("Susceptible" for compartment "S"), so those
