@@ -261,6 +261,8 @@ export interface CardsSession {
   show(ids: string[]): void;
   /** The answer's marks while it is being given (match lines, compare ticks); null clears. */
   mark(m: GuessMarks | null): void;
+  /** Fade a card (check: each — a corrected card, round 7 §3.1); 1 restores it. */
+  fade?(cardId: string, alpha: number): void;
 }
 
 /** What a guess gate is handed (ui/guess-gate.ts): the handles, where the
@@ -1973,6 +1975,7 @@ export class Player {
       this.guessOwners.add(owner);
       this.effects?.setGuessMarks?.(owner, m);
     };
+    const fade = (id: string, a: number): void => this.elements.get(id)?.setOpacity?.(a);
     // The cards are the question: if the cast did not draw them first, the
     // question shows them (never a compare pair's numbers — those are the answer).
     // (Nor a deck's waiting cards: the deal shows each in turn.)
@@ -1984,7 +1987,7 @@ export class Player {
     let secs: number | null = null;
     if (live) {
       const from = performance.now();
-      const typed = await this.askGate!(signal, Object.assign({}, step, { cardsSession: { geometry: g, start, place, show, mark } satisfies CardsSession }));
+      const typed = await this.askGate!(signal, Object.assign({}, step, { cardsSession: { geometry: g, start, place, show, mark, fade } satisfies CardsSession }));
       if (signal.aborted) return;
       secs = (performance.now() - from) / 1000;
       const decoded = typed !== null ? decodeArrangement(g, typed) : null;

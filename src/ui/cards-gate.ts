@@ -2,7 +2,10 @@
 // to-answer): the viewer answers on the drawn cards —
 //
 //   rank     drag the cards into order            → Answer
-//   sort     drag each card into its box, or tap it: a tap sends it on
+//   sort     check: each (default, round 7 §3) — the next card is picked;
+//            tap a box (or drag a card there): it is judged at once, a
+//            wrong one glides to its right box, faded; a counter keeps the
+//            score; the last card answers. check: end — a tap sends a card
 //            round the boxes and back (row → 1 → 2 → … → row) → Answer.
 //            select (one box): a tap moves it in or out
 //   deck     (a sort with deck: true) one large card at a time: tap a box
@@ -30,9 +33,11 @@
 
 import type { RenderHandle } from "../render";
 import type { CardsSession } from "../render/player";
-import { cardAt, cardsMarks, drop, encodeArrangement, matchLines, placePins, positions, rightCards, tapCard, type Arrangement } from "../cards/model";
+import { allChecked, cardAt, checkDrop, cardsMarks, drop, isPlaced, encodeArrangement, matchLines, placePins, placeRight, positions, putIn, rightCards, tapCard, type Arrangement } from "../cards/model";
 import { DEAL_GROW } from "../cards/deck";
-import { GUESS_COLOR } from "../guess/marks";
+import { CORRECTED, counterMarks } from "../cards/counter";
+import { tick } from "../guess/reveal";
+import { GUESS_COLOR, type GuessMarkText } from "../guess/marks";
 import type { Pt } from "../layout/model";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
@@ -61,6 +66,10 @@ const LAST_MS = 450;
 /** The ✓ and ✗ colours (spec 2026-10-03-round6 Global Constraints). */
 const RIGHT_COLOR = "#4a7c59";
 const WRONG_COLOR = "#b3412e";
+/** check: each (round 7 §3.1): a wrong card's ✗ stands in the box it was dropped in this long, */
+const CHECK_HOLD_MS = 500;
+/** then it glides to its right box over this. */
+const CORRECT_MS = 600;
 
 export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSignal, step: AskGateStep) => Promise<string | null> {
   return (signal, step) =>
@@ -83,13 +92,17 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       /** compare: the pair being asked. */
       let row = 0;
       const deck = mode === "sort" && g.deck === true && Array.isArray(g.deal);
-      const needsAnswer = mode !== "compare" && mode !== "decide" && !deck;
+      // check: each — a plain sort judges every drop (round 7 §3.1): no Answer.
+      const sortEach = mode === "sort" && g.each === true && !deck && g.select !== true;
+      /** A counter stands while the cards are judged. */
+      const counting = sortEach;
+      const needsAnswer = mode !== "compare" && mode !== "decide" && !deck && !sortEach;
       // A formula with one box: putting a tile in it answers.
       const dropAnswers = mode === "fill" && g.binBoxes.length === 1 && step.release !== false;
       /** fill: the tile tapped, waiting for a tap on a box (-1: none). */
       let picked = -1;
 
-      const hintKey = deck ? "deck" : g.select ? "select" : mode;
+      const hintKey = deck ? "deck" : g.select ? "select" : sortEach ? "sortEach" : mode;
       const hintText = words.cards[hintKey] ?? words.cards[mode] ?? "";
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint", title: hintText }, hintText);
       const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.answer);
@@ -104,19 +117,20 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
 
       const put = (i: number, p: Pt): void => session.place(g.cards[i], p[0] - g.home[i][0], p[1] - g.home[i][1]);
       /** Glide every card (but `held`) from where it is shown to where `arr` puts it. */
-      const settle = (held = -1): void => {
+      const settle = (held = -1, ms = SETTLE_MS): void => {
         cancelAnimationFrame(anim);
         const from = shown.slice();
         const to = positions(g, arr);
         const t0 = performance.now();
         const stepFrame = (): void => {
-          const t = Math.min(1, (performance.now() - t0) / SETTLE_MS);
+          const t = Math.min(1, (performance.now() - t0) / ms);
           const e = 1 - (1 - t) * (1 - t);
           shown = from.map((p, i) => (i === held ? p : [p[0] + (to[i][0] - p[0]) * e, p[1] + (to[i][1] - p[1]) * e]));
           shown.forEach((p, i) => i !== held && put(i, p));
           // Place: each card on the line is pinned to its point.
           if (mode === "place") session.mark({ color: GUESS_COLOR, lines: placePins(g, positions(g, arr)), texts: [] });
           placeRing();
+          rideFlashes();
           if (t < 1 && !settled) anim = requestAnimationFrame(stepFrame);
         };
         stepFrame();
@@ -206,12 +220,77 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       /** deck: the box under a logical point (padded), or -1. */
       const binAt = (p: Pt): number => g.binBoxes.findIndex((bx) => Math.abs(p[0] - bx.c[0]) <= bx.w / 2 + 10 && Math.abs(p[1] - bx.c[1]) <= bx.h / 2 + 10);
 
+      // —— check: each (round 7 §3) ——
+      /** Timers that must not outlive the gate (a ✓ going, a glide to the right box). */
+      const timers: number[] = [];
+      const later = (f: () => void, ms: number): void => void timers.push(window.setTimeout(() => !settled && f(), ms));
+      /** Each card's ✓ or ✗ while it stands — one map, so a quick next drop never wipes the last. */
+      const flashes = new Map<number, GuessMarkText>();
+      /** Cards gliding to their right box with their ✗ beside them (round 7 §3.1.3: "the ✗ goes with it"). */
+      const riding = new Set<number>();
+      /** Until when a card still lands or glides: the last answers after. */
+      let busyUntil = 0;
+      const markNow = (): void => session.mark(counterMarks(g, arr, [...flashes.values()]));
+      /** A riding ✗ keeps beside its card, wherever the card is drawn this frame. */
+      const rideFlashes = (): void => {
+        if (riding.size === 0) return;
+        for (const c of riding) {
+          const f = flashes.get(c);
+          if (f) flashes.set(c, { ...f, at: [shown[c][0] + g.w / 2 + 2, shown[c][1]] });
+        }
+        markNow();
+      };
+      /** The tray, top row first, left to right: the order cards are picked in. */
+      const trayOrder = g.cards.map((_, i) => i).sort((a, b) => g.home[b][1] - g.home[a][1] || g.home[a][0] - g.home[b][0]);
+      const nextPick = (): number => trayOrder.find((c) => !isPlaced(arr, c)) ?? -1;
+      /** Card dropped in box k (-1: the tray): it lands there, ✓ or ✗; a wrong one then glides to its right box, faded, its ✗ riding with it. */
+      const judge = (card: number, k: number): void => {
+        const { ok, arr: judged } = checkDrop(g, arr, card, k);
+        // Right: straight to its truth slot. Wrong: where it was dropped, for now.
+        arr = ok ? judged : putIn({ ...arr, first: judged.first }, card, k);
+        settle();
+        const at = positions(g, arr)[card];
+        flashes.set(card, tick([at[0] + g.w / 2 + 2, at[1]], ok, "start", 24));
+        markNow();
+        const now = performance.now();
+        if (ok) {
+          later(() => {
+            flashes.delete(card);
+            markNow();
+          }, FLASH_MS);
+          busyUntil = Math.max(busyUntil, now + SETTLE_MS);
+        } else {
+          later(() => {
+            arr = placeRight(g, arr, card);
+            riding.add(card);
+            settle(-1, CORRECT_MS);
+            session.fade?.(g.cards[card], CORRECTED);
+          }, CHECK_HOLD_MS);
+          // Landed: the ✗ goes with the glide — nothing red is left.
+          later(() => {
+            riding.delete(card);
+            flashes.delete(card);
+            markNow();
+          }, CHECK_HOLD_MS + CORRECT_MS);
+          busyUntil = Math.max(busyUntil, now + CHECK_HOLD_MS + CORRECT_MS);
+        }
+        focus = nextPick();
+        placeRing();
+        if (allChecked(g, arr)) later(() => finish(encodeArrangement(g, arr)), Math.max(0, busyUntil - now) + LAST_MS);
+      };
+
       const finish = (result: string | null): void => {
         if (settled) return;
         settled = true;
         cancelAnimationFrame(anim);
         cancelAnimationFrame(deckAnim);
         window.clearTimeout(flashTimer);
+        for (const t of timers) window.clearTimeout(t);
+        // The counter stands after the answer, its flashes gone.
+        if (counting && result !== null) {
+          flashes.clear();
+          session.mark(counterMarks(g, arr));
+        }
         if (deck) session.mark(null);
         signal.removeEventListener("abort", onAbort);
         document.removeEventListener("keydown", onKey, true);
@@ -220,8 +299,9 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         resolve(result);
       };
       const onAbort = (): void => {
-        // Back to where they were drawn: the plan owns the cards again.
+        // Back to where they were drawn, unfaded: the plan owns the cards again.
         g.cards.forEach((id) => session.place(id, 0, 0));
+        g.cards.forEach((id) => session.fade?.(id, 1));
         session.mark(null);
         finish(null);
       };
@@ -278,8 +358,19 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           dealTo(binAt(p));
           return;
         }
+        if (sortEach) {
+          // Tap the box, not the card (round 7 §3.1.5): a tap on a box — or on
+          // a card already in one — sends the picked card there; a tray card
+          // is picked, or dragged.
+          const hit = cardAt(g, shown, p);
+          if (hit < 0 || isPlaced(arr, hit)) {
+            const k = binAt(p);
+            if (k >= 0 && focus >= 0 && !isPlaced(arr, focus)) judge(focus, k);
+            return;
+          }
+        }
         let card = cardAt(g, shown, p);
-        if (card < 0 && lastTap && performance.now() - lastTap.t < TAP_AGAIN_MS && Math.abs(p[0] - lastTap.at[0]) <= g.w / 2 && Math.abs(p[1] - lastTap.at[1]) <= g.h / 2) card = lastTap.card;
+        if (card < 0 && !counting && lastTap && performance.now() - lastTap.t < TAP_AGAIN_MS && Math.abs(p[0] - lastTap.at[0]) <= g.w / 2 && Math.abs(p[1] - lastTap.at[1]) <= g.h / 2) card = lastTap.card;
         if (card < 0) {
           // fill: a tapped tile, then a tap on a box, puts it there.
           if (mode === "fill" && picked >= 0) {
@@ -361,6 +452,20 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         valuePill.hidden = true;
         const p = logicalPoint(stage, e);
         if (e.type === "pointerup") {
+          if (sortEach) {
+            if (!moved) {
+              // A tap on a tray card picks it; the next tap on a box sends it.
+              focus = card;
+              placeRing();
+              return;
+            }
+            const k = binAt(shown[card]);
+            if (k >= 0) {
+              judge(card, k);
+              return;
+            }
+            // Let go off the boxes: back to the tray, unjudged.
+          }
           if ((mode === "fill" || mode === "sort") && !moved) {
             // A tap, not a drag (round 6 §7): it sends the card on round the
             // boxes and back to the row (a tile: the first empty blank first).
@@ -378,7 +483,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
             drawLinks();
             return;
           }
-          arr = drop(g, arr, card, mode === "fill" ? at : shown[card]);
+          if (!sortEach) arr = drop(g, arr, card, mode === "fill" ? at : shown[card]);
           if (mode === "fill") {
             picked = -1;
             maybeAnswer();
@@ -412,6 +517,15 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         const pairs = g.pairs ?? 0;
         if (e.key === "Tab") {
           e.preventDefault();
+          if (counting) {
+            // Only the cards still in the tray: a placed card is final.
+            const open = trayOrder.filter((c) => !isPlaced(arr, c));
+            if (open.length === 0) return;
+            const i = open.indexOf(focus);
+            focus = open[((i < 0 ? -1 : i) + (e.shiftKey ? open.length - 1 : 1) + open.length) % open.length];
+            placeRing();
+            return;
+          }
           // Match picks among the left cards; the rest among all.
           const span = mode === "match" ? pairs : n;
           focus = ((focus < 0 ? -1 : focus) + (e.shiftKey ? span - 1 : 1) + span) % span;
@@ -443,6 +557,14 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           return;
         }
         if (focus < 0) return;
+        if (sortEach) {
+          // 1–4 send the picked card; 0 means nothing (a placed card is final).
+          const d = /^[1-9]$/.test(e.key) ? Number(e.key) - 1 : -1;
+          if (d < 0 || d >= g.bins.length || isPlaced(arr, focus)) return;
+          e.preventDefault();
+          judge(focus, d);
+          return;
+        }
         if (mode === "rank" && (left || right)) {
           const s = arr.order.indexOf(focus);
           const t = Math.max(0, Math.min(n - 1, s + (right ? 1 : -1)));
@@ -483,6 +605,8 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           g.cards.forEach((id) => session.place(id, 0, 0));
+          g.cards.forEach((id) => session.fade?.(id, 1));
+          session.mark(null);
           finish(null);
         });
         docked.push(skip);
@@ -492,6 +616,15 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       stage.appendChild(gate);
       dock = mountGateDock(stage, gate, docked, () => placeRing());
       dock.relayout();
+      // check: each — the first tray card is picked (a deck has no tray to
+      // pick from); the counter starts at 0.
+      if (counting) {
+        if (!deck) {
+          focus = nextPick();
+          placeRing();
+        }
+        markNow();
+      }
       if (mode === "compare" && (g.rows ?? []).length > 0) {
         focus = g.rows![0][0];
         placeRing();

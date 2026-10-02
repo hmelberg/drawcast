@@ -78,6 +78,7 @@ const EN: GateWords = {
   cards: {
     rank: "Drag the cards into order",
     sort: "Tap or drag each card into its box",
+    sortEach: "Tap a box, or drag a card",
     select: "Tap the cards that belong in the box",
     deck: "Tap the box this card goes in (or press 1, 2, …)",
     place: "Drag each card onto the line",
@@ -119,6 +120,7 @@ const NB: GateWords = {
   cards: {
     rank: "Dra kortene i riktig rekkefølge",
     sort: "Trykk eller dra hvert kort til riktig boks",
+    sortEach: "Trykk på en boks, eller dra et kort",
     select: "Trykk på kortene som hører hjemme i boksen",
     deck: "Trykk på boksen kortet hører til (eller 1, 2, …)",
     place: "Dra hvert kort på linjen",

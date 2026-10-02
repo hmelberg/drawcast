@@ -137,26 +137,49 @@ function open(g: CardsGeometry, extra: Partial<AskGateStep> = {}) {
     const ac = new AbortController();
     const placed: { id: string; dx: number; dy: number; scale: number }[] = [];
     const marks: (GuessMarks | null)[] = [];
+    const fades: { id: string; a: number }[] = [];
     const session: CardsSession = {
       geometry: g,
       start: initialArrangement(g),
       place: (id, dx, dy, scale = 1) => void placed.push({ id, dx, dy, scale }),
       show: () => {},
       mark: (m) => void marks.push(m),
+      fade: (id, a) => void fades.push({ id, a }),
     };
     let result: string | null | undefined;
     const step = { question: "Sort them", retry: false, required: false, cardsSession: session, ...extra } as unknown as AskGateStep;
     const done = cardsGateFor(stage as unknown as HTMLElement, null as never)(ac.signal, step).then((r) => (result = r));
     const gate = stage.find("cs-cardsgate")!;
-    return { stage, gate, done, ac, placed, marks, result: () => result, answer: () => stage.find("cs-guess-answer")! };
+    return { stage, gate, done, ac, placed, marks, fades, result: () => result, answer: () => stage.find("cs-guess-answer")! };
   });
 }
 
 const two: CardsElementLike = { id: "c", type: "cards", bins: ["Fixed", "Variable"], items: [{ text: "Rent", bin: "Fixed" }, { text: "Flour", bin: "Variable" }, { text: "Tax", bin: "Fixed" }] };
+/** check: end — today's sort: tap-to-cycle, Answer. */
+const twoEnd: CardsElementLike = { ...two, check: "end" };
+type Opened = Awaited<ReturnType<typeof open>>;
+const last = (o: Opened) => o.marks[o.marks.length - 1];
+/** The counter's numbers in a mark set. */
+const counter = (m: GuessMarks | null | undefined) => {
+  const t = m?.texts ?? [];
+  const n = (re: RegExp) => Number(t.find((x) => re.test(x.text))?.text.replace(/\D/g, "") ?? NaN);
+  return { right: n(/^✓ \d+$/), wrong: n(/^✗ \d+$/) };
+};
+/** The tray, top row first, left to right — the order the gate picks cards in. */
+const trayOrder = (g: CardsGeometry) => g.cards.map((_, i) => i).sort((a, b) => g.home[b][1] - g.home[a][1] || g.home[a][0] - g.home[b][0]);
+/** Where card i was last placed (logical). */
+const lastAt = (o: Opened, g: CardsGeometry, i: number): [number, number] => {
+  const p = o.placed.filter((q) => q.id === g.cards[i]).pop()!;
+  return [g.home[i][0] + p.dx, g.home[i][1] + p.dy];
+};
+const inBox = (g: CardsGeometry, p: [number, number], b: number) => {
+  const bx = g.binBoxes[b];
+  return Math.abs(p[0] - bx.c[0]) <= bx.w / 2 && Math.abs(p[1] - bx.c[1]) <= bx.h / 2;
+};
 
 describe("tap to move", () => {
   test("sort: taps send a card row → box 1 → box 2 → row; Answer gives the arrangement", async () => {
-    const g = cardsGeometry(two);
+    const g = cardsGeometry(twoEnd);
     const o = await open(g);
     tap(o.gate, g.home[0]);
     tap(o.gate, g.home[1]);
@@ -174,7 +197,7 @@ describe("tap to move", () => {
   });
 
   test("a drag still works (a move past the slop is not a tap)", async () => {
-    const g = cardsGeometry(two);
+    const g = cardsGeometry(twoEnd);
     const o = await open(g);
     fire(o.gate, "pointerdown", at(g.home[2]));
     fire(o.gate, "pointermove", at(g.binBoxes[1].c));
@@ -286,7 +309,7 @@ describe("the deck", () => {
 
 describe("rapid taps (final fix wave E)", () => {
   test("a second tap on the same spot while the card is still gliding away moves it on again", async () => {
-    const g = cardsGeometry(two);
+    const g = cardsGeometry(twoEnd);
     const o = await open(g);
     tap(o.gate, g.home[0]);
     await wait(60);
@@ -295,5 +318,157 @@ describe("rapid taps (final fix wave E)", () => {
     o.answer().click();
     await o.done;
     expect(decodeArrangement(g, o.result()!)!.boxes).toEqual([[], [0]]);
+  });
+});
+
+describe("check: each (round 7 §3)", () => {
+  test("no Answer; the counter from 0; a tap on a box sends the picked card, judged; a wrong one glides to its right box, faded", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    expect(o.answer().hidden).toBe(true);
+    expect(counter(last(o))).toEqual({ right: 0, wrong: 0 });
+    const [a, b, c] = trayOrder(g);
+    tap(o.gate, g.binBoxes[g.truthBin[a]].c);
+    expect(counter(last(o))).toEqual({ right: 1, wrong: 0 });
+    expect(last(o)!.texts.some((t) => t.text === "✓")).toBe(true);
+    tap(o.gate, g.binBoxes[1 - g.truthBin[b]].c);
+    expect(counter(last(o))).toEqual({ right: 1, wrong: 1 });
+    const cross = () => last(o)!.texts.find((t) => t.text === "✗");
+    const x0 = cross()!.at[0];
+    // Mid-glide (hold 500 + about half of 600): the ✗ rides beside the card, on its way.
+    await wait(800);
+    const x1 = cross()?.at[0];
+    expect(x1).toBeDefined();
+    expect(Math.abs(x1! - x0)).toBeGreaterThan(5);
+    expect(Math.abs(x1! - (lastAt(o, g, b)[0] + g.w / 2 + 2))).toBeLessThan(1);
+    await wait(500);
+    expect(inBox(g, lastAt(o, g, b), g.truthBin[b])).toBe(true);
+    expect(o.fades).toContainEqual({ id: g.cards[b], a: 0.45 });
+    // Nothing red left on the figure but the counter.
+    expect(last(o)!.texts.some((t) => t.text === "✗")).toBe(false);
+    tap(o.gate, g.binBoxes[g.truthBin[c]].c);
+    await o.done;
+    const ans = decodeArrangement(g, o.result()!)!;
+    expect(ans.first).toEqual(g.cards.map((_, i) => (i === b ? 1 - g.truthBin[b] : g.truthBin[i])));
+    expect(ans.boxes.flat().sort()).toEqual([0, 1, 2]);
+    // The counter stands after the answer.
+    expect(counter(last(o))).toEqual({ right: 2, wrong: 1 });
+    // Every card already where the truth puts it: nothing reshuffles after (placeRight).
+    g.cards.forEach((_, i) => {
+      expect(lastAt(o, g, i)[0]).toBeCloseTo(g.truth[i][0], 0);
+      expect(lastAt(o, g, i)[1]).toBeCloseTo(g.truth[i][1], 0);
+    });
+  });
+
+  test("a tap on another tray card picks it; the next tap on a box sends that one (§3.1.5)", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    const [a, , c] = trayOrder(g);
+    tap(o.gate, g.home[c]);
+    tap(o.gate, g.binBoxes[g.truthBin[c]].c);
+    await wait(250);
+    expect(inBox(g, lastAt(o, g, c), g.truthBin[c])).toBe(true);
+    // The first tray card was never sent: still at home.
+    const pa = o.placed.filter((q) => q.id === g.cards[a]).pop();
+    expect(pa ? [pa.dx, pa.dy] : [0, 0]).toEqual([0, 0]);
+    // And the pick moves on to it.
+    tap(o.gate, g.binBoxes[g.truthBin[a]].c);
+    expect(counter(last(o))).toEqual({ right: 2, wrong: 0 });
+    o.ac.abort();
+    await o.done;
+  });
+
+  test("Tab skips the placed cards (§3.1.4)", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    const [a, b, c] = trayOrder(g);
+    tap(o.gate, g.binBoxes[g.truthBin[a]].c); // a placed; b picked
+    key("Tab"); // → c
+    key("Tab"); // → b again: a is skipped
+    key(String(g.truthBin[b] + 1));
+    await wait(250);
+    expect(inBox(g, lastAt(o, g, b), g.truthBin[b])).toBe(true);
+    const pc = o.placed.filter((q) => q.id === g.cards[c]).pop();
+    expect(pc ? [pc.dx, pc.dy] : [0, 0]).toEqual([0, 0]);
+    o.ac.abort();
+    await o.done;
+  });
+
+  test("a placed card stays put: pressing it is a tap on its box, never a drag", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    const [a] = trayOrder(g);
+    tap(o.gate, g.binBoxes[g.truthBin[a]].c);
+    await wait(250);
+    const where = lastAt(o, g, a);
+    fire(o.gate, "pointerdown", at(where));
+    fire(o.gate, "pointermove", at([where[0] + 200, where[1] - 200]));
+    fire(o.gate, "pointerup", at([where[0] + 200, where[1] - 200]));
+    key("0");
+    await wait(250);
+    // Still in its box (the picked card sent there may take the slot before it).
+    expect(inBox(g, lastAt(o, g, a), g.truthBin[a])).toBe(true);
+    expect(Math.abs(lastAt(o, g, a)[0] - where[0])).toBeLessThan(100);
+    o.ac.abort();
+    await o.done;
+  });
+
+  test("two wrong drops inside the hold both end in their right boxes (Review Focus 1)", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    const [a, b] = trayOrder(g);
+    tap(o.gate, g.binBoxes[1 - g.truthBin[a]].c);
+    await wait(100);
+    tap(o.gate, g.binBoxes[1 - g.truthBin[b]].c);
+    await wait(1400);
+    expect(inBox(g, lastAt(o, g, a), g.truthBin[a])).toBe(true);
+    expect(inBox(g, lastAt(o, g, b), g.truthBin[b])).toBe(true);
+    expect(counter(last(o))).toEqual({ right: 0, wrong: 2 });
+    o.ac.abort();
+    await o.done;
+  });
+
+  test("a drag is judged on release in a box; let go off the boxes it goes back unjudged", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    const c = trayOrder(g)[2];
+    fire(o.gate, "pointerdown", at(g.home[c]));
+    fire(o.gate, "pointermove", at([g.home[c][0], 5]));
+    fire(o.gate, "pointerup", at([g.home[c][0], 5]));
+    await wait(250);
+    expect(counter(last(o))).toEqual({ right: 0, wrong: 0 });
+    fire(o.gate, "pointerdown", at(g.home[c]));
+    fire(o.gate, "pointermove", at(g.binBoxes[g.truthBin[c]].c));
+    fire(o.gate, "pointerup", at(g.binBoxes[g.truthBin[c]].c));
+    expect(counter(last(o))).toEqual({ right: 1, wrong: 0 });
+    o.ac.abort();
+    await o.done;
+  });
+
+  test("keys 1/2 send the picked card", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    const [a] = trayOrder(g);
+    key(String(g.truthBin[a] + 1));
+    expect(counter(last(o))).toEqual({ right: 1, wrong: 0 });
+    o.ac.abort();
+    await o.done;
+  });
+
+  test("an abort mid-glide puts every card back, unfaded (Review Focus 2)", async () => {
+    const g = cardsGeometry(two);
+    const o = await open(g);
+    const [a] = trayOrder(g);
+    tap(o.gate, g.binBoxes[1 - g.truthBin[a]].c);
+    await wait(700);
+    o.ac.abort();
+    await o.done;
+    expect(o.result()).toBe(null);
+    for (const id of g.cards) {
+      const p = o.placed.filter((q) => q.id === id).pop();
+      if (p) expect([p.dx, p.dy]).toEqual([0, 0]);
+      const f = o.fades.filter((q) => q.id === id).pop();
+      if (f) expect(f.a).toBe(1);
+    }
   });
 });

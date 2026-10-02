@@ -158,6 +158,8 @@ export interface CardsGeometry {
   font?: number;
   /** check: each (round 7) — a sort, select or deck judging every drop. */
   each?: true;
+  /** sort, select, deck (round 7 §5): drop — the cards above the boxes; side — beside them; rise — below (absent: rise). */
+  layout?: "drop" | "side" | "rise";
 }
 
 const CARD_H = 56;
@@ -298,6 +300,16 @@ export type HomesOf = (cardId: string) => Pt | null;
 
 /** The lowest a card (or a bin, or a compare value under its card) may reach: just above the canvas floor. */
 const CARD_FLOOR = 8;
+
+/** check: each (round 7 §3.1.6): the counter's row under the boxes (drop, side). */
+export const COUNTER_ROOM = 34;
+
+/** Where the counter stands: centred under the boxes (rise: in the gap over the tray — above the boxes is the headline's). */
+export function counterAt(g: CardsGeometry): Pt {
+  const bs = g.binBoxes;
+  const x = (Math.min(...bs.map((b) => b.c[0] - b.w / 2)) + Math.max(...bs.map((b) => b.c[0] + b.w / 2))) / 2;
+  return [x, Math.min(...bs.map((b) => b.c[1] - b.h / 2)) - 22];
+}
 
 /** The lowest point the geometry draws: cards at home and at the truth, sort bins, compare values. */
 function lowestOf(g: CardsGeometry): number {
