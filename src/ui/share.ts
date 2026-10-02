@@ -909,6 +909,15 @@ function build(): ShareSession {
     { class: "hint" },
     "Earlier versions stay readable in the repo's history. To keep them private too, publish under a new folder.",
   );
+  // Private → public is not a switch (2026-10-03): the server keeps an item
+  // private once paid, so publishing it plain under the same name would leave
+  // the server and the files disagreeing. Shown when the author unticks
+  // Private on a server-private item; cleared when the name/folder changes.
+  const privateStuck = h(
+    "div",
+    { class: "hint", hidden: "" },
+    "This is private on the drawcast server and can't be switched back to public. To share it publicly, publish a copy under a new name (a new Name or Folder) with Private off.",
+  );
 
   // "Listed in the catalogue" (registry deliveries 3–4, task 9): whether the
   // item shows at drawcast.app/#browse — independent of Private (plan
@@ -1114,6 +1123,7 @@ function build(): ShareSession {
     const target = item ? item.target : null;
     if (target !== probedTarget) {
       confirmedPublic = false;
+      privateStuck.hidden = true;
       probedTarget = target;
     }
     const token = getToken();
@@ -1151,12 +1161,15 @@ function build(): ShareSession {
     })();
   }
   privateCb.addEventListener("change", () => {
-    if (privateCb.checked) confirmedPublic = false;
-    else if (serverPrivate) {
-      // An item the server holds private: publishing it plain is a choice
-      // the author makes explicitly, or not at all (final review I1b).
-      if (confirm("Make public: the next publish will be readable by anyone")) confirmedPublic = true;
-      else privateCb.checked = true;
+    if (privateCb.checked) {
+      confirmedPublic = false;
+      privateStuck.hidden = true;
+    } else if (serverPrivate) {
+      // An item the server holds private stays private: there is no switch
+      // back (2026-10-03 — republish a copy under a new name instead), so
+      // the box goes straight back on and the line under it says why.
+      privateCb.checked = true;
+      privateStuck.hidden = false;
     }
     refreshPrivateLine();
   });
@@ -1212,6 +1225,7 @@ function build(): ShareSession {
     privateLabel,
     privatePayRow,
     privateWarning,
+    privateStuck,
     listedLabel,
     listedPayRow,
   );

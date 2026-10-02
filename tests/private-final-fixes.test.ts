@@ -85,11 +85,16 @@ describe("I1b: Share learns the server's privacy and guards unticking it", () =>
     expect(probe).toMatch(/serverPrivate && !privateCb\.checked && !confirmedPublic/);
     expect(probe).toContain("privateCb.checked = true;");
   });
-  it("unticking a server-private item asks, and re-ticks on a no", () => {
+  it("unticking a server-private item re-ticks it and says why — there is no switch back to public (2026-10-03)", () => {
     const change = between(share, 'privateCb.addEventListener("change"', "privatePayBtn.addEventListener(");
-    expect(change).toContain('confirm("Make public: the next publish will be readable by anyone")');
-    expect(change).toContain("privateCb.checked = true;");
-    expect(change).toContain("confirmedPublic = true;");
+    expect(change).not.toContain("confirm(");
+    expect(change).not.toContain("confirmedPublic = true;");
+    expect(change).toMatch(/else if \(serverPrivate\) \{[\s\S]*privateCb\.checked = true;[\s\S]*privateStuck\.hidden = false;/);
+    expect(share).toContain("can't be switched back to public. To share it publicly, publish a copy under a new name");
+  });
+  it("a new name or folder clears the note (a new target is a new item)", () => {
+    const probe = between(share, "function probeServerPrivate(): void {", "privateCb.addEventListener(");
+    expect(probe).toMatch(/target !== probedTarget\) \{[\s\S]*privateStuck\.hidden = true;/);
   });
   it("Publish carries the confirmation into the choices", () => {
     const click = between(share, 'publishGo.addEventListener("click"', "});");
@@ -250,7 +255,7 @@ describe("M round 2: a Make-public confirmation never carries over to another it
   const share = read("src/ui/share.ts");
   it("probeServerPrivate resets confirmedPublic whenever the probed target changes", () => {
     const probe = between(share, "function probeServerPrivate(): void {", "privateCb.addEventListener(");
-    expect(probe).toMatch(/if \(target !== probedTarget\) \{\s*confirmedPublic = false;\s*probedTarget = target;/);
+    expect(probe).toMatch(/if \(target !== probedTarget\) \{\s*confirmedPublic = false;\s*privateStuck\.hidden = true;\s*probedTarget = target;/);
     expect(probe.indexOf("probedTarget = target;")).toBeLessThan(probe.indexOf("const token = getToken();"));
   });
   it("still exactly one input listener and two buildNameCheck( calls; no keyup/keydown", () => {

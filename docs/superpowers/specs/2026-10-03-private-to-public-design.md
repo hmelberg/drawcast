@@ -1,6 +1,6 @@
 # Private → public — design
 
-2026-10-03. Status: spec, not built. Repos: `drawcast` (app, `scripts/cast.mjs`) and `drawcast-anvil` (server).
+2026-10-03. Status: **shelved** — for now an author republishes a public copy under a new name instead (the Share panel says so). Build this when a private course with learners needs to go public in place. Repos: `drawcast` (app, `scripts/cast.mjs`) and `drawcast-anvil` (server).
 
 ## 1. What this is for
 

@@ -149,7 +149,8 @@ already recorded.
 
 - listed → unlisted, public → private: the price once; an item already paid
   for pays only for new lectures.
-- unlisted → listed, private → public: free.
+- unlisted → listed: free.
+- private → public: **not a switch (2026-10-03).** An author republishes a public copy under a new name or folder (new links; learner progress stays with the private original). The Share panel says so when Private is unticked on a server-private item. A real switch is designed in `2026-10-03-private-to-public-design.md`, shelved.
 - public → private warns that **earlier unencrypted versions stay readable in
   the repo's git history**, and offers publishing into a new folder instead
   (new links; names can be repointed).
