@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { iconSearchUrl, iconSvgUrl, resolveIcons, svgToRings, DEFAULT_PREFIXES, BY_PREFIXES } from "../src/render/icon";
+import { iconSearchUrl, iconSvgUrl, resolveIcons, searchQueries, svgToRings, DEFAULT_PREFIXES, EXTRA_PREFIXES, BY_PREFIXES } from "../src/render/icon";
 import { ICON_SETS } from "../src/render/icon-sets";
 import { iconRingsOf } from "../src/spec/icon-data";
 
@@ -43,8 +43,29 @@ describe("resolveIcons", () => {
     const rings = svgToRings(SVG);
     expect(rings[0].every(([x, y]) => x >= 0 && x <= 1 && y >= 0 && y <= 1)).toBe(true);
   });
+  test("first-tier miss tries healthicons/mdi before the CC BY sets", async () => {
+    const spec = { elements: [{ id: "k", type: "icon", of: "kidney", x: 1, y: 1 }], commands: [] };
+    const r = await resolveIcons(spec as never, deps({ [iconSearchUrl("kidney", EXTRA_PREFIXES)]: { icons: ["healthicons:kidneys"] }, [iconSearchUrl("kidney", BY_PREFIXES)]: { icons: ["fa6-solid:kidney"] }, [iconSvgUrl("healthicons", "kidneys")]: SVG }));
+    expect(r[0].ok).toBe(true);
+    expect((spec.elements[0] as { credit?: string }).credit).toBe("kidneys from healthicons · MIT");
+  });
+  test("a miss retries the keyword singular, then with leading words dropped", async () => {
+    const spec = { elements: [{ id: "c", type: "icon", of: "Red blood cells", x: 1, y: 1 }], commands: [] };
+    const r = await resolveIcons(spec as never, deps({ [iconSearchUrl("blood cell", EXTRA_PREFIXES)]: { icons: ["healthicons:blood-cells"] }, [iconSvgUrl("healthicons", "blood-cells")]: SVG }));
+    expect(r[0].ok).toBe(true);
+    expect((spec.elements[0] as { icon_key?: string }).icon_key).toBe("red-blood-cells@healthicons");
+  });
+  test("searchQueries: exact first, singular, trimmed — never one word from a phrase", () => {
+    expect(searchQueries("cows")).toEqual(["cows", "cow"]);
+    expect(searchQueries("Red blood cells")).toEqual(["red blood cells", "red blood cell", "blood cells", "blood cell"]);
+    expect(searchQueries("coal power plant")).toEqual(["coal power plant", "power plant"]);
+    expect(searchQueries("glasses")).toEqual(["glasses", "glass"]);
+    expect(searchQueries("berries")).toEqual(["berries", "berry"]);
+    expect(searchQueries("virus")).toEqual(["virus"]);
+    expect(searchQueries("bus")).toEqual(["bus"]);
+  });
   test("every default and BY prefix has a licence row of the right class", () => {
-    for (const p of DEFAULT_PREFIXES) expect(ICON_SETS[p].cls).toBe("permissive");
+    for (const p of [...DEFAULT_PREFIXES, ...EXTRA_PREFIXES]) expect(ICON_SETS[p].cls).toBe("permissive");
     for (const p of BY_PREFIXES) expect(ICON_SETS[p].cls).toBe("by");
   });
 });

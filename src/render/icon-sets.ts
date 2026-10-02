@@ -5,7 +5,7 @@
 //
 // `cls` gates what a set may be used for:
 //   "permissive" — ISC/MIT/Apache: free reuse, no attribution obligation.
-//                  Tried first (DEFAULT_PREFIXES).
+//                  Tried first (DEFAULT_PREFIXES, then EXTRA_PREFIXES).
 //   "by"         — CC BY: free reuse, attribution required (the `credit`
 //                  line IS the attribution). Tried second (BY_PREFIXES).
 //   "by-sa"      — CC BY-SA: share-alike. Fine when the author names the set
@@ -21,6 +21,10 @@ export const ICON_SETS: Record<string, { licence: string; cls: "permissive" | "b
   ph: { licence: "MIT", cls: "permissive" },
   heroicons: { licence: "MIT", cls: "permissive" },
   "material-symbols": { licence: "Apache-2.0", cls: "permissive" },
+  healthicons: { licence: "MIT", cls: "permissive" },
+  mdi: { licence: "Apache-2.0", cls: "permissive" },
+  "fluent-emoji-flat": { licence: "MIT", cls: "permissive" },
+  noto: { licence: "Apache-2.0", cls: "permissive" },
   "fa6-solid": { licence: "CC BY 4.0", cls: "by" },
   "fa6-regular": { licence: "CC BY 4.0", cls: "by" },
   twemoji: { licence: "CC BY 4.0", cls: "by" },

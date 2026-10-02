@@ -33,8 +33,39 @@ import { ICON_SETS } from "./icon-sets";
 /** Tried first when an icon element gives no explicit `set`: no attribution owed. */
 export const DEFAULT_PREFIXES = ["lucide", "tabler", "ph", "heroicons", "material-symbols"];
 
-/** Tried second, only once every permissive set has come up empty: attribution owed (the `credit` line pays it). */
+/** Tried when DEFAULT_PREFIXES come up empty: still no attribution owed. A tier of
+ *  their own so a keyword the first sets answer keeps the icon it always had;
+ *  healthicons and mdi carry the medical and science things the UI sets lack
+ *  (kidney, blood cells, mosquito, doctor). */
+export const EXTRA_PREFIXES = ["healthicons", "mdi"];
+
+/** Tried last, only once every permissive set has come up empty: attribution owed (the `credit` line pays it). */
 export const BY_PREFIXES = ["fa6-solid", "fa6-regular", "twemoji"];
+
+/** A word's singular, by the common English endings; short words and -ss/-us/-is words kept. */
+function singular(word: string): string {
+  if (word.length <= 3 || /(ss|us|is)$/.test(word)) return word;
+  if (/[^aeiou]ies$/.test(word)) return word.slice(0, -3) + "y";
+  if (/(ches|shes|xes|sses)$/.test(word)) return word.slice(0, -2);
+  return word.endsWith("s") ? word.slice(0, -1) : word;
+}
+
+/**
+ * The queries a keyword's search tries, in order: the keyword itself, its
+ * last word made singular ("cows" → "cow"), then the same with words dropped
+ * from the left ("red blood cell" → "blood cell"), since the head noun of an
+ * English phrase comes last. Never down to one word from a longer phrase:
+ * a bare "cell" or "plant" is the near miss the prompt would rather leave out.
+ */
+export function searchQueries(of: string): string[] {
+  const words = of.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  for (let k = words.length; k >= Math.min(2, words.length); k--) {
+    const tail = words.slice(words.length - k);
+    out.push(tail.join(" "), [...tail.slice(0, -1), singular(tail[tail.length - 1])].join(" "));
+  }
+  return [...new Set(out)];
+}
 
 /** Bump when the resolver's output changes — old cache entries stop matching. 2: the SVG itself (spec/icon-data.ts `ics1:`), per look; 3: pictures by twemoji name and alias. */
 const ICON_VERSION = 3;
@@ -300,13 +331,20 @@ async function resolveKeyword(spec: Spec, req: IconAsk, look: IconLook, deps: Ic
       prefix = PICTURE_PREFIXES[0];
       iconName = svgName;
     } else {
-      const search = async (prefixes: string[], allow: ("permissive" | "by")[]) => {
-        const res = await deps.fetch(iconSearchUrl(of, prefixes));
+      const search = async (q: string, prefixes: string[], allow: ("permissive" | "by")[]) => {
+        const res = await deps.fetch(iconSearchUrl(q, prefixes));
         const json = res.ok ? ((await res.json()) as { icons?: unknown }) : { icons: [] };
         return firstAllowed(json.icons, allow);
       };
-      let hit = await search(DEFAULT_PREFIXES, ["permissive"]);
-      hit ??= await search(BY_PREFIXES, ["by"]);
+      // The keyword as written in every tier before any looser form of it:
+      // an exact CC BY hit beats a trimmed permissive one.
+      let hit: { prefix: string; name: string } | null = null;
+      for (const q of searchQueries(of)) {
+        hit ??= await search(q, DEFAULT_PREFIXES, ["permissive"]);
+        hit ??= await search(q, EXTRA_PREFIXES, ["permissive"]);
+        hit ??= await search(q, BY_PREFIXES, ["by"]);
+        if (hit) break;
+      }
       if (!hit) throw new Error(`no icon found for "${of}"`);
       prefix = hit.prefix;
       iconName = hit.name;
