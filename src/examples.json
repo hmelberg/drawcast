@@ -78832,7 +78832,7 @@
         },
         {
           "id": "fin",
-          "type": "polygon",
+          "type": "path",
           "points": [
             [
               555,
@@ -78997,7 +78997,7 @@
             "on": "risk",
             "store": "c",
             "right": "All {c}: well judged.",
-            "wrong": "{c}. Our fears follow the drama, not the numbers.",
+            "wrong": "Here are the real numbers. Our fears follow the drama, not the statistics.",
             "feedback": {
               "style": "warm",
               "reward": "auto",
@@ -81484,7 +81484,7 @@
               "credit": "horse from twemoji · CC BY 4.0"
             },
             {
-              "text": "Human",
+              "text": "Fastest human",
               "icon": {
                 "of": "person-running",
                 "set": "fa6-solid"
@@ -81598,7 +81598,7 @@
           "authors": "U.S. Bureau of Labor Statistics",
           "year": 2026,
           "url": "https://www.bls.gov/news.release/atus.t01.htm",
-          "finding": "people aged 15 and over, averaged over all days: sleeping 9.03 h, working 3.32 h, education 0.44 h, watching TV 2.61 h, eating and drinking 1.21 h a day"
+          "finding": "people aged 15 and over, averaged over all days: sleeping 9.03 h, working and work-related 3.32 h, education 0.44 h, watching TV 2.61 h, eating and drinking 1.21 h a day"
         }
       ],
       "commands": [
@@ -81626,7 +81626,7 @@
               "bar_1"
             ]
           },
-          "speak": "Sleep takes the biggest share, about nine hours, because the survey counts everyone aged fifteen and over, on every day of the week."
+          "speak": "Sleep takes the biggest share, about nine hours, and that is high because the survey counts everyone aged fifteen and over, on every day of the week."
         },
         {
           "highlight": {
@@ -81858,7 +81858,7 @@
           "type": "scale",
           "min": 0,
           "max": 100,
-          "value": 30,
+          "value": 29.7,
           "unit": "%",
           "label": "Lekker fra rørene",
           "ticks": 4,
