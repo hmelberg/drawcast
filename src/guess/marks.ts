@@ -5,7 +5,7 @@
 // layer (render/svg-backend.ts setGuessMarks) draws what this returns.
 
 import type { Pt } from "../layout/model";
-import { accountOf, angleOf, budgetBalanced, pointFor, type GuessHandle } from "./handles";
+import { accountOf, angleOf, budgetBalanced, dockNumber, pointFor, type GuessHandle } from "./handles";
 import { scaleGeometry } from "../spec/scale";
 import { MARKET_DOMAIN, along, clipToSquare, curveOfGaps, impliedEquilibrium } from "./market";
 import { GUESS_COLOR } from "./color";
@@ -277,7 +277,8 @@ export function accountMarks(handles: GuessHandle[], values: number[][], budget:
   const last = Math.max(...cxs);
   const lastEdge = Math.max(...bars.map((b) => b.cx! + b.halfW!));
   const pitch = bars.length > 1 ? (last - Math.min(...cxs)) / (bars.length - 1) : h0.halfW! * 4;
-  const number = `${account < 0 ? "−" : ""}${h0.format(Math.abs(account))}`;
+  // As the dock says it (dockNumber): "22", not "22.0".
+  const number = `${account < 0 ? "−" : ""}${dockNumber(h0.format(Math.abs(account)))}`;
   const widest = Math.min(ACCOUNT_HALF_W, h0.halfW!, pitch * 0.4);
   // Past the x-axis arrow's tip, its tick clear of the head.
   const tip = Math.max(lastEdge, last + pitch / 2) + AXIS_OVERHANG;

@@ -916,6 +916,11 @@ export function budgetBalanced(handles: GuessHandle[], values: number[][], budge
   return Math.abs(accountOf(values, budget)) <= step / 2 + 1e-9;
 }
 
+/** A number as the dock and the account bar say it: no trailing ".0" on a whole one ("22.0" → "22"). */
+export function dockNumber(text: string): string {
+  return text.replace(/(\d)[.,]0+(?!\d)/g, "$1");
+}
+
 /**
  * True when the bars can balance the budget at all: it lies within the sum
  * of their floors and the sum of their tops (each bar is capped at its axis).

@@ -124,7 +124,7 @@ describe("the guess gate with a budget", () => {
       setup: { handles: [bar(0), bar(1)], pin: {}, warnings: [] },
       start: [[5], [5]],
       paint: (v) => void painted.push(v.map((r) => r.slice())),
-      account: { budget: 20, label: "Left" },
+      account: { budget: 20, label: "Left", isDefault: true },
     };
     const ac = new AbortController();
     let result: string | null | undefined;
@@ -169,7 +169,7 @@ describe("the guess gate with a budget", () => {
       setup: { handles: [bar(0), bar(1)], pin: {}, warnings: [] },
       start: [[5], [5]],
       paint: () => {},
-      account: { budget: 500, label: "Left" },
+      account: { budget: 500, label: "Left", isDefault: true },
     };
     const ac = new AbortController();
     let result: string | null | undefined;

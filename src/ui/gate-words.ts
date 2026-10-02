@@ -41,6 +41,8 @@ export interface GateWords {
   letGo(hint: string): string;
   /** "{hint}, then Answer" */
   thenAnswer(hint: string): string;
+  /** A budget's account bar, when the cast gives it no account_label. */
+  account: string;
   /** A budget not yet balanced: what is left or over. */
   budgetLeft(n: string): string;
   budgetOver(n: string): string;
@@ -68,6 +70,7 @@ const EN: GateWords = {
   },
   letGo: (hint) => `${hint} — let go to answer`,
   thenAnswer: (hint) => `${hint}, then Answer`,
+  account: "Left",
   budgetLeft: (n) => `Balance the budget: ${n} left`,
   budgetOver: (n) => `Balance the budget: ${n} over`,
   cards: {
@@ -105,6 +108,7 @@ const NB: GateWords = {
   },
   letGo: (hint) => `${hint} – slipp for å svare`,
   thenAnswer: (hint) => `${hint}, og trykk Svar`,
+  account: "Igjen",
   budgetLeft: (n) => `Fordel budsjettet: ${n} igjen`,
   budgetOver: (n) => `Fordel budsjettet: ${n} for mye`,
   cards: {
@@ -129,10 +133,9 @@ export function gateWords(lang: GateLang): GateWords {
   return lang === "nb" ? NB : EN;
 }
 
-/** A number as the dock says it: no trailing ".0" on a whole one ("22.0" → "22"). */
-export function dockNumber(text: string): string {
-  return text.replace(/(\d)[.,]0+(?!\d)/g, "$1");
-}
+/** A number as the dock says it — shared with the account bar (guess/handles.ts). */
+export { dockNumber } from "../guess/handles";
+import { dockNumber } from "../guess/handles";
 
 /**
  * The dock's line for a budget not yet balanced (spec 2026-10-03 §5, L6):

@@ -42,6 +42,7 @@ import { DEFAULT_TOLERANCE, guessText, guessVars, scoreGuess } from "../guess/sc
 import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../feedback/bands";
 import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
+import { gateLang, gateWords } from "../ui/gate-words";
 import type { CardsGeometry } from "../spec/cards";
 import { cardsMarks, cardsTruth, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
 import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
@@ -206,7 +207,7 @@ export interface GuessSession {
   /** A budget question (spec 2026-10-03-looks-feedback-account §5): the bars
    *  are split against it, the account bar labelled `label`; Answer waits
    *  until the account balances. The bars' geometry is in setup.handles. */
-  account?: { budget: number; label: string };
+  account?: { budget: number; label: string; isDefault?: boolean };
 }
 
 /** One graded answer from a LIVE viewer (never a movie's auto path): what
@@ -1510,7 +1511,8 @@ export class Player {
     // their own and an account bar beside the plot shows what is left; it
     // stands while the question does and goes before the reveal.
     const budget = budgetOf(setup.handles, step.budget);
-    const account = budget !== null ? { budget, label: step.accountLabel ?? "Left" } : null;
+    // No account_label: the gates' own word for it, in the cast's language ("Left" / "Igjen").
+    const account = budget !== null ? (step.accountLabel !== undefined ? { budget, label: step.accountLabel } : { budget, label: gateWords(gateLang(this.sourceLang)).account, isDefault: true }) : null;
     const accountOwner = `${owner}_account`;
     const paint = (values: number[][], marks = true): void => {
       paintFigure(values, marks);

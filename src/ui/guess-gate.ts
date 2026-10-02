@@ -51,8 +51,8 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       // Answer waits until it balances.
       const budget = session.account?.budget ?? null;
       // The cast's own name for the account ("Hours left") speaks in the
-      // dock too; the player's default "Left" says "Balance the budget".
-      const accountLabel = session.account && session.account.label !== "Left" ? session.account.label : null;
+      // dock too; the player's default ("Left" / "Igjen") says "Balance the budget".
+      const accountLabel = session.account && !session.account.isDefault ? session.account.label : null;
       // A market curve is moved AND turned (spec 2026-10-03 §3.2): one gesture
       // is rarely the whole answer, so it waits for Answer unless release: true.
       const onRelease =

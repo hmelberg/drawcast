@@ -123,6 +123,16 @@ describe("the account bar mark", () => {
     expect(m.texts.map((t) => t.text)).toEqual(expect.arrayContaining(["Kvar", "−20"]));
   });
 
+  test("a whole number reads as the dock says it: 22, not 22.0", () => {
+    // A 0.1 step formats 22 as "22.0"; the dock strips the ".0", so the bar does too.
+    const fine = (k: number, t: number): GuessHandle => ({ ...bar(k, t), step: 0.1, format: formatterFor(0.1) });
+    const m = accountMarks([fine(0, 1), fine(1, 2)], [[40], [38]], 100);
+    expect(m.texts.map((t) => t.text)).toContain("22");
+    expect(m.texts.map((t) => t.text)).not.toContain("22.0");
+    const over = accountMarks([fine(0, 1), fine(1, 2)], [[60], [44.8]], 100);
+    expect(over.texts.map((t) => t.text)).toContain("−4.8");
+  });
+
   test("balanced: the number is 0, in the guess colour", () => {
     const m = accountMarks(bars(1, 2), [[50], [50]], 100);
     expect(m.color).toBe(GUESS_COLOR);
@@ -199,6 +209,20 @@ describe("a budget ask in the player", () => {
     const acc = marks.filter((x) => x.owner.endsWith("_account"));
     expect(acc.some((x) => x.m !== null && x.m.texts.some((t) => t.text === "Igjen"))).toBe(true);
     expect(acc[acc.length - 1].m).toBeNull();
+  });
+
+  test("no account_label: the default word, in the cast's language, flagged as the default", async () => {
+    for (const [lang, word] of [["en", "Left"], ["nb", "Igjen"], [null, "Left"]] as [string | null, string][]) {
+      const { player } = makePlayer([ask()]);
+      if (lang) player.setSourceLang(lang);
+      let session: GuessSession | null = null;
+      player.askGate = async (_s, step) => {
+        session = (step as unknown as { guess: GuessSession }).guess;
+        return "50,30,20";
+      };
+      await player.play();
+      expect(session!.account).toEqual({ budget: 100, label: word, isDefault: true });
+    }
   });
 
   test("the movie ends balanced and never waits", async () => {

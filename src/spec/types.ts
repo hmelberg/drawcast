@@ -964,7 +964,7 @@ export interface AskArgs {
    *  an account bar beside the plot shows what is left; Answer waits until
    *  it balances (spec 2026-10-03-looks-feedback-account §5). */
   budget?: number;
-  /** Budget: the account bar's label (default "Left"), in the cast's language. */
+  /** Budget: the account bar's label (default "Left", "Igjen" in a Norwegian cast), in the cast's language. */
   account_label?: string;
   /** Guess: false = an opinion, nothing is right or wrong; the reveal shows
    *  the figure's own values as the reference and `right` is spoken (§7). */

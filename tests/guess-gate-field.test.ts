@@ -137,7 +137,7 @@ const bar = (k: number): GuessHandle => ({
 
 const settle = () => new Promise((r) => setTimeout(r, 250));
 
-async function mount(opts: { bars: number; account?: { budget: number; label: string }; lang?: string }) {
+async function mount(opts: { bars: number; account?: { budget: number; label: string; isDefault?: boolean }; lang?: string }) {
   const { guessGateFor } = await import("../src/ui/guess-gate");
   const stage = new FakeEl("div");
   const session: GuessSession = {
@@ -169,7 +169,7 @@ function typeInto(stage: FakeEl, text: string, keyName: string): FakeEl {
 
 describe("typing a bar's number (M1)", () => {
   test("Enter commits once: no NotFoundError, the pill comes back, the value is set", async () => {
-    const m = await mount({ bars: 2, account: { budget: 20, label: "Left" } });
+    const m = await mount({ bars: 2, account: { budget: 20, label: "Left", isDefault: true } });
     const hint = m.stage.find("cs-figgate-hint")!;
     expect(hint.textContent).toBe("Balance the budget: 10 left");
     expect(() => typeInto(m.stage, "12", "Enter")).not.toThrow();
@@ -180,7 +180,7 @@ describe("typing a bar's number (M1)", () => {
   });
 
   test("Escape cancels: the typed number is not kept", async () => {
-    const m = await mount({ bars: 2, account: { budget: 20, label: "Left" } });
+    const m = await mount({ bars: 2, account: { budget: 20, label: "Left", isDefault: true } });
     const hint = m.stage.find("cs-figgate-hint")!;
     expect(() => typeInto(m.stage, "12", "Escape")).not.toThrow();
     expect(m.stage.find("cs-guess-field")).toBeNull();
@@ -188,7 +188,7 @@ describe("typing a bar's number (M1)", () => {
   });
 
   test("a blur (a tap elsewhere) keeps what was typed", async () => {
-    const m = await mount({ bars: 2, account: { budget: 20, label: "Left" } });
+    const m = await mount({ bars: 2, account: { budget: 20, label: "Left", isDefault: true } });
     const hint = m.stage.find("cs-figgate-hint")!;
     m.stage.find("cs-guess-value")!.click();
     const field = m.stage.find("cs-guess-field")!;
@@ -211,10 +211,15 @@ describe("typing a bar's number (M1)", () => {
 
 describe("the gate's words (M2, L6)", () => {
   test("a Norwegian cast's dock is Norwegian", async () => {
-    const m = await mount({ bars: 2, account: { budget: 20, label: "Left" }, lang: "nb" });
+    const m = await mount({ bars: 2, account: { budget: 20, label: "Igjen", isDefault: true }, lang: "nb" });
     expect(m.stage.find("cs-guess-answer")!.textContent).toBe("Svar ▸");
     expect(m.stage.find("cs-figgate-skip")!.textContent).toBe("Hopp over ▸");
     expect(m.stage.find("cs-figgate-hint")!.textContent).toBe("Fordel budsjettet: 10 igjen");
+  });
+
+  test("the default flag, not the word, decides: an authored \"Left\" names the account", async () => {
+    const m = await mount({ bars: 2, account: { budget: 20, label: "Left" } });
+    expect(m.stage.find("cs-figgate-hint")!.textContent).toBe("Left: 10");
   });
 
   test("the cast's account label names the account in the dock", async () => {
