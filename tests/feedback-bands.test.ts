@@ -63,7 +63,13 @@ describe("resolveFeedback", () => {
   });
 
   test("an object with lines but no style asks for more than plain", () => {
-    expect(resolveFeedback(undefined, { poor: "Oops" }).style).not.toBe("plain");
+    expect(resolveFeedback(undefined, { poor: "Oops" }).style).toBe("warm");
+    expect(resolveFeedback(undefined, { poor: "Oops" }).reward).toBe("auto");
+  });
+
+  test("an ask's lines without a style keep the cast's style", () => {
+    expect(resolveFeedback("dry", { poor: "x" }).style).toBe("dry");
+    expect(resolveFeedback({ style: "plain" }, { poor: "x" }).style).toBe("plain");
   });
 });
 
@@ -93,13 +99,21 @@ describe("pickLine", () => {
     expect(pickLine(dry, "poor", "no", 3, new Set())).toBeNull();
   });
 
-  test("no repeat within a cast; null when the band's lines are used up", () => {
+  test("no repeat within a cast until used up; then the lines come round again, never the one just said", () => {
     const fb: FeedbackSpec = { style: "dry", reward: "auto", lines: { poor: ["one", "two"] } };
     const used = new Set<string>();
     const a = pickLine(fb, "poor", "en", 11, used);
     const b = pickLine(fb, "poor", "en", 11, used);
     expect(new Set([a, b])).toEqual(new Set(["one", "two"]));
-    expect(pickLine(fb, "poor", "en", 11, used)).toBeNull();
+    const c = pickLine(fb, "poor", "en", 11, used);
+    expect(c).not.toBeNull();
+    expect(c).not.toBe(b);
+  });
+
+  test("one authored line per band: every ask still gets it, never the English set", () => {
+    const fb: FeedbackSpec = { style: "dry", reward: "auto", lines: { poor: ["Only line."] } };
+    const used = new Set<string>();
+    for (let i = 0; i < 4; i++) expect(pickLine(fb, "poor", "en", 5, used)).toBe("Only line.");
   });
 
   test("the same seed picks the same lines (a replay is the same)", () => {

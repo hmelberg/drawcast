@@ -64,8 +64,8 @@ function parse(v: unknown): Parsed {
   const style = STYLES.includes(o.style as FeedbackStyle) ? (o.style as FeedbackStyle) : undefined;
   const reward = REWARDS.includes(o.reward as FeedbackReward) ? (o.reward as FeedbackReward) : undefined;
   return {
-    // An object that writes lines but names no style asks for more than plain.
-    style: style ?? (Object.keys(lines).length > 0 ? "warm" : undefined),
+    // Lines without a style take the cast's style (resolveFeedback decides).
+    ...(style ? { style } : {}),
     ...(reward ? { reward } : {}),
     lines,
   };
@@ -80,7 +80,9 @@ function parse(v: unknown): Parsed {
 export function resolveFeedback(cast: unknown, ask: unknown): FeedbackSpec {
   const c = parse(cast);
   const a = parse(ask);
-  const style = a.style ?? c.style ?? "plain";
+  const anyLines = Object.keys(a.lines).length > 0 || Object.keys(c.lines).length > 0;
+  // Lines with no style anywhere ask for more than plain: warm.
+  const style = a.style ?? c.style ?? (anyLines ? "warm" : "plain");
   const reward = a.reward ?? c.reward ?? (style === "plain" ? "none" : "auto");
   const lines: Partial<Record<Band, string[]>> = {};
   for (const b of BANDS) {
@@ -114,7 +116,8 @@ export function feedbackLines(fb: FeedbackSpec, lang: string | undefined | null)
 /**
  * ONE line for the band, or null: the cast's own lines first; else the
  * bundled English set, only for a cast in English (or with no `lang`);
- * never a line already said in this cast (`used`, which this adds to).
+ * no line said twice in this cast until the band's lines are used up, then
+ * they come round again (`used`, which this adds to).
  * The pick is seeded, so a replay says the same. {vars} are left for the
  * player's speakLine to substitute.
  */
@@ -122,7 +125,14 @@ export function pickLine(fb: FeedbackSpec, band: Band, lang: string | undefined 
   if (fb.style === "plain") return null;
   const own = fb.lines[band];
   const pool = own && own.length > 0 ? own : isEnglish(lang) ? FALLBACK_LINES[fb.style][band] : [];
-  const fresh = pool.filter((l) => !used.has(l));
+  let fresh = pool.filter((l) => !used.has(l));
+  if (fresh.length === 0 && pool.length > 0) {
+    // Used up: the band's lines come round again — but not the one just said
+    // (the latest of them in `used`, which keeps insertion order).
+    const last = [...used].filter((l) => pool.includes(l)).pop();
+    for (const l of pool) used.delete(l);
+    fresh = pool.length > 1 ? pool.filter((l) => l !== last) : pool.slice();
+  }
   if (fresh.length === 0) return null;
   const k = seedOf(`${seed}:${band}:${used.size}`) % fresh.length;
   const line = fresh[k];

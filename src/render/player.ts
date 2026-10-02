@@ -38,7 +38,7 @@ import { smoothstep } from "./sweep";
 import { chunkCaption, pageTimes } from "./caption-chunks";
 import { balancedSplit, budgetOf, defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessEnd, type GuessHandle, type GuessSetup } from "../guess/handles";
 import { gapsOf } from "../guess/market";
-import { guessText, guessVars, scoreGuess } from "../guess/score";
+import { DEFAULT_TOLERANCE, guessText, guessVars, scoreGuess } from "../guess/score";
 import { bandOf, guessBand, pickLine, seedOf, type Band } from "../feedback/bands";
 import { accountMarks, guessMarks } from "../guess/marks";
 import type { CardsGeometry } from "../spec/cards";
@@ -866,6 +866,8 @@ export class Player {
       return;
     }
     this.abortRun();
+    // Back at the start: a second pass picks its feedback lines as the first did.
+    if (n === 0) this.feedbackUsed.clear();
     this.jumpTo(n, false);
   }
 
@@ -1613,7 +1615,7 @@ export class Player {
     }
     const line = !judged ? (step.right ?? step.wrong) : ok ? step.right : (step.wrong ?? step.right);
     const market = truthHandles.length === 1 && truthHandles[0].kind === "market";
-    const extra = live && answered && judged ? this.bandLine(step, guessBand(score, step.tolerance ?? 0.1, market)) : null;
+    const extra = live && answered && judged ? this.bandLine(step, guessBand(score, step.tolerance ?? DEFAULT_TOLERANCE, market)) : null;
     if (animIndex >= 0) {
       // The animate after this step is the reveal: it starts from the guess.
       this.predictCarry = { animIndex, step, setup, truthHandles, guess, owner, line, extra, live, answered, ok, judged };

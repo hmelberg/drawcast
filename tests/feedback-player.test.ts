@@ -173,3 +173,25 @@ describe("feedback lines in the player", () => {
     expect(said[0]).not.toBe(said[1]);
   });
 });
+
+describe("feedback lines on a second pass", () => {
+  test("one cast-level line per band: every judged ask gets it", async () => {
+    const { player, speech } = makePlayer([cardsAsk(), cardsAsk(), cardsAsk()], { feedback: { style: "dry", poor: "Only line." } });
+    player.askGate = async () => oneRight;
+    await player.play();
+    expect(speech.said.filter((s) => s === "Only line.")).toHaveLength(3);
+  }, 15000);
+
+  test("a rewind to the start repeats the first pass's picks", async () => {
+    const { player, speech } = makePlayer([cardsAsk(), cardsAsk()], { feedback: "dry", lang: "en" });
+    player.askGate = async () => oneRight;
+    await player.play();
+    const pass1 = speech.said.filter((s) => FALLBACK_LINES.dry.poor.includes(s));
+    player.renderUpTo(0);
+    speech.said.length = 0;
+    await player.play();
+    const pass2 = speech.said.filter((s) => FALLBACK_LINES.dry.poor.includes(s));
+    expect(pass1).toHaveLength(2);
+    expect(pass2).toEqual(pass1);
+  }, 15000);
+});
