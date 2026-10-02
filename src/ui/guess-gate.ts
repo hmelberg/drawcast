@@ -19,7 +19,7 @@
 
 import type { RenderHandle } from "../render";
 import type { GuessSession } from "../render/player";
-import { accountOf, budgetBalanced, encodeGuess, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, pickHandle, pointFor, valueAt, type GuessHandle } from "../guess/handles";
+import { accountOf, budgetBalanced, budgetReachable, encodeGuess, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, pickHandle, pointFor, valueAt, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
@@ -75,7 +75,10 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       answer.hidden = onRelease;
       const hintDefault = hint.textContent ?? "";
       /** A budget: the hint says what is left or over; Answer only when balanced. */
-      const balanced = (): boolean => budget === null || budgetBalanced(handles, values, budget);
+      // A budget the bars cannot reach (past their summed tops or under their
+      // floors) can never balance: Answer goes through anyway (lint flags it).
+      const reachable = budget === null || budgetReachable(handles, budget);
+      const balanced = (): boolean => budget === null || !reachable || budgetBalanced(handles, values, budget);
       const balance = (): void => {
         if (budget === null) return;
         const a = accountOf(values, budget);

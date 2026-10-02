@@ -916,6 +916,18 @@ export function budgetBalanced(handles: GuessHandle[], values: number[][], budge
   return Math.abs(accountOf(values, budget)) <= step / 2 + 1e-9;
 }
 
+/**
+ * True when the bars can balance the budget at all: it lies within the sum
+ * of their floors and the sum of their tops (each bar is capped at its axis).
+ * When not, the gate lets Answer through anyway — never a dead end.
+ */
+export function budgetReachable(handles: GuessHandle[], budget: number): boolean {
+  const step = Math.min(...handles.map((h) => (h.step > 0 ? h.step : 1)));
+  const lo = handles.reduce((a, h) => a + h.min, 0);
+  const hi = handles.reduce((a, h) => a + h.max, 0);
+  return budget >= lo - step / 2 - 1e-9 && budget <= hi + step / 2 + 1e-9;
+}
+
 /** The dock's hint while unbalanced ("Balance the budget: 10 left" / "5 over"); null when balanced. */
 export function budgetHint(handles: GuessHandle[], values: number[][], budget: number): string | null {
   if (budgetBalanced(handles, values, budget)) return null;

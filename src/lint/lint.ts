@@ -5,6 +5,7 @@
 import { SUB_SUFFIXES } from "../layout/model";
 import { guessParts, marketParts } from "../guess/parts";
 import { marketMove } from "../guess/market";
+import { niceStep } from "../guess/handles";
 import { treeBlanks, treePick } from "../tree/blanks";
 import { blankConvertible, blankIsNumber, formulaBlanks, hasBlanks, tileRight } from "../formula/blanks";
 import { walkTree } from "../scenes/decision_tree/rollback";
@@ -1094,6 +1095,8 @@ function lintGuess(spec: Spec): LintIssue[] {
       issues.push({ rule: "guess", ids: [...market], message: `ask on: one curve per question — ask about ${[...market].join(" or ")}, not both`, severity: "error" });
       return;
     }
+    const budgetIssue = budgetRangeIssue(spec, guessParts(spec, c.ask.on), c.ask.budget);
+    if (budgetIssue) issues.push(budgetIssue);
     for (const part of guessParts(spec, c.ask.on)) {
       // Move the curve (spec 2026-10-03 §3): a prediction of the animate
       // right after, which must move this curve.
@@ -1137,6 +1140,43 @@ function lintGuess(spec: Spec): LintIssue[] {
     }
   });
   return issues;
+}
+
+/**
+ * A budget over bar_chart bars (spec 2026-10-03-looks-feedback-account §5)
+ * the bars cannot make: each bar is capped at the axis, so the sum runs from
+ * the bars' floors to their tops. Outside that the account never balances
+ * (the gate then lets Answer through, but the question is broken). The axis
+ * is bar_chart's own: ylim, else 0 … the largest value + 8 %.
+ */
+function budgetRangeIssue(spec: Spec, parts: string[], budget: unknown): LintIssue | null {
+  if (typeof budget !== "number" || !(budget > 0) || spec.template !== "bar_chart") return null;
+  const params = (spec.params ?? {}) as Record<string, unknown>;
+  const bars = parts.filter((p) => /^bar_\d+$/.test(p));
+  if (bars.length < 2 || bars.length !== parts.length || Array.isArray(params["series"])) return null;
+  const vals = (Array.isArray(params["values"]) ? (params["values"] as unknown[]) : []).flat().filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  const ylim = Array.isArray(params["ylim"]) && params["ylim"].length === 2 && params["ylim"].every((v) => typeof v === "number" && Number.isFinite(v)) ? (params["ylim"] as number[]) : null;
+  let lo = vals.length ? Math.min(...vals) : 0;
+  let hi = vals.length ? Math.max(...vals) : 1;
+  let yMin = ylim ? Math.min(ylim[0], ylim[1]) : Math.min(0, lo);
+  let yMax = ylim ? Math.max(ylim[0], ylim[1]) : hi;
+  if (!ylim) {
+    const pad = (yMax - yMin) * 0.08;
+    if (yMax > 0) yMax += pad;
+    if (yMin < 0) yMin -= pad;
+  }
+  if (yMax - yMin < 1e-9) yMax = yMin + 1;
+  lo = bars.length * yMin;
+  hi = bars.length * yMax;
+  const slack = niceStep(yMax - yMin) / 2 + 1e-9;
+  if (budget >= lo - slack && budget <= hi + slack) return null;
+  const fmt = (v: number) => String(Math.round(v * 100) / 100);
+  return {
+    rule: "guess",
+    ids: bars,
+    message: `ask budget: ${budget} cannot be reached — each of the ${bars.length} bars stops at the axis (${fmt(yMin)}–${fmt(yMax)}), so together they make ${fmt(lo)}–${fmt(hi)}; lower the budget, or give the chart a ylim that leaves room`,
+    severity: "error",
+  };
 }
 
 /** Blanks a tree ask may hold, and nodes a tree may have, before it stops

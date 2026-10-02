@@ -349,6 +349,25 @@ describe("account_label: lint and schema", () => {
     expect(warned(spec({ account_label: "Igjen", budget: 100 }))).toHaveLength(0);
   });
 
+  test("a budget the bars cannot reach within their axis is a lint error", async () => {
+    registerPack("data", dataYaml);
+    const { lintCommands } = await import("../src/lint/lint");
+    const spec = (params: Record<string, unknown>, budget: number): Spec =>
+      expandSpec({ template: "bar_chart", params: { labels: ["A", "B"], ...params }, commands: [{ draw: ["axes"] }, { ask: { question: "Split?", on: "all", budget } }] } as Spec);
+    const errs = (s: Spec) => lintCommands(s).filter((i) => /budget/.test(i.message) && i.severity === "error");
+    // Values 30 and 50: the axis tops out at 54, so two bars make at most 108.
+    expect(errs(spec({ values: [30, 50] }, 100))).toHaveLength(0);
+    expect(errs(spec({ values: [30, 50] }, 120))).toHaveLength(1);
+    // The lint's range is the gate's: the real handles say the same.
+    const s = spec({ values: [30, 50] }, 120);
+    const hs = guessSetup(s, s.params ?? {}, layoutSpec(s), guessParts(s, "all")).handles;
+    expect(handles.budgetReachable(hs, 120)).toBe(false);
+    expect(handles.budgetReachable(hs, 100)).toBe(true);
+    // An ylim floor above zero: the bars cannot go under it.
+    expect(errs(spec({ values: [30, 50], ylim: [20, 100] }, 30))).toHaveLength(1);
+    expect(errs(spec({ values: [30, 50], ylim: [20, 100] }, 150))).toHaveLength(0);
+  });
+
   test("the schema refuses account_label on an ask that is not a guess", async () => {
     const { validateSpec } = await import("../src/spec/schema");
     const r = validateSpec({ title: "t", template: "bar_chart", params: { labels: ["A"], values: [1] }, commands: [{ ask: { question: "Q?", answer: "x", account_label: "Left" } }] });

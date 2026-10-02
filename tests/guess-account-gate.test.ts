@@ -160,4 +160,35 @@ describe("the guess gate with a budget", () => {
     await done;
     expect(result).toBe("10;10");
   });
+
+  test("a budget the bars cannot reach never strands the viewer: Answer stays enabled", async () => {
+    const { guessGateFor } = await import("../src/ui/guess-gate");
+    const stage = new FakeEl("div");
+    // Two bars capped at 100 each cannot make 500.
+    const session: GuessSession = {
+      setup: { handles: [bar(0), bar(1)], pin: {}, warnings: [] },
+      start: [[5], [5]],
+      paint: () => {},
+      account: { budget: 500, label: "Left" },
+    };
+    const ac = new AbortController();
+    let result: string | null | undefined;
+    const done = guessGateFor(stage as unknown as HTMLElement, null as never)(ac.signal, { question: "Split?", guess: session } as unknown as AskGateStep).then((r) => (result = r));
+    const answer = stage.find("cs-guess-answer")!;
+    expect(answer.disabled).toBe(false);
+    key("Enter");
+    await done;
+    expect(result).toBe("5;5");
+  });
+});
+
+describe("budgetReachable", () => {
+  test("a budget within the bars' summed range is reachable; beyond it, or under the floors, is not", async () => {
+    const { budgetReachable } = await import("../src/guess/handles");
+    expect(budgetReachable([bar(0), bar(1)], 20)).toBe(true);
+    expect(budgetReachable([bar(0), bar(1)], 200)).toBe(true);
+    expect(budgetReachable([bar(0), bar(1)], 201)).toBe(false);
+    const floored = (k: number): GuessHandle => ({ ...bar(k), min: 10 });
+    expect(budgetReachable([floored(0), floored(1)], 15)).toBe(false);
+  });
 });
