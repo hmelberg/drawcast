@@ -8,7 +8,7 @@
 // element type is read: `credit` lives on the shared element shape, and
 // filtering by type is how the seed credit went missing.
 
-import type { Spec } from "../spec/types";
+import type { CardItemSpec, Spec } from "../spec/types";
 import { iconAssetName, iconCreditOf, iconSlots, storedIcon } from "../spec/icon-data";
 
 /**
@@ -28,11 +28,11 @@ export function creditsOf(specs: Spec[]): string[] {
     for (const el of spec.elements ?? []) {
       add(el.credit);
       // A cards element's icons (round 5 §3.3) are credited on its items.
-      if (el.type === "cards" && Array.isArray(el.items)) {
+      if ((el.type === "cards" || el.type === "sequence") && Array.isArray(el.items)) {
         for (const it of el.items) {
           if (typeof it === "object" && it !== null) {
             add(it.credit);
-            add(it.match_credit);
+            add((it as CardItemSpec).match_credit);
           }
         }
       }

@@ -9,7 +9,7 @@
 // placeholder, and a name/url/reference element re-resolves from cache anyway).
 
 import { formatPlaylist, itemsOf, parsePlaylistText, type Playlist } from "../playlist/playlist";
-import type { Spec, SpecElement } from "../spec/types";
+import type { CardItemSpec, Spec, SpecElement } from "../spec/types";
 import { ASSET_SEND_MAX, assetBytes, DATA_DESCRIPTOR, describeAsset, formatAssetSize, HOISTED, isDataAsset } from "../spec/assets";
 
 export { HOISTED };
@@ -48,7 +48,7 @@ const cardIconKey = (icon: unknown): string => `cardicon:${JSON.stringify(icon)}
 
 /** A cards element's object items, as records (none for anything else). */
 function cardItems(el: SpecElement): Record<string, unknown>[] {
-  if (el.type !== "cards" || !Array.isArray(el.items)) return [];
+  if ((el.type !== "cards" && el.type !== "sequence") || !Array.isArray(el.items)) return [];
   return el.items.filter((it): it is Exclude<typeof it, string> => typeof it === "object" && it !== null) as unknown as Record<string, unknown>[];
 }
 
@@ -238,7 +238,7 @@ export function stripStrokesForModel(spec: Spec): Spec {
         // An item's rings go; its icon (the keyword) stays.
         const items = (e.items ?? []).map((it) => {
           if (typeof it !== "object" || it === null) return it;
-          const { icon_strokes: _a, match_icon_strokes: _b, ...rest } = it;
+          const { icon_strokes: _a, match_icon_strokes: _b, ...rest } = it as CardItemSpec;
           return rest;
         });
         e = { ...e, items };

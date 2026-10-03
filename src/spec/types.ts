@@ -46,7 +46,8 @@ export type ElementType =
   | "population"
   | "link"
   | "scale"
-  | "cards";
+  | "cards"
+  | "sequence";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -133,6 +134,18 @@ export interface CardItemSpec {
   /** Machine-written: the key each icon was resolved for ("keyword@set"); an edited icon no longer matches and is resolved again. */
   icon_key?: string;
   match_icon_key?: string;
+}
+
+/** One picture of a sequence (spec/sequence.ts): an icon or a paper card, its name, its verdict in the strip. */
+export interface SequenceItemSpec {
+  icon?: string | string[] | { of: string; set?: string; or?: string[] };
+  text?: string;
+  label?: string;
+  mark?: string | { text: string; color?: string };
+  /** Machine-written icon data and credit (spec/icon-data.ts). */
+  icon_strokes?: string;
+  credit?: string;
+  icon_key?: string;
 }
 
 export interface SpecStyle {
@@ -452,8 +465,15 @@ export interface SpecElement {
   quote?: string;
   // population (layout/population.ts): people as person pictograms, each in a state
   // cards (spec/cards.ts — sugar: cards to rank or to sort into boxes)
-  /** cards: the cards, in TRUE order (rank) or each with its bin (sort). */
-  items?: (string | CardItemSpec)[];
+  /** cards: the cards, in TRUE order (rank) or each with its bin (sort).
+   *  sequence (spec/sequence.ts): the pictures in turn — an element id, or {icon | text, label, mark}. */
+  items?: (string | CardItemSpec | SequenceItemSpec)[];
+  /** sequence: where the done items wait — a row along the top (default), the bottom, or none. */
+  strip?: "top" | "bottom" | "none";
+  /** sequence: "dots" — a small placeholder in each slot not reached yet. */
+  show_upcoming?: "dots" | "none";
+  /** sequence: false — drawing <id>_strip at the end leaves the row at the top instead of bringing it to the middle. */
+  recap?: boolean;
   /** cards: the boxes to sort into. */
   bins?: string[];
   /** cards: tap all the … — the one box's title (items {text, in}). */
