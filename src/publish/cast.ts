@@ -9,6 +9,7 @@
 // deliberately: parseManifest rebuilds `{ courses }` and drops every other key,
 // so anything stored beside it would be erased by the next course publish.
 
+import { publishExt, stripDocExt } from "../cast-file";
 import { coursePageStyle, escapeHtml, escapeMd } from "../course/page";
 import { joinPath } from "../course/publish";
 import {
@@ -91,7 +92,7 @@ export interface CastPlanArgs {
 /** Where a cast's poster lives: beside it, `.png` for `.yaml` (the viewer
  *  derives the same path from the link it was given). */
 export function posterPathFor(castPath: string): string {
-  return castPath.replace(/\.ya?ml$/i, "") + ".png";
+  return stripDocExt(castPath) + ".png";
 }
 
 /**
@@ -105,8 +106,8 @@ export function posterPathFor(castPath: string): string {
  */
 export function privateCastTarget(repo: RepoRef, castsDir: string, field: string | undefined, publishedAs: string | undefined, title: string): { target: string; item: string } {
   const slug = slugify((field ?? "").trim() || publishedAs || title || "lecture");
-  const target = `${repo.owner}/${repo.repo}/${joinPath(castsDir, `${slug}.yaml`)}`;
-  return { target, item: target.replace(/\.ya?ml$/i, "") };
+  const target = `${repo.owner}/${repo.repo}/${joinPath(castsDir, `${slug}${publishExt()}`)}`;
+  return { target, item: stripDocExt(target) };
 }
 
 export function castHref(base: string, owner: string, repo: string, path: string): string {
@@ -119,7 +120,7 @@ export function castHref(base: string, owner: string, repo: string, path: string
  * the name.
  */
 export function castRegistration(slug: string, repo: RepoRef, castsDir: string, page: string): Omit<Registration, "key"> {
-  return { name: slug, kind: "cast", target: `${repo.owner}/${repo.repo}/${joinPath(castsDir, `${slug}.yaml`)}`, page };
+  return { name: slug, kind: "cast", target: `${repo.owner}/${repo.repo}/${joinPath(castsDir, `${slug}${publishExt()}`)}`, page };
 }
 
 export function buildCastPlan(args: CastPlanArgs): CastPlan {
@@ -136,7 +137,7 @@ export function buildCastPlan(args: CastPlanArgs): CastPlan {
   // to a name another cast already owns — must never silently steal that
   // other entry, so it is uniquified exactly like a plain title would be.
   const slug = requested && (requested === previousSlug || !taken.has(requested)) ? requested : slugFor(requested || title || "lecture", taken);
-  const file = `${slug}.yaml`;
+  const file = `${slug}${publishExt()}`;
   const path = joinPath(castsDir, file);
 
   const next = upsertCast(index, { slug, title: title || "Untitled drawcast", file, updated: new Date().toISOString().slice(0, 10) });
@@ -246,7 +247,7 @@ export async function publishCast(args: CastPublishArgs): Promise<CastPublishRes
   // A private cast gets no poster at all — `poster` is dropped here, before
   // the plan, so no .png path can exist to be committed.
   const plan = buildCastPlan({ ...args, poster: args.lock ? null : args.poster, index });
-  const castPath = joinPath(args.castsDir, `${plan.slug}.yaml`);
+  const castPath = joinPath(args.castsDir, `${plan.slug}${publishExt()}`);
   const own = args.lock ? await lockLectureFiles(plan.files, [castPath], args.lock) : plan.files;
   // The claim file (registry delivery 1), when this publish is proving repo
   // ownership, rides in the same commit as the cast itself.
@@ -255,8 +256,11 @@ export async function publishCast(args: CastPublishArgs): Promise<CastPublishRes
   // there is never a stale path to remove. (Courses need them because a
   // deleted lecture would otherwise stay reachable at its old link forever.)
   // A private cast also removes a poster an earlier PUBLIC publish left —
-  // it shows a frame of what is now locked (only if the repo has one).
-  await commitFiles(args.repo, args.token, defaultBranch, files, [], `drawcast: publish "${args.title || "Untitled drawcast"}"`, fetchImpl, undefined, args.lock ? [posterPathFor(castPath)] : []);
+  // it shows a frame of what is now locked (only if the repo has one). And a
+  // cast written as .cast removes the .yaml it was before (if the repo has
+  // one): the republish is its conversion.
+  const before = castPath.endsWith(".cast") ? [`${stripDocExt(castPath)}.yaml`] : [];
+  await commitFiles(args.repo, args.token, defaultBranch, files, [], `drawcast: publish "${args.title || "Untitled drawcast"}"`, fetchImpl, undefined, [...(args.lock ? [posterPathFor(castPath)] : []), ...before]);
 
   return {
     slug: plan.slug,

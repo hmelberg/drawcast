@@ -28,7 +28,7 @@ export interface CardDeps {
 /** src/publish/cast.ts posterPathFor's rule, at a raw GitHub URL (that file
  *  pulls in the app; tests/card-endpoint.test.ts pins the two together). */
 export function posterUrlFor(owner: string, repo: string, path: string): string {
-  return `${RAW}/${owner}/${repo}/HEAD/${path.replace(/\.ya?ml$/i, "")}.png`;
+  return `${RAW}/${owner}/${repo}/HEAD/${path.replace(/\.(cast|ya?ml)$/i, "")}.png`;
 }
 
 function rawUrl(owner: string, repo: string, path: string): string {

@@ -13,6 +13,7 @@
 // caller's job, the same "bounded" fetch the course publish already uses
 // for claimCourse/registerName.
 
+import { stripDocExt } from "./cast-file";
 import { apiBase } from "./learn";
 import type { PublishFile } from "./publish/github";
 
@@ -334,7 +335,7 @@ export function privateInHash(hash: string): { outcome: "privpaid" | "privunpaid
  * `{kind, target}` — pure, so both shapes are a real, DOM-free test.
  */
 export function registryItemKey(kind: "cast" | "course", target: string): string {
-  return kind === "cast" ? target.replace(/\.ya?ml$/i, "") : target;
+  return kind === "cast" ? stripDocExt(target) : target;
 }
 
 export type SetListingOutcome =

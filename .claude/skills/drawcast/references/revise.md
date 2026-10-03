@@ -11,11 +11,11 @@ the GitHub one.
 
 1. **Pull.** `node scripts/cast.mjs pull <link>` → a sparse clone in
    `dev-casts/repos/` and a working copy: a course in
-   `dev-casts/courses/<slug>/` (course.md and the published lecture YAMLs,
+   `dev-casts/courses/<slug>/` (course.md and the published lecture files — `.cast` (script) or `.yaml`, both read —
    the same shape as a course made here), a single drawcast in
    `dev-casts/pulled/<slug>/`. `origin.json` records where it came from.
 2. **Unpack only what the change touches.** `unpack <course-dir> <n>` →
-   `lecture-NN/part-N.json` (N from 1, in playing order) + `outline.json`; `unpack <cast.yaml>` →
+   `lecture-NN/part-N.json` (N from 1, in playing order) + `outline.json`; `unpack <cast.cast | cast.yaml>` →
    `<name>.parts/`. The parts are ordinary specs: `check`, `frames` and
    `open` take them as they are.
 3. **Read the rules.** `revise-prompt <parts-dir> "<the change>"` gives the
@@ -34,11 +34,11 @@ the GitHub one.
    questions, drop a lecture. Never change a `file:` on a status line — it is
    the published link. A new lecture is made with the steps in references/course.md
    (lecture-prompt … lecture-build), which give it its status line.
-5. **Repack** `repack <parts-dir>` → the YAML again, with the meta as it was
+5. **Repack** `repack <parts-dir>` → the file again (in its own format), with the meta as it was
    and the recordings of every line still said; it reports lines left with
-   no recording. Frame the repacked YAML once (answers stored in one part
+   no recording. Frame the repacked file once (answers stored in one part
    are read in the next). Show it: `course-open <dir> --launch` or
-   `open <yaml> --launch`.
+   `open <file> --launch`.
 6. **Push, after asking.** Always `push <workdir> --dry-run` first and show
    the user the file list. Then, with their yes:
    - default: `push <workdir> -m "<what changed>" --body "<why, per lecture>"`

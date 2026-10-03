@@ -8,6 +8,7 @@
 // index — a missing one is the normal state of a repo nothing has been saved
 // to yet, not an error.
 
+import { DOC_EXT_RE } from "../cast-file";
 import { joinPath } from "../course/publish";
 import { commitFiles, preflight, readFile, slugify, type RepoRef } from "./github";
 
@@ -25,7 +26,8 @@ export function sourcePathFor(title: string, dir: string, existing: string | nul
   // A document keeps the path it was first saved to. Retitling must not leave
   // the old file behind as an orphan nobody will ever delete.
   if (existing) return existing;
-  return joinPath(dir, "sources", `${slugify(title) || "drawcast"}.yaml`);
+  // The editor's own text, which is script: a .cast file.
+  return joinPath(dir, "sources", `${slugify(title) || "drawcast"}.cast`);
 }
 
 export function sourceManifest(m: SourceManifest, e: SourceEntry): SourceManifest {
@@ -46,14 +48,17 @@ export function sourceManifest(m: SourceManifest, e: SourceEntry): SourceManifes
  * manifest, so it can never collide with itself here.
  */
 export function uniqueSourcePath(candidate: string, manifest: SourceManifest): string {
-  const taken = new Set(manifest.sources.map((s) => s.path));
-  if (!taken.has(candidate)) return candidate;
-  const extMatch = /\.ya?ml$/.exec(candidate);
+  // Taken by NAME, whatever the extension: a new `x.cast` beside another
+  // document's `x.yaml` (saved before sources were .cast) would read as one
+  // document in two formats.
+  const stem = (p: string): string => p.replace(DOC_EXT_RE, "");
+  const taken = new Set(manifest.sources.map((s) => stem(s.path)));
+  if (!taken.has(stem(candidate))) return candidate;
+  const extMatch = DOC_EXT_RE.exec(candidate);
   const ext = extMatch ? extMatch[0] : "";
   const base = ext ? candidate.slice(0, -ext.length) : candidate;
   for (let n = 2; ; n++) {
-    const next = `${base}-${n}${ext}`;
-    if (!taken.has(next)) return next;
+    if (!taken.has(`${base}-${n}`)) return `${base}-${n}${ext}`;
   }
 }
 

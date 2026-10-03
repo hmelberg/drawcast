@@ -7,8 +7,8 @@
 //                                                        few-shots, exemplars, code/sound gates), wrapped for reading;
 //                                                        the JSON schema goes to dev-casts/_schema.json (look fields up there)
 //   node scripts/cast.mjs template <id>                  a template's full catalog entry (params, element ids)
-//   node scripts/cast.mjs check <cast.json|yaml>         validation + layout/command lint (the generator's own checks)
-//   node scripts/cast.mjs poster <cast.yaml> <out.png>   the picture the cast's link card shows (drawn as the app draws it)
+//   node scripts/cast.mjs check <cast.json|cast|yaml>    validation + layout/command lint (the generator's own checks)
+//   node scripts/cast.mjs poster <cast.cast|yaml> <out.png>   the picture the cast's link card shows (drawn as the app draws it)
 //   node scripts/cast.mjs frames <cast.json> [outdir] [--large]   frames after every spoken line, as PNG tiles, plus
 //                                                        the browser-measured lint per frame (--large: one frame per row,
 //                                                        for fine text) — needs the dev server
@@ -20,7 +20,7 @@
 //   node scripts/cast.mjs lecture-prompt <dir> <n>                           lecture n's storyboard prompt → <dir>/lecture-NN/
 //   node scripts/cast.mjs part-prompt <dir> <n> <i>                          part i's system prompt + request (storyboard.json first)
 //        (the storyboard prompt with the storyline rules and templates with "Viewer can", and its per-part staging note)
-//   node scripts/cast.mjs lecture-build <dir> <n>                            part-*.json → <dir>/NN-<title>.yaml, marked done in course.md
+//   node scripts/cast.mjs lecture-build <dir> <n>                            part-*.json → <dir>/NN-<title>.yaml (.cast: see below), marked done in course.md
 //   node scripts/cast.mjs course-open <dir> [--launch]                       the app URL that imports the course and opens it
 //
 // Revising what is published (any GitHub link to a course folder, a lecture, a cast or a saved source):
@@ -28,9 +28,9 @@
 //        (a course → dev-casts/courses/<slug>/, a cast → dev-casts/pulled/<slug>/) with origin.json. A PRIVATE
 //        course or cast is unlocked here with the owner's own key (signed in as the owner — else it stops before
 //        writing anything) and origin.private is recorded true, so later steps see plain YAML like any other pull.
-//   node scripts/cast.mjs unpack <course-dir> <n>  |  unpack <cast.yaml> [outdir]   → part-N.json + outline.json
+//   node scripts/cast.mjs unpack <course-dir> <n>  |  unpack <cast.cast|yaml> [outdir]   → part-N.json + outline.json
 //   node scripts/cast.mjs revise-prompt <parts-dir | cast.json> "<change>" [out.md]   the app's rules, the document's templates in full
-//   node scripts/cast.mjs repack <parts-dir>             parts → the YAML again; narration kept for every unchanged line
+//   node scripts/cast.mjs repack <parts-dir>             parts → the file again (as its extension says); narration kept for every unchanged line
 //   node scripts/cast.mjs push <workdir> [--dry-run | --no-push] [--direct] [-m msg] [--body text] [--new-pr]
 //        regenerates what the app's publish would (course page, READMEs, manifests, end pages, link-card pictures)
 //        and commits it:
@@ -46,9 +46,9 @@
 //   node scripts/cast.mjs register <workdir>   after a PR-published first publish merges: verifies the claim
 //        and registers the item (a --direct push already does this on its own, right after the commit)
 //
-// Publishing something new (a course folder or a folder with one cast YAML) to a repo of the user's:
-//   node scripts/cast.mjs pack <cast.json> <workdir>   a {request, spec} (or bare spec) → <workdir>/<name>.yaml,
-//        validated — the folder with one cast YAML that publish-target takes
+// Publishing something new (a course folder or a folder with one cast file) to a repo of the user's:
+//   node scripts/cast.mjs pack <cast.json> <workdir>   a {request, spec} (or bare spec) → <workdir>/<name>.yaml (.cast: see below),
+//        validated — the folder with one cast file (.cast or .yaml) that publish-target takes
 //   node scripts/cast.mjs publish-target <workdir> <owner/repo> [--dir <folder>] [--create]
 //        writes <workdir>/origin.json aimed at the repo (a free slug, Pages switched on; --create makes the repo,
 //        public); then push <workdir> --direct publishes it like any revision.
@@ -91,16 +91,37 @@
 //                                             one is configured — credit is for publishing narration from the app
 //                                             without one.
 //
-// A cast file is a spec, a {request, spec}, or playlist YAML — anything the
-// app opens. Files live under dev-casts/ (gitignored). The dev server:
+// A cast file is a spec, a {request, spec}, or a playlist — `.cast` (script)
+// or `.yaml` — anything the app opens; every command reads both. Files live
+// under dev-casts/ (gitignored). The dev server:
 //   npm run dev -- --port 5199 --strictPort      (DRAWCAST_URL overrides http://localhost:5199)
+//
+// What it WRITES follows the app's switch (src/cast-file.ts publishesCast):
+// `.yaml` by default. DRAWCAST_PUBLISH_CAST=1 turns it on for one run — pack,
+// publish-target and lecture-build then name new files `.cast` (script), and
+// lecture-build/push turn a recorded `x.yaml` into `x.cast`, removing the old
+// file (in the workdir, and in the same commit on GitHub). Only once the
+// drawcast server accepts .cast keys.
 
 import { createServer } from "vite";
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { homedir, hostname } from "node:os";
-import { fileChanges, pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "./cast-github.mjs";
+import {
+  DOC_EXT_RE,
+  existingDoc,
+  fileChanges,
+  formatForName,
+  lectureFileName,
+  pageDoor,
+  pagesUrlFor,
+  parseGithubTarget,
+  publishCastFromEnv,
+  publishOrigin,
+  stripDocExt,
+  takenSlugs,
+} from "./cast-github.mjs";
 import {
   apiUrl,
   boundedFetch,
@@ -136,6 +157,7 @@ import {
 const [cmd, ...rest] = process.argv.slice(2);
 const ROOT = process.cwd();
 const URL_BASE = process.env.DRAWCAST_URL ?? "http://localhost:5199";
+const PUBLISH_CAST = publishCastFromEnv(process.env);
 
 const wrap = (text, width = 300) =>
   String(text)
@@ -194,6 +216,9 @@ async function withVite(fn) {
   try {
     const { ensureEnabledPacks, PACK_DEFS, DEFAULT_OFF_PACKS } = await server.ssrLoadModule("/src/scenes/packs.ts");
     await ensureEnabledPacks(Object.keys(PACK_DEFS).filter((id) => !DEFAULT_OFF_PACKS.has(id)));
+    // Each server has its own module instances: the switch is set on THIS
+    // server's cast-file.ts, the one every load() below shares.
+    if (PUBLISH_CAST) (await server.ssrLoadModule("/src/cast-file.ts")).setPublishesCast(true);
     return await fn((p) => server.ssrLoadModule(p));
   } finally {
     await server.close();
@@ -339,10 +364,10 @@ function guardWorkdir(work, force) {
   if (has) throw new Error(`${relative(ROOT, work)} exists — pass another workdir, or --force to overwrite its published files (part files and lecture folders are left alone)`);
 }
 
-/** unpack's arguments: a YAML (→ <name>.parts/), or a course folder and a lecture number (→ lecture-NN/). */
+/** unpack's arguments: a .cast or .yaml (→ <name>.parts/), or a course folder and a lecture number (→ lecture-NN/). */
 async function unpackTarget(load, args) {
   const [a, b] = args;
-  if (!a) throw new Error("usage: cast.mjs unpack <cast.yaml> [outdir]  |  cast.mjs unpack <course-dir> <lecture>");
+  if (!a) throw new Error("usage: cast.mjs unpack <cast.cast | cast.yaml> [outdir]  |  cast.mjs unpack <course-dir> <lecture>");
   const at = resolve(ROOT, a);
   if (existsSync(resolve(at, "course.md"))) {
     const n = Number(b);
@@ -351,7 +376,7 @@ async function unpackTarget(load, args) {
     if (!file) throw new Error(`lecture ${b} has no published file in ${a}/course.md (${lectures.length} lectures)`);
     return { yaml: resolve(at, file), outdir: resolve(at, `lecture-${String(n).padStart(2, "0")}`) };
   }
-  return { yaml: at, outdir: resolve(ROOT, b ?? a.replace(/\.ya?ml$/i, "") + ".parts") };
+  return { yaml: at, outdir: resolve(ROOT, b ?? stripDocExt(a) + ".parts") };
 }
 
 async function courseLectures(load, text) {
@@ -499,6 +524,7 @@ const commands = {
       const { setLectureStatus } = await load("/src/course/document.ts");
       const { validateSpec } = await load("/src/spec/schema.ts");
       const { slugify } = await load("/src/publish/github.ts");
+      const { publishExt, publishName } = await load("/src/cast-file.ts");
       const tags = parseTags(lectureTags(course, lecture).join(" "));
       const specs = [], chapterOf = [], failed = [];
       outline.parts.forEach((part, i) => {
@@ -517,8 +543,11 @@ const commands = {
       });
       if (failed.length) throw new Error(`missing part spec(s): ${failed.map((k) => `part-${k}.json`).join(", ")}`);
       const playlist = lecturePlaylist(course, n - 1, { outline, specs, chapterOf, failed: [] });
-      const file = lecture.status?.file ?? `${String(n).padStart(2, "0")}-${slugify(lecture.title)}.yaml`;
-      writeFileSync(resolve(ROOT, dir, file), formatPlaylist(playlist, "yaml"));
+      // A recorded name is kept — or, with .cast publishing on, its .yaml
+      // becomes .cast and the old file goes (the rebuild is its conversion).
+      const { file, old } = lectureFileName({ recorded: lecture.status?.file, n, slug: slugify(lecture.title), publishName, publishExt });
+      writeFileSync(resolve(ROOT, dir, file), formatPlaylist(playlist, formatForName(file)));
+      if (old && existsSync(resolve(ROOT, dir, old))) unlinkSync(resolve(ROOT, dir, old));
       const id = lecture.status?.id ?? crypto.randomUUID();
       writeFileSync(resolve(ROOT, dir, "course.md"), setLectureStatus(text, n - 1, { state: "done", id, file, ts: new Date().toISOString().slice(0, 10) }));
       console.log(`${dir}/${file}: lecture ${n} "${lecture.title}", ${specs.length} parts; course.md marks it done. Frames it with: cast.mjs frames ${dir}/${file}`);
@@ -554,7 +583,7 @@ const commands = {
     const branch = t.branch ?? sh("gh", ["api", `repos/${t.owner}/${t.repo}`, "--jq", ".default_branch"]);
     // A path that is a file is checked out by its folder: a lecture needs its
     // course, a cast its casts.json.
-    const isFile = /\.ya?ml$/i.test(t.path);
+    const isFile = DOC_EXT_RE.test(t.path);
     const folder = isFile ? t.path.split("/").slice(0, -1).join("/") : t.path;
     const { clone, base } = ensureClone(t.owner, t.repo, branch, [folder]);
     const at = (p) => resolve(clone, p);
@@ -563,7 +592,7 @@ const commands = {
     const courseDir = existsSync(at(joinRepo(folder, "course.md"))) ? folder : null;
     if (!courseDir && !isFile) {
       const listing = readdirSync(at(folder)).filter((f) => !f.startsWith("."));
-      throw new Error(`${t.path || "the repo root"} is neither a course folder (no course.md) nor a .yaml. It holds: ${listing.join(", ")}. Pass a course folder or a cast's .yaml.`);
+      throw new Error(`${t.path || "the repo root"} is neither a course folder (no course.md) nor a .cast/.yaml. It holds: ${listing.join(", ")}. Pass a course folder or a cast's .cast/.yaml.`);
     }
     const viewerBase = findViewerBase(clone, folder);
     const common = { owner: t.owner, repo: t.repo, branch, base, clone: relative(ROOT, clone), viewerBase, pulled: new Date().toISOString() };
@@ -619,7 +648,7 @@ const commands = {
     }
 
     const file = t.path.split("/").at(-1);
-    const slug = file.replace(/\.ya?ml$/i, "");
+    const slug = stripDocExt(file);
     const kind = folder.split("/").at(-1) === "sources" ? "source" : "cast";
     const work = resolve(ROOT, out ?? `dev-casts/pulled/${slug}`);
     guardWorkdir(work, force);
@@ -704,7 +733,10 @@ const commands = {
         const dropped = Object.keys(before.lines).length - Object.keys(lines).length;
         report = `\n  narration: ${Object.keys(lines).length} clip(s) kept, ${dropped} dropped (lines no longer said)` + (missing ? `, ${missing} line(s) with no recording — they play in the browser's voice until re-baked (republish with narration from the app)` : "");
       }
-      writeFileSync(yaml, formatPublished(playlist, audio));
+      // Written back as its name says (a .cast as script, a .yaml as YAML):
+      // a pulled .yaml becomes .cast at push, not here, so its name in
+      // origin.json / course.md and its text always agree.
+      writeFileSync(yaml, formatPublished(playlist, audio, formatForName(yaml)));
       console.log(`${relative(ROOT, yaml)}: ${entries.filter((e) => e.kind === "item").length} part(s) repacked${report}`);
     });
   },
@@ -727,19 +759,21 @@ const commands = {
   async pack([file, work]) {
     if (!file || !work) throw new Error("usage: cast.mjs pack <cast.json> <workdir>");
     const spec = readCast(file);
-    if (!spec) throw new Error(`${file} is not JSON — pack takes a {request, spec} or a spec; a YAML already is a cast file (copy it into the workdir)`);
+    if (!spec) throw new Error(`${file} is not JSON — pack takes a {request, spec} or a spec; a .cast or YAML already is a cast file (copy it into the workdir)`);
     await withVite(async (load) => {
       const { validateSpec } = await load("/src/spec/schema.ts");
       const { formatSpec } = await load("/src/spec/text.ts");
+      const { publishExt, publishFormat } = await load("/src/cast-file.ts");
       const v = validateSpec(spec);
       if (!v.ok) throw new Error(`${file} is invalid:\n  ${v.errors.join("\n  ")}`);
       const wd = resolve(ROOT, work);
       mkdirSync(wd, { recursive: true });
-      const existing = readdirSync(wd).filter((f) => /\.ya?ml$/i.test(f));
-      if (existing.length) throw new Error(`${work} already holds ${existing.join(", ")} — a cast workdir holds exactly one .yaml`);
+      const existing = readdirSync(wd).filter((f) => DOC_EXT_RE.test(f));
+      if (existing.length) throw new Error(`${work} already holds ${existing.join(", ")} — a cast workdir holds exactly one cast file (.cast or .yaml)`);
       const name = basename(file).replace(/\.json$/i, "");
-      writeFileSync(resolve(wd, `${name}.yaml`), formatSpec(spec, "yaml"));
-      console.log(`${relative(ROOT, resolve(wd, `${name}.yaml`))}: ready for publish-target ${work} <owner/repo>`);
+      const out = resolve(wd, `${name}${publishExt()}`);
+      writeFileSync(out, formatSpec(spec, publishFormat()));
+      console.log(`${relative(ROOT, out)}: ready for publish-target ${work} <owner/repo>`);
     });
   },
 
@@ -787,12 +821,24 @@ const commands = {
         console.log(`${work} → ${owner}/${repo}/${origin.path} (as ${me}). Page after push: ${pagesUrlFor(owner, repo, origin.path)}\nNext: cast.mjs push ${work} --dry-run`);
         return;
       }
-      const yamls = readdirSync(wd).filter((f) => /\.ya?ml$/i.test(f));
-      if (yamls.length !== 1) throw new Error(`${work} must hold exactly one .yaml or a course.md (it holds ${yamls.length} .yaml)`);
+      const { publishExt } = await load("/src/cast-file.ts");
+      const yamls = readdirSync(wd).filter((f) => DOC_EXT_RE.test(f));
+      if (yamls.length !== 1) throw new Error(`${work} must hold exactly one cast file (.cast or .yaml) or a course.md (it holds ${yamls.length})`);
       const index = readAtCommit(clone, base, joinRepo(dir, "casts", "casts.json"));
       const taken = takenSlugs({ kind: "cast", listed: index ? parseCastIndex(index).casts.map((c) => c.slug) : [], tree: treeAt(joinRepo(dir, "casts")) });
-      const { origin } = publishOrigin({ ...common, kind: "cast", slug: slugify(yamls[0].replace(/\.ya?ml$/i, "")), takenSlugs: taken });
-      if (origin.file !== yamls[0]) writeFileSync(resolve(wd, origin.file), readFileSync(resolve(wd, yamls[0])));
+      const { origin } = publishOrigin({ ...common, kind: "cast", slug: slugify(stripDocExt(yamls[0])), takenSlugs: taken, ext: publishExt() });
+      if (origin.file !== yamls[0]) {
+        const text = readFileSync(resolve(wd, yamls[0]), "utf8");
+        if (formatForName(origin.file) === formatForName(yamls[0])) writeFileSync(resolve(wd, origin.file), text);
+        else {
+          // Another generation (.yaml → .cast): converted, and the old file
+          // goes, so the workdir still holds exactly one cast file.
+          const { parsePlaylistText, formatPublished } = await load("/src/playlist/playlist.ts");
+          const p = parsePlaylistText(text);
+          writeFileSync(resolve(wd, origin.file), formatPublished(p, p.audio ?? null, formatForName(origin.file)));
+          unlinkSync(resolve(wd, yamls[0]));
+        }
+      }
       writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
       console.log(`${work} → ${owner}/${repo}/${origin.path} (as ${me}). Player after push: ${viewerBase}#gh=${owner}/${repo}/${origin.path}\nNext: cast.mjs push ${work} --dry-run`);
     });
@@ -1129,7 +1175,21 @@ const commands = {
       else if (pictures.some((p) => p === null)) pictureNote = `${pictures.filter((p) => p === null).length} of ${pictures.length} could not be drawn`;
       return new Map(texts.map((t, i) => [t, pictures[i]]));
     };
+    // .cast publishing (DRAWCAST_PUBLISH_CAST=1): the push is a .yaml's
+    // conversion. What the workdir's files become once committed — the text
+    // published, under its new name, the old file removed — and course.md
+    // with the new names; applied to the workdir only once committed (below).
+    const renames = [];
+    let renamedCourse = null;
     const files = await withVite(async (load) => {
+      const { publishExt, publishFormat, publishName } = await load("/src/cast-file.ts");
+      // A cast's recorded name under the current rule (origin.file is the
+      // name registration, quotes and the item key are derived from). The
+      // workdir file may still be the .yaml (existingDoc) until the commit.
+      if (origin.kind === "cast" && publishName(origin.file) !== origin.file) {
+        origin.file = publishName(origin.file);
+        origin.path = joinRepo(origin.castsDir, origin.file);
+      }
       // Registry delivery 2 (fix round 1, #5): signed in and registrable, the
       // server itself is asked (once — `lockPrivate` below reuses this SAME
       // quote/reg/item rather than asking again) whether this is ACTUALLY
@@ -1206,21 +1266,30 @@ const commands = {
 
       if (origin.kind === "cast") {
         const { buildCastPlan, parseCastIndex, emptyCastIndex } = await load("/src/publish/cast.ts");
-        const { parsePlaylistText, itemsOf } = await load("/src/playlist/playlist.ts");
-        const text = readFileSync(resolve(wd, origin.file), "utf8");
-        const p = parsePlaylistText(text);
+        const { parsePlaylistText, itemsOf, formatPublished } = await load("/src/playlist/playlist.ts");
+        const localFile = existingDoc(readdirSync(wd), origin.file) ?? origin.file;
+        const raw = readFileSync(resolve(wd, localFile), "utf8");
+        const p = parsePlaylistText(raw);
+        const slug = stripDocExt(origin.file);
+        const castPath = joinRepo(origin.castsDir, `${slug}${publishExt()}`);
+        // Published as its name says: verbatim when the workdir file is
+        // already that generation, else converted (.yaml → .cast script).
+        const text = formatForName(localFile) === formatForName(castPath) ? raw : formatPublished(p, p.audio ?? null, formatForName(castPath));
+        if (localFile !== origin.file) renames.push({ from: localFile, to: origin.file, text });
         const title = p.meta.title ?? itemsOf(p)[0]?.spec.title ?? "";
         const indexText = readAtCommit(clone, upstream, joinRepo(origin.castsDir, "casts.json"));
-        const slug = origin.file.replace(/\.ya?ml$/i, "");
+        // A cast written as .cast removes the .yaml it was before, in the same
+        // commit (as the app's publishCast does) — only if GitHub has one.
+        const yamlBefore = `${stripDocExt(castPath)}.yaml`;
+        const stale = castPath.endsWith(".cast") && readAtCommit(clone, upstream, yamlBefore) !== null ? [yamlBefore] : [];
         const picture = origin.private ? null : (await drawAll([text])).get(text) ?? null;
         const plan = buildCastPlan({ title, text, slug, previousSlug: slug, repo, castsDir: origin.castsDir, viewerBase: origin.viewerBase, index: indexText ? parseCastIndex(indexText) : emptyCastIndex(), poster: picture });
-        if (!origin.private) return { files: plan.files, deletions: [] };
-        const castPath = joinRepo(origin.castsDir, `${plan.slug}.yaml`);
+        if (!origin.private) return { files: plan.files, deletions: stale };
         const locked = await lockPrivate(plan.files, [castPath]);
-        return { files: locked.files, deletions: locked.deletions };
+        return { files: locked.files, deletions: [...locked.deletions, ...stale] };
       }
       const { buildPublishPlan } = await load("/src/course/publish.ts");
-      const { parseCourse } = await load("/src/course/document.ts");
+      const { parseCourse, setLectureStatus } = await load("/src/course/document.ts");
       const { parseManifest, emptyManifest } = await load("/src/publish/github.ts");
       const { doorlessNote } = await load("/src/course/page.ts");
       const { parsePlaylistText, formatPublished, isEndPage } = await load("/src/playlist/playlist.ts");
@@ -1238,9 +1307,10 @@ const commands = {
       }
       const course = parseCourse(text);
       const manifestText = readAtCommit(clone, upstream, joinRepo(origin.coursesDir, "courses.json"));
-      const plan = buildPublishPlan({
-        course,
-        text,
+      // `course` names the workdir's files; the plan's (planCourse) may differ.
+      const planWith = (planCourse, planText) => buildPublishPlan({
+        course: planCourse,
+        text: planText,
         repo,
         coursesDir: origin.coursesDir,
         viewerBase: origin.viewerBase,
@@ -1267,13 +1337,34 @@ const commands = {
             }
             p.entries.push({ kind: "item", spec: end });
           }
-          return formatPublished(p, p.audio ?? null);
+          return formatPublished(p, p.audio ?? null, publishFormat());
         },
         // A name bought here (name-wait) is the door's; otherwise the page keeps the door it had.
         door: origin.registered
           ? { name: origin.registered, app: "https://drawcast.app/" }
           : pageDoor(readAtCommit(clone, upstream, joinRepo(origin.path, "index.html")), doorlessNote),
       });
+      let plan = planWith(course, text);
+      // .cast publishing: a recorded x.yaml lecture is published as x.cast
+      // (publishName); the old path drops out of the manifest, so the plan's
+      // deletions remove it. The published course.md must name the new files
+      // (as the app's preparePublish records them), so the plan is made again
+      // from that text — never the case with the switch off.
+      let published = text;
+      for (const [i, name] of plan.fileOf) {
+        const status = course.lectures[i].status;
+        if (status && status.file !== name) published = setLectureStatus(published, i, { ...status, file: name });
+      }
+      if (published !== text) {
+        plan = planWith(parseCourse(published), published);
+        const dir = joinRepo(origin.coursesDir, plan.slug);
+        for (const [i, name] of plan.fileOf) {
+          const from = course.lectures[i].status?.file;
+          const content = plan.files.find((f) => f.path === joinRepo(dir, name))?.content;
+          if (from && from !== name && typeof content === "string") renames.push({ from, to: name, text: content });
+        }
+        renamedCourse = published;
+      }
       if (!origin.private) {
         const { lecturePosters } = await load("/src/course/publish.ts");
         const lectureTexts = [...plan.fileOf.values()]
@@ -1312,7 +1403,7 @@ const commands = {
     // CONTRIBUTOR and hand them every unproven row under this repo.
     if (claim && !shouldClaim({ kind: origin.kind, direct, canPush: perm.push === true })) claim = null;
     if (claim) files.files = [...files.files, claim];
-    const branch = direct ? origin.branch : !fresh && origin.pr?.branch ? origin.pr.branch : `drawcast/${verb}-${basename(origin.path).replace(/\.ya?ml$/i, "")}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`;
+    const branch = direct ? origin.branch : !fresh && origin.pr?.branch ? origin.pr.branch : `drawcast/${verb}-${stripDocExt(basename(origin.path))}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`;
     // A PR branch already pushed is built on (its PR updates); anything else starts from upstream.
     const onPr = !direct && origin.pr?.branch === branch;
     git("checkout", "--quiet", "--force", "-B", branch, upstream);
@@ -1336,6 +1427,18 @@ const commands = {
     if (!git("status", "--porcelain")) return console.log("Nothing to push (the branch already has these changes).");
     const title = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8").match(/^# (.*)$/m)?.[1] : origin.file;
     git("commit", "--quiet", "-m", message ?? `drawcast: ${verb} ${origin.kind} "${title}"`);
+    // Committed: the workdir follows a .yaml → .cast conversion (as the repo
+    // does) — the new file, the old one removed, course.md / origin.json
+    // naming the new one.
+    if (renames.length || renamedCourse !== null) {
+      for (const r of renames) {
+        writeFileSync(resolve(wd, r.to), r.text);
+        if (r.from !== r.to && existsSync(resolve(wd, r.from))) unlinkSync(resolve(wd, r.from));
+      }
+      if (renamedCourse !== null) writeFileSync(resolve(wd, "course.md"), renamedCourse);
+      writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
+      console.log(`  workdir: ${renames.map((r) => `${r.from} → ${r.to}`).join(", ")}`);
+    }
 
     if (local) return console.log(`Committed on ${branch} in ${origin.clone}, not pushed:\n${git("show", "--stat", "--format=%h %s", "HEAD")}`);
 
@@ -1394,7 +1497,7 @@ const commands = {
   },
 
   async check([file]) {
-    if (!file) throw new Error("usage: cast.mjs check <cast.json | cast.yaml>");
+    if (!file) throw new Error("usage: cast.mjs check <cast.json | cast.cast | cast.yaml>");
     let spec = readCast(file);
     await withVite(async (load) => {
       if (!spec) {
@@ -1438,9 +1541,9 @@ const commands = {
     });
   },
 
-  // node scripts/cast.mjs poster <cast.yaml> <out.png> — the picture its link card will show
+  // node scripts/cast.mjs poster <cast.cast | cast.yaml> <out.png> — the picture its link card will show
   async poster([file, out]) {
-    if (!file || !out) throw new Error("usage: cast.mjs poster <cast.yaml> <out.png>");
+    if (!file || !out) throw new Error("usage: cast.mjs poster <cast.cast | cast.yaml> <out.png>");
     const { drawPictures } = await import("./pictures.mjs");
     const { pictures, note } = await drawPictures([readFileSync(resolve(ROOT, file), "utf8")], { root: ROOT });
     if (!pictures[0]) throw new Error(`No picture drawn (${note ?? "the drawing failed"})`);
@@ -1452,7 +1555,7 @@ const commands = {
     const large = args.includes("--large");
     const [file, outdir] = args.filter((a) => a !== "--large");
     if (!file) throw new Error("usage: cast.mjs frames <cast.json> [outdir] [--large]");
-    const name = basename(file).replace(/\.(json|ya?ml)$/i, "");
+    const name = basename(file).replace(/\.(json|cast|ya?ml)$/i, "");
     const out = resolve(ROOT, outdir ?? `dev-casts/frames-${name}`);
     mkdirSync(out, { recursive: true });
     const b = await browser();

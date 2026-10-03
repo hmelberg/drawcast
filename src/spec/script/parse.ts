@@ -186,6 +186,8 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
     }
     if (rest2[i] !== undefined && rest2[i].startsWith('"')) el.text = parseValue(rest2[i++]);
     const pairs: string[] = [];
+    /** The token right after a placement phrase: the only place `gap` is the placement's. */
+    let placedAt = -1;
     for (let k = i; k < rest2.length; k++) {
       const tok = rest2[k];
       // Flags come first, because `curved`, `smooth` and `closed` are BOTH
@@ -209,10 +211,12 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
             setPath(el, "at.side", tok);
             setPath(el, "at.ref", next);
             k++;
+            placedAt = k + 1;
             continue;
           }
           if ((SIDE_TYPES.has(type) || type === "arrow" || type === "edge") && SIDE_WORDS.has(tok)) { setPath(el, "side", tok); continue; }
           setPath(el, "at.place", PLACE_WORDS.get(tok) ?? tok);
+          placedAt = k + 1;
           continue;
         }
       }
@@ -225,7 +229,7 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
         el["@in"] = rest2[++k];
         continue;
       }
-      if (tok === "gap" && el.at !== undefined && rest2[k + 1] !== undefined) {
+      if (tok === "gap" && el.at !== undefined && placedAt === k && rest2[k + 1] !== undefined) {
         setPath(el, "at.gap", parseValue(rest2[++k]));
         continue;
       }
@@ -369,6 +373,8 @@ export function parseScriptPages(text: string): ParsedScript {
   };
   let docTitle: string | undefined;
   let pendingTitle: string | undefined;
+  /** A `##` was written: the `#` is then the playlist's name, even over one page. */
+  let sections = false;
   let lastArgs: Record<string, unknown> | null = null;
   /** The element type the last direction declared: a cards element reads its own lines. */
   let lastType: string | null = null;
@@ -459,7 +465,7 @@ export function parseScriptPages(text: string): ParsedScript {
       case "heading":
         flush();
         if (l.depth === 1) docTitle = l.text;
-        else { page = null; pendingTitle = l.text; }
+        else { page = null; pendingTitle = l.text === "" ? undefined : l.text; sections = true; }
         break;
       case "setting": flush(); applySetting(l, openPage, meta); break;
       case "speech": {
@@ -544,7 +550,7 @@ export function parseScriptPages(text: string): ParsedScript {
   if (pages.length === 0) pages.push({ spec: pendingTitle !== undefined ? ({ title: pendingTitle } as Spec) : ({} as Spec) });
   // One `#` titles a lone page; with `##` sections it is the playlist's name.
   if (docTitle !== undefined) {
-    if (pages.length === 1 && pages[0].spec.title === undefined) pages[0].spec.title = docTitle;
+    if (pages.length === 1 && pages[0].spec.title === undefined && !sections) pages[0].spec.title = docTitle;
     else meta.title = docTitle;
   }
   // `in <group>` written on a member, now that every group on the page exists.
@@ -662,7 +668,9 @@ function parseFence(l: ScriptLine & { kind: "fence" }, spec: Spec, isLanguage: (
   if (head !== "code" && !isLanguage(head)) throw new ScriptError(`"${head}" is not a language, and not yaml or assets`, l.line);
   const el: Record<string, unknown> = head === "code" ? {} : { language: head };
   let i = 1;
-  if (tokens[i] !== undefined && isBareId(tokens[i]) && !ELEMENT_KEYS.has(tokens[i])) el.id = tokens[i++];
+  // The id is the first bare word after the language, as on an element's line —
+  // a field name is a perfectly good id (`walk`, `text`), and a fence needs one.
+  if (tokens[i] !== undefined && isBareId(tokens[i])) el.id = tokens[i++];
   keyValues(tokens.slice(i), el, l.line);
   if (typeof el.id !== "string") throw new ScriptError("a code fence needs an id", l.line);
   const hidden = el.hidden === true;

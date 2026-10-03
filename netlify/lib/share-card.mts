@@ -37,8 +37,9 @@ export function parseSharePath(pathname: string, prefix: "/c/" | "/card/"): Shar
     if (!owner || !repo || path.length === 0) return null;
     if (![owner, repo, ...path].every((p) => GH_PART_RE.test(p) && p !== "." && p !== "..")) return null;
     let file = path.join("/");
-    if (prefix === "/card/") file += ".yaml";
-    if (!/\.ya?ml$/i.test(file)) return null;
+    // A card for a .yaml cast drops the extension; one for a .cast keeps it.
+    if (prefix === "/card/" && !/\.cast$/i.test(file)) file += ".yaml";
+    if (!/\.(cast|ya?ml)$/i.test(file)) return null;
     return { kind: "gh", owner, repo, path: file };
   }
   if (parts.length > 2) return null;
@@ -85,6 +86,10 @@ function clip(s: string, max: number): string {
  *  spec itself) are the top-level `title` / `subtitle` read. A locked
  *  envelope has neither, so a private cast never puts a word on a card. */
 export function castCardText(text: string): { title?: string; subtitle?: string } {
+  // A .cast file (script): `# Title` on top, `subtitle:` among the settings
+  // under it, all before the first page (`##`) or the first indented line.
+  // (A YAML file may open with a `# comment`; its spec keys at column 0 say which it is.)
+  if (/^\s*#\s+\S/.test(text) && !/^(playlist|elements|commands|title|template)\s*:/m.test(text)) return scriptCardText(text);
   const first = text.split(/^---\s*$/m, 1)[0];
   let head: unknown;
   try {
@@ -100,6 +105,37 @@ export function castCardText(text: string): { title?: string; subtitle?: string 
   const out: { title?: string; subtitle?: string } = {};
   if (typeof title === "string" && title.trim()) out.title = clip(title, TITLE_MAX);
   if (typeof subtitle === "string" && subtitle.trim()) out.subtitle = clip(subtitle, LINE_MAX);
+  return out;
+}
+
+/** castCardText for a script — src/spec/script's head, read by hand (netlify/lib must not import src/). */
+function scriptCardText(text: string): { title?: string; subtitle?: string } {
+  const out: { title?: string; subtitle?: string } = {};
+  const scalar = (v: string): string => {
+    const t = v.trim();
+    if (t.startsWith('"')) {
+      try {
+        return String(JSON.parse(t));
+      } catch {
+        return t;
+      }
+    }
+    return t;
+  };
+  for (const line of text.replace(/\r\n?/g, "\n").split("\n")) {
+    if (/^##(\s|$)/.test(line) || /^\s+\S/.test(line)) break;
+    const h = /^#\s+(.+)$/.exec(line);
+    if (h && out.title === undefined) {
+      const t = h[1].trim();
+      if (t) out.title = clip(t, TITLE_MAX);
+      continue;
+    }
+    const sub = /^subtitle:\s+(.+)$/.exec(line);
+    if (sub) {
+      const t = scalar(sub[1]);
+      if (t) out.subtitle = clip(t, LINE_MAX);
+    }
+  }
   return out;
 }
 

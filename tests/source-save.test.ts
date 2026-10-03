@@ -14,14 +14,14 @@ import {
 
 describe("sourcePathFor", () => {
   it("derives a path from the title", () => {
-    expect(sourcePathFor("Ricardo on trade", "casts", null)).toBe("casts/sources/ricardo-on-trade.yaml");
+    expect(sourcePathFor("Ricardo on trade", "casts", null)).toBe("casts/sources/ricardo-on-trade.cast");
   });
   it("keeps the path a document already has — retitling must not orphan the file", () => {
     expect(sourcePathFor("A new title", "casts", "casts/sources/ricardo-on-trade.yaml"))
       .toBe("casts/sources/ricardo-on-trade.yaml");
   });
   it("handles an empty subfolder", () => {
-    expect(sourcePathFor("Ricardo", "", null)).toBe("sources/ricardo.yaml");
+    expect(sourcePathFor("Ricardo", "", null)).toBe("sources/ricardo.cast");
   });
 });
 
@@ -146,12 +146,12 @@ describe("saveSource", () => {
       token: "t",
       fetchImpl,
     });
-    expect(out.path).toBe("casts/sources/ricardo-on-trade.yaml");
+    expect(out.path).toBe("casts/sources/ricardo-on-trade.cast");
     // Exactly one tree POST — i.e. one commit — carrying both paths.
     const treeCalls = calls.filter((c) => c.url.includes("/git/trees") && c.method === "POST");
     expect(treeCalls).toHaveLength(1);
     const paths = (treeCalls[0].body!.tree as { path: string }[]).map((f) => f.path).sort();
-    expect(paths).toEqual(["casts/sources/index.json", "casts/sources/ricardo-on-trade.yaml"]);
+    expect(paths).toEqual(["casts/sources/index.json", "casts/sources/ricardo-on-trade.cast"]);
     const commitCalls = calls.filter((c) => c.url.endsWith("/git/commits") && c.method === "POST");
     expect(commitCalls).toHaveLength(1);
   });
@@ -196,13 +196,13 @@ describe("saveSource", () => {
       token: "t",
       fetchImpl,
     });
-    expect(out.path).toBe("casts/sources/untitled-drawcast-2.yaml");
+    expect(out.path).toBe("casts/sources/untitled-drawcast-2.cast");
     const blobs = calls.filter((c) => c.url.includes("/git/blobs")).map((c) => Buffer.from(c.body!.content as string, "base64").toString("utf8"));
     // The manifest committed here must still carry doc A's entry alongside
     // the new one — this is the exact loss the fix exists to prevent.
     const manifest = JSON.parse(blobs.find((b) => b.includes('"sources"'))!) as SourceManifest;
     expect(manifest.sources.map((s) => s.path).sort()).toEqual([
-      "casts/sources/untitled-drawcast-2.yaml",
+      "casts/sources/untitled-drawcast-2.cast",
       "casts/sources/untitled-drawcast.yaml",
     ]);
   });
@@ -265,8 +265,8 @@ describe("saveSource in an empty repository", () => {
       fetchImpl,
     });
     const seed = calls.find((c) => c.url.includes("/contents/") && c.method === "PUT")!;
-    expect(seed.url).toContain("/contents/casts/sources/ricardo-on-trade.yaml");
+    expect(seed.url).toContain("/contents/casts/sources/ricardo-on-trade.cast");
     expect(seed.url).not.toContain("index.json");
-    expect(out.path).toBe("casts/sources/ricardo-on-trade.yaml");
+    expect(out.path).toBe("casts/sources/ricardo-on-trade.cast");
   });
 });

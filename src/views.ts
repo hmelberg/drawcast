@@ -4,7 +4,7 @@
 
 /** Mirrors the cast-key rule in netlify/lib/view-key.mts. Checked here too so
  *  a malformed key never becomes a pointless request. */
-const CAST_KEY_RE = /^[\w.-]+\/[\w.-]+\/(?!.*\.\.)[\w./-]+\.(ya?ml|json|txt)$/;
+const CAST_KEY_RE = /^[\w.-]+\/[\w.-]+\/(?!.*\.\.)[\w./-]+\.(cast|ya?ml|json|txt)$/;
 /** The same list as PRIVATE_OWNERS in netlify/lib/view-key.mts — one policy,
  *  two layers, pinned to each other by tests/views-client.test.ts so a second
  *  private owner can never land on one side only. `anvil/<slug>/<file>` is

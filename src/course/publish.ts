@@ -7,6 +7,7 @@
 // a caller with nothing to decide; a second target (Drive) would replace
 // these functions alone.
 
+import { publishExt, publishFormat, publishName, stripDocExt } from "../cast-file";
 import { posterPathFor } from "../publish/cast";
 import { lockLectureFiles, type LectureLock } from "../publish/lock";
 import {
@@ -199,7 +200,7 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
   // A lecture already published keeps its recorded name — reserve those first,
   // so a newly minted slug can never collide with one that is permanent.
   for (const lecture of course.lectures) {
-    if (lecture.status?.file) taken.add(lecture.status.file.replace(/\.ya?ml$/, ""));
+    if (lecture.status?.file) taken.add(stripDocExt(lecture.status.file));
   }
 
   // Names first, in their own pass: a lecture's "Next ▸" link needs the
@@ -209,11 +210,13 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
     if (!args.lectureYaml(i)) return;
     // A recorded name is permanent: renaming or reordering a lecture must never
     // move the file a published link already points at.
-    let name = lecture.status?.file;
+    // (Under .cast publishing a recorded `x.yaml` becomes `x.cast`: the old
+    // file drops out of the manifest, so removedPaths deletes it.)
+    let name = lecture.status?.file ? publishName(lecture.status.file) : undefined;
     if (!name) {
       const minted = slugFor(lecture.title, taken);
       taken.add(minted);
-      name = `${minted}.yaml`;
+      name = `${minted}${publishExt()}`;
     }
     fileOf.set(i, name);
   });
@@ -243,7 +246,7 @@ export function buildPublishPlan(args: PlanArgs): PublishPlan {
     }
     if (enroll) parsed.meta.enroll = enroll;
     else delete parsed.meta.enroll;
-    files.push({ path: joinPath(dir, name), content: formatPublished(parsed, parsed.audio ?? null) });
+    files.push({ path: joinPath(dir, name), content: formatPublished(parsed, parsed.audio ?? null, publishFormat()) });
     links.push({
       title: lecture.title,
       questions: lecture.questions,

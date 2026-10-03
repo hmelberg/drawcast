@@ -28,6 +28,8 @@ export function cardImageUrl(link: ShareLink): string | undefined {
   const u = new URL(link.url);
   if (!u.pathname.startsWith("/c/")) return undefined;
   const rest = u.pathname.slice("/c/".length);
+  // A .yaml cast's card drops the extension (the function puts it back); a
+  // .cast cast's keeps it, since nothing could tell it from a .yaml otherwise.
   const png = rest.startsWith("gh/") ? `${rest.replace(/\.ya?ml$/i, "")}.png` : `${rest}.png`;
   return `${u.origin}/card/${png}`;
 }

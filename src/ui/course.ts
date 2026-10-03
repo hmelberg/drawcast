@@ -3,6 +3,7 @@
 // every action reads it back rather than holding a parsed copy, so the author's
 // edits are never overwritten by stale state.
 
+import { publishFormat } from "../cast-file";
 import { posterForPlaylistText } from "../export/snapshot";
 import { type Course, type CourseLecture, formatCourse, parseCourse, removeCourseOption, setCourseOption, setCourseTag } from "../course/document";
 import { briefTagInText, clearBriefTag, COURSE_BRIEF_CONTROLS, courseBriefFrom, courseBriefValue, forTag, type BriefDefaults, type BriefGroup } from "../llm/brief-controls";
@@ -1073,7 +1074,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         const k = `${c.from} → ${c.to}`;
         bakeRevoiced.set(k, (bakeRevoiced.get(k) ?? 0) + c.count);
       }
-      out.set(index, formatPublished(playlist, track));
+      out.set(index, formatPublished(playlist, track, publishFormat()));
       bakedTotal += bakeSize(track).inlineBytes;
     }
     return out;

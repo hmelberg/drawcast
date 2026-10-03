@@ -8,7 +8,7 @@
 
 export const DEFAULT_ENROLL_API = "https://drawcast.anvil.app";
 /** Mirrors the cast-key rule in netlify/lib/view-key.mts (and src/views.ts). */
-export const CAST_KEY_RE = /^[\w.-]+\/[\w.-]+\/(?!.*\.\.)[\w./-]+\.(ya?ml|json|txt)$/;
+export const CAST_KEY_RE = /^[\w.-]+\/[\w.-]+\/(?!.*\.\.)[\w./-]+\.(cast|ya?ml|json|txt)$/;
 const OPENED_PREFIX = "drawcast.learned:";
 
 /** owner/repo/<dir>/<slug> — the cast key without its file name. */

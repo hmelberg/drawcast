@@ -277,7 +277,9 @@ describe("publishTextFor's bake-reuse source is the destination's own previous c
     // The default is the GitHub published copy — same repo, same casts dir,
     // same "a miss just means no reuse" catch as before.
     expect(fn).toContain("parseRepo(settings.githubRepo)");
-    expect(fn).toContain("`${doc.publishedAs}.yaml`");
+    // As published now, or the .yaml it was before its first .cast republish.
+    expect(fn).toContain("`${doc.publishedAs}${ext}`");
+    expect(fn).toContain('new Set([publishExt(), ".cast", ".yaml"])');
     expect(fn).toContain(".catch(() => null)");
     // …and the bake path reads it through the parameter, so a caller that
     // passes its own hook (the Drive publish) reuses ITS previous copy.

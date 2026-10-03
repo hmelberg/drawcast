@@ -127,7 +127,8 @@ describe("publishDriveCast — the same prepared text, into Drive", () => {
 
   it("writes a plain .yaml file, never a Google Doc (spec §7: Docs cap at ~1M chars and curl quotes)", () => {
     expect(driveCast).toMatch(/const base = fileSafe\(name \?\? doc\.title\);/);
-    expect(driveCast).toMatch(/saveSpec\(text, `\$\{base\}\.yaml`, "text\/yaml"/);
+    // The extension and type follow what publishing writes (src/cast-file.ts).
+    expect(driveCast).toMatch(/saveSpec\(text, `\$\{base\}\$\{publishExt\(\)\}`, publishMime\(\)/);
     expect(driveCast).not.toContain("application/vnd.google-apps.document");
   });
 
