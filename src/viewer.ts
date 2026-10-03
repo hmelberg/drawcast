@@ -82,6 +82,13 @@ export interface ViewerRequest {
    * and never a view count (there is no server identity to count under).
    */
   inline?: string;
+  /**
+   * The cast's text, carried by the page itself (standalone/page.ts,
+   * play.ts): nothing to fetch. With `gh` also set, the page is a copy of
+   * that published cast — its views, comments and relative links stay the
+   * GitHub cast's; the text is still this one, never re-fetched.
+   */
+  embedded?: string;
   style: RenderStyle;
   mode: "narrated" | "silent" | "instant";
   speed: number;
@@ -176,6 +183,28 @@ function decodePath(raw: string): string | null {
  * #gh=<owner>/<repo>/<path> / #gh-…, and #anvil=<slug>/<file> / #anvil-…,
  * with optional &style= &mode= &speed= &advance=.
  */
+/** The playback options a link may carry (&style= &mode= &speed= &advance= &join) — every source reads the same ones. */
+export function viewerOptions(params: URLSearchParams): Pick<ViewerRequest, "style" | "mode" | "speed" | "advance" | "join"> {
+  const mode = params.get("mode");
+  // Legacy draw links used &backend=custom-svg / clean-svg; map them.
+  const styleParam = params.get("style") ?? params.get("backend");
+  const advance = params.get("advance");
+  return {
+    style: (styleParam === "sketchy" || styleParam === "custom-svg" ? "sketchy" : styleParam === "mixed" ? "mixed" : "clean") as RenderStyle,
+    mode: (mode === "silent" || mode === "instant" ? mode : "narrated") as ViewerRequest["mode"],
+    speed: parseFloat(params.get("speed") ?? "") || loadSettings().speed || 1,
+    advance: (advance === "auto" || advance === "click" ? advance : undefined) as ViewerRequest["advance"],
+    ...(params.has("join") ? { join: params.get("join") ?? "" } : {}),
+  };
+}
+
+/** A GitHub reference as a page carries it (`owner/repo/path`), checked like a #gh= link's. */
+export function ghRefFrom(raw: string | null | undefined): GhRef | null {
+  const m = /^([\w.-]+)\/([\w.-]+)\/(.+)$/.exec(raw ?? "");
+  if (!m || !DOC_PATH_RE.test(m[3])) return null;
+  return { owner: m[1], repo: m[2], path: m[3] };
+}
+
 export function parseViewerHash(hash: string): ViewerRequest | null {
   const gh = GH_RE.exec(hash);
   const doc = /[#&]gdoc[=-]([A-Za-z0-9_-]{10,})/.exec(hash);
@@ -196,17 +225,7 @@ export function parseViewerHash(hash: string): ViewerRequest | null {
       .replace(/(^|&)anvil-/, "$1anvil=")
       .replace(/(^|&)cast-/, "$1cast="),
   );
-  const mode = params.get("mode");
-  // Legacy draw links used &backend=custom-svg / clean-svg; map them.
-  const styleParam = params.get("style") ?? params.get("backend");
-  const advance = params.get("advance");
-  const common = {
-    style: (styleParam === "sketchy" || styleParam === "custom-svg" ? "sketchy" : styleParam === "mixed" ? "mixed" : "clean") as RenderStyle,
-    mode: (mode === "silent" || mode === "instant" ? mode : "narrated") as ViewerRequest["mode"],
-    speed: parseFloat(params.get("speed") ?? "") || loadSettings().speed || 1,
-    advance: (advance === "auto" || advance === "click" ? advance : undefined) as ViewerRequest["advance"],
-    ...(params.has("join") ? { join: params.get("join") ?? "" } : {}),
-  };
+  const common = viewerOptions(params);
 
   // The link's own data wins: it is the cast, whatever else the hash holds.
   // Left as written — decodeCast says what is wrong with a damaged one, on
@@ -708,7 +727,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     {
       class: "viewer-status",
       role: "status",
-      title: req.anvil ? "From the drawcast server" : req.inline !== undefined ? "From the link itself" : req.gh ? "From GitHub" : req.driveId ? "From Google Drive" : "From a Google Doc",
+      title: req.embedded !== undefined ? "From this page" : req.anvil ? "From the drawcast server" : req.inline !== undefined ? "From the link itself" : req.gh ? "From GitHub" : req.driveId ? "From Google Drive" : "From a Google Doc",
     },
     loaderSvg(),
     "Loading…",
@@ -721,7 +740,8 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   const poster = h("img", { class: "viewer-poster", alt: "", "aria-hidden": "true" });
   poster.addEventListener("load", () => poster.classList.add("ready"));
   poster.addEventListener("error", () => poster.classList.remove("ready"));
-  if (req.gh) poster.src = rawUrlFor({ ...req.gh, path: posterPathFor(req.gh.path) });
+  // Not for a page carrying its cast: the drawing is a moment away.
+  if (req.gh && req.embedded === undefined) poster.src = rawUrlFor({ ...req.gh, path: posterPathFor(req.gh.path) });
   // The same frame the app's player mounts into, by the same class: the
   // fullscreen rules are written against it, and a viewer-only copy of them
   // would be a copy nobody remembers to keep in step (it wasn't). The page
@@ -742,7 +762,8 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   // main origin, and "Edit a copy" takes this cast there — an explicit
   // action, and the editor puts its code through the trust gate like any
   // upload. A private server cast has no public copy to fetch.
-  const made = h("a", { class: "viewer-made", href: onViewOrigin() ? mainAppUrl() : location.pathname, title: "Open the drawcast app" }, "Made with drawcast");
+  // A page of its own lives on someone else's site: the app is at drawcast.app.
+  const made = h("a", { class: "viewer-made", href: req.embedded !== undefined ? "https://drawcast.app/" : onViewOrigin() ? mainAppUrl() : location.pathname, title: "Open the drawcast app" }, "Made with drawcast");
   const remix = onViewOrigin() && !req.anvil ? h("a", { class: "viewer-made viewer-remix", href: remixUrl(location.hash), title: "Open a copy of this drawcast in the drawcast editor" }, "Edit a copy") : null;
   const meta = playerMeta(viewsEl, noteEl, remix ? h("span", { class: "viewer-made" }, remix, " · ", made) : made);
   // Problems (a cast inside its link only): the person holding the link
@@ -759,7 +780,9 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     // files ({request, spec}, examples.json's shape): unwrapped the way
     // ?open= and the frames harness do, its title kept as a fallback.
     const inline = req.inline !== undefined ? unwrapCastText(await decodeCast(req.inline)) : null;
-    let text = req.anvil
+    let text = req.embedded !== undefined
+      ? req.embedded
+      : req.anvil
       ? await fetchAnvilText(req.anvil, fetch, (why) => {
           audioNote = `Recorded narration unavailable (${why}); narration falls back to a synthesised voice.`;
         })

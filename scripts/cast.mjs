@@ -1270,7 +1270,9 @@ const commands = {
         const { lockLectureFiles } = await load("/src/publish/lock.ts");
         const locked = await lockLectureFiles(planFiles, lecturePaths, (_path, text) => lockText(text, got.key, item));
         const { posterPathFor } = await load("/src/publish/cast.ts");
-        const posters = lecturePaths.map((p) => posterPathFor(p)).filter((p) => readAtCommit(clone, upstream, p) !== null);
+        // A page from an earlier public publish (`<file>.html`) carries the
+        // cast in the clear: going private removes it with the posters.
+        const posters = lecturePaths.flatMap((p) => [posterPathFor(p), p.replace(/\.(cast|ya?ml)$/i, ".html")]).filter((p) => readAtCommit(clone, upstream, p) !== null);
         return { files: locked, deletions: posters };
       };
 
@@ -1293,7 +1295,7 @@ const commands = {
         const yamlBefore = `${stripDocExt(castPath)}.yaml`;
         const stale = castPath.endsWith(".cast") && readAtCommit(clone, upstream, yamlBefore) !== null ? [yamlBefore] : [];
         const picture = origin.private ? null : (await drawAll([text])).get(text) ?? null;
-        const plan = buildCastPlan({ title, text, slug, previousSlug: slug, repo, castsDir: origin.castsDir, viewerBase: origin.viewerBase, index: indexText ? parseCastIndex(indexText) : emptyCastIndex(), poster: picture });
+        const plan = buildCastPlan({ title, text, slug, previousSlug: slug, repo, castsDir: origin.castsDir, viewerBase: origin.viewerBase, index: indexText ? parseCastIndex(indexText) : emptyCastIndex(), poster: picture, private: !!origin.private });
         if (!origin.private) return { files: plan.files, deletions: stale };
         const locked = await lockPrivate(plan.files, [castPath]);
         return { files: locked.files, deletions: [...locked.deletions, ...stale] };

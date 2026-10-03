@@ -5344,7 +5344,9 @@ async function publishDrawcast({
     if (lock) setStatus(`Published locked — only enrolled learners can watch. ${out.castUrl}${lastEmbedNote}${regSuffix}`, "ok");
     else {
       const link = shareLinkFor(doc.freeName ? `#${doc.freeName}` : `#gh=${repoStr}/${joinPath(castsDir, `${out.slug}${publishExt()}`)}`);
-      const text = `Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}${regSuffix}`;
+      // Its own page (standalone/page.ts) opens fastest — live once GitHub Pages has built it.
+      const pageNote = out.pageUrl ? ` Its own page (a minute or so for GitHub Pages): ${out.pageUrl}` : "";
+      const text = `Published to ${out.castUrl}${pageNote}${lastEmbedNote}${lastBakeNote}${regSuffix}`;
       if (link) setStatusAction(text, "Share…", () => openShareBox({ link, title: doc.title, subtitle: doc.playlist.meta.subtitle, image: cardImageUrl(link) }), "ok");
       else setStatus(text, "ok");
     }

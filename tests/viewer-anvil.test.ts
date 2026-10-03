@@ -201,7 +201,8 @@ describe("fetchAnvilText", () => {
 
 describe("runViewer takes the fourth source through the same door as the others", () => {
   test("the load picks fetchAnvilText for req.anvil, ahead of the GitHub branch, with a reporter for lost narration", () => {
-    expect(viewer).toMatch(/let text = req\.anvil\s*\?\s*await fetchAnvilText\(req\.anvil, fetch, \(why\) =>/);
+    // A page carrying its own cast (standalone/page.ts) comes first: nothing to fetch.
+    expect(viewer).toMatch(/let text = req\.embedded !== undefined\s*\?\s*req\.embedded\s*:\s*req\.anvil\s*\?\s*await fetchAnvilText\(req\.anvil, fetch, \(why\) =>/);
     expect(viewer).toMatch(/:\s*req\.gh\s*\?\s*await fetchGhText\(req\.gh\)/);
   });
   test("counting stays GitHub-only: a private cast's views are the teacher's business, not a public counter's", () => {

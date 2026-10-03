@@ -26,7 +26,12 @@ public repo the user chooses; after that it is revised like anything published.
    repo is someone else's: then plain `push` opens a PR from a fork).
    A public push also commits each cast's link-card picture (`<file>.png`, drawn the way
    the app draws it); to give an older published repo its pictures, `pull` it and `push` again.
-4. Report the player link (`drawcast.app/#gh=…`) and, for a course, the course page (Pages
+   A public single cast also gets its own page, `<file>.html` beside it: the cast inside the
+   page, the player from drawcast.app — the fastest link to it (no name lookup, no second
+   fetch), at `https://<owner>.github.io/<repo>/<dir>/<file>.html`. Its file name is the
+   cast's slug, so the name chosen at publish-target is the page's name too. A private
+   push removes the page (it would carry the cast unlocked).
+4. Report the player link (`drawcast.app/#gh=…`), for a single cast its own page, and, for a course, the course page (Pages
    can take a minute the first time). Narration is the browser's voice until the course is
    published with narration from the app. Later revisions: references/revise.md from its step 2 (unpack), on the same workdir — no new pull.
    `push --direct` now also registers the item with Anvil (drawcast's backend at drawcast.anvil.app — the registry behind names and the catalogue) and prints its free link
