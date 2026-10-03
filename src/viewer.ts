@@ -49,7 +49,8 @@ import { emptyProblems, problemsBox, type CastProblems } from "./ui/problems-box
 import { getTtsKey, loadSettings, saveSettings } from "./store";
 import { ensurePacksParallel, packsForSpecs, PACK_DEFS } from "./scenes/packs";
 import { isBlockedCastTemplate, registerCastTemplates } from "./scenes/cast-templates";
-import { gateSpecs } from "./security/code-trust";
+import { gateSpecs, trustKeys } from "./security/code-trust";
+import libraryTrust from "./home/trusted-code.json";
 import { coursePageRedirect, enrollRoute, lockedRoute, mainAppUrl, namedRoute, onViewOrigin, remixUrl } from "./security/view-origin";
 import { installCodeConsent } from "./ui/code-consent";
 import { scenes } from "./scenes/registry";
@@ -858,6 +859,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     // freehand, scripts show their saved output. Asked before anything
     // registers or renders, so nothing of it has run by the time we ask.
     installCodeConsent();
+    // The curated library's code (home/trusted-code.json): trusted by its exact
+    // bytes, like the bundled examples, for this page only — the front page's
+    // own drawcasts play without the question; changed code asks again.
+    trustKeys(libraryTrust.keys, { persist: false });
     const codeAllowed = await gateSpecs(items.map((i) => i.spec));
     for (const item of items) registerCastTemplates(item.spec);
     const needPacks = packsForSpecs(items.map((i) => i.spec), (id) => scenes[id] !== undefined);

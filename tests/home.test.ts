@@ -158,3 +158,16 @@ describe("the watch page wiring", () => {
     expect(viewer).toContain("await runViewer({ ...req, watchName: name });");
   });
 });
+
+describe("the curated library's code is trusted by its bytes", () => {
+  const trust = JSON.parse(readFileSync(new URL("../src/home/trusted-code.json", import.meta.url), "utf8")) as { keys: string[] };
+  const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8");
+  test("the list holds code-trust keys only (content fingerprints, never a source or a name)", () => {
+    expect(trust.keys.length).toBeGreaterThan(0);
+    for (const k of trust.keys) expect(k).toMatch(/^[ct]:[0-9a-f]{32}$/);
+  });
+  test("the viewer trusts them for this page only, before the gate asks", () => {
+    expect(viewer).toContain("trustKeys(libraryTrust.keys, { persist: false });");
+    expect(viewer.indexOf("trustKeys(libraryTrust.keys")).toBeLessThan(viewer.indexOf("const codeAllowed = await gateSpecs("));
+  });
+});
