@@ -41,6 +41,8 @@ public repo the user chooses; after that it is revised like anything published.
    `push --direct` now also registers the item with Anvil (drawcast's backend at drawcast.anvil.app — the registry behind names and the catalogue) and prints its free link
    (`drawcast.app/#<name>`) itself; a PR push instead prints when to run
    `node scripts/cast.mjs register <workdir>`, which does the same once the PR is merged.
+   "not registered (rate limited …)" is the registry's hourly budget, not a failure of the publish:
+   run `register <workdir>` later, or `register <workdir> --wait` (retries every 5 minutes for up to an hour).
 
 ## A pretty link (drawcast.app/#<name>)
 

@@ -29,10 +29,17 @@ export function chunkCaption(text: string, budget: number): string[] {
   return balanceTail(pages, budget);
 }
 
+// A period that ends an abbreviation or an initial is not a sentence's end,
+// nor a place to turn the page: "T. rex", "St. Mark's", "Dr. Snow", "e.g.
+// smoking", "U.S. data". A decimal (3.5) has no space after its point, so it
+// never looked like a break.
+const ABBREV = String.raw`(?:^|[\s("“'.])(?:[A-Z]|St|Dr|Mr|Mrs|Ms|Prof|Jr|Sr|Mt|No|Nr|Fig|Vol|vs|etc|approx|ca|cf|e\.g|i\.e)\.`;
+const ABBREV_END = new RegExp(`${ABBREV}$`);
+
 const LEVELS: RegExp[] = [
-  /(?<=[.!?…]["”’)]?)\s+/, // sentences
+  new RegExp(String.raw`(?<=[.!?…]["”’)]?)(?<!${ABBREV})\s+`), // sentences
   /(?<=[,;:])\s+|\s+(?=[—–]\s)/, // clauses, and before a dash
-  /\s+/, // words
+  new RegExp(String.raw`(?<!${ABBREV})\s+`), // words
 ];
 
 /** The text cut at the strongest level that makes every piece fit, recursing into any piece still too long. */
@@ -50,7 +57,7 @@ function balanceTail(pages: string[], budget: number): string[] {
   if (last.length >= budget * 0.3) return pages;
   const prev = pages[pages.length - 2].split(" ");
   let tail = last;
-  while (prev.length > 1) {
+  while (prev.length > 1 && !ABBREV_END.test(prev[prev.length - 2])) {
     const moved = `${prev[prev.length - 1]} ${tail}`;
     const rest = prev.slice(0, -1).join(" ");
     if (moved.length > budget || moved.length > rest.length) break;

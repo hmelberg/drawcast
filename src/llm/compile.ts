@@ -29,7 +29,7 @@ import { attachSeedCredit, type SeedBlock } from "./seed";
 import { visualRepairMessages, wantsVisualRepair } from "./visual";
 import { LOOK_PROMPT_SOURCE, applySpecEditsLenient, isEditsReply, lookFixPrompt, lookFoundNothing, lookUserContent, type LookImage } from "./look";
 import type { Spec } from "../spec/types";
-import { layoutSpec } from "../layout/layout";
+import { layoutAsSeen } from "../lint/at-scale";
 import { expandSpec } from "../spec/expand";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { lintCrowding } from "../lint/crowding";
@@ -772,7 +772,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         });
         try {
           const expanded = expandSpec(best);
-          const laid = layoutSpec(expanded, measure);
+          const laid = layoutAsSeen(expanded, measure); // at the cast's text scale, as drawn
           lintIssues = [...laid.issues, ...lintCommands(expanded), ...lintCrowding(laid, expanded)];
         } catch (err) {
           lintIssues = [];
@@ -878,7 +878,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const lintOf = (spec: Spec): LintIssue[] | null => {
     try {
       const expanded = expandSpec(spec);
-      const laid = layoutSpec(expanded, measure);
+      const laid = layoutAsSeen(expanded, measure); // at the cast's text scale, as drawn
       return [...laid.issues, ...lintCommands(expanded), ...lintCrowding(laid, expanded)];
     } catch {
       return null;

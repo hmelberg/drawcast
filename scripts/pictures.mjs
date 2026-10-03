@@ -5,6 +5,7 @@
 // trouble is a null (one cast) or a note (all of them).
 import { existsSync, readdirSync } from "node:fs";
 import { createServer as netServer } from "node:net";
+import { iconCacheDir, iconFetcher, routePage } from "./icon-fetch.mjs";
 
 export function decodePicture(b64) {
   if (!b64) return null;
@@ -77,8 +78,10 @@ export async function drawPictures(texts, opts = {}) {
   try {
     server = await serve();
     browser = await launch();
+    const icons = iconFetcher({ dir: iconCacheDir(opts.root ?? process.cwd()) });
     const open = async () => {
       const page = await browser.newPage({ viewport: { width: 1000, height: 750 } });
+      await routePage(page, icons); // Iconify through the scripts' disk cache and retry
       await page.goto(`${server.url}frames.html`);
       await page.waitForFunction(() => typeof window.__poster === "function", null, { timeout: 60000 });
       return page;
