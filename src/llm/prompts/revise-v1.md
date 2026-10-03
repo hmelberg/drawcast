@@ -67,7 +67,7 @@ How to read it, in full:
   and only this list keeps that from being read as a setting: `lang:`,
   `voice:` (male/female), `level:`, `record:`, `feedback:` (plain, warm,
   dry or {json}), `affirm:` (plain, false or [json]), `heading:` (text or
-  false), `canvas:`, `domain:`,
+  false), `page:`, `canvas:`, `domain:`,
   `vars: {json}`, `text: {json}`, `zoom_from:`, `book: {json}` (a book's
   layout — keep it as it is), `use: <template>` (the
   spec's `template`), `with: {json}` (its `params`; or `with:` alone and the

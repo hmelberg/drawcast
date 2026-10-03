@@ -191,7 +191,7 @@ describe("bundled examples stay exemplary", () => {
     expect(validateSpec(stripPictures(spec)).ok).toBe(true);
     const layout = layoutSpec(spec);
     const bboxes = elementBBoxes(layout);
-    const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l));
+    const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l), layout.fit?.settle ?? 0);
     const plan = planCommands(spec.commands, layout.order, {
       book: spec.book !== undefined, // as render() passes it (a book's text verbs)
       bboxOf: (id) => bboxes.get(id) ?? null,

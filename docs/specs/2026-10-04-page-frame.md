@@ -92,3 +92,33 @@ and a short line in the compiler prompt.
   the plan's after-ask offsets); erasing or hiding a card (or the set) takes its value.
 - **W24 Help section** (user, 2026-10-04) — after the round's features land: update the app's help (public/help.html and anything it links) for everything new — the page frame and `heading`, cards `size`/two-line text, number-line formats, chart ticks, on-canvas quiz buttons, `affirm`, `size_compare`, icon fallback lists, reveal stamps, sequence, the new question types — and the `.cast` DSL (settings keys, new fields), with short examples.
 - **W25 Interaction polish (seen by W21, 2026-10-04)** — headline mode shrinks the figure to ~295 px wide (drawing gets hard); the ask headline overlaps the top of a crowd; the bar guess's value pill sits over the y-axis; the crowd's count pill overlaps its legend; the ant icon covers the hint in ants-on-earth.
+
+
+## W18 — vertical settling (built 2026-10-04)
+- `layout/settle.ts`, applied last in `layoutSpec`: the figure — every top-level drawable but the
+  card headings (`card_<n>_…`, the centre card too) and what is pinned to the page (`at: {place}`,
+  and what is placed against or labels it) — is measured whole and moved by one `dy` when the gaps
+  above and below it in `contentBox()` differ by more than 60 units (`SETTLE_SLACK`); the move
+  evens them. That rule is also the "already fills the page" rule: a figure within 60 of the
+  area's height (≥ 88 %) is never moved — a separate 85 % cut left quiz cards touching the heading.
+  A pinned box in the figure's columns is a floor/ceiling the move stops 10 short of.
+- The run, not the first frame: a cards element counts where its cards go (homes, slots, bins,
+  true places — spec/cards.ts geometry), so a timeline whose cards are answered above the line is
+  not lifted into the heading.
+- One transform, carried where positions are read: the drawables (clips too), named anchors and
+  piece geometry move; the layout's `fit` carries it (`TemplateFit.settle`, s 1) so
+  `domainMapping` — `{data}`, a command's canvas point, a guess's data mapping — follows, also on a
+  page with no domain; `formulaHooksFor(…, settle)` moves a cards element's spec-computed geometry
+  (homes, slots, truth, bins, `binSlot`, `placeAt`, its scale's line) for the plan and the player.
+  On-canvas answer buttons, choose options and formula tiles are read off the layout already.
+- Left as laid out: `page.valign: "none"`, a page with no heading (composed on the whole canvas
+  by hand) or no commands (a preview, a unit figure), books, insets, a shown code pane, live `vars`, a
+  template that lays out in (or is fitted/grown to) its box, a world larger than the page, a widget
+  or interactive template, and any cast whose figure changes over the run in ways one layout cannot
+  show (animate, move, arrange, flip, morph, copy, ghost, trail, run, explore, step), a guess on a
+  scale (guess/handles.ts reads the scale's line from the spec), `{canvas: …}` in a command, a
+  camera aimed at numbers. Lints run before the move (they judge the layout as built).
+- Hatch: top-level `page: {valign: "center" | "top" | "none"}` (strict; `.cast` setting `page:`).
+- Not done: relaxing spacing inside laid-out groups; settling casts with moves/morphs (their
+  boundary layouts carry poses, so a per-layout dy would jitter — it would need the base dy pinned
+  across relayouts); bundled examples blocked that way and off-centre by 30–150: about 16.

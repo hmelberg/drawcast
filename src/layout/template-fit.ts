@@ -33,6 +33,9 @@ export interface TemplateFit {
   dx: number;
   dy: number;
   box: BBox;
+  /** Of `dy`, the page's vertical settling (layout/settle.ts): the part
+   *  that moves canvas coordinates too, not only a template's own. */
+  settle?: number;
 }
 
 /** Padding around the ink union before fitting — room for the labels the

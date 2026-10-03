@@ -25,6 +25,7 @@ import { withMinted, type MintedSpec } from "./minted";
 import { dependentsMap, sourceIds } from "../spec/deps";
 import { scratchCards } from "../spec/scratch";
 import { boxAnchor } from "../layout/anchors";
+import { settleCardsGeometry } from "../layout/settle";
 import { isEmptyOverrides, overridesKey, type LayoutOverrides } from "../layout/posed";
 import type { LabelPin } from "../layout/labels";
 import { Player, type CodePatch, type FormulaRuntime, type PlaybackMode, type PlayerCallbacks } from "./player";
@@ -185,6 +186,7 @@ export function formulaHooksFor(
   spec: Spec,
   bboxes: Map<string, BBox>,
   boxesIn: (layout: LayoutResult) => Map<string, BBox>,
+  settle = 0,
 ): { cardsOn: (id: string) => CardsGeometry | null; formula: (id: string) => FormulaRuntime | null } {
   const texOf = (id: string): string | null => {
     const el = (spec.elements ?? []).find((e) => e.id === id);
@@ -201,7 +203,10 @@ export function formulaHooksFor(
     return b ? [b.x + b.w / 2, b.y + b.h / 2] : null;
   };
   return {
-    cardsOn: (id) => (texOf(id) !== null ? cardsGeometryIn(spec, `${id}_tiles`, blanksOf, homesOf) : cardsGeometryIn(spec, id)),
+    // A cards element's geometry is the spec's: on a settled page
+    // (layout/settle.ts) it moves with the ink. A formula's tiles are read
+    // off the layout's boxes, which already moved.
+    cardsOn: (id) => (texOf(id) !== null ? cardsGeometryIn(spec, `${id}_tiles`, blanksOf, homesOf) : settleCardsGeometry(cardsGeometryIn(spec, id), settle)),
     formula: (id) => {
       const tex = texOf(id);
       if (tex === null) return null;
@@ -600,7 +605,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, trailProgress?: Record<string, number>, pins?: Record<string, LabelPin>): LayoutResult =>
     withMinted(rawLayoutFor(params, cache, elements, overrides, pins), minted, (p, ov) => rawLayoutFor(p, true, undefined, ov), trailProgress);
 
-  const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l, measure));
+  const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l, measure), layout.fit?.settle ?? 0);
 
   const plan = planCommands(spec.commands, layout.order, {
     book: spec.book !== undefined,
