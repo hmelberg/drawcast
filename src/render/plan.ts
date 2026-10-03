@@ -1606,7 +1606,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const formula = oneOn !== undefined ? (opts.formulaFor?.(oneOn) ?? null) : null;
       const cardSet = oneOn !== undefined ? (opts.cardsFor?.(oneOn) ?? null) : null;
       if (cardSet) {
-        for (const id of cardSet.cards) {
+        // The cards, and what follows each (a compare value, an attached label: cardsPlanFor).
+        for (const id of new Set([...cardSet.cards, ...Object.keys(cardSet.offsets)])) {
           if (!known.has(id)) continue;
           const o = offsets[id] ?? [0, 0];
           const d = cardSet.offsets[id] ?? [0, 0];

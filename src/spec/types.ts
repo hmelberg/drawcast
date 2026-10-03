@@ -286,7 +286,7 @@ export interface SpecElement {
   tex?: string;
   /** internal: the answer shown in each `\blank` box (written by the player through element patches). */
   fills?: (string | null)[];
-  /** math: font size, the same units as text font_size (default 28); scaled by text.font_size like every text. icon: box size in logical units (default 100). */
+  /** math: font size, the same units as text font_size (default 28); scaled by text.font_size like every text. icon: box size in logical units (default 100). (cards: "auto" or a factor — typed on spec/cards.ts CardsElementLike.) */
   size?: number;
   /** math: colour per term, a TeX snippet → colour; every occurrence, deepest match wins. */
   colors?: Record<string, string>;
@@ -381,7 +381,7 @@ export interface SpecElement {
   // link (another drawcast, clickable — spec 2026-09-28-drawcast-links)
   /** link: the drawcast it opens — a player, GitHub or Drive link, owner/repo/path.yaml, a path relative to this file (./next.yaml), or lecture:N in a course. */
   href?: string;
-  /** link: what it says (default: the target's own title, else its file name). */
+  /** link: what it says (default: the target's own title, else its file name). (cards: true, false or words — CardsElementLike.) */
   title?: string;
   /** link: the author's own picture for the card (a URL); wins over the target's thumbnail. */
   image?: string;

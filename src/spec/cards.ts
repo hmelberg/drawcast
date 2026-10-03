@@ -366,7 +366,7 @@ export interface CardTextFit {
   lines: string[][];
   /** How much taller a card is for its second line (0: every text on one line). */
   extra: number;
-  /** The cards whose text needs a third line at the starting font (it was made smaller). */
+  /** The cards whose text needs a third line at the starting font (the set's font was made smaller). */
   tooLong: number[];
 }
 
@@ -383,7 +383,8 @@ export function fitCardTexts(texts: string[], w: number, font: number, k = 1): C
   const fits = (ls: string[], f: number): boolean => ls.length <= 2 && ls.every((l) => heuristicMeasure(l, f).w <= room);
   let f = font;
   let lines = wrap(f);
-  const tooLong = lines.map((ls, i) => (fits(ls, f) ? -1 : i)).filter((i) => i >= 0);
+  // Three lines at the set's own font: the lint asks for fewer words (a long single word only shrinks).
+  const tooLong = lines.map((ls, i) => (ls.length > 2 ? i : -1)).filter((i) => i >= 0);
   while (f > MIN_FONT && !lines.every((ls) => fits(ls, f))) lines = wrap(--f);
   // Never more than two lines: what is left runs on in the second (the lint says so).
   const two = lines.map((ls) => (ls.length > 2 ? [ls[0], ls.slice(1).join(" ")] : ls));

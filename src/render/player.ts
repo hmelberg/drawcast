@@ -1987,7 +1987,11 @@ export class Player {
     this.guessMarkParts.set(owner, formula ? [step.formula!, g.id] : [...g.cards, ...(g.valueIds ?? [])]);
     const start = initialArrangement(g);
     // A deck's dealt card is drawn larger, about where the card is drawn (round 6 §7).
-    const place = (id: string, dx: number, dy: number, scale = 1): void => this.nudge(id, dx, dy, scale, g.home[g.cards.indexOf(id)]);
+    // What follows a card (a compare value, an attached label) moves with it (page frame 2026-10-04).
+    const place = (id: string, dx: number, dy: number, scale = 1): void => {
+      this.nudge(id, dx, dy, scale, g.home[g.cards.indexOf(id)]);
+      for (const f of g.followers?.[id] ?? []) this.nudge(f, dx, dy);
+    };
     const show = (ids: string[]): void => {
       for (const el of this.els(ids)) el.finish();
     };
@@ -2229,6 +2233,7 @@ export class Player {
       }
       const offsets: Record<string, Pt> = {};
       g.cards.forEach((id, i) => (offsets[id] = [stand[i][0] - g.home[i][0], stand[i][1] - g.home[i][1]]));
+      for (const [id, fs] of Object.entries(g.followers ?? {})) for (const f of fs) offsets[f] ??= offsets[id];
       for (const id of g.cards) place(id, 0, 0);
       this.putBeside(owner, { index, marks: null, faded: false, offsets, ...(placedTiles.length > 0 ? { shown: placedTiles } : {}) });
     }
