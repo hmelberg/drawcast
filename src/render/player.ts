@@ -43,7 +43,7 @@ import { DEFAULT_TOLERANCE, guessText, guessVars, scoreGuess } from "../guess/sc
 import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../feedback/bands";
 import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
-import { besidePositions, cardsBeside, cardsParts, placeGlide } from "../cards/beside";
+import { GHOST_FADE, besidePositions, cardsBeside, cardsParts, placeGlide } from "../cards/beside";
 import { BESIDE_MS, EACH_MS, FADED, WRONG, YOURS, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, mergeRooms, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
 import { gateLang, gateWords } from "../ui/gate-words";
 import type { CardsGeometry } from "../spec/cards";
@@ -157,6 +157,9 @@ interface Beside {
   styles?: Record<string, Record<string, unknown>>;
   /** check: each (round 7 §3): the cards corrected for the viewer — drawn at CORRECTED, at FADED once the reveal fades. */
   dim?: string[];
+  /** How far yours fades once the reveal is past (default FADED): a place's
+   *  ghosts stay plainer, to be compared while the explanation plays. */
+  fade?: number;
 }
 
 /** A kept guess (ask `keep: true`, spec 2026-10-03-round6 §5): what its
@@ -1055,7 +1058,7 @@ export class Player {
     this.pendingSettle = false;
     for (const [owner, b] of restored) {
       this.guessOwners.add(owner);
-      this.effects?.setGuessMarks?.(owner, b.faded && b.marks ? fadeYours(b.marks, FADED) : b.marks);
+      this.effects?.setGuessMarks?.(owner, b.faded && b.marks ? fadeYours(b.marks, b.fade ?? FADED) : b.marks);
     }
     for (const [owner, r] of kept) {
       this.kept.set(owner, r);
@@ -2285,7 +2288,7 @@ export class Player {
       const landed = placeGlide(g, arrangement, { tolerance: step.tolerance ?? 0, landed: true });
       mark(landed);
       // Marks only (the cards stand at the plan's truth): they stay through the explanation, and a seek forward restores them.
-      this.putBeside(owner, { index, marks: landed, faded: false });
+      this.putBeside(owner, { index, marks: landed, faded: false, fade: GHOST_FADE });
     } else if (quietMovie) {
       // Nothing marked.
     } else if (answered) mark(cardsMarks(g, arrangement));
@@ -3236,7 +3239,7 @@ export class Player {
     for (const [owner, b] of this.besides) {
       if (b.faded || b.index === index) continue;
       b.faded = true;
-      if (b.marks && this.guessOwners.has(owner)) this.effects?.setGuessMarks?.(owner, fadeYours(b.marks, FADED));
+      if (b.marks && this.guessOwners.has(owner)) this.effects?.setGuessMarks?.(owner, fadeYours(b.marks, b.fade ?? FADED));
       // Tiles kept in a formula's boxes are yours too.
       for (const el of this.els(b.shown ?? [])) el.setOpacity?.(FADED);
       // Cards corrected for the viewer are yours too.

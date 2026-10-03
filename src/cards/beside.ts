@@ -261,8 +261,11 @@ export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: num
   return { color: YOURS, lines, texts };
 }
 
-/** place, glide: a ghost's outline is this light. */
+/** place, glide: a ghost's outline is this light, */
 export const GHOST_OPACITY = 0.75;
+/** and once the explanation goes on, yours fades only to this (not FADED):
+ *  the ghosts are there to be compared with the truth while it is told. */
+export const GHOST_FADE = 0.7;
 /** place, glide: in the band between the line and the cards (40 up), the values stand this high, the guess → truth arrow this high. */
 const LABEL_UP = 16;
 const ARROW_UP = 32;
