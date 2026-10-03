@@ -25,7 +25,7 @@ describe("figureSplit — the rule", () => {
   test("an untouched code element takes the reading side and the figure takes the rest", () => {
     const s = figureSplit({ ...base, code: {} });
     expect(s.code).toEqual({ x: 225, width: 410 });
-    expect(s.box).toEqual({ x: 470, y: 160, w: 470, h: 480 }); // clear of the caption band and the heading (was y 95, h 560)
+    expect(s.box).toEqual({ x: 470, y: 160, w: 470, h: 500 }); // the page frame's fit band, y 160–660 (was 95–655, then 160–640)
   });
 
   test("a panel of pure code hugs its longest line, and the slack goes to the figure", () => {

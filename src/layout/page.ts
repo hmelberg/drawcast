@@ -37,12 +37,16 @@ export const CAPTION_TOP = 160;
  *  halves, the code/figure split, a chart beside its drawing). */
 export const GUTTER = 40;
 
-/** The band figures are fitted into (regions.ts "full" and its halves, a
- *  chart beside a drawing, the inset page's main box, scratch corners). */
-export const FIT_BAND: Readonly<{ y: number; h: number }> = Object.freeze({ y: 95, h: 560 });
 
 /** The content area: where a page's figure goes by default. */
 export function contentBox(opts: { heading?: boolean } = {}): BBox {
   const top = opts.heading === false ? CONTENT_TOP_BARE : CONTENT_TOP;
   return { x: MARGIN, y: CAPTION_TOP, w: PAGE_W - 2 * MARGIN, h: top - CAPTION_TOP };
 }
+
+/** The band figures are fitted into (regions.ts "full" and its halves, a
+ *  chart beside a drawing, the code/figure split, the inset page's main box,
+ *  scratch corners): the content area's height, clear of the caption band
+ *  below and the heading strip above. Was y 95–655 until 2026-10-04: a
+ *  fitted chart's floor sat under the captions. */
+export const FIT_BAND: Readonly<{ y: number; h: number }> = Object.freeze({ y: CAPTION_TOP, h: CONTENT_TOP - CAPTION_TOP });

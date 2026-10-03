@@ -62,7 +62,7 @@ describe("default heading", () => {
     const s = expandSpec(base());
     const l = layoutSpec(s);
     expect(l.drawables.some((d) => d.id === `${DEFAULT_HEADING}_title`)).toBe(true);
-    expect(l.issues.filter((i) => i.severity !== "info")).toEqual([]);
+    expect(l.issues).toEqual([]);
   });
 
   test("the heading beat is not the first ink for slow-start", () => {

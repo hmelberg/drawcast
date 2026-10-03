@@ -35,9 +35,9 @@ import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, flattenDrawables, leafDrawables, Z_TOP, type Drawable, type Pt } from "./model";
 import { isScratchPart, scratchCards } from "../spec/scratch";
 import { authoredCards } from "../spec/cards";
-import { domainPlot, frameToCanvas, linearScale, setHeadingFloor, worldBounds, type DataFrame } from "./canvas";
+import { domainPlot, frameToCanvas, headingFloorY, linearScale, setHeadingFloor, worldBounds, type DataFrame } from "./canvas";
 import { figureSplit } from "./figure-split";
-import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
+import { fitSceneLayout, GROW_REGION, GROW_REGION_BARE, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
 import type { SceneLayout } from "../scenes/types";
 import { FIT_NAMES, isFitName } from "./regions";
 import { expandBoxAnimate, readParam, withOverrides } from "../render/params";
@@ -227,7 +227,7 @@ export function layoutSpec(
         // brings it in, so it is neither grown nor — under a box — kept.
         world = box ? null : worldBounds(sceneLayout.world);
         if (box && !native) fit = fitSceneLayout(sceneLayout, box, measure) ?? undefined;
-        else if (!box && !native && !world && mayGrow(spec, scene.manifest)) fit = growSceneLayout(sceneLayout, measure) ?? undefined;
+        else if (!box && !native && !world && mayGrow(spec, scene.manifest)) fit = growSceneLayout(sceneLayout, measure, headingFloorY() === null ? GROW_REGION_BARE : GROW_REGION) ?? undefined;
         if (fit && fit.s < FIT_SCALE_FLOOR) {
           const where = isFitName(rawBox) ? `"${rawBox}"` : JSON.stringify(fit.box);
           issues.push({

@@ -4,13 +4,15 @@ import { fitRegion } from "../src/layout/regions";
 describe("fitRegion", () => {
   test("halves share the band and do not overlap", () => {
     const l = fitRegion("left"), r = fitRegion("right");
-    expect(l).toEqual({ x: 60, y: 95, w: 420, h: 560 });
-    expect(r).toEqual({ x: 520, y: 95, w: 420, h: 560 });
+    // The page frame's fit band (layout/page.ts): y 160–660, clear of the
+    // caption band below and the heading strip above (was y 95, h 560).
+    expect(l).toEqual({ x: 60, y: 160, w: 420, h: 500 });
+    expect(r).toEqual({ x: 520, y: 160, w: 420, h: 500 });
     expect(l.x + l.w + 40).toBe(r.x);
   });
   test("top is the upper band (y-up), bottom the lower", () => {
-    expect(fitRegion("top")).toEqual({ x: 60, y: 395, w: 880, h: 260 });
-    expect(fitRegion("bottom")).toEqual({ x: 60, y: 95, w: 880, h: 260 });
-    expect(fitRegion("full")).toEqual({ x: 60, y: 95, w: 880, h: 560 });
+    expect(fitRegion("top")).toEqual({ x: 60, y: 430, w: 880, h: 230 });
+    expect(fitRegion("bottom")).toEqual({ x: 60, y: 160, w: 880, h: 230 });
+    expect(fitRegion("full")).toEqual({ x: 60, y: 160, w: 880, h: 500 });
   });
 });

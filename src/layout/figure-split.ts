@@ -16,7 +16,7 @@
 
 import { CANVAS } from "./canvas";
 import { CHAR_W, PAD } from "./code";
-import { CAPTION_TOP, GUTTER, MARGIN } from "./page";
+import { FIT_BAND, GUTTER, MARGIN } from "./page";
 /** The code panel's half — the geometry the hand-tuned examples already use.
  *  It is a CEILING, not a fixed share: a script narrower than this hands the
  *  slack to the figure (Hans, 2026-09-04) — but a long line still wraps inside
@@ -32,11 +32,12 @@ export function hugWidth(code: string, fontSize: number): number {
   const needed = longest * fontSize * CHAR_W + 2 * PAD;
   return Math.round(Math.min(CODE_HALF.width, Math.max(MIN_CODE_W, needed)));
 }
-/** Top and bottom of the figure's band when the split has to invent one. */
-// y 160–640: clear of the narration band below and the card heading above
-// (was 95–655: the chart's floor sat under the captions and its y-axis caption
-// against the heading — 2026-09-25 example revisions).
-const BAND = Object.freeze({ y: CAPTION_TOP, h: 480 });
+/** Top and bottom of the figure's band when the split has to invent one:
+ *  the page frame's fit band (y 160–660), clear of the narration band below
+ *  and the heading above. (Was 95–655, then 160–640: the chart's floor sat
+ *  under the captions and its y-axis caption against the heading —
+ *  2026-09-25 example revisions; the heading floor now keeps that clear.) */
+const BAND = FIT_BAND;
 /** Narrower than this and the leftover band is not worth calling a figure. */
 const MIN_FIGURE_W = 220;
 
