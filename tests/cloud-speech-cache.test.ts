@@ -114,3 +114,19 @@ describe("CloudSpeech shares the bake's clip store", () => {
     }
   });
 });
+
+describe("a line stopped while it is still being synthesized", () => {
+  test("ends at the stop, not when the clip arrives (Hans 2026-10-04: the verdict waited on it)", async () => {
+    // A clip store that never answers: the line is still on its way.
+    const never = { get: () => new Promise<string | null>(() => {}), put: async () => {} };
+    const speech = new CloudSpeech(() => "KEY", () => ({}), never);
+    const ac = new AbortController();
+    let ended = false;
+    const said = speech.speak("A question still being read.", 1, ac.signal).then(() => (ended = true));
+    await new Promise((r) => setTimeout(r, 5));
+    expect(ended).toBe(false);
+    ac.abort();
+    await said;
+    expect(ended).toBe(true);
+  });
+});
