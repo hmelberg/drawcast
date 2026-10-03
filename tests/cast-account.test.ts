@@ -470,7 +470,7 @@ describe("privateCourseText (final review I1a): a private course push writes pri
     const push = src.slice(src.indexOf("  async push(args) {"), src.indexOf("  async template("));
     const markAt = push.indexOf("privateCourseText(");
     const writeAt = push.indexOf('writeFileSync(resolve(wd, "course.md"), text)');
-    const planAt = push.indexOf("const plan = buildPublishPlan({");
+    const planAt = push.indexOf("const planWith = (planCourse, planText) => buildPublishPlan({");
     expect(markAt).toBeGreaterThan(0);
     expect(writeAt).toBeGreaterThan(markAt);
     expect(planAt).toBeGreaterThan(writeAt);

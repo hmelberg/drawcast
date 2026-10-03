@@ -6,7 +6,7 @@
 // cast.mjs so tests can reach it; nothing here imports the app.
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { pagesUrlFor } from "./cast-github.mjs";
+import { pagesUrlFor, stripDocExt } from "./cast-github.mjs";
 
 /** The drawcast server: DRAWCAST_API, else the default app (src/learn.ts DEFAULT_ENROLL_API). */
 export const apiUrl = () => (process.env.DRAWCAST_API || "https://drawcast.anvil.app").replace(/\/+$/, "");
@@ -80,7 +80,7 @@ export function registrationFor(origin, name, lib, courseText) {
     return reg;
   }
   if (origin.kind !== "cast") throw new Error(`a ${origin.kind} cannot have a name — only a cast or a course`);
-  const slug = origin.file.replace(/\.ya?ml$/i, "");
+  const slug = stripDocExt(origin.file);
   return { ...lib.castRegistration(slug, repo, origin.castsDir, pagesUrlFor(origin.owner, origin.repo, origin.castsDir)), name };
 }
 
@@ -105,7 +105,7 @@ export function registerFor(origin, lib, courseText) {
   return {
     kind: "cast",
     target: `${origin.owner}/${origin.repo}/${origin.castsDir}/${origin.file}`,
-    title: origin.file.replace(/\.ya?ml$/i, ""),
+    title: stripDocExt(origin.file),
     page: pagesUrlFor(origin.owner, origin.repo, origin.castsDir),
   };
 }
@@ -246,13 +246,13 @@ export function nameBlocker(origin, prState) {
 /**
  * The item key lockText/fetchItemKey bind an envelope to (crypto/lecture-
  * lock.ts's `item`) — the SAME prediction the app itself makes (a cast:
- * publish/cast.ts's privateCastTarget, the target without `.yaml`; a course:
+ * publish/cast.ts's privateCastTarget, the target without `.cast`/`.yaml`; a course:
  * ui/course.ts's own publish, the course's registry target itself, applied
  * to every lecture file it locks) — built from `reg`, `registerFor`'s own
  * output, so it can never drift from what gets registered.
  */
 export function privateItemFor(origin, reg) {
-  return origin.kind === "cast" ? reg.target.replace(/\.ya?ml$/i, "") : reg.target;
+  return origin.kind === "cast" ? stripDocExt(reg.target) : reg.target;
 }
 
 /**
@@ -370,7 +370,7 @@ export function unlistStep(outcome, priceArg, work) {
  */
 export function registryTargetFor(origin, lib, reg) {
   if (origin.kind !== "cast") return reg.target;
-  return lib.privateCastTarget({ owner: origin.owner, repo: origin.repo }, origin.castsDir, undefined, origin.file.replace(/\.ya?ml$/i, ""), reg.title).target;
+  return lib.privateCastTarget({ owner: origin.owner, repo: origin.repo }, origin.castsDir, undefined, stripDocExt(origin.file), reg.title).target;
 }
 
 /**

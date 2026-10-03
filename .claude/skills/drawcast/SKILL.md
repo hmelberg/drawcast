@@ -154,7 +154,7 @@ every working file below is `dev-casts/<slug>…`.
 - Every checkable claim checked (step 3); the studies behind it in `sources`.
 - A link to another drawcast is a `link` element (`href`, `form: card|text`,
   `open`, optional `title`/`image`) — only to targets the user or the course
-  gives (`./file.yaml`, `lecture:N`, a GitHub or Drive link); never invent one.
+  gives (`./file.cast` or `./file.yaml`, `lecture:N`, a GitHub or Drive link); never invent one.
 
 ## When it is done
 

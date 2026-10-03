@@ -9,8 +9,12 @@ public repo the user chooses; after that it is revised like anything published.
 
 0. **The workdir.** A course: its folder (`dev-casts/courses/<slug>/`). A single drawcast
    made as `dev-casts/<slug>.json`: `node scripts/cast.mjs pack dev-casts/<slug>.json
-   dev-casts/publish/<slug>` writes the one-YAML folder that is its workdir. Run `check` and
+   dev-casts/publish/<slug>` writes the one-cast-file folder that is its workdir. Run `check` and
    `frames` once more before publishing if it changed since you last looked.
+   A cast or lecture file is `.cast` (script) or `.yaml`; every command reads both. New files
+   are `.yaml` until `.cast` publishing is on (`DRAWCAST_PUBLISH_CAST=1`, only once the
+   drawcast server takes .cast); then they are `.cast`, and a push or `lecture-build` turns a
+   `.yaml` into `.cast` and removes the old file, here and on GitHub.
 1. **Which account and repo.** `gh api user --jq .login` names the account gh is signed in
    as; say it, and ask which repo (an existing public one, or a new one) and folder. If gh
    is not signed in, ask the user to run `! gh auth login`.
@@ -53,7 +57,7 @@ Make it private right after `publish-target` and BEFORE the first `push` (it nee
 `origin.json`; a course or a cast) — never publish it plain first: every version pushed stays
 readable in the repo's git history, and locking later does not reach back. A private
 course/cast still lives on the user's public repo, but every lecture file (or the cast's own
-file) is committed as an encrypted envelope, not plain YAML — only a learner (or the owner,
+file) is committed as an encrypted envelope, not plain text — only a learner (or the owner,
 pulling it back here) with the key can read it; a private course's course.md is pushed with
 `private: true` and its Join door.
 

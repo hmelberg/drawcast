@@ -44,15 +44,51 @@ export function pageDoor(html, doorlessNote) {
 
 const join = (...p) => p.filter(Boolean).join("/");
 
+// A drawcast file's extension, either generation (.cast script, or .yaml from
+// before) — the same rule as src/cast-file.ts DOC_EXT_RE (pinned by
+// tests/cast-github.test.ts), for the tooling that runs without the app's
+// modules.
+export const DOC_EXT_RE = /\.(cast|ya?ml)$/i;
+export const stripDocExt = (name) => name.replace(DOC_EXT_RE, "");
+
+/** The text format a drawcast file of this name is written in: a .cast is
+ *  script, anything else (a .yaml) YAML — a file never holds the other
+ *  generation's text under its name. */
+export const formatForName = (name) => (/\.cast$/i.test(name) ? "script" : "yaml");
+
+/** DRAWCAST_PUBLISH_CAST=1 (or true/yes/on) turns the tooling's .cast
+ *  publishing on — src/cast-file.ts setPublishesCast(true). Off otherwise. */
+export const publishCastFromEnv = (env) => /^(1|true|yes|on)$/i.test(String(env.DRAWCAST_PUBLISH_CAST ?? "").trim());
+
+/**
+ * The file lecture-build writes for lecture `n`: its recorded name under the
+ * current rule (`publishName`: a recorded .yaml becomes .cast once the tooling
+ * publishes .cast), else a new `NN-<slug><publishExt()>`. `old` is the
+ * recorded name it replaces, when that differs — the caller removes it.
+ */
+export function lectureFileName({ recorded, n, slug, publishName, publishExt }) {
+  const file = recorded ? publishName(recorded) : `${String(n).padStart(2, "0")}-${slug}${publishExt()}`;
+  return { file, old: recorded && recorded !== file ? recorded : null };
+}
+
+/** Which of a folder's entries holds the drawcast file `file` names: itself,
+ *  or (a workdir not converted yet) the same stem under the other extension. */
+export function existingDoc(entries, file) {
+  if (entries.includes(file)) return file;
+  const stem = stripDocExt(file);
+  return entries.find((e) => DOC_EXT_RE.test(e) && stripDocExt(e) === stem) ?? null;
+}
+
 /** The origin.json of a FIRST publish (cast.mjs publish-target): the shape
  *  pull writes, so push treats it like any revision. A slug already in the
- *  repo is never reused — slugFor picks a free one. */
-export function publishOrigin({ kind, owner, repo, branch, base, clone, viewerBase, dir, slug, takenSlugs, slugFor }) {
+ *  repo is never reused — slugFor picks a free one. A cast's file takes
+ *  `ext`, the app's publishExt() (".yaml" until .cast publishing is on). */
+export function publishOrigin({ kind, owner, repo, branch, base, clone, viewerBase, dir, slug, takenSlugs, slugFor, ext = ".yaml" }) {
   const free = takenSlugs.includes(slug) ? slugFor(slug, new Set(takenSlugs)) : slug;
   const common = { owner, repo, branch, base, clone, viewerBase, pulled: new Date().toISOString(), published: "new" };
   if (kind === "course") return { slug: free, origin: { kind, ...common, path: join(dir, free), coursesDir: dir, lecture: null } };
   const castsDir = join(dir, "casts");
-  const file = `${free}.yaml`;
+  const file = `${free}${ext}`;
   return { slug: free, origin: { kind, ...common, path: join(castsDir, file), castsDir, file } };
 }
 
@@ -68,7 +104,7 @@ export function pagesUrlFor(owner, repo, path) {
  *  the folder's entry names (git ls-tree); compared lower-case, extension off. */
 export function takenSlugs({ kind, listed, tree }) {
   const stem = (n) => n.toLowerCase().replace(/\.[a-z0-9]+$/, "");
-  const fromTree = kind === "course" ? tree.map(stem) : tree.filter((n) => /\.ya?ml$/i.test(n)).map(stem);
+  const fromTree = kind === "course" ? tree.map(stem) : tree.filter((n) => DOC_EXT_RE.test(n)).map(stem);
   return [...new Set([...listed, ...fromTree, ...(kind === "course" ? ["casts"] : [])])];
 }
 

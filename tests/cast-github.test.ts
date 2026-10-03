@@ -1,5 +1,21 @@
-import { describe, expect, it } from "vitest";
-import { fileChanges, pageDoor, pagesUrlFor, parseGithubTarget, publishOrigin, takenSlugs } from "../scripts/cast-github.mjs";
+import { readFileSync } from "node:fs";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  DOC_EXT_RE,
+  existingDoc,
+  fileChanges,
+  formatForName,
+  lectureFileName,
+  pageDoor,
+  pagesUrlFor,
+  parseGithubTarget,
+  publishCastFromEnv,
+  publishOrigin,
+  stripDocExt,
+  takenSlugs,
+} from "../scripts/cast-github.mjs";
+import { privateItemFor, registerFor } from "../scripts/cast-account.mjs";
+import { DOC_EXT_RE as APP_DOC_EXT_RE, publishExt, publishName, setPublishesCast, stripDocExt as appStripDocExt } from "../src/cast-file";
 import { slugFor } from "../src/publish/github";
 import { coursePage, doorlessNote, type DoorlessReason } from "../src/course/page";
 import { parseCourse } from "../src/course/document";
@@ -127,5 +143,61 @@ describe("fileChanges (cast.mjs push)", () => {
     );
     expect(changes.map(([, p]) => p)).toEqual(["casts/casts.json", "q/index.html", ".drawcast/claim", "q/01.png"]);
     expect(real).toEqual([["deleted", "q/01.png"]]);
+  });
+});
+
+// .cast files (2026-10-03): the skill's tooling reads both generations and
+// writes what the app's switch (src/cast-file.ts publishesCast) says.
+describe(".cast files in the skill's tooling (cast.mjs)", () => {
+  const common = { owner: "ann", repo: "casts", branch: "main", base: "abc123", clone: "dev-casts/repos/ann__casts", viewerBase: "https://drawcast.app/", slugFor };
+  afterEach(() => setPublishesCast(false));
+
+  it("its extension rule is the app's own", () => {
+    expect(DOC_EXT_RE.source).toBe(APP_DOC_EXT_RE.source);
+    expect(DOC_EXT_RE.flags).toBe(APP_DOC_EXT_RE.flags);
+    for (const n of ["casts/a.cast", "casts/a.yaml", "a.yml", "A.CAST"]) expect(stripDocExt(n)).toBe(appStripDocExt(n));
+  });
+
+  it("readers take a .cast: taken slugs, the workdir's file, the format a name says", () => {
+    expect(takenSlugs({ kind: "cast", listed: [], tree: ["b.cast", "c.yaml", "casts.json"] })).toEqual(expect.arrayContaining(["b", "c"]));
+    expect(existingDoc(["x.cast", "origin.json"], "x.cast")).toBe("x.cast");
+    expect(existingDoc(["x.yaml", "origin.json"], "x.cast")).toBe("x.yaml");
+    expect(existingDoc(["y.yaml"], "x.cast")).toBeNull();
+    expect(formatForName("casts/x.cast")).toBe("script");
+    expect(formatForName("casts/x.yaml")).toBe("yaml");
+  });
+
+  it("the switch off (the default): names are as before", () => {
+    expect(publishOrigin({ ...common, kind: "cast", dir: "", slug: "p", takenSlugs: [], ext: publishExt() }).origin).toMatchObject({ path: "casts/p.yaml", file: "p.yaml" });
+    expect(lectureFileName({ recorded: undefined, n: 3, slug: "costs", publishName, publishExt })).toEqual({ file: "03-costs.yaml", old: null });
+    expect(lectureFileName({ recorded: "01-intro.yaml", n: 1, slug: "x", publishName, publishExt })).toEqual({ file: "01-intro.yaml", old: null });
+  });
+
+  it("the switch on: new names are .cast, and a recorded .yaml becomes .cast with the old one named for removal", () => {
+    setPublishesCast(true);
+    expect(publishOrigin({ ...common, kind: "cast", dir: "", slug: "p", takenSlugs: [], ext: publishExt() }).origin).toMatchObject({ path: "casts/p.cast", file: "p.cast" });
+    expect(lectureFileName({ recorded: undefined, n: 3, slug: "costs", publishName, publishExt })).toEqual({ file: "03-costs.cast", old: null });
+    expect(lectureFileName({ recorded: "01-intro.yaml", n: 1, slug: "x", publishName, publishExt })).toEqual({ file: "01-intro.cast", old: "01-intro.yaml" });
+    expect(lectureFileName({ recorded: "01-intro.cast", n: 1, slug: "x", publishName, publishExt })).toEqual({ file: "01-intro.cast", old: null });
+  });
+
+  it("a .cast cast registers under its file, and locks under the same item its .yaml did", () => {
+    const origin = { kind: "cast", owner: "ann", repo: "casts", castsDir: "casts", file: "qaly.cast" };
+    const reg = registerFor(origin, {} as never);
+    expect(reg).toMatchObject({ target: "ann/casts/casts/qaly.cast", title: "qaly" });
+    expect(privateItemFor(origin, reg)).toBe("ann/casts/casts/qaly");
+  });
+
+  it("DRAWCAST_PUBLISH_CAST=1 turns it on, on the module every load() shares", () => {
+    expect(publishCastFromEnv({ DRAWCAST_PUBLISH_CAST: "1" })).toBe(true);
+    expect(publishCastFromEnv({ DRAWCAST_PUBLISH_CAST: "true" })).toBe(true);
+    expect(publishCastFromEnv({ DRAWCAST_PUBLISH_CAST: "0" })).toBe(false);
+    expect(publishCastFromEnv({})).toBe(false);
+    const src = readFileSync("scripts/cast.mjs", "utf8");
+    expect(src).toContain("const PUBLISH_CAST = publishCastFromEnv(process.env);");
+    const vite = src.slice(src.indexOf("async function withVite(fn) {"), src.indexOf("async function browser() {"));
+    expect(vite).toMatch(/if \(PUBLISH_CAST\) \(await server\.ssrLoadModule\("\/src\/cast-file\.ts"\)\)\.setPublishesCast\(true\);\s*return await fn\(\(p\) => server\.ssrLoadModule\(p\)\);/);
+    // Every writer goes through the switch: no hard-coded .yaml name or YAML text is left.
+    expect(src).not.toMatch(/formatPlaylist\(playlist, "yaml"\)|formatSpec\(spec, "yaml"\)|\$\{name\}\.yaml|\$\{plan\.slug\}\.yaml|\$\{free\}\.yaml/);
   });
 });
