@@ -86,9 +86,18 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
   const page = parent?.classList.contains("player-wrap") === true || parent?.classList.contains("viewer-wrap") === true;
   if (page) parent?.classList.add("bk-mode");
 
-  /** The width a page offers: its <main> (the app) or the window (the
-   *  viewer), less the side padding of what holds the book. */
+  /** The width a page offers: its <main> (the app), the player's column on
+   *  drawcast.app's watch page (home/watch.ts — "Up next" sits beside it, so
+   *  the window's width ran the book over that list), or the window (the
+   *  plain viewer), less the side padding of what holds the book. The watch
+   *  column is a grid track, sized by the grid rather than by the book, so
+   *  measuring it is not circular. */
   const pageWidth = (): number => {
+    const column = row.closest<HTMLElement>(".watch-main");
+    if (column) {
+      const cs = getComputedStyle(column);
+      return column.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    }
     const main = row.closest("main");
     const box = main ?? document.documentElement;
     const cs = getComputedStyle(box);
