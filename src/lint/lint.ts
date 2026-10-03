@@ -1906,6 +1906,8 @@ export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIs
     // The player stores the answer BEFORE the feedback lines, so an ask's own
     // right/wrong may use its own store ("You said {g}; it is {g.true}").
     if (c.ask?.store) stored.add(c.ask.store.toLowerCase());
+    // A confidence bet (W16) keeps {calib} from its first question on.
+    if (c.quiz?.confidence === true || c.ask?.confidence === true) stored.add("calib");
     flagVars(c.ask?.right, `commands[${i}].ask.right`);
     flagVars(c.ask?.wrong, `commands[${i}].ask.wrong`);
     if (c.quiz?.store) stored.add(c.quiz.store.toLowerCase());
