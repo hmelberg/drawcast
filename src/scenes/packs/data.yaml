@@ -355,13 +355,22 @@ layout: |
   const catAvail = slotW - 6;
   let catSize = fitSize(catTexts, catAvail, CAT_SIZE, Math.max(CAT_MIN, CAT_WRAP_MIN));
   let catLines = null;
-  if (catSize === null) {
-    const wrapped = catTexts.map((t) => (kit.textWidth(t, CAT_WRAP_MIN) > catAvail ? wrap2(t) : null));
-    const rows = catTexts.map((t, i) => wrapped[i] || [t]);
-    const s = rows.every((r) => r.length <= 2) && wrapped.some(Boolean) ? fitSize(rows.flat(), catAvail, CAT_SIZE, CAT_WRAP_MIN) : null;
-    if (s !== null) { catSize = s; catLines = wrapped; }
+  // Wrapped: the labels too wide at `at` go onto two lines; the size that
+  // fits every line, from hi down to lo.
+  const tryWrap = (at, hi, lo) => {
+    const wrapped = catTexts.map((t) => (kit.textWidth(t, at) > catAvail ? wrap2(t) : null));
+    if (!wrapped.some(Boolean)) return false;
+    const sz = fitSize(catTexts.flatMap((t, i) => wrapped[i] || [t]), catAvail, hi, lo);
+    if (sz === null) return false;
+    catSize = sz; catLines = wrapped;
+    return true;
+  };
+  if (catSize === null && !tryWrap(CAT_WRAP_MIN, CAT_SIZE, CAT_WRAP_MIN)) {
+    catSize = fitSize(catTexts, catAvail, CAT_WRAP_MIN - 1, CAT_MIN);
+    // Past the floor single lines overflow: two lines at the floor, if that
+    // fits, else the floor as before.
+    if (catSize === null && !tryWrap(CAT_MIN, CAT_WRAP_MIN - 1, CAT_MIN)) catSize = CAT_MIN;
   }
-  if (catSize === null) catSize = fitSize(catTexts, catAvail, CAT_SIZE, CAT_MIN) ?? CAT_MIN;
   // How far a two-line label reaches below the single-line row.
   const catDrop = catLines ? catSize * 1.25 * 0.5 : 0;
 
@@ -377,7 +386,8 @@ layout: |
     const cap = kit.axisLabel("axes__x_label", "x", iconRow > 0 ? { ...plot, y0: plot.y0 - iconRow } : plot, xLab, { fontSize: 22, captionDrop: true });
     // A stacked caption (not the inline one past the arrow) drops by what a
     // larger or two-line category row adds below the old 17-unit line.
-    if (cap.anchor !== "start") cap.pos = [cap.pos[0], cap.pos[1] - catDrop - Math.max(0, (catSize - 17) * 0.625)];
+    // (a row's bottom sits 0.625 × size below its line; two lines add 1.25 × size)
+    if (cap.anchor !== "start") cap.pos = [cap.pos[0], cap.pos[1] - Math.max(0, catSize * (catLines ? 1.875 : 0.625) - 17 * 0.625)];
     axesChildren.push(cap);
   }
   if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
@@ -388,10 +398,12 @@ layout: |
   if (params.y_ticks !== false && n > 0) {
     const yTicks = niceTicks(yMin, yMax, 6, TICK_SIZE * 1.25 + 8, (plot.y1 - plot.y0) / (yMax - yMin));
     const tdec = decimalsOf(yTicks);
-    const tfmt = (v) => (v === 0 ? "0" : kit.num(v, tdec, Math.abs(v) >= 10000));
-    const room = plot.x0 - 12 - 4;
-    const tsize = fitSize(yTicks.map(tfmt), room, TICK_SIZE, TICK_MIN) ?? TICK_MIN;
-    yTicks.forEach((v, k) => {
+    const group = yTicks.some((v) => Math.abs(v) >= 10000);
+    const tfmt = (v) => (v === 0 ? "0" : kit.num(v, tdec, group));
+    // No room left of the axis (a box at the canvas edge): no numbers rather
+    // than numbers running off the page.
+    const tsize = fitSize(yTicks.map(tfmt), plot.x0 - 12 - 4, TICK_SIZE, TICK_MIN);
+    if (tsize !== null) yTicks.forEach((v, k) => {
       axesChildren.push(kit.stroke("axes__yk" + k, [[plot.x0 - 7, Y(v)], [plot.x0, Y(v)]], { color: C.guide, strokeWidth: 2, ms: MS.guides }));
       axesChildren.push(kit.text("axes__yt" + k, [plot.x0 - 12, Y(v)], tfmt(v), { fontSize: tsize, anchor: "end", color: C.guide }));
     });
@@ -1536,10 +1548,12 @@ layout: |
   // ends (yMin, yMax) as before. The numbers shrink (to 15) only when the
   // margin left of the axis is narrow.
   const yTicks = params.y_ticks === false ? [] : niceTicks(yMin, yMax, 6, TICK_SIZE * 1.25 + 8, (plot.y1 - plot.y0) / (yMax - yMin));
-  if (yTicks.length >= 2) {
-    const tdec = decimalsOf(yTicks);
-    const tfmt = (v) => (v === 0 ? "0" : kit.num(v, tdec, Math.abs(v) >= 10000));
-    const tsize = fitSize(yTicks.map(tfmt), plot.x0 - 16, TICK_SIZE, TICK_MIN) ?? TICK_MIN;
+  const tdec = decimalsOf(yTicks);
+  const group = yTicks.some((v) => Math.abs(v) >= 10000);
+  const tfmt = (v) => (v === 0 ? "0" : kit.num(v, tdec, group));
+  // No room left of the axis for the round numbers: the two ends, as before.
+  const tsize = yTicks.length >= 2 ? fitSize(yTicks.map(tfmt), plot.x0 - 16, TICK_SIZE, TICK_MIN) : null;
+  if (tsize !== null) {
     yTicks.forEach((v, k) => {
       axesChildren.push(kit.stroke("axes__yk" + k, [[plot.x0 - 7, Y(v)], [plot.x0, Y(v)]], { color: C.guide, strokeWidth: 2, ms: MS.guides }));
       axesChildren.push(kit.text("axes__yt" + k, [plot.x0 - 12, Y(v)], tfmt(v), { fontSize: tsize, anchor: "end", color: C.guide }));
