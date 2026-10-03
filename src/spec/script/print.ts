@@ -16,7 +16,7 @@ const INDENT = "    ";
 /** The order settings print in — fixed, so a reprint never reshuffles a file's head. */
 export const SETTING_ORDER: [keyof Spec, string][] = [
   ["lang", "lang"], ["voice", "voice"], ["level", "level"], ["record", "record"], ["feedback", "feedback"], ["affirm", "affirm"],
-  ["heading", "heading"], ["canvas", "canvas"], ["domain", "domain"], ["vars", "vars"], ["text", "text"],
+  ["heading", "heading"], ["page", "page"], ["canvas", "canvas"], ["domain", "domain"], ["vars", "vars"], ["text", "text"],
   ["zoom_from", "zoom_from"], ["book", "book"], ["template", "use"], ["params", "with"], ["adjust", "adjust"], ["details", "details"], ["sources", "sources"], ["more", "more"], ["end_page", "end_page"],
 ];
 

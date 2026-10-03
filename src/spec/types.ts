@@ -1130,6 +1130,14 @@ export interface Spec {
    * instead; false draws none. spec/card.ts pageHeading has the rule.
    */
   heading?: string | false;
+  /**
+   * How the page places its figure (page frame spec 2026-10-04, W18).
+   * `valign`: "center" (default) — the figure, heading aside, is moved up or
+   * down as one piece so the space above and below it is even when it sits
+   * clearly off-centre; "top" — its top at the content area's top; "none" —
+   * where it was laid out. layout/settle.ts has the rule.
+   */
+  page?: { valign?: "center" | "top" | "none" };
   /** Machine-written: a course lecture's generated end page (playlist.ts
    *  makeEndPage) — links to the previous and next lecture. The poster skips it. */
   end_page?: boolean;

@@ -1351,6 +1351,12 @@ export const specSchema = {
   properties: {
     title: { type: "string", description: "Short title of the figure." },
     heading: { oneOf: [{ type: "string" }, { const: false }], description: "Top heading: omitted, the title (on a page with no card); a string, that text; false, none." },
+    page: {
+      type: "object",
+      properties: { valign: { type: "string", enum: ["center", "top", "none"] } },
+      additionalProperties: false,
+      description: 'How the figure sits on the page. valign: "center" (default: an off-centre figure is moved up or down so the space above and below it is even; the heading stays), "top", or "none" (as laid out).',
+    },
     end_page: { type: "boolean", description: "Machine-written; never write it." },
     zoom_from: {
       type: "string",
