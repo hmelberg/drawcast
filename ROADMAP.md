@@ -3321,3 +3321,38 @@ Caching, batch calls and an Advanced group — discussed 2026-09-30, NOT acted o
 
 Retire the way 2026-09-30 did: a pushed `archive/…` tag, the text in
 `docs/prompt-lab/archive/`, a note here.
+
+## Smaller, more readable `.cast` files — noted 2026-10-03, open
+
+A minified one-line `.cast` (`;` for a line break, `>` marks for indentation)
+was considered and set aside. Measured on three QALY lectures it saves about
+5 % of the raw text (11,865 → 11,339 characters for lecture 1) and about 1 %
+of a `#cast=` link, which is already compressed (5,752 → 5,708). Indentation is
+a few spaces a line, and compression squeezes it away. The one real use for a
+single-line form (a spreadsheet cell, a chat box, a command-line argument) is
+already met by the `#cast=` link, or by JSON for a machine. If ever built: no
+`;` (spoken lines are full of them) but a character prose never holds (`¶`),
+absolute depth marks rather than relative `+`/`-` (an error stays on its own
+line), and a pure re-encoding of the script so it round-trips with no grammar
+of its own.
+
+What does take room, biggest first:
+
+1. **Coordinates and font sizes on every element.** A skill-built lecture
+   places everything by hand (`text c1_0 "Cancer drug" x 200 y 505 font_size
+   40`), which is why it shrinks from 812 YAML lines to 297 script lines but
+   only to about 70 % of the characters. Named places (`left`, `above x`),
+   layout groups (`row`, `column`) and sensible defaults would drop most of it
+   and read better too. Teach the skill (and the model, if it ever writes
+   script) to write coordinate-free.
+2. **Repeated styling.** The same colour and size on twelve labels (the QALY
+   table's headers all carry `#8f887c … font_size 40`). A shared style, or a
+   group's default for its members, says it once.
+3. **Payloads.** Baked narration and hand-drawn strokes as base64 are what
+   make a file megabytes rather than kilobytes. They already print last (an
+   `audio:` document, the `assets` fence); keeping them out of the readable
+   part is the rule to hold to.
+
+First step when picked up: measure what coordinate-free writing would save on
+the QALY course (rewrite one lecture with places and layout groups, compare
+lines, characters and the `#cast=` link) before building anything.
