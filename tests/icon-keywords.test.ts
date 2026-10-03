@@ -105,7 +105,9 @@ describe("a keyword-only spec lays out with its icons from the offline store", (
     const ex = expandSpec(spec);
     expect(JSON.stringify(spec)).toBe(before); // never the document
     const card = ex.elements!.find((e) => e.id === "r_1")!;
-    expect(card).toMatchObject({ height: 96, credit: "kw-whale from twemoji · CC BY 4.0" });
+    // Alone on the page the cards grow by their size (page frame 2026-10-04): 96 at size 1.
+    const k = (ex.elements!.find((e) => e.id === "r") as { size?: number }).size ?? 1;
+    expect(card).toMatchObject({ height: 96 * k, credit: "kw-whale from twemoji · CC BY 4.0" });
     const r = layoutSpec(ex);
     expect(r.warnings).toEqual([]);
     expect(leafDrawables(drawablesForId(r.drawables, "r_2")).some((d) => d.kind === "image")).toBe(true);
@@ -113,7 +115,8 @@ describe("a keyword-only spec lays out with its icons from the offline store", (
   test("cards drawn: icon_look on the cards element reaches every card", () => {
     const spec = { elements: [{ id: "r", type: "cards", icon_look: "drawn", items: [{ text: "Whale", icon: "kw-whale" }, "B"], ends: ["a", "b"] }], commands: [{ draw: ["r"] }] } as unknown as Spec;
     const ex = expandSpec(spec);
-    expect(ex.elements!.find((e) => e.id === "r_1")).toMatchObject({ icon_look: "drawn", height: 96 });
+    const k = (ex.elements!.find((e) => e.id === "r") as { size?: number }).size ?? 1;
+    expect(ex.elements!.find((e) => e.id === "r_1")).toMatchObject({ icon_look: "drawn", height: 96 * k });
     expect(leafDrawables(drawablesForId(layoutSpec(ex).drawables, "r_1")).some((d) => d.kind === "image")).toBe(false);
   });
   test("withIconData hands back the same object when there is nothing to fill", () => {
@@ -207,7 +210,7 @@ describe("a picture prefers the colour set", () => {
   test("a node's bare keyword: twemoji by its own name, no search", async () => {
     const d = routes({ [iconSvgUrl("twemoji", "kw-frog")]: COLOUR });
     const spec = node({ icon: "kw-frog" });
-    expect(await resolveIcons(spec, d)).toEqual([{ id: "b", ok: true }]);
+    expect(await resolveIcons(spec, d)).toMatchObject([{ id: "b", ok: true }]);
     expect(spec.elements![0].credit).toBe("kw-frog from twemoji · CC BY 4.0");
     expect(d.asked).toEqual([iconSvgUrl("twemoji", "kw-frog")]);
   });
@@ -247,7 +250,7 @@ describe("a picture prefers the colour set", () => {
     await resolveIcons({ elements: [{ ...n }], commands: [] } as unknown as Spec, d1);
     expect(d1.asked.length).toBeGreaterThan(0);
     const d2 = routes({});
-    expect(await resolveIcons({ elements: [{ ...n }], commands: [] } as unknown as Spec, d2)).toEqual([{ id: "b", ok: true }]);
+    expect(await resolveIcons({ elements: [{ ...n }], commands: [] } as unknown as Spec, d2)).toMatchObject([{ id: "b", ok: true }]);
     expect(d2.asked).toEqual([]);
   });
 });

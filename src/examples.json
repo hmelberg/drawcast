@@ -79122,7 +79122,7 @@
           "type": "text",
           "text": "OECD avg ≈ $5k",
           "x": 558,
-          "y": 310,
+          "y": 296,
           "font_size": 36,
           "style": {
             "color": "#8f887c"
@@ -82374,6 +82374,517 @@
         },
         {
           "speak": "So to find a mammal, ask how it feeds its young, not where it swims or flies."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Which of these foods and animals were first domesticated in the Andes? A tap-all quiz with icons. #interactive",
+    "spec": {
+      "title": "Gifts of the Andes",
+      "elements": [
+        {
+          "id": "andes",
+          "type": "cards",
+          "select": "From the Andes",
+          "items": [
+            {
+              "text": "Potato",
+              "in": true,
+              "icon": "potato"
+            },
+            {
+              "text": "Llama",
+              "in": true,
+              "icon": "llama"
+            },
+            {
+              "text": "Guinea pig",
+              "in": true,
+              "icon": [
+                "guinea pig",
+                "hamster"
+              ]
+            },
+            {
+              "text": "Horse",
+              "in": false,
+              "icon": "horse"
+            },
+            {
+              "text": "Chicken",
+              "in": false,
+              "icon": "chicken"
+            },
+            {
+              "text": "Rice",
+              "in": false,
+              "icon": [
+                "sheaf of rice",
+                "cooked rice"
+              ]
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Gifts of the Andes"
+          }
+        },
+        {
+          "draw": [
+            "andes"
+          ],
+          "speak": "This is about which foods and animals were first tamed high in the Andes, the mountains of western South America."
+        },
+        {
+          "speak": "Farmers there domesticated plants and animals thousands of years before Europeans arrived, and some of them now feed the whole world."
+        },
+        {
+          "ask": {
+            "question": "Which of these were first domesticated in the Andes? Tap every one.",
+            "on": "andes",
+            "store": "a",
+            "right": "All {a.total} right.",
+            "wrong": "{a} of {a.total} on the first try."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "andes_1"
+            ]
+          },
+          "speak": "The potato was first grown near Lake Titicaca, in today's Peru and Bolivia, some eight thousand years ago."
+        },
+        {
+          "speak": "Andean farmers bred thousands of kinds of it, and from there it spread to Europe and the rest of the world."
+        },
+        {
+          "highlight": {
+            "target": [
+              "andes_2",
+              "andes_3"
+            ]
+          },
+          "speak": "In the same mountains, people tamed the llama to carry loads, and the guinea pig to eat."
+        },
+        {
+          "highlight": {
+            "target": [
+              "andes_4",
+              "andes_5",
+              "andes_6"
+            ]
+          },
+          "speak": "The others came from far away: the horse from the grasslands of Central Asia, the chicken from Southeast Asia, and rice from China."
+        },
+        {
+          "speak": "Horses in fact reached the Americas only with the Spanish, in the fifteen hundreds."
+        },
+        {
+          "speak": "So the next time you eat a potato, remember the farmers of the Andes who first grew it."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How many Earths fit inside the Sun?",
+    "packs": [
+      "compare"
+    ],
+    "spec": {
+      "title": "How many Earths fit inside the Sun?",
+      "template": "size_compare",
+      "params": {
+        "measure": "volume",
+        "layout": "inside",
+        "count_fit": true,
+        "ratio_text": "{ratio} Earths",
+        "fit_text": "{n} across",
+        "items": [
+          {
+            "name": "Sun",
+            "value": 1412000000000000000,
+            "value_text": "1,391,400 km across",
+            "color": "#f2c14e"
+          },
+          {
+            "name": "Earth",
+            "value": 1083000000000,
+            "value_text": "12,742 km across",
+            "color": "#2f6b8f"
+          }
+        ]
+      },
+      "sources": [
+        {
+          "id": "sunfact",
+          "title": "Sun Fact Sheet",
+          "authors": "NASA Space Science Data Coordinated Archive",
+          "year": 2024,
+          "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/sunfact.html",
+          "finding": "volumetric mean radius 695,700 km; volume 1,412,000 × 10¹² km³; volume 1,304,000 times Earth's"
+        },
+        {
+          "id": "earthfact",
+          "title": "Earth Fact Sheet",
+          "authors": "NASA Space Science Data Coordinated Archive",
+          "year": 2024,
+          "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html",
+          "finding": "volumetric mean radius 6,371 km; volume 108.321 × 10¹⁰ km³"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How many Earths fit inside the Sun?"
+          }
+        },
+        {
+          "draw": [
+            "sun_shape",
+            "sun_label"
+          ],
+          "speak": "How many Earths would fit inside the Sun? Here is the Sun, a ball of hot gas almost one and a half million kilometres across."
+        },
+        {
+          "draw": [
+            "earth_shape",
+            "earth_label"
+          ],
+          "speak": "And here is the Earth, drawn to the same scale: that small dot near its edge."
+        },
+        {
+          "quiz": {
+            "question": "How many Earths would fit inside the Sun?",
+            "choices": [
+              "About 100",
+              "About 10,000",
+              "About 1.3 million"
+            ],
+            "correct": 3,
+            "right": "About 1.3 million: the Sun has 1.3 million times the Earth's volume.",
+            "wrong": "Think in three directions, not one."
+          }
+        },
+        {
+          "draw": [
+            "fit_row",
+            "fit_label"
+          ],
+          "speak": "Start with one direction. Lay Earths side by side across the middle of the Sun, and a hundred and nine of them reach from edge to edge."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fit_row"
+            ]
+          },
+          "speak": "But the Sun is a ball, so it is a hundred and nine Earths deep and a hundred and nine Earths tall as well."
+        },
+        {
+          "draw": [
+            "ratio"
+          ],
+          "speak": "A hundred and nine, times a hundred and nine, times a hundred and nine: that comes to about one point three million Earths."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ratio"
+            ]
+          },
+          "speak": "That is why a small difference in width becomes a huge difference in volume: it is multiplied three times over."
+        },
+        {
+          "camera": {
+            "center": {
+              "ref": "earth_shape"
+            },
+            "zoom": 8
+          },
+          "speak": "Zoom in on that dot, and there is the whole Earth: a speck against the Sun's glowing surface."
+        },
+        {
+          "camera": {
+            "reset": true
+          },
+          "speak": "And the Sun is only an ordinary, middle-sized star. More than a million of our planets would fit inside it."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How big is Greenland really, next to Africa?",
+    "packs": [
+      "compare"
+    ],
+    "spec": {
+      "title": "How big is Greenland really, next to Africa?",
+      "template": "size_compare",
+      "params": {
+        "measure": "area",
+        "layout": "inside",
+        "items": [
+          {
+            "name": "Africa",
+            "value": 30.37,
+            "unit": "million km²",
+            "color": "#d0865f"
+          },
+          {
+            "name": "Greenland",
+            "value": 2.166,
+            "unit": "million km²",
+            "color": "#2f6b8f"
+          },
+          {
+            "name": "DR Congo",
+            "value": 2.345,
+            "unit": "million km²",
+            "color": "#87a878"
+          }
+        ]
+      },
+      "sources": [
+        {
+          "id": "factbook",
+          "title": "The World Factbook: Greenland; Democratic Republic of the Congo",
+          "authors": "Central Intelligence Agency",
+          "year": 2025,
+          "url": "https://www.cia.gov/the-world-factbook/",
+          "finding": "Greenland 2,166,086 km²; Democratic Republic of the Congo 2,344,858 km²"
+        },
+        {
+          "id": "africa",
+          "title": "Africa",
+          "authors": "Encyclopaedia Britannica",
+          "year": 2025,
+          "url": "https://www.britannica.com/place/Africa",
+          "finding": "Africa covers about 30,370,000 km², a fifth of the world's land"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How big is Greenland really?"
+          }
+        },
+        {
+          "draw": [
+            "africa_shape",
+            "africa_label"
+          ],
+          "speak": "How big is Greenland really, next to Africa? Here is Africa, drawn as one square of its true area: about thirty million square kilometres."
+        },
+        {
+          "draw": [
+            "greenland_shape"
+          ],
+          "speak": "On most wall maps Greenland looks almost as big. Drawn to the same scale, it is this small square in the corner."
+        },
+        {
+          "draw": [
+            "greenland_label",
+            "dr_congo_shape"
+          ],
+          "speak": "Next to it is one African country, the Democratic Republic of the Congo."
+        },
+        {
+          "ask": {
+            "question": "Which is bigger: Greenland or the DR Congo? Tap it.",
+            "choose": [
+              "greenland_shape",
+              "dr_congo_shape"
+            ],
+            "answer": "dr_congo_shape",
+            "right": "The Congo, just: 2.3 million square kilometres against Greenland's 2.2.",
+            "wrong": "Look closely at the two small squares, side by side."
+          }
+        },
+        {
+          "draw": [
+            "dr_congo_label"
+          ],
+          "speak": "So Greenland is smaller than a single African country."
+        },
+        {
+          "draw": [
+            "ratio"
+          ],
+          "speak": "And Africa is fourteen times the size of Greenland."
+        },
+        {
+          "highlight": {
+            "target": [
+              "greenland_shape"
+            ]
+          },
+          "speak": "The culprit is the map. Most wall maps use the Mercator projection, drawn in 1569 for sailors."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "greenland_shape"
+            },
+            "gesture": "circle"
+          },
+          "speak": "It keeps compass directions true, but to do that it stretches the land more and more toward the poles."
+        },
+        {
+          "highlight": {
+            "target": [
+              "africa_shape"
+            ]
+          },
+          "speak": "Africa sits on the equator, where the map hardly stretches at all, so it is drawn far too small next to Greenland."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ratio"
+            ]
+          },
+          "speak": "So next time you see a world map, look twice at the top and the bottom: the far north is never as big as it looks."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How many Earths fit between the Earth and the Moon?",
+    "packs": [
+      "compare"
+    ],
+    "spec": {
+      "title": "How many Earths fit between the Earth and the Moon?",
+      "template": "size_compare",
+      "params": {
+        "measure": "diameter",
+        "layout": "row",
+        "gap": {
+          "value": 384400,
+          "label": "384,400 km"
+        },
+        "count_fit": true,
+        "fit_text": "{n} more Earths",
+        "ratio_text": "",
+        "items": [
+          {
+            "name": "Earth",
+            "value": 12742,
+            "unit": "km",
+            "color": "#2f6b8f"
+          },
+          {
+            "name": "Moon",
+            "value": 3475,
+            "unit": "km",
+            "color": "#8f887c"
+          }
+        ]
+      },
+      "sources": [
+        {
+          "id": "moonfact",
+          "title": "Moon Fact Sheet",
+          "authors": "NASA Space Science Data Coordinated Archive",
+          "year": 2024,
+          "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html",
+          "finding": "mean Earth–Moon distance (semi-major axis) 384,400 km; apogee 405,500 km; volumetric mean radius of the Moon 1,737.4 km"
+        },
+        {
+          "id": "earthfact",
+          "title": "Earth Fact Sheet",
+          "authors": "NASA Space Science Data Coordinated Archive",
+          "year": 2024,
+          "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html",
+          "finding": "volumetric mean radius 6,371 km"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How far away is the Moon?"
+          }
+        },
+        {
+          "draw": [
+            "earth_shape",
+            "earth_label",
+            "moon_shape",
+            "moon_label"
+          ],
+          "speak": "How many Earths would fit between the Earth and the Moon? Here are the two, drawn to scale, sizes and distance both."
+        },
+        {
+          "draw": [
+            "gap_line"
+          ],
+          "speak": "On average, the Moon's centre is three hundred and eighty-four thousand kilometres from ours."
+        },
+        {
+          "quiz": {
+            "question": "How many Earths, lined up side by side, would fill that gap?",
+            "choices": [
+              "About 3",
+              "About 30",
+              "About 300"
+            ],
+            "correct": 2,
+            "right": "About thirty: twenty-nine more Earths fill the gap, and with our own that makes thirty.",
+            "wrong": "Look at how small the Earth is against the gap."
+          }
+        },
+        {
+          "draw": [
+            "fit_row",
+            "fit_label"
+          ],
+          "speak": "Here they are, one beside the next: twenty-nine more Earths fit in the empty space between us and the Moon."
+        },
+        {
+          "highlight": {
+            "target": [
+              "earth_shape"
+            ]
+          },
+          "speak": "Most pictures in books squeeze the two close together, because the true gap would not fit on the page."
+        },
+        {
+          "highlight": {
+            "target": [
+              "moon_shape"
+            ]
+          },
+          "speak": "The Moon itself is about a quarter as wide as the Earth: some three and a half thousand kilometres."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "gap_line"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Light crosses the gap in just over a second; the Apollo astronauts took about three days."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fit_row"
+            ]
+          },
+          "speak": "And the gap changes: at its farthest the Moon is about four hundred and six thousand kilometres away, room for two more Earths."
+        },
+        {
+          "highlight": {
+            "target": [
+              "moon_shape"
+            ]
+          },
+          "speak": "So the next time you see the Moon, picture thirty Earths in a row between you and it."
         }
       ]
     }

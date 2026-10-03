@@ -19,7 +19,7 @@
 
 import type { Pt } from "../layout/model";
 import { INK } from "../layout/model";
-import { scaleGeometry } from "../spec/scale";
+import { scaleBracketDrop, scaleGeometry, scaleLabelWidth } from "../spec/scale";
 import { GUESS_COLOR } from "./color";
 import { pointFor, type GuessHandle } from "./handles";
 import { ratioText, signed, signedScale, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "./marks";
@@ -355,11 +355,15 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
         lines.push(yours({ pts: pin, closed: true, width: 2.5 }));
         const xt = sg.xAt(h.truth[0]);
         // Your number over your pin, when the true pin's own number leaves room for it.
-        if (Math.abs(xt - x) > 70) texts.push({ at: [x, y + 52], text: sg.format(g[0]), anchor: "middle", color: YOURS, size: 22, opacity: fade });
+        // (At the true number's height and size — spec/scale.ts scaleValueElements.)
+        const size = sg.sizes?.answer ?? 28;
+        const mine = sg.format(g[0]);
+        const room = (scaleLabelWidth(mine, size) + scaleLabelWidth(sg.format(h.truth[0]), size)) / 2 + 10;
+        if (Math.abs(xt - x) > room) texts.push({ at: [x, y + 36 + Math.round(size * 0.6)], text: mine, anchor: "middle", color: YOURS, size, opacity: fade });
         if (p > 0 && Math.abs(xt - x) > 4) {
           // The connector: a bracket under the numbers, guess → truth, grown as the pin drops.
           const x1 = lerp(x, xt, ease(p));
-          const by = y - 58;
+          const by = y - scaleBracketDrop(sg);
           lines.push({ pts: [[x, by + 6], [x, by], [x1, by], [x1, by + 6]], color: TRUTH, width: 2.5 });
           if (p >= 1) texts.push({ at: [(x + x1) / 2, by - 16], text: sg.kind === "log" ? ratioText(h.truth[0], g[0]) : signedScale(sg.format, h.truth[0] - g[0]), anchor: "middle", color: TRUTH, gap: true, ...(fade < 1 ? { opacity: fade } : {}) });
         }

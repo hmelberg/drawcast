@@ -4,7 +4,8 @@
 // lines at most. And a sort judged card by card leaves no arrows or marks
 // for its wrong line to point at.
 
-import { authoredCards, cardsMode, type CardsElementLike } from "../spec/cards";
+import { authoredCards, cardsGeometry, cardsMode, resolveCardsSize, type CardsElementLike } from "../spec/cards";
+import { authoredScales, type ScaleElementLike } from "../spec/scale";
 import type { Spec } from "../spec/types";
 import type { LintIssue } from "./lint";
 
@@ -23,6 +24,7 @@ export function lintAsks(spec: Spec): LintIssue[] {
   const cards = new Map<string, CardsElementLike>();
   for (const e of spec.elements ?? []) if (e.type === "cards") cards.set(e.id, e as unknown as CardsElementLike);
   for (const c of authoredCards(spec)) cards.set(c.id, c);
+  issues.push(...lintCardTexts(spec, [...cards.values()]));
   (spec.commands ?? []).forEach((c, i) => {
     const ask = c.ask;
     if (!ask) return;
@@ -49,4 +51,25 @@ export function lintAsks(spec: Spec): LintIssue[] {
     }
   });
   return issues;
+}
+
+/**
+ * Card text wraps to two lines (page frame 2026-10-04 §4); a text that needs a
+ * third is drawn smaller to fit — say it shorter. Judged at the size the cards
+ * are drawn (an authored set as the expansion resolves it). A deck's small
+ * cards have their own rule (lint.ts deck-text: one line).
+ */
+function lintCardTexts(spec: Spec, sets: CardsElementLike[]): LintIssue[] {
+  const out: LintIssue[] = [];
+  const scales = authoredScales(spec);
+  const scaleOf = (sid: string): ScaleElementLike | undefined => scales.find((x) => x.id === sid) ?? ((spec.elements ?? []).find((e) => e.id === sid && e.type === "scale") as unknown as ScaleElementLike | undefined);
+  const raw = new Set((spec.elements ?? []).filter((e) => e.type === "cards").map((e) => e.id));
+  for (const el of sets) {
+    if (el.deck === true || cardsMode(el) === "fill") continue;
+    const g = cardsGeometry(raw.has(el.id) ? resolveCardsSize(el, spec, scaleOf) : el, scaleOf);
+    for (const i of g.tooLong ?? []) {
+      out.push({ rule: "cards-text", ids: [el.id], severity: "warn", message: `${el.id} card ${i + 1}: "${g.texts[i]}" needs three lines on its card (cards wrap to two) — it is drawn smaller; say it in a word or three` });
+    }
+  }
+  return out;
 }

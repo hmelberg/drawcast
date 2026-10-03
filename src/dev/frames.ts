@@ -95,6 +95,8 @@ interface PartReport {
   commandIssues: string[];
   /** Exceptions thrown while stepping the whole timeline boundary by boundary. */
   playbackErrors: string[];
+  /** Icons that resolved to nothing and so draw BLANK: one line each, with how to give fallbacks. */
+  iconIssues: string[];
   frames: FrameReport[];
   /** Timing, as the player would run it (lint/pacing-report.ts): the totals
    *  line, then one line per idle stretch, silent ink or overlong beat —
@@ -195,6 +197,11 @@ function restingFrames(plan: { steps: { kind: string; text?: string; narration?:
       if (line) out.push({ at: i + 1, changed: `beat “${line.length > 40 ? line.slice(0, 39) + "…" : line}”` });
     });
   }
+  // A quiet question (on-canvas quiz buttons, spec/answer-buttons.ts) speaks
+  // no line, so no beat shows its buttons: a frame of its own.
+  plan.steps.forEach((s, i) => {
+    if (s.kind === "ask" && (s as { quiet?: boolean }).quiet) out.push({ at: i + 1, changed: "question (on-canvas buttons)" });
+  });
   // Dedupe by boundary, keeping the first reason given for it.
   const seen = new Set<number>();
   return out.filter((f) => (seen.has(f.at) ? false : (seen.add(f.at), true))).sort((a, b) => a.at - b.at);
@@ -215,7 +222,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
   // resolved, as render() draws it — an unresolved icon draws nothing, and
   // its `at` would read as ignored.
   const withIcons = structuredClone(spec);
-  await resolveIcons(withIcons).catch(() => {});
+  const icons = await resolveIcons(withIcons).catch((err: unknown) => [{ id: "icons", ok: false, of: "", error: String(err) }]);
   const expanded = expandSpec(withIcons);
   const report: PartReport = {
     title: spec.title ?? "(untitled)",
@@ -224,6 +231,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
     planWarnings: [],
     commandIssues: lintCommands(expanded).map((i) => `[${i.severity}] ${i.rule}: ${i.message}`),
     playbackErrors: [],
+    iconIssues: icons.filter((r) => !r.ok).map((r) => `${r.id}: no icon for "${r.of ?? "?"}" — draws BLANK (${r.error ?? "not found"}); give fallbacks: "icon": ["${r.of ?? "…"}", "…"] (an icon element: "or": […]) or draw it by hand`),
     frames: [],
     pacing: { lines: [], totalMs: 0, spokenLines: 0, lengthBand: "", problems: [] },
   };
@@ -447,6 +455,7 @@ async function show(cast: Cast): Promise<CastReport> {
       ["plan", part.planWarnings],
       ["commands", part.commandIssues],
       ["playback", part.playbackErrors],
+      ["icons", part.iconIssues],
     ] as const) {
       if (lines.length > 0) section.append(h("pre", { class: "bad" }, `${label}: ${lines.join("\n")}`));
     }

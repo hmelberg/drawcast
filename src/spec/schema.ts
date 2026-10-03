@@ -31,6 +31,15 @@ export const SPEC_VERSION = "1";
 /** An icon's fallback keywords (`or`), tried in order when `of` finds nothing. */
 const ICON_OR = { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 };
 
+/** A node's or a card's `icon`: a keyword, keywords tried in order (["guinea pig", "hamster"]), or {of, set, or}. */
+const ICON_VALUE = {
+  oneOf: [
+    { type: "string" },
+    { type: "array", items: { type: "string" }, minItems: 1, maxItems: 5 },
+    { type: "object", properties: { of: { type: "string" }, set: { type: "string" }, or: ICON_OR }, required: ["of"], additionalProperties: false },
+  ],
+};
+
 const styleSchema = {
   type: "object",
   description: "Optional visual style overrides.",
@@ -257,7 +266,7 @@ const elementSchema = {
       description: "label: preferred side relative to the attached element. The collision solver may move it. measure: left/right of the segment's direction (default: away from the measured element).",
     },
     href: { type: "string", description: "link: the drawcast it opens — ./file.yaml, lecture:N, or a GitHub/Drive/player link the user gave; never invent one." },
-    title: { type: "string", description: "link: its words (default: the target's title)." },
+    title: { oneOf: [{ type: "string" }, { type: "boolean" }], description: "link: its words (default: the target's title). cards (compare): the words over the cards, or true/false (default: none under a heading)." },
     image: { type: "string", description: "link: a picture URL for the card." },
     form: { type: "string", enum: ["card", "text", "values", "symbols", "both"], description: "link: card (default, a thumbnail) or text. math: {var}s as values (default), symbols or both." },
     open: { type: "string", enum: ["auto", "tab", "here", "window"], description: "link: auto (default: a new tab mid-video, this page at the end), tab, here, window (over the video)." },
@@ -345,7 +354,7 @@ const elementSchema = {
     },
     tex: { type: "string", description: "math: LaTeX, drawn as handwriting; {v} writes var v's value, live (an argument needs {{v}}: \\frac{{B}}{…}, ^{{t}}). label: LaTeX instead of text." },
     fills: { type: "array", items: { oneOf: [{ type: "string" }, { type: "null" }] }, description: "internal: the answer shown in each \\blank box of a math element (written by the player)." },
-    size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26). link: card width (300)." },
+    size: { oneOf: [{ type: "number" }, { type: "string", enum: ["auto"] }], description: "cards: \"auto\" (default) or a factor 0.6–2. math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26). link: card width (300)." },
     symbol: { type: "string", enum: [...MUSIC_SYMBOLS], description: "music: the symbol, drawn from a real music font — notes join their stems exactly. x/y is its centre (a note's head)." },
     stem: { type: "string", enum: ["up", "down"], description: "music: a note's stem direction (default up)." },
     dots: { type: "integer", minimum: 0, maximum: 2, description: "music: dots after a note (each adds half)." },
@@ -367,10 +376,10 @@ const elementSchema = {
     height: { type: "number", description: "shape rect / node / pieces strips+grid (the rectangle to cut): height in logical units. inset: box height." },
     radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40). point: the dot's radius in canvas units (default 7; e.g. 20 for a ball) — bind it to animate. node rect: corner radius (default 0)." },
     shadow: { type: "boolean", description: "node rect: true = a soft shadow behind the box (for a filled box)." },
-    or: { ...ICON_OR, description: 'icon: keywords tried in order when of finds none ("insulin" → ["syringe"]).' },
+    or: { ...ICON_OR, description: 'icon: keywords tried in order when of finds none ("guinea pig" → ["hamster"]).' },
     icon: {
-      oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" }, or: ICON_OR }, required: ["of"], additionalProperties: false }],
-      description: 'node rect: an icon inside the box, above its text — a keyword ("shark") or {"of", "set", "or"} like an icon element; the box grows to fit.',
+      ...ICON_VALUE,
+      description: 'node rect: an icon inside the box, above its text — a keyword ("shark"), a list tried in order, or {"of", "set", "or"}; the box grows to fit.',
     },
     icon_strokes: { type: "string", description: "node rect: the resolved icon (machine-written; copy VERBATIM if present)." },
     icon_key: { type: "string", description: "node/icon: what the icon was resolved for (machine-written; copy VERBATIM if present)." },
@@ -596,7 +605,7 @@ const elementSchema = {
     value: {
       type: "number",
       description:
-        "scale: the TRUE value — a marker over the line with its number, the part <id>_answer. A scale is a number line to GUESS ON: draw <id> (the line, ticks and numbers), then ask with on: <id> — the viewer clicks where they think the value lies, and the marker slides from their guess to the truth. For a year (min 1700, max 1800), a share (unit \"%\", 0–100), or an amount spanning orders of magnitude (log: true). Placed with x, y (the left end, default 150, 300) and width (default 700); label is a caption under the line.",
+        "scale: the TRUE value — a marker over the line with its number, the part <id>_answer. A scale is a number line to GUESS ON: draw <id> (the line, ticks and numbers), then ask with on: <id> — the viewer clicks where they think the value lies, and the marker slides from their guess to the truth. For a year (min 1700, max 1800), a share (unit \"%\", 0–100), or an amount spanning orders of magnitude (log: true). Placed by the page, or with x, y (the left end) and width; label is a caption over the line.",
     },
     log: { type: "boolean", description: "scale: logarithmic spacing (min > 0) — one tick per power of ten." },
     items: {
@@ -616,8 +625,8 @@ const elementSchema = {
               match: { type: "string" },
               blank: { type: "integer", minimum: 1 },
               // Round 5 §3.3: an icon on the card (match_icon: on its partner), as a node's icon; the rest is machine-written.
-              icon: { oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" }, or: ICON_OR }, required: ["of"], additionalProperties: false }] },
-              match_icon: { oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" }, or: ICON_OR }, required: ["of"], additionalProperties: false }] },
+              icon: ICON_VALUE,
+              match_icon: ICON_VALUE,
               icon_strokes: { type: "string" },
               credit: { type: "string" },
               match_icon_strokes: { type: "string" },
@@ -652,6 +661,8 @@ const elementSchema = {
     then: { type: "string", description: "cards (decide): the label where every branch meets again — a live viewer who chose one branch skips the others and goes on here." },
     fill: { type: "string", description: "cards: set by the expansion of a formula ask with others (the tiles of math <id> are cards <id>_tiles) — never write it." },
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
+    tick_format: { type: "string", enum: ["words", "numerals", "power"], description: "scale: words (default: \"43 million\"), numerals, or power (10ⁿ)." },
+    era: { type: "string", enum: ["BC", "BCE", "none"], description: "scale: negative years as BC (default), BCE, or none (minus)." },
     states: {
       type: "object",
       additionalProperties: { type: "number" },
@@ -808,6 +819,19 @@ const commandSchema = {
             "Store the chosen option's TEXT under this simple name (letters, digits, underscores; starts with a letter): later speak lines may use {name}, {name.ok} (true/false) and {name.secs} (seconds the viewer took). Movies and skipped questions store the correct option.",
         },
         feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
+        on_canvas: { type: "boolean", description: "true: the choices are buttons drawn on the figure; the question is not said again (say it in the line before)." },
+        id: { type: "string", description: "on_canvas: buttons are <id>_btn_N." },
+        buttons: {
+          type: "array",
+          minItems: 2,
+          maxItems: 4,
+          items: { type: "object", properties: { text: { type: "string" }, icon: { anyOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }] } }, additionalProperties: false },
+          description: "on_canvas: each choice's text and icon.",
+        },
+        buttons_at: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false, description: "on_canvas: the buttons' centre." },
+        buttons_layout: { type: "string", enum: ["row", "column"] },
+        say_question: { type: "boolean", description: "on_canvas: true speaks and shows the question." },
+        keep_buttons: { type: "boolean", description: "on_canvas: true keeps the buttons after the answer." },
       },
       required: ["question", "choices", "correct"],
       additionalProperties: false,
@@ -977,6 +1001,7 @@ const commandSchema = {
         others: { type: "array", items: { type: "string" }, description: "Formula (on a math element with \\blank): wrong tiles; the right contents are always tiles." },
         form: { const: "exact", description: "Formula, typed: \"exact\" compares the written form, not the value." },
         feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
+        say_question: { type: "boolean", description: "false: the question is neither spoken nor shown." },
         release: { type: "boolean", description: "With `on`: letting go of the drag is the answer (default true). false shows an Answer button, so the viewer can adjust before answering — for a careful estimate. Several parts (on: all, a whole pie) always get the button." },
         relative: { type: "boolean", description: "With `on`: tolerance is a fraction of the true value (within 20 % = tolerance 0.2) — for money and other quantities spanning orders of magnitude." },
         code: {
@@ -1924,6 +1949,21 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && isReservedVar(a.store)) {
         errors.push(`commands[${i}]: quiz.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
       }
+      const canvasOnly = (["id", "buttons", "buttons_at", "buttons_layout", "say_question", "keep_buttons"] as const).filter((k) => a[k] !== undefined);
+      if (a.on_canvas !== true && canvasOnly.length > 0) {
+        errors.push(`commands[${i}]: quiz.${canvasOnly.join(", ")} only apply with on_canvas: true`);
+      }
+      if (a.on_canvas === true) {
+        if (Array.isArray(a.buttons) && Array.isArray(a.choices) && a.buttons.length !== a.choices.length) {
+          errors.push(`commands[${i}]: quiz.buttons must give one entry per choice (${a.choices.length})`);
+        }
+        if (a.id !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.id)) {
+          errors.push(`commands[${i}]: quiz.id must be a simple name (letters, digits, underscores; starts with a letter)`);
+        }
+        if (Array.isArray(a.choices) && a.choices.some((c) => typeof c === "string" && c.length > 24)) {
+          errors.push(`commands[${i}]: quiz on_canvas: choices are buttons on the figure — a word or three each (24 characters at most)`);
+        }
+      }
     }
     if (verb === "ask" && cmd.ask) {
       const a = cmd.ask;
@@ -2159,6 +2199,21 @@ function elementErrors(el: SpecElement): string[] {
     } else {
       errs.push(`element "${el.id}" (${el.type}): look is a cards element's field (paper, flat, outline) or an image's ("screen") — leave it out`);
     }
+  }
+  // size: a number on cards (0.6–2), math, icon, music and link; "auto" is the cards' default only.
+  const size = (el as { size?: unknown }).size;
+  if (size !== undefined) {
+    if (el.type === "cards") {
+      if (size !== "auto" && !(typeof size === "number" && size >= 0.6 && size <= 2)) errs.push(`element "${el.id}" (cards): size is "auto" or a factor from 0.6 to 2`);
+    } else if (typeof size !== "number") errs.push(`element "${el.id}" (${el.type}): size is a number ("auto" is a cards element's)`);
+  }
+  // title: a link's words, or a compare cards element's (true/false/words).
+  const title = (el as { title?: unknown }).title;
+  if (title !== undefined) {
+    if (el.type === "cards") {
+      if (typeof title !== "boolean" && typeof title !== "string") errs.push(`element "${el.id}" (cards): title is true, false or the words over the cards`);
+      else if (!(el.compare !== undefined || Array.isArray(el.pairs))) errs.push(`element "${el.id}" (cards): title is a compare set's (higher or lower) — leave it out`);
+    } else if (typeof title !== "string") errs.push(`element "${el.id}" (${el.type}): title is text`);
   }
   if (el.walk !== undefined && el.type !== "group") {
     errs.push(`element "${el.id}": walk is a group's field — put the peers in a group and give it walk: true`);

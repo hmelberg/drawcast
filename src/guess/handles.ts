@@ -17,6 +17,8 @@ import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
 import { leafDrawables } from "../layout/model";
 import type { MeasureFn } from "../layout/measure";
+import { heuristicMeasure } from "../layout/measure";
+import { contentBox } from "../layout/page";
 import { readParam } from "../render/params";
 import type { Spec, SpecElement } from "../spec/types";
 import { guessParts } from "./parts";
@@ -317,17 +319,66 @@ function lineHandle(
 }
 
 /** Where pie_chart (scenes/packs/data.yaml) draws its circle — the same
- *  arithmetic as the template, then the page's fit. Keep the two in step. */
+ *  arithmetic as the template, then the page's fit. Keep the two in step:
+ *  the content area by default, a radius as large as the box allows with
+ *  every slice's name inside it at every stage (capped at 270), names at
+ *  24 units unless 22 or 20 buys more than a tenth of the radius. */
 export function pieGeometry(params: Record<string, unknown>, fit?: LayoutResult["fit"]): { centre: Pt; radius: number } {
   const b = params["box"] as { x?: unknown; y?: unknown; w?: unknown; h?: unknown } | undefined;
   const boxed = b && [b.x, b.y, b.w, b.h].every(isNum) && (b.w as number) > 0 && (b.h as number) > 0;
+  const content = contentBox();
   const area = boxed
     ? { x0: b!.x as number, y0: b!.y as number, x1: (b!.x as number) + (b!.w as number), y1: (b!.y as number) + (b!.h as number) }
-    : { x0: 150, y0: 60, x1: 850, y1: 640 };
+    : { x0: content.x, y0: content.y, x1: content.x + content.w, y1: content.y + content.h };
   if (typeof params["title"] === "string" && params["title"].trim() !== "") area.y1 = Math.min(area.y1, 650);
-  const r = Math.max(40, Math.min((area.x1 - area.x0) / 2 - 150, (area.y1 - area.y0) / 2 - 40));
+  const r = pieRadius(params, area);
   const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
   return { centre: [((area.x0 + area.x1) / 2) * s + dx, ((area.y0 + area.y1) / 2) * s + dy], radius: r * s };
+}
+
+function pieRadius(params: Record<string, unknown>, area: { x0: number; y0: number; x1: number; y1: number }): number {
+  const raw = params["values"];
+  const isRow = (a: unknown): a is number[] => Array.isArray(a) && a.every((v) => typeof v === "number" && Number.isFinite(v));
+  const stages: number[][] | null = !Array.isArray(raw) || raw.length === 0 ? null : Array.isArray(raw[0]) ? (raw.every(isRow) ? (raw as number[][]).slice(0, 50) : null) : isRow(raw) ? [raw] : null;
+  const labels = (Array.isArray(params["labels"]) ? (params["labels"] as unknown[]) : []).map(String).slice(0, 8);
+  let n = labels.length;
+  if (stages) for (const st of stages) n = Math.max(n, st.length);
+  n = Math.min(8, n);
+  const K = stages ? stages.length : 1;
+  const at = (k: number, i: number): number => {
+    if (!stages) return 1;
+    const st = stages[Math.min(k, stages.length - 1)];
+    return typeof st[i] === "number" ? Math.max(0, st[i]) : 0;
+  };
+  const showPct = params["percent"] !== false;
+  const text = (i: number, sh: number) => {
+    const name = labels[i] !== undefined ? labels[i] : `Slice ${i + 1}`;
+    return showPct ? `${name}  ${Math.round(sh * 100)}%` : name;
+  };
+  const LABEL_OFF = 26, R_CAP = 270;
+  const radiusFor = (size: number): number => {
+    const hw = (area.x1 - area.x0) / 2 - 4, hh = (area.y1 - area.y0) / 2 - 4, lh = (size * 1.25) / 2;
+    let r = Math.min(R_CAP, hw, hh - 4);
+    for (let k = 0; k < K; k++) {
+      const row = Array.from({ length: n }, (_, i) => at(k, i));
+      const tot = row.reduce((a, v) => a + v, 0);
+      let a0 = 0;
+      for (let i = 0; i < n; i++) {
+        const sh = tot > 0 ? row[i] / tot : 1 / Math.max(1, n);
+        const mid = a0 + sh * Math.PI;
+        a0 += sh * 2 * Math.PI;
+        const w = heuristicMeasure(text(i, sh), size).w;
+        const sn = Math.abs(Math.sin(mid)), cs = Math.abs(Math.cos(mid));
+        if (cs > 1e-6) r = Math.min(r, (hh - lh) / cs - LABEL_OFF);
+        if (sn > 1e-6) r = Math.min(r, (hw - w) / sn - LABEL_OFF);
+      }
+    }
+    return Math.max(40, r);
+  };
+  const r24 = radiusFor(24), r20 = radiusFor(20);
+  if (r24 >= r20 * 0.9) return r24;
+  const r22 = radiusFor(22);
+  return r22 >= r20 * 0.9 ? r22 : r20;
 }
 
 /** The pie as laid out (logical): a slice's wedge starts at the centre and

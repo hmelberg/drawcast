@@ -46,6 +46,7 @@ import { COLOR_WORDS, FLAGS, PLACE_WORDS, SIDE_WORDS } from "../spec/script/suga
 import { MODIFIER_KEYS } from "../spec/script/parse";
 import { inlineStrokes } from "../spec/assets";
 import { decodePicture } from "../spec/trace";
+import { iconAsk } from "../spec/icon-data";
 import { BANDS, isEnglish, resolveFeedback } from "../feedback/bands";
 
 /**
@@ -187,7 +188,8 @@ export interface LintIssue {
     /** a figure question shorter than its task, an instruction alone, or longer than the headline (round 7 §8) — warns */
     | "ask-question"
     /** a sort judged on each drop whose right/wrong line points at arrows or marks (round 7 §3.6) — warns */
-    | "cards-check";
+    | "cards-check"
+    | "cards-text";
   ids: string[];
   message: string;
   severity: "warn" | "error";
@@ -1755,10 +1757,11 @@ function lintFeedback(spec: Spec): LintIssue[] {
       if (typeof item !== "object" || item === null) return;
       for (const key of ["icon", "match_icon"] as const) {
         const v = (item as Record<string, unknown>)[key];
-        const kw = typeof v === "string" ? v : typeof v === "object" && v !== null ? (v as { of?: unknown }).of : undefined;
-        if (typeof kw !== "string") continue;
-        if (kw.trim().split(/\s+/).length > 3) {
-          warn("card-icon", [el.id], `${el.id} item ${i + 1}: ${key} "${kw}" is a sentence — an icon keyword is a word or two ("cheetah", "pill")`);
+        const ask = iconAsk(v);
+        for (const kw of ask ? [ask.of, ...(ask.or ?? [])] : []) {
+          if (kw.trim().split(/\s+/).length > 3) {
+            warn("card-icon", [el.id], `${el.id} item ${i + 1}: ${key} "${kw}" is a sentence — an icon keyword is a word or two ("cheetah", "pill")`);
+          }
         }
       }
     });

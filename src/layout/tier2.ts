@@ -10,6 +10,7 @@ import * as M from "./measures";
 import { codeDrawables, type CodeWindow } from "./code";
 import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
 import { boxOfId, unionBoxes } from "./boxes";
+import { placeAnswerButtons } from "./answer-buttons";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
 import { autoRow, placeDelta } from "./places";
 import { arrangementScale, bestColumns, DEFAULT_GAP, naturalNodeSize, NODE_ICON_EXTRA, nodeFontSize, nodeIconRings, nodeRectHeight, slotCentres, type GroupLayout } from "./group-layout";
@@ -928,6 +929,7 @@ export function layoutElements(
   }
 
   placeFormulaTiles(elements, drawables, ctx, measure);
+  placeAnswerButtons(elements, drawables, ctx, measure);
 
   // A label attached to an OUTLINE (a path, shape, polygon or ellipse) with
   // a side the author chose goes on that side of the outline's box, not
@@ -1666,7 +1668,7 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     if (icon) {
       // Round 5 §3.3: the icon sits in the upper part of the box, the text
       // below it. nodeIconLayout is the one place both are placed.
-      const at = nodeIconLayout(c, h);
+      const at = nodeIconLayout(c, h, text ? text.split("\n").length * fontSize * 1.25 : 0);
       const picture = iconLookOf(el) === "picture" ? iconPictureOf(el.icon_strokes, style.color) : null;
       out.push(nodeIconGroup(el.id, icon, at.icon, at.size, style, drawOpts, picture));
       if (text) out.push(nodeText(el.id, at.text, text, fontSize, drawOpts));
@@ -1717,8 +1719,9 @@ const NODE_ICON_SHARE = 0.45;
 const NODE_ICON_TOP = 0.08;
 
 /** Where a rect node's icon (its centre and side) and its text go, in a box of height h centred on c (y-up). */
-function nodeIconLayout(c: Pt, h: number): { icon: Pt; size: number; text: Pt } {
-  const size = NODE_ICON_SHARE * h;
+function nodeIconLayout(c: Pt, h: number, textH = 0): { icon: Pt; size: number; text: Pt } {
+  // Two lines of text (a card's, spec/cards.ts) take their room first: the icon gives way.
+  const size = Math.max(0, Math.min(NODE_ICON_SHARE * h, h * (1 - 2 * NODE_ICON_TOP) - textH));
   const top = c[1] + h / 2;
   const iconBottom = top - NODE_ICON_TOP * h - size;
   return { icon: [c[0], top - NODE_ICON_TOP * h - size / 2], size, text: [c[0], (iconBottom + (c[1] - h / 2)) / 2] };
@@ -1796,11 +1799,14 @@ function iconPictureDrawable(
 }
 
 function nodeText(id: string, pos: Pt, text: string, fontSize: number, drawOpts: ReturnType<typeof resolveDrawOpts>): TextDrawable {
+  // A "\n" is a line break (a card's two lines, spec/cards.ts): rows centred on pos.
+  const lines = text.includes("\n") ? text.split("\n") : undefined;
   return {
     id: `${id}_text`,
     kind: "text",
     pos,
-    text,
+    text: lines ? lines.join(" ") : text,
+    ...(lines ? { lines } : {}),
     fontSize,
     anchor: "middle",
     z: Z_TEXT,

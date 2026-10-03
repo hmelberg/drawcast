@@ -81,7 +81,8 @@ export const DEFAULT_HEADING = "card_0";
  *   - a page that already carries a card heading (`card_<n>_title`): it
  *     has been expanded already;
  *   - a page whose authored ink already reaches into the heading strip
- *     (usesHeadingStrip): the heading yields rather than collide.
+ *     (usesHeadingStrip), or a template that draws its own `params.title`:
+ *     the heading yields rather than collide or repeat.
  * The video title page (playlist makeTitlePage) has no `title` field and so
  * none either. Exported so an expansion that runs BEFORE this one (cards,
  * scales sizing themselves to the content area) can ask whether the page
@@ -95,6 +96,10 @@ export function pageHeading(spec: Spec): string | null {
   // on an expanded spec: the layout, the gate, revise).
   if ((spec.elements ?? []).some((e) => /^card_\d+_title$/.test(e.id))) return null;
   if (usesHeadingStrip(spec)) return null;
+  // A template that writes its own title (params.title: a pie's, a chart's)
+  // has its heading already, at the top where the template puts it.
+  const own = (spec.params as { title?: unknown } | undefined)?.title;
+  if (spec.template && typeof own === "string" && own.trim() !== "") return null;
   const text = (typeof spec.heading === "string" ? spec.heading : spec.title ?? "").trim();
   return text === "" ? null : text;
 }

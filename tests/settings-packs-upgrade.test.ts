@@ -95,4 +95,12 @@ describe("loadSettings pack upgrade", () => {
 
     expect(loadSettings().enabledPacks).toContain("isometric");
   });
+
+  test("a browser that already ran the v8 upgrade gains the compare pack", () => {
+    mem.set("drawcast.packsDefault.v8", "1");
+    const before = DEFAULT_SETTINGS.enabledPacks.filter((id) => id !== "compare");
+    mem.set(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, enabledPacks: before }));
+
+    expect(loadSettings().enabledPacks).toContain("compare");
+  });
 });

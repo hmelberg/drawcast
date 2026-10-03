@@ -122,9 +122,9 @@ export interface CardItemSpec {
   match?: string;
   blank?: number;
   /** An icon on the card — a keyword or {of, set}, resolved like a node's. */
-  icon?: string | { of: string; set?: string; or?: string[] };
+  icon?: string | string[] | { of: string; set?: string; or?: string[] };
   /** match: an icon on the partner card. */
-  match_icon?: string | { of: string; set?: string; or?: string[] };
+  match_icon?: string | string[] | { of: string; set?: string; or?: string[] };
   /** Machine-written by resolveIcons (render/icon.ts): the rings and their credit. */
   icon_strokes?: string;
   credit?: string;
@@ -286,7 +286,7 @@ export interface SpecElement {
   tex?: string;
   /** internal: the answer shown in each `\blank` box (written by the player through element patches). */
   fills?: (string | null)[];
-  /** math: font size, the same units as text font_size (default 28); scaled by text.font_size like every text. icon: box size in logical units (default 100). */
+  /** math: font size, the same units as text font_size (default 28); scaled by text.font_size like every text. icon: box size in logical units (default 100). (cards: "auto" or a factor — typed on spec/cards.ts CardsElementLike.) */
   size?: number;
   /** math: colour per term, a TeX snippet → colour; every occurrence, deepest match wins. */
   colors?: Record<string, string>;
@@ -304,7 +304,7 @@ export interface SpecElement {
   radius?: number;
   /** node rect: a soft shadow — the same box offset (3, 4) down-right, ink at 12 %, behind it. */
   shadow?: boolean;
-  /** node rect: an icon drawn inside the box above the text — a keyword ("shark") or {of, set}, resolved like an icon element (render/icon.ts). */
+  /** node rect: an icon drawn inside the box above the text — a keyword ("shark") or {of, set}, resolved like an icon element (render/icon.ts). The schema also takes a list of keywords tried in order; read it through iconAsk (spec/icon-data.ts). */
   icon?: string | { of: string; set?: string; or?: string[] };
   /** node rect: the resolved icon's rings (spec/trace.ts encodeIcon; machine-written, never edited). */
   icon_strokes?: string;
@@ -381,7 +381,7 @@ export interface SpecElement {
   // link (another drawcast, clickable — spec 2026-09-28-drawcast-links)
   /** link: the drawcast it opens — a player, GitHub or Drive link, owner/repo/path.yaml, a path relative to this file (./next.yaml), or lecture:N in a course. */
   href?: string;
-  /** link: what it says (default: the target's own title, else its file name). */
+  /** link: what it says (default: the target's own title, else its file name). (cards: true, false or words — CardsElementLike.) */
   title?: string;
   /** link: the author's own picture for the card (a URL); wins over the target's thumbnail. */
   image?: string;
@@ -486,6 +486,10 @@ export interface SpecElement {
   log?: boolean;
   /** scale: how many tick intervals. */
   ticks?: number;
+  /** scale: how the numbers are written — "words" (default: "4.3 million"), "numerals", "power" (10ⁿ). */
+  tick_format?: "words" | "numerals" | "power";
+  /** scale: years before year 1 — "BC" (default on a timeline into negative years), "BCE", or "none". */
+  era?: "BC" | "BCE" | "none";
   /** population: how many people (default: the states' sum, else 100). */
   count?: number;
   /** population: people per state, in order; the FIRST is the remainder. Bind a count (`bind: {"states.sick": "i"}`) to animate it. */
@@ -1007,6 +1011,9 @@ export interface AskArgs {
   form?: "exact";
   /** Feedback flavour for this question (spec 2026-10-03 §4.1); wins over the cast's. */
   feedback?: FeedbackArg;
+  /** false: the question is neither spoken nor shown over the figure — the
+   *  line before said it (on-canvas quiz buttons, spec/answer-buttons.ts). */
+  say_question?: boolean;
   /** A guess, cards, tree or formula reveal (spec 2026-10-03-round6 §3):
    *  "beside" (default) — the viewer's answer stays where they put it and
    *  the truth is drawn beside or over it; "morph" — the answer glides into
@@ -1070,6 +1077,26 @@ export interface QuizArgs {
   store?: string;
   /** Feedback flavour for this question; wins over the cast's. */
   feedback?: FeedbackArg;
+  /** On-canvas answer buttons (spec/answer-buttons.ts): the choices are
+   *  drawn as buttons on the figure — below it and a bit to the side — and
+   *  the viewer taps one; no question card, and the question is not said
+   *  again (the line before said it). It expands into the buttons, an ask
+   *  with `choose` and (unless keep_buttons) a hide. */
+  on_canvas?: boolean;
+  /** on_canvas: the buttons' ids are `<id>_btn_N` (default quiz_<k>, k the
+   *  on-canvas quiz's ordinal). */
+  id?: string;
+  /** on_canvas: each choice's look, by index — its text (default the
+   *  choice) and an icon keyword above it. */
+  buttons?: { text?: string; icon?: string | { of: string; set?: string } }[];
+  /** on_canvas: the centre of the button row/column, overriding the placement. */
+  buttons_at?: { x: number; y: number };
+  /** on_canvas: a row (default when it fits) or a column of buttons. */
+  buttons_layout?: "row" | "column";
+  /** on_canvas: speak the question (and show it over the figure) after all. */
+  say_question?: boolean;
+  /** on_canvas: the buttons stay after the answer (default: they fade). */
+  keep_buttons?: boolean;
 }
 
 /**

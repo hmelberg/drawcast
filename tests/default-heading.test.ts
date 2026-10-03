@@ -118,3 +118,7 @@ describe("the gap under the heading", () => {
     }
   });
 });
+
+test("a template that writes its own title gets no second one", () => {
+  expect(pageHeading(base({ template: "pie_chart", params: { title: "All the water" } }))).toBeNull();
+});

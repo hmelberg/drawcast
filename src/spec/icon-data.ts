@@ -44,8 +44,14 @@ export function iconAlternatives(or: unknown): string[] | undefined {
   return alts.length > 0 ? alts : undefined;
 }
 
-/** An `icon` / `match_icon` value (a keyword or {of, set, or}) as an ask, or null when unusable. */
+/** An `icon` / `match_icon` value as an ask, or null when unusable: a keyword,
+ *  a list of keywords tried in order (["guinea pig", "hamster"] — the first is
+ *  the thing, the rest its fallbacks), or {of, set, or}. */
 export function iconAsk(icon: unknown): IconAsk | null {
+  if (Array.isArray(icon)) {
+    const [of, ...or] = icon.filter((k): k is string => typeof k === "string" && k.trim() !== "");
+    return of === undefined ? null : { of, ...(or.length > 0 ? { or } : {}) };
+  }
   const req = typeof icon === "string" ? { of: icon } : (icon as { of?: unknown; set?: unknown; or?: unknown } | null | undefined);
   if (!req || typeof req !== "object" || typeof req.of !== "string" || req.of.trim() === "") return null;
   const or = iconAlternatives(req.or);
@@ -259,6 +265,15 @@ export function iconSlots(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "tem
       const host = typeof hosts[i] === "object" && hosts[i] !== null ? (hosts[i] as Record<string, unknown>) : {};
       out.push({ ask, look, host, data: "strokes", credit: "credit" });
     });
+  }
+  // size_compare's icon items (scenes/packs/compare.yaml): each item hosts its own data.
+  if (spec.template === "size_compare" && p && Array.isArray(p.items)) {
+    for (const it of p.items) {
+      if (typeof it !== "object" || it === null) continue;
+      const item = it as Record<string, unknown>;
+      const ask = item.shape === "icon" ? iconAsk(item.icon) : null;
+      if (ask) out.push({ ask, look: "picture", host: item, data: "icon_strokes", credit: "credit" });
+    }
   }
   return out;
 }

@@ -5,7 +5,7 @@
 import { castLang } from "./quiz-words";
 import { guessParts, guessSetup, patchFor } from "../guess/handles";
 import { marketParts } from "../guess/parts";
-import { cardsGeometryIn, type CardsGeometry } from "../spec/cards";
+import { authoredCards, cardsGeometryIn, type CardsGeometry } from "../spec/cards";
 import { authoredScales } from "../spec/scale";
 import { formulaBlanks, hasBlanks } from "../formula/blanks";
 import type { BBox } from "../layout/geometry";
@@ -166,6 +166,8 @@ export function cardsPlanFor(g: CardsGeometry | null): { cards: string[]; offset
   if (!g) return null;
   const offsets: Record<string, Pt> = {};
   g.cards.forEach((c, i) => (offsets[c] = [g.truth[i][0] - g.home[i][0], g.truth[i][1] - g.home[i][1]]));
+  // What follows a card (a compare value, a label attached to it) stands where its card does (page frame 2026-10-04).
+  for (const [c, fs] of Object.entries(g.followers ?? {})) for (const f of fs) offsets[f] ??= offsets[c];
   const gotos = g.mode === "decide" ? (g.gotos ?? []).filter((l): l is string => l !== undefined) : [];
   return { cards: g.cards, offsets, shows: g.valueIds ?? [], ...(g.mode === "fill" ? { hides: [...g.cards] } : {}), ...(gotos.length > 0 ? { gotos } : {}) };
 }
@@ -261,6 +263,16 @@ export function planOptionsFor(
   for (const sc of authoredScales(spec)) {
     const marker = [`${sc.id}_answer_pin`, `${sc.id}_answer_num`].filter((x) => layout.order.includes(x));
     if (marker.length > 0) owned.set(`${sc.id}_line`, marker);
+  }
+  // A compare card's value (outside the group, so drawing the cards gives
+  // nothing away) belongs to its card: erased or hidden with it — the group
+  // too — and moved with it.
+  for (const cs of authoredCards(spec)) {
+    if (cs.compare === undefined && !Array.isArray(cs.pairs)) continue;
+    (cs.items ?? []).forEach((_, i) => {
+      const v = `${cs.id}_v_${i + 1}`;
+      if (layout.order.includes(v)) owned.set(`${cs.id}_${i + 1}`, [...(owned.get(`${cs.id}_${i + 1}`) ?? []), v]);
+    });
   }
   /** The words a drawn thing goes by (choose's {c}): its text, its label, or the text it draws. */
   const textIn = (id: string): string | null => {

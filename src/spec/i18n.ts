@@ -109,10 +109,10 @@ function rewriteAsk(a: AskArgs, rewrite: Rewrite): AskArgs {
   if (str(a.right)) out.right = rewrite(a.right, "answer feedback");
   if (str(a.wrong)) out.wrong = rewrite(a.wrong, "answer feedback");
   // With a widget the answer is not a word at all — an element id, a note like
-  // "C4", a move like "e2e4" — and translating it breaks the question. Without
-  // one it is typed prose, and it MUST move with its question or no viewer can
-  // ever be right.
-  if (!a.widget) {
+  // "C4", a move like "e2e4" — and translating it breaks the question; so is a
+  // choose's answer, one of its option ids. Otherwise it is typed prose, and
+  // it MUST move with its question or no viewer can ever be right.
+  if (!a.widget && !Array.isArray(a.choose)) {
     if (str(a.answer)) out.answer = rewrite(a.answer, "expected answer");
     if (str(a.default)) out.default = rewrite(a.default, "expected answer");
   }
