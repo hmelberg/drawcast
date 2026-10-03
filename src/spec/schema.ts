@@ -1350,6 +1350,7 @@ export const specSchema = {
     "Commands interleave narration (speak) with drawing (draw) for a gradually built, narrated figure.",
   properties: {
     title: { type: "string", description: "Short title of the figure." },
+    heading: { oneOf: [{ type: "string" }, { const: false }], description: "Top heading: omitted, the title (on a page with no card); a string, that text; false, none." },
     end_page: { type: "boolean", description: "Machine-written; never write it." },
     zoom_from: {
       type: "string",

@@ -1601,6 +1601,12 @@ const commands = {
       // The layout's own "no icon for X" repeats what iconReport said, less helpfully.
       const layoutWarnings = (laid.warnings ?? []).filter((m) => !(iconIssues.length > 0 && /^no icon for "/.test(m)));
       const issues = [...iconIssues, ...laid.issues, ...layoutWarnings.map((message) => ({ severity: "warning", message })), ...lintCommands(ex), ...lintCrowding(laid, ex)];
+      // The fill advisory (src/lint/fill.ts) on the finished page — advice,
+      // not a defect: frames judges every page of the cast at its fullest.
+      const { fillIssue, hasHeadingInk } = await load("/src/lint/fill.ts");
+      const { elementBBoxes } = await load("/src/layout/layout.ts");
+      const fill = fillIssue(elementBBoxes(laid, heuristicMeasure).entries(), { heading: hasHeadingInk(laid.order) });
+      if (fill) issues.push({ severity: "advisory", message: fill.message });
       const speaks = (spec.commands ?? []).filter((c) => typeof c.speak === "string").length;
       console.log(`valid · ${speaks} spoken lines · ${(spec.elements ?? []).length} elements${spec.template ? ` · template ${spec.template}` : ""}`);
       console.log(issues.length ? issues.map((i) => `  [${i.severity}] ${i.message}`).join("\n") : "  lint clean (heuristic metrics — frames gives the browser's)");
@@ -1660,6 +1666,8 @@ const commands = {
         const bad = [...part.validationErrors, ...(part.iconIssues ?? []), ...part.planWarnings, ...part.commandIssues, ...part.playbackErrors];
         if (bad.length) console.log("  " + bad.join("\n  "));
         for (const fr of part.frames ?? []) if (fr.issues?.length) console.log(`  @${fr.at} ${fr.changed}: ${fr.issues.join(" · ")}`);
+        // Advice, not defects (src/lint/fill.ts): a page at its fullest.
+        for (const fr of part.frames ?? []) if (fr.advisories?.length) console.log(`  @${fr.at} ${fr.changed}: ${fr.advisories.join(" · ")}`);
       }
       if (errors.length) console.log("page errors:\n  " + errors.join("\n  "));
       if (!(report.parts ?? []).some((p) => p.frames?.some((f) => f.issues?.length))) console.log("  no browser lint on any frame");

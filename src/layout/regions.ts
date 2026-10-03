@@ -1,13 +1,13 @@
 import type { BBox } from "./geometry";
+import { FIT_BAND, GUTTER, MARGIN, PAGE_W } from "./page";
 
-/** Named canvas regions a group can be fitted into (spec §3.2). Same
- *  margin (60) and band (y 95, h 560) the code/figure split uses
- *  (figure-split.ts MARGIN, BAND), with its 40-unit gutter between halves. */
+/** Named canvas regions a group can be fitted into (spec §3.2): the page
+ *  frame's fit band (page.ts) and its halves, a gutter between them. */
 export const FIT_NAMES = ["left", "right", "top", "bottom", "full"] as const;
 export type FitName = (typeof FIT_NAMES)[number];
 
-const MARGIN = 60, GUTTER = 40, BAND_Y = 95, BAND_H = 560, CANVAS_W = 1000;
-const FULL_W = CANVAS_W - 2 * MARGIN;          // 880
+const BAND_Y = FIT_BAND.y, BAND_H = FIT_BAND.h;
+const FULL_W = PAGE_W - 2 * MARGIN;            // 880
 const HALF_W = (FULL_W - GUTTER) / 2;          // 420
 const HALF_H = (BAND_H - GUTTER) / 2;          // 260
 
