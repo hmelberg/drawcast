@@ -27,6 +27,8 @@ const item = (over: Partial<CatalogueItem> = {}): CatalogueItem => ({
   lectures: 1,
   updated: "2026-10-01T10:00:00+00:00",
   private: false,
+  tags: [],
+  likes: 0,
   ...over,
 });
 
@@ -80,7 +82,9 @@ describe("cards", () => {
   });
   test("a curated course says its lectures; links stay on this page; pictures come from the card function", () => {
     expect(cardFromFeatured({ name: "c", title: "C", format: "course", tags: [], lectures: 1 }).meta).toBe("1 lecture");
-    expect(homeHref("qaly-intro")).toBe("#qaly-intro");
+    expect(homeHref("qaly-intro", "localhost")).toBe("#qaly-intro");
+    expect(homeHref("qaly-intro", "drawcast.app")).toBe("/w/qaly-intro");
+    expect(homeHref("spanish/3", "deploy-preview-9--drawcast.netlify.app")).toBe("/w/spanish/3");
     expect(thumbUrl("qaly-intro")).toBe("https://drawcast.app/card/qaly-intro.png");
   });
   test("merging keeps the first card for a name — curated wording wins", () => {

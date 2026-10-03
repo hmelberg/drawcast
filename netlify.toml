@@ -104,3 +104,11 @@
 [[edge_functions]]
   path = "/*"
   function = "name-host"
+
+# drawcast.app/w/<name> (2026-10-03): a drawcast's watch address — the app's
+# own page, with this drawcast's head put in by
+# netlify/edge-functions/watch-page.mts (its config path is /w/*).
+[[redirects]]
+  from = "/w/*"
+  to = "/index.html"
+  status = 200

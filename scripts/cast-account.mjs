@@ -93,7 +93,7 @@ export function registrationFor(origin, name, lib, courseText) {
  *  app's own publish sends. A cast has no title of its own the way a
  *  course's `# <title>` is one, so its registered title is its file's
  *  stem — the same thing its slug already is. */
-export function registerFor(origin, lib, courseText) {
+export function registerFor(origin, lib, courseText, castText) {
   const repo = { owner: origin.owner, repo: origin.repo };
   if (origin.kind === "course") {
     const course = lib.parseCourse(courseText);
@@ -102,11 +102,16 @@ export function registerFor(origin, lib, courseText) {
     return { kind: reg.kind, target: reg.target, title: reg.title, page: reg.page, lectures: reg.lectures };
   }
   if (origin.kind !== "cast") throw new Error(`a ${origin.kind} cannot be registered — only a cast or a course`);
+  // The cast's own title, format and topics when its text is at hand (2026-10-03:
+  // the title used to be the file name, so the catalogue showed slugs).
+  const facts = castText !== undefined && lib.castMeta ? lib.castMeta(castText) : null;
   return {
     kind: "cast",
     target: `${origin.owner}/${origin.repo}/${origin.castsDir}/${origin.file}`,
-    title: stripDocExt(origin.file),
+    title: facts?.title || stripDocExt(origin.file),
     page: pagesUrlFor(origin.owner, origin.repo, origin.castsDir),
+    ...(facts?.format ? { format: facts.format } : {}),
+    ...(facts?.tags?.length ? { tags: facts.tags } : {}),
   };
 }
 

@@ -31,6 +31,29 @@ export interface CastFacts {
   /** The narration's language (BCP 47 primary tag, "en", "nb"…) — the page's lang. */
   lang?: string;
   level?: "basic" | "advanced";
+  /** Drawcast / Quiz / Xplanation — the author's `format:`, else read from the structure (castFormat). */
+  format: CastFormat;
+  /** The header's `tags:`, when it has any. */
+  tags?: string[];
+}
+
+export type CastFormat = "drawcast" | "quiz" | "xplanation";
+
+const QUESTION_RE = /"(ask|quiz|choose|guess)"\s*:/;
+
+/**
+ * The format a drawcast's structure says it is (2026-10-03, the front page):
+ * a book layout is an Xplanation; a question in the first third of its
+ * commands with few spoken lines is a Quiz (question-LED — most drawcasts end
+ * in a quiz, which does not make them one); anything else is a Drawcast.
+ * Measured on the 389 bundled examples: 23 quizzes, 3 books.
+ */
+export function castFormat(specs: unknown[], spokenLines: number): CastFormat {
+  if (specs.some((s) => typeof s === "object" && s !== null && "book" in s && (s as { book?: unknown }).book)) return "xplanation";
+  const commands = specs.flatMap((s) => (typeof s === "object" && s !== null && Array.isArray((s as { commands?: unknown }).commands) ? ((s as { commands: unknown[] }).commands) : []));
+  const first = commands.findIndex((c) => QUESTION_RE.test(JSON.stringify(c)));
+  const questionLed = first >= 0 && first <= Math.max(2, commands.length / 3);
+  return questionLed && spokenLines <= 12 ? "quiz" : "drawcast";
 }
 
 export function castFacts(castText: string): CastFacts {
@@ -41,10 +64,13 @@ export function castFacts(castText: string): CastFacts {
       .filter(Boolean);
     const intro = (playlist.meta.subtitle ?? playlist.meta.prompt)?.trim() || undefined;
     const lang = sourceLanguage(playlist) || undefined;
-    const level = itemsOf(playlist).find((i) => i.spec.level)?.spec.level;
-    return { transcript, ...(intro ? { intro } : {}), ...(lang ? { lang } : {}), ...(level ? { level } : {}) };
+    const specs = itemsOf(playlist).map((i) => i.spec);
+    const level = specs.find((sp) => sp.level)?.level;
+    const format = playlist.meta.format ?? castFormat(specs, transcript.length);
+    const tags = playlist.meta.tags;
+    return { transcript, format, ...(intro ? { intro } : {}), ...(lang ? { lang } : {}), ...(level ? { level } : {}), ...(tags ? { tags } : {}) };
   } catch {
-    return { transcript: [] };
+    return { transcript: [], format: "drawcast" };
   }
 }
 

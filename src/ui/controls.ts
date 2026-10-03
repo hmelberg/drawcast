@@ -47,6 +47,7 @@ import { QUESTION_MODES, applyQuestionMode, type QuestionMode } from "./watch";
 import { inControlRegion, tryContinue } from "./control-press";
 import { scenes } from "../scenes/registry";
 import { HANDS_ON_CLASS, figureIsHandsOn } from "./bigplay";
+import { playerMenuSlot } from "./menu-slot";
 
 export interface PlaybackPrefs {
   mode: "narrated" | "silent" | "instant";
@@ -1091,7 +1092,7 @@ export function attachPlayerControls(
    *  first rotation) silently drop the CC panel from the DOM. */
   const layout = (narrow: boolean): void => {
     const decision = foldedControls(narrow, !!muteBtn, !!ccBtn, !!creditsPanel);
-    foldPanel.replaceChildren(...decision.folded.filter((s) => s !== "credits").map((s) => bySlot[s] as HTMLElement), questionsRow, ...(creditsPanel ? [creditsPanel] : []));
+    foldPanel.replaceChildren(...decision.folded.filter((s) => s !== "credits").map((s) => bySlot[s] as HTMLElement), questionsRow, playerMenuSlot(), ...(creditsPanel ? [creditsPanel] : []));
     const inline = (slot: SecondarySlot): HTMLElement[] => (decision.inline.includes(slot) && bySlot[slot] ? [bySlot[slot] as HTMLElement] : []);
     bar.replaceChildren(
       playBtn,

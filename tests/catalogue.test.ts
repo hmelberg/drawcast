@@ -27,6 +27,8 @@ const COURSE: CatalogueItem = {
   lectures: 6,
   updated: "2026-09-20",
   private: false,
+  tags: [],
+  likes: 0,
 };
 
 describe("catalogueQueryString — pure query building", () => {
@@ -108,7 +110,25 @@ describe("fetchCatalogue", () => {
   test("defaults: lectures 1 when absent/zero, private false, page 0, more false", async () => {
     const f = fetchReturning(200, { items: [{ kind: "cast", title: "T", name: "t", owner: "o", updated: "2026-09-01" }] });
     const out = await fetchCatalogue("https://a", {}, f);
-    expect(out).toEqual({ items: [{ kind: "cast", title: "T", name: "t", owner: "o", updated: "2026-09-01", lectures: 1, private: false }], page: 0, more: false });
+    expect(out).toEqual({ items: [{ kind: "cast", title: "T", name: "t", owner: "o", updated: "2026-09-01", lectures: 1, private: false, tags: [], likes: 0 }], page: 0, more: false });
+  });
+
+  test("reads the registry's format, tags and likes (2026-10-03); a bad format is dropped, bad tags filtered", async () => {
+    const f = fetchReturning(200, { items: [
+      { kind: "cast", title: "T", name: "t", owner: "o", format: "quiz", tags: ["health", 3, "stats"], likes: 4.7 },
+      { kind: "cast", title: "U", name: "u", owner: "o", format: "video", tags: "x", likes: -2 },
+    ] });
+    const out = await fetchCatalogue("https://a", {}, f);
+    if (out === "error") throw new Error("error");
+    expect(out.items[0]).toMatchObject({ format: "quiz", tags: ["health", "stats"], likes: 4 });
+    expect(out.items[1].format).toBeUndefined();
+    expect(out.items[1]).toMatchObject({ tags: [], likes: 0 });
+  });
+
+  test("format, tag and names go into the query; tag normalised, names capped at 50", () => {
+    expect(catalogueQueryString({ format: "quiz", tag: " Health ", names: ["a", "b"] })).toBe("?format=quiz&tag=health&names=a%2Cb");
+    const many = Array.from({ length: 60 }, (_, i) => `n${i}`);
+    expect(new URLSearchParams(catalogueQueryString({ names: many }).slice(1)).get("names")!.split(",")).toHaveLength(50);
   });
 
   test("a row with no `updated` (null or absent) is kept and shows no date (final review M7)", async () => {

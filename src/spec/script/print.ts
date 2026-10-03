@@ -539,7 +539,7 @@ export function printScriptPage(spec: Spec): string {
 }
 
 /** Playlist-level settings, in the order they print. */
-const META_ORDER = ["subtitle", "prompt", "comments", "views", "next", "enroll", "poster", "advance", "gap", "transitions"];
+const META_ORDER = ["subtitle", "tags", "format", "prompt", "comments", "views", "next", "enroll", "poster", "advance", "gap", "transitions"];
 
 export function printScriptPages(meta: Record<string, unknown>, pages: { spec: Spec }[]): string {
   // One page takes the `#` for itself — unless the playlist has a name of its

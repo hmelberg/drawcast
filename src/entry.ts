@@ -11,11 +11,17 @@
 
 import { redeemFromAddress } from "./account";
 import { DEFAULT_ENROLL_API } from "./learn";
-import { isNameHash, lookupNamed } from "./names";
+import { isNameHash, lookupNamed, watchPathHash } from "./names";
 import { startGhFetch } from "./links/early-fetch";
 import { bootRoute, onViewOrigin } from "./security/view-origin";
 
 async function boot(): Promise<void> {
+  // drawcast.app/w/<name>: a drawcast's watch address (the edge gave the
+  // page its head). The app reads drawcasts from the hash — sharing, courses
+  // and sign-in all do — so the address becomes drawcast.app/#name before
+  // anything reads it: the same page, with every hash-based feature intact.
+  const watched = watchPathHash(location.pathname, location.hash);
+  if (watched) history.replaceState(null, "", `/${location.search}${watched}`);
   // First of all, before any storage is read: which origin this page belongs
   // on (security/view-origin.ts). Only does anything when a view origin is
   // configured; then other people's public casts play there, and everything

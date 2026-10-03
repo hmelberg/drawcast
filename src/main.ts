@@ -5283,6 +5283,7 @@ async function publishDrawcast({
     }
     setStatus("Publishing to GitHub…");
     const text = await publishTextFor(ac.signal, bake, embedImages, allowComments, countViews !== false);
+    const publishedFacts = castFacts(text);
     // A private cast commits no poster: it would show a frame of the cast.
     let poster: Uint8Array | null = null;
     if (!lock) {
@@ -5328,7 +5329,16 @@ async function publishDrawcast({
     if (claim) await verifyClaim(DEFAULT_ENROLL_API, accountToken, repoStr, bounded);
     const reg = await registerItem(
       DEFAULT_ENROLL_API,
-      { key: accountToken || undefined, kind: "cast", target: `${repoStr}/${joinPath(castsDir, `${out.slug}${publishExt()}`)}`, title: doc.title, page: out.castUrl },
+      {
+        key: accountToken || undefined,
+        kind: "cast",
+        target: `${repoStr}/${joinPath(castsDir, `${out.slug}${publishExt()}`)}`,
+        title: doc.title,
+        page: out.castUrl,
+        // The front page's format and topics, read from what was published.
+        format: publishedFacts.format,
+        ...(publishedFacts.tags ? { tags: publishedFacts.tags } : {}),
+      },
       bounded,
     );
     // Only a name for the author's own item (or an unowned one): a name

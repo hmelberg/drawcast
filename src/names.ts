@@ -427,3 +427,19 @@ export function claimNote(outcome: ClaimOutcome): string {
     }
   }
 }
+
+/**
+ * drawcast.app/w/<name>[/<lecture>] (2026-10-03, delivery 3) as the hash the
+ * router already understands: `#<name>` plus whatever hash the address
+ * carried (`&mode=silent`, a sign-in's `t=`). null for any other path. The
+ * edge (netlify/edge-functions/watch-page.mts) has already given the page its
+ * head; the app then plays the name exactly as it plays #name.
+ */
+export function watchPathHash(pathname: string, hash: string): string | null {
+  const m = /^\/w\/([a-z0-9-]+)(?:\/(\d{1,3}))?\/?$/i.exec(pathname);
+  if (!m) return null;
+  const name = `${m[1].toLowerCase()}${m[2] ? `/${Number(m[2])}` : ""}`;
+  const tail = hash.replace(/^#/, "");
+  const out = `#${name}${tail ? `&${tail}` : ""}`;
+  return isNameHash(out) ? out : null;
+}
