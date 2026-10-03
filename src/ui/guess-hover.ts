@@ -24,6 +24,8 @@ export interface GuessHover {
   ghost(g: GuessHandle, p: [number, number]): void;
   /** The faint grip on a bar's top, at its current value. */
   grip(g: GuessHandle, values: number[]): void;
+  /** A soft ring round person `k` of a crowd: "up to here". */
+  person(g: GuessHandle, k: number): void;
   hide(): void;
 }
 
@@ -33,6 +35,7 @@ export function mountGuessHover(stage: HTMLElement, host: HTMLElement): GuessHov
   let pin: SVGPathElement | null = null;
   let num: SVGTextElement | null = null;
   let grip: HTMLDivElement | null = null;
+  let ring: HTMLDivElement | null = null;
   const ghostEl = (): { svg: SVGSVGElement; pin: SVGPathElement; num: SVGTextElement } => {
     if (!svg || !pin || !num) {
       svg = document.createElementNS(SVG_NS, "svg");
@@ -55,6 +58,18 @@ export function mountGuessHover(stage: HTMLElement, host: HTMLElement): GuessHov
       host.append(grip);
     }
     return grip;
+  };
+  const ringEl = (): HTMLDivElement => {
+    if (!ring) {
+      ring = document.createElement("div");
+      ring.className = "cs-guess-person";
+      ring.setAttribute("aria-hidden", "true");
+      host.append(ring);
+    }
+    return ring;
+  };
+  const hideRing = (): void => {
+    if (ring) ring.style.display = "none";
   };
   const hideGhost = (): void => {
     if (svg) svg.style.display = "none";
@@ -82,6 +97,7 @@ export function mountGuessHover(stage: HTMLElement, host: HTMLElement): GuessHov
   return {
     ghost(g, p) {
       hideGrip();
+      hideRing();
       if (!g.scale) return hideGhost();
       const { svg, pin, num } = ghostEl();
       if (!fit(svg)) return hideGhost();
@@ -104,6 +120,7 @@ export function mountGuessHover(stage: HTMLElement, host: HTMLElement): GuessHov
     },
     grip(g, values) {
       hideGhost();
+      hideRing();
       const top = pointFor(g, values);
       if (!top || g.cx === undefined || g.halfW === undefined) return hideGrip();
       const l = clientPointFor(stage, [g.cx - g.halfW, top[1]]);
@@ -115,9 +132,27 @@ export function mountGuessHover(stage: HTMLElement, host: HTMLElement): GuessHov
       grip.style.width = `${Math.max(12, r[0] - l[0])}px`;
       grip.style.display = "";
     },
+    person(g, k) {
+      hideGhost();
+      hideGrip();
+      const pp = g.people;
+      const c = pp?.centres[k];
+      if (!pp || !c) return hideRing();
+      // The ring round head and body: the person's centre, a little above.
+      const mid = clientPointFor(stage, [c[0], c[1] + pp.h * 0.08]);
+      const top = clientPointFor(stage, [c[0], c[1] + pp.h * 0.62]);
+      if (!mid || !top) return hideRing();
+      const r = Math.max(8, mid[1] - top[1]);
+      const el = ringEl();
+      el.style.left = `${mid[0] - r}px`;
+      el.style.top = `${mid[1] - r}px`;
+      el.style.width = el.style.height = `${2 * r}px`;
+      el.style.display = "";
+    },
     hide() {
       hideGhost();
       hideGrip();
+      hideRing();
     },
   };
 }

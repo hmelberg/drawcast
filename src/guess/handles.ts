@@ -15,7 +15,8 @@ import type { LayoutResult } from "../layout/layout";
 import { domainMapping, elementBBoxes, inverseDomainMapping } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
-import { leafDrawables } from "../layout/model";
+import { leafDrawables, type Drawable } from "../layout/model";
+import { assignStates, orderOf, populationCounts, slotSequence } from "../layout/population";
 import type { MeasureFn } from "../layout/measure";
 import { heuristicMeasure } from "../layout/measure";
 import { contentBox } from "../layout/page";
@@ -80,6 +81,12 @@ export interface GuessHandle {
   /** curve on an unstaged series: the series' values path ("values",
    *  "series.1.values") — the draw-in paints its prefix through it. */
   rowPath?: string;
+  /** count: the people as drawn (logical centres, slot order) and their
+   *  height; `seq` is the order the guessed state takes them in when that
+   *  order follows the place (rows: reading order; cluster: outward from
+   *  its seed) — then a press marks up to the person under it. Null: an
+   *  order that scatters (spread, random) — a sweep across counts instead. */
+  people?: { centres: Pt[]; h: number; seq: number[] | null; box: BBox };
   /** count: the crowd's box (logical); angle: the pie's centre and radius. */
   box?: BBox;
   centre?: Pt;
@@ -219,7 +226,7 @@ export function guessSetup(
       else handles.push(h);
       continue;
     }
-    const pop = populationHandle(spec, part, boxes);
+    const pop = populationHandle(spec, part, boxes, layout.drawables);
     if (pop) {
       if (typeof pop === "string") warnings.push(pop);
       else handles.push(pop);
@@ -290,8 +297,21 @@ function lineHandle(
   const xsAll: number[] = Array.isArray(params["x"]) && (params["x"] as unknown[]).every(isNum) ? (params["x"] as number[]).slice(0, n) : Array.from({ length: n }, (_, j) => (Array.isArray(params["x"]) ? j : j + 1));
   let fromIndex = from !== undefined ? xsAll.findIndex((x) => x >= from) : Math.ceil(n / 2);
   if (fromIndex < 1) fromIndex = Math.max(1, Math.ceil(n / 2));
+  // A staged series (rows of values, one per stage) usually holds the rest
+  // of the line only in a LATER row — the animate after the question is the
+  // reveal. The viewer draws every point a row from this stage on has; each
+  // one's number is this stage's, else the first later row's.
+  const later: (number | null)[][] = [];
+  if (Array.isArray(src["values"]) && Array.isArray((src["values"] as unknown[])[0])) {
+    const rows = src["values"] as unknown[];
+    for (let r = clamp(Math.round(stage), 0, rows.length - 1) + 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (Array.isArray(row)) later.push(row.map((v) => (isNum(v) ? v : null)));
+    }
+  }
+  const at = (j: number): number | null => cur.row[j] ?? later.find((row) => row[j] !== null && row[j] !== undefined)?.[j] ?? null;
   const idx: number[] = [];
-  for (let j = fromIndex; j < n; j++) if (cur.row[j] !== null) idx.push(j);
+  for (let j = fromIndex; j < n; j++) if (at(j) !== null) idx.push(j);
   if (idx.length === 0) return `guess: "${part}" — nothing left to draw after from`;
   const given: { x: number; v: number }[] = [];
   for (let j = 0; j < fromIndex; j++) if (cur.row[j] !== null) given.push({ x: xsAll[j], v: cur.row[j]! });
@@ -302,7 +322,7 @@ function lineHandle(
     part,
     shows: [part],
     kind: "curve",
-    truth: idx.map((j) => cur.row[j]!),
+    truth: idx.map((j) => at(j)!),
     min,
     max,
     step,
@@ -547,7 +567,30 @@ function unionBox(a: BBox, b: BBox): BBox {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>): GuessHandle | string | null {
+/**
+ * The people of population `el` as the layout drew them: each person's centre
+ * and height, read back from its body outline (layout/population.ts bodyPts:
+ * its first and last points sit ±0.07 h either side of the centre, 0.115 h
+ * above it), in slot order. Null when the people are not found.
+ */
+function drawnPeople(el: SpecElement, drawables: Drawable[]): { centres: Pt[]; h: number } | null {
+  const re = new RegExp(`^${el.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}__p(\\d+)_b$`);
+  const centres: Pt[] = [];
+  let h = 0;
+  for (const d of leafDrawables(drawables)) {
+    const m = re.exec(d.id);
+    if (!m || !("pts" in d) || d.pts.length < 17) continue;
+    const a = d.pts[0], b = d.pts[16];
+    const hh = (a[0] - b[0]) / 0.14;
+    if (!(hh > 0)) continue;
+    centres[Number(m[1]) - 1] = [(a[0] + b[0]) / 2, a[1] - 0.115 * hh];
+    h = Math.max(h, hh);
+  }
+  if (centres.length === 0 || centres.some((c) => c === undefined)) return null;
+  return { centres, h };
+}
+
+function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>, drawables: Drawable[] = []): GuessHandle | string | null {
   for (const el of spec.elements ?? []) {
     if (el.type !== "population" || !part.startsWith(`${el.id}_`)) continue;
     const want = part.slice(el.id.length + 1).toLowerCase();
@@ -568,6 +611,28 @@ function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>): G
       if (b) box = box ? unionBox(box, b) : b;
     }
     const ids = [el.id, ...keys.map((k) => `${el.id}_${k}`)];
+    // The people as drawn: a sweep is measured across THEM (the element's
+    // box also holds its legend), and an order that follows the place lets a
+    // press mark up to the person under it.
+    const drawn = drawnPeople(el, drawables);
+    let people: GuessHandle["people"];
+    if (drawn) {
+      const counts = populationCounts(el).states;
+      const si = counts.findIndex((c) => c.name === state);
+      const order = orderOf(el, state);
+      let seq: number[] | null = null;
+      if (si > 0 && (order === "rows" || order === "cluster")) {
+        const seed = typeof el.seed === "number" && Number.isFinite(el.seed) ? Math.round(el.seed) : 1;
+        // The states written before it keep their people; it takes the rest in its own order.
+        const owner = assignStates(drawn.centres, counts.slice(0, si), el);
+        seq = slotSequence(drawn.centres, order, seed * 1009 + si * 7919).filter((k) => owner[k] === 0);
+      }
+      const xs = drawn.centres.map((c) => c[0]), ys = drawn.centres.map((c) => c[1]);
+      const hw = drawn.h * 0.3, hh = drawn.h * 0.5;
+      const own = { x: Math.min(...xs) - hw, y: Math.min(...ys) - hh, w: Math.max(...xs) - Math.min(...xs) + 2 * hw, h: Math.max(...ys) - Math.min(...ys) + 2 * hh };
+      people = { ...drawn, seq, box: own };
+      if (!box) box = own;
+    }
     return {
       part,
       shows: ids.filter((id) => boxes.has(id) || id === el.id),
@@ -581,9 +646,28 @@ function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>): G
       unit: "",
       ...(varName ? { paths: [`vars.${varName}`] } : { population: { id: el.id, state } }),
       ...(box ? { box } : {}),
+      ...(people ? { people } : {}),
     };
   }
   return null;
+}
+
+/** count: the person a pointer at `p` is nearest (slot index), or -1 left of them all. */
+export function personAt(h: GuessHandle, p: Pt): number {
+  const pp = h.people;
+  if (!pp || pp.centres.length === 0) return -1;
+  const minX = Math.min(...pp.centres.map((c) => c[0]));
+  if (p[0] < minX - pp.h * 0.45) return -1;
+  let best = 0;
+  let bestD = Infinity;
+  pp.centres.forEach((c, k) => {
+    const d = Math.hypot(c[0] - p[0], c[1] - p[1]);
+    if (d < bestD) {
+      bestD = d;
+      best = k;
+    }
+  });
+  return best;
 }
 
 function scaleHandle(spec: Spec, part: string): GuessHandle | null {
@@ -653,11 +737,18 @@ export function valueAt(h: GuessHandle, p: Pt, current: number[], prev?: Pt | nu
       };
       // Every point whose x the stroke crossed since the last sample, at the
       // stroke's height there; and the nearest point to where it is now.
+      let crossed = false;
       for (let j = 0; j < h.xs.length; j++) {
         const x = h.xs[j];
-        if (x >= lo && x <= hi && hi > lo) set(j, b[1] + ((x - b[0]) / (a[0] - b[0])) * (a[1] - b[1]));
+        if (x >= lo && x <= hi && hi > lo) {
+          set(j, b[1] + ((x - b[0]) / (a[0] - b[0])) * (a[1] - b[1]));
+          crossed = true;
+        }
       }
-      set(nearestIndex(h.xs, a[0]), a[1]);
+      // Past either end of the line a stroke that crossed the end point has
+      // set it where it crossed: the pointer running on must not drag it.
+      const first = Math.min(...h.xs), last = Math.max(...h.xs);
+      if (!crossed || (a[0] >= first && a[0] <= last)) set(nearestIndex(h.xs, a[0]), a[1]);
       return out;
     }
     case "angle": {
@@ -688,8 +779,14 @@ export function valueAt(h: GuessHandle, p: Pt, current: number[], prev?: Pt | nu
       return out;
     }
     case "count": {
-      if (!h.box) return current;
-      const f = clamp((p[0] - h.box.x) / (h.box.w || 1), 0, 1);
+      if (h.people?.seq) {
+        // Up to the person under the pointer, in the order the state takes them.
+        const k = personAt(h, p);
+        return [k < 0 ? 0 : Math.min(h.max, h.people.seq.indexOf(k) + 1)];
+      }
+      const b = h.people?.box ?? h.box;
+      if (!b) return current;
+      const f = clamp((p[0] - b.x) / (b.w || 1), 0, 1);
       return [Math.round(f * h.max)];
     }
     case "point": {
@@ -751,6 +848,36 @@ export function nearestDivider(values: number[], f: number): number {
     }
   }
   return best;
+}
+
+/**
+ * Where a new stroke on a sketched line starts from (logical), so a press
+ * anywhere to the right of the given line draws a joined line: the nearest
+ * point already drawn to the left of the press (`touched`), else the given
+ * line's last point. A redraw over drawn points starts from its left
+ * neighbour, so nothing to the left is wiped. Null: not a sketched line.
+ */
+export function strokeStart(h: GuessHandle, values: number[], touched: ReadonlySet<number>, p: Pt): Pt | null {
+  if (h.kind !== "curve" || !h.toDomain || !h.toLogical || !h.xs) return null;
+  const x = h.toDomain(p)[0];
+  let best = -1;
+  for (const j of touched) if (h.xs[j] < x && (best < 0 || h.xs[j] > h.xs[best])) best = j;
+  if (best >= 0) return h.toLogical([h.xs[best], values[best]]);
+  const end = h.given && h.given.length > 0 ? h.given[h.given.length - 1] : null;
+  return end && end.x < x ? h.toLogical([end.x, end.v]) : null;
+}
+
+/** The entries of a sketched line a stroke from `prev` to `p` set (as valueAt does). */
+export function strokeEntries(h: GuessHandle, p: Pt, prev?: Pt | null): number[] {
+  if (h.kind !== "curve" || !h.toDomain || !h.xs) return [];
+  const a = h.toDomain(p);
+  const b = prev ? h.toDomain(prev) : a;
+  const lo = Math.min(a[0], b[0]), hi = Math.max(a[0], b[0]);
+  const out = new Set<number>([nearestIndex(h.xs, a[0])]);
+  h.xs.forEach((x, j) => {
+    if (x >= lo && x <= hi && hi > lo) out.add(j);
+  });
+  return [...out];
 }
 
 function nearestIndex(xs: number[], x: number): number {
@@ -889,9 +1016,16 @@ export function pointFor(h: GuessHandle, values: number[], j = 0): Pt | null {
       const a = f * 2 * Math.PI;
       return [h.centre[0] + h.radius * Math.sin(a), h.centre[1] + h.radius * Math.cos(a)];
     }
-    case "count":
+    case "count": {
       // Under the people (and their legend): over them it hides the faces it counts.
-      return h.box ? [h.box.x + (values[0] / (h.max || 1)) * h.box.w, h.box.y - 125] : null;
+      if (!h.box) return null;
+      // Level with the last person marked, when the marks follow the place.
+      const seq = h.people?.seq;
+      const n = Math.round(values[0]);
+      const b = h.people?.box ?? h.box;
+      const x = seq && n > 0 && seq[n - 1] !== undefined ? h.people!.centres[seq[n - 1]][0] : b.x + (values[0] / (h.max || 1)) * b.w;
+      return [x, h.box.y - 125];
+    }
     case "point":
       return h.scale ? [scaleGeometry(h.scale).xAt(values[0]), scaleGeometry(h.scale).y + 18] : null;
     case "market": {

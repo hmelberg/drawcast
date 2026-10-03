@@ -19,7 +19,7 @@
 
 import type { RenderHandle } from "../render";
 import type { GuessSession } from "../render/player";
-import { accountOf, budgetBalanced, budgetReachable, encodeGuess, hitDistance, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, pickHandle, pointFor, valueAt, type GuessHandle } from "../guess/handles";
+import { accountOf, budgetBalanced, budgetReachable, encodeGuess, hitDistance, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, personAt, pickHandle, pointFor, strokeEntries, strokeStart, valueAt, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
@@ -46,6 +46,8 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       const values: number[][] = session.start.map((r) => r.slice());
       let focus = 0;
       let entry = 0;
+      /** A sketched line's points the viewer has drawn (or typed, or nudged). */
+      const touched = handles.map(() => new Set<number>());
       let settled = false;
       // Letting go answers: one part, worked in one gesture.
       // A budget (spec 2026-10-03-looks-feedback-account §5): each bar moves
@@ -118,6 +120,9 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         // A market curve has no one number to type: its copy is the answer.
         if (c && g.kind !== "point" && g.kind !== "market") {
           pill.hidden = false;
+          // A sketched line's pill follows the pencil: it must never catch
+          // a press meant to draw (the arrows still change its number).
+          pill.classList.toggle("cs-guess-passive", g.kind === "curve");
           const beside = g.kind === "height" ? besideBar(g, c) : null;
           pill.classList.toggle("cs-guess-beside", beside !== null);
           pill.style.left = `${beside ? beside[0] : c[0]}px`;
@@ -184,6 +189,7 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           gate.style.cursor = guessCursor(g.kind, "drag");
           if (dragging.ghost && p) hover.ghost(g, p);
           else if (g.kind === "height") hover.grip(g, values[dragging.k]);
+          else if (g.kind === "count" && g.people?.seq && p && personAt(g, p) >= 0) hover.person(g, personAt(g, p));
           else hover.hide();
           return;
         }
@@ -197,7 +203,11 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         gate.style.cursor = guessCursor(g.kind, "hover");
         if (g.kind === "point") hover.ghost(g, p);
         else if (g.kind === "height") hover.grip(g, values[k]);
-        else hover.hide();
+        else if (g.kind === "count" && g.people?.seq) {
+          const who = personAt(g, p);
+          if (who >= 0) hover.person(g, who);
+          else hover.hide();
+        } else hover.hide();
       };
       gate.addEventListener("pointerdown", (e) => {
         if (settled || (e.target as Element).closest("button, input")) return;
@@ -226,7 +236,17 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         focus = k;
         if (grab !== undefined && g.kind !== "market") entry = grab;
         gate.classList.add("dragging");
-        if (!ghost) {
+        if (g.kind === "curve") {
+          // Anywhere right of the given line: the stroke joins on from the
+          // last known point to its left.
+          const start = strokeStart(g, values[k], touched[k], p);
+          values[k] = valueAt(g, p, values[k], start);
+          const set = strokeEntries(g, p, start);
+          for (const j of set) touched[k].add(j);
+          entry = set[0] ?? entry;
+          balance();
+          repaint();
+        } else if (!ghost) {
           values[k] = valueAt(g, p, values[k], null, grab);
           balance();
           repaint();
@@ -246,6 +266,11 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         }
         const g = handles[dragging.k];
         values[dragging.k] = valueAt(g, p, values[dragging.k], dragging.prev, dragging.grab, dragging.anchor);
+        if (g.kind === "curve") {
+          const set = strokeEntries(g, p, dragging.prev);
+          for (const j of set) touched[dragging.k].add(j);
+          entry = set[0] ?? entry;
+        }
         balance();
         dragging.prev = p;
         repaint();
@@ -323,6 +348,7 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         e.stopPropagation();
         hover.hide();
         values[focus] = nudge(g, values[focus], multiEntry(g) ? entry : 0, up ? 1 : -1, e.shiftKey);
+        if (g.kind === "curve") touched[focus].add(entry);
         balance();
         repaint();
       };
@@ -354,6 +380,7 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
               const row = values[focus].slice();
               row[j] = Math.max(g.min, Math.min(g.max, n));
               values[focus] = row;
+              if (g.kind === "curve") touched[focus].add(j);
               balance();
             }
           }

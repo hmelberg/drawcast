@@ -3575,3 +3575,14 @@ body.viewer-body.watch-body.watch-theatre {
    right, as the CC panel does — the bar sits at the foot of the drawing. */
 .cs-controlbar .menu-panel { top: auto; bottom: calc(100% + 0.3rem); left: auto; right: 0; min-width: 14rem; }
 .cs-controlbar .menu-panel .cs-menu-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: default; }
+/* A sketched line's value pill only reports: a press there draws (ui/guess-gate.ts). */
+.cs-guess-value.cs-guess-passive { pointer-events: none; }
+/* A crowd guess whose marks follow the place: a soft ring round the person
+   the pointer marks up to (ui/guess-hover.ts). */
+.cs-guess-person {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, #2f6b8f 55%, transparent);
+  background: color-mix(in srgb, #2f6b8f 8%, transparent);
+}
