@@ -1081,14 +1081,17 @@ a.cs-more-title:focus-visible { outline: 2px solid #b5482e; outline-offset: 2px;
   row-gap: 0.2rem;
 }
 
-/* YouTube-like: while playing, controls.ts marks the figure cs-idle after a
-   few seconds of pointer stillness — controls vanish and the cursor hides;
-   any movement brings them back. Always visible when paused. */
+/* YouTube-like: while playing, controls.ts marks the figure cs-idle a moment
+   after the pointer leaves the bar's region (the bottom of the stage and the
+   bar itself) — the bar vanishes; a mouse brings it back only there, never
+   from the drawing (a question waiting on the viewer included). Always
+   visible when paused, before the start and at the end. The cursor hides
+   on its own clock (cs-still): stillness over a playing drawing, no gate up. */
 .cs-figure.cs-idle .cs-controlbar {
   opacity: 0;
   pointer-events: none;
 }
-.cs-figure.cs-idle .cs-stage { cursor: none; }
+.cs-figure.cs-still .cs-stage { cursor: none; }
 
 /* CC: the letters, underlined while subtitles are on — the convention every
    video player uses, and legible without a color the theme has to supply. */
