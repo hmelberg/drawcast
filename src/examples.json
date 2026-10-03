@@ -82888,5 +82888,245 @@
         }
       ]
     }
+  },
+  {
+    "request": "True or myth? Three things about the Moon, answered on buttons on the figure, with a stamp at each reveal. #interactive #short",
+    "spec": {
+      "title": "True or myth? Three things about the Moon",
+      "sources": [
+        {
+          "id": "farside",
+          "title": "The 'Dark Side' of the Moon",
+          "authors": "NASA Science",
+          "year": 2024,
+          "url": "https://science.nasa.gov/moon/far-side/",
+          "finding": "the far side gets as much sunlight as the near side; it is only hidden from Earth because the Moon is tidally locked"
+        },
+        {
+          "id": "llr",
+          "title": "Lunar Laser Ranging",
+          "authors": "NASA",
+          "year": 2024,
+          "url": "https://science.nasa.gov/moon/",
+          "finding": "laser ranging to the Apollo retroreflectors shows the Moon receding by about 3.8 cm a year"
+        },
+        {
+          "id": "moonfact",
+          "title": "Moon Fact Sheet",
+          "authors": "NASA Space Science Data Coordinated Archive",
+          "year": 2024,
+          "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html",
+          "finding": "surface gravity 1.62 m/s², 0.165 of Earth's"
+        }
+      ],
+      "elements": [
+        {
+          "id": "dark",
+          "type": "icon",
+          "of": "new moon",
+          "icon_look": "picture",
+          "size": 320,
+          "x": 400,
+          "y": 450,
+          "cites": [
+            "farside"
+          ]
+        },
+        {
+          "id": "dark_l",
+          "type": "text",
+          "text": "A dark side?",
+          "font_size": 44,
+          "x": 400,
+          "y": 235
+        },
+        {
+          "id": "away",
+          "type": "icon",
+          "of": "full moon",
+          "icon_look": "picture",
+          "size": 320,
+          "x": 400,
+          "y": 450,
+          "cites": [
+            "llr"
+          ]
+        },
+        {
+          "id": "away_l",
+          "type": "text",
+          "text": "Drifting away?",
+          "font_size": 44,
+          "x": 400,
+          "y": 235
+        },
+        {
+          "id": "light",
+          "type": "icon",
+          "of": "astronaut",
+          "icon_look": "picture",
+          "size": 320,
+          "x": 400,
+          "y": 450,
+          "cites": [
+            "moonfact"
+          ]
+        },
+        {
+          "id": "light_l",
+          "type": "text",
+          "text": "A sixth of your weight?",
+          "font_size": 44,
+          "x": 400,
+          "y": 235
+        },
+        {
+          "id": "r_dark",
+          "type": "icon",
+          "of": "new moon",
+          "icon_look": "picture",
+          "size": 150,
+          "x": 300,
+          "y": 420
+        },
+        {
+          "id": "r_away",
+          "type": "icon",
+          "of": "full moon",
+          "icon_look": "picture",
+          "size": 150,
+          "x": 500,
+          "y": 420
+        },
+        {
+          "id": "r_light",
+          "type": "icon",
+          "of": "astronaut",
+          "icon_look": "picture",
+          "size": 150,
+          "x": 700,
+          "y": 420
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "True or myth? Three things about the Moon"
+          }
+        },
+        {
+          "draw": [
+            "dark"
+          ],
+          "speak": "This is about three things people say about our Moon, and whether each one is true."
+        },
+        {
+          "draw": [
+            "dark_l"
+          ],
+          "speak": "The first: it has a dark side the Sun never reaches. True, or myth?"
+        },
+        {
+          "quiz": {
+            "question": "The Moon has a side that is always dark. True or myth?",
+            "choices": [
+              "True",
+              "Myth"
+            ],
+            "correct": 2,
+            "on_canvas": true,
+            "reveal": true,
+            "right": "Myth. The far side gets just as much sunlight; we never see it only because the same face of the Moon always turns towards us."
+          }
+        },
+        {
+          "hide": [
+            "dark",
+            "dark_l"
+          ]
+        },
+        {
+          "draw": [
+            "away"
+          ],
+          "speak": "The second is about how far away the Moon is."
+        },
+        {
+          "draw": [
+            "away_l"
+          ],
+          "speak": "It is said to be slowly drifting away from the Earth. True, or myth?"
+        },
+        {
+          "quiz": {
+            "question": "The Moon is slowly drifting away from us. True or myth?",
+            "choices": [
+              "True",
+              "Myth"
+            ],
+            "correct": 1,
+            "on_canvas": true,
+            "reveal": "3.8 cm a year",
+            "right": "True. Lasers bounced off mirrors the Apollo crews left behind show it moving about three point eight centimetres further away each year."
+          }
+        },
+        {
+          "hide": [
+            "away",
+            "away_l"
+          ]
+        },
+        {
+          "draw": [
+            "light"
+          ],
+          "speak": "The third is about you, if you went there."
+        },
+        {
+          "draw": [
+            "light_l"
+          ],
+          "speak": "There, it is said, you would weigh a sixth as much. True, or myth?"
+        },
+        {
+          "quiz": {
+            "question": "On the Moon you would weigh about a sixth as much. True or myth?",
+            "choices": [
+              "True",
+              "Myth"
+            ],
+            "correct": 1,
+            "on_canvas": true,
+            "reveal": true,
+            "right": "True. The Moon's gravity is about a sixth of the Earth's, so a seventy-kilogram person would weigh what twelve kilograms weigh here."
+          }
+        },
+        {
+          "hide": [
+            "light",
+            "light_l"
+          ]
+        },
+        {
+          "draw": [
+            "r_dark",
+            "r_away",
+            "r_light"
+          ],
+          "parallel": true,
+          "speak": "Those were the three, and you got {score} of {score_total}."
+        },
+        {
+          "highlight": {
+            "target": [
+              "r_away",
+              "r_light"
+            ],
+            "effect": "circle"
+          },
+          "speak": "So the Moon has no dark side, but it really is leaving us, slowly, and on it you would feel light enough to bound along."
+        }
+      ]
+    }
   }
 ]
