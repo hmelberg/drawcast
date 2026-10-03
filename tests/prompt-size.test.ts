@@ -704,7 +704,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Merged layout-w17 2026-10-04: +545 (affirm). -> 398639.
 // Re-pinned UP 2026-10-04 (affirm "playful" in the schema): +91. -> 398730.
 // Merged layout-w1 2026-10-04: +164 (heading field). -> 398894.
-const BASELINE_SYSTEM_CHARS = 398894;
+// Re-pinned UP 2026-10-04 (W15 estimate slider, steps cards): ask.estimate, scale slider,
+// cards steps in the schema (+713), one sentence each in the ask bullet. +1187. -> 400081.
+const BASELINE_SYSTEM_CHARS = 400081;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -810,7 +812,9 @@ const BASELINE_SYSTEM_CHARS = 398894;
 // Merged layout-w17 2026-10-04: +412 (affirm). -> 114989.
 // Re-pinned UP 2026-10-04 (affirm "playful"): +91. -> 115080.
 // Merged layout-w1 2026-10-04: +164 (heading field). -> 115244.
-const BASELINE_SCHEMA_CHARS = 115244;
+// Re-pinned UP 2026-10-04 (W15): ask.estimate (strict object), scale slider, cards steps
+// (steps now an array or true). +713. -> 115957.
+const BASELINE_SCHEMA_CHARS = 115957;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
