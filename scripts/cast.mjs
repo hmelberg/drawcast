@@ -1657,7 +1657,7 @@ const commands = {
       writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 1));
       console.log(`${tiles.length} tile(s): ${tiles.join(", ")} — one frame per spoken line (mid-gesture where the line highlights, focuses, points or flows)`);
       for (const part of report.parts ?? []) {
-        const bad = [...part.validationErrors, ...part.planWarnings, ...part.commandIssues, ...part.playbackErrors];
+        const bad = [...part.validationErrors, ...(part.iconIssues ?? []), ...part.planWarnings, ...part.commandIssues, ...part.playbackErrors];
         if (bad.length) console.log("  " + bad.join("\n  "));
         for (const fr of part.frames ?? []) if (fr.issues?.length) console.log(`  @${fr.at} ${fr.changed}: ${fr.issues.join(" · ")}`);
       }
