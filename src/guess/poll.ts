@@ -107,9 +107,9 @@ export function pollChoiceMarks(boxes: readonly (BBox | undefined)[], shares: re
 
 /** The tallest bucket's bar over a scale (logical). */
 export const POLL_BAR_MAX = 110;
-const BAR_W = 22;
+const BAR_W = 26;
 /** Over the line: clear of the marker and the guess's own handle. */
-const BAR_FLOOR = 34;
+const BAR_FLOOR = 64;
 
 /**
  * The people's answers over a scale: a bar per bucket standing over the
@@ -128,7 +128,7 @@ export function pollScaleMarks(g: Pick<ScaleGeometry, "xAt" | "y">, others: read
     const y0 = g.y + BAR_FLOOR;
     const on = mine === i;
     lines.push({ pts: [[x - BAR_W / 2, y0], [x + BAR_W / 2, y0], [x + BAR_W / 2, y0 + h], [x - BAR_W / 2, y0 + h]], closed: true, fill: on ? GUESS_COLOR : INK, fillOpacity: on ? 0.7 : 0.35, stroke: false });
-    texts.push({ at: [x, y0 + h + 14], text: pct(o.share * t), anchor: "middle", size: 16, color: on ? GUESS_COLOR : INK });
+    texts.push({ at: [x, y0 + h + 15], text: pct(o.share * t), anchor: "middle", size: 20, color: on ? GUESS_COLOR : INK });
     top = Math.max(top, y0 + h + 14);
     left = Math.min(left, x);
     right = Math.max(right, x);
