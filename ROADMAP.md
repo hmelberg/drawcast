@@ -3356,3 +3356,30 @@ What does take room, biggest first:
 First step when picked up: measure what coordinate-free writing would save on
 the QALY course (rewrite one lecture with places and layout groups, compare
 lines, characters and the `#cast=` link) before building anything.
+
+## A page of its own for a private cast — noted 2026-10-03, possible later
+
+A public GitHub publish writes `<name>.html` beside the `.cast`: a door page
+that plays it, with a Transcript for crawlers (`src/standalone/page.ts`). A
+private publish writes none, and removes one a public publish left. A private
+page could be made safely, but it would be a signpost, not a faster door.
+
+What it may hold: the title (page title, link card) and the encrypted
+`.cast`'s address — both already public, in `casts.json` and the README.
+Nothing drawn from the content: no Transcript, no description from the
+spoken lines, no poster.
+
+What it must do: hand the reader over to drawcast.app (`#name` or `#gh=`),
+where sign-in, joining and unlocking happen. It must never sign in on the
+author's site: the viewer's ordinary sign-in door returns to the address it
+came from, which would put the account token in a github.io URL — the token
+lives on drawcast.app only (docs/security/2026-09-28-viewer-origin.md).
+
+What it buys: an address on the author's own site and a link preview. No
+speed — page, then drawcast.app, then sign-in, then unlock, one hop more
+than the drawcast.app link itself. Build it if teachers ask for "a link on my
+own site for my private lecture".
+
+Cheap insurance worth doing either way: if `play.js` is ever handed an
+encrypted cast off drawcast.app, send the reader to drawcast.app rather than
+showing the sign-in door.

@@ -203,7 +203,7 @@ describe("runViewer takes the fourth source through the same door as the others"
   test("the load picks fetchAnvilText for req.anvil, ahead of the GitHub branch, with a reporter for lost narration", () => {
     // A page carrying its own cast (standalone/page.ts) comes first: nothing to fetch.
     expect(viewer).toMatch(/let text = req\.embedded !== undefined\s*\?\s*req\.embedded\s*:\s*req\.anvil\s*\?\s*await fetchAnvilText\(req\.anvil, fetch, \(why\) =>/);
-    expect(viewer).toMatch(/:\s*req\.gh\s*\?\s*await fetchGhText\(req\.gh\)/);
+    expect(viewer).toMatch(/:\s*req\.gh\s*\?\s*await fetchGhText\(req\.gh, req\.early\)/);
   });
   test("counting stays GitHub-only: a private cast's views are the teacher's business, not a public counter's", () => {
     // netlify/functions/views is public and ?repo= enumerates an owner; an
@@ -259,7 +259,7 @@ describe("a link the router accepts but the parser refuses is a message, not a b
   // guarded decode was meant to end.
   test("entry.ts shows the message on null", () => {
     expect(entry).toMatch(/const \{ parseViewerHash, runViewer, showUnplayable \} = await import\("\.\/viewer"\)/);
-    expect(entry).toMatch(/if \(req\) await runViewer\(req\);\s*else showUnplayable\(\);/);
+    expect(entry).toMatch(/if \(req\) await runViewer\(req\.gh && early \? \{ \.\.\.req, early \} : req\);\s*else showUnplayable\(\);/);
   });
   test("the message names the problem and is styled as the viewer's error status", () => {
     expect(viewer).toMatch(/export function showUnplayable\(\): void/);

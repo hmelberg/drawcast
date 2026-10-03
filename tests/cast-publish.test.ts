@@ -137,15 +137,26 @@ describe("the cast index", () => {
 });
 
 describe("the cast's own page (standalone/page.ts)", () => {
-  test("a public publish writes <slug>.html beside the cast, carrying it and naming its GitHub copy", () => {
+  test("a public publish writes <slug>.html beside the cast: a door to it, naming its GitHub copy", () => {
     const plan = buildCastPlan({ ...base, poster: new Uint8Array([1]) });
     const page = plan.files.find((f) => f.path === "casts/difference-in-differences.html");
     expect(page).toBeDefined();
-    expect(page!.content).toContain(base.text);
+    // The .cast stays the one copy: the page points at it and preloads it.
+    expect(page!.content).toContain('data-src="difference-in-differences.yaml"');
+    expect(page!.content).toContain('<link rel="preload" href="difference-in-differences.yaml" as="fetch" crossorigin>');
+    expect(page!.content).not.toContain(base.text);
     expect(page!.content).toContain('data-gh="hmelberg/kurs/casts/difference-in-differences.yaml"');
     expect(page!.content).toContain('<script type="module" src="https://drawcast.app/play.js" crossorigin>');
     expect(page!.content).toContain('content="https://hmelberg.github.io/kurs/casts/difference-in-differences.png"');
     expect(plan.pageUrl).toBe("https://hmelberg.github.io/kurs/casts/difference-in-differences.html");
+  });
+
+  test("the door carries the spoken lines as its Transcript, for crawlers and screen readers", () => {
+    const text = "title: T\nelements: []\ncommands:\n  - speak: Prices rise when demand rises.\n  - speak: Supply <then> catches up.\n";
+    const page = buildCastPlan({ ...base, text }).files.find((f) => f.path.endsWith("difference-in-differences.html"))!;
+    expect(page.content).toContain('<details id="drawcast-transcript">');
+    expect(page.content).toContain("<p>Prices rise when demand rises.</p>");
+    expect(page.content).toContain("<p>Supply &lt;then&gt; catches up.</p>");
   });
 
   test("a private publish gets no page — it would carry the cast unlocked", () => {

@@ -24,6 +24,7 @@ import {
 import type { Registration } from "../names";
 import { lockLectureFiles, type LectureLock } from "./lock";
 import { castPageHtml } from "../standalone/page";
+import { transcriptLines } from "../standalone/transcript";
 
 export interface CastEntry {
   slug: string;
@@ -165,15 +166,17 @@ export function buildCastPlan(args: CastPlanArgs): CastPlan {
   // Jekyll site, and this file at its root would break it.
   if (castsDir === "") files.push({ path: ".nojekyll", content: "" });
   if (args.poster) files.push({ path: posterPathFor(path), content: "", bytes: args.poster });
-  // The cast's own page (standalone/page.ts): the cast inside it, the player
-  // from drawcast.app — opens without a name lookup or a second fetch. Its
-  // views and comments stay the GitHub cast's (`from`).
+  // The cast's own page (standalone/page.ts): a DOOR to the .cast beside it
+  // — the .cast stays the one copy, so an edit to it shows on the page at
+  // once — with the player from drawcast.app and no name lookup. Its views
+  // and comments are the cast's (`from`); its Transcript is what crawlers read.
   const pageUrl = args.private ? undefined : `${pagesUrl}${slug}.html`;
   if (pageUrl) {
     files.push({
       path: pagePathFor(path),
       content: castPageHtml({
-        text,
+        src: file,
+        transcript: transcriptLines(text),
         title: title || "Untitled drawcast",
         url: pageUrl,
         image: args.poster ? `${pagesUrl}${slug}.png` : undefined,

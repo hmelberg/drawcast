@@ -60,6 +60,7 @@ import { openCoursePanel } from "./ui/course";
 import { parseCourse, referencedLectureIds } from "./course/document";
 import { fileSafe, openShare, payListedFields, type ShareGroup } from "./ui/share";
 import { castPageHtml } from "./standalone/page";
+import { transcriptLines } from "./standalone/transcript";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
 import { openEmbedDialog, openInsertData, openInsertPortrait, unembeddedImages } from "./ui/insert";
@@ -5699,7 +5700,7 @@ async function exportPageCast({ bake, embedImages, name }: { bake: boolean; embe
     setStatus("Making the web page…");
     const text = await publishTextFor(ac.signal, bake, embedImages);
     const file = `${slugify(name ?? doc.title) || "drawcast"}.html`;
-    downloadBlob(file, new Blob([castPageHtml({ text, title: doc.title || "drawcast" })], { type: "text/html" }));
+    downloadBlob(file, new Blob([castPageHtml({ text, title: doc.title || "drawcast", transcript: transcriptLines(text) })], { type: "text/html" }));
     setStatus(`Downloaded ${file} — put it on any web site, or send it; it plays wherever there is internet.${lastEmbedNote}${lastBakeNote}`, "ok");
   } catch (err) {
     console.error("drawcast: web page export failed", err);

@@ -1,7 +1,8 @@
 // A drawcast as its own page: the cast inside a <script> block the browser
 // never runs, read back by the player (play.ts) exactly as it was written.
 import { describe, expect, test } from "vitest";
-import { CAST_BLOCK_ID, PLAYER_URL, castPageHtml, embedCastText, readEmbeddedCast } from "../src/standalone/page";
+import { CAST_BLOCK_ID, PLAYER_URL, TRANSCRIPT_ID, castPageHtml, embedCastText, readEmbeddedCast } from "../src/standalone/page";
+import { transcriptHtml, transcriptLines } from "../src/standalone/transcript";
 import { castFromBlock } from "../src/play";
 import { ghRefFrom, viewerOptions } from "../src/viewer";
 
@@ -70,5 +71,39 @@ describe("what the player reads from the page", () => {
   test("playback options come from the page's own hash", () => {
     const o = viewerOptions(new URLSearchParams("mode=silent&speed=1.5&style=sketchy"));
     expect(o).toMatchObject({ mode: "silent", speed: 1.5, style: "sketchy" });
+  });
+});
+
+describe("the two kinds of page", () => {
+  test("a copy carries the cast and nothing to fetch", () => {
+    const html = castPageHtml({ text: "title: x\n", title: "t" });
+    expect(html).not.toContain("data-src=");
+    expect(html).not.toContain('rel="preload"');
+  });
+  test("a door carries no cast: it names the file beside it and starts fetching it with the page", () => {
+    const html = castPageHtml({ src: "intro.cast", title: "t" });
+    expect(html).toContain(`<script type="text/x-drawcast" id="${CAST_BLOCK_ID}" data-src="intro.cast"></script>`);
+    expect(html).toContain('<link rel="preload" href="intro.cast" as="fetch" crossorigin>');
+    // The preload is in the head, before the player, so it starts first.
+    expect(html.indexOf('rel="preload"')).toBeLessThan(html.indexOf("play.js"));
+  });
+});
+
+describe("the transcript", () => {
+  test("is visible HTML (a details section), never hidden text, escaped", () => {
+    const html = castPageHtml({ text: "x", title: "t", transcript: ["One <two>", "Three & four"] });
+    expect(html).toContain(`<details id="${TRANSCRIPT_ID}">\n<summary>Transcript</summary>\n<p>One &lt;two&gt;</p>\n<p>Three &amp; four</p>\n</details>`);
+    expect(html).not.toMatch(/display:\s*none/);
+  });
+  test("is left out when there is nothing spoken", () => {
+    expect(castPageHtml({ text: "x", title: "t", transcript: [] })).not.toContain("<details");
+  });
+  test("its first line describes the page when there is no subtitle", () => {
+    expect(castPageHtml({ text: "x", title: "t", transcript: ["What is a QALY?"] })).toContain('<meta name="description" content="What is a QALY?">');
+  });
+  test("transcriptLines reads the spoken lines of a cast, once each; nonsense gives none", () => {
+    expect(transcriptLines("title: T\nelements: []\ncommands:\n  - speak: A.\n  - speak: B.\n  - speak: A.\n")).toEqual(["A.", "B."]);
+    expect(transcriptLines(": : :")).toEqual([]);
+    expect(transcriptHtml(["a<b"])).toBe("<p>a&lt;b</p>");
   });
 });
