@@ -136,6 +136,7 @@ function rewriteCommand(c: Command, rewrite: Rewrite): Command {
 function rewriteSpec(spec: Spec, paramsSchema: object | undefined, rewrite: Rewrite): Spec {
   const out: Spec = { ...spec };
   if (str(out.title)) out.title = rewrite(out.title, "title");
+  if (Array.isArray(out.affirm)) out.affirm = out.affirm.map((a) => (str(a) ? rewrite(a, "answer feedback") : a));
   if (spec.elements) out.elements = spec.elements.map((el) => rewriteElement(el, rewrite));
   if (spec.commands) out.commands = spec.commands.map((c) => rewriteCommand(c, rewrite));
   if (spec.params) {

@@ -23,7 +23,7 @@ import { withNotes } from "../llm/hoist";
 import { generationGate } from "../llm/limit";
 import { createOnDemandRun, onDemandSummary } from "../llm/on-demand-run";
 import { DEFAULT_META, formatPlaylist, formatPublished, itemsOf, parsePlaylistText, singlePlaylist, type AudioTrack, type Playlist } from "../playlist/playlist";
-import { playlistSpeakLines } from "../playlist/session";
+import { playlistBakeLines } from "../playlist/session";
 import { applyViewsFlag } from "../views";
 import type { SpeakLine } from "../render/delivery";
 import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "../export/bake";
@@ -353,7 +353,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       const text = saved?.playlist ?? (saved ? formatPlaylist(singlePlaylist(saved.spec), "yaml") : null);
       if (text === null) continue;
       try {
-        costs.push(bakeCost(playlistSpeakLines(parsePlaylistText(text)), settings.cloudVoices));
+        costs.push(bakeCost(playlistBakeLines(parsePlaylistText(text)), settings.cloudVoices));
       } catch {
         /* an unparsable lecture prices as nothing rather than blocking */
       }
@@ -383,7 +383,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         const playlist = parsePlaylistText(text);
         // Undefined when nothing declares one — the same decision bakeLectures makes per lecture.
         const declaredLang = playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0];
-        costs.push(creditBakeCost(playlistSpeakLines(playlist), settings.cloudVoices, declaredLang));
+        costs.push(creditBakeCost(playlistBakeLines(playlist), settings.cloudVoices, declaredLang));
       } catch {
         /* an unparsable lecture prices as nothing rather than blocking */
       }
@@ -1020,7 +1020,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       if (signal.aborted) throw new Error("Publishing was cancelled.");
       const text = yamlFor(index)!;
       const playlist = parsePlaylistText(text);
-      const lines = playlistSpeakLines(playlist);
+      const lines = playlistBakeLines(playlist);
       // Undefined when nothing declares one — see the same decision in main.ts.
       const declaredLang = playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0];
       const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, runLang(line, declaredLang), line);

@@ -23,7 +23,10 @@ class RecordingSpeech extends SpeechManager {
 }
 
 function makePlayer(commands: Command[], speech: RecordingSpeech) {
-  return new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated", breath: false });
+  const player = new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated", breath: false });
+  // The old single word, so the flow reads exactly (render/affirm.ts varies it by default).
+  player.affirmer.configure({ affirm: "plain" });
+  return player;
 }
 
 const TWO_QUESTIONS: Command[] = [

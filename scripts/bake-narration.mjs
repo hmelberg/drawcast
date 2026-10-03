@@ -37,7 +37,7 @@ if (apply && !apiKey) {
 
 const vite = await createServer({ server: { middlewareMode: true }, appType: "custom", logLevel: "silent" });
 const P = await vite.ssrLoadModule("/src/playlist/playlist.ts");
-const { playlistSpeakLines } = await vite.ssrLoadModule("/src/playlist/session.ts");
+const { playlistBakeLines } = await vite.ssrLoadModule("/src/playlist/session.ts");
 const { bakeNarration } = await vite.ssrLoadModule("/src/export/bake.ts");
 const { synthesizeBase64, stampedVoice, runLang } = await vite.ssrLoadModule("/src/export/tts.ts");
 const { bakeCost } = await vite.ssrLoadModule("/src/export/tts-cost.ts");
@@ -49,7 +49,7 @@ for (const file of files) {
   const raw = readFileSync(file, "utf8");
   const isJson = file.endsWith(".json");
   const playlist = P.parsePlaylistText(isJson ? JSON.stringify(JSON.parse(raw).spec) : raw);
-  const lines = playlistSpeakLines(playlist);
+  const lines = playlistBakeLines(playlist);
   const declaredLang = P.itemsOf(playlist).find((i) => i.spec.lang)?.spec.lang;
   const existing = playlist.audio?.lines ?? {};
   const voiceOf = (line) => stampedVoice(voices, runLang(line, declaredLang), line);

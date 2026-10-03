@@ -1155,6 +1155,12 @@ export interface Spec {
   /** Cast-level feedback flavour (spec 2026-10-03 §4.1): plain (default), warm, dry, or with the author's lines. */
   feedback?: FeedbackArg;
   /**
+   * What a live viewer hears after a right quiz answer (render/affirm.ts).
+   * Absent: a varied short affirmation in the cast's language. "plain": the
+   * single word ("Correct."); a list: the cast's own phrases; false: nothing.
+   */
+  affirm?: "plain" | string[] | false;
+  /**
    * Drawn text a template computes for itself, and its replacement. A scene
    * supplies its own captions ("Susceptible" for compartment "S"), so those
    * words never appear in the spec and a translation cannot reach them by

@@ -35,7 +35,7 @@ import type { HandInState } from "./playlist/session";
 import { anvilHashFor, lookupNamed, nameInHash, type Resolved } from "./names";
 import type { EarlyFetch } from "./links/early-fetch";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
-import { mountPlaylist as mountSession, playlistSpeakLines } from "./playlist/session";
+import { mountPlaylist as mountSession, playlistBakeLines } from "./playlist/session";
 import { isBook, mountBookPlaylist } from "./book/shell";
 import { appendRecord, localRecordStorage, markSent, readHandIn, writeHandIn, type AnswerRecord } from "./render/record";
 import { bakedAudioFor } from "./playlist/audio";
@@ -1085,7 +1085,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     // cover falls through to this manager, and only THOSE lines are worth a
     // synthesis call. A fully baked drawcast needs no key at all.
     const baked = bakedAudioFor(speech, playlist);
-    if (req.mode === "narrated") speech.prefetch(baked.unbaked(playlistSpeakLines(playlist)), req.speed);
+    if (req.mode === "narrated") speech.prefetch(baked.unbaked(playlistBakeLines(playlist)), req.speed);
     // A book (src/book/) is the same session with a text pane beside it.
     const mountPlaylist = isBook(playlist) ? mountBookPlaylist : mountSession;
     await mountPlaylist(figureHost, playlist, {
