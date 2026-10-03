@@ -8,6 +8,9 @@
 // before layout, so live playback, lint and export all see one thing.
 
 import type { Command, Spec, SpecElement } from "./types";
+import { HEADING_Y } from "../layout/page";
+
+export { HEADING_Y };
 
 /** Font size that keeps a one-line title inside the 1000-unit canvas (no word-wrap for plain text). */
 export function titleFont(text: string): number {
@@ -21,11 +24,6 @@ export const CARD_HOLD = 1.6;
 export function headingFont(text: string): number {
   return Math.max(26, Math.min(36, Math.round(880 / (0.55 * Math.max(1, text.length)))));
 }
-
-/** Where the top heading sits: in the strip above a plot's top labels (a
- *  y-axis name at about y 690–705) and above the band figures are fitted
- *  into (y 95–655), just under the canvas edge (750). */
-export const HEADING_Y = 726;
 
 /** How close the heading's push-in starts: 1.8×, or less for a long title,
  *  so the words fill about 92 % of the view instead of running off its sides

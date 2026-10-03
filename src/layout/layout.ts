@@ -21,7 +21,7 @@ import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
 import { setFigureLocale } from "../scenes/kit";
 import { setHeadingBox } from "./axes";
-import { HEADING_Y } from "../spec/card";
+import { FIT_BAND, GUTTER, HEADING_Y, MARGIN, PAGE_H, PAGE_W } from "./page";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
 import { annotationDrawables, DEFAULT_FIT, padFor } from "./annotate";
@@ -207,7 +207,7 @@ export function layoutSpec(
       const font = typeof title.font_size === "number" ? title.font_size : 36;
       const w = measure(title.text as string, font).w;
       const underline = HEADING_Y - font * 0.82;
-      setHeadingBox({ x: 500 - w / 2, y: underline, w, h: 750 - underline });
+      setHeadingBox({ x: PAGE_W / 2 - w / 2, y: underline, w, h: PAGE_H - underline });
       setHeadingFloor(underline);
     } else {
       setHeadingBox(null);
@@ -941,7 +941,7 @@ function autoChartBox(spec: Spec, measure: MeasureFn): { x: number; y: number; w
     add(e.x - half, e.x + half);
   }
   if (!Number.isFinite(lo)) return "full";
-  const GUTTER = 40, MARGIN = 60, BAND_Y = 95, BAND_H = 560, W = 1000;
+  const BAND_Y = FIT_BAND.y, BAND_H = FIT_BAND.h, W = PAGE_W;
   // The chart goes on the side with more room.
   return lo - MARGIN > W - MARGIN - hi
     ? { x: MARGIN, y: BAND_Y, w: Math.max(200, lo - GUTTER - MARGIN), h: BAND_H }

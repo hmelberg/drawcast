@@ -6,6 +6,7 @@
 // and the group is tier2.ts's `insetDrawable`.
 import { CANVAS } from "./canvas";
 import { expandBox, type BBox } from "./geometry";
+import { FIT_BAND, MARGIN } from "./page";
 import type { Drawable } from "./model";
 import { fitTransform, relAt, scaleDrawables } from "./place";
 import type { Spec, SpecElement } from "../spec/types";
@@ -29,7 +30,7 @@ export const INSET_CROP_PAD = 12;
 export const INSET_STROKE_FLOOR = 0.8;
 /** The template's default box on a page with default-column insets: the
  *  `full` region cut to stop 20 units short of the column at x = 820. */
-export const INSET_MAIN: BBox = Object.freeze({ x: 60, y: 95, w: 740, h: 560 });
+export const INSET_MAIN: BBox = Object.freeze({ x: MARGIN, y: FIT_BAND.y, w: 740, h: FIT_BAND.h });
 
 /** What render/inset.ts stores on the element clone: the source's final
  *  frame as re-homed leaves, its ink union, the source elements' boxes (for

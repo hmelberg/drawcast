@@ -33,6 +33,14 @@ export const CONTENT_TOP_BARE = 700;
  *  over the canvas (render/caption-place.ts strip and overlay modes). */
 export const CAPTION_TOP = 160;
 
+/** Between two figures that share the content area (the named regions'
+ *  halves, the code/figure split, a chart beside its drawing). */
+export const GUTTER = 40;
+
+/** The band figures are fitted into (regions.ts "full" and its halves, a
+ *  chart beside a drawing, the inset page's main box, scratch corners). */
+export const FIT_BAND: Readonly<{ y: number; h: number }> = Object.freeze({ y: 95, h: 560 });
+
 /** The content area: where a page's figure goes by default. */
 export function contentBox(opts: { heading?: boolean } = {}): BBox {
   const top = opts.heading === false ? CONTENT_TOP_BARE : CONTENT_TOP;
