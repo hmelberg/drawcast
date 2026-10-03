@@ -673,6 +673,8 @@ const elementSchema = {
     deck: { type: "boolean", description: "cards (sort): a DECK — one large card at a time in the middle; the viewer taps a box (or presses 1, 2, …), the card flies there and the next comes, with a ✓ or ✗ for each. Up to 30 items: for many quick calls." },
     check: { type: "string", enum: ["each", "end"], description: "cards (sort, select, deck): each (default) — every card is judged as it is dropped, a wrong one moved to its right box; end — sort freely, then Answer (a test-like question)." },
     then: { type: "string", description: "cards (decide): the label where every branch meets again — a live viewer who chose one branch skips the others and goes on here." },
+    // Written by an on-canvas quiz's expansion (spec/answer-buttons.ts) on its buttons' group: Ajv knows it; the model never writes it.
+    answer_buttons: { type: "object" },
     strip: { type: "string", enum: ["top", "bottom", "none"], description: "sequence: where done items wait, small — top (default), bottom, none." },
     show_upcoming: { type: "string", enum: ["dots", "none"], description: "sequence: dots — a placeholder in each slot not reached yet." },
     recap: { type: "boolean", description: "sequence: false keeps the row at the top when <id>_strip is drawn (default: it comes to the middle, larger)." },
