@@ -67,12 +67,12 @@ describe("styles.css — the gate's own cursor", () => {
     expect(connectgate).toBeGreaterThan(cardableGate);
   });
   // The idle rule (playback, mouse still) must keep winning regardless of
-  // this round's additions: 3 class selectors (.cs-figure.cs-idle .cs-stage)
+  // this round's additions: 3 class selectors (.cs-figure.cs-still .cs-stage)
   // beats the 2-class stage-level grab/grabbing/cardable rules outright, by
   // specificity alone — no ordering trick required, so this just pins that
   // nobody accidentally raised a new rule's specificity to match it.
-  test(".cs-figure.cs-idle .cs-stage still hides the cursor outright while idle-playing", () => {
-    expect(css).toContain(".cs-figure.cs-idle .cs-stage { cursor: none; }");
+  test(".cs-figure.cs-still .cs-stage still hides the cursor outright while idle-playing", () => {
+    expect(css).toContain(".cs-figure.cs-still .cs-stage { cursor: none; }");
   });
 });
 
