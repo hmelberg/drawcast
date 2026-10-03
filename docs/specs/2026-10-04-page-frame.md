@@ -90,3 +90,4 @@ and a short line in the compiler prompt.
   `<id>_title` in its commands keeps it.
 - A compare value and a label attached to a card follow the card (gate, slide, beside reveal,
   the plan's after-ask offsets); erasing or hiding a card (or the set) takes its value.
+- **W24 Help section** (user, 2026-10-04) — after the round's features land: update the app's help (public/help.html and anything it links) for everything new — the page frame and `heading`, cards `size`/two-line text, number-line formats, chart ticks, on-canvas quiz buttons, `affirm`, `size_compare`, icon fallback lists, reveal stamps, sequence, the new question types — and the `.cast` DSL (settings keys, new fields), with short examples.
