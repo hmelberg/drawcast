@@ -260,6 +260,15 @@ export function iconSlots(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "tem
       out.push({ ask, look, host, data: "strokes", credit: "credit" });
     });
   }
+  // size_compare's icon items (scenes/packs/compare.yaml): each item hosts its own data.
+  if (spec.template === "size_compare" && p && Array.isArray(p.items)) {
+    for (const it of p.items) {
+      if (typeof it !== "object" || it === null) continue;
+      const item = it as Record<string, unknown>;
+      const ask = item.shape === "icon" ? iconAsk(item.icon) : null;
+      if (ask) out.push({ ask, look: "picture", host: item, data: "icon_strokes", credit: "credit" });
+    }
+  }
   return out;
 }
 

@@ -691,7 +691,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-03 (icon fallbacks): `or` on icons, node/card/bar icon values, and the icon
 // rule's sentence on it; the schema's +400, carried into the prompt. +578. -> 395336.
 // Re-pinned UP 2026-10-03 (live shift): ask.readout on a market guess. +173. -> 395509.
-const BASELINE_SYSTEM_CHARS = 395509;
+// Re-pinned UP 2026-10-04 (size_compare, the compare pack on by default): one catalog index line. +238. -> 395747.
+const BASELINE_SYSTEM_CHARS = 395747;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
