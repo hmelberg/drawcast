@@ -100,14 +100,19 @@ describe("scale", () => {
 
   test("a crowded log line labels every 3rd decade (1000, 1 million, 1 billion …); the others keep a short tick", () => {
     const spec = expandSpec({ commands: [], elements: [sc({ min: 1000, max: 1e21, log: true, value: 4.3e19, x: 100, y: 240, width: 800 }) as never] } as Spec);
-    const nums = (spec.elements ?? []).filter((e) => /^s_tick_\d+_num$/.test(e.id)).map((e) => e.text);
+    const all = (spec.elements ?? []).filter((e) => /^s_tick_\d+_num$/.test(e.id));
+    expect(all).toHaveLength(19); // every tick keeps its number's id; the thinned ones are empty
+    const nums = all.map((e) => e.text).filter((t) => t !== "");
     expect(nums).toEqual(["1000", "1 million", "1 billion", "1 trillion", "1 quadrillion", "1 quintillion", "1 sextillion"]);
   });
 
   test("a unit is written once, at the line's right end", () => {
     const spec = expandSpec({ commands: [], elements: [sc({ min: 0, max: 120, unit: "km/h", x: 100, y: 300, width: 700 }) as never] } as Spec);
     const els = spec.elements ?? [];
-    expect(els.find((e) => e.id === "s_unit")).toMatchObject({ text: "km/h", y: 300 });
+    const unit = els.find((e) => e.id === "s_unit")!;
+    expect(unit.text).toBe("km/h");
+    expect(unit.x).toBeGreaterThan(800); // past the line's end (x 100 + 700)
+    expect(unit.y).toBeGreaterThan(300); // raised a little off the line, clear of the numbers under it
     expect(els.filter((e) => /_tick_\d+_num$/.test(e.id)).every((e) => !String(e.text).includes("km/h"))).toBe(true);
     // "%" rides on every number: no unit at the end.
     const pct = expandSpec({ commands: [], elements: [sc({ unit: "%" }) as never] } as Spec);

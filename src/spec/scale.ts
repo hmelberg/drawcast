@@ -174,7 +174,8 @@ function eraOf(sc: ScaleElementLike, log: boolean, lo: number, hi: number): "BC"
 /** A label's width at a font size — the handwriting font, narrow letters narrow. */
 export function scaleLabelWidth(s: string, font: number): number {
   let em = 0;
-  for (const c of s) em += /[1iljtfr.,:' ]/.test(c) ? 0.32 : /[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]/.test(c) ? 0.34 : /[mwMW%]/.test(c) ? 0.78 : 0.55;
+  // (Measured on the frames: digits ≈ 0.55 em, lower-case letters ≈ 0.4.)
+  for (const c of s) em += c === " " ? 0.3 : /[iljtfr.,:']/.test(c) ? 0.25 : c === "1" ? 0.45 : /[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]/.test(c) ? 0.36 : /[mwMW%]/.test(c) ? 0.7 : /[0-9]/.test(c) ? 0.58 : /[a-z]/.test(c) ? 0.42 : 0.6;
   return em * font;
 }
 
@@ -286,7 +287,7 @@ const MINOR_TICK = 6;
 const ACCENT = "#b5482e";
 const TICK_INK = "#7a7468";
 /** Room kept between two neighbouring tick numbers. */
-const LABEL_GAP = 12;
+const LABEL_GAP = 16;
 
 /** The marker and its number at value v: `<id>_answer` (a group) and its two members. */
 export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement[] {
@@ -318,9 +319,15 @@ export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement
  * whole multiples of the stride — 1, 1000, 1 million, 1 billion at 3) or
  * every k-th tick. `textScale` is the cast's text scale: what is drawn.
  */
-export function scaleTickLabels(g: ScaleGeometry, textScale = 1): { labelled: Set<number>; size: number } {
+export function scaleTickLabels(g: ScaleGeometry, textScale = 1): { labelled: Set<number>; size: number; text: (v: number) => string } {
   const tick = g.sizes?.tick ?? TICK_SIZE;
-  const text = g.tickText ?? g.format;
+  const full = g.tickText ?? g.format;
+  // Every 3rd decade of a long log line in words: the names alone read as a
+  // ruler ("1000, million, billion, trillion …") where "1 quadrillion" crowds.
+  const bare = (v: number): string => {
+    const t = full(v);
+    return /^1 [a-z]+$/.test(t) ? t.slice(2) : t;
+  };
   const xs = g.ticks.map((v) => g.xAt(v));
   const n = g.ticks.length;
   const exps = g.ticks.map((v) => Math.round(Math.log10(v)));
@@ -329,7 +336,7 @@ export function scaleTickLabels(g: ScaleGeometry, textScale = 1): { labelled: Se
     const byExp = g.kind === "log" ? g.ticks.map((_, i) => i).filter((i) => ((exps[i] % k) + k) % k === 0) : [];
     return byExp.length >= 2 ? byExp : g.ticks.map((_, i) => i).filter((i) => i % k === 0);
   };
-  const fits = (idx: number[], size: number): boolean => {
+  const fits = (idx: number[], size: number, text: (v: number) => string): boolean => {
     const f = size * textScale;
     for (let j = 1; j < idx.length; j++) {
       const a = idx[j - 1], b = idx[j];
@@ -338,15 +345,18 @@ export function scaleTickLabels(g: ScaleGeometry, textScale = 1): { labelled: Se
     return true;
   };
   const strides = g.kind === "log" ? [1, 2, 3, 6, 9, 12, 15, 18, 21, 24, 30] : [1, 2, 3, 4, 5, 6, 8, 10, 20];
-  const sizes = [...new Set([tick, Math.max(18, Math.round(tick * 0.85))])];
+  const sizes = [...new Set([tick, Math.max(18, Math.round(tick * 0.85)), 18])].filter((f) => f <= tick);
   for (const k of strides) {
     if (k > 1 && k >= n) break;
-    for (const size of sizes) {
-      const idx = pick(k);
-      if (fits(idx, size)) return { labelled: new Set(idx), size };
+    const texts = g.kind === "log" && k === 3 ? [full, bare] : [full];
+    for (const text of texts) {
+      for (const size of sizes) {
+        const idx = pick(k);
+        if (fits(idx, size, text)) return { labelled: new Set(idx), size, text };
+      }
     }
   }
-  return { labelled: new Set([0, n - 1]), size: sizes[sizes.length - 1] };
+  return { labelled: new Set([0, n - 1]), size: sizes[sizes.length - 1], text: full };
 }
 
 /** Does the line write its unit once, at its right end? (Not "%": every number carries it; not a year line.) */
@@ -361,23 +371,43 @@ export function scaleLineElements(sc: ScaleElementLike, textScale = 1): SpecElem
   const g = scaleGeometry(sc);
   const sizes = g.sizes ?? { tick: TICK_SIZE, answer: 28, caption: 26 };
   const drop = g.tickDrop ?? 37;
-  const text = g.tickText ?? g.format;
   const out: SpecElement[] = [{ id: `${sc.id}_line`, type: "path", points: [[g.x0, g.y], [g.x1, g.y]], ...(sc.style ? { style: { ...sc.style, fill: undefined } } : {}) }];
-  const { labelled, size } = scaleTickLabels(g, textScale);
+  const { labelled, size, text: tickLabel } = scaleTickLabels(g, textScale);
   g.ticks.forEach((v, k) => {
     const x = g.xAt(v);
     const len = labelled.has(k) ? TICK : MINOR_TICK;
     out.push({ id: `${sc.id}_tick_${k + 1}`, type: "path", points: [[x, g.y - len], [x, g.y + len]] });
     // Ticks carry the number only (short canvas text); the unit is written
     // once at the line's end — "%" excepted, being part of the number.
-    if (labelled.has(k)) out.push({ id: `${sc.id}_tick_${k + 1}_num`, type: "text", text: text(v), x, y: g.y - drop, font_size: size, style: { color: TICK_INK } });
+    // A thinned-out tick keeps its number's id with no words (an empty text
+    // has no ink): casts that hide or highlight <id>_tick_N_num keep working.
+    out.push({ id: `${sc.id}_tick_${k + 1}_num`, type: "text", text: labelled.has(k) ? tickLabel(v) : "", x, y: g.y - drop, font_size: size, style: { color: TICK_INK } });
   });
   const u = unitOnLine(g);
   if (u !== null) {
-    // Past the line's right end when the page has room for it; else under the last number, flush right.
-    const w = scaleLabelWidth(u, size * textScale);
-    const fitsRight = g.x1 + 14 + w <= 1000 - 8;
-    out.push({ id: `${sc.id}_unit`, type: "text", text: u, x: fitsRight ? g.x1 + 14 + w / 2 : g.x1 - w / 2, y: fitsRight ? g.y : g.y - drop - Math.round(size * 1.25), font_size: size, style: { color: TICK_INK } });
+    // Past the line's right end, raised a little so it clears the last
+    // tick's number under the line, when the page has room; else after the
+    // last number ("10 000 kg") when that fits beside its neighbour; else
+    // under the last number, flush right.
+    const f = size * textScale;
+    const w = scaleLabelWidth(u, f);
+    const last = g.ticks.length - 1;
+    const left = g.x1 + 14;
+    const prev = [...labelled].filter((i) => i < last).pop();
+    const joined = labelled.has(last) ? `${tickLabel(g.ticks[last])} ${u}` : null;
+    const joinedW = joined ? scaleLabelWidth(joined, f) : 0;
+    if (left + w <= 1000 - 8) {
+      out.push({ id: `${sc.id}_unit`, type: "text", text: u, x: left + w / 2, y: g.y + Math.round(f * 0.35), font_size: size, style: { color: TICK_INK } });
+    } else if (
+      joined &&
+      g.x1 + joinedW / 2 <= 1000 - 8 &&
+      (prev === undefined || g.xAt(g.ticks[last]) - g.xAt(g.ticks[prev]) >= (joinedW + scaleLabelWidth(tickLabel(g.ticks[prev]), f)) / 2 + LABEL_GAP)
+    ) {
+      const el = out.find((e) => e.id === `${sc.id}_tick_${last + 1}_num`);
+      if (el) el.text = joined;
+    } else {
+      out.push({ id: `${sc.id}_unit`, type: "text", text: u, x: g.x1 - w / 2, y: g.y - drop - Math.round(f * 1.45), font_size: size, style: { color: TICK_INK } });
+    }
   }
   if (sc.label) out.push({ id: `${sc.id}_caption`, type: "text", text: sc.label, x: (g.x0 + g.x1) / 2, y: g.y + 44 + Math.round(sizes.answer * 1.2 + sizes.caption * 0.5), font_size: sizes.caption });
   // The group keeps the scale's numbers (not its caption: a group's label
@@ -462,8 +492,9 @@ export function placeScale(sc: ScaleElementLike, spec: Pick<Spec, "elements"> & 
     const endL = scaleLabelWidth(text(g.ticks[0]), f) / 2 + 8;
     const endR = scaleLabelWidth(text(g.ticks[g.ticks.length - 1]), f) / 2 + 8;
     const u = unitOnLine(g);
-    const unitW = u !== null ? 14 + scaleLabelWidth(u, f) : 0;
-    const room = box.w - endL - Math.max(endR, unitW);
+    // The unit goes past the line's end (scaleLineElements).
+    const right = u !== null ? Math.max(endR, 14 + scaleLabelWidth(u, f)) : endR;
+    const room = box.w - endL - right;
     const width = isNum(sc.width) ? sc.width : Math.round(Math.min(alone ? 840 : 800, room));
     out.width = width;
     if (!isNum(sc.x)) out.x = Math.round(box.x + endL + Math.max(0, room - width) / 2);
@@ -476,11 +507,14 @@ export function placeScale(sc: ScaleElementLike, spec: Pick<Spec, "elements"> & 
       const icons = items.some((it) => typeof it === "object" && it !== null && (it as { icon?: unknown }).icon !== undefined);
       const h = icons ? 96 : 48;
       const rows = items.length > 5 ? 2 : 1;
-      y = box.y + 10 + 86 + rows * h + (rows - 1) * 14;
+      // Under it the tray; over it the placed cards, in up to two levels.
+      const lowest = box.y + 10 + 86 + rows * h + (rows - 1) * 14;
+      const highest = box.y + box.h - 10 - 40 - 2 * (h + 8);
+      y = highest > lowest ? (lowest + highest) / 2 : lowest;
     } else {
       y = box.y + box.h * (alone ? 0.45 : 0.3);
     }
-    out.y = Math.round(Math.min(y, box.y + box.h - 140));
+    out.y = Math.round(Math.max(box.y + 60, Math.min(y, box.y + box.h - 140)));
   }
   return out;
 }
