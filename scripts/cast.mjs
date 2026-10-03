@@ -568,7 +568,9 @@ const commands = {
   async "course-open"(args) {
     const dir = args.find((a) => a !== "--launch");
     if (!dir) throw new Error("usage: cast.mjs course-open <dir> [--launch]");
-    const url = `${URL_BASE}/?course=${devPath(`${dir}/course.md`)}`;
+    // #create: bare drawcast.app is the front page now; the editor (which
+    // reads ?course= and ?open=) is #create.
+    const url = `${URL_BASE}/?course=${devPath(`${dir}/course.md`)}#create`;
     console.log(url + "\n(imports the course into the app's local courses — built lectures only — and opens its panel; reopening re-imports it)");
     if (args.includes("--launch")) {
       const { spawn } = await import("node:child_process");
@@ -1632,7 +1634,7 @@ const commands = {
   async open(args) {
     const [file] = args.filter((a) => a !== "--launch");
     if (!file) throw new Error("usage: cast.mjs open <cast.json> [--launch]");
-    const url = `${URL_BASE}/?open=${devPath(file)}`;
+    const url = `${URL_BASE}/?open=${devPath(file)}#create`; // #create: the editor, not the front page
     // The app's ?open= unwraps the same shapes frames reads (a spec, {request,
     // spec}, {request, title, playlist}; src/playlist/cast-file.ts). Say which
     // one this is, and refuse a JSON file that would open as a blank page.
