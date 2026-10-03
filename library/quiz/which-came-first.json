@@ -201,7 +201,7 @@
      "on": "pairs",
      "store": "c",
      "right": "The fax, Oxford and the pyramid all came first.",
-     "wrong": "{c} of {c.total} on the first try.",
+     "wrong": "{c.within} of {c.total} on the first try.",
      "feedback": {
       "style": "warm",
       "perfect": "A historian's instinct.",

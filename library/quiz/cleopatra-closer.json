@@ -170,7 +170,7 @@
      "store": "w",
      "tolerance": 0.06,
      "right": "All {w.total} close.",
-     "wrong": "{w} of {w.total} close."
+     "wrong": "{w.within} of {w.total} close."
     }
    },
    {
