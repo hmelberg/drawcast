@@ -32,7 +32,7 @@ import { Affirmer } from "./affirm";
 import { EMPHASIS_EASE_MS, EMPHASIS_FIRST_PEAK_MS, EMPHASIS_HOLD_AT_MS, EMPHASIS_ONE_SWELL_MS, EMPHASIS_RELEASE_MS, easeInLevel, emphasisLevel, releaseLevel, swellLevel } from "./emphasis";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
-import { isIdentity, type Turn } from "./pose";
+import { isIdentity, posedBox, type Turn } from "./pose";
 import { decodeFigures } from "./decode-figures";
 import { smoothstep } from "./sweep";
 import { deckCardMs, deckFlight } from "../cards/deck";
@@ -4011,8 +4011,8 @@ export class Player {
         const boxList = step.ids.flatMap((id) => {
           const b = step.boxes[id];
           if (!b) return [];
-          const [dx, dy] = before.offsets[id] ?? [0, 0];
-          return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
+          // As it stands now: moved, and scaled or turned (posedBox).
+          return [posedBox(b, before.offsets[id] ?? [0, 0], before.turns[id])];
         });
         const box = boxList.length > 0 ? boxList : null;
         const paint = (level: number, elapsedMs?: number) => effects.setHighlight(step.ids, step.effect, level, box, step.color, elapsedMs, step.part);
