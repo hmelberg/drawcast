@@ -180,7 +180,8 @@ describe("the ☰ menu", () => {
   });
   test("it offers only places that exist: home, explore, the formats, topics, create, sign in or out, help", () => {
     for (const s of ['link("./", "Home"', 'link("#browse", "Explore everything")', "`./?f=${c.id}`", "`./?q=${encodeURIComponent(t)}`", 'link("#create", "＋ Create a drawcast")', "signInUrl(location.href)", '"Sign out"', 'link("./help.html", "Help")']) expect(ui).toContain(s);
-    expect(ui).not.toMatch(/Liked|History|Subscriptions"/);
+    // Not yet: those come with the accounts round — no link to a place that does not exist.
+    expect(ui).not.toMatch(/link\([^)]*"(Liked|History|Subscriptions|Watch later)"/);
   });
   test("Escape and the backdrop close it, and focus goes back to the button", () => {
     expect(ui).toContain('if (e.key === "Escape") close();');
