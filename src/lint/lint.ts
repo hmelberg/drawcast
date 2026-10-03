@@ -113,6 +113,8 @@ export interface LintIssue {
     | "out-of-canvas"
     | "font-too-small"
     | "slow-start"
+    /** advisory only (lint/fill.ts): a small figure on an empty page — check and frames print it, layoutSpec never reports it */
+    | "fill"
     /** authoring only: a figure of many strokes exposes no named, outlined part the identify drill or a click ask could use */
     | "drillable-parts"
     | "talky-stretch"

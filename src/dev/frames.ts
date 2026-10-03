@@ -35,6 +35,7 @@ import type { BBox } from "../layout/geometry";
 import { lintCommands } from "../lint/lint";
 import { posedIssues } from "../lint/posed";
 import { layoutAsSeen } from "../lint/at-scale";
+import { figureUnion, fillIssue, fullestFrames, hasHeadingInk } from "../lint/fill";
 import { pacingReport, type PacingProblem } from "../lint/pacing-report";
 import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
@@ -79,6 +80,8 @@ interface FrameReport {
    *  it reads base geometry — so they are kept, separately, rather than mixed in
    *  with defects a viewer can see. */
   hiddenIssues: string[];
+  /** Advice, not defects (lint/fill.ts): judged on a page at its fullest. */
+  advisories: string[];
   /** Every element's bounding box at this frame, logical units (y-up). */
   bboxes: Record<string, BBox>;
 }
@@ -240,6 +243,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       }
     }
     let prevAt = 0;
+    const fillInputs: { boxes: [string, BBox][]; visible: (id: string) => boolean }[] = [];
     for (const frame of frames) {
       const params = hd.plan.states[frame.at - 1]?.params ?? {};
       // A tree's blanks still to be asked are "?" here, as on screen.
@@ -272,9 +276,19 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
         speak: speakBetween(hd.plan.steps as { kind: string; text?: string }[], prevAt, frame.at),
         issues: seen.map((i) => `[${i.severity}] ${i.message}`),
         hiddenIssues: unseen.map((i) => `[${i.severity}] ${i.message} (not on screen at @${frame.at})`),
+        advisories: [],
         bboxes: Object.fromEntries([...boxes.entries()].map(([id, b]) => [id, b])),
       });
+      fillInputs.push({ boxes: [...boxes.entries()], visible: (id) => onScreen([id]) });
       prevAt = frame.at;
+    }
+    // The fill advisory, on each page at its fullest (lint/fill.ts).
+    const unions = fillInputs.map((f) => figureUnion(f.boxes, f.visible));
+    const heading = hasHeadingInk((expanded.elements ?? []).map((e) => e.id));
+    for (const i of fullestFrames(unions.map((u) => (u ? u.w * u.h : 0)))) {
+      const issue = fillIssue(fillInputs[i].boxes, { heading, visible: fillInputs[i].visible });
+      const fr = report.frames[report.frames.length - fillInputs.length + i];
+      if (issue && fr) fr.advisories.push(`[advisory] ${issue.rule}: ${issue.message}`);
     }
   } finally {
     hd.destroy();
@@ -384,6 +398,7 @@ const css = `
   .cap b { color: #111; }
   .bad { color: #b5482e; }
   .ok { color: #2f6b8f; }
+  .advice { color: #8a5fa8; white-space: pre-wrap; }
   pre { font: 11px/1.4 ui-monospace, monospace; white-space: pre-wrap; margin: 4px 0 0; }
 `;
 const style = document.createElement("style");
@@ -452,6 +467,7 @@ async function show(cast: Cast): Promise<CastReport> {
       cap.append(h("b", {}, `@${frame.at} ${frame.changed}${gesture ? ` (mid-gesture: ${gestureLabel(gesture)})` : ""}`));
       if (frame.issues.length > 0) cap.append(h("div", { class: "bad" }, frame.issues.join("\n")));
       else cap.append(h("span", { class: "ok" }, ` — lint clean (browser metrics)${frame.hiddenIssues.length > 0 ? ` · ${frame.hiddenIssues.length} off-screen` : ""}`));
+      if (frame.advisories?.length) cap.append(h("div", { class: "advice" }, frame.advisories.join("\n")));
       if (frame.speak.length > 0) cap.append(h("div", {}, `“${frame.speak[frame.speak.length - 1]}”`));
       cell.append(cap);
       sheet.append(cell);
