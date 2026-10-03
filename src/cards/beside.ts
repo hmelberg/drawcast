@@ -260,3 +260,68 @@ export function cardsBeside(g: CardsGeometry, a: Arrangement, opts: { upTo?: num
   }
   return { color: YOURS, lines, texts };
 }
+
+/** place, glide: a ghost's outline is this light. */
+export const GHOST_OPACITY = 0.75;
+/** place, glide: in the band between the line and the cards (40 up), the values stand this high, the guess → truth arrow this high. */
+const LABEL_UP = 16;
+const ARROW_UP = 32;
+
+/**
+ * place, the default reveal (Hans 2026-10-04: "an animation to the correct
+ * place while also maintaining a visual" of where you put them): the cards
+ * glide from where the viewer put them to their true places, and each card
+ * that was off leaves a GHOST where it stood — a dashed outline, a dashed
+ * pin down to its point on the line and the value it was given there.
+ * Landed (`landed`), the truth is marked: an ink pin and tick from each card
+ * to its true point with the true value beside it ("2560 BC"), ✓/✗ on each
+ * card, and a thin arrow along the line from your point to the true one —
+ * the values outside the arrow, yours on your side, the truth on its own.
+ * A card close enough (`tolerance`, as scored) leaves no ghost.
+ */
+export function placeGlide(g: CardsGeometry, a: Arrangement, opts: { tolerance?: number; landed?: boolean } = {}): GuessMarks {
+  const sg = g.scale;
+  const lines: GuessMarkLine[] = [];
+  const texts: GuessMarkText[] = [];
+  if (g.mode !== "place" || !sg) return { color: YOURS, lines, texts };
+  const right = rightCards(g, a, opts.tolerance && opts.tolerance > 0 ? opts.tolerance : 0.05);
+  const yours = positions(g, a);
+  const w = g.w / 2, h = g.h / 2;
+  /** Which way from the truth the viewer's value lies (-1 left, 1 right; 0: no ghost). */
+  const side = g.cards.map((_, i) => {
+    const v = a.values?.[i];
+    const t = g.values?.[i];
+    if (right[i] || v === null || v === undefined || t === undefined) return 0;
+    return sg.xAt(v) < sg.xAt(t) ? -1 : 1;
+  });
+  g.cards.forEach((_, i) => {
+    const v = a.values?.[i];
+    if (side[i] === 0 || v === null || v === undefined) return;
+    const [x, y] = yours[i];
+    lines.push({ pts: [[x - w, y - h], [x + w, y - h], [x + w, y + h], [x - w, y + h]], closed: true, dashed: true, width: 2, opacity: GHOST_OPACITY });
+    const xv = sg.xAt(v);
+    if (y - h > sg.y) lines.push({ pts: [[xv, y - h], [xv, sg.y]], dashed: true, width: 2, opacity: GHOST_OPACITY });
+    lines.push({ pts: [[xv, sg.y - 8], [xv, sg.y + 8]], width: 3 });
+    texts.push({ at: [xv + side[i] * 5, sg.y + LABEL_UP], text: sg.format(v), anchor: side[i] < 0 ? "end" : "start", size: 16 });
+  });
+  if (!opts.landed) return { color: YOURS, lines, texts };
+  g.cards.forEach((_, i) => {
+    const t = g.values?.[i];
+    if (t === undefined) return;
+    const [x, y] = g.truth[i];
+    const xt = sg.xAt(t);
+    lines.push({ pts: [[xt, y - h], [xt, sg.y]], color: TRUTH, width: 2 });
+    lines.push({ pts: [[xt, sg.y - 10], [xt, sg.y + 10]], color: TRUTH, width: 3 });
+    // The truth's value on the side away from yours (no ghost: to the right).
+    const away = side[i] < 0 ? 1 : side[i] > 0 ? -1 : 1;
+    texts.push({ at: [xt + away * 5, sg.y + LABEL_UP], text: sg.format(t), anchor: away < 0 ? "end" : "start", color: TRUTH, size: 16 });
+    const v = a.values?.[i];
+    if (v === null || v === undefined) return;
+    texts.push(tick([x + g.w / 2 - 2, y + g.h / 2 - 2], right[i], "middle", 24));
+    if (side[i] === 0) return;
+    // From your point to the true one, along the line.
+    const xv = sg.xAt(v);
+    if (Math.abs(xt - xv) > 14) lines.push(...arrow([xv, sg.y + ARROW_UP], [xt, sg.y + ARROW_UP], TRUTH, 1.5));
+  });
+  return { color: YOURS, lines, texts };
+}
