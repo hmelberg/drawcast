@@ -3443,6 +3443,16 @@ body.viewer-body.watch-body {
   background: var(--surface); color: var(--muted); font-size: var(--text-sm); cursor: pointer;
 }
 .watch-theatre-btn:hover { color: var(--ink); border-color: var(--steel); }
+/* 👍 / 👎 (home/react.ts): one pill under the player, a row in the ⋯ menu. */
+.react-pill { display: inline-flex; margin-left: 0.6rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); overflow: hidden; }
+.react-pill[hidden], .react-menu-row[hidden] { display: none; }
+.react-btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.7rem; border: 0; background: none; color: var(--muted); font-size: var(--text-sm); cursor: pointer; }
+.react-pill .react-up { border-right: 1px solid var(--line); }
+.react-btn:hover { color: var(--ink); background: var(--paper); }
+.react-btn[aria-pressed="true"] { color: var(--ink); background: var(--paper); font-weight: 600; }
+.react-count:empty { display: none; }
+.react-pair { display: inline-flex; gap: 0.2rem; }
+.cs-menu-slot:empty { display: none; }
 /* Theatre, and every narrow window: one column, the player full width,
    "Up next" below it as a grid. */
 body.viewer-body.watch-body.watch-theatre {

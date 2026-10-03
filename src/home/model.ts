@@ -78,9 +78,13 @@ export function parseFeatured(raw: unknown): FeaturedEntry[] {
   return out;
 }
 
-/** Where a card goes: the name, in this tab — the front page is drawcast.app itself. */
-export function homeHref(name: string): string {
-  return `#${name}`;
+/** Where a card goes, in this tab: the name's watch address
+ *  (drawcast.app/w/<name> — a real path, which search engines follow and a
+ *  hash is not) wherever Netlify serves the site; `#<name>` on a local dev
+ *  server, which has no /w/ rewrite. */
+export function homeHref(name: string, host: string = typeof location !== "undefined" ? location.hostname : ""): string {
+  const local = host === "" || host === "localhost" || /^127\.|^\[?::1\]?$|^192\.168\./.test(host);
+  return local ? `#${name}` : `/w/${name}`;
 }
 
 /** The card picture: the published poster, through drawcast.app's card
@@ -110,7 +114,9 @@ export function cardFromFeatured(e: FeaturedEntry): HomeCard {
  *  otherwise the curated list's, when the name is curated. */
 export function cardFromCatalogue(item: CatalogueItem, featured: ReadonlyMap<string, FeaturedEntry>): HomeCard {
   const f = featured.get(item.name);
-  const format: HomeFormat | undefined = item.kind === "course" ? "course" : f?.format;
+  // The registry's own format (since 2026-10-03) first; the curated list's for
+  // items registered before formats existed.
+  const format: HomeFormat | undefined = item.kind === "course" ? "course" : (item.format ?? f?.format);
   const parts = [item.kind === "course" ? lecturesText(item.lectures) : "", item.updated ? `updated ${item.updated.slice(0, 10)}` : ""].filter(Boolean);
   return {
     name: item.name,
@@ -119,7 +125,7 @@ export function cardFromCatalogue(item: CatalogueItem, featured: ReadonlyMap<str
     ...(format ? { format } : {}),
     meta: parts.join(" · "),
     private: item.private,
-    tags: f?.tags ?? [],
+    tags: item.tags.length ? item.tags : (f?.tags ?? []),
   };
 }
 
@@ -166,4 +172,55 @@ export function upNext(current: string | undefined, featured: FeaturedEntry[], n
   const score = (e: FeaturedEntry): number => (me ? e.tags.filter((t) => me.tags.includes(t)).length * 2 + (e.format === me.format ? 1 : 0) : 0);
   const ranked = others.map((e, i) => ({ e, i, s: score(e) })).sort((a, b) => b.s - a.s || a.i - b.i).map((x) => x.e);
   return mergeCards(ranked.map(cardFromFeatured), newest.filter((c) => c.name !== base)).slice(0, max);
+}
+
+/** One name's visits over the last 30 days (netlify/functions/rank.mts). */
+export interface RankEntry {
+  name: string;
+  visits: number;
+}
+
+/** What one 👍 is worth against visits in the Popular order: a like is a
+ *  deliberate act by a signed-in viewer, a visit may be a glance. */
+export const LIKE_WEIGHT = 5;
+
+/** The rank list by drawcast: a course's lectures (`spanish/3`) count for
+ *  the course; most visited first. */
+export function rankByBase(ranks: RankEntry[]): RankEntry[] {
+  const totals = new Map<string, number>();
+  for (const r of ranks) {
+    const base = r.name.split("/", 1)[0];
+    if (base) totals.set(base, (totals.get(base) ?? 0) + Math.max(0, r.visits));
+  }
+  return [...totals.entries()].map(([name, visits]) => ({ name, visits })).sort((a, b) => b.visits - a.visits || a.name.localeCompare(b.name));
+}
+
+/** The Popular row: the ranked names the catalogue knows (a private or
+ *  unlisted name is not in its answer, so it never shows), ordered by visits
+ *  plus likes. Items the catalogue returned but the rank did not name are
+ *  left out (an older registry ignores `names=` and answers its newest). */
+export function popularItems(ranks: RankEntry[], items: CatalogueItem[]): CatalogueItem[] {
+  const visits = new Map(ranks.map((r) => [r.name, r.visits]));
+  const score = (i: CatalogueItem): number => (visits.get(i.name) ?? 0) + LIKE_WEIGHT * i.likes;
+  return items
+    .filter((i) => visits.has(i.name) && !i.private)
+    .map((i, at) => ({ i, at, s: score(i) }))
+    .sort((a, b) => b.s - a.s || a.at - b.at)
+    .map((x) => x.i);
+}
+
+/**
+ * A course's "Up next" (delivery 3): watching lecture N of a course, the
+ * lectures after it come first, in order (`course/N+1` …), before anything
+ * else. The registry knows the course's title and lecture count, not each
+ * lecture's own title, so a card reads "Lecture 4 of 6".
+ */
+export function courseNext(watchName: string | undefined, course: Pick<CatalogueItem, "name" | "title" | "lectures" | "owner"> | null): HomeCard[] {
+  const m = /^([^/]+)\/(\d+)$/.exec(watchName ?? "");
+  if (!m || !course || course.name !== m[1]) return [];
+  const out: HomeCard[] = [];
+  for (let k = Number(m[2]) + 1; k <= course.lectures; k++) {
+    out.push({ name: `${course.name}/${k}`, title: `${course.title || course.name} — lecture ${k}`, owner: course.owner, meta: `Lecture ${k} of ${course.lectures}`, private: false, tags: [] });
+  }
+  return out;
 }

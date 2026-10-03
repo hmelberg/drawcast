@@ -9,8 +9,10 @@ import { fetchCatalogue } from "../catalogue";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { h } from "../ui/dom";
 import featuredJson from "./featured.json";
-import { cardFromCatalogue, parseFeatured, tagRows, upNext } from "./model";
+import { cardFromCatalogue, courseNext, mergeCards, parseFeatured, tagRows, upNext, type HomeCard } from "./model";
+import { reactionControls } from "./react";
 import { card, topBar } from "./ui";
+import { playerMenuSlot } from "../ui/menu-slot";
 
 const THEATRE_KEY = "drawcast:watch-theatre";
 
@@ -66,14 +68,34 @@ export function mountWatch(app: HTMLElement, opts: { name?: string } = {}): void
   });
   syncTheatre();
   const meta = app.querySelector(".player-meta");
-  if (meta) meta.append(theatre);
-  else main.append(theatre);
+  // 👍 / 👎 for a named drawcast (a listed one: the buttons stay hidden for
+  // anything else), under the player and in its "⋯" menu.
+  const reactions = opts.name ? reactionControls(opts.name) : null;
+  if (reactions) playerMenuSlot().replaceChildren(reactions.menuRow);
+  const extras = [...(reactions ? [reactions.pill] : []), theatre];
+  if (meta) meta.append(...extras);
+  else main.append(...extras);
 
-  const show = (newest: Parameters<typeof upNext>[2]): void => {
-    list.replaceChildren(...upNext(opts.name, featured, newest).map((c) => card(c, { compact: true })));
+  // A course lecture (`spanish/2`): the next lectures first, in order; then
+  // the usual list. Each source fills in as it answers.
+  let lectures: HomeCard[] = [];
+  let newest: HomeCard[] = [];
+  const show = (): void => {
+    list.replaceChildren(...mergeCards(lectures, upNext(opts.name, featured, newest)).slice(0, 12 + lectures.length).map((c) => card(c, { compact: true })));
   };
-  show([]);
+  show();
+  const byName = new Map(featured.map((e) => [e.name, e]));
   void fetchCatalogue(DEFAULT_ENROLL_API, { kind: "cast" }).then((answer) => {
-    if (answer !== "error") show(answer.items.map((i) => cardFromCatalogue(i, new Map(featured.map((e) => [e.name, e])))));
+    if (answer === "error") return;
+    newest = answer.items.map((i) => cardFromCatalogue(i, byName));
+    show();
   });
+  const courseName = opts.name?.includes("/") ? opts.name.split("/", 1)[0] : null;
+  if (courseName) {
+    void fetchCatalogue(DEFAULT_ENROLL_API, { kind: "course", names: [courseName] }).then((answer) => {
+      if (answer === "error") return;
+      lectures = courseNext(opts.name, answer.items.find((i) => i.name === courseName) ?? null);
+      if (lectures.length) show();
+    });
+  }
 }

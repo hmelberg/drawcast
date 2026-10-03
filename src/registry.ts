@@ -91,6 +91,10 @@ export interface RegisterInput {
   title?: string;
   page?: string;
   lectures?: string[];
+  /** The front page's format (standalone/transcript.ts castFacts) — a cast only. */
+  format?: "drawcast" | "quiz" | "xplanation";
+  /** Topic tags from the cast's `tags:` header. */
+  tags?: string[];
 }
 
 export interface RegisterResult {
