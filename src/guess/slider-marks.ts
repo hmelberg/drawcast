@@ -15,7 +15,7 @@ import { ratioText, signedScale, type GuessMarkLine, type GuessMarkText } from "
 
 const YOURS = GUESS_COLOR;
 /** Your number over your thumb. */
-const MINE_SIZE = 24;
+const MINE_SIZE = 30;
 
 /** Is this guess on an estimate slider? */
 export function onSlider(h: GuessHandle): boolean {
@@ -72,13 +72,13 @@ export function sliderMarks(
   // Your number over your thumb — once the truth's thumb has left it.
   const xNow = g.xAt(sliderRevealValue(guess, truth, p));
   if (Math.abs(xNow - x) > THUMB_R * 2.2 || p <= 0) {
-    texts.push({ at: [x, g.y + THUMB_R + 20], text: g.format(guess), anchor: "middle", color: YOURS, size: MINE_SIZE, opacity: fade });
+    texts.push({ at: [x, g.y + THUMB_R + 24], text: g.format(guess), anchor: "middle", color: YOURS, size: MINE_SIZE, opacity: fade });
   }
   if (p > 0 && Math.abs(xt - x) > 4) {
     const x1 = x + (xt - x) * ease(p);
     const by = sliderBracketY(g);
     lines.push({ pts: [[x, by + 6], [x, by], [x1, by], [x1, by + 6]] as Pt[], color: INK, width: 2.5 });
-    if (p >= 1) texts.push({ at: [(x + x1) / 2, by - 18], text: gapText(g, truth, guess), anchor: "middle", color: INK, gap: true, ...(fade < 1 ? { opacity: fade } : {}) });
+    if (p >= 1) texts.push({ at: [(x + x1) / 2, by - 22], text: gapText(g, truth, guess), anchor: "middle", color: INK, size: 28, gap: true, ...(fade < 1 ? { opacity: fade } : {}) });
   }
   return { fills, lines, texts };
 }

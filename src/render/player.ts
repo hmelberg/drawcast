@@ -2220,14 +2220,14 @@ export class Player {
           });
         });
       }
+      // Steps (spec/steps.ts): the arrows draw in between the cards, now in order.
+      if (g.arrows && !signal.aborted) await this.drawStepArrows(g.arrows, signal);
       // The gate's nudges go (an abort too): the plan puts the cards at the truth.
       for (const id of g.cards) place(id, 0, 0);
       if (signal.aborted) {
         this.endGuessMarks(true);
         return;
       }
-      // Steps (spec/steps.ts): the arrows draw in between the cards, now in order.
-      if (g.arrows && !(await this.drawStepArrows(g.arrows, signal))) return;
     }
     // The right tiles are in their boxes: their glyphs are written in (the
     // plan takes the tiles and the boxes away). The wrong tiles, home again,
