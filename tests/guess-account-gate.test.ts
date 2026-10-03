@@ -146,7 +146,7 @@ describe("the guess gate with a budget", () => {
     key("Tab");
     key("ArrowUp"); // bar 2: 5 → 10 — balanced
     expect(answer.disabled).toBe(false);
-    expect(hint.textContent).toBe("Drag each bar to your guess, then Answer");
+    expect(hint.textContent).toBe("Drag each bar to your guess, then Done");
     key("ArrowUp"); // bar 2: 15 — over
     expect(hint.textContent).toBe("Balance the budget: 5 over");
     expect(answer.disabled).toBe(true);

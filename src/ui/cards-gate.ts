@@ -1,12 +1,12 @@
 // The cards gate (specs 2026-10-01-rank-and-sort §4, 2026-10-02-more-ways-
 // to-answer): the viewer answers on the drawn cards —
 //
-//   rank     drag the cards into order            → Answer
+//   rank     drag the cards into order            → Done
 //   sort     check: each (default, round 7 §3) — the next card is picked;
 //            tap a box (or drag a card there): it is judged at once, a
 //            wrong one glides to its right box, faded; a counter keeps the
 //            score; the last card answers. check: end — a tap sends a card
-//            round the boxes and back (row → 1 → 2 → … → row) → Answer.
+//            round the boxes and back (row → 1 → 2 → … → row) → Done.
 //            select (one box): check: each — a tap puts a card in, judged (a
 //            wrong one goes back, faded); Done judges the rest. check: end —
 //            a tap moves it in or out
@@ -14,13 +14,13 @@
 //            or press 1–4; it flies there with a ✓ or ✗ and the next comes
 //            (answers itself after the last). check: each — a wrong card
 //            then flies on to its right box, faded; a counter keeps the score
-//   place    drag each card onto the number line  → Answer
-//   match    drag from a card to its partner      → Answer
+//   place    drag each card onto the number line  → Done
+//   match    drag from a card to its partner      → Done
 //   compare  tap the bigger card of each pair     (answers itself)
 //   decide   tap a choice                         (answers itself)
 //   fill     drag a tile into each of a formula's boxes, or tap a tile (it
 //            goes to the first empty box, then on as sort's) and, if you
-//            like, then a box → Answer (one box: the drop answers, unless
+//            like, then a box → Done (one box: the drop answers, unless
 //            the ask says release: false)
 //
 // A pressed card follows the pointer on the figure (it is the figure's own
@@ -32,7 +32,7 @@
 // along the line (shift: further); match 1–6 join it to that partner (top to
 // bottom); compare ←/→ or 1/2 pick in the current pair; decide 1–4 or ←/→
 // and Enter; fill 1–n put the tile in that box, 0 back to the row. Enter
-// answers where there is an Answer button.
+// answers where there is a Done button.
 
 import type { RenderHandle } from "../render";
 import type { CardsSession } from "../render/player";
@@ -112,7 +112,7 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       const hintKey = deck ? "deck" : g.select ? (selectEach ? "selectEach" : "select") : sortEach ? "sortEach" : mode;
       const hintText = words.cards[hintKey] ?? words.cards[mode] ?? "";
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint", title: hintText }, hintText);
-      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, selectEach ? words.done : words.answer);
+      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.done);
       answer.hidden = !needsAnswer || dropAnswers;
       const ring = h("div", { class: "cs-card-focus" });
       ring.hidden = true;
