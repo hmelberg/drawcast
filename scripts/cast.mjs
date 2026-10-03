@@ -1354,7 +1354,7 @@ const commands = {
       const { parseCourse, setLectureStatus } = await load("/src/course/document.ts");
       const { parseManifest, emptyManifest } = await load("/src/publish/github.ts");
       const { doorlessNote } = await load("/src/course/page.ts");
-      const { parsePlaylistText, formatPublished, isEndPage } = await load("/src/playlist/playlist.ts");
+      const { parsePlaylistText, formatPublished, isEndPage, sourceLanguage } = await load("/src/playlist/playlist.ts");
       const { endPageFor } = await load("/src/course/run.ts");
       let text = readFileSync(resolve(wd, "course.md"), "utf8");
       // A private course publishes `private: true` and its Join door in
@@ -1390,7 +1390,8 @@ const commands = {
           const last = p.entries.at(-1);
           const hadEnd = last?.kind === "item" && isEndPage(last.spec);
           if (hadEnd) p.entries.pop();
-          const end = endPageFor(course, i);
+          // In the lecture's own language (its parts' lang, else what they read as).
+          const end = endPageFor(course, i, sourceLanguage(p));
           if (end) {
             const own = hadEnd ? (last.spec.elements ?? []).filter((e) => e.type === "link" && !/^end_/.test(e.id)) : [];
             if (own.length > 0) {

@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
-import { makeEndPage, makeNextCard, posterItemOf, type Playlist } from "../src/playlist/playlist";
+import { endWords, makeEndPage, makeNextCard, posterItemOf, type Playlist } from "../src/playlist/playlist";
+import { lecturePlaylist } from "../src/course/run";
+import { parseCourse } from "../src/course/document";
 import { lecturePosters } from "../src/course/publish";
 import { validateSpec } from "../src/spec/schema";
 import type { Spec } from "../src/spec/types";
@@ -25,6 +27,26 @@ describe("the end page", () => {
     expect(validateSpec(end).ok).toBe(true);
     expect(end.commands?.some((c) => c.clear !== undefined)).toBe(false);
     expect(end.elements?.filter((e) => e.type === "link").map((e) => e.href)).toEqual(["lecture:1", "lecture:3", "lecture:2"]);
+  });
+  test("speaks the lecture's language: its own words, its spoken Next, its lang", () => {
+    const end = makeEndPage({ position: 2, total: 3, prev: "En", next: "Tre", lang: "nb" });
+    const texts = (end.elements ?? []).map((e) => (e.type === "link" ? e.title : e.text));
+    expect(texts).toEqual(["Forrige", "En", "Neste", "Tre", "Se igjen", "2 av 3"]);
+    expect(end.commands?.[0].speak).toBe("Neste: Tre");
+    expect(end.lang).toBe("nb");
+    expect(validateSpec(end).ok).toBe(true);
+    expect(endWords("nb-NO").prev).toBe("Forrige");
+    expect(endWords("no").next).toBe("Neste");
+    for (const l of ["nn", "sv", "da", "de", "fr", "es"]) expect(endWords(l).next).not.toBe("Next");
+    // English (and unknown) stays as it was, with no lang stamped.
+    const en = makeEndPage({ position: 1, total: 2, next: "Two", lang: "xx" });
+    expect(en.commands?.[0].speak).toBe("Next: Two");
+    expect(en.lang).toBeUndefined();
+  });
+  test("a course lecture's end page follows its parts' language", () => {
+    const course = parseCourse("# K\n\n## En\n\n## To\n");
+    const nb = lecturePlaylist(course, 0, { specs: [{ title: "a", lang: "nb", elements: [], commands: [] }], chapterOf: [], failed: [] } as never);
+    expect(nb.entries.at(-1)).toMatchObject({ kind: "item", spec: { end_page: true, lang: "nb", title: "Hvor nå" } });
   });
 });
 

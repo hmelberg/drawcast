@@ -689,6 +689,36 @@ export interface EndPageOptions {
   prev?: string;
   /** The next lecture's title (absent on the last). */
   next?: string;
+  /** The lecture's language (its parts' `lang` / castLang): the page's own
+   *  words — Previous, Next, Watch again, "N of M", the spoken Next — are in
+   *  it. Unknown or absent: English. */
+  lang?: string | null;
+}
+
+/** The words an end page says itself, per language. */
+interface EndWords {
+  prev: string;
+  next: string;
+  again: string;
+  title: string;
+  of(n: number, total: number): string;
+}
+
+const END_WORDS: Record<string, EndWords> = {
+  en: { prev: "Previous", next: "Next", again: "Watch again", title: "Where next", of: (n, t) => `${n} of ${t}` },
+  nb: { prev: "Forrige", next: "Neste", again: "Se igjen", title: "Hvor nå", of: (n, t) => `${n} av ${t}` },
+  nn: { prev: "Førre", next: "Neste", again: "Sjå igjen", title: "Kvar no", of: (n, t) => `${n} av ${t}` },
+  sv: { prev: "Föregående", next: "Nästa", again: "Se igen", title: "Vart nu", of: (n, t) => `${n} av ${t}` },
+  da: { prev: "Forrige", next: "Næste", again: "Se igen", title: "Hvor nu", of: (n, t) => `${n} af ${t}` },
+  de: { prev: "Zurück", next: "Weiter", again: "Noch einmal ansehen", title: "Wie weiter", of: (n, t) => `${n} von ${t}` },
+  fr: { prev: "Précédent", next: "Suivant", again: "Revoir", title: "Et ensuite", of: (n, t) => `${n} sur ${t}` },
+  es: { prev: "Anterior", next: "Siguiente", again: "Ver de nuevo", title: "Y ahora", of: (n, t) => `${n} de ${t}` },
+};
+
+/** The end-page words for a lang tag (nb-NO → nb, no → nb); English otherwise. */
+export function endWords(lang: string | null | undefined): EndWords {
+  const code = (lang ?? "").toLowerCase().split(/[-_]/)[0];
+  return END_WORDS[code === "no" ? "nb" : code] ?? END_WORDS.en;
 }
 
 /**
@@ -709,12 +739,15 @@ export function makeEndPage(opts: EndPageOptions): Spec {
     elements.push({ id, type: "link", href: `lecture:${n}`, title, size: 320, x, y: 395 });
     cards.push(`${id}_kicker`, id);
   };
-  if (opts.prev !== undefined) card("end_prev", "Previous", opts.prev, opts.position - 1, both ? 265 : 500);
-  if (opts.next !== undefined) card("end_next", "Next", opts.next, opts.position + 1, both ? 735 : 500);
-  elements.push({ id: "end_again", type: "link", form: "text", href: `lecture:${opts.position}`, title: "Watch again", open: "here", x: 500, y: 160 });
-  elements.push({ id: "end_count", type: "text", text: `${opts.position} of ${opts.total}`, x: 500, y: 95, font_size: 22, style: { opacity: 0.6 } });
-  const first: Command = opts.next !== undefined ? { draw: cards, speak: `Next: ${opts.next}` } : { draw: cards };
-  return { title: "Where next", end_page: true, elements, commands: [first, { draw: ["end_again", "end_count"] }] };
+  const w = endWords(opts.lang);
+  if (opts.prev !== undefined) card("end_prev", w.prev, opts.prev, opts.position - 1, both ? 265 : 500);
+  if (opts.next !== undefined) card("end_next", w.next, opts.next, opts.position + 1, both ? 735 : 500);
+  elements.push({ id: "end_again", type: "link", form: "text", href: `lecture:${opts.position}`, title: w.again, open: "here", x: 500, y: 160 });
+  elements.push({ id: "end_count", type: "text", text: w.of(opts.position, opts.total), x: 500, y: 95, font_size: 22, style: { opacity: 0.6 } });
+  const first: Command = opts.next !== undefined ? { draw: cards, speak: `${w.next}: ${opts.next}` } : { draw: cards };
+  // A non-English page declares its lang, so the spoken Next is read in that voice.
+  const lang = w === END_WORDS.en ? {} : { lang: opts.lang as string };
+  return { title: w.title, ...lang, end_page: true, elements, commands: [first, { draw: ["end_again", "end_count"] }] };
 }
 
 /** The item a poster is drawn from: the LAST content part — the end
