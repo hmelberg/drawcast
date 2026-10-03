@@ -71,6 +71,28 @@ describe("drawPictures", () => {
     expect(out.pictures).toEqual([null]);
     expect(out.note).toBe("vite missing");
   });
+  test("the page's \"poster: …\" lines are said out loud (a missing font is not a quiet null)", async () => {
+    const lines: string[] = [];
+    const launch = async () => ({
+      newPage: async () => {
+        let hear: ((m: { text(): string }) => void) | null = null;
+        return {
+          on: (ev: string, f: (m: { text(): string }) => void) => { if (ev === "console") hear = f; },
+          goto: async () => undefined,
+          waitForFunction: async () => undefined,
+          evaluate: async () => {
+            hear?.({ text: () => "[vite] connected." });
+            hear?.({ text: () => "poster: the sketch font (Patrick Hand) could not be embedded — no poster drawn" });
+            return null;
+          },
+        };
+      },
+      close: async () => undefined,
+    });
+    const out = await drawPictures(["a"], { launch, serve: okServe, log: (l) => lines.push(l) });
+    expect(out.pictures).toEqual([null]);
+    expect(lines).toEqual(["poster: the sketch font (Patrick Hand) could not be embedded — no poster drawn"]);
+  });
   test("nothing to draw starts nothing", async () => {
     let started = false;
     const out = await drawPictures([], { launch: async () => { started = true; throw new Error("x"); }, serve: async () => { started = true; throw new Error("x"); } });

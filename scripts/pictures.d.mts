@@ -7,6 +7,8 @@ export function drawPictures(
     launch?: () => Promise<any>;
     serve?: () => Promise<{ url: string; close(): Promise<void> }>;
     perCastMs?: number;
+    /** Where the page's "poster: …" lines go (default console.warn). */
+    log?: (line: string) => void;
   },
 ): Promise<{ pictures: (Uint8Array | null)[]; note: string | null }>;
 export function defaultServe(
