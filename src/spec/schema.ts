@@ -819,6 +819,19 @@ const commandSchema = {
             "Store the chosen option's TEXT under this simple name (letters, digits, underscores; starts with a letter): later speak lines may use {name}, {name.ok} (true/false) and {name.secs} (seconds the viewer took). Movies and skipped questions store the correct option.",
         },
         feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
+        on_canvas: { type: "boolean", description: "true: the choices are buttons drawn on the figure; the question is not said again (say it in the line before)." },
+        id: { type: "string", description: "on_canvas: buttons are <id>_btn_N." },
+        buttons: {
+          type: "array",
+          minItems: 2,
+          maxItems: 4,
+          items: { type: "object", properties: { text: { type: "string" }, icon: { anyOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }] } }, additionalProperties: false },
+          description: "on_canvas: each choice's text and icon.",
+        },
+        buttons_at: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false, description: "on_canvas: the buttons' centre." },
+        buttons_layout: { type: "string", enum: ["row", "column"] },
+        say_question: { type: "boolean", description: "on_canvas: true speaks and shows the question." },
+        keep_buttons: { type: "boolean", description: "on_canvas: true keeps the buttons after the answer." },
       },
       required: ["question", "choices", "correct"],
       additionalProperties: false,
@@ -988,6 +1001,7 @@ const commandSchema = {
         others: { type: "array", items: { type: "string" }, description: "Formula (on a math element with \\blank): wrong tiles; the right contents are always tiles." },
         form: { const: "exact", description: "Formula, typed: \"exact\" compares the written form, not the value." },
         feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
+        say_question: { type: "boolean", description: "false: the question is neither spoken nor shown." },
         release: { type: "boolean", description: "With `on`: letting go of the drag is the answer (default true). false shows an Answer button, so the viewer can adjust before answering — for a careful estimate. Several parts (on: all, a whole pie) always get the button." },
         relative: { type: "boolean", description: "With `on`: tolerance is a fraction of the true value (within 20 % = tolerance 0.2) — for money and other quantities spanning orders of magnitude." },
         code: {
@@ -1933,6 +1947,21 @@ function semanticErrors(spec: Spec): string[] {
       }
       if (a.store !== undefined && isReservedVar(a.store)) {
         errors.push(`commands[${i}]: quiz.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
+      }
+      const canvasOnly = (["id", "buttons", "buttons_at", "buttons_layout", "say_question", "keep_buttons"] as const).filter((k) => a[k] !== undefined);
+      if (a.on_canvas !== true && canvasOnly.length > 0) {
+        errors.push(`commands[${i}]: quiz.${canvasOnly.join(", ")} only apply with on_canvas: true`);
+      }
+      if (a.on_canvas === true) {
+        if (Array.isArray(a.buttons) && Array.isArray(a.choices) && a.buttons.length !== a.choices.length) {
+          errors.push(`commands[${i}]: quiz.buttons must give one entry per choice (${a.choices.length})`);
+        }
+        if (a.id !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.id)) {
+          errors.push(`commands[${i}]: quiz.id must be a simple name (letters, digits, underscores; starts with a letter)`);
+        }
+        if (Array.isArray(a.choices) && a.choices.some((c) => typeof c === "string" && c.length > 24)) {
+          errors.push(`commands[${i}]: quiz on_canvas: choices are buttons on the figure — a word or three each (24 characters at most)`);
+        }
       }
     }
     if (verb === "ask" && cmd.ask) {

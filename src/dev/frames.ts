@@ -194,6 +194,11 @@ function restingFrames(plan: { steps: { kind: string; text?: string; narration?:
       if (line) out.push({ at: i + 1, changed: `beat “${line.length > 40 ? line.slice(0, 39) + "…" : line}”` });
     });
   }
+  // A quiet question (on-canvas quiz buttons, spec/answer-buttons.ts) speaks
+  // no line, so no beat shows its buttons: a frame of its own.
+  plan.steps.forEach((s, i) => {
+    if (s.kind === "ask" && (s as { quiet?: boolean }).quiet) out.push({ at: i + 1, changed: "question (on-canvas buttons)" });
+  });
   // Dedupe by boundary, keeping the first reason given for it.
   const seen = new Set<number>();
   return out.filter((f) => (seen.has(f.at) ? false : (seen.add(f.at), true))).sort((a, b) => a.at - b.at);

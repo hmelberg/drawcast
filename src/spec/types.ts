@@ -1011,6 +1011,9 @@ export interface AskArgs {
   form?: "exact";
   /** Feedback flavour for this question (spec 2026-10-03 §4.1); wins over the cast's. */
   feedback?: FeedbackArg;
+  /** false: the question is neither spoken nor shown over the figure — the
+   *  line before said it (on-canvas quiz buttons, spec/answer-buttons.ts). */
+  say_question?: boolean;
   /** A guess, cards, tree or formula reveal (spec 2026-10-03-round6 §3):
    *  "beside" (default) — the viewer's answer stays where they put it and
    *  the truth is drawn beside or over it; "morph" — the answer glides into
@@ -1074,6 +1077,26 @@ export interface QuizArgs {
   store?: string;
   /** Feedback flavour for this question; wins over the cast's. */
   feedback?: FeedbackArg;
+  /** On-canvas answer buttons (spec/answer-buttons.ts): the choices are
+   *  drawn as buttons on the figure — below it and a bit to the side — and
+   *  the viewer taps one; no question card, and the question is not said
+   *  again (the line before said it). It expands into the buttons, an ask
+   *  with `choose` and (unless keep_buttons) a hide. */
+  on_canvas?: boolean;
+  /** on_canvas: the buttons' ids are `<id>_btn_N` (default quiz_<k>, k the
+   *  on-canvas quiz's ordinal). */
+  id?: string;
+  /** on_canvas: each choice's look, by index — its text (default the
+   *  choice) and an icon keyword above it. */
+  buttons?: { text?: string; icon?: string | { of: string; set?: string } }[];
+  /** on_canvas: the centre of the button row/column, overriding the placement. */
+  buttons_at?: { x: number; y: number };
+  /** on_canvas: a row (default when it fits) or a column of buttons. */
+  buttons_layout?: "row" | "column";
+  /** on_canvas: speak the question (and show it over the figure) after all. */
+  say_question?: boolean;
+  /** on_canvas: the buttons stay after the answer (default: they fade). */
+  keep_buttons?: boolean;
 }
 
 /**

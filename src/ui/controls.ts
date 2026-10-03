@@ -263,6 +263,8 @@ export interface AskGateStep {
   choose?: ChooseOption[];
   /** Choose: false = an opinion (no ✓/✗ on the tapped thing). */
   judge?: false;
+  /** Choose: no headline and no hint — on-canvas quiz buttons (spec/answer-buttons.ts). */
+  quiet?: true;
 }
 
 /**

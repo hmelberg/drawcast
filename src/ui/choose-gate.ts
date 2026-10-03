@@ -129,7 +129,9 @@ export function chooseGateFor(
           const r = ringBox(i);
           const mark = h("span", { class: `cs-figgate-mark ${ok ? "right" : "wrong"}` }, ok ? "✓" : "✗");
           if (r) {
-            mark.style.left = `${r.left + r.width / 2}px`;
+            // On a quiet ask's button (on-canvas quiz buttons) the mark sits on
+            // its right end, so the button's word still shows.
+            mark.style.left = `${step.quiet ? r.left + r.width - RING_PAD : r.left + r.width / 2}px`;
             mark.style.top = `${r.top + r.height / 2}px`;
           }
           gate.appendChild(mark);
@@ -198,7 +200,9 @@ export function chooseGateFor(
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
       stage.appendChild(gate);
-      dock = mountGateDock(stage, gate, docked, placeRing, { question: step.question, how: hint });
+      // A quiet ask (on-canvas quiz buttons): the buttons say what to do and
+      // the line before said the question — no headline, no hint, Skip only.
+      dock = mountGateDock(stage, gate, docked, placeRing, step.quiet ? undefined : { question: step.question, how: hint });
       dock.relayout();
     });
 }
