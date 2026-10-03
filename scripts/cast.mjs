@@ -1547,7 +1547,7 @@ const commands = {
       }
       const { validateSpec } = await load("/src/spec/schema.ts");
       const { expandSpec } = await load("/src/spec/expand.ts");
-      const { layoutSpec } = await load("/src/layout/layout.ts");
+      const { layoutAsSeen } = await load("/src/lint/at-scale.ts");
       const { heuristicMeasure } = await load("/src/layout/measure.ts");
       const { lintCommands } = await load("/src/lint/lint.ts");
       const { lintCrowding } = await load("/src/lint/crowding.ts");
@@ -1567,7 +1567,7 @@ const commands = {
       const withIcons = structuredClone(spec);
       await resolveIcons(withIcons, { ...defaultDeps(), fetch: nodeFetch(iconFetcher({ dir: iconCacheDir(ROOT) })) }).catch(() => {});
       const ex = expandSpec(withIcons);
-      const laid = layoutSpec(ex, heuristicMeasure);
+      const laid = layoutAsSeen(ex, heuristicMeasure); // at the cast's text scale, as drawn
       // The layout's own warnings too (a label moved off other ink, …): the
       // bundled-examples gate fails on them, so an author must see them here.
       // Crowding (texts on the page at once, small print) is checked by the

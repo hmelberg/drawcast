@@ -30,10 +30,11 @@
 
 import bundledExamples from "../examples.json";
 import { setTrustPolicy } from "../security/code-trust";
-import { elementBBoxes, layoutSpec } from "../layout/layout";
+import { elementBBoxes } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import { lintCommands } from "../lint/lint";
 import { posedIssues } from "../lint/posed";
+import { layoutAsSeen } from "../lint/at-scale";
 import { pacingReport, type PacingProblem } from "../lint/pacing-report";
 import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
@@ -250,7 +251,8 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       // label a template drops at small h (tangent_secant's Δx) was reported
       // at the end frame although it was drawn, correctly, while it existed.
       const posed = Object.keys(params).length > 0;
-      const layout = layoutSpec(at, measure, undefined, undefined, posed ? { skipDrawBeatLint: true } : undefined);
+      // At the cast's text scale, as the player draws it (its drawables carry drawn sizes).
+      const layout = layoutAsSeen(at, measure, undefined, undefined, posed ? { skipDrawBeatLint: true } : undefined);
       const boxes = elementBBoxes(layout, measure);
       // What the viewer can actually see at this boundary. An overlap between
       // an element that is drawn and one that is not (a label erased two beats

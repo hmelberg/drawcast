@@ -462,6 +462,27 @@ function lintCueTiming(drawables: Drawable[], commands: Command[], expandId?: (i
   return issues;
 }
 
+/** font-too-small over text drawables, at the sizes they carry — drawn
+ *  sizes once applyTextStyle has scaled them (lint/at-scale.ts). */
+export function lintFontSizes(drawables: Drawable[]): LintIssue[] {
+  const issues: LintIssue[] = [];
+  for (const t of lintableLeaves(drawables)) {
+    if (t.kind !== "text" || t.text.trim() === "") continue;
+    // The C64 face fills its whole em square with an 8 × 8 pixel glyph, so a
+    // cell of 11 units reads where the handwriting needs 14 — and a 40-column
+    // screen at a sane width lands between the two.
+    if (t.fontSize < (t.font === "c64" ? C64_FONT_FLOOR : FONT_FLOOR)) {
+      issues.push({
+        rule: "font-too-small",
+        ids: [t.id],
+        message: `text "${t.id}" has font size ${Math.round(t.fontSize * 10) / 10} (< ${FONT_FLOOR} logical units — unreadable)`,
+        severity: "warn",
+      });
+    }
+  }
+  return issues;
+}
+
 export function lintLayoutDetailed(
   drawables: Drawable[],
   measure: MeasureFn,
@@ -491,19 +512,7 @@ export function lintLayoutDetailed(
   const coexist = (a: string, b: string) => together(owner.get(a) ?? a, owner.get(b) ?? b);
   const composed = (a: string, b: string) => !!sameGroup?.(owner.get(a) ?? a, owner.get(b) ?? b);
 
-  for (const t of texts) {
-    // The C64 face fills its whole em square with an 8 × 8 pixel glyph, so a
-    // cell of 11 units reads where the handwriting needs 14 — and a 40-column
-    // screen at a sane width lands between the two.
-    if (t.fontSize < (t.font === "c64" ? C64_FONT_FLOOR : FONT_FLOOR)) {
-      issues.push({
-        rule: "font-too-small",
-        ids: [t.id],
-        message: `text "${t.id}" has font size ${t.fontSize} (< ${FONT_FLOOR} logical units — unreadable)`,
-        severity: "warn",
-      });
-    }
-  }
+  issues.push(...lintFontSizes(texts));
 
   // A highlight `part` that names nothing lights the whole target instead
   // (render/svg-backend) — the author meant a piece, so say which was missed.
