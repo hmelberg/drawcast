@@ -6,6 +6,7 @@
 import { guessGateFor } from "./guess-gate";
 import { cardsGateFor } from "./cards-gate";
 import { chooseGateFor } from "./choose-gate";
+import { spotGateFor } from "./spot-gate";
 import type { ChooseOption } from "../render/plan";
 import { treeGateFor } from "./tree-gate";
 import { formulaGateFor } from "./formula-gate";
@@ -265,6 +266,8 @@ export interface AskGateStep {
   judge?: false;
   /** Choose: no headline and no hint — on-canvas quiz buttons (spec/answer-buttons.ts). */
   quiet?: true;
+  /** Spot it (ui/spot-gate.ts): the place to tap and its box. */
+  spot?: { id: string; box: import("../layout/geometry").BBox };
 }
 
 /**
@@ -1279,6 +1282,7 @@ export function attachPlayerControls(
   const treeGate = treeGateFor(stage, hd);
   const formulaGate = formulaGateFor(stage, hd);
   const chooseGate = chooseGateFor(stage, hd);
+  const spotGate = spotGateFor(stage, hd);
   attachTestMe(stage, hd);
   // A template-bound ask is worked on the figure itself, so its gate needs the
   // host. Without one (the template carries no widget body — lint calls that an
@@ -1298,6 +1302,8 @@ export function attachPlayerControls(
       ? guessGate(signal, step)
       : step.widgetTemplate && widgetHost
       ? widgetGate(signal, step)
+      : step.spot !== undefined
+      ? spotGate(signal, step)
       : step.widget === "click"
       ? figureGate(signal, step)
       : step.widget === "drag"
