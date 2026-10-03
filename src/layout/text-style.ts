@@ -114,7 +114,8 @@ export function applyTextStyle(layout: LayoutResult, style: TextStyle): LayoutRe
       // size — a viewer's 48 would push it through the top edge.
       const size = d.fontSize * style.scale;
       const capped = /^card_\d+_title$/.test(d.id) && d.pos[1] === HEADING_Y ? Math.min(size, headingFont(d.text)) : size;
-      return { ...d, fontSize: capped, family: style.family, weight: style.weight };
+      // A text laid out bold on purpose (a reveal stamp's words) stays bold.
+      return { ...d, fontSize: capped, family: style.family, weight: d.weight === "bold" ? "bold" : style.weight };
     }
     return d;
   };

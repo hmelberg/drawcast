@@ -82926,11 +82926,14 @@
           "of": "new moon",
           "icon_look": "picture",
           "size": 320,
-          "x": 400,
-          "y": 450,
           "cites": [
             "farside"
-          ]
+          ],
+          "at": {
+            "ref": "dark_l",
+            "side": "above",
+            "gap": 24
+          }
         },
         {
           "id": "dark_l",
@@ -82946,11 +82949,14 @@
           "of": "full moon",
           "icon_look": "picture",
           "size": 320,
-          "x": 400,
-          "y": 450,
           "cites": [
             "llr"
-          ]
+          ],
+          "at": {
+            "ref": "away_l",
+            "side": "above",
+            "gap": 24
+          }
         },
         {
           "id": "away_l",
@@ -82966,11 +82972,14 @@
           "of": "astronaut",
           "icon_look": "picture",
           "size": 320,
-          "x": 400,
-          "y": 450,
           "cites": [
             "moonfact"
-          ]
+          ],
+          "at": {
+            "ref": "light_l",
+            "side": "above",
+            "gap": 24
+          }
         },
         {
           "id": "light_l",
@@ -82986,8 +82995,11 @@
           "of": "new moon",
           "icon_look": "picture",
           "size": 150,
-          "x": 300,
-          "y": 420
+          "at": {
+            "ref": "r_away",
+            "side": "left",
+            "gap": 50
+          }
         },
         {
           "id": "r_away",
@@ -82995,8 +83007,11 @@
           "of": "full moon",
           "icon_look": "picture",
           "size": 150,
-          "x": 500,
-          "y": 420
+          "at": {
+            "ref": "recap_l",
+            "side": "above",
+            "gap": 24
+          }
         },
         {
           "id": "r_light",
@@ -83004,8 +83019,19 @@
           "of": "astronaut",
           "icon_look": "picture",
           "size": 150,
-          "x": 700,
-          "y": 420
+          "at": {
+            "ref": "r_away",
+            "side": "right",
+            "gap": 50
+          }
+        },
+        {
+          "id": "recap_l",
+          "type": "text",
+          "text": "Three claims",
+          "font_size": 40,
+          "x": 500,
+          "y": 300
         }
       ],
       "commands": [
@@ -83109,6 +83135,7 @@
         },
         {
           "draw": [
+            "recap_l",
             "r_dark",
             "r_away",
             "r_light"

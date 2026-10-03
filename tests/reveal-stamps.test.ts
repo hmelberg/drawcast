@@ -9,6 +9,7 @@ import { expandAnswerButtons, visibleBefore } from "../src/spec/answer-buttons";
 import { validateSpec } from "../src/spec/schema";
 import { expandSpec } from "../src/spec/expand";
 import { elementBBoxes, layoutSpec } from "../src/layout/layout";
+import { applyTextStyle, DEFAULT_TEXT_STYLE } from "../src/layout/text-style";
 import type { BBox } from "../src/layout/geometry";
 import { CAPTION_TOP, CONTENT_TOP } from "../src/layout/page";
 import { Player } from "../src/render/player";
@@ -173,6 +174,9 @@ describe("where the stamp goes", () => {
       expect(frame?.drawOpts.mode).toBe("stamp");
     });
     expect(n).toBe(5);
+    // The cast's text style (family, weight) keeps a stamp's words bold and turned.
+    const styled = applyTextStyle(res, { ...DEFAULT_TEXT_STYLE, scale: 1.2 }).drawables.find((d) => d.id === "reveal_1_stamp_text");
+    expect(styled?.kind === "text" && [styled.weight, styled.tilt]).toEqual(["bold", STAMP_TILT]);
   });
 });
 

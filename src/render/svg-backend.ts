@@ -502,7 +502,10 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
     }
     if (d.weight === "bold") t.setAttribute("font-weight", "bold");
     // A reveal stamp's slant (y up, counter-clockwise → SVG's negative angle).
-    if (d.tilt) t.setAttribute("transform", `rotate(${(-d.tilt).toFixed(2)} ${x} ${toSvgY(d.pos[1])})`);
+    if (d.tilt) {
+      t.setAttribute("transform", `rotate(${(-d.tilt).toFixed(2)} ${x} ${toSvgY(d.pos[1])})`);
+      t.dataset.tilt = "1"; // nudgeTextsIntoCanvas leaves a turned text alone
+    }
     t.setAttribute("text-anchor", d.anchor === "middle" ? "middle" : d.anchor);
     t.setAttribute("dominant-baseline", "central");
     if (d.style.opacity < 1) t.setAttribute("opacity", String(d.style.opacity));
@@ -1087,9 +1090,12 @@ class SvgElementHandle implements RenderedElement {
     this.fadeGroups = entries.map(({ fadeNode }) => fadeNode);
     this.cumulative = [];
     let acc = 0;
+    // A reveal stamp's frame and words land as one (spec/reveal-stamps.ts),
+    // not one after the other as a sketch's leaves are drawn.
+    const together = entries.length > 0 && entries.every(({ leaf }) => leaf.drawOpts.mode === "stamp");
     for (const l of this.leaves) {
-      this.cumulative.push(acc);
-      acc += l.durationMs;
+      this.cumulative.push(together ? 0 : acc);
+      acc = together ? Math.max(acc, l.durationMs) : acc + l.durationMs;
     }
     this.durationMs = acc;
     this.leaves.forEach((l) => l.prepare());
@@ -1215,6 +1221,8 @@ function nudgeTextsIntoCanvas(svg: SVGSVGElement, world?: BBox): void {
   const top = world ? toSvgY(world.y + world.h) : 0;
   const bottom = world ? toSvgY(world.y) : CANVAS.h;
   for (const t of Array.from(svg.querySelectorAll("text"))) {
+    // A reveal stamp's turned words (drawLeaf's tilt) are placed inside the content area already.
+    if ((t as SVGTextElement).dataset.tilt) continue;
     try {
       // Our backend never sets transforms on text otherwise, so recomputing
       // from a clean slate keeps repeated calls (e.g. after fonts load) idempotent.
