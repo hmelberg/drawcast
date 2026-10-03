@@ -14,17 +14,18 @@ import { fetchCatalogue, type CatalogueFilterKind, type CatalogueItem } from "./
 import { DEFAULT_ENROLL_API } from "./learn";
 import { h } from "./ui/dom";
 import featuredJson from "./home/featured.json";
+import { note, section, topBar } from "./home/ui";
+import { fetchRanks } from "./home/rank";
 import {
   cardFromCatalogue,
   cardFromFeatured,
-  FORMAT_BADGE,
   FORMAT_CHIPS,
-  homeHref,
   matchesSearch,
   mergeCards,
   parseFeatured,
+  popularItems,
+  rankByBase,
   tagRows,
-  thumbUrl,
   type HomeCard,
   type HomeFormat,
 } from "./home/model";
@@ -38,45 +39,29 @@ const featuredByName = new Map(featured.map((e) => [e.name, e]));
 /** One catalogue page per query, kept for this visit: switching chips back
  *  and forth never asks the registry twice. */
 const cache = new Map<string, Promise<CatalogueItem[] | "error">>();
-function catalogue(kind: CatalogueFilterKind, q = "", page = 0): Promise<CatalogueItem[] | "error"> {
-  const key = `${kind}|${q}|${page}`;
+type Format = "drawcast" | "quiz" | "xplanation";
+function catalogue(kind: CatalogueFilterKind, q = "", extra: { format?: Format; names?: string[] } = {}): Promise<CatalogueItem[] | "error"> {
+  const key = `${kind}|${q}|${extra.format ?? ""}|${(extra.names ?? []).join(",")}`;
   let p = cache.get(key);
   if (!p) {
-    p = fetchCatalogue(DEFAULT_ENROLL_API, { kind, q, page }).then((a) => (a === "error" ? "error" : a.items));
+    p = fetchCatalogue(DEFAULT_ENROLL_API, { kind, q, ...extra }).then((a) => (a === "error" ? "error" : a.items));
     cache.set(key, p);
   }
   return p;
 }
 
-function card(c: HomeCard): HTMLElement {
-  const img = h("img", { src: thumbUrl(c.name), alt: "", loading: "lazy", decoding: "async" });
-  img.addEventListener("error", () => img.remove());
-  const badges: HTMLElement[] = [];
-  if (c.format) badges.push(h("span", { class: `home-badge home-badge-${c.format}` }, FORMAT_BADGE[c.format]));
-  if (c.private) badges.push(h("span", { class: "home-badge home-badge-private" }, "Private"));
-  const meta = [c.owner, c.meta].filter(Boolean).join(" · ");
-  return h(
-    "a",
-    { class: "home-card", href: homeHref(c.name) },
-    h("div", { class: "home-thumb" }, img),
-    h("div", { class: "home-card-title" }, c.title),
-    ...(meta ? [h("div", { class: "home-card-meta" }, meta)] : []),
-    ...(badges.length ? [h("div", { class: "home-badges" }, ...badges)] : []),
-  );
-}
-
-function section(title: string, cards: HomeCard[], more?: HTMLElement): HTMLElement | null {
-  if (cards.length === 0) return null;
-  return h(
-    "section",
-    { class: "home-section" },
-    h("div", { class: "home-section-head" }, h("h2", {}, title), ...(more ? [more] : [])),
-    h("div", { class: "home-grid" }, ...cards.map(card)),
-  );
-}
-
-function note(text: string, kind = ""): HTMLElement {
-  return h("p", { class: `home-note ${kind}`.trim() }, text);
+/** The Popular row's items: the 30-day visit ranks (by drawcast, lectures
+ *  counted for their course), then the catalogue's answer for exactly those
+ *  names — so only listed, public items show — ordered by visits plus likes. */
+let popularPromise: Promise<CatalogueItem[]> | null = null;
+function popular(): Promise<CatalogueItem[]> {
+  popularPromise ??= fetchRanks().then(async (raw) => {
+    const ranks = rankByBase(raw).slice(0, 50);
+    if (!ranks.length) return [];
+    const items = await catalogue("", "", { names: ranks.map((r) => r.name) });
+    return items === "error" ? [] : popularItems(ranks, items);
+  });
+  return popularPromise;
 }
 
 export function runHome(): void {
@@ -85,15 +70,13 @@ export function runHome(): void {
   let q = params.get("q") ?? "";
   let chip = (FORMAT_CHIPS.some((c) => c.id === params.get("f")) ? params.get("f") : "") as "" | HomeFormat;
 
-  const qInput = h("input", { type: "search", class: "home-q", placeholder: "Search drawcasts", "aria-label": "Search drawcasts" }) as HTMLInputElement;
-  qInput.value = q;
-  const form = h("form", { class: "home-search", role: "search" }, qInput, h("button", { type: "submit", class: "home-search-btn" }, "Search"));
-  const top = h(
-    "header",
-    { class: "home-top" },
-    h("a", { class: "home-brand", href: "./" }, h("img", { src: "./mark.svg", alt: "" }), "drawcast"),
-    form,
-    h("a", { class: "home-create", href: "#create", title: "Make a drawcast: the editor" }, "＋ Create"),
+  const { root: top } = topBar(
+    q,
+    (value) => {
+      q = value;
+      void render();
+    },
+    { topics: tagRows(featured).map((r) => r.tag) },
   );
   const chipButtons = FORMAT_CHIPS.map((c) => {
     const b = h("button", { type: "button", class: "home-chip", "aria-pressed": String(c.id === chip) }, c.label) as HTMLButtonElement;
@@ -117,11 +100,6 @@ export function runHome(): void {
   );
   document.body.append(top, chips, main, foot);
 
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    q = qInput.value.trim();
-    void render();
-  });
 
   let token = 0;
   async function render(): Promise<void> {
@@ -143,8 +121,9 @@ export function runHome(): void {
   const fromCatalogue = (items: CatalogueItem[] | "error"): HomeCard[] => (items === "error" ? [] : items.map((i) => cardFromCatalogue(i, featuredByName)));
 
   async function view(): Promise<(HTMLElement | null)[]> {
+    const format = chip && chip !== "course" ? chip : undefined;
     if (q) {
-      const items = await catalogue(chip === "course" ? "course" : "", q);
+      const items = await catalogue(chip === "course" ? "course" : format ? "cast" : "", q, format ? { format } : {});
       const cards = byFormat(mergeCards(featuredCards().filter((c) => matchesSearch(c, q)), fromCatalogue(items)));
       return [section(`Results for “${q}”`, cards), items === "error" ? note("The catalogue can't be reached right now; showing the featured drawcasts only.", "error") : null];
     }
@@ -152,17 +131,22 @@ export function runHome(): void {
       const items = await catalogue("course");
       return [section("Courses", mergeCards(byFormat(featuredCards()), fromCatalogue(items)), h("a", { class: "home-more", href: "#browse&kind=course" }, "All courses")), items === "error" ? note("The catalogue can't be reached right now.", "error") : null];
     }
-    if (chip) {
-      // Drawcasts, Quiz, Xplanations: the curated drawcasts of that format —
-      // until the registry carries a format for every item (delivery 2).
-      return [section(FORMAT_CHIPS.find((c) => c.id === chip)!.label, byFormat(featuredCards()))];
+    if (format) {
+      // Drawcasts, Quiz, Xplanations: the curated ones of that format first,
+      // then every listed item the registry knows by that format (byFormat
+      // also guards against a registry that ignores `format=`).
+      const items = await catalogue("cast", "", { format });
+      return [section(FORMAT_CHIPS.find((c) => c.id === chip)!.label, byFormat(mergeCards(featuredCards(), fromCatalogue(items))))];
     }
-    const [casts, courses] = await Promise.all([catalogue("cast"), catalogue("course")]);
+    const [casts, courses, hot] = await Promise.all([catalogue("cast"), catalogue("course"), popular()]);
+    // A row needs a few items to be a row; until then the Featured row stands alone.
+    const popularCards = fromCatalogue(hot).slice(0, 12);
     return [
       // The first twelve of the curated list, in its order (home/featured.json
       // is ordered by hand: best first); every one is reachable through the
       // format chips, the topic rows and search.
       section("Featured", featuredCards().slice(0, FEATURED_ROW)),
+      popularCards.length >= 4 ? section("Popular", popularCards) : null,
       section("Newest drawcasts", fromCatalogue(casts).slice(0, 12), h("a", { class: "home-more", href: "#browse&kind=cast" }, "More")),
       section("Courses", fromCatalogue(courses).slice(0, 8), h("a", { class: "home-more", href: "#browse&kind=course" }, "All courses")),
       ...tagRows(featured).map((row) =>

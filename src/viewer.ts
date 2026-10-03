@@ -12,7 +12,7 @@
 
 import { questionsOption } from "./question-mode";
 import { setLinkBase } from "./links/base";
-import { withCourse } from "./links/course";
+import { publishedLectureTitles, withCourse } from "./links/course";
 import type { LinkBase } from "./links/resolve";
 import "./styles.css";
 import { type RenderStyle } from "./render";
@@ -49,7 +49,8 @@ import { emptyProblems, problemsBox, type CastProblems } from "./ui/problems-box
 import { getTtsKey, loadSettings, saveSettings } from "./store";
 import { ensurePacksParallel, packsForSpecs, PACK_DEFS } from "./scenes/packs";
 import { isBlockedCastTemplate, registerCastTemplates } from "./scenes/cast-templates";
-import { gateSpecs } from "./security/code-trust";
+import { gateSpecs, trustKeys } from "./security/code-trust";
+import libraryTrust from "./home/trusted-code.json";
 import { coursePageRedirect, enrollRoute, lockedRoute, mainAppUrl, namedRoute, onViewOrigin, remixUrl } from "./security/view-origin";
 import { installCodeConsent } from "./ui/code-consent";
 import { scenes } from "./scenes/registry";
@@ -92,6 +93,8 @@ export interface ViewerRequest {
   embedded?: string;
   /** The cast's download, started by entry.ts before this module loaded (links/early-fetch.ts). */
   early?: EarlyFetch;
+  /** The name it was opened by (#name) — what the watch page's "Up next" relates to. */
+  watchName?: string;
   style: RenderStyle;
   mode: "narrated" | "silent" | "instant";
   speed: number;
@@ -291,6 +294,16 @@ async function fetchGdriveText(fileId: string): Promise<string> {
 }
 
 /** Fetch the playlist from a public repo. Private repos are not served here. */
+/** The published lecture titles of the course a GitHub lecture sits in
+ *  ([] when there is no course.md beside it, or it cannot be read). */
+async function courseLectureTitles(gh: GhRef): Promise<string[]> {
+  const dir = gh.path.includes("/") ? gh.path.slice(0, gh.path.lastIndexOf("/") + 1) : "";
+  const text = await fetch(rawUrlFor({ ...gh, path: `${dir}course.md` }))
+    .then((r) => (r.ok ? r.text() : null))
+    .catch(() => null);
+  return text === null ? [] : publishedLectureTitles(text);
+}
+
 async function setViewerLinkBase(gh: GhRef | undefined, text: string): Promise<void> {
   if (!gh) return setLinkBase(null);
   const file: LinkBase = { kind: "gh", owner: gh.owner, repo: gh.repo, path: gh.path };
@@ -481,7 +494,7 @@ export async function runNamed(hash: string, early?: Promise<Resolved | null>): 
     return;
   }
   status.remove();
-  await runViewer(req);
+  await runViewer({ ...req, watchName: name });
 }
 
 /**
@@ -779,6 +792,14 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   const problems = req.inline !== undefined ? problemsBox() : null;
   const found: CastProblems = emptyProblems();
   app.append(h("div", { class: "viewer-wrap" }, figureHost, meta.root, ...(problems ? [problems.root] : [])));
+  // On drawcast.app the player sits in the site's watch page (home/watch.ts):
+  // the top bar, "Up next", theatre mode. A drawcast's own page elsewhere
+  // (embedded) keeps the plain player. Loaded on demand, and never in the
+  // way: if it fails, the plain player is what remains.
+  // A course lecture (`spanish/2`) names the lectures after it in Up next,
+  // from the course.md beside it — read only then.
+  const lectureTitles = req.watchName?.includes("/") && req.gh ? courseLectureTitles(req.gh) : undefined;
+  if (req.embedded === undefined) void import("./home/watch").then((m) => m.mountWatch(app, { name: req.watchName, lectureTitles })).catch(() => undefined);
 
   try {
     let audioNote = "";
@@ -851,6 +872,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     // freehand, scripts show their saved output. Asked before anything
     // registers or renders, so nothing of it has run by the time we ask.
     installCodeConsent();
+    // The curated library's code (home/trusted-code.json): trusted by its exact
+    // bytes, like the bundled examples, for this page only — the front page's
+    // own drawcasts play without the question; changed code asks again.
+    trustKeys(libraryTrust.keys, { persist: false });
     const codeAllowed = await gateSpecs(items.map((i) => i.spec));
     for (const item of items) registerCastTemplates(item.spec);
     const needPacks = packsForSpecs(items.map((i) => i.spec), (id) => scenes[id] !== undefined);

@@ -30,3 +30,10 @@ export function withCourse(file: LinkBase, fileName: string, courseText: string 
   const base = courseBase(courseText, file);
   return base.kind === "course" && base.lectures.some((l) => l.file === fileName) ? base : file;
 }
+
+/** The published lectures' titles, in the order a course's names number
+ *  them (`course/1` is the first lecture with a file — lectureCastKeys's
+ *  order): the watch page's Up next names the next lectures with them. */
+export function publishedLectureTitles(courseText: string): string[] {
+  return parseCourse(courseText).lectures.flatMap((l) => (l.status?.file ? [l.title] : []));
+}

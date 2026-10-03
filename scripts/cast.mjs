@@ -408,9 +408,19 @@ async function registerPublished(origin, wd, session, verify) {
   const { note, name } = await withVite(async (load) => {
     const registry = await load("/src/registry.ts");
     const { parseCourse } = await load("/src/course/document.ts");
-    const { courseRegistration } = await load("/src/course/publish.ts");
+    const { courseRegistration, courseTopicTags } = await load("/src/course/publish.ts");
     const courseText = origin.kind === "course" ? readFileSync(resolve(wd, "course.md"), "utf8") : undefined;
-    const reg = registerFor(origin, { parseCourse, courseRegistration }, courseText);
+    // A cast's title, format and topics come from the cast itself (castMeta).
+    const castPath = origin.kind === "cast" ? resolve(wd, existingDoc(readdirSync(wd), origin.file) ?? origin.file) : undefined;
+    const castText = castPath && existsSync(castPath) ? readFileSync(castPath, "utf8") : undefined;
+    const { castFacts } = await load("/src/standalone/transcript.ts");
+    const { parsePlaylistText, itemsOf } = await load("/src/playlist/playlist.ts");
+    const castMeta = (text) => {
+      const p = parsePlaylistText(text);
+      const facts = castFacts(text);
+      return { title: p.meta.title ?? itemsOf(p)[0]?.spec.title ?? "", format: facts.format, tags: facts.tags };
+    };
+    const reg = registerFor(origin, { parseCourse, courseRegistration, courseTopicTags, castMeta }, courseText, castText);
     const names = origin.kind === "course" ? await load("/src/names.ts") : undefined;
     return registerNow({ origin, session, verify, reg, registry, names, fetchImpl });
   });

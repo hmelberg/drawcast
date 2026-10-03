@@ -3385,6 +3385,98 @@ input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; b
   .home-brand { font-size: 1.4rem; }
 }
 
+/* The ☰ menu (home/ui.ts buildMenu): a sidebar sliding in over the page,
+   like YouTube's guide. */
+.home-top-left { display: flex; align-items: center; gap: 0.5rem; }
+.home-menu-btn {
+  width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; color: var(--ink);
+  font-size: 1.2rem; line-height: 1; cursor: pointer; flex: none;
+}
+.home-menu-btn:hover, .home-menu-btn:focus-visible { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.home-menu-shell { position: fixed; inset: 0; z-index: 50; }
+.home-menu-shell[hidden] { display: none; }
+.home-menu-backdrop { position: absolute; inset: 0; background: color-mix(in srgb, #000 35%, transparent); }
+.home-menu {
+  position: absolute; top: 0; left: 0; bottom: 0; width: min(280px, 85vw); overflow-y: auto;
+  background: var(--paper); box-shadow: 4px 0 24px color-mix(in srgb, #000 20%, transparent);
+  padding: 0.6rem 0.6rem 2rem; box-sizing: border-box; animation: home-menu-in 0.18s ease-out;
+}
+@keyframes home-menu-in { from { transform: translateX(-100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .home-menu { animation: none; } }
+.home-menu-head { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.4rem 0.6rem; }
+.home-menu-group { border-top: 1px solid var(--line); padding: 0.5rem 0; }
+.home-menu-head + .home-menu-group { border-top: 0; }
+.home-menu-title { padding: 0.3rem 0.8rem; font-size: var(--text-sm); color: var(--muted); font-weight: 600; }
+.home-menu-link {
+  display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 0.5rem 0.8rem; border: 0; border-radius: 10px;
+  background: transparent; color: var(--ink); text-decoration: none; font: inherit; font-size: var(--text); cursor: pointer;
+}
+.home-menu-link:hover, .home-menu-link:focus-visible { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.home-menu-link.current { background: color-mix(in srgb, var(--ink) 10%, transparent); font-weight: 600; }
+
+.home-card-text { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+
+/* The watch page (src/home/watch.ts): the viewer inside the site's frame —
+   top bar above, "Up next" beside the player, theatre mode. The stage height
+   is recomputed from the main column (not the window) so the play bar stays
+   above the fold; it overrides the viewer's own --viewer-stage-h rules. */
+body.viewer-body.watch-body {
+  display: block;
+  --watch-col: min(1100px, calc(100vw - 32px - 380px - 24px));
+  --viewer-stage-h: min(calc((var(--watch-col) - 1.2rem - 3px) * 0.75), calc(100dvh - 13rem));
+}
+.watch-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start;
+  max-width: 1520px; margin: 0 auto; padding: 0 16px 2rem; box-sizing: border-box;
+}
+.watch-main { min-width: 0; }
+.watch-body .home-top { max-width: 1520px; }
+.watch-body .viewer-wrap { width: 100%; padding-top: 0.6rem; }
+.watch-next h2 { font: 1.3rem var(--sketch-font); margin: 0.6rem 0 0.6rem; }
+.watch-list { display: flex; flex-direction: column; gap: 0.8rem; }
+.home-card-compact { flex-direction: row; gap: 0.6rem; align-items: flex-start; }
+.home-card-compact .home-thumb { flex: 0 0 168px; }
+.home-card-compact .home-card-title { font-size: var(--text-sm); margin-top: 0; }
+.home-card-compact .home-card-meta { font-size: var(--text-xs); }
+.watch-theatre-btn {
+  margin-left: 0.6rem; padding: 0.2rem 0.7rem; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--surface); color: var(--muted); font-size: var(--text-sm); cursor: pointer;
+}
+.watch-theatre-btn:hover { color: var(--ink); border-color: var(--steel); }
+/* 👍 / 👎 (home/react.ts): one pill under the player, a row in the ⋯ menu. */
+.react-pill { display: inline-flex; margin-left: 0.6rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); overflow: hidden; }
+.react-pill[hidden], .react-menu-row[hidden] { display: none; }
+.react-btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.7rem; border: 0; background: none; color: var(--muted); font-size: var(--text-sm); cursor: pointer; }
+.react-pill .react-up { border-right: 1px solid var(--line); }
+.react-btn:hover { color: var(--ink); background: var(--paper); }
+.react-btn[aria-pressed="true"] { color: var(--ink); background: var(--paper); font-weight: 600; }
+.react-count:empty { display: none; }
+.react-pair { display: inline-flex; gap: 0.2rem; }
+.cs-menu-slot:empty { display: none; }
+/* Theatre, and every narrow window: one column, the player full width,
+   "Up next" below it as a grid. */
+body.viewer-body.watch-body.watch-theatre {
+  --watch-col: min(1480px, calc(100vw - 32px));
+  --viewer-stage-h: min(calc((var(--watch-col) - 1.2rem - 3px) * 0.75), calc(100dvh - 11rem));
+}
+.watch-theatre .watch-layout { grid-template-columns: minmax(0, 1fr); }
+.watch-theatre .watch-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+@media (max-width: 1000px) {
+  body.viewer-body.watch-body, body.viewer-body.watch-body.watch-theatre {
+    --watch-col: calc(100vw - 32px);
+    --viewer-stage-h: min(calc((var(--watch-col) - 1.2rem - 3px) * 0.75), calc(100dvh - 11rem));
+  }
+  .watch-layout { grid-template-columns: minmax(0, 1fr); }
+  .watch-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .watch-theatre-btn { display: none; }
+}
+@media (max-width: 700px) and (orientation: portrait) {
+  body.viewer-body.watch-body, body.viewer-body.watch-body.watch-theatre {
+    --viewer-stage-h: min(calc((var(--watch-col) - 1.2rem - 3px) * 4.1 / 4), calc(100dvh - 12rem));
+  }
+  .home-card-compact .home-thumb { flex-basis: 140px; }
+}
+
 /* The Share box (spec 2026-10-02-share-design §6). Colours come from the
    dialog variables, so the dark theme follows. */
 .share-card { display: flex; flex-direction: column; gap: 0.25rem; margin: 0 0 0.8rem; }

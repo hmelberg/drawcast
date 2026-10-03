@@ -23,6 +23,8 @@ import { creditsOf } from "../export/credits";
 import { LANGUAGES, languageLabel } from "../export/tts";
 import type { ExportResult } from "../export/video";
 import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, sourceLanguage, type Playlist } from "../playlist/playlist";
+import { castFormat, type CastFormat } from "../standalone/transcript";
+import { playlistSpeakLines } from "../playlist/session";
 import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
 import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
@@ -284,6 +286,10 @@ export interface ShareDeps {
     slug?: string;
     allowComments?: boolean;
     countViews?: boolean;
+    /** The Format choice (front page, 2026-10-03): a drawcast only. "auto"
+     *  lets the structure decide (castFormat); the other three are written
+     *  into the document as its `format:` line. */
+    format?: CastFormat | "auto";
     allowSignup?: boolean;
     folder?: string;
     /** The Private checkbox (registry delivery 2, task 9): a private publish
@@ -885,6 +891,30 @@ function build(): ShareSession {
   function refreshCountViewsChoice(doc: ShareDoc): void {
     countViewsCb.checked = doc.publishedViews !== false;
   }
+  // "Format" (front page, 2026-10-03): where the drawcast is listed on
+  // drawcast.app — Drawcasts, Quiz or Xplanations. Automatic names what the
+  // structure says (castFormat); a choice is the author's word, written into
+  // the document as its `format:` line, so the next publish keeps it.
+  const FORMAT_LABEL: Record<CastFormat, string> = { drawcast: "Drawcast", quiz: "Quiz", xplanation: "Xplanation" };
+  const formatSel = h("select", { id: "share-format" }) as HTMLSelectElement;
+  const formatLabel = h(
+    "label",
+    { class: "publish-choice publish-format", for: "share-format" },
+    h("span", {}, "Format "),
+    formatSel,
+    h("div", { class: "hint" }, "where drawcast.app lists it: under Drawcasts, Quiz or Xplanations"),
+  );
+  function refreshFormatChoice(doc: ShareDoc, subject: "drawcast" | "course"): void {
+    formatLabel.hidden = subject !== "drawcast";
+    if (subject !== "drawcast") return;
+    const specs = itemsOf(doc.playlist).map((i) => i.spec);
+    const detected = castFormat(specs, playlistSpeakLines(doc.playlist).filter((l) => l.text.trim()).length);
+    formatSel.replaceChildren(
+      h("option", { value: "auto" }, `Automatic (${FORMAT_LABEL[detected]})`),
+      ...(Object.keys(FORMAT_LABEL) as CastFormat[]).map((f) => h("option", { value: f }, FORMAT_LABEL[f])),
+    );
+    formatSel.value = doc.playlist.meta.format ?? "auto";
+  }
   // "Join door on the course page" (teachers round, spec §5; the door since
   // the identity round): a course only. On, the publish writes `enroll:
   // <default app>` into the course document and the page gets its Join
@@ -1251,6 +1281,7 @@ function build(): ShareSession {
     ...linkChoices.rows,
     commentsLabel,
     countViewsLabel,
+    formatLabel,
     signupLabel,
     privateLabel,
     privatePayRow,
@@ -1268,6 +1299,7 @@ function build(): ShareSession {
       folder: deps.subject === "course" && !publishFolderRow.hidden ? publishFolderInput.value.trim() || undefined : undefined,
       allowComments: commentsCb.checked && !commentsCb.disabled,
       countViews: countViewsCb.checked,
+      format: deps.subject === "drawcast" ? (formatSel.value as CastFormat | "auto") : undefined,
       allowSignup: deps.subject === "course" ? signupCb.checked : undefined,
       private: privateCb.checked,
       confirmPublic: !privateCb.checked && confirmedPublic,
@@ -2136,6 +2168,7 @@ function build(): ShareSession {
     linkChoices.refresh(doc, current.subject);
     refreshCommentsChoice(doc);
     refreshCountViewsChoice(doc);
+    refreshFormatChoice(doc, current.subject);
     refreshSignupChoice(doc, current.subject);
     // Private (task 9): seeded from the document, then quoted at once if it
     // opens already ticked — a republish must not show a stale price left

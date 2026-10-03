@@ -76,6 +76,17 @@ export interface PlaylistMeta {
    * it, and play a chapter card where a new chapter begins; none = hard cuts.
    */
   transitions: "auto" | "none";
+  /**
+   * Topic tags (2026-10-03, the front page): a few words a drawcast is about
+   * ("health", "statistics"), lower case. Published with it, sent to the
+   * registry, and what the front page's topic rows and search read.
+   */
+  tags?: string[];
+  /**
+   * The author's choice of front-page format, when the one read from the
+   * drawcast's structure (standalone/transcript.ts castFormat) is wrong.
+   */
+  format?: "drawcast" | "quiz" | "xplanation";
 }
 
 export type PlaylistEntry =
@@ -151,11 +162,24 @@ export function singlePlaylist(spec: Spec): Playlist {
   return { meta: { ...DEFAULT_META }, entries: [{ kind: "item", spec }], warnings: [] };
 }
 
+/** `tags: [a, b]` or `tags: a, b` → lower-case, trimmed, deduplicated; at most eight. */
+export function readTags(raw: unknown): string[] | undefined {
+  const list = Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(",") : [];
+  // The registry's rule (drawcast-anvil parsers.TAG_RE): letters, digits,
+  // spaces and hyphens, at most 30 — anything else is dropped here, since one
+  // bad tag would make the registry refuse the whole registration.
+  const out = [...new Set(list.filter((t): t is string => typeof t === "string").map((t) => t.trim().toLowerCase()).filter((t) => /^[\p{L}\p{N} -]{1,30}$/u.test(t)))].slice(0, 8);
+  return out.length ? out : undefined;
+}
+
 function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMeta {
   const meta: PlaylistMeta = { ...DEFAULT_META };
   if (typeof raw.title === "string") meta.title = raw.title;
   if (typeof raw.subtitle === "string") meta.subtitle = raw.subtitle;
   if (typeof raw.prompt === "string") meta.prompt = raw.prompt;
+  const tags = readTags(raw.tags);
+  if (tags) meta.tags = tags;
+  if (raw.format === "drawcast" || raw.format === "quiz" || raw.format === "xplanation") meta.format = raw.format;
   if (isPlainObject(raw.next)) {
     if (typeof raw.next.title === "string" && typeof raw.next.href === "string") {
       meta.next = { title: raw.next.title, href: raw.next.href };
@@ -197,7 +221,7 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
  * they are lifted to where they belong rather than left to sink the page.
  * Same set as the script parser's META_SETTINGS (spec/script/parse.ts).
  */
-const DOC_SETTINGS = ["subtitle", "prompt", "advance", "gap", "transitions", "next", "enroll", "comments", "views", "poster"] as const;
+const DOC_SETTINGS = ["subtitle", "prompt", "advance", "gap", "transitions", "next", "enroll", "comments", "views", "poster", "tags", "format"] as const;
 
 /** Move any document settings off a page spec; null when it carried none. */
 function takeDocSettings(spec: Record<string, unknown>): Record<string, unknown> | null {
@@ -288,6 +312,14 @@ function parsePlaylistBody(text: string): Playlist {
         if (key === "chapters") continue;
         (playlist.meta as unknown as Record<string, unknown>)[key] = value;
       }
+      // The two front-page fields read the same way in both formats: tags as a
+      // clean list ("tags: a, b" or a list), a format only when it is one.
+      if (meta.tags !== undefined) {
+        const tags = readTags(meta.tags);
+        if (tags) playlist.meta.tags = tags;
+        else delete playlist.meta.tags;
+      }
+      if (meta.format !== undefined && meta.format !== "drawcast" && meta.format !== "quiz" && meta.format !== "xplanation") delete playlist.meta.format;
       const chapters = (meta.chapters as { before: number; title: string }[] | undefined) ?? [];
       pages.forEach((p, i) => {
         for (const c of chapters) if (c.before === i) playlist.entries.push({ kind: "chapter", title: c.title });
@@ -473,6 +505,8 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   const header: Record<string, unknown> = {};
   if (playlist.meta.title !== undefined) header.title = playlist.meta.title;
   if (playlist.meta.subtitle !== undefined) header.subtitle = playlist.meta.subtitle;
+  if (playlist.meta.tags !== undefined) header.tags = playlist.meta.tags;
+  if (playlist.meta.format !== undefined) header.format = playlist.meta.format;
   // Always written when set (like title/subtitle), never compared against a
   // default — DEFAULT_META has no prompt, and a set one must always survive.
   if (playlist.meta.prompt !== undefined) header.prompt = playlist.meta.prompt;

@@ -3420,3 +3420,29 @@ again. Each is a fix in the app, not in a cast; together they would lift many ca
 
 First step when picked up: item 1 — it is in nearly every review, and it would let the
 hand-placed cue labels in the library casts be removed again.
+
+## Front page and watching: small gaps — noted 2026-10-03; 1–3 done 2026-10-03
+
+Left after formats, tags, Popular, 👍/👎, `/w/<name>` and course Up next
+went live (deliveries 2–3, 2026-10-03). Items 1–3 were fixed the same day (branch
+front-gaps): course topic tags, a Format choice in Publish plus a better quiz
+guess, lecture titles read from the course.md beside a lecture.
+
+1. **Course tags.** A cast registers the tags on its `tags:` line; a course
+   registers none — `course.md`'s `#tags` are not sent with `/register`
+   (`scripts/cast-account.mjs` registerFor, `src/main.ts` publishCourse). Courses
+   then miss the topic filter and tag search.
+2. **Format in the Publish box.** The format is detected (book → Xplanation;
+   short and question-led → Quiz; else Drawcast, `castFormat` in
+   `src/standalone/transcript.ts`) and an author can override it only by writing
+   a `format:` line in the cast. A choice beside the title in Publish would
+   make the override visible. Detection misses long quizzes (True or myth?, five
+   questions, more than 12 lines — set by hand).
+3. **Lecture titles in a course's Up next.** The cards say "Lecture 4 of 6":
+   the registry stores a course's title and lecture count, not each lecture's
+   title. Either the registry keeps lecture titles at `/register`, or the watch
+   page reads the course's `course.md` beside the lecture.
+
+Also still open from the plan: completion tracking (how far people watch, for
+ranking), autoplay next (off by default), chapters on the progress bar,
+continue where you stopped, a link that starts at a given moment.

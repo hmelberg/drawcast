@@ -1,0 +1,13 @@
+{
+  "source": "hmelberg/drawcast-library",
+  "casts": [
+    "price-elasticity-a-book.cast",
+    "the-herd-immunity-threshold.cast",
+    "what-a-1-fee-costs.cast"
+  ],
+  "keys": [
+    "c:680a6512ff9b9ce5bd75f1e3ae6fc951",
+    "c:a6cfecd8ef0ef0eda2143ae5530aa92f",
+    "c:cc74de45e78d5ccad030077981121b87"
+  ]
+}

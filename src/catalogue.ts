@@ -38,6 +38,12 @@ export interface CatalogueItem {
   /** Shows the "Private — ask to join" badge (plan ruling 7: a listed item
    *  may still be private). */
   private: boolean;
+  /** The front page's format (registry, 2026-10-03); absent on older items. */
+  format?: "drawcast" | "quiz" | "xplanation";
+  /** Topic tags (registry, 2026-10-03); [] when none. */
+  tags: string[];
+  /** 👍 count (registry, 2026-10-03); dislikes are never public. */
+  likes: number;
 }
 
 export interface CatalogueAnswer {
@@ -53,6 +59,12 @@ export type CatalogueFilterKind = "" | "course" | "cast";
 export interface CatalogueQuery {
   q?: string;
   kind?: CatalogueFilterKind;
+  /** Only this format (drawcast | quiz | xplanation). */
+  format?: "drawcast" | "quiz" | "xplanation";
+  /** Only items with this topic tag. */
+  tag?: string;
+  /** Exactly these names, in this order (at most 50) — the Popular row. */
+  names?: string[];
   /** Counted from 0, exactly as the server's `start = page * 50` does
    *  (final review I2): 0 is the first page and is left out of the URL. */
   page?: number;
@@ -66,6 +78,10 @@ export function catalogueQueryString(query: CatalogueQuery): string {
   const q = (query.q ?? "").trim().slice(0, 80);
   if (q) params.set("q", q);
   if (query.kind) params.set("kind", query.kind);
+  if (query.format) params.set("format", query.format);
+  const tag = (query.tag ?? "").trim().toLowerCase().slice(0, 30);
+  if (tag) params.set("tag", tag);
+  if (query.names?.length) params.set("names", query.names.slice(0, 50).join(","));
   if (typeof query.page === "number" && query.page > 0) params.set("page", String(query.page));
   const s = params.toString();
   return s ? `?${s}` : "";
@@ -91,6 +107,9 @@ function parseCatalogueItem(raw: unknown): CatalogueItem | null {
     lectures: typeof r.lectures === "number" && r.lectures > 0 ? r.lectures : 1,
     updated: typeof r.updated === "string" ? r.updated : "",
     private: r.private === true,
+    ...(r.format === "drawcast" || r.format === "quiz" || r.format === "xplanation" ? { format: r.format } : {}),
+    tags: Array.isArray(r.tags) ? r.tags.filter((t): t is string => typeof t === "string") : [],
+    likes: typeof r.likes === "number" && r.likes > 0 ? Math.floor(r.likes) : 0,
   };
 }
 

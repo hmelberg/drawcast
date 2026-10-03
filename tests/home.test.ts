@@ -15,6 +15,7 @@ import {
   parseFeatured,
   tagRows,
   thumbUrl,
+  upNext,
   type FeaturedEntry,
 } from "../src/home/model";
 
@@ -26,6 +27,8 @@ const item = (over: Partial<CatalogueItem> = {}): CatalogueItem => ({
   lectures: 1,
   updated: "2026-10-01T10:00:00+00:00",
   private: false,
+  tags: [],
+  likes: 0,
   ...over,
 });
 
@@ -79,7 +82,9 @@ describe("cards", () => {
   });
   test("a curated course says its lectures; links stay on this page; pictures come from the card function", () => {
     expect(cardFromFeatured({ name: "c", title: "C", format: "course", tags: [], lectures: 1 }).meta).toBe("1 lecture");
-    expect(homeHref("qaly-intro")).toBe("#qaly-intro");
+    expect(homeHref("qaly-intro", "localhost")).toBe("#qaly-intro");
+    expect(homeHref("qaly-intro", "drawcast.app")).toBe("/w/qaly-intro");
+    expect(homeHref("spanish/3", "deploy-preview-9--drawcast.netlify.app")).toBe("/w/spanish/3");
     expect(thumbUrl("qaly-intro")).toBe("https://drawcast.app/card/qaly-intro.png");
   });
   test("merging keeps the first card for a name — curated wording wins", () => {
@@ -129,5 +134,62 @@ describe("routing", () => {
   test("the front page never loads the editor", () => {
     expect(home).not.toMatch(/from "\.\/main"|import\("\.\/main"\)/);
     expect(home).toContain('href: "#create"');
+  });
+});
+
+describe("Up next (the watch page)", () => {
+  const e = (name: string, format: FeaturedEntry["format"], tags: string[]): FeaturedEntry => ({ name, title: name, format, tags });
+  const featured = [e("a", "drawcast", ["physics"]), e("b", "quiz", ["health"]), e("c", "drawcast", ["health", "statistics"]), e("d", "drawcast", ["health"]), e("me", "drawcast", ["health", "statistics"])];
+  test("shared topic tags first, then the same format, ties in curated order; never the one being watched", () => {
+    expect(upNext("me", featured, []).map((c) => c.name)).toEqual(["c", "d", "b", "a"]);
+  });
+  test("a lecture (name/3) relates through its course's name", () => {
+    expect(upNext("me/3", featured, []).map((c) => c.name)[0]).toBe("c");
+  });
+  test("an uncurated drawcast gets the curated list in order, then the newest, without duplicates or itself", () => {
+    const newest = [cardFromCatalogue(item({ name: "x" }), new Map()), cardFromCatalogue(item({ name: "a" }), new Map()), cardFromCatalogue(item({ name: "zz" }), new Map())];
+    expect(upNext("zz", featured, newest).map((c) => c.name)).toEqual(["a", "b", "c", "d", "me", "x"]);
+    expect(upNext(undefined, featured, [], 2)).toHaveLength(2);
+  });
+});
+
+describe("the watch page wiring", () => {
+  const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8");
+  test("the viewer mounts it on demand, never for a page carrying its own cast", () => {
+    expect(viewer).toContain('if (req.embedded === undefined) void import("./home/watch").then((m) => m.mountWatch(app, { name: req.watchName, lectureTitles })).catch(() => undefined);');
+  });
+  test("a name link tells it which drawcast it is", () => {
+    expect(viewer).toContain("await runViewer({ ...req, watchName: name });");
+  });
+});
+
+describe("the curated library's code is trusted by its bytes", () => {
+  const trust = JSON.parse(readFileSync(new URL("../src/home/trusted-code.json", import.meta.url), "utf8")) as { keys: string[] };
+  const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8");
+  test("the list holds code-trust keys only (content fingerprints, never a source or a name)", () => {
+    expect(trust.keys.length).toBeGreaterThan(0);
+    for (const k of trust.keys) expect(k).toMatch(/^[ct]:[0-9a-f]{32}$/);
+  });
+  test("the viewer trusts them for this page only, before the gate asks", () => {
+    expect(viewer).toContain("trustKeys(libraryTrust.keys, { persist: false });");
+    expect(viewer.indexOf("trustKeys(libraryTrust.keys")).toBeLessThan(viewer.indexOf("const codeAllowed = await gateSpecs("));
+  });
+});
+
+describe("the ☰ menu", () => {
+  const ui = readFileSync(new URL("../src/home/ui.ts", import.meta.url), "utf8");
+  test("the top bar opens it from a ☰ button before the logo, on the front page and the watch page alike", () => {
+    expect(ui).toMatch(/h\("div", \{ class: "home-top-left" \}, menuBtn, h\("a", \{ class: "home-brand"/);
+    expect(ui).toContain('"aria-label": "Menu"');
+  });
+  test("it offers only places that exist: home, explore, the formats, topics, create, sign in or out, help", () => {
+    for (const s of ['link("./", "Home"', 'link("#browse", "Explore everything")', "`./?f=${c.id}`", "`./?q=${encodeURIComponent(t)}`", 'link("#create", "＋ Create a drawcast")', "signInUrl(location.href)", '"Sign out"', 'link("./help.html", "Help")']) expect(ui).toContain(s);
+    // Not yet: those come with the accounts round — no link to a place that does not exist.
+    expect(ui).not.toMatch(/link\([^)]*"(Liked|History|Subscriptions|Watch later)"/);
+  });
+  test("Escape and the backdrop close it, and focus goes back to the button", () => {
+    expect(ui).toContain('if (e.key === "Escape") close();');
+    expect(ui).toContain('backdrop.addEventListener("click", close);');
+    expect(ui).toContain("opener?.focus();");
   });
 });
