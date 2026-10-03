@@ -12,7 +12,8 @@
 // voice stays put, and only what the caption displays is sent.
 
 import { feedbackLines } from "../feedback/bands";
-import { castLang, correctWord } from "../render/quiz-words";
+import { castLang } from "../render/quiz-words";
+import { affirmLines } from "../render/affirm";
 import { callForJson, makeClient, type CallOpts } from "./client";
 import { controlsOfFor, planCommands } from "../render/plan";
 import type { Pt } from "../layout/model";
@@ -107,12 +108,12 @@ export function captionLines(spec: Spec): string[] {
     // line paired with it is lost, the same way a motion verb's was.
     controlsOf: controlsOfFor(spec),
   });
+  // What a live viewer hears on a right quiz answer (render/affirm.ts): the cast's whole pool.
+  for (const l of affirmLines(spec)) add(l);
   for (const step of plan.steps) {
     add(step.narration);
     if (step.kind === "speak") add(step.text);
     if (step.kind === "quiz") {
-      // What a live viewer hears on a right answer (render/quiz-words.ts).
-      add(correctWord(castLang(spec), step.question));
       add(step.right);
       add(step.wrong);
       // The reveal after a wrong answer: the author's line, or the correct

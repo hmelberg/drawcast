@@ -692,7 +692,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // rule's sentence on it; the schema's +400, carried into the prompt. +578. -> 395336.
 // Re-pinned UP 2026-10-03 (live shift): ask.readout on a market guess. +173. -> 395509.
 // Re-pinned UP 2026-10-04 (page frame W3): scale tick_format and era. +261. -> 395770.
-const BASELINE_SYSTEM_CHARS = 395770;
+// Re-pinned UP 2026-10-04 (affirmations): the cast-level `affirm` field and its prompt sentence. +545. -> 396315.
+const BASELINE_SYSTEM_CHARS = 396315;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -789,7 +790,8 @@ const BASELINE_SYSTEM_CHARS = 395770;
 // Re-pinned UP 2026-10-03 (icon fallbacks): `or` on the icon element and node/card icon values. +400. -> 112573.
 // Re-pinned UP 2026-10-03 (live shift): ask.readout on a market guess. +173. -> 112746.
 // Re-pinned UP 2026-10-04 (page frame W3): scale tick_format and era. +261. -> 113007.
-const BASELINE_SCHEMA_CHARS = 113007;
+// Re-pinned UP 2026-10-04 (affirmations): the cast-level `affirm` field. +412. -> 113419.
+const BASELINE_SCHEMA_CHARS = 113419;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

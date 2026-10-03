@@ -653,6 +653,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   player.setNarratorGender(spec.voice ?? null);
   // spec.lang, else what the lines read as: a generated Norwegian cast often has no lang.
   player.setSourceLang(castLang(spec));
+  // Its `affirm` and question count: what a right quiz answer hears (render/affirm.ts).
+  player.affirmer.configure(spec);
   player.tones = options.tones ?? liveTones();
   // Where a reward (confetti, a picture) bursts from: the answered part's layout box.
   player.partBox = (id) => bboxes.get(id) ?? null;

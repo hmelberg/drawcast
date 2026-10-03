@@ -86,7 +86,7 @@ import {
   type Playlist,
 } from "./playlist/playlist";
 import { unwrapCastText } from "./playlist/cast-file";
-import { mountPlaylist, playlistSpeakLines, type SessionHandle } from "./playlist/session";
+import { mountPlaylist, playlistBakeLines, type SessionHandle } from "./playlist/session";
 import { isBook, mountBookPlaylist } from "./book/shell";
 import { stampBook } from "./book/stamp";
 import { appendRecord, localRecordStorage } from "./render/record";
@@ -2955,7 +2955,7 @@ async function present(andPlay = false): Promise<void> {
   try {
     // Warm the cloud-voice cache so narrated playback starts without stalls —
     // skipping lines already baked, which would be paid for twice.
-    if (settings.mode === "narrated") speech.prefetch(bakedAudio.unbaked(playlistSpeakLines(doc.playlist)), settings.speed);
+    if (settings.mode === "narrated") speech.prefetch(bakedAudio.unbaked(playlistBakeLines(doc.playlist)), settings.speed);
     // Player mode has no chrome of its own, so the control bar carries the way
     // back. The editor's own way into player mode is the sidebar's ▶ Player
     // row (A5) — a second switch here would only crowd the narrow preview bar.
@@ -5145,7 +5145,7 @@ async function publishTextFor(
   if (!apiKey && !accountToken) throw new Error("Publishing with narration needs a Google TTS key — add one in Settings.");
   const published = await previousText();
   const existing: AudioTrack["lines"] = published ? (parsePlaylistText(published).audio?.lines ?? {}) : {};
-  const bakeLines = playlistSpeakLines(source);
+  const bakeLines = playlistBakeLines(source);
   // The declared language, kept UNDEFINED when nothing declares one: passing
   // a guessed "en" here would re-key every existing undeclared drawcast and
   // re-charge its whole narration. Live playback reads the same tag through
@@ -6101,7 +6101,7 @@ function openShareFor(group: ShareGroup): void {
       const playlist = readPlaylistText(specArea.value) ?? doc.playlist;
       // `private` derived (task 10 fix round 2): a lecture of a private
       // course opens with Share's Private box already ticked.
-      const lines = playlistSpeakLines(playlist);
+      const lines = playlistBakeLines(playlist);
       // narrationCost (the "own key" hint) keeps bakeCost's own estimate —
       // an own key is billed by Google directly, at whatever it actually
       // picks for an unnamed voice (neural-class in practice).
