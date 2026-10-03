@@ -33,6 +33,7 @@ import { setTrustPolicy } from "../security/code-trust";
 import { elementBBoxes, layoutSpec } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import { lintCommands } from "../lint/lint";
+import { posedIssues } from "../lint/posed";
 import { pacingReport, type PacingProblem } from "../lint/pacing-report";
 import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
@@ -257,8 +258,11 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       // exactly what the app's own lint has no way to know.
       const visible = new Set(hd.plan.states[frame.at - 1]?.visible ?? []);
       const onScreen = (ids: string[]) => ids.length === 0 || ids.every((id) => visible.has(id) || [...visible].some((v) => id.startsWith(`${v}__`)));
-      const seen = layout.issues.filter((i) => onScreen(i.ids));
-      const unseen = layout.issues.filter((i) => !onScreen(i.ids));
+      // …and where it stands: an element moved since it was drawn is judged at its new place.
+      const state = hd.plan.states[frame.at - 1];
+      const issues = state ? posedIssues(layout.drawables, measure, state, layout.issues, layout.world) : layout.issues;
+      const seen = issues.filter((i) => onScreen(i.ids));
+      const unseen = issues.filter((i) => !onScreen(i.ids));
       report.frames.push({
         at: frame.at,
         changed: frame.changed,
