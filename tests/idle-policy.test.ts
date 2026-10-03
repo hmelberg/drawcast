@@ -14,7 +14,6 @@ describe("barMayHide", () => {
     expect(barMayHide({ playing: false, held: false })).toBe(false);
     expect(barMayHide({ playing: false, held: true })).toBe(false);
   });
-
 });
 
 describe("inBarZone", () => {
