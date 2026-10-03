@@ -30,17 +30,17 @@ import { CARD_PAPER } from "./cards";
 import type { Command, Spec, SpecElement } from "./types";
 
 /** The buttons' text size: big enough to read and to hit. */
-export const BUTTON_FONT = 30;
-const BUTTON_ICON_FONT = 26;
-const BUTTON_H = 64;
+export const BUTTON_FONT = 34;
+const BUTTON_ICON_FONT = 28;
+const BUTTON_H = 72;
 /** With an icon above the text (as an icon card, spec/cards.ts CARD_ICON_H). */
-const BUTTON_ICON_H = 104;
-const BUTTON_MIN_W = 130;
+const BUTTON_ICON_H = 112;
+const BUTTON_MIN_W = 150;
 /** Between buttons in a row / a column. */
 const ROW_GAP = 22;
 const COLUMN_GAP = 16;
 /** The clearance the buttons keep from everything else on the page. */
-export const CLEAR = 24;
+export const CLEAR = 36;
 /** The lowest a button may reach: the caption band and a little air. */
 export const BUTTONS_FLOOR = CAPTION_TOP + 10;
 /** The buttons' outline and words: the house blue. */
