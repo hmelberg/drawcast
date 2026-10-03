@@ -82,7 +82,7 @@ export type PlanStep = (
    *  the explore beat's own seeded walk, played just before its gate. */
   | { kind: "run"; code: string; values: Record<string, ControlValue>[]; seconds: number; demo: boolean }
   | { kind: "if"; varName: string; op: "gt" | "lt" | "gte" | "lte" | "eq" | "ne"; value: number | string; target: string }
-  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string; store?: string; feedback?: FeedbackSpec }
+  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string; store?: string; feedback?: FeedbackSpec; stamp?: string }
   | {
       kind: "ask";
       question: string;
@@ -149,6 +149,8 @@ export type PlanStep = (
       revealOrder?: "each";
       /** A guess's marks outlive their moment and follow the part (spec round 6 §5). */
       keep?: true;
+      /** A reveal stamp (spec/reveal-stamps.ts): the element that lands WITH the reveal line; there once the question ends. */
+      stamp?: string;
       /** stage: "own" (spec round 6 §6): the ids that stay at full strength
        *  while the question stands — the asked parts, their cards, options,
        *  blanks and tiles; everything else on screen fades to STAGE_DIM. */
@@ -864,6 +866,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     }
     applyScroll();
   };
+  /** A question's reveal stamp (spec/reveal-stamps.ts): there once the
+   *  question ends — the player lands it with the reveal line. */
+  const revealStamp = (id: string | undefined): string | undefined => {
+    if (id === undefined || !known.has(id)) return undefined;
+    mentioned.add(id);
+    makeVisible([id]);
+    return id;
+  };
   /**
    * Marks on picture places (spec §13). Each picture's last mark: a new mark
    * of the same kind (no `lift`) on the picture where it stood then glides
@@ -1559,6 +1569,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // intro prepends either way (inside the step, so skipping skips it).
       if (currentNarration === undefined) currentNarration = cmd.quiz.question;
       if (cmd.quiz.intro) currentNarration = `${cmd.quiz.intro} ${currentNarration}`;
+      const stamp = revealStamp(cmd.quiz.reveal_stamp);
       pushStep({
         kind: "quiz",
         question: cmd.quiz.question,
@@ -1571,6 +1582,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.quiz.wrong_goto !== undefined ? { wrongGoto: cmd.quiz.wrong_goto } : {}),
         ...(cmd.quiz.store !== undefined ? { store: cmd.quiz.store } : {}),
         ...feedbackOf(cmd.quiz.feedback),
+        ...(stamp ? { stamp } : {}),
       });
     } else if (cmd.ask !== undefined) {
       // The question IS the narration unless the author paired a speak; the
@@ -1671,9 +1683,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         mentioned.add(cmd.ask.answer);
         makeVisible([cmd.ask.answer]);
       }
+      const stamp = revealStamp(cmd.ask.reveal_stamp);
       pushStep({
         kind: "ask",
         question: cmd.ask.question,
+        ...(stamp ? { stamp } : {}),
         ...(cmd.ask.answer !== undefined ? { answer: cmd.ask.answer } : {}),
         ...(drag ? { answer: drag.answer, items: drag.items, tolerance: cmd.ask.tolerance ?? 0.25, answerBoxes: drag.boxes, ...(drag.boxes[0] ? { answerBox: drag.boxes[0] } : {}) } : {}),
         ...(cmd.ask.right !== undefined ? { right: cmd.ask.right } : {}),
