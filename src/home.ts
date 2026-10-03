@@ -52,10 +52,14 @@ export function runHome(): void {
   let q = params.get("q") ?? "";
   let chip = (FORMAT_CHIPS.some((c) => c.id === params.get("f")) ? params.get("f") : "") as "" | HomeFormat;
 
-  const { root: top } = topBar(q, (value) => {
-    q = value;
-    void render();
-  });
+  const { root: top } = topBar(
+    q,
+    (value) => {
+      q = value;
+      void render();
+    },
+    { topics: tagRows(featured).map((r) => r.tag) },
+  );
   const chipButtons = FORMAT_CHIPS.map((c) => {
     const b = h("button", { type: "button", class: "home-chip", "aria-pressed": String(c.id === chip) }, c.label) as HTMLButtonElement;
     b.addEventListener("click", () => {

@@ -171,3 +171,21 @@ describe("the curated library's code is trusted by its bytes", () => {
     expect(viewer.indexOf("trustKeys(libraryTrust.keys")).toBeLessThan(viewer.indexOf("const codeAllowed = await gateSpecs("));
   });
 });
+
+describe("the ☰ menu", () => {
+  const ui = readFileSync(new URL("../src/home/ui.ts", import.meta.url), "utf8");
+  test("the top bar opens it from a ☰ button before the logo, on the front page and the watch page alike", () => {
+    expect(ui).toMatch(/h\("div", \{ class: "home-top-left" \}, menuBtn, h\("a", \{ class: "home-brand"/);
+    expect(ui).toContain('"aria-label": "Menu"');
+  });
+  test("it offers only places that exist: home, explore, the formats, topics, create, sign in or out, help", () => {
+    for (const s of ['link("./", "Home"', 'link("#browse", "Explore everything")', "`./?f=${c.id}`", "`./?q=${encodeURIComponent(t)}`", 'link("#create", "＋ Create a drawcast")', "signInUrl(location.href)", '"Sign out"', 'link("./help.html", "Help")']) expect(ui).toContain(s);
+    // Not yet: those come with the accounts round — no link to a place that does not exist.
+    expect(ui).not.toMatch(/link\([^)]*"(Liked|History|Subscriptions|Watch later)"/);
+  });
+  test("Escape and the backdrop close it, and focus goes back to the button", () => {
+    expect(ui).toContain('if (e.key === "Escape") close();');
+    expect(ui).toContain('backdrop.addEventListener("click", close);');
+    expect(ui).toContain("opener?.focus();");
+  });
+});
