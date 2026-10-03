@@ -21,7 +21,8 @@ import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
 import { setFigureLocale } from "../scenes/kit";
 import { setHeadingBox } from "./axes";
-import { FIT_BAND, GUTTER, HEADING_Y, MARGIN, PAGE_H, PAGE_W } from "./page";
+import { contentBox, FIT_BAND, GUTTER, HEADING_Y, MARGIN, PAGE_H, PAGE_W } from "./page";
+import { pageVAlign, pinnedIds, settleBlocker, settleOffset, shiftAll } from "./settle";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
 import { annotationDrawables, DEFAULT_FIT, padFor } from "./annotate";
@@ -570,6 +571,15 @@ export function layoutSpec(
     });
   }
   const frame = pageFrame(spec.domain, templateFrame);
+  // Vertical settling (settle.ts): the figure, heading aside, moved as one
+  // piece so the content area's gaps above and below it are even. Last, so
+  // the lint above judged the layout as built, and everything a reader takes
+  // from this result — ink, anchors, pieces, the data mapping — agrees.
+  {
+    const scene = spec.template ? scenes[spec.template] : undefined;
+    const dy = settlePage(spec, drawables, { measure, groups, namedAnchors, pieces, world: !!world, templateBoxed: !!fit || (hasTemplate && (native || box !== null)), interactive: !!scene && (!!scene.manifest.widget || (scene.manifest.interactions?.length ?? 0) > 0) });
+    if (dy !== 0) fit = { s: 1, dx: 0, dy, box: contentBox({ heading: headingFloorY() !== null }), settle: dy };
+  }
   // `{data: [x, y]}` on a template page means the template's own axes — and
   // a template that draws none reports no frame, so the data would silently
   // read a 0–100 domain. Say so (unless the params still wait on a script:
@@ -840,7 +850,12 @@ const isFrame = (d: Spec["domain"] | DataFrame | undefined): d is DataFrame => !
  * `{data: [x, y]}` form. Nothing given: logical in, logical out.
  */
 export function domainMapping(domain: Spec["domain"] | DataFrame | undefined, fit?: TemplateFit): { toLogical: (p: Pt) => Pt; deltaToLogical: (d: Pt) => Pt } {
-  if (!domain) return { toLogical: (p) => p, deltaToLogical: (d) => d };
+  // No domain: canvas units — moved only by the page's settling (settle.ts),
+  // never by a template's own fit.
+  if (!domain) {
+    const t = fit?.settle ?? 0;
+    return { toLogical: t === 0 ? (p) => p : ([x, y]) => [x, y + t], deltaToLogical: (d) => d };
+  }
   const f: DataFrame = isFrame(domain) ? domain : { x: domain.x ?? [0, 100], y: domain.y ?? [0, 100], box: domainPlot(domain) };
   const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
   const post = ([x, y]: Pt): Pt => [x * s + dx, y * s + dy];
@@ -903,6 +918,40 @@ function headingIntrusions(drawables: Drawable[], measure: MeasureFn, commands?:
     }
   }
   return issues;
+}
+
+/**
+ * Settle the page (settle.ts) IN PLACE and say by how much: 0 when it may
+ * not be settled or need not be. The figure is every top-level drawable but
+ * the card headings and what is pinned to the page; it is measured whole —
+ * all it ever draws, as the layout holds everything the run will show — and
+ * moved whole, its anchors and pieces with it.
+ */
+function settlePage(
+  spec: Spec,
+  drawables: Drawable[],
+  ctx: { measure: MeasureFn; groups: Record<string, string[]>; namedAnchors: Record<string, Record<string, Pt>>; pieces: Record<string, PieceGeometry>; world: boolean; templateBoxed: boolean; interactive: boolean },
+): number {
+  if (settleBlocker(spec, ctx) !== null) return 0;
+  const pinned = pinnedIds(spec.elements, ctx.groups);
+  const stays = (id: string): boolean => /^card_\d+_/.test(id) || [...pinned].some((p) => id === p || id.startsWith(`${p}_`));
+  const moving = drawables.filter((d) => !stays(d.id));
+  const ids = [...new Set(moving.map((d) => d.id))];
+  const union = unionBoxes(ids.map((id) => unionBBoxForId(moving, id, ctx.measure)));
+  if (!union) return 0;
+  const still = [...new Set(drawables.filter((d) => stays(d.id) && !/^card_\d+_/.test(d.id)).map((d) => d.id))];
+  const pinnedBoxes = still.map((id) => unionBBoxForId(drawables, id, ctx.measure)).filter((b): b is BBox => b !== null);
+  const area = contentBox({ heading: headingFloorY() !== null });
+  const dy = settleOffset(union, area, { valign: pageVAlign(spec), pinned: pinnedBoxes });
+  if (dy === 0) return 0;
+  shiftAll(moving, dy);
+  for (const [id, rec] of Object.entries(ctx.namedAnchors)) if (!stays(id)) for (const k of Object.keys(rec)) rec[k] = [rec[k][0], rec[k][1] + dy];
+  for (const [id, g] of Object.entries(ctx.pieces)) {
+    if (stays(id)) continue;
+    g.apex = [g.apex[0], g.apex[1] + dy];
+    g.centroid = [g.centroid[0], g.centroid[1] + dy];
+  }
+  return dy;
 }
 
 /**
