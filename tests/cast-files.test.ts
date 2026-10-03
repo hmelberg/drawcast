@@ -238,3 +238,12 @@ describe("publishing under the switch (src/cast-file.ts publishesCast)", async (
     });
   });
 });
+
+describe("ids with a decimal in them (a template's ticks: tick_0.5)", () => {
+  test("a draw of tick ids reads back as those ids", () => {
+    const spec = { commands: [{ speak: "Put it on a line.", draw: ["line", "tick_-0.5", "tick_0", "tick_0.25"] }] };
+    const p = singlePlaylist(spec as unknown as Spec);
+    const back = parsePlaylistText(formatPublished(p, null, "script"));
+    expect(same(norm(back), norm(p))).toBe(true);
+  });
+});

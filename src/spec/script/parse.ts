@@ -91,7 +91,9 @@ function argKeys(head: string): Set<string> {
 }
 
 // An id, or a picture place on one (spec 2026-09-30-picture-regions §4): md:name, md@top, md@[x, y(, w, h)].
-const isBareId = (t: string): boolean => /^[A-Za-z_][\w-]*$/.test(t) || parsePlace(t) !== null;
+// A dot may sit in an id before a digit — a template's tick ids are `tick_0.5`,
+// `tick_-0.25` — never before a letter, which is a field path (`style.color`).
+const isBareId = (t: string): boolean => /^[A-Za-z_][\w-]*(?:\.\d[\w-]*)*$/.test(t) || parsePlace(t) !== null;
 
 /** Pairs whose key is a modifier the verb does not itself declare. */
 function splitPairs(head: string, tokens: string[], line: number): { args: string[]; extra: string[] } {
