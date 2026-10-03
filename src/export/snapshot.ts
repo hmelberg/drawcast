@@ -58,18 +58,32 @@ export async function posterPng(spec: Spec): Promise<Uint8Array | null> {
       hd.timeline.showPoster();
       const svg = host.querySelector<SVGSVGElement>("svg.cs-svg");
       if (!svg) return null;
-      let src = placeholdLinkedPictures(new XMLSerializer().serializeToString(svg)).replace("<svg ", `<svg width="${POSTER_W}" height="${POSTER_H}" `);
+      // The handwriting face, embedded — or no poster: a fallback face is a
+      // fifth wider, so every label grows into its neighbours (2026-10-04).
       const fontStyle = await sketchFontStyle();
-      if (fontStyle) src = src.replace(/(<svg[^>]*>)/, `$1${fontStyle}`);
+      if (!fontStyle) {
+        console.error("poster: the sketch font (Patrick Hand) could not be embedded — no poster drawn");
+        return null;
+      }
+      const src = posterSvg(new XMLSerializer().serializeToString(svg), fontStyle);
       return await rasterize(src, "image/svg+xml");
     } finally {
       hd.destroy();
     }
-  } catch {
+  } catch (err) {
+    console.error(`poster: ${String((err as Error)?.message ?? err)}`);
     return null;
   } finally {
     host.remove();
   }
+}
+
+/** The serialized figure as the poster's own svg: sized to the poster, the
+ *  font embedded first thing inside it, linked pictures as placeholders. */
+export function posterSvg(svgText: string, fontStyle: string): string {
+  return placeholdLinkedPictures(svgText)
+    .replace("<svg ", `<svg width="${POSTER_W}" height="${POSTER_H}" `)
+    .replace(/(<svg[^>]*>)/, `$1${fontStyle}`);
 }
 
 /**
