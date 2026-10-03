@@ -2420,7 +2420,13 @@ export class Player {
 
     if (judged && answerOpt) {
       const extra = live && picked ? this.feedbackAfter(step, ok ? "perfect" : "none", { parts: answerOpt.members, sparkle: !ok }, signal) : [];
+      // Odd one out (spec/odd-one-out.ts): the ring and the rule arrive with the reveal.
+      let drawing: Promise<void> = Promise.resolve();
+      const revealNow = (): void => {
+        drawing = this.drawRevealIds(step, signal);
+      };
       if (ok) {
+        revealNow();
         // An on-canvas quiz (a quiet ask, spec/answer-buttons.ts) keeps its
         // `right` — the explanation is the point of a True/Myth run — and a
         // live right answer hears the varied affirmation first ("Spot on.
@@ -2432,10 +2438,12 @@ export class Player {
       } else {
         if (picked && step.wrong) await this.speakLine(step.wrong, step, signal);
         if (signal.aborted) return;
+        revealNow();
         this.stampIn(step, signal);
         if (step.reveal) await this.glowWhile(live ? [{ ids: answerOpt.members }] : [], signal, () => this.speakLines(step.right ?? answerOpt.label, extra, step, signal));
         else if (extra.length > 0) await this.speakLines(null, extra, step, signal);
       }
+      await drawing;
       if (signal.aborted) return;
       if (live && picked) {
         const target = ok ? step.rightGoto : step.wrongGoto;
@@ -2454,6 +2462,12 @@ export class Player {
       this.pendingJump = this.plan.labels[picked.goto] + 1;
       this.decideBranch = { labels: opts.map((o) => o.goto).filter((l): l is string => l !== undefined), chosen: picked.goto, ...(step.then !== undefined ? { then: step.then } : {}) };
     }
+  }
+
+  /** Draw an ask's reveal ids (the odd one's ring, the rule) quickly, together. */
+  private async drawRevealIds(step: Extract<PlanStep, { kind: "ask" }>, signal: AbortSignal): Promise<void> {
+    const els = this.els(step.revealDraw ?? []);
+    await Promise.all(els.map((el) => this.animateRange(el, 0, 1, Math.min(Math.max(el.durationMs * 0.5, 350), 900), signal)));
   }
 
   /**
@@ -3560,6 +3574,7 @@ export class Player {
         this.vars.set(`${step.store.toLowerCase()}.id`, o?.id ?? "");
       } else if (step.kind === "ask" && step.store) this.vars.set(step.store.toLowerCase(), step.fallback ?? step.answer ?? "");
       if (step.kind === "quiz" && step.store) this.vars.set(step.store.toLowerCase(), step.choices[step.correct]);
+      if (step.kind === "ask") for (const el of this.els(step.revealDraw ?? [])) el.finish();
       return;
     }
     if (step.kind !== "speak" && step.narration !== undefined) {
@@ -3930,7 +3945,9 @@ export class Player {
             if (this.effects && boxes.length > 0) {
               const effects = this.effects;
               for (const b of boxes) {
-                const path = pointerPath({ x: b.x + b.w / 2, y: b.y + b.h / 2, box: b }, "tap");
+                // A spot (spec/spot.ts) is tapped well inside the place, not at its box's centre.
+                const at = boxes.length === 1 && step.answerPoint ? step.answerPoint : ([b.x + b.w / 2, b.y + b.h / 2] as const);
+                const path = pointerPath({ x: at[0], y: at[1], box: b }, "tap");
                 try {
                   await this.progress(boxes.length > 1 ? 900 : 1400, signal, (t) => effects.setPointer(t >= 1 ? null : path(t)));
                 } finally {
@@ -4008,13 +4025,14 @@ export class Player {
               { ids: elementIds.filter((id) => !placed.has(id.toLowerCase())) },
             ];
           }
-        } else if (step.widget === "click" && step.answerBox && live) {
+        } else if (step.widget === "click" && step.answerBox && live && !answer.includes(":")) {
+          // (A spot on a picture region has no element to glow: its gate outlines the place.)
           groups = [{ ids: [answer], ...(isRight(typed) ? { color: ANSWER_OK_COLOR } : {}) }];
         }
         // The feedback band's line: a live viewer who answered, right or wrong.
         // A green group already glowing IS the sparkle; else the sparkle glows the answer.
         const greenNow = groups.some((g) => g.color === ANSWER_OK_COLOR && g.ids.length > 0);
-        const sparkleIds = step.widget === "click" ? [answer] : step.widget === "drag" && step.items ? step.items.filter((i) => i.element).map((i) => i.id) : [];
+        const sparkleIds = step.widget === "click" ? (answer.includes(":") ? [] : [answer]) : step.widget === "drag" && step.items ? step.items.filter((i) => i.element).map((i) => i.id) : [];
         const extra =
           live && typed !== null
             ? this.feedbackAfter(step, isRight(typed) ? "perfect" : "none", { long: step.widget === "drag" && isLong({ parts: sparkleIds.length }), parts: sparkleIds, sparkle: !greenNow }, signal)

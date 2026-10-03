@@ -6,6 +6,7 @@
 import { CANVAS } from "../layout/canvas";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
+import { spotPoint } from "../layout/spot-geometry";
 import type { CodeWindow } from "../layout/code";
 import { expandBoxAnimate, readParam } from "./params";
 import { tweenValue } from "./tween-space";
@@ -100,6 +101,12 @@ export type PlanStep = (
       /** ask.widget names the spec's template: the widget body answers, the demo performs. */
       widgetTemplate?: true;
       answerBox?: BBox;
+      /** Where the movie's pointer taps inside answerBox (spot: well inside the place); absent — its centre. */
+      answerPoint?: Pt;
+      /** SPOT IT (spec/spot.ts): the place to tap — an element id or `<image>:<region>` — and its box now. */
+      spot?: { id: string; box: BBox };
+      /** ODD ONE OUT (spec/odd-one-out.ts): drawn as the answer is revealed (the ring, the rule). */
+      revealDraw?: string[];
       /** drag widget: the chips, in order; element = a part of the figure (shown and glowed at the end). */
       items?: { id: string; label: string; element: boolean }[];
       tolerance?: number;
@@ -501,6 +508,8 @@ export interface PlanOptions {
   bboxOf?: (id: string) => BBox | null;
   /** A picture you can point into (spec 2026-09-30-picture-regions): its shown rect and view, and its named regions. Null for anything else. */
   pictureOf?: (id: string) => { frame: PictureFrame; regions: Record<string, Rect4> } | null;
+  /** An element's closed outlines (layout's elementRings), for a spot ask's point inside the place. */
+  ringsOf?: (id: string) => Pt[][] | null;
   /** Windowed code panes (layout's `windows`): after every visibility change
    *  the plan scrolls each so its highest visible line is the bottom row,
    *  recorded as per-line offsets in the state — the move verb's own store,
@@ -1684,6 +1693,21 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         makeVisible([cmd.ask.answer]);
       }
       const stamp = revealStamp(cmd.ask.reveal_stamp);
+      // Spot it (spec/spot.ts): the place's box now — a picture region through
+      // its owner's pose, else the element's — and a point well inside it.
+      let spot: { id: string; box: BBox; point: Pt } | undefined;
+      if (typeof cmd.ask.spot === "string") {
+        const place = placeNow(cmd.ask.spot, "ask spot", false);
+        const box = place === null ? currentBox(cmd.ask.spot) : place === "skip" ? null : place.box;
+        if (box) {
+          const rings = place === null ? (opts.ringsOf?.(cmd.ask.spot) ?? undefined) : undefined;
+          spot = { id: cmd.ask.spot, box, point: spotPoint({ box, ...(rings ? { rings } : {}) }) };
+        } else warnings.push(`ask spot: "${cmd.ask.spot}" is not on the figure`);
+      }
+      // Odd one out (spec/odd-one-out.ts): the ring and the rule are there once it ends.
+      const revealDraw = (cmd.ask.reveal_draw ?? []).filter((id) => known.has(id));
+      revealDraw.forEach((id) => mentioned.add(id));
+      makeVisible(revealDraw);
       pushStep({
         kind: "ask",
         question: cmd.ask.question,
@@ -1722,9 +1746,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // The movie demo points at the answer: the element's box (click), the
         // constellation group's box (connect — the laser taps the figure), or
         // the key's box (piano — geometry mirrored from the template).
-        ...(cmd.ask.widget === "click" && cmd.ask.answer !== undefined && currentBox(cmd.ask.answer) !== null
+        ...(spot
+          ? { spot: { id: spot.id, box: spot.box }, answerBox: spot.box, answerPoint: spot.point, ...(cmd.ask.tolerance !== undefined ? { tolerance: cmd.ask.tolerance } : {}) }
+          : cmd.ask.widget === "click" && cmd.ask.answer !== undefined && currentBox(cmd.ask.answer) !== null
           ? { answerBox: currentBox(cmd.ask.answer)! }
           : {}),
+        ...(revealDraw.length > 0 ? { revealDraw } : {}),
         ...(cmd.ask.widget === "connect" && cmd.ask.answer !== undefined && currentBox(cmd.ask.answer) !== null
           ? { answerBox: currentBox(cmd.ask.answer)! }
           : {}),

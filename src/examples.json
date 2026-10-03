@@ -83430,5 +83430,206 @@
         }
       ]
     }
+  },
+  {
+    "request": "Which one is not a mammal? Whale, bat, dolphin, platypus, shark: tap the odd one out. #interactive #short (odd one out, W13)",
+    "spec": {
+      "title": "Which one is not a mammal?",
+      "elements": [
+        {
+          "id": "zoo",
+          "type": "cards",
+          "items": [
+            {
+              "text": "Whale",
+              "icon": "whale"
+            },
+            {
+              "text": "Bat",
+              "icon": "bat"
+            },
+            {
+              "text": "Dolphin",
+              "icon": "dolphin"
+            },
+            {
+              "text": "Platypus",
+              "icon": [
+                "platypus",
+                "egg"
+              ]
+            },
+            {
+              "text": "Shark",
+              "icon": "shark",
+              "odd": true
+            }
+          ],
+          "rule": "All four are mammals; the shark is a fish."
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Which one is not a mammal?"
+          }
+        },
+        {
+          "draw": [
+            "zoo"
+          ],
+          "speak": "Five animals, and one of them does not belong with the others."
+        },
+        {
+          "speak": "Where an animal lives does not decide it: a mammal breathes air, grows hair, and feeds its young on milk."
+        },
+        {
+          "ask": {
+            "question": "Which one is not a mammal? Tap it.",
+            "on": "zoo",
+            "right": "The shark: it is a fish, breathing through gills, with no hair and no milk.",
+            "wrong": "Ask how each one feeds its young."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "zoo_1",
+              "zoo_3"
+            ]
+          },
+          "speak": "Whales and dolphins live in the sea, yet they breathe air and nurse their calves."
+        },
+        {
+          "highlight": {
+            "target": [
+              "zoo_2"
+            ]
+          },
+          "speak": "And the bat flies, but it suckles its pups like any mammal."
+        },
+        {
+          "highlight": {
+            "target": [
+              "zoo_4"
+            ]
+          },
+          "speak": "The trap is the platypus. It lays eggs, like a bird, and yet it is a mammal: it has fur, and the mother makes milk."
+        },
+        {
+          "speak": "Only five living mammals lay eggs: the platypus and four kinds of echidna."
+        },
+        {
+          "highlight": {
+            "target": [
+              "zoo_rule"
+            ]
+          },
+          "speak": "So to find a mammal, ask how it feeds its young, not how it is born, where it swims, or whether it flies."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Where is your liver? Tap it on the body. #interactive #short (spot it on the picture, W13)",
+    "packs": [
+      "anatomy"
+    ],
+    "spec": {
+      "title": "Where is your liver?",
+      "template": "anatomy",
+      "params": {
+        "systems": [
+          "viscera"
+        ],
+        "detail": 2,
+        "focus": [
+          "thorax",
+          "abdomen",
+          "urinary"
+        ],
+        "labels": "none",
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 520
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Where is your liver?"
+          }
+        },
+        {
+          "draw": [
+            "frame",
+            "body_outline"
+          ],
+          "speak": "Where is your liver? Most people point too low. Here is a body facing you, the way a doctor sees a patient."
+        },
+        {
+          "draw": [
+            "trachea",
+            "lung_right",
+            "lung_left",
+            "heart"
+          ],
+          "speak": "The chest first: two lungs, and the heart between them. The body faces you, so its right side is on your left."
+        },
+        {
+          "draw": [
+            "liver",
+            "gallbladder",
+            "stomach",
+            "spleen",
+            "pancreas",
+            "kidney_right",
+            "kidney_left",
+            "small_intestine",
+            "large_intestine",
+            "bladder"
+          ],
+          "speak": "Below them lie the organs of the belly, none of them named yet."
+        },
+        {
+          "ask": {
+            "question": "Where is the liver? Tap it.",
+            "spot": "liver",
+            "on": "anatomy",
+            "right": "There: the big wedge under the right ribs, which is on your left as the body faces you.",
+            "wrong": "Look higher, and on the body's right."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "liver"
+            ]
+          },
+          "speak": "It is the heaviest organ inside you, about one and a half kilos, tucked almost entirely behind the lower ribs."
+        },
+        {
+          "highlight": {
+            "target": [
+              "small_intestine"
+            ]
+          },
+          "speak": "Most people point here, above the navel. That is small intestine."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lung_right"
+            ]
+          },
+          "speak": "Only the thin dome of the diaphragm separates the liver from the right lung, so each deep breath pushes it down a little."
+        },
+        {
+          "speak": "So your liver sits high on your right side, under your ribs."
+        }
+      ]
+    }
   }
 ]
