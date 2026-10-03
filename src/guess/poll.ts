@@ -61,7 +61,9 @@ const HEAD = { en: "What people chose", nb: "Hva folk valgte" } as const;
 /** The study's name for the head line: "Oosterbeek et al. 2004". */
 export function sourceTag(src: { authors?: string; year?: number; title?: string } | undefined): string {
   if (!src) return "";
-  const who = src.authors ?? src.title ?? "";
+  // Three or more names: the first and "et al." ("Azar, Lahav & Voslinsky" → "Azar et al.").
+  const names = (src.authors ?? "").split(/\s*(?:,|&|\band\b)\s*/).filter((n) => n.trim() !== "");
+  const who = names.length > 2 ? `${names[0]} et al.` : (src.authors ?? src.title ?? "");
   return src.year !== undefined ? `${who} ${src.year}`.trim() : who;
 }
 
@@ -98,7 +100,7 @@ export function pollChoiceMarks(boxes: readonly (BBox | undefined)[], shares: re
     const x0 = Math.min(...shown.map((b) => b.x)), x1 = Math.max(...shown.map((b) => b.x + b.w));
     const top = Math.max(...shown.map((b) => b.y + b.h));
     const words = head.source ? `${HEAD[head.lang]} (${head.source})` : HEAD[head.lang];
-    texts.push({ at: [(x0 + x1) / 2, top + 22], text: words, anchor: "middle", size: 18, color: INK });
+    texts.push({ at: [(x0 + x1) / 2, top + 22], text: words, anchor: "middle", size: 20, color: INK });
   }
   return { color: INK, lines, texts };
 }

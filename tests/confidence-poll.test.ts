@@ -114,6 +114,8 @@ describe("poll vars and marks", () => {
   test("the plan's poll: shares per button, the study's name from sources", () => {
     expect(pollPlan({ choices: [{ share: 0.4 }, { share: 0.6 }], source: "g" }, [{ id: "g", authors: "Güth et al.", year: 1982, title: "x" }])).toEqual({ shares: [0.4, 0.6], source: "Güth et al. 1982" });
     expect(sourceTag(undefined)).toBe("");
+    expect(sourceTag({ authors: "Azar, Lahav & Voslinsky", year: 2015 })).toBe("Azar et al. 2015");
+    expect(sourceTag({ authors: "Güth and Kocher", year: 2014 })).toBe("Güth and Kocher 2014");
     expect(pollMean([{ value: 50, share: 0.5 }, { value: 30, share: 0.5 }])).toBe(40);
   });
 });

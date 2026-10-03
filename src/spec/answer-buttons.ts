@@ -154,7 +154,8 @@ export function placeButtons(
     if (!pick || cost < pick.cost) pick = { layout, c: { x: spot.x, y: spot.y }, cost };
   }
   if (!pick) {
-    const layout = layouts[0];
+    // A row too wide for the page stands as a column instead (a poll's four wide buttons).
+    const layout = layouts.length > 1 && blockSize(n, b, "row").w > PAGE_W - 2 * MARGIN ? "column" : layouts[0];
     const block = blockSize(n, b, layout);
     const c = { x: Math.max(PAGE_W / 2, PAGE_W - MARGIN - block.w / 2), y: BUTTONS_FLOOR + block.h / 2 };
     return { layout, centres: buttonCentres(n, b, layout, c) };

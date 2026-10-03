@@ -10,7 +10,7 @@
 // so movies record them) and asks through the choose gate.
 
 import type { BBox } from "../layout/geometry";
-import { placeButtons } from "../spec/answer-buttons";
+import { blockSize, buttonCentres, placeBlock, placeButtons } from "../spec/answer-buttons";
 import { CARD_PAPER } from "../spec/cards";
 import { GUESS_COLOR } from "./color";
 import type { GuessMarks } from "./marks";
@@ -83,8 +83,8 @@ export function calibVars(bets: readonly Bet[], lang: Lang): Record<string, stri
 // ---- the buttons ----------------------------------------------------------
 
 /** One button's size, the same for every language (sized for the longest label). */
-export const CONFIDENCE_BUTTON = { w: 210, h: 56 } as const;
-const FONT = 24;
+export const CONFIDENCE_BUTTON = { w: 220, h: 60 } as const;
+const FONT = 28;
 const INK = "#2f6b8f";
 
 /**
@@ -93,7 +93,10 @@ const INK = "#2f6b8f";
  * page), logical units, y up. Their boxes, in level order.
  */
 export function confidenceBoxes(obstacles: BBox[]): BBox[] {
-  const { centres } = placeButtons(obstacles, 3, CONFIDENCE_BUTTON);
+  // A row reads as one scale from unsure to sure: a row wherever one fits,
+  // else whatever the answer buttons' placement finds.
+  const row = placeBlock(obstacles, blockSize(3, CONFIDENCE_BUTTON, "row"));
+  const { centres } = row ? { centres: buttonCentres(3, CONFIDENCE_BUTTON, "row", row) } : placeButtons(obstacles, 3, CONFIDENCE_BUTTON);
   return centres.map((c) => ({ x: Math.round(c.x - CONFIDENCE_BUTTON.w / 2), y: Math.round(c.y - CONFIDENCE_BUTTON.h / 2), w: CONFIDENCE_BUTTON.w, h: CONFIDENCE_BUTTON.h }));
 }
 
@@ -118,13 +121,15 @@ export function confidenceMarks(boxes: readonly BBox[], labels: readonly string[
   boxes.forEach((b, i) => {
     const on = picked === i;
     const off = picked !== null && !on;
-    lines.push({ pts: rect(b), closed: true, fill: on ? GUESS_COLOR : CARD_PAPER, fillOpacity: on ? 0.9 : 1, color: on ? GUESS_COLOR : INK, width: on ? 3 : 2, ...(off ? { opacity: 0.45 } : {}) });
-    texts.push({ at: [b.x + b.w / 2, b.y + b.h / 2], text: labels[i] ?? "", anchor: "middle", size: FONT, color: on ? CARD_PAPER : INK, ...(off ? { opacity: 0.45 } : {}) });
+    // The bet: a tint of the viewer's colour, the words in it (a paper halo
+    // under the letters would blur white words on a dark fill).
+    lines.push({ pts: rect(b), closed: true, fill: on ? GUESS_COLOR : CARD_PAPER, fillOpacity: on ? 0.22 : 1, color: on ? GUESS_COLOR : INK, width: on ? 4 : 2, ...(off ? { opacity: 0.45 } : {}) });
+    texts.push({ at: [b.x + b.w / 2, b.y + b.h / 2], text: labels[i] ?? "", anchor: "middle", size: FONT, color: on ? GUESS_COLOR : INK, ...(off ? { opacity: 0.45 } : {}) });
   });
   if (boxes.length > 0 && picked === null) {
     const x0 = Math.min(...boxes.map((b) => b.x)), x1 = Math.max(...boxes.map((b) => b.x + b.w));
     const top = Math.max(...boxes.map((b) => b.y + b.h));
-    texts.push({ at: [(x0 + x1) / 2, top + 20], text: how, anchor: "middle", size: 20, color: INK });
+    texts.push({ at: [(x0 + x1) / 2, top + 22], text: how, anchor: "middle", size: 24, color: INK });
   }
   return { color: INK, lines, texts };
 }
