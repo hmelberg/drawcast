@@ -3383,3 +3383,40 @@ own site for my private lecture".
 Cheap insurance worth doing either way: if `play.js` is ever handed an
 encrypted cast off drawcast.app, send the reader to drawcast.app rather than
 showing the sign-in door.
+
+## App fixes found by the front-page library review — noted 2026-10-03, open
+
+Reviewing, fixing and publishing 61 examples for the front page (hmelberg/drawcast-library;
+review notes in dev-casts/lib/*.meta.json and _fresh-*.md) ran into the same limits again and
+again. Each is a fix in the app, not in a cast; together they would lift many casts at once.
+
+1. **Text size in templates.** Most templates have no size option for their own labels, ticks
+   and captions (two_by_two_table, sampling_dist, ci_dance, distribution_curve, causal_dag,
+   neuron, nephron, heart, screening timeline, decision tree payoffs, line_chart axis ends,
+   bar_chart value labels, number line ticks, label elements). Reviewers' most common
+   complaint: "microscopic". Casts worked around it with their own larger cue text placed
+   by hand — fragile if a layout moves. A shared `text_scale` (or a sensible minimum) fixes it.
+2. **`payoff_matrix` underlines** render as literal "_" characters around best replies, from
+   the first frame, with no option to hide them (the Prisoner's Dilemma cast moved to
+   two_by_two_table).
+3. **`timeline` and `sky_map` draw too small** — timeline ignores `box` and has no size option,
+   leaving a thin strip on an empty page; sky_map's `box` doesn't enlarge it. Two casts were
+   dropped for this alone.
+4. **Book pane shrinks template text**; `data_table` ignores `font_size` and `box` there.
+5. **Sorting cards** (`sort` into bins, "tap every one") sit on the bin's rim and straddle its
+   walls; leftovers end ragged; tall bins run under the captions; card size can't be set.
+6. **β in the maths hand font** looks like an 8 ("α + 8 = 90°"); Thales' cast renamed to a, b.
+7. **`cast.mjs check` false error**: "ask widget: template … has no widget body" for
+   bubble_sort / tower_of_hanoi / chess_board — check doesn't load the off-by-default
+   widgets/games packs. Frames and the live viewer are fine.
+8. **View counting on GitHub Pages** first POSTs to the same-origin
+   `/.netlify/functions/views` (405 on github.io) before falling back to drawcast.app — harmless
+   but a console error on every door page. Skip the same-origin endpoint off drawcast domains.
+9. Smaller ones: `supply_demand`'s gap label is always "Surplus" and drifts from its arrow;
+   `lorenz_curve`'s y label sits on the axis; `did_trends`' "Time" label meets two-line
+   captions; `ghost` on a bar_chart fed by `{calc…}` draws nothing; a `run` resets every knob
+   it doesn't name; `copy` skips template parts; bar_race in a book timed out the frames tool;
+   the end frame redraws template parts a cast had left out.
+
+First step when picked up: item 1 — it is in nearly every review, and it would let the
+hand-placed cue labels in the library casts be removed again.
