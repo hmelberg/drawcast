@@ -93,7 +93,10 @@ describe("the transcript", () => {
   test("is visible HTML (a details section), never hidden text, escaped", () => {
     const html = castPageHtml({ text: "x", title: "t", transcript: ["One <two>", "Three & four"] });
     expect(html).toContain(`<details id="${TRANSCRIPT_ID}">\n<summary>Transcript</summary>\n<p>One &lt;two&gt;</p>\n<p>Three &amp; four</p>\n</details>`);
-    expect(html).not.toMatch(/display:\s*none/);
+    // Nothing of this page's own content is hidden: the only rules that hide
+    // are the loading screen without JavaScript and the viewer's duplicate title.
+    const hidden = [...html.matchAll(/([^{}\n]+)\{[^}]*display:\s*none/g)].map((m) => m[1].trim());
+    expect(hidden.sort()).toEqual(["<noscript><style>#boot", "body.viewer-body .player-meta .player-title"]);
   });
   test("is left out when there is nothing spoken", () => {
     expect(castPageHtml({ text: "x", title: "t", transcript: [] })).not.toContain("<details");
@@ -106,4 +109,32 @@ describe("the transcript", () => {
     expect(transcriptLines(": : :")).toEqual([]);
     expect(transcriptHtml(["a<b"])).toBe("<p>a&lt;b</p>");
   });
+});
+
+describe("search-engine parts", () => {
+  test("structured data can never end its script block", () => {
+    const html = castPageHtml({ text: "x", title: "</script><b>", transcript: [] });
+    const ld = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)![1];
+    expect(ld).not.toContain("<");
+    expect(JSON.parse(ld).name).toBe("</script><b>");
+  });
+  test("an unusable language tag falls back to English", () => {
+    expect(castPageHtml({ text: "x", title: "t", lang: 'en" onload="x' })).toContain('<html lang="en">');
+    expect(castPageHtml({ text: "x", title: "t", lang: "nb" })).toContain('<html lang="nb">');
+  });
+  test("a long introduction is cut near 300 characters for the description, whole for the reader", () => {
+    const intro = "word ".repeat(120).trim();
+    const html = castPageHtml({ text: "x", title: "t", intro });
+    const desc = /<meta name="description" content="([^"]*)">/.exec(html)![1];
+    expect(desc.length).toBeLessThanOrEqual(301);
+    expect(desc.endsWith("…")).toBe(true);
+    expect(html).toContain(`<p class="drawcast-intro">${intro}</p>`);
+  });
+  test("an exported copy (no address) has no canonical", () => {
+    expect(castPageHtml({ text: "x", title: "t" })).not.toContain("canonical");
+  });
+});
+
+test("without JavaScript the loading screen steps aside, so the heading and transcript are readable", () => {
+  expect(castPageHtml({ text: "x", title: "t" })).toContain("<noscript><style>#boot { display: none; }</style>");
 });

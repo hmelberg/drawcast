@@ -32,6 +32,9 @@ public repo the user chooses; after that it is revised like anything published.
    link to it (no name lookup), at `https://<owner>.github.io/<repo>/<dir>/<file>.html`.
    Its file name is the cast's slug, so the name chosen at publish-target is the page's name
    too. Views and comments are the cast's. A private push removes the page.
+   The folder's `index.html` links the pages and a `sitemap.xml` lists them: to be found in
+   Google, the user submits `https://<owner>.github.io/<repo>/<dir>/sitemap.xml` once in
+   Google Search Console (Sitemaps). Say so when they ask how to be found.
 4. Report the player link (`drawcast.app/#gh=…`), for a single cast its own page, and, for a course, the course page (Pages
    can take a minute the first time). Narration is the browser's voice until the course is
    published with narration from the app. Later revisions: references/revise.md from its step 2 (unpack), on the same workdir — no new pull.

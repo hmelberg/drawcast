@@ -172,12 +172,60 @@ describe("the cast's own page (standalone/page.ts)", () => {
 });
 
 describe("the casts index page", () => {
-  test("links each cast by its full repo path, folder included", () => {
+  test("links a cast with its own page to that page — a link a crawler can follow", () => {
     const index = buildCastPlan(base).files.find((f) => f.path === "casts/index.html")!;
+    expect(index.content).toContain('href="difference-in-differences.html"');
+    expect(index.content).not.toContain("#gh=");
+  });
+  test("a cast with no page (private, or published before pages) keeps its drawcast.app link, by its full repo path", () => {
+    const old = upsertCast(emptyCastIndex(), { slug: "older", title: "Older", file: "older.yaml", updated: "2026-09-01" });
+    const index = buildCastPlan({ ...base, private: true, index: old }).files.find((f) => f.path === "casts/index.html")!;
+    expect(index.content).toContain("#gh=hmelberg/kurs/casts/older.yaml");
     expect(index.content).toContain("#gh=hmelberg/kurs/casts/difference-in-differences.yaml");
   });
   test("a repo-root cast has no folder to add", () => {
-    const index = buildCastPlan({ ...base, castsDir: "" }).files.find((f) => f.path === "index.html")!;
+    const index = buildCastPlan({ ...base, private: true, castsDir: "" }).files.find((f) => f.path === "index.html")!;
     expect(index.content).toContain("#gh=hmelberg/kurs/difference-in-differences.yaml");
+  });
+  test("the index entry remembers that the cast has a page; a private one does not", () => {
+    const json = (plan: ReturnType<typeof buildCastPlan>) => JSON.parse(plan.files.find((f) => f.path === "casts/casts.json")!.content);
+    expect(json(buildCastPlan(base)).casts[0].page).toBe(true);
+    expect(json(buildCastPlan({ ...base, private: true })).casts[0].page).toBeUndefined();
+  });
+});
+
+describe("the sitemap", () => {
+  test("lists the index and every cast with a page, with its date — not one without", () => {
+    const old = upsertCast(emptyCastIndex(), { slug: "older", title: "Older", file: "older.yaml", updated: "2026-09-01" });
+    const map = buildCastPlan({ ...base, index: old }).files.find((f) => f.path === "casts/sitemap.xml")!.content;
+    expect(map).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
+    expect(map).toContain("<loc>https://hmelberg.github.io/kurs/casts/</loc>");
+    expect(map).toMatch(/<loc>https:\/\/hmelberg\.github\.io\/kurs\/casts\/difference-in-differences\.html<\/loc><lastmod>\d{4}-\d\d-\d\d<\/lastmod>/);
+    expect(map).not.toContain("older.html");
+  });
+});
+
+describe("what the page says about the cast", () => {
+  const text = "title: DiD\nprompt: Why compare two groups over time?\nelements: []\ncommands:\n  - speak: Hvorfor sammenligner vi to grupper?\n";
+  const page = () => buildCastPlan({ ...base, text, poster: new Uint8Array([1]) }).files.find((f) => f.path.endsWith("difference-in-differences.html"))!.content;
+  test("its heading and its founding question, as the visible introduction and the description", () => {
+    expect(page()).toContain("<h1>Difference-in-differences</h1>");
+    expect(page()).toContain('<p class="drawcast-intro">Why compare two groups over time?</p>');
+    expect(page()).toContain('<meta name="description" content="Why compare two groups over time?">');
+  });
+  test("the narration's language", () => {
+    expect(page()).toContain('<html lang="nb">');
+  });
+  test("its own address as canonical, and structured data naming the owner", () => {
+    expect(page()).toContain('<link rel="canonical" href="https://hmelberg.github.io/kurs/casts/difference-in-differences.html">');
+    const ld = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/.exec(page())![1]);
+    expect(ld).toMatchObject({ "@type": "LearningResource", name: "Difference-in-differences", inLanguage: "nb", author: { name: "hmelberg" }, url: "https://hmelberg.github.io/kurs/casts/difference-in-differences.html" });
+  });
+  test("the poster shows while the player loads", () => {
+    expect(page()).toContain('<img src="https://hmelberg.github.io/kurs/casts/difference-in-differences.png" alt="Difference-in-differences">');
+  });
+  test("is the same bytes when an unchanged cast is published again (no date in the page)", () => {
+    expect(page()).toBe(page());
+    expect(page()).not.toMatch(/datePublished|\d{4}-\d\d-\d\d/);
   });
 });
