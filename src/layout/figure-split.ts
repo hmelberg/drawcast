@@ -33,7 +33,7 @@ export function hugWidth(code: string, fontSize: number): number {
   return Math.round(Math.min(CODE_HALF.width, Math.max(MIN_CODE_W, needed)));
 }
 /** Top and bottom of the figure's band when the split has to invent one:
- *  the page frame's fit band (y 160–660), clear of the narration band below
+ *  the page frame's fit band (y 160–655), clear of the narration band below
  *  and the heading above. (Was 95–655, then 160–640: the chart's floor sat
  *  under the captions and its y-axis caption against the heading —
  *  2026-09-25 example revisions; the heading floor now keeps that clear.) */

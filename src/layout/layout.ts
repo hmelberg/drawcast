@@ -212,7 +212,7 @@ export function layoutSpec(
       const ys = Array.isArray(line?.points) ? (line.points as unknown[]).flatMap((p) => (Array.isArray(p) && typeof p[1] === "number" ? [p[1] as number] : [])) : [];
       const underline = ys.length > 0 ? Math.min(...ys) : HEADING_Y - font * 0.82;
       setHeadingBox({ x: PAGE_W / 2 - w / 2, y: underline, w, h: PAGE_H - underline });
-      setHeadingFloor(underline);
+      setHeadingFloor(underline, effectiveTextStyle(spec).scale);
     } else {
       setHeadingBox(null);
       setHeadingFloor(null);

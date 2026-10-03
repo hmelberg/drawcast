@@ -104,3 +104,17 @@ describe("the heading at the cast's text scale", () => {
     }
   });
 });
+
+describe("the gap under the heading", () => {
+  test("a plot's y arrow ends at least HEADING_GAP (× the text scale) under the underline", async () => {
+    const { plotArea, setHeadingFloor, HEADING_GAP } = await import("../src/layout/canvas");
+    try {
+      for (const scale of [1, 34 / 26]) {
+        setHeadingFloor(696, scale);
+        expect(696 - (plotArea().y1 + 22)).toBeGreaterThanOrEqual(HEADING_GAP * scale - 1e-9);
+      }
+    } finally {
+      setHeadingFloor(null);
+    }
+  });
+});

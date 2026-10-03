@@ -4,7 +4,7 @@
 //
 //   y 750 ┌──────────────────────────────┐
 //         │   heading strip (title)      │  HEADING_Y 726, underline ≈ 697
-//   y 660 ├──────────────────────────────┤  CONTENT_TOP
+//   y 655 ├──────────────────────────────┤  CONTENT_TOP
 //         │                              │
 //         │   content: the figure        │  x 60 … 940 (MARGIN)
 //         │                              │
@@ -29,8 +29,10 @@ export const HEADING_Y = 726;
 export function headingFont(text: string): number {
   return Math.max(26, Math.min(36, Math.round(880 / (0.55 * Math.max(1, text.length)))));
 }
-/** Top of the content area under a heading. */
-export const CONTENT_TOP = 660;
+/** Top of the content area under a heading: 40 under the lowest underline
+ *  (a 36-unit heading's, at 726 − 0.82 × 36 ≈ 696), the gap canvas.ts
+ *  HEADING_GAP keeps above a plot. */
+export const CONTENT_TOP = 655;
 /** Top of the content area on a page with no heading. */
 export const CONTENT_TOP_BARE = 700;
 /** Bottom of the content area: below it the narration's captions may lie
