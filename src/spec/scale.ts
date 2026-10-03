@@ -11,6 +11,7 @@
 // <id>_answer is simply the answer shown. The group <id> keeps the scale's
 // numbers, so the guess reads its truth and geometry back (authoredScales).
 
+import { CAPTION_TOP, contentBox, MARGIN } from "../layout/page";
 import type { Spec, SpecElement } from "./types";
 
 /** The authored scale element's fields this module reads. */
@@ -32,8 +33,20 @@ export interface ScaleElementLike {
   /** Left end of the line and its height (logical; default 150, 300). */
   x?: number;
   y?: number;
-  /** Line length (logical; default 700). */
+  /** Line length (logical; default from the page — see expandScales). */
   width?: number;
+  /** How the numbers are written (default auto = "words"): "words" — numerals
+   *  up to a million, then "4.3 million" … "1 sextillion", then 10ⁿ;
+   *  "numerals" — every digit ("20 000 000"); "power" — 10ⁿ and "4.3 × 10¹⁹". */
+  tick_format?: "words" | "numerals" | "power";
+  /** Years before year 1: "BC" ("3000 BC", "AD 500") or "BCE" ("3000 BCE",
+   *  "500 CE"); "none" keeps the minus sign. Default: BC on a year line that
+   *  crosses into negative years. */
+  era?: "BC" | "BCE" | "none";
+  /** The tick numbers' size — written by the engine (placeScale: larger when the
+   *  scale is alone on the page); an authored one is ignored. Default 22; the
+   *  marker's number and the caption follow. */
+  font_size?: number;
   style?: SpecElement["style"];
 }
 
@@ -55,12 +68,27 @@ export interface ScaleGeometry {
   /** One keyboard step from v (log: about 2 % of a decade per step). */
   stepFrom(v: number, steps: number): number;
   ticks: number[];
+  /** A number as the figure writes and the voice says it, unit included ("20 quadrillion", "30 BC", "12%"). */
   format(v: number): string;
+  /** A tick's number: format without a written-out unit ("%" stays: it is part of the number). */
+  tickText?(v: number): string;
+  /** The text sizes: tick numbers, the marker's number, the caption. */
+  sizes?: { tick: number; answer: number; caption: number };
+  /** How far below the line the tick numbers' centres sit. */
+  tickDrop?: number;
 }
 
-const DEFAULT_X = 150;
-const DEFAULT_Y = 300;
-const DEFAULT_W = 700;
+
+// A scale with no x/y/width is placed from the page frame (expandScales,
+// which knows the page); these are the bare defaults for a scale read on
+// its own — the content box's width less room for the end numbers, in its
+// lower-middle (layout/page.ts).
+const DEFAULT_X = MARGIN + 40;
+const DEFAULT_Y = CAPTION_TOP + 150;
+const DEFAULT_W = 800;
+/** Text sizes at 1× (spec 2026-10-04-page-frame §4): tick numbers, the marker's number, the caption. */
+const TICK_SIZE = 22;
+const ALONE_TICK_SIZE = 26;
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
@@ -75,7 +103,79 @@ function group(s: string): string {
   const [int, frac] = s.split(".");
   const neg = int.startsWith("-");
   const d = neg ? int.slice(1) : int;
-  return `${neg ? "-" : ""}${d.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}${frac !== undefined ? `.${frac}` : ""}`;
+  return `${neg ? "-" : ""}${d.replace(/\B(?=(\d{3})+(?!\d))/g, " ")}${frac !== undefined ? `.${frac}` : ""}`;
+}
+
+// --- Big and small numbers in words (spec 2026-10-04-page-frame, W3) ---
+//
+// The rule: numerals below a million ("950 000"; grouped from 10 000), then
+// the short-scale names with the number of them ("1 million", "43
+// quintillion"), and past the names 10ⁿ ("10²⁴", "3.2 × 10²⁵"). Tiny numbers
+// (under 0.0001) are 10⁻ⁿ. "thousand" is never used: "20 000" reads at a
+// glance, and one rule for the ticks and the marker keeps them alike.
+
+const NAMES: [number, string][] = [
+  [21, "sextillion"],
+  [18, "quintillion"],
+  [15, "quadrillion"],
+  [12, "trillion"],
+  [9, "billion"],
+  [6, "million"],
+];
+const SUP: Record<string, string> = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "-": "⁻" };
+const sup = (n: number): string => String(n).split("").map((c) => SUP[c] ?? c).join("");
+
+/** |v| as a power of ten: "10¹⁹" when it is one, else "4.3 × 10¹⁹". */
+function powerText(a: number): string {
+  let e = Math.floor(Math.log10(a) + 1e-9);
+  let m = Number((a / Math.pow(10, e)).toPrecision(2));
+  if (m >= 10) {
+    m /= 10;
+    e += 1;
+  }
+  return Math.abs(m - 1) < 1e-9 ? `10${sup(e)}` : `${m} × 10${sup(e)}`;
+}
+
+/** Is a an exact power of ten (within float noise)? */
+const isPow10 = (a: number): boolean => a > 0 && Math.abs(Math.log10(a) - Math.round(Math.log10(a))) < 1e-9;
+
+/**
+ * |v| (a ≥ 0) in the scale's tick format, or null when the numerals stay.
+ * `mant` writes the count of millions/billions … (its decimals are the scale's).
+ */
+function wordsText(a: number, mode: "words" | "numerals" | "power", mant: (m: number, e: number) => string): string | null {
+  if (a === 0 || mode === "numerals") return null;
+  if (mode === "power") return isPow10(a) || a >= 1000 || a < 0.001 ? powerText(a) : null;
+  if (a < 1e-4 || a >= 1e24 * (1 - 1e-9)) return powerText(a);
+  for (let k = 0; k < NAMES.length; k++) {
+    const [e, name] = NAMES[k];
+    if (a < Math.pow(10, e) * (1 - 1e-9)) continue;
+    const m = mant(a / Math.pow(10, e), e);
+    // 999.96 million rounds to "1000 million": that is 1 billion.
+    if (Number(m) >= 1000) return k === 0 ? powerText(a) : `1 ${NAMES[k - 1][1]}`;
+    return `${m} ${name}`;
+  }
+  return null;
+}
+
+/** The era words of a year line ("BC" or "BCE"), or null for plain numbers. */
+function eraOf(sc: ScaleElementLike, log: boolean, lo: number, hi: number): "BC" | "BCE" | null {
+  if (sc.era === "BC" || sc.era === "BCE") return log ? null : sc.era;
+  if (sc.era === "none" || log) return null;
+  // Auto: a timeline crossing into negative years — whole numbers, a unit of
+  // years or none, reaching back at least a few centuries and ending between
+  // year 0 and the near future ("-3000 … 2000", "-500 … 1500").
+  const unit = (sc.unit ?? "").trim();
+  if (unit !== "" && !/^(years?|yrs?)$/i.test(unit)) return null;
+  if (!Number.isInteger(lo) || !Number.isInteger(hi) || lo >= 0) return null;
+  return lo <= -200 && hi <= 3000 && (hi >= 1000 || hi <= 0) ? "BC" : null;
+}
+
+/** A label's width at a font size — the handwriting font, narrow letters narrow. */
+export function scaleLabelWidth(s: string, font: number): number {
+  let em = 0;
+  for (const c of s) em += /[1iljtfr.,:' ]/.test(c) ? 0.32 : /[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]/.test(c) ? 0.34 : /[mwMW%]/.test(c) ? 0.78 : 0.55;
+  return em * font;
 }
 
 export function scaleGeometry(sc: ScaleElementLike): ScaleGeometry {
@@ -86,8 +186,10 @@ export function scaleGeometry(sc: ScaleElementLike): ScaleGeometry {
   const x1 = x0 + (isNum(sc.width) && sc.width > 50 ? sc.width : DEFAULT_W);
   const y = isNum(sc.y) ? sc.y : DEFAULT_Y;
   const unit = sc.unit ?? "";
+  const era = eraOf(sc, log, lo, hi);
+  const mode = sc.tick_format === "numerals" || sc.tick_format === "power" ? sc.tick_format : "words";
   // A year line (whole numbers between 1000 and 3000) is never grouped: "1756", not "1 756".
-  const isYear = !log && Number.isInteger(lo) && Number.isInteger(hi) && lo >= 1000 && hi <= 3000;
+  const isYear = era !== null || (!log && Number.isInteger(lo) && Number.isInteger(hi) && lo >= 1000 && hi <= 3000);
   const range = hi - lo;
   const linStep = (() => {
     const raw = range / 100;
@@ -101,19 +203,40 @@ export function scaleGeometry(sc: ScaleElementLike): ScaleGeometry {
   const inv = (f: number): number => (log ? Math.pow(10, Math.log10(lo) + f * (Math.log10(hi) - Math.log10(lo))) : lo + f * range);
   const clampV = (v: number): number => Math.max(lo, Math.min(hi, v));
   const snapV = (v: number): number => (log ? twoSig(v) : Number((Math.round(v / linStep) * linStep).toFixed(dec)));
-  const format = (v: number): string => {
+  /** The count of millions … : two significant figures on a log scale, the snap step's decimals on a linear one. */
+  const mant = (m: number, e: number): string => {
+    if (log) return String(Number(m.toPrecision(m >= 100 ? 3 : 2)));
+    const d = Math.max(0, Math.min(3, Math.ceil(-Math.log10(linStep / Math.pow(10, e)) - 1e-9)));
+    return String(Number(m.toFixed(d)));
+  };
+  /** The number alone: numerals, words or a power of ten. */
+  const body = (v: number): string => {
+    const w = wordsText(Math.abs(v), mode, mant);
+    if (w !== null) return `${v < 0 ? "-" : ""}${w}`;
     // A log scale spans powers of ten: two significant figures at any size
     // ("86", "4.7", "0.003"), never a fixed count of decimals.
     const d = log ? (v >= 10 ? 0 : Math.max(1, Math.ceil(-Math.log10(Math.abs(v) || 1)) + 1)) : dec;
     // A whole number is written whole ("28 ¢", ticks "0 10 20"), even on a
     // scale whose snap step is finer than one.
     const s = log ? String(Number(v.toFixed(d))) : Number.isInteger(Number(v.toFixed(d))) ? String(Number(v.toFixed(d))) : v.toFixed(d);
-    const body = isYear ? s : Math.abs(v) >= 10000 ? group(s) : s;
-    return unit === "" ? body : unit === "%" ? `${body}%` : `${body} ${unit}`;
+    return isYear && Math.abs(v) < 10000 ? s : Math.abs(v) >= 10000 ? group(s) : s;
+  };
+  /** A year: "3000 BC", "AD 500" / "500 CE", "1969". */
+  const yearText = (v: number, e: "BC" | "BCE"): string => {
+    const r = Math.round(v);
+    if (r < 0) return `${body(-r)} ${e}`;
+    if (r === 0 || r >= 1000) return body(r);
+    return e === "BC" ? `AD ${body(r)}` : `${body(r)} CE`;
+  };
+  const tickText = (v: number): string => (era ? yearText(v, era) : unit === "%" ? `${body(v)}%` : body(v));
+  const format = (v: number): string => {
+    if (era) return yearText(v, era);
+    const b = body(v);
+    return unit === "" ? b : unit === "%" ? `${b}%` : `${b} ${unit}`;
   };
   const ticks: number[] = [];
   if (log) {
-    for (let e = Math.ceil(Math.log10(lo) - 1e-9); Math.pow(10, e) <= hi * (1 + 1e-9); e++) ticks.push(Math.pow(10, e));
+    for (let e = Math.ceil(Math.log10(lo) - 1e-9); Math.pow(10, e) <= hi * (1 + 1e-9); e++) ticks.push(Number(Math.pow(10, e).toPrecision(12)));
     if (ticks.length < 2) ticks.splice(0, ticks.length, lo, hi);
   } else {
     const n = isNum(sc.ticks) && sc.ticks >= 1 ? Math.min(20, Math.round(sc.ticks)) : 5;
@@ -126,6 +249,7 @@ export function scaleGeometry(sc: ScaleElementLike): ScaleGeometry {
     if (ticks[0] !== lo) ticks.unshift(lo);
     if (Math.abs(ticks[ticks.length - 1] - hi) > stepT * 1e-6) ticks.push(hi);
   }
+  const tick = isNum(sc.font_size) && sc.font_size >= 12 ? sc.font_size : TICK_SIZE;
   return {
     kind: log ? "log" : "linear",
     min: lo,
@@ -145,17 +269,31 @@ export function scaleGeometry(sc: ScaleElementLike): ScaleGeometry {
     },
     ticks,
     format,
+    tickText,
+    sizes: { tick, answer: Math.round((tick * 28) / 22), caption: Math.round((tick * 26) / 22) },
+    tickDrop: Math.round(16 + tick * 0.95),
   };
 }
 
+/** How far under the line the reveal's guess → truth bracket goes: below the tick numbers. */
+export function scaleBracketDrop(g: ScaleGeometry): number {
+  return (g.tickDrop ?? 37) + Math.round((g.sizes?.tick ?? TICK_SIZE) * 0.65) + 12;
+}
+
 const TICK = 10;
+/** An unlabelled tick (thinned out of a crowded line) is shorter. */
+const MINOR_TICK = 6;
 const ACCENT = "#b5482e";
+const TICK_INK = "#7a7468";
+/** Room kept between two neighbouring tick numbers. */
+const LABEL_GAP = 12;
 
 /** The marker and its number at value v: `<id>_answer` (a group) and its two members. */
 export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement[] {
   const g = scaleGeometry(sc);
   const x = g.xAt(v);
   const color = sc.style?.color ?? ACCENT;
+  const size = g.sizes?.answer ?? 28;
   return [
     {
       id: `${sc.id}_answer_pin`,
@@ -168,23 +306,80 @@ export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement
       closed: true,
       style: { color, fill: color, fill_style: "wash" },
     },
-    { id: `${sc.id}_answer_num`, type: "text", text: g.format(v), x, y: g.y + 52, font_size: 24, style: { color } },
+    { id: `${sc.id}_answer_num`, type: "text", text: g.format(v), x, y: g.y + 36 + Math.round(size * 0.6), font_size: size, style: { color } },
     { id: `${sc.id}_answer`, type: "group", members: [`${sc.id}_answer_pin`, `${sc.id}_answer_num`] },
   ];
 }
 
+/**
+ * Which ticks carry their number, and at what size: every tick when the
+ * numbers fit side by side; else first a size step down (to 18 at the least),
+ * then every 2nd, 3rd, 6th … decade (a log scale labels the decades that are
+ * whole multiples of the stride — 1, 1000, 1 million, 1 billion at 3) or
+ * every k-th tick. `textScale` is the cast's text scale: what is drawn.
+ */
+export function scaleTickLabels(g: ScaleGeometry, textScale = 1): { labelled: Set<number>; size: number } {
+  const tick = g.sizes?.tick ?? TICK_SIZE;
+  const text = g.tickText ?? g.format;
+  const xs = g.ticks.map((v) => g.xAt(v));
+  const n = g.ticks.length;
+  const exps = g.ticks.map((v) => Math.round(Math.log10(v)));
+  const pick = (k: number): number[] => {
+    if (k === 1) return g.ticks.map((_, i) => i);
+    const byExp = g.kind === "log" ? g.ticks.map((_, i) => i).filter((i) => ((exps[i] % k) + k) % k === 0) : [];
+    return byExp.length >= 2 ? byExp : g.ticks.map((_, i) => i).filter((i) => i % k === 0);
+  };
+  const fits = (idx: number[], size: number): boolean => {
+    const f = size * textScale;
+    for (let j = 1; j < idx.length; j++) {
+      const a = idx[j - 1], b = idx[j];
+      if (xs[b] - xs[a] < (scaleLabelWidth(text(g.ticks[a]), f) + scaleLabelWidth(text(g.ticks[b]), f)) / 2 + LABEL_GAP) return false;
+    }
+    return true;
+  };
+  const strides = g.kind === "log" ? [1, 2, 3, 6, 9, 12, 15, 18, 21, 24, 30] : [1, 2, 3, 4, 5, 6, 8, 10, 20];
+  const sizes = [...new Set([tick, Math.max(18, Math.round(tick * 0.85))])];
+  for (const k of strides) {
+    if (k > 1 && k >= n) break;
+    for (const size of sizes) {
+      const idx = pick(k);
+      if (fits(idx, size)) return { labelled: new Set(idx), size };
+    }
+  }
+  return { labelled: new Set([0, n - 1]), size: sizes[sizes.length - 1] };
+}
+
+/** Does the line write its unit once, at its right end? (Not "%": every number carries it; not a year line.) */
+function unitOnLine(g: ScaleGeometry): string | null {
+  const u = g.unit.trim();
+  if (u === "" || u === "%") return null;
+  return g.format(g.ticks[0]).endsWith(` ${g.unit}`) ? u : null;
+}
+
 /** The line, ticks, numbers and caption: `<id>` (a group) and its members. */
-export function scaleLineElements(sc: ScaleElementLike): SpecElement[] {
+export function scaleLineElements(sc: ScaleElementLike, textScale = 1): SpecElement[] {
   const g = scaleGeometry(sc);
+  const sizes = g.sizes ?? { tick: TICK_SIZE, answer: 28, caption: 26 };
+  const drop = g.tickDrop ?? 37;
+  const text = g.tickText ?? g.format;
   const out: SpecElement[] = [{ id: `${sc.id}_line`, type: "path", points: [[g.x0, g.y], [g.x1, g.y]], ...(sc.style ? { style: { ...sc.style, fill: undefined } } : {}) }];
+  const { labelled, size } = scaleTickLabels(g, textScale);
   g.ticks.forEach((v, k) => {
     const x = g.xAt(v);
-    out.push({ id: `${sc.id}_tick_${k + 1}`, type: "path", points: [[x, g.y - TICK], [x, g.y + TICK]] });
-    // Ticks carry the number only (short canvas text); the unit is the marker's — "%" excepted, being part of the number.
-    const tick = g.unit === "" || g.unit === "%" ? g.format(v) : g.format(v).replace(` ${g.unit}`, "");
-    out.push({ id: `${sc.id}_tick_${k + 1}_num`, type: "text", text: tick, x, y: g.y - 34, font_size: 18, style: { color: "#7a7468" } });
+    const len = labelled.has(k) ? TICK : MINOR_TICK;
+    out.push({ id: `${sc.id}_tick_${k + 1}`, type: "path", points: [[x, g.y - len], [x, g.y + len]] });
+    // Ticks carry the number only (short canvas text); the unit is written
+    // once at the line's end — "%" excepted, being part of the number.
+    if (labelled.has(k)) out.push({ id: `${sc.id}_tick_${k + 1}_num`, type: "text", text: text(v), x, y: g.y - drop, font_size: size, style: { color: TICK_INK } });
   });
-  if (sc.label) out.push({ id: `${sc.id}_caption`, type: "text", text: sc.label, x: (g.x0 + g.x1) / 2, y: g.y + 100, font_size: 24 });
+  const u = unitOnLine(g);
+  if (u !== null) {
+    // Past the line's right end when the page has room for it; else under the last number, flush right.
+    const w = scaleLabelWidth(u, size * textScale);
+    const fitsRight = g.x1 + 14 + w <= 1000 - 8;
+    out.push({ id: `${sc.id}_unit`, type: "text", text: u, x: fitsRight ? g.x1 + 14 + w / 2 : g.x1 - w / 2, y: fitsRight ? g.y : g.y - drop - Math.round(size * 1.25), font_size: size, style: { color: TICK_INK } });
+  }
+  if (sc.label) out.push({ id: `${sc.id}_caption`, type: "text", text: sc.label, x: (g.x0 + g.x1) / 2, y: g.y + 44 + Math.round(sizes.answer * 1.2 + sizes.caption * 0.5), font_size: sizes.caption });
   // The group keeps the scale's numbers (not its caption: a group's label
   // means nothing) — the guess reads its truth and geometry back from here.
   const keep: Partial<SpecElement> = { min: sc.min, max: sc.max, ...(isNum(sc.value) ? { value: sc.value } : {}) };
@@ -194,6 +389,9 @@ export function scaleLineElements(sc: ScaleElementLike): SpecElement[] {
   if (sc.x !== undefined) keep.x = sc.x;
   if (sc.y !== undefined) keep.y = sc.y;
   if (sc.width !== undefined) keep.width = sc.width;
+  if (sc.tick_format !== undefined) keep.tick_format = sc.tick_format;
+  if (sc.era !== undefined) keep.era = sc.era;
+  if (sc.font_size !== undefined) keep.font_size = sc.font_size;
   if (sc.style !== undefined) keep.style = sc.style;
   out.push({ id: sc.id, type: "group", members: out.map((e) => e.id), ...keep });
   return out;
@@ -217,6 +415,9 @@ export function authoredScales(spec: Pick<Spec, "elements">): ScaleElementLike[]
       ...(el.x !== undefined ? { x: el.x } : {}),
       ...(el.y !== undefined ? { y: el.y } : {}),
       ...(el.width !== undefined ? { width: el.width } : {}),
+      ...(el.tick_format !== undefined ? { tick_format: el.tick_format } : {}),
+      ...(el.era !== undefined ? { era: el.era } : {}),
+      ...(el.font_size !== undefined ? { font_size: el.font_size } : {}),
       ...(el.style !== undefined ? { style: el.style } : {}),
     });
   }
@@ -227,17 +428,75 @@ function isScale(el: SpecElement): boolean {
   return (el as { type: string }).type === "scale";
 }
 
+/**
+ * Where a scale goes when the author did not say (spec 2026-10-04-page-frame
+ * §3): centred in the content box, about 800 wide less room for its end
+ * numbers and its unit. Alone on the page (nothing else but words, and cards
+ * placed along it) it is the figure: larger numbers, a little more width,
+ * the middle of the content area. With company it takes the lower-middle,
+ * leaving the upper part to the rest. Cards `along` it need their tray under
+ * the line (spec/cards.ts place mode) and their levels over it. Any of x, y,
+ * width, font_size the author gave wins.
+ */
+export function placeScale(sc: ScaleElementLike, spec: Pick<Spec, "elements"> & { text?: { font_size?: number }; heading?: unknown }): ScaleElementLike {
+  // font_size is the engine's (an authored one was never read: the cast's text.font_size sizes a scale's words).
+  const { font_size: _authored, ...own } = sc;
+  void _authored;
+  sc = own as ScaleElementLike;
+  const els = spec.elements ?? [];
+  const along = els.filter((e) => (e as { type: string }).type === "cards" && (e as { along?: unknown }).along === sc.id);
+  const alone = els.every((e) => e.id === sc.id || e.type === "text" || e.type === "label" || along.includes(e));
+  const box = contentBox({ heading: spec.heading !== false });
+  const textScale = isNum(spec.text?.font_size) ? spec.text!.font_size! / 26 : 1;
+  const out: ScaleElementLike = { ...sc };
+  // Alone, the numbers are a step larger — within reason at the cast's text scale.
+  if (alone) {
+    const tick = Math.max(TICK_SIZE, Math.min(ALONE_TICK_SIZE, Math.round(30 / textScale)));
+    if (tick !== TICK_SIZE) out.font_size = tick;
+  }
+  if (isNum(sc.x) && isNum(sc.y) && isNum(sc.width)) return out;
+  if (!isNum(sc.width) || !isNum(sc.x)) {
+    const g = scaleGeometry({ ...out, x: 0, width: 800 });
+    const f = (g.sizes?.tick ?? TICK_SIZE) * textScale;
+    const text = g.tickText ?? g.format;
+    const endL = scaleLabelWidth(text(g.ticks[0]), f) / 2 + 8;
+    const endR = scaleLabelWidth(text(g.ticks[g.ticks.length - 1]), f) / 2 + 8;
+    const u = unitOnLine(g);
+    const unitW = u !== null ? 14 + scaleLabelWidth(u, f) : 0;
+    const room = box.w - endL - Math.max(endR, unitW);
+    const width = isNum(sc.width) ? sc.width : Math.round(Math.min(alone ? 840 : 800, room));
+    out.width = width;
+    if (!isNum(sc.x)) out.x = Math.round(box.x + endL + Math.max(0, room - width) / 2);
+  }
+  if (!isNum(sc.y)) {
+    let y: number;
+    if (along.length > 0) {
+      // The tray under the line: one row of cards, two from six cards on.
+      const items = along.flatMap((c) => ((c as { items?: unknown }).items as unknown[] | undefined) ?? []);
+      const icons = items.some((it) => typeof it === "object" && it !== null && (it as { icon?: unknown }).icon !== undefined);
+      const h = icons ? 96 : 48;
+      const rows = items.length > 5 ? 2 : 1;
+      y = box.y + 10 + 86 + rows * h + (rows - 1) * 14;
+    } else {
+      y = box.y + box.h * (alone ? 0.45 : 0.3);
+    }
+    out.y = Math.round(Math.min(y, box.y + box.h - 140));
+  }
+  return out;
+}
+
 export function expandScales(spec: Spec): Spec {
   const els = spec.elements ?? [];
   if (!els.some(isScale)) return spec;
+  const textScale = isNum(spec.text?.font_size) ? spec.text!.font_size! / 26 : 1;
   const out: SpecElement[] = [];
   for (const el of els) {
     if (!isScale(el)) {
       out.push(el);
       continue;
     }
-    const sc = el as unknown as ScaleElementLike;
-    out.push(...scaleLineElements(sc), ...(isNum(sc.value) ? scaleValueElements(sc, sc.value) : []));
+    const sc = placeScale(el as unknown as ScaleElementLike, spec as Spec & { heading?: unknown });
+    out.push(...scaleLineElements(sc, textScale), ...(isNum(sc.value) ? scaleValueElements(sc, sc.value) : []));
   }
   return { ...spec, elements: out };
 }
