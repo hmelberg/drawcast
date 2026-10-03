@@ -36,7 +36,7 @@
 
 import type { RenderHandle } from "../render";
 import type { CardsSession } from "../render/player";
-import { allChecked, cardAt, checkDrop, cardsMarks, drop, isPlaced, encodeArrangement, matchLines, placePins, placeRight, positions, putIn, rightCards, tapCard, type Arrangement } from "../cards/model";
+import { allChecked, cardAt, checkDrop, cardsMarks, drop, isPlaced, encodeArrangement, matchLines, placeMarks, placeRight, placeValueAt, positions, putIn, rightCards, tapCard, type Arrangement } from "../cards/model";
 import { DEAL_GROW } from "../cards/deck";
 import { CORRECTED, counterMarks } from "../cards/counter";
 import { tick } from "../guess/reveal";
@@ -135,8 +135,8 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           const e = 1 - (1 - t) * (1 - t);
           shown = from.map((p, i) => (i === held ? p : [p[0] + (to[i][0] - p[0]) * e, p[1] + (to[i][1] - p[1]) * e]));
           shown.forEach((p, i) => i !== held && put(i, p));
-          // Place: each card on the line is pinned to its point.
-          if (mode === "place") session.mark({ color: GUESS_COLOR, lines: placePins(g, positions(g, arr)), texts: [] });
+          // Place: each card on the line is pinned to its point, its value written on the pin.
+          if (mode === "place") session.mark(placeMarks(g, arr.values ?? []));
           placeRing();
           rideFlashes();
           if (t < 1 && !settled) anim = requestAnimationFrame(stepFrame);
@@ -511,13 +511,17 @@ export function cardsGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           }
         }
         if (mode === "place" && g.scale) {
+          // Where it would land, exactly (Hans 2026-10-04): the value the drop
+          // gives — snapped as the drop snaps — over the card, and a pin and a
+          // tick on the line at that value.
           const c = shown[dragging.card];
           const sg = g.scale;
-          const onLine = c[0] >= sg.x0 - 20 && c[0] <= sg.x1 + 20 && c[1] >= sg.y - 30;
+          const value = placeValueAt(g, c);
+          session.mark(placeMarks(g, arr.values ?? [], { card: dragging.card, at: c, value }));
           const cp = clientPointFor(stage, [c[0], c[1] + g.h / 2]);
-          valuePill.hidden = !onLine || !cp;
-          if (onLine && cp) {
-            valuePill.textContent = sg.format(sg.valueAtX(c[0]));
+          valuePill.hidden = value === null || !cp;
+          if (value !== null && cp) {
+            valuePill.textContent = sg.format(value);
             valuePill.style.left = `${cp[0]}px`;
             valuePill.style.top = `${cp[1]}px`;
           }
