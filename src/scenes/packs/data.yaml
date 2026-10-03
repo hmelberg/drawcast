@@ -58,6 +58,9 @@ params:
     value_labels:
       type: boolean
       description: "Write each bar's value above it (default false)."
+    y_ticks:
+      type: boolean
+      description: "Round numbers up the y axis (0, 5, 10, 15, 20 — four to six of them), so a bar can be read and guessed against the scale (default true). false: a bare y axis."
     bar_colors:
       enum: [each, same]
       description: "One series: each — every bar its own colour (bars that are different things); same — one colour (one quantity over years, ranges, months). Default: from the labels."
@@ -291,8 +294,85 @@ layout: |
   }
   const fmt = (v) => (dec === 0 ? String(Math.round(v)) : kit.num(v, dec));
 
+  // ---- Readable sizes (spec 2026-10-04-page-frame §4, W4) ----
+  // Base sizes a viewer can read on a full page; each shrinks only when its
+  // neighbours would collide at the width there is, never below the size the
+  // chart used before (17 for categories, 13 past 12 bars, 15 for values).
+  const TICK_SIZE = 20, TICK_MIN = 15;
+  const CAT_SIZE = 21, CAT_WRAP_MIN = 18, CAT_MIN = n > 12 ? 13 : 17;
+  const VALUE_SIZE = 20, VALUE_MIN = 15;
+  const LEGEND_SIZE = 20;
+  // Round tick values: the smallest step of 1, 2, 2.5 or 5 × 10ⁿ that puts at
+  // most `most` ticks on [lo, hi] with neighbours at least `minGap` apart
+  // (`per`: logical units per data unit).
+  const niceTicks = (lo, hi, most, minGap, per) => {
+    const span = hi - lo;
+    if (!(span > 0) || !Number.isFinite(span) || !(per > 0)) return [];
+    let mag = Math.pow(10, Math.floor(Math.log10(span / most)));
+    for (let guard = 0; guard < 30; guard++, mag *= 10) {
+      for (const mm of [1, 2, 2.5, 5]) {
+        const step = mm * mag;
+        const a = Math.ceil(lo / step - 1e-9), z = Math.floor(hi / step + 1e-9);
+        if (z - a + 1 <= most && step * per >= minGap) {
+          const out = [];
+          for (let k = a; k <= z; k++) out.push(Number((k * step).toPrecision(12)));
+          return out;
+        }
+      }
+    }
+    return [];
+  };
+  const decimalsOf = (vals) => {
+    let d = 0;
+    for (const v of vals) while (d < 4 && Math.abs(v * Math.pow(10, d) - Math.round(v * Math.pow(10, d))) > 1e-6) d++;
+    return d;
+  };
+  // A label too wide for its slot: the size that fits, from `hi` down to `lo`
+  // (null when even `lo` does not).
+  const fitSize = (texts, avail, hi, lo) => {
+    for (let s = hi; s >= lo; s--) if (texts.every((t) => kit.textWidth(t, s) <= avail)) return s;
+    return null;
+  };
+  // Two lines, split at the space that keeps the wider half narrowest.
+  const wrap2 = (t) => {
+    let best = null;
+    for (let i = t.indexOf(" "); i > 0; i = t.indexOf(" ", i + 1)) {
+      const a = t.slice(0, i).trim(), b = t.slice(i + 1).trim();
+      if (!a || !b) continue;
+      const w = Math.max(kit.textWidth(a, 20), kit.textWidth(b, 20));
+      if (!best || w < best.w) best = { lines: [a, b], w };
+    }
+    return best ? best.lines : null;
+  };
+
   const drawables = [], labelReqs = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
+
+  // Category labels: one size for the whole row — single lines at 21 down to
+  // 18, then two lines at 21 down to 18, then single lines down to the old
+  // floor. Whatever is left overflows as it always did.
+  const catTexts = Array.from({ length: n }, (_, i) => (labels[i] !== undefined ? labels[i] : String(i + 1)));
+  const catAvail = slotW - 6;
+  let catSize = fitSize(catTexts, catAvail, CAT_SIZE, Math.max(CAT_MIN, CAT_WRAP_MIN));
+  let catLines = null;
+  // Wrapped: the labels too wide at `at` go onto two lines; the size that
+  // fits every line, from hi down to lo.
+  const tryWrap = (at, hi, lo) => {
+    const wrapped = catTexts.map((t) => (kit.textWidth(t, at) > catAvail ? wrap2(t) : null));
+    if (!wrapped.some(Boolean)) return false;
+    const sz = fitSize(catTexts.flatMap((t, i) => wrapped[i] || [t]), catAvail, hi, lo);
+    if (sz === null) return false;
+    catSize = sz; catLines = wrapped;
+    return true;
+  };
+  if (catSize === null && !tryWrap(CAT_WRAP_MIN, CAT_SIZE, CAT_WRAP_MIN)) {
+    catSize = fitSize(catTexts, catAvail, CAT_WRAP_MIN - 1, CAT_MIN);
+    // Past the floor single lines overflow: two lines at the floor, if that
+    // fits, else the floor as before.
+    if (catSize === null && !tryWrap(CAT_MIN, CAT_WRAP_MIN - 1, CAT_MIN)) catSize = CAT_MIN;
+  }
+  // How far a two-line label reaches below the single-line row.
+  const catDrop = catLines ? catSize * 1.25 * 0.5 : 0;
 
   const axesChildren = [
     kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
@@ -302,9 +382,32 @@ layout: |
   // arrow tip rather than inline past it) sits in the same row as bar_i__l's
   // category labels — captionDrop (axisLabelPlacement, layout/axes.ts) drops
   // it one row lower so it clears them.
-  if (xLab) axesChildren.push(kit.axisLabel("axes__x_label", "x", iconRow > 0 ? { ...plot, y0: plot.y0 - iconRow } : plot, xLab, { fontSize: 22, captionDrop: true }));
+  if (xLab) {
+    const cap = kit.axisLabel("axes__x_label", "x", iconRow > 0 ? { ...plot, y0: plot.y0 - iconRow } : plot, xLab, { fontSize: 22, captionDrop: true });
+    // A stacked caption (not the inline one past the arrow) drops by what a
+    // larger or two-line category row adds below the old 17-unit line.
+    // (a row's bottom sits 0.625 × size below its line; two lines add 1.25 × size)
+    if (cap.anchor !== "start") cap.pos = [cap.pos[0], cap.pos[1] - Math.max(0, catSize * (catLines ? 1.875 : 0.625) - 17 * 0.625)];
+    axesChildren.push(cap);
+  }
   if (yLab) axesChildren.push(kit.axisLabel("axes__y_label", "y", plot, yLab, { fontSize: 22 }));
   if (yMin < 0) axesChildren.push(kit.stroke("axes__zero", [[plot.x0, base], [plot.x1, base]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
+  // Round values up the y axis (W4): a guessed bar is judged against a scale,
+  // not only against its neighbours. 4–6 ticks, a line of text apart; the
+  // numbers shrink (to 15) only when the margin left of the axis is narrow.
+  if (params.y_ticks !== false && n > 0) {
+    const yTicks = niceTicks(yMin, yMax, 6, TICK_SIZE * 1.25 + 8, (plot.y1 - plot.y0) / (yMax - yMin));
+    const tdec = decimalsOf(yTicks);
+    const group = yTicks.some((v) => Math.abs(v) >= 10000);
+    const tfmt = (v) => (v === 0 ? "0" : kit.num(v, tdec, group));
+    // No room left of the axis (a box at the canvas edge): no numbers rather
+    // than numbers running off the page.
+    const tsize = fitSize(yTicks.map(tfmt), plot.x0 - 12 - 4, TICK_SIZE, TICK_MIN);
+    if (tsize !== null) yTicks.forEach((v, k) => {
+      axesChildren.push(kit.stroke("axes__yk" + k, [[plot.x0 - 7, Y(v)], [plot.x0, Y(v)]], { color: C.guide, strokeWidth: 2, ms: MS.guides }));
+      axesChildren.push(kit.text("axes__yt" + k, [plot.x0 - 12, Y(v)], tfmt(v), { fontSize: tsize, anchor: "end", color: C.guide }));
+    });
+  }
   push(kit.group("axes", axesChildren));
   anchors.axes = [plot.x0, plot.y0];
 
@@ -333,7 +436,14 @@ layout: |
     return b;
   };
 
-  const labelSize = n > 12 ? 13 : 17;
+  // Value labels: one size for the chart, over every stage (a tween must not
+  // change it) — 20, or as large as fits the bar's width, down to 15.
+  const valueTexts = [];
+  if (showValues) {
+    for (const s of series) for (const st of s.stages) for (const v of st) if (typeof v === "number") valueTexts.push(fmt(v));
+    if (stacked) for (let k = 0; k < K; k++) for (let i = 0; i < n; i++) valueTexts.push(fmt(series.reduce((sum, s) => sum + atStage(s, k, i), 0)));
+  }
+  const valueSize = showValues ? fitSize(valueTexts, stacked ? groupW - 4 : m === 1 ? slotW - 6 : barW - 2, VALUE_SIZE, VALUE_MIN) ?? VALUE_MIN : VALUE_SIZE;
   // A guess's beside reveal (spec 2026-10-03-round6 §3) sets beside_bars at
   // run time, never an author: those bars (0-based) stand in the RIGHT half
   // of their width — the viewer's own bar is drawn in the left half beside
@@ -369,9 +479,12 @@ layout: |
       // reads as that one's value (Hans, 2026-09-26: "the numbers seem to be
       // in the wrong boxes"). The stack total is written above the column
       // instead, once, below. A plain bar keeps its value above its end.
-      if (showValues && (!stacked || hi2 - lo2 >= 26)) {
-        const vy = stacked ? (lo2 + hi2) / 2 : v >= 0 ? hi2 + 13 : lo2 - 13;
-        children.push(kit.text(id + "__v" + j, [x + w / 2, vy], fmt(v), { fontSize: stacked ? 17 : 15, color: stacked ? C.ink : C.guide }));
+      if (showValues && (!stacked || hi2 - lo2 >= valueSize * 1.5)) {
+        // Clear of the bar's hand-drawn edge; in ink, not the guide grey —
+        // the value is what the viewer came to read.
+        const off = valueSize * 0.75 + 6;
+        const vy = stacked ? (lo2 + hi2) / 2 : v >= 0 ? hi2 + off : lo2 - off;
+        children.push(kit.text(id + "__v" + j, [x + w / 2, vy], fmt(v), { fontSize: valueSize, color: C.ink }));
       }
       reach = v >= 0 ? Math.max(reach, hi2) : Math.min(reach, lo2);
     });
@@ -379,7 +492,7 @@ layout: |
       const total = series.reduce((sum, s) => sum + value(s, i), 0);
       const totalY = Y(clamp(total, yMin, yMax));
       // Segment labels sit inside their segments, so the column's top edge is free.
-      children.push(kit.text(id + "__total", [xc, totalY + 13], fmt(total), { fontSize: 15, color: C.guide }));
+      children.push(kit.text(id + "__total", [xc, totalY + valueSize * 0.75 + 6], fmt(total), { fontSize: valueSize, color: C.guide }));
     }
     if (withIcons) {
       const k = iconKeys[i];
@@ -387,13 +500,19 @@ layout: |
       const ic = k !== null && k !== undefined && k !== "" ? kit.icon(id + "__icon", iconData[i] && iconData[i].strokes, [xc, plot.y0 - 6 - size / 2], size, { look: params.icon_look === "drawn" ? "drawn" : "picture" }) : null;
       if (ic) children.push(ic);
     }
-    children.push(kit.text(id + "__l", [xc, plot.y0 - 20 - iconRow], labels[i] !== undefined ? labels[i] : String(i + 1), { fontSize: labelSize }));
+    const cat = kit.text(id + "__l", [xc, plot.y0 - 20 - iconRow - (catLines && catLines[i] ? catDrop : 0)], catTexts[i], { fontSize: catSize });
+    if (catLines && catLines[i]) cat.lines = catLines[i];
+    children.push(cat);
     push(kit.group(id, children));
     anchors[id] = [xc, (base + reach) / 2];
   }
 
   if (m >= 2) {
-    let lx = plot.x1 - 150;
+    // The legend's right edge stays near the plot's (it was 150 wide at 16pt);
+    // never further right than plot.x1 - 150, where the refusal note ends.
+    let legW = 0;
+    for (const s of series) legW = Math.max(legW, 28 + kit.textWidth(s.name, LEGEND_SIZE));
+    let lx = Math.min(plot.x1 - 150, plot.x1 + 10 - legW);
     if (stacked && n > 0) {
       // Stacked bars can reach much higher than grouped ones (a stack draws
       // the TOTAL, not the largest single value), so a legend fixed
@@ -406,13 +525,13 @@ layout: |
     const ly = plot.y1 - 16;
     const children = [];
     series.forEach((s, j) => {
-      const y = ly - j * 24;
+      const y = ly - j * 28;
       const color = C.series[j % C.series.length];
-      children.push(kit.area("legend__s" + j, [[lx, y - 8], [lx + 18, y - 8], [lx + 18, y + 8], [lx, y + 8]], color, { opacity: 0.55 }));
-      children.push(kit.text("legend__t" + j, [lx + 26, y], s.name, { fontSize: 16, anchor: "start" }));
+      children.push(kit.area("legend__s" + j, [[lx, y - 10], [lx + 20, y - 10], [lx + 20, y + 10], [lx, y + 10]], color, { opacity: 0.55 }));
+      children.push(kit.text("legend__t" + j, [lx + 28, y], s.name, { fontSize: LEGEND_SIZE, anchor: "start" }));
     });
     push(kit.group("legend", children));
-    anchors.legend = [lx + 70, ly - (m - 1) * 12];
+    anchors.legend = [lx + legW / 2, ly - (m - 1) * 14];
   }
 
   if (title) {
@@ -529,19 +648,50 @@ layout: |
 
   const b = params.box;
   const boxed = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0;
-  const area = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : { x0: 150, y0: 60, x1: 850, y1: 640 };
+  // Default: the page's content area (src/layout/page.ts — x 60…940, y 160…660,
+  // clear of the caption band). guess/handles.ts pieGeometry mirrors all of this.
+  const area = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : { x0: 60, y0: 160, x1: 940, y1: 660 };
   const title = str(params.title, "");
   if (title) area.y1 = Math.min(area.y1, 650);
-  // Room for a label on each side: the radius leaves 150 units left and right.
-  const r0 = Math.max(40, Math.min((area.x1 - area.x0) / 2 - 150, (area.y1 - area.y0) / 2 - 40));
+  const showPct = params.percent !== false;
   const cx0 = (area.x0 + area.x1) / 2, cy0 = (area.y0 + area.y1) / 2;
+  // The radius grows with the room (W4): as large as the box allows with
+  // every slice's name still inside it, at every stage (so an animated pie
+  // does not breathe), capped at 270. Names are 24 units; they shrink (to
+  // the old 20) only when that buys the pie more than a tenth of its radius.
+  const LABEL_OFF = 26, R_CAP = 270;
+  const nameOf = (i) => (labels[i] !== undefined ? labels[i] : "Slice " + (i + 1));
+  const pctOf = (sh) => Math.round(sh * 100) + "%";
+  const labelText = (i, sh) => (showPct ? nameOf(i) + "  " + pctOf(sh) : nameOf(i));
+  const radiusFor = (size) => {
+    const hw = (area.x1 - area.x0) / 2 - 4, hh = (area.y1 - area.y0) / 2 - 4, lh = size * 1.25 / 2;
+    let r = Math.min(R_CAP, hw, hh - 4);
+    for (let k = 0; k < K; k++) {
+      const row = [];
+      for (let i = 0; i < n; i++) row.push(at(k, i));
+      const tot = row.reduce((a, v) => a + v, 0);
+      let a0 = 0;
+      for (let i = 0; i < n; i++) {
+        const sh = tot > 0 ? row[i] / tot : 1 / Math.max(1, n);
+        const mid = a0 + sh * Math.PI;
+        a0 += sh * 2 * Math.PI;
+        const w = kit.textWidth(labelText(i, sh), size);
+        const sn = Math.abs(Math.sin(mid)), cs = Math.abs(Math.cos(mid));
+        if (cs > 1e-6) r = Math.min(r, (hh - lh) / cs - LABEL_OFF);
+        if (sn > 1e-6) r = Math.min(r, (hw - w) / sn - LABEL_OFF);
+      }
+    }
+    return Math.max(40, r);
+  };
+  let labelSize = 24, r0 = radiusFor(24);
+  const rSmall = radiusFor(20);
+  if (r0 < rSmall * 0.9) { const r22 = radiusFor(22); if (r22 >= rSmall * 0.9) { labelSize = 22; r0 = r22; } else { labelSize = 20; r0 = rSmall; } }
   // A guess's beside reveal (spec 2026-10-03-round6 §3) sets beside_pie
   // [x, y, r] at run time, never an author: the slices stand there, beside
   // the viewer's own pie; the title keeps its place.
   const bp = params.beside_pie;
   const besidePie = Array.isArray(bp) && bp.length === 3 && bp.every((v) => typeof v === "number" && Number.isFinite(v)) && bp[2] > 0;
   const cx = besidePie ? bp[0] : cx0, cy = besidePie ? bp[1] : cy0, r = besidePie ? bp[2] : r0;
-  const showPct = params.percent !== false;
   // Clockwise from 12 o'clock, y-up: angle a (radians from the top) → point.
   const P = (a, rr) => [cx + rr * Math.sin(a), cy + rr * Math.cos(a)];
 
@@ -565,18 +715,17 @@ layout: |
       children.push(kit.stroke(id + "__o", wedge, { closed: true, color, strokeWidth: 2.5, ms: MS.stroke }));
     }
     const mid = a0 + sweep / 2;
-    const lp = P(mid, r + 26);
+    const lp = P(mid, r + LABEL_OFF);
     const right = Math.sin(mid) >= 0;
     // Thin neighbours put their names on top of each other: keep each name
     // a line clear of the last one on its side, in the direction the
     // clockwise walk is heading there (down the right, up the left).
     const last = right ? lastRight : lastLeft;
-    if (last !== null) lp[1] = right ? Math.min(lp[1], last - 32) : Math.max(lp[1], last + 32);
+    const gapY = labelSize * 1.25 + 2;
+    if (last !== null) lp[1] = right ? Math.min(lp[1], last - gapY) : Math.max(lp[1], last + gapY);
     if (right) lastRight = lp[1]; else lastLeft = lp[1];
     topLabel = Math.max(topLabel, lp[1]);
-    const pct = Math.round(shares[i] * 100) + "%";
-    const name = labels[i] !== undefined ? labels[i] : "Slice " + (i + 1);
-    children.push(kit.text(id + "__l", lp, showPct ? name + "  " + pct : name, { fontSize: 20, anchor: right ? "start" : "end" }));
+    children.push(kit.text(id + "__l", lp, labelText(i, shares[i]), { fontSize: labelSize, anchor: right ? "start" : "end" }));
     push(kit.group(id, children));
     anchors[id] = P(mid, r * 0.6);
     a0 = a1;
@@ -816,7 +965,10 @@ params:
       description: "Dots at the data points (default false)."
     x_ticks:
       type: boolean
-      description: "Tick and number under each x value when they fit (default: on, for 3–12 numeric x values). false: the two ends only."
+      description: "Numbers along a numeric x axis (default on): a tick under each x value for 3–12 of them, round values (every 10, 20, 50 years …) for more, each a label's width from the next. false: the two ends only."
+    y_ticks:
+      type: boolean
+      description: "Round numbers up the y axis (0, 2, 4, 6, 8 — four to six of them) instead of only its two ends, so a drawn guess can be read against the scale (default true). false: the two ends only."
     smooth:
       type: boolean
       description: "Catmull–Rom smoothing through the points (default false; keep off for step-like data)."
@@ -1135,7 +1287,7 @@ layout: |
   // then runs off the 1000-wide canvas (out-of-canvas, an ERROR). An authored
   // box pays the same cost: a box says where the plot goes, not that a label
   // may hang over the canvas edge.
-  const END_SIZE = 19; // the end label's font size
+  const END_SIZE = 21; // the end label's font size (W4: 19 → 21, readable on a full page)
   const END_GAP = 12; // gap between the last point and its name
   const CANVAS_EDGE = 4; // CANVAS_EDGE_MARGIN (src/layout/axes.ts) — the margin the app's own axis captions keep
   let endLabelW = 0;
@@ -1245,7 +1397,7 @@ layout: |
   const nullCol = (s, i) => at(s, k0, i) === null || (t > 0 && at(s, k1, i) === null);
   const slopeBlank = (s) => s.token || nullCol(s, 0) || nullCol(s, 1);
   const slopeText = (s, i) => (s.name ? s.name + " " : "") + fmtY(slopeValue(s, i));
-  const SLOPE_LABEL_SIZE = 17;
+  const SLOPE_LABEL_SIZE = 20;
   const SLOPE_LABEL_GAP = 10;
   let padCols = 0;
   if (slope) {
@@ -1260,6 +1412,38 @@ layout: |
     padCols = Math.min((plot.x1 - plot.x0) * 0.4, maxW + SLOPE_LABEL_GAP);
   }
   const xL = plot.x0 + padCols, xR = plot.x1 - padCols;
+
+  // ---- Readable sizes and round ticks (spec 2026-10-04-page-frame, W4) ----
+  const TICK_SIZE = 20, TICK_MIN = 15;
+  // Round tick values: the smallest step of `mults` × 10ⁿ that puts at most
+  // `most` ticks on [lo, hi] with neighbours at least `minGap` apart (`per`:
+  // logical units per data unit).
+  const niceTicks = (lo, hi, most, minGap, per, mults) => {
+    const span = hi - lo;
+    if (!(span > 0) || !Number.isFinite(span) || !(per > 0)) return [];
+    let mag = Math.pow(10, Math.floor(Math.log10(span / most)));
+    for (let guard = 0; guard < 30; guard++, mag *= 10) {
+      for (const mm of mults || [1, 2, 2.5, 5]) {
+        const step = mm * mag;
+        const a = Math.ceil(lo / step - 1e-9), z = Math.floor(hi / step + 1e-9);
+        if (z - a + 1 <= most && step * per >= minGap) {
+          const out = [];
+          for (let k = a; k <= z; k++) out.push(Number((k * step).toPrecision(12)));
+          return out;
+        }
+      }
+    }
+    return [];
+  };
+  const decimalsOf = (vals) => {
+    let d = 0;
+    for (const v of vals) while (d < 4 && Math.abs(v * Math.pow(10, d) - Math.round(v * Math.pow(10, d))) > 1e-6) d++;
+    return d;
+  };
+  const fitSize = (texts, avail, hi, lo) => {
+    for (let sz = hi; sz >= lo; sz--) if (texts.every((t) => kit.textWidth(t, sz) <= avail)) return sz;
+    return null;
+  };
 
   const drawables = [], labelReqs = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
@@ -1283,11 +1467,23 @@ layout: |
     // the left column, x[1] under the right, in the same row category
     // labels use elsewhere.
     const colText = (i) => (xCat ? (xCat[i] !== undefined ? xCat[i] : String(i + 1)) : fmtX(xs[i] !== undefined ? xs[i] : i + 1));
-    axesChildren.push(kit.text("axes__col0", [xL, plot.y0 - 20], colText(0), { fontSize: 17 }));
-    axesChildren.push(kit.text("axes__col1", [xR, plot.y0 - 20], colText(1), { fontSize: 17 }));
+    axesChildren.push(kit.text("axes__col0", [xL, plot.y0 - 20], colText(0), { fontSize: 20 }));
+    axesChildren.push(kit.text("axes__col1", [xR, plot.y0 - 20], colText(1), { fontSize: 20 }));
   } else if (xCat) {
-    const size = n > 12 ? 13 : 17;
-    xCat.forEach((s, i) => axesChildren.push(kit.text("axes__c" + i, [X(i), plot.y0 - 20], s, { fontSize: size })));
+    // One size for the row: 20, shrinking to fit a slot down to the old 17
+    // (13 past 12 categories); past that, every k-th category keeps its
+    // name at 17 and the others go quiet, rather than all of them shrinking
+    // into one unreadable row.
+    const slot = (plot.x1 - plot.x0) / Math.max(1, n) - 6;
+    const floor = n > 12 ? 13 : 17;
+    let size = fitSize(xCat, slot, 20, floor);
+    let every = 1;
+    if (size === null || (n > 12 && size < 17)) {
+      const widest = Math.max(...xCat.map((s) => kit.textWidth(s, 17)));
+      every = Math.max(1, Math.ceil((widest + 12) / (slot + 6)));
+      size = every > 1 ? 17 : floor;
+    }
+    xCat.forEach((s, i) => { if (i % every === 0) axesChildren.push(kit.text("axes__c" + i, [X(i), plot.y0 - 20], s, { fontSize: size })); });
   } else if (n > 0) {
     // Finding (this round): axes__x0 defaults to a CENTRED anchor, so a wide
     // label (a 4-digit year) straddles plot.x0 and reaches back toward
@@ -1304,31 +1500,75 @@ layout: |
     // the identity whenever the whole span is in view, so an ordinary chart is
     // unchanged; it mirrors what axes__y0/axes__y1 already do (they print
     // yMin/yMax, never the data's own first and last).
-    axesChildren.push(kit.text("axes__x0", [X(0), plot.y0 - 20], fmtX(clamp(xs[0], xMin, xMax)), { fontSize: 15, anchor: "start", color: C.guide }));
-    axesChildren.push(kit.text("axes__x1", [X(n - 1), plot.y0 - 20], fmtX(clamp(xs[n - 1], xMin, xMax)), { fontSize: 15, color: C.guide }));
+    axesChildren.push(kit.text("axes__x0", [X(0), plot.y0 - 20], fmtX(clamp(xs[0], xMin, xMax)), { fontSize: TICK_SIZE, anchor: "start", color: C.guide }));
+    axesChildren.push(kit.text("axes__x1", [X(n - 1), plot.y0 - 20], fmtX(clamp(xs[n - 1], xMin, xMax)), { fontSize: TICK_SIZE, color: C.guide }));
     // The x values in between (2026-10-02, Hans: "the x axis should have the
     // years mentioned"): each data x gets a tick and its number when they
     // fit — few points, the whole span in view, a label's width apart from
     // its neighbours (ends kept). x_ticks: false keeps the ends only.
     const inView = xs.every((v) => v >= xMin && v <= xMax);
+    const tick = (k) => kit.stroke("axes__xk" + k, [[X(k), plot.y0], [X(k), plot.y0 - 7]], { color: C.guide, strokeWidth: 2, ms: MS.guides });
+    if (params.x_ticks !== false && inView && n > 12) {
+      // Many points (W4): round x values — every 10, 20, 50 years — a label's
+      // width apart, between the two end labels and clear of them.
+      const wOf = (v) => kit.textWidth(fmtX(v), TICK_SIZE);
+      const widest = Math.max(wOf(xMin), wOf(xMax));
+      const per = (plot.x1 - plot.x0) / (xMax - xMin);
+      const XV = (v) => plot.x0 + (v - xMin) * per;
+      const vals = niceTicks(xMin, xMax, 10, widest + 16, per, [1, 2, 5]);
+      const xdec = decimalsOf(vals);
+      const firstEdge = X(0) + wOf(xs[0]);
+      const lastEdge = X(n - 1) - wOf(xs[n - 1]) / 2;
+      axesChildren.push(tick(0), tick(n - 1));
+      vals.forEach((v, k) => {
+        const text = Number.isInteger(v) ? String(v) : kit.num(v, xdec);
+        const half = kit.textWidth(text, TICK_SIZE) / 2;
+        if (XV(v) - half < firstEdge + 12 || XV(v) + half > lastEdge - 12) return;
+        axesChildren.push(kit.stroke("axes__xn" + k, [[XV(v), plot.y0], [XV(v), plot.y0 - 7]], { color: C.guide, strokeWidth: 2, ms: MS.guides }));
+        axesChildren.push(kit.text("axes__xt" + k, [XV(v), plot.y0 - 20], text, { fontSize: TICK_SIZE, color: C.guide }));
+      });
+    }
     if (params.x_ticks !== false && inView && n >= 3 && n <= 12) {
-      const w = (v) => kit.textWidth(fmtX(v), 15);
+      const w = (v) => kit.textWidth(fmtX(v), TICK_SIZE);
       const firstEdge = X(0) + w(xs[0]);
       const lastEdge = X(n - 1) - w(xs[n - 1]) / 2;
       let prevEdge = firstEdge;
-      const tick = (k) => kit.stroke("axes__xk" + k, [[X(k), plot.y0], [X(k), plot.y0 - 7]], { color: C.guide, strokeWidth: 2, ms: MS.guides });
       axesChildren.push(tick(0), tick(n - 1));
       for (let k = 1; k < n - 1; k++) {
         const half = w(xs[k]) / 2;
         if (X(k) - half < prevEdge + 12 || X(k) + half > lastEdge - 12) continue;
         axesChildren.push(tick(k));
-        axesChildren.push(kit.text("axes__xt" + k, [X(k), plot.y0 - 20], fmtX(xs[k]), { fontSize: 15, color: C.guide }));
+        axesChildren.push(kit.text("axes__xt" + k, [X(k), plot.y0 - 20], fmtX(xs[k]), { fontSize: TICK_SIZE, color: C.guide }));
         prevEdge = X(k) + half;
       }
     }
   }
-  axesChildren.push(kit.text("axes__y0", [plot.x0 - 12, plot.y0], fmtY(yMin), { fontSize: 15, anchor: "end", color: C.guide }));
-  axesChildren.push(kit.text("axes__y1", [plot.x0 - 12, plot.y1], fmtY(yMax), { fontSize: 15, anchor: "end", color: C.guide }));
+  // Round values up the y axis (W4) — 4–6 of them, a line of text apart —
+  // so a drawn guess reads against a scale; y_ticks: false keeps the two
+  // ends (yMin, yMax) as before. The numbers shrink (to 15) only when the
+  // margin left of the axis is narrow.
+  const yTicks = params.y_ticks === false ? [] : niceTicks(yMin, yMax, 6, TICK_SIZE * 1.25 + 8, (plot.y1 - plot.y0) / (yMax - yMin));
+  const tdec = decimalsOf(yTicks);
+  const group = yTicks.some((v) => Math.abs(v) >= 10000);
+  const tfmt = (v) => (v === 0 ? "0" : kit.num(v, tdec, group));
+  // No room left of the axis for the round numbers: the two ends, as before.
+  const tsize = yTicks.length >= 2 ? fitSize(yTicks.map(tfmt), plot.x0 - 16, TICK_SIZE, TICK_MIN) : null;
+  if (tsize !== null) {
+    yTicks.forEach((v, k) => {
+      axesChildren.push(kit.stroke("axes__yk" + k, [[plot.x0 - 7, Y(v)], [plot.x0, Y(v)]], { color: C.guide, strokeWidth: 2, ms: MS.guides }));
+      axesChildren.push(kit.text("axes__yt" + k, [plot.x0 - 12, Y(v)], tfmt(v), { fontSize: tsize, anchor: "end", color: C.guide }));
+    });
+  } else {
+    axesChildren.push(kit.text("axes__y0", [plot.x0 - 12, plot.y0], fmtY(yMin), { fontSize: TICK_SIZE, anchor: "end", color: C.guide }));
+    axesChildren.push(kit.text("axes__y1", [plot.x0 - 12, plot.y1], fmtY(yMax), { fontSize: TICK_SIZE, anchor: "end", color: C.guide }));
+  }
+  // A stacked x caption (not the inline one past the arrow) drops by what
+  // the larger tick row (20, was 15) adds below the axis.
+  {
+    const cap = axesChildren.find((d) => d.id === "axes__x_label");
+    const rowSize = Math.max(15, ...axesChildren.filter((d) => d.kind === "text" && /^axes__(x0|x1|xt\d+|c\d+|col[01])$/.test(d.id)).map((d) => d.fontSize));
+    if (cap && cap.anchor !== "start") cap.pos = [cap.pos[0], cap.pos[1] - (rowSize - 15) * 0.625];
+  }
   if (yMin < 0 && yMax > 0) axesChildren.push(kit.stroke("axes__zero", [[plot.x0, Y(0)], [plot.x1, Y(0)]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
   push(kit.group("axes", axesChildren));
   anchors.axes = [plot.x0, plot.y0];
@@ -1394,7 +1634,7 @@ layout: |
   // I6 / Ruling T's algorithm, factored out of the per-series loop below so
   // the slope branch can call it once per SIDE instead of once per chart.
   const DODGE = 46;
-  const END_LABEL_FLOOR = 28; // an end label never sits in the x caption's row (its 19pt box clears a 22pt inline caption centred on the axis: 13.75 + 11.875 + the lint's 2-unit pad = 27.625)
+  const END_LABEL_FLOOR = 30; // (W4: 21pt end labels) — an end label never sits in the x caption's row (its 21pt box clears a 22pt inline caption centred on the axis: 13.75 + 13.125 + the lint’s 2-unit pad = 28.875)
   // How high the LOWEST label of a cluster may sit. The x caption's row is the
   // floor everywhere; where the ticker is drawn, a label whose own x-box runs
   // into the year's box must clear it as well — bar_race's clearsTicker test
@@ -1914,12 +2154,14 @@ layout: |
   // this row sits below plot.y0, where no data stroke ever reaches (Y()
   // clamps at yMin), so there is nothing else down here to collide with
   // instead.
-  axesChildren.push(kit.text("axes__x0", [X(xLoV), plot.y0 - 20], fmtX(xLoV), { fontSize: 15, anchor: "start", color: C.guide }));
+  axesChildren.push(kit.text("axes__x0", [X(xLoV), plot.y0 - 20], fmtX(xLoV), { fontSize: 20, anchor: "start", color: C.guide }));
   // Degenerate data (every point on one x, or the placeholder's zeros) puts
   // both ends of an axis in the same spot — one mark, not two stacked.
-  if (Math.abs(X(xHiV) - X(xLoV)) >= 1) axesChildren.push(kit.text("axes__x1", [X(xHiV), plot.y0 - 20], fmtX(xHiV), { fontSize: 15, color: C.guide }));
-  axesChildren.push(kit.text("axes__y0", [plot.x0 - 12, Y(yLoV)], fmtY(yLoV), { fontSize: 15, anchor: "end", color: C.guide }));
-  if (Math.abs(Y(yHiV) - Y(yLoV)) >= 1) axesChildren.push(kit.text("axes__y1", [plot.x0 - 12, Y(yHiV)], fmtY(yHiV), { fontSize: 15, anchor: "end", color: C.guide }));
+  if (Math.abs(X(xHiV) - X(xLoV)) >= 1) axesChildren.push(kit.text("axes__x1", [X(xHiV), plot.y0 - 20], fmtX(xHiV), { fontSize: 20, color: C.guide }));
+  axesChildren.push(kit.text("axes__y0", [plot.x0 - 12, Y(yLoV)], fmtY(yLoV), { fontSize: 20, anchor: "end", color: C.guide }));
+  if (Math.abs(Y(yHiV) - Y(yLoV)) >= 1) axesChildren.push(kit.text("axes__y1", [plot.x0 - 12, Y(yHiV)], fmtY(yHiV), { fontSize: 20, anchor: "end", color: C.guide }));
+  // W4: a stacked x caption drops by what the 20-unit end marks (were 15) add.
+  { const cap = axesChildren.find((d) => d.id === "axes__x_label"); if (cap && cap.anchor !== "start") cap.pos = [cap.pos[0], cap.pos[1] - 5 * 0.625]; }
   push(kit.group("axes", axesChildren));
   anchors.axes = [plot.x0, plot.y0];
 
@@ -1976,7 +2218,7 @@ layout: |
   named.forEach(({ i, p, name }) => {
     const id = "point_" + (i + 1);
     push(kit.group(id, p
-      ? [dot(id + "__d", p), kit.text(id + "__t", [p[0] + 10, p[1] + 12], name, { fontSize: 16, anchor: "start", color: C.ink })]
+      ? [dot(id + "__d", p), kit.text(id + "__t", [p[0] + 10, p[1] + 13], name, { fontSize: 19, anchor: "start", color: C.ink })]
       : [kit.stroke(id + "__d", [], { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke })]));
     anchors[id] = p || centre;
   });
@@ -2395,9 +2637,20 @@ layout: |
   // names all share ONE row under the axis, so they never collide vertically
   // at all — truncation to the column's width, not shrinking, is what keeps
   // each in its own lane.
+  // W4 (readable sizes): lying down, up to 21 (was 17) by the same 0.55 ×
+  // slot rule; standing up, the largest size from 20 at which every name
+  // fits its column, down to the old 17 (14 past 8 rows) — then truncation.
   const NAME_SIZE = vertical
-    ? (rows > 8 ? 14 : 17)
-    : Math.max(14, Math.min(17, Math.floor(slot * 0.55)));
+    ? (() => {
+      const lo = rows > 8 ? 14 : 17;
+      for (let sz = 20; sz > lo; sz--) {
+        let ok = true;
+        for (let i = 0; i < n && ok; i++) if (kit.textWidth(labels[i] !== undefined ? labels[i] : String(i + 1), sz) > slot - 6) ok = false;
+        if (ok) return sz;
+      }
+      return lo;
+    })()
+    : Math.max(14, Math.min(21, Math.floor(slot * 0.55)));
   const NAME_GAP = 10; // the bars' baseline → the name's right edge
   const CANVAS_EDGE = 4; // CANVAS_EDGE_MARGIN (src/layout/axes.ts)
   const nameOf = (i) => (labels[i] !== undefined ? labels[i] : String(i + 1));
@@ -2498,6 +2751,15 @@ layout: |
   // numbers that do not change with the stage, never per frame — until the
   // widest range the race ever shows holds at most a dozen of them.
   while (tickStep > 0 && (peak - xMin) / tickStep > 12) tickStep = nextStep(tickStep);
+  // W4: 20-unit tick numbers need room — coarsen (again once, at the race's
+  // widest range, where the ticks stand closest) until neighbours clear.
+  {
+    const TS = 20;
+    const plotLen = vertical ? plot.y1 - plot.y0 : plot.x1 - plot.x0;
+    const decOf = (st) => (st >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(st || 1))));
+    const need = (st) => (vertical ? TS * 1.25 + 6 : kit.textWidth(kit.num(Math.floor(peak / st) * st, decOf(st)), TS) + 14);
+    for (let guard = 0; guard < 20 && tickStep > 0 && peak > xMin && tickStep * plotLen / (peak - xMin) < need(tickStep); guard++) tickStep = nextStep(tickStep);
+  }
   const ticks = [];
   // Stepping by MULTIPLES rather than by repeated addition: 0.1 added thirty
   // times is not 3, and a tick labelled "2.9999999999999996" is a bug.
@@ -2545,9 +2807,9 @@ layout: |
     : allNonPositive ? "a race needs values above zero — every number here is zero or less"
     : null;
   const showValues = params.value_labels !== false && hasData && !note;
-  const VALUE_SIZE = Math.max(14, NAME_SIZE - 2);
+  const VALUE_SIZE = Math.max(14, NAME_SIZE - 1);
   const VALUE_GAP = 8;  // horizontal: the bar's end → the label
-  const VALUE_LIFT = 13; // vertical: the column's top → the label's centre
+  const VALUE_LIFT = Math.round(VALUE_SIZE * 0.75 + 4); // vertical: the column's top → the label's centre
 
   // Place 0 is the leader — the top row, or the leftmost column. A racer past
   // the airlock row is already invisible (the ramp below reaches 0 there), so
@@ -2564,7 +2826,7 @@ layout: |
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   const xLab = str(params.x_label, "");
-  const TICK_SIZE = 15;
+  const TICK_SIZE = 20; // W4: was 15
   const AXIS_ROW = 20; // axis line → the row of small labels under it (ticks lying down, names standing up) — line_chart's own row
   // The value axis, and only the value axis where the bars lie down: a race
   // NAMES its rows instead of scaling them, so there is no second scale to
@@ -2584,6 +2846,8 @@ layout: |
     // lower, exactly as bar_chart and line_chart do. No effect when vertical
     // (axis is "y" there, so this caption is never in the ticks' row).
     valueCap = kit.axisLabel("axes__cap", vertical ? "y" : "x", plot, xLab, { fontSize: 22, captionDrop: true });
+    // …and by what the 20-unit tick row (was 15) adds below the axis.
+    if (!vertical && valueCap.anchor !== "start") valueCap.pos = [valueCap.pos[0], valueCap.pos[1] - (TICK_SIZE - 15) * 0.625];
     axesChildren.push(valueCap);
   }
   ticks.forEach((v, q) => axesChildren.push(vertical
@@ -3151,7 +3415,7 @@ layout: |
   const NOTE_SIZE = 16;
   const NOTE_ROW = note ? NOTE_SIZE * 1.25 + 8 : 0;  // the refusal's own row, above the column names
   const LEG_BAND = 40;                               // the scale strip's band, taken out of a BOX's floor
-  const SIZE_MAX = 18, FONT_FLOOR = 14;              // FONT_FLOOR: the lint's own floor (src/lint/lint.ts)
+  const SIZE_MAX = 21, FONT_FLOOR = 14; // W4: names up to 21 (were 18) when the rows allow              // FONT_FLOOR: the lint's own floor (src/lint/lint.ts)
   // One size for the row names and the column headers — the same furniture read
   // along two axes — but a SIZED one, not a constant. The binding constraint is
   // vertical: two neighbouring row names must clear each other by the lint's own
@@ -3218,7 +3482,7 @@ layout: |
   // BOX's own floor when the author gave one, since a box is the whole figure's
   // allotment. Sized here rather than at drawing time because reserving that
   // band is what moves grid.y0, and chh depends on it.
-  const LEG_SIZE = 15, LEG_H = 16, LEG_STEPS = 10;
+  const LEG_SIZE = 18, LEG_H = 16, LEG_STEPS = 10; // W4: legend ends 18 (were 15)
   const legLo = diverging ? -maxAbs : sLo, legHi = diverging ? maxAbs : sHi;
   const loS = fmt(legLo), hiS = fmt(legHi);
   // Slid right if the low number would otherwise pass the left bound.
@@ -3273,7 +3537,7 @@ layout: |
     const s = fmt(v);
     if (s.length > widest.length) widest = s;
   }
-  let VAL_SIZE = clamp(Math.floor(Math.min(18, chh * 0.38)), 14, 18);
+  let VAL_SIZE = clamp(Math.floor(Math.min(21, chh * 0.38)), 14, 21); // W4: up to 21 (was 18)
   while (VAL_SIZE > 14 && kit.textWidth(widest, VAL_SIZE) > cw - 10) VAL_SIZE--;
   // 14 is the lint's own font floor, so a number that still does not fit at 14
   // is not written at all: the wash is the reading in a grid that fine, and a
