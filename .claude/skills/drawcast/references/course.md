@@ -7,7 +7,8 @@ lecture a storyboard (the whole lecture's narration, written at once) whose
 parts are each staged as a drawcast. `scripts/cast.mjs` gives every step the
 app's OWN prompt and code, in a folder shaped like a published course:
 `dev-casts/courses/<slug>/` with `course.md`, `lecture-NN/` (working files)
-and one `NN-<title>.yaml` per built lecture.
+and one `NN-<title>.yaml` per built lecture (or `.cast`, script — a lecture file is
+either, and every command reads both; see references/publish.md).
 
 0. **The brief, asked.** A course costs hours, so settle its brief with the
    user before planning: who the learners are (nurses, first-year
@@ -50,9 +51,9 @@ and one `NN-<title>.yaml` per built lecture.
      STAGE them.
    - Both use the app's storyboard prompt (the storyline rules, templates
      with "Viewer can", and a per-part staging note).
-   - `node scripts/cast.mjs lecture-build <dir> <n>` → the lecture's YAML,
+   - `node scripts/cast.mjs lecture-build <dir> <n>` → the lecture's file,
      exactly as the course runner assembles it (titles, level, the
-     "Next: …" card), and `status: done` in `course.md`. Frames the YAML
+     "Next: …" card), and `status: done` in `course.md`. Frames the file
      once more for a last look across the parts.
    - The lecture's subagent reports its frames folder and spoken lines; YOU
      (the session that started it) run SKILL.md step 8 — the fresh eyes —
