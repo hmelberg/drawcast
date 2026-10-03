@@ -184,14 +184,14 @@ describe("registerNow (push/register's network step, once registerFor built the 
     const reg = { kind: "course" as const, target: "ann/casts/qalys" };
     const session = { api: "https://x", key: "k", email: null };
     const out = await registerNow({ origin, session, verify: false, reg, registry, names, fetchImpl: async () => new Response("{}") });
-    expect(out).toEqual({ note: " · you own this course · drawcast.app/#qaly", name: "qaly" });
+    expect(out).toEqual({ note: " · you own this course · drawcast.app/#qaly", name: "qaly", rate: false });
   });
 
   it("a cast never touches `names` — there is no course to claim", async () => {
     const origin = { kind: "cast", owner: "ann", repo: "casts" };
     const reg = { kind: "cast" as const, target: "ann/casts/casts/qaly.yaml" };
     const out = await registerNow({ origin, session: null, verify: false, reg, registry, fetchImpl: async () => new Response("{}") });
-    expect(out).toEqual({ note: " · drawcast.app/#qaly", name: "qaly" });
+    expect(out).toEqual({ note: " · drawcast.app/#qaly", name: "qaly", rate: false });
   });
 
   it("verify: true, signed in, runs verifyClaim before claimCourse and registerItem — and bounds every one of them with the caller's own fetchImpl", async () => {
@@ -334,6 +334,16 @@ describe("registerNow's sign-in hint (final review M5)", () => {
     const origin = { kind: "cast", owner: "ann", repo: "casts" };
     const out = await registerNow({ origin, session: { api: "https://x", key: "k", email: null }, verify: false, reg: { kind: "cast" as const, target: "ann/casts/casts/q.yaml" }, registry, fetchImpl: async () => new Response("{}") });
     expect(out.note).toBe(" · not registered — run: node scripts/cast.mjs login");
+  });
+  it("a 429 says rate limited and names the register command for this workdir — never 'server unreachable'", async () => {
+    const registry = { verifyClaim: async () => true, registerItem: async () => "rate" as const, registryNote };
+    const origin = { kind: "cast", owner: "ann", repo: "casts" };
+    const reg = { kind: "cast" as const, target: "ann/casts/casts/q.yaml" };
+    const out = await registerNow({ origin, session: null, verify: false, reg, registry, fetchImpl: async () => new Response("{}"), work: "dev-casts/pulled/q" });
+    expect(out.note).toBe(" · not registered (rate limited — try `cast.mjs register dev-casts/pulled/q` in up to an hour)");
+    expect(out.rate).toBe(true);
+    const offline = await registerNow({ origin, session: null, verify: false, reg, registry: { ...registry, registerItem: async () => "error" as const }, fetchImpl: async () => new Response("{}") });
+    expect(offline).toEqual({ note: " · not registered (server unreachable)", name: null, rate: false });
   });
 });
 

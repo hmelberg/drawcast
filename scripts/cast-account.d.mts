@@ -35,7 +35,7 @@ export function registerNow(args: {
   registry: {
     verifyClaim: (...a: never[]) => Promise<boolean>;
     registerItem: (...a: never[]) => Promise<unknown>;
-    registryNote: (out: never, signIn?: string) => string;
+    registryNote: (out: never, signIn?: string, retry?: string) => string;
   };
   names?: {
     courseClaim: (...a: never[]) => unknown;
@@ -43,7 +43,8 @@ export function registerNow(args: {
     claimNote: (outcome: never) => string;
   };
   fetchImpl?: typeof fetch;
-}): Promise<{ note: string; name: string | null }>;
+  work?: string;
+}): Promise<{ note: string; name: string | null; rate: boolean }>;
 export function nameAdvice(state: string, name: string, price: number): string;
 export function waitForName(args: {
   api: string;

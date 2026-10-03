@@ -43,8 +43,9 @@
 //        poster rides along, and a lock failure leaves nothing committed.
 //        Pictures: every public cast/lecture written gets `<file>.png` (cast.mjs poster draws one by hand); a repo
 //        published before pictures existed gets them with `pull` then `push`.
-//   node scripts/cast.mjs register <workdir>   after a PR-published first publish merges: verifies the claim
-//        and registers the item (a --direct push already does this on its own, right after the commit)
+//   node scripts/cast.mjs register <workdir> [--wait]   after a PR-published first publish merges: verifies the claim
+//        and registers the item (a --direct push already does this on its own, right after the commit); a registry
+//        that answers "rate limited" (its hourly budget per IP) is retried every 5 minutes for up to an hour with --wait
 //
 // Publishing something new (a course folder or a folder with one cast file) to a repo of the user's:
 //   node scripts/cast.mjs pack <cast.json> <workdir>   a {request, spec} (or bare spec) → <workdir>/<name>.yaml (.cast: see below),
@@ -393,7 +394,8 @@ async function courseLectures(load, text) {
  * every call bounded (boundedFetch — fix round 1: a stalled Anvil must
  * never hang `push --direct` after the git push has already landed, nor a
  * `push --dry-run`'s claim). Records any free name that comes back on
- * origin.freeName (written to origin.json only when one did).
+ * origin.freeName (written to origin.json only when one did). Returns
+ * {note, rate}: rate when the registry answered 429 (register --wait).
  *
  * verifyClaim/claimCourse/registerItem never throw on their own (a network
  * or server trouble is a string outcome, folded into the note
@@ -404,8 +406,9 @@ async function courseLectures(load, text) {
  * real error.
  */
 async function registerPublished(origin, wd, session, verify) {
+  const work = relative(ROOT, wd) || ".";
   const fetchImpl = boundedFetch();
-  const { note, name } = await withVite(async (load) => {
+  const { note, name, rate } = await withVite(async (load) => {
     const registry = await load("/src/registry.ts");
     const { parseCourse } = await load("/src/course/document.ts");
     const { courseRegistration, courseTopicTags } = await load("/src/course/publish.ts");
@@ -422,11 +425,11 @@ async function registerPublished(origin, wd, session, verify) {
     };
     const reg = registerFor(origin, { parseCourse, courseRegistration, courseTopicTags, castMeta }, courseText, castText);
     const names = origin.kind === "course" ? await load("/src/names.ts") : undefined;
-    return registerNow({ origin, session, verify, reg, registry, names, fetchImpl });
+    return registerNow({ origin, session, verify, reg, registry, names, fetchImpl, work });
   });
   if (name) origin.freeName = name;
   if (origin.freeName) writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
-  return note;
+  return { note, rate };
 }
 
 const commands = {
@@ -1137,8 +1140,10 @@ const commands = {
    *  its free name — has to wait until the PR is merged and the claim file
    *  is live on the default branch. Run this once it is. A --direct push
    *  never needs it: push registers on its own, right after the commit. */
-  async register([work]) {
-    if (!work) throw new Error("usage: cast.mjs register <workdir>");
+  async register(args) {
+    const wait = args.includes("--wait");
+    const [work] = args.filter((a) => a !== "--wait");
+    if (!work) throw new Error("usage: cast.mjs register <workdir> [--wait]");
     const wd = resolve(ROOT, work);
     if (!existsSync(resolve(wd, "origin.json"))) throw new Error(`${work} is not published (no origin.json) — publish-target and push it first`);
     const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
@@ -1150,7 +1155,14 @@ const commands = {
       writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
     }
     const session = readSession(homedir());
-    const note = await registerPublished(origin, wd, session, true);
+    // --wait: a 429 is the registry's hourly budget per IP — try again every
+    // 5 minutes until it clears, for up to an hour.
+    let { note, rate } = await registerPublished(origin, wd, session, true);
+    for (let tries = 0; wait && rate && tries < 12; tries++) {
+      console.log(`${work}: rate limited — trying again in 5 minutes (${tries + 1}/12)`);
+      await new Promise((r) => setTimeout(r, 5 * 60_000));
+      ({ note, rate } = await registerPublished(origin, wd, session, true));
+    }
     console.log(note ? `${work}${note}` : `${work}: registered (no free name)`);
   },
 
@@ -1481,7 +1493,7 @@ const commands = {
       // because the registry step after it stumbled.
       let note = "";
       try {
-        if (registrable(origin)) note = await registerPublished(origin, wd, session, Boolean(claim));
+        if (registrable(origin)) note = await registerPublished(origin, wd, session, Boolean(claim)).then((r) => r.note);
       } catch (err) {
         console.error("drawcast: registry step failed (the push itself already landed)", err);
       }

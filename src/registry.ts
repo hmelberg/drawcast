@@ -138,14 +138,17 @@ export async function registerItem(api: string, reg: RegisterInput, fetchImpl: t
  * free name when one came back, a warning when the repo answers to someone
  * else's account (never a failure — the publish itself already landed), or
  * nothing at all when registration succeeded but minted no name to show.
- * `"key"`/`"rate"`/a network failure all read the same way to the author:
- * the publish is fine, only the registry step did not happen.
+ * `"key"`/`"rate"`/a network failure all say the publish is fine, only the
+ * registry step did not happen — each with its own cure.
  */
-export function registryNote(out: RegistryOutcome, signIn = "sign in again (Settings → Publishing)"): string {
+export function registryNote(out: RegistryOutcome, signIn = "sign in again (Settings → Publishing)", retry = "try again within the hour"): string {
   // A 401 is a stale or missing session, not an unreachable server — the
   // cure is signing in; the skill passes its own "run: … login" (M5).
   if (out === "key") return ` · not registered — ${signIn}`;
-  if (out === "rate" || out === "error") return " · not registered (server unreachable)";
+  // A 429 is the registry's hourly budget per IP (drawcast-anvil limits.py),
+  // not a dead server: waiting cures it. The skill passes its own retry line.
+  if (out === "rate") return ` · not registered (rate limited — ${retry})`;
+  if (out === "error") return " · not registered (server unreachable)";
   if (out.owner === "other") return " · registered to another account — republish while signed in to prove the repo is yours";
   return out.name ? ` · drawcast.app/#${out.name}` : "";
 }
