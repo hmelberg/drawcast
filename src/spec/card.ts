@@ -8,9 +8,10 @@
 // before layout, so live playback, lint and export all see one thing.
 
 import type { Command, Spec, SpecElement } from "./types";
-import { CONTENT_TOP, HEADING_Y } from "../layout/page";
+import { CONTENT_TOP, HEADING_Y, headingFont } from "../layout/page";
+import { effectiveTextStyle } from "../layout/text-style";
 
-export { HEADING_Y };
+export { HEADING_Y, headingFont };
 
 /** Font size that keeps a one-line title inside the 1000-unit canvas (no word-wrap for plain text). */
 export function titleFont(text: string): number {
@@ -20,10 +21,6 @@ export function titleFont(text: string): number {
 /** Seconds the push-in holds — the same as the title page's default. */
 export const CARD_HOLD = 1.6;
 
-/** The top heading's text size: a one-line title across the top, 26–36. */
-export function headingFont(text: string): number {
-  return Math.max(26, Math.min(36, Math.round(880 / (0.55 * Math.max(1, text.length)))));
-}
 
 /** How close the heading's push-in starts: 1.8×, or less for a long title,
  *  so the words fill about 92 % of the view instead of running off its sides
@@ -40,16 +37,30 @@ export function headingZoom(title: string): number {
  * the top of the page over an underline as wide as the words — it STAYS as
  * the page's heading. The underline's width is estimated from the text
  * (about half the font size per character), not measured.
+ *
+ * `scale` is the cast's text scale (text.font_size / 26), which the player
+ * multiplies every text size by: the title is written that much smaller so
+ * it is DRAWN at headingFont — a heading sized for the page's width, at any
+ * text size, never pushed through the top edge (the page-frame round,
+ * 2026-10-04: at font_size 34 a heading ran ~5 units off the canvas). The
+ * underline is placed for the drawn size. A viewer's own size setting is
+ * capped at the same size when the text is styled (layout/text-style.ts).
  */
-export function headingElements(title: string, prefix: string): SpecElement[] {
+export function headingElements(title: string, prefix: string, scale = 1): SpecElement[] {
   const font = headingFont(title);
   // A little narrower than the words (about 0.22 × font per character — the
   // hand face runs narrow) and clear of the descenders.
   const half = Math.min(400, Math.max(70, 0.22 * font * title.length));
+  const written = scale === 1 ? font : Math.round((font / scale) * 100) / 100;
   return [
-    { id: `${prefix}_title`, type: "text", text: title, x: 500, y: HEADING_Y, font_size: font, draw: { mode: "sketch", duration: 0.35 } },
+    { id: `${prefix}_title`, type: "text", text: title, x: 500, y: HEADING_Y, font_size: written, draw: { mode: "sketch", duration: 0.35 } },
     { id: `${prefix}_line`, type: "path", points: [[500 - half, HEADING_Y - font * 0.78], [500 + half, HEADING_Y - font * 0.82]], draw: { mode: "sketch", duration: 0.3 } },
   ];
+}
+
+/** The cast's own text scale (its text.font_size / 26, clamped as the player clamps it). */
+function textScale(spec: Spec): number {
+  return effectiveTextStyle(spec).scale;
 }
 
 /** The default heading's prefix: `card_0_title` over `card_0_line`. A
@@ -134,7 +145,7 @@ function usesHeadingStrip(spec: Spec): boolean {
 export function expandDefaultHeading(spec: Spec): Spec {
   const text = pageHeading(spec);
   if (text === null) return spec;
-  const els = headingElements(text, DEFAULT_HEADING);
+  const els = headingElements(text, DEFAULT_HEADING, textScale(spec));
   // Just before the first ink, so an announcement spoken over the empty page
   // stays one; a cast that never draws gets it first.
   const commands = [...(spec.commands ?? [])];
@@ -206,7 +217,7 @@ export function expandCards(spec: Spec): Spec {
       // the whole page — the heading shrinks from large to its place in about
       // half a second, the beat's words (if any) riding the pull-back. Then
       // the cast gets straight to its first drawing.
-      const els = headingElements(card.title, prefix);
+      const els = headingElements(card.title, prefix, textScale(spec));
       elements.push(...els);
       out.push({ camera: { center: { ref: `${prefix}_title` }, zoom: headingZoom(card.title), duration: 0.01 } });
       out.push({ draw: els.map((e) => e.id), parallel: true });

@@ -90,3 +90,17 @@ describe("default heading", () => {
     }
   });
 });
+
+describe("the heading at the cast's text scale", () => {
+  test("it is drawn at its page-width size whatever text.font_size is, and stays on the canvas", async () => {
+    const { layoutAsSeen } = await import("../src/lint/at-scale");
+    const { headingFont } = await import("../src/layout/page");
+    for (const font_size of [26, 34, 40]) {
+      const s = expandSpec(base({ text: { font_size } }));
+      const l = layoutAsSeen(s);
+      const t = l.drawables.find((d) => d.id === `${DEFAULT_HEADING}_title`);
+      expect(t && t.kind === "text" ? Math.round(t.fontSize) : null).toBe(headingFont("Why the sky is blue"));
+      expect(l.issues.filter((i) => i.ids.some((id) => id.startsWith("card_")))).toEqual([]);
+    }
+  });
+});

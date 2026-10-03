@@ -206,7 +206,11 @@ export function layoutSpec(
     if (title) {
       const font = typeof title.font_size === "number" ? title.font_size : 36;
       const w = measure(title.text as string, font).w;
-      const underline = HEADING_Y - font * 0.82;
+      // The underline as drawn (its points are placed for the heading's
+      // drawn size, spec/card.ts headingElements), else estimated.
+      const line = (spec.elements ?? []).find((e) => e.id === title.id.replace(/_title$/, "_line"));
+      const ys = Array.isArray(line?.points) ? (line.points as unknown[]).flatMap((p) => (Array.isArray(p) && typeof p[1] === "number" ? [p[1] as number] : [])) : [];
+      const underline = ys.length > 0 ? Math.min(...ys) : HEADING_Y - font * 0.82;
       setHeadingBox({ x: PAGE_W / 2 - w / 2, y: underline, w, h: PAGE_H - underline });
       setHeadingFloor(underline);
     } else {

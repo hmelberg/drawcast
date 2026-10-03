@@ -25,6 +25,10 @@ export const PAGE_H = 750;
 export const MARGIN = 60;
 /** The heading's baseline-centre y (spec/card.ts headingElements). */
 export const HEADING_Y = 726;
+/** The top heading's drawn text size: a one-line title across the top, 26–36. */
+export function headingFont(text: string): number {
+  return Math.max(26, Math.min(36, Math.round(880 / (0.55 * Math.max(1, text.length)))));
+}
 /** Top of the content area under a heading. */
 export const CONTENT_TOP = 660;
 /** Top of the content area on a page with no heading. */
