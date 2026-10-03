@@ -16,7 +16,7 @@
 // so an edited line simply misses and is spoken live. Audio recorded for old
 // words can never be played over new ones.
 
-import { speechKey, type SpeakOpts } from "./delivery";
+import { speechKey, type SpeakLine, type SpeakOpts } from "./delivery";
 import { SpeechManager, type SpeechLike } from "./speech";
 
 /** One baked line: the encoded audio, and how long it runs. */
@@ -111,6 +111,16 @@ export class PublishedSpeech extends SpeechManager {
     // The browser voice is chosen on whichever manager actually reaches
     // speechSynthesis, which is the innermost one.
     (this.inner as Partial<SpeechManager>).setVoice?.(uri);
+  }
+
+  /** Warm the live chain for lines no clip holds (a cards answer's score
+   *  line, render/player.ts prefetchCardLines); a baked line needs nothing. */
+  prefetch(lines: SpeakLine[], speedMultiplier: number): void {
+    if (this.forceBrowser) return;
+    const inner = this.inner as Partial<{ prefetch(lines: SpeakLine[], speed: number): void }>;
+    if (typeof inner.prefetch !== "function") return;
+    const missing = lines.filter((l) => !this.clips.has(speechKey(l)));
+    if (missing.length > 0) inner.prefetch(missing, speedMultiplier);
   }
 
   override async speakOne(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {

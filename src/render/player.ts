@@ -43,13 +43,14 @@ import { DEFAULT_TOLERANCE, guessText, guessVars, scoreGuess } from "../guess/sc
 import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../feedback/bands";
 import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
-import { besidePositions, cardsBeside, cardsParts } from "../cards/beside";
+import { GHOST_FADE, besidePositions, cardsBeside, cardsParts, placeGlide } from "../cards/beside";
 import { BESIDE_MS, EACH_MS, FADED, WRONG, YOURS, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, mergeRooms, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
 import { gateLang, gateWords } from "../ui/gate-words";
 import type { CardsGeometry } from "../spec/cards";
 import { CORRECTED, counterMarks } from "../cards/counter";
 import { REORDER_MS, VERDICT_MS, reorderAt, reorderLanded, rankVerdicts, yoursRow } from "../cards/reorder";
-import { cardsMarks, cardsTruth, fadedCards, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
+import { cardsMarks, cardsTruth, fadedCards, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightCards, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
+import type { SpeakLine } from "./delivery";
 import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
 import { decodeTreeAnswer, encodeTreeAnswer, pickDiff, scoreBlanks, treeBlanks, treePick, type TreeBlank, type TreePick } from "../tree/blanks";
 import { treeNumberText, type DecisionTreeParams } from "../scenes/decision_tree/layout";
@@ -156,6 +157,9 @@ interface Beside {
   styles?: Record<string, Record<string, unknown>>;
   /** check: each (round 7 §3): the cards corrected for the viewer — drawn at CORRECTED, at FADED once the reveal fades. */
   dim?: string[];
+  /** How far yours fades once the reveal is past (default FADED): a place's
+   *  ghosts stay plainer, to be compared while the explanation plays. */
+  fade?: number;
 }
 
 /** A kept guess (ask `keep: true`, spec 2026-10-03-round6 §5): what its
@@ -1054,7 +1058,7 @@ export class Player {
     this.pendingSettle = false;
     for (const [owner, b] of restored) {
       this.guessOwners.add(owner);
-      this.effects?.setGuessMarks?.(owner, b.faded && b.marks ? fadeYours(b.marks, FADED) : b.marks);
+      this.effects?.setGuessMarks?.(owner, b.faded && b.marks ? fadeYours(b.marks, b.fade ?? FADED) : b.marks);
     }
     for (const [owner, r] of kept) {
       this.kept.set(owner, r);
@@ -2019,6 +2023,7 @@ export class Player {
     let answered = false;
     let secs: number | null = null;
     if (live) {
+      this.prefetchCardLines(step, g);
       const from = performance.now();
       const typed = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question), cardsSession: { geometry: g, start, place, show, mark, fade } satisfies CardsSession }));
       this.gateDim.clear();
@@ -2164,11 +2169,16 @@ export class Player {
     const quietMovie = !live && g.each === true;
     // Rank slides into the true order by default (round 7 §4); an explicit beside or morph wins.
     const reorder = g.mode === "rank" && (step.revealStyle ?? "reorder") === "reorder";
-    const beside = !checked && !quietMovie && !reorder && step.revealStyle !== "morph" && answered;
+    // Place glides by default (Hans 2026-10-04): each card from where the viewer
+    // put it to its true place, a ghost left where it stood; an explicit beside or morph wins.
+    const glide = g.mode === "place" && answered && !checked && !quietMovie && step.revealStyle === undefined;
+    const beside = !glide && !checked && !quietMovie && !reorder && step.revealStyle !== "morph" && answered;
     // Tiles the viewer put in a box (the answer): kept on screen beside a formula's truth.
     const placedTiles = formula ? g.cards.filter((_, i) => arrangement.boxes.some((b) => b.includes(i))) : [];
     // The cards that move glide from where the viewer left them to the truth.
     const moves = !beside && !reorder && g.cards.some((_, i) => Math.abs(from[i][0] - g.truth[i][0]) > 0.5 || Math.abs(from[i][1] - g.truth[i][1]) > 0.5);
+    // The ghosts stand at once, the moment Done is pressed: the first answer on screen.
+    if (glide) mark(placeGlide(g, arrangement, { tolerance: step.tolerance ?? 0 }));
     if (moves) {
       await this.progress(GUESS_REVEAL_MS, signal, (t) => {
         const e = smoothstep(t);
@@ -2277,6 +2287,11 @@ export class Player {
       mark(landed);
       // Marks only (the cards stand at the plan's truth): a seek forward restores them.
       this.putBeside(owner, { index, marks: landed, faded: false });
+    } else if (glide) {
+      const landed = placeGlide(g, arrangement, { tolerance: step.tolerance ?? 0, landed: true });
+      mark(landed);
+      // Marks only (the cards stand at the plan's truth): they stay through the explanation, and a seek forward restores them.
+      this.putBeside(owner, { index, marks: landed, faded: false, fade: GHOST_FADE });
     } else if (quietMovie) {
       // Nothing marked.
     } else if (answered) mark(cardsMarks(g, arrangement));
@@ -2296,6 +2311,43 @@ export class Player {
       const target = ok ? step.rightGoto : step.wrongGoto;
       if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
     }
+  }
+
+  /**
+   * The right/wrong lines a cards answer can hear, voiced ahead while the
+   * viewer works (Hans 2026-10-04: "it takes a bit long before you respond"):
+   * "{w} of {w.total} close." is only known once the cards are judged, and is
+   * neither baked nor prefetched with the movie's lines — synthesized after
+   * Done, the voice started a network round trip late. Every score the cards
+   * can get is a handful of lines (≤ 8 parts), so each is fetched now; a line
+   * with a var no score sets ({w.off}, {w.secs}) simply misses, as before.
+   */
+  private prefetchCardLines(step: Extract<PlanStep, { kind: "ask" }>, g: CardsGeometry): void {
+    const sp = this.speech as Partial<{ prefetch(lines: SpeakLine[], speed: number): void }>;
+    if (this.mode !== "narrated" || typeof sp.prefetch !== "function") return;
+    if (g.mode === "decide" || (g.mode === "fill" && step.formula !== undefined)) return;
+    const sources = [step.right, step.wrong].filter((l): l is string => typeof l === "string" && l.trim() !== "");
+    if (sources.length === 0) return;
+    const count = rightCards(g, initialArrangement(g)).length;
+    if (count > 8) return;
+    const checked = g.mode === "sort" && g.each === true;
+    const lines = new Map<string, SpeakLine>();
+    const opts = { speaker: step.narrationSpeaker, delivery: step.narrationDelivery, gender: this.narratorGender ?? undefined };
+    for (let within = 0; within <= count; within++) {
+      const vars = new Map(this.vars);
+      if (step.store) {
+        const base = step.store.toLowerCase();
+        vars.set(base, checked ? String(within) : `${within} of ${count}`);
+        vars.set(`${base}.within`, String(within));
+        vars.set(`${base}.count`, String(count));
+        vars.set(`${base}.total`, String(count));
+      }
+      for (const src of sources) {
+        const text = subVars(translateCaption(src, this.spoken), vars);
+        if (!lines.has(text)) lines.set(text, { text, ...opts });
+      }
+    }
+    sp.prefetch([...lines.values()], this.speedVal);
   }
 
   /** The option a movie (or a skipped question) stands in with: `default`, else the answer, else the first. */
@@ -3190,7 +3242,7 @@ export class Player {
     for (const [owner, b] of this.besides) {
       if (b.faded || b.index === index) continue;
       b.faded = true;
-      if (b.marks && this.guessOwners.has(owner)) this.effects?.setGuessMarks?.(owner, fadeYours(b.marks, FADED));
+      if (b.marks && this.guessOwners.has(owner)) this.effects?.setGuessMarks?.(owner, fadeYours(b.marks, b.fade ?? FADED));
       // Tiles kept in a formula's boxes are yours too.
       for (const el of this.els(b.shown ?? [])) el.setOpacity?.(FADED);
       // Cards corrected for the viewer are yours too.

@@ -68,10 +68,10 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           : handles[0].kind === "angle" && multiEntry(handles[0])
             ? words.guess.edges
             : words.guess[handles[0].kind];
-      const hintFull = onRelease ? (handles[0].kind === "point" ? hintText : words.letGo(hintText)) : words.thenAnswer(hintText);
+      const hintFull = onRelease ? (handles[0].kind === "point" ? hintText : words.letGo(hintText)) : words.thenDone(hintText);
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint", title: hintFull }, hintFull);
       const pill = h("button", { class: "cs-guess-value", type: "button", title: words.typeNumber });
-      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.answer) as HTMLButtonElement;
+      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.done) as HTMLButtonElement;
       answer.hidden = onRelease;
       const hintDefault = hint.textContent ?? "";
       /** A budget: the hint says what is left or over; Answer only when balanced. */

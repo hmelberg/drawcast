@@ -213,7 +213,7 @@
      "store": "p",
      "tolerance": 0.08,
      "right": "All {p.total} close.",
-     "wrong": "{p} of {p.total} close."
+     "wrong": "{p.within} of {p.total} close."
     }
    },
    {
