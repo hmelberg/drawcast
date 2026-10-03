@@ -171,7 +171,7 @@ describe("publishDriveCast — the same prepared text, into Drive", () => {
   it("guards on Google being configured and on there being something to publish", () => {
     expect(driveCast).toContain("googleConfigured()");
     expect(driveCast).toContain("itemsOf(doc.playlist).length === 0");
-    expect(driveCast).toContain("shareBtn.disabled = true;");
+    expect(driveCast).toContain("setShareBusy(true);");
   });
 });
 
@@ -245,7 +245,7 @@ describe("drivePublishedName — the name the file actually has (fix round 1, fi
 
 describe("the Drive panel", () => {
   it("is a destination row after link, labelled for what it is", () => {
-    expect(share).toMatch(/\{ id: "drive", label: "Google Drive", action: "Publish"/);
+    expect(share).toMatch(/\{ id: "drive", group: "publish", label: "Google Drive", action: "Publish"/);
     expect(share).toMatch(/id: "drive"[^\n]*courses: false/);
     const dests = share.slice(share.indexOf("const DESTS: DestRow[] = ["), share.indexOf("/** One destination as Share's rail offers it"));
     expect(dests.indexOf('id: "drive"')).toBeGreaterThan(dests.indexOf('id: "link"'));
@@ -261,7 +261,7 @@ describe("the Drive panel", () => {
   });
 
   it("names the file with fileSafe, not slugify — it is a filename, not a URL", () => {
-    const panel = share.slice(share.indexOf("// ---- Drive panel"), share.indexOf("// ---- Video file panel"));
+    const panel = share.slice(share.indexOf("// ---- Drive panel"), share.indexOf("// ---- Web page panel"));
     expect(panel).toContain("fileSafe(");
     expect(panel).not.toContain("slugify(");
   });
@@ -272,12 +272,12 @@ describe("the Drive panel", () => {
 
   it("gets its two embed rows from the SAME builder as the link panel — never a second copy", () => {
     expect(share).toContain("function buildEmbedChoices(");
-    // Declaration + the three instantiations (GitHub, Drive, and the
-    // drawcast server since round 0).
-    expect(share.match(/buildEmbedChoices\(/g)).toHaveLength(4);
+    // Declaration + the four instantiations (GitHub, Drive, the drawcast
+    // server since round 0, and Export's web page since 2026-10-03).
+    expect(share.match(/buildEmbedChoices\(/g)).toHaveLength(5);
     // The tell for a copy-paste: the labels exist exactly once in the file.
     expect(share.match(/"Embed narration"/g)).toHaveLength(1);
-    expect(share.match(/the published file speaks; viewers need no key/g)).toHaveLength(1);
+    expect(share.match(/the copy speaks; viewers need no key/g)).toHaveLength(1);
   });
 
   it("has a panel and an action button of its own in the modal shell", () => {

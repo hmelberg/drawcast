@@ -1671,6 +1671,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // the rail never offers it here — and if that ever changes, this says
       // so out loud rather than publishing a course as a single cast.
       publishServer: async () => shareStatus("A course publishes to GitHub in this round — the drawcast server takes single drawcasts.", "error"),
+      exportPage: async () => shareStatus("A web page holds one drawcast — export a lecture from the editor.", "error"),
       renderVideo: deps.renderVideo,
       beginExport: deps.beginExport,
       setProgress: deps.setProgress,
