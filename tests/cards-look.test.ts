@@ -221,7 +221,8 @@ describe("resolving, crediting and hoisting card icons", () => {
   });
 
   test("render's order: a card icon is resolved BEFORE the cards expand, so the card and its geometry are 96 high", async () => {
-    const authored = { elements: [{ ...match, items: [{ text: "A", match: "B", icon: "cards-order-pill", match_icon: "cards-order-drop" }, { text: "C", match: "D" }] }], commands: [{ draw: ["t"] }] } as unknown as Spec;
+    // size 1: alone on the page the cards would grow (page frame 2026-10-04); here the icon's 96 is the point.
+    const authored = { elements: [{ ...match, size: 1, items: [{ text: "A", match: "B", icon: "cards-order-pill", match_icon: "cards-order-drop" }, { text: "C", match: "D" }] }], commands: [{ draw: ["t"] }] } as unknown as Spec;
     const before = JSON.stringify(authored);
     const icons = deps({
       [iconSearchUrl("cards-order-pill", DEFAULT_PREFIXES)]: { icons: ["lucide:cards-order-pill"] },
@@ -382,10 +383,11 @@ describe("the fullest icon layouts stay on the canvas", () => {
   test.each(cases)("%s — with an icon on every card", (_n, spec) => {
     expect(checkCards(withIcons(spec))).toEqual([]);
   });
-  test("they shrink only as far as they must: 72+ for an even sort of 8 and 6 pairs, never under a plain card", () => {
+  // Page frame 2026-10-04: over the caption band (y 160), not the canvas floor — 72 became 60.
+  test("they shrink only as far as they must: 60+ for an even sort of 8 and 6 pairs, never under a plain card", () => {
     const h = (spec: Spec) => cardsGeometry(withIcons(spec).elements![0] as unknown as CardsElementLike).h;
-    expect(h(cases[0][1])).toBeGreaterThanOrEqual(72);
-    expect(h(cases[2][1])).toBeGreaterThanOrEqual(72);
+    expect(h(cases[0][1])).toBeGreaterThanOrEqual(60);
+    expect(h(cases[2][1])).toBeGreaterThanOrEqual(60);
     for (const [, spec] of cases) expect(h(spec)).toBeGreaterThanOrEqual(56);
   });
   test("a layout with room keeps the full icon height", () => {

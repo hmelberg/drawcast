@@ -69,3 +69,24 @@ and a short line in the compiler prompt.
 - **W17 Varied right-answer replies** — pools per language, random without repeats, streak lines, dry humour sometimes (by feedback style), `affirm` hatch; the whole pool baked into recorded narration.
 - **W18 Vertical settling** — after layout, centre the page's content (union over the whole run, heading excluded) vertically in the content area when the gaps are clearly uneven; relax spacing only where the engine owns positions (templates, cards, scales, laid-out groups); `page.valign` hatch ("center" default, "top", "none"). Starts after W1 merges (same files).
 - **Thumbnails** — the front-page card picture must be the real page scaled down (same aspect, letterboxed), never a re-layout at another aspect.
+
+## W2 — cards (built 2026-10-04)
+- `size` on a cards element: `"auto"` (default) or a factor 0.6–2 on every size (card, icon,
+  gaps, boxes, end words, values, counter, fonts). Auto grows (≤ ×1.6, step 0.05) only when the
+  cards are alone on the page — nothing else but text, labels, annotations and (placing cards)
+  their scale — to the largest size that fits the content area whole (under the heading, top 700
+  without one; over the caption band; over any text the author put under the cards), centred
+  unless `y` is given, across x 60–940 unless `x`/`width` is given. The group carries the chosen
+  number, so the gate, the plan and the lint read the same geometry. A deck and a formula's tiles
+  keep their own sizing.
+- Card text wraps to two lines (the card grows a line); smaller only when two cannot hold it;
+  `check` warns `cards-text` when a text needs three. Deck cards stay one line (deck-text).
+- The floor is the caption band (160): a set below it moves up while there is room under 660,
+  then icon cards (and a sort's cards, after more columns in its boxes) get shorter. Plain cards
+  keep their height. A deck still stands on the canvas floor (at 160 a 30-card deck loses a column
+  and half its dealt card) — open.
+- compare: icons as on rank/sort; `title` true / false / words — default none when the page has
+  a heading (a `card` command, or the title per W1), else the question; a cast that names
+  `<id>_title` in its commands keeps it.
+- A compare value and a label attached to a card follow the card (gate, slide, beside reveal,
+  the plan's after-ask offsets); erasing or hiding a card (or the set) takes its value.

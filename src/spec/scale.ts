@@ -505,7 +505,9 @@ export function placeScale(sc: ScaleElementLike, spec: Pick<Spec, "elements"> & 
       // The tray under the line: one row of cards, two from six cards on.
       const items = along.flatMap((c) => ((c as { items?: unknown }).items as unknown[] | undefined) ?? []);
       const icons = items.some((it) => typeof it === "object" && it !== null && (it as { icon?: unknown }).icon !== undefined);
-      const h = icons ? 96 : 48;
+      // An authored cards `size` (spec/cards.ts) scales the rows; "auto" grows them only into room left over.
+      const size = along.map((c) => (c as { size?: unknown }).size).find(isNum) ?? 1;
+      const h = (icons ? 96 : 48) * size;
       const rows = items.length > 5 ? 2 : 1;
       // Under it the tray; over it the placed cards, in up to two levels.
       const lowest = box.y + 10 + 86 + rows * h + (rows - 1) * 14;

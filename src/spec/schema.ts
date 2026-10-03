@@ -266,7 +266,7 @@ const elementSchema = {
       description: "label: preferred side relative to the attached element. The collision solver may move it. measure: left/right of the segment's direction (default: away from the measured element).",
     },
     href: { type: "string", description: "link: the drawcast it opens — ./file.yaml, lecture:N, or a GitHub/Drive/player link the user gave; never invent one." },
-    title: { type: "string", description: "link: its words (default: the target's title)." },
+    title: { oneOf: [{ type: "string" }, { type: "boolean" }], description: "link: its words (default: the target's title). cards (compare): the words over the cards, or true/false (default: none under a heading)." },
     image: { type: "string", description: "link: a picture URL for the card." },
     form: { type: "string", enum: ["card", "text", "values", "symbols", "both"], description: "link: card (default, a thumbnail) or text. math: {var}s as values (default), symbols or both." },
     open: { type: "string", enum: ["auto", "tab", "here", "window"], description: "link: auto (default: a new tab mid-video, this page at the end), tab, here, window (over the video)." },
@@ -354,7 +354,7 @@ const elementSchema = {
     },
     tex: { type: "string", description: "math: LaTeX, drawn as handwriting; {v} writes var v's value, live (an argument needs {{v}}: \\frac{{B}}{…}, ^{{t}}). label: LaTeX instead of text." },
     fills: { type: "array", items: { oneOf: [{ type: "string" }, { type: "null" }] }, description: "internal: the answer shown in each \\blank box of a math element (written by the player)." },
-    size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26). link: card width (300)." },
+    size: { oneOf: [{ type: "number" }, { type: "string", enum: ["auto"] }], description: "cards: \"auto\" (default) or a factor 0.6–2. math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26). link: card width (300)." },
     symbol: { type: "string", enum: [...MUSIC_SYMBOLS], description: "music: the symbol, drawn from a real music font — notes join their stems exactly. x/y is its centre (a note's head)." },
     stem: { type: "string", enum: ["up", "down"], description: "music: a note's stem direction (default up)." },
     dots: { type: "integer", minimum: 0, maximum: 2, description: "music: dots after a note (each adds half)." },
@@ -2198,6 +2198,21 @@ function elementErrors(el: SpecElement): string[] {
     } else {
       errs.push(`element "${el.id}" (${el.type}): look is a cards element's field (paper, flat, outline) or an image's ("screen") — leave it out`);
     }
+  }
+  // size: a number on cards (0.6–2), math, icon, music and link; "auto" is the cards' default only.
+  const size = (el as { size?: unknown }).size;
+  if (size !== undefined) {
+    if (el.type === "cards") {
+      if (size !== "auto" && !(typeof size === "number" && size >= 0.6 && size <= 2)) errs.push(`element "${el.id}" (cards): size is "auto" or a factor from 0.6 to 2`);
+    } else if (typeof size !== "number") errs.push(`element "${el.id}" (${el.type}): size is a number ("auto" is a cards element's)`);
+  }
+  // title: a link's words, or a compare cards element's (true/false/words).
+  const title = (el as { title?: unknown }).title;
+  if (title !== undefined) {
+    if (el.type === "cards") {
+      if (typeof title !== "boolean" && typeof title !== "string") errs.push(`element "${el.id}" (cards): title is true, false or the words over the cards`);
+      else if (!(el.compare !== undefined || Array.isArray(el.pairs))) errs.push(`element "${el.id}" (cards): title is a compare set's (higher or lower) — leave it out`);
+    } else if (typeof title !== "string") errs.push(`element "${el.id}" (${el.type}): title is text`);
   }
   if (el.walk !== undefined && el.type !== "group") {
     errs.push(`element "${el.id}": walk is a group's field — put the peers in a group and give it walk: true`);

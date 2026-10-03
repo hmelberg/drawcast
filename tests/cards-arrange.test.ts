@@ -88,7 +88,8 @@ describe("side: the cards a column on the left, the boxes on the right", () => {
         expect(topOf(g)).toBeLessThanOrEqual(HEAD_ROOM_Y + 0.5);
         // Readable on a phone: the cards never narrow to the 16-unit text (4 boxes: the tray takes a quarter).
         expect(g.w).toBeGreaterThanOrEqual(90);
-        expect(g.font ?? 20).toBeGreaterThanOrEqual(18);
+        // 8 in a column over the caption band (page frame 2026-10-04): the boxes' column of 8 takes it to 15.
+        expect(g.font ?? 20).toBeGreaterThanOrEqual(n === 8 ? 15 : 18);
       });
     }
   for (const n of [4, 6, 8])

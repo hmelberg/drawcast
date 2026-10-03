@@ -185,7 +185,8 @@ export interface LintIssue {
     /** a figure question shorter than its task, an instruction alone, or longer than the headline (round 7 §8) — warns */
     | "ask-question"
     /** a sort judged on each drop whose right/wrong line points at arrows or marks (round 7 §3.6) — warns */
-    | "cards-check";
+    | "cards-check"
+    | "cards-text";
   ids: string[];
   message: string;
   severity: "warn" | "error";
