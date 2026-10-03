@@ -486,6 +486,10 @@ export interface SpecElement {
   log?: boolean;
   /** scale: how many tick intervals. */
   ticks?: number;
+  /** scale: how the numbers are written — "words" (default: "4.3 million"), "numerals", "power" (10ⁿ). */
+  tick_format?: "words" | "numerals" | "power";
+  /** scale: years before year 1 — "BC" (default on a timeline into negative years), "BCE", or "none". */
+  era?: "BC" | "BCE" | "none";
   /** population: how many people (default: the states' sum, else 100). */
   count?: number;
   /** population: people per state, in order; the FIRST is the remainder. Bind a count (`bind: {"states.sick": "i"}`) to animate it. */

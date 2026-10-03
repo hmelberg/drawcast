@@ -596,7 +596,7 @@ const elementSchema = {
     value: {
       type: "number",
       description:
-        "scale: the TRUE value — a marker over the line with its number, the part <id>_answer. A scale is a number line to GUESS ON: draw <id> (the line, ticks and numbers), then ask with on: <id> — the viewer clicks where they think the value lies, and the marker slides from their guess to the truth. For a year (min 1700, max 1800), a share (unit \"%\", 0–100), or an amount spanning orders of magnitude (log: true). Placed with x, y (the left end, default 150, 300) and width (default 700); label is a caption under the line.",
+        "scale: the TRUE value — a marker over the line with its number, the part <id>_answer. A scale is a number line to GUESS ON: draw <id> (the line, ticks and numbers), then ask with on: <id> — the viewer clicks where they think the value lies, and the marker slides from their guess to the truth. For a year (min 1700, max 1800), a share (unit \"%\", 0–100), or an amount spanning orders of magnitude (log: true). Placed by the page, or with x, y (the left end) and width; label is a caption over the line.",
     },
     log: { type: "boolean", description: "scale: logarithmic spacing (min > 0) — one tick per power of ten." },
     items: {
@@ -652,6 +652,8 @@ const elementSchema = {
     then: { type: "string", description: "cards (decide): the label where every branch meets again — a live viewer who chose one branch skips the others and goes on here." },
     fill: { type: "string", description: "cards: set by the expansion of a formula ask with others (the tiles of math <id> are cards <id>_tiles) — never write it." },
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
+    tick_format: { type: "string", enum: ["words", "numerals", "power"], description: "scale: words (default: \"43 million\"), numerals, or power (10ⁿ)." },
+    era: { type: "string", enum: ["BC", "BCE", "none"], description: "scale: negative years as BC (default), BCE, or none (minus)." },
     states: {
       type: "object",
       additionalProperties: { type: "number" },

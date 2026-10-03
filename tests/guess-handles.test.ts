@@ -4,6 +4,7 @@ import { registerPack } from "../src/scenes/packs";
 import { layoutSpec } from "../src/layout/layout";
 import { expandSpec } from "../src/spec/expand";
 import type { Spec } from "../src/spec/types";
+import { scaleGeometry } from "../src/spec/scale";
 import {
   decodeGuess,
   defaultGuess,
@@ -179,11 +180,13 @@ describe("scale handles", () => {
   test("the pointer's x is the value; the patch moves the marker and its number", () => {
     const { setup, s } = setupFor(mozart, "born");
     const h = setup.handles[0];
-    expect(valueAt(h, [150 + 700 * 0.3, 300], [1750])).toEqual([1730]);
+    // Placed by the page (spec 2026-10-04-page-frame W3): read the line's ends back.
+    const { x0, x1, y } = scaleGeometry(h.scale!);
+    expect(valueAt(h, [x0 + (x1 - x0) * 0.3, y], [1750])).toEqual([1730]);
     const patch = patchFor(s, setup, [[1730]]);
     const text = patch.elements!.find((e) => e.id === "born_answer_num")!;
     expect(text.text).toBe("1730");
-    expect(text.x).toBeCloseTo(150 + 700 * 0.3);
+    expect(text.x).toBeCloseTo(x0 + (x1 - x0) * 0.3);
   });
 });
 
