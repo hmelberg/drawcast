@@ -28,7 +28,10 @@ const REMEDIATION: Command[] = [
 ];
 
 function makePlayer(commands: Command[], speech: RecordingSpeech) {
-  return new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated" });
+  const player = new Player(planCommands(commands, []), new Map(), speech, null, { mode: "narrated" });
+  // The old single word, so the flow reads exactly (render/affirm.ts varies it by default).
+  player.affirmer.configure({ affirm: "plain" });
+  return player;
 }
 
 describe("goto branching", () => {

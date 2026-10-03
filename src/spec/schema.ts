@@ -1359,6 +1359,15 @@ export const specSchema = {
     },
     level: { type: "string", enum: ["basic", "advanced"], description: "Difficulty of the explanation, when the request states one. Shown as a badge; omit if unspecified." },
     feedback: feedbackSchema(CAST_FEEDBACK),
+    affirm: {
+      oneOf: [
+        { type: "string", enum: ["plain"] },
+        { type: "array", items: { type: "string" }, minItems: 1, maxItems: 12 },
+        { type: "boolean", enum: [false] },
+      ],
+      description:
+        'What a viewer hears after a RIGHT quiz answer. Omit (default): a short varied affirmation in the cast\'s language ("Spot on.", "Two in a row."). "plain": the one word "Correct."; a list of your own short phrases; false: nothing.',
+    },
     record: { type: "boolean", description: "false: keep no local record of the viewer's answers in their browser. Omit (default true)." },
     voice: {
       type: "string",

@@ -39,6 +39,7 @@ function play(commands: Command[]) {
   const speech = new RecordingSpeech();
   const cap = fakeCaption();
   const player = new Player(planCommands(commands, []), new Map(), speech, cap, { mode: "narrated" });
+  player.affirmer.configure({ affirm: "plain" }); // "Correct.", which the track below translates
   return { speech, cap, player };
 }
 

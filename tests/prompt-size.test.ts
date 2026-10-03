@@ -701,8 +701,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-04 (size_compare, the compare pack on by default): one catalog index line. +238. -> 395747.
 // Merged 2026-10-04: 397644 + 238 -> 397882.
 // Merged layout-w2 2026-10-04: +212 (cards size/title schema). -> 398094.
-// Merged layout-w1 2026-10-04: +164 (the top-level `heading` field). -> 398258.
-const BASELINE_SYSTEM_CHARS = 398258;
+// Merged layout-w17 2026-10-04: +545 (affirm). -> 398639.
+// Merged layout-w1 2026-10-04: +164 (the top-level `heading` field). -> 398803.
+const BASELINE_SYSTEM_CHARS = 398803;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -805,8 +806,9 @@ const BASELINE_SYSTEM_CHARS = 398258;
 // buttons_layout, say_question, keep_buttons; ask.say_question. +1145. -> 113891.
 // Merged 2026-10-04: 113220 + 1145 -> 114365.
 // Merged layout-w2 2026-10-04: +212 (cards size/title schema). -> 114577.
-// Merged layout-w1 2026-10-04: +164 (the top-level `heading` field). -> 114741.
-const BASELINE_SCHEMA_CHARS = 114741;
+// Merged layout-w17 2026-10-04: +412 (affirm). -> 114989.
+// Merged layout-w1 2026-10-04: +164 (the top-level `heading` field). -> 115153.
+const BASELINE_SCHEMA_CHARS = 115153;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

@@ -28,7 +28,7 @@ import { cueStartMs, lineMs } from "./cue";
 import { MARK_RELEASE_MS, markFrameAt, markReleaseAt } from "./marks";
 import { stripLangMarks } from "./lang-spans";
 import { SpeechManager, type SpeechLike } from "./speech";
-import { correctWord } from "./quiz-words";
+import { Affirmer } from "./affirm";
 import { EMPHASIS_EASE_MS, EMPHASIS_FIRST_PEAK_MS, EMPHASIS_HOLD_AT_MS, EMPHASIS_ONE_SWELL_MS, EMPHASIS_RELEASE_MS, easeInLevel, emphasisLevel, releaseLevel, swellLevel } from "./emphasis";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
@@ -722,6 +722,8 @@ export class Player {
   private readonly liveMarks = new Map<string, symbol>();
   /** The language the cast is written in (spec.lang), for the words the player says itself. */
   private sourceLang: string | null = null;
+  /** What a right quiz answer hears (render/affirm.ts); render/index.ts configures it from the cast. */
+  readonly affirmer = new Affirmer();
   setSourceLang(lang: string | null): void {
     this.sourceLang = lang;
   }
@@ -3756,8 +3758,13 @@ export class Player {
           // for the viewer, who has not.
           // A `right` that reads a live value ("That makes {score}.") is news,
           // not repetition, and is still said.
-          if (liveQuiz) lines.push(step.right && /\{[A-Za-z_][\w.]*\}/.test(step.right) ? step.right : correctWord(this.sourceLang, step.question));
-          else if (step.right) lines.push(step.right);
+          // Not the same "Correct." every time (Hans 2026-10-04): a varied
+          // affirmation, a streak line, now and then a joke (render/affirm.ts).
+          if (liveQuiz) {
+            const said = step.right && /\{[A-Za-z_][\w.]*\}/.test(step.right) ? step.right
+              : this.affirmer.say(this.sourceLang, step, { streak: this.streak(), score: Number(this.vars.get("score") ?? 0), total: this.outcomes.size, last: Math.max(...this.ordinalOf.keys()) === index });
+            if (said) lines.push(said);
+          } else if (step.right) lines.push(step.right);
         } else if (chosen !== null) {
           // `wrong` is a hint BEFORE the reveal; one that just repeats the
           // reveal would say the same sentence twice (Hans 2026-09-25).
