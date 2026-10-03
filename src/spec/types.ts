@@ -1082,6 +1082,10 @@ export interface AskArgs {
    *  strength; after the reveal and its lines the figure fades back
    *  (~300 ms). */
   stage?: "own";
+  /** CONFIDENCE BET on a judged choose (an on-canvas quiz carries it here). */
+  confidence?: boolean;
+  /** POLL AND COMPARE (spec/poll.ts): expands into buttons (choices) or a guess on a scale (on). */
+  poll?: PollArg;
 }
 
 /** Feedback flavour (spec 2026-10-03-looks-feedback-account §4.1): a style
@@ -1151,6 +1155,25 @@ export interface QuizArgs {
   reveal_at?: string | { x: number; y: number };
   /** Machine-written (spec/reveal-stamps.ts), never authored: the stamp element this question lands. */
   reveal_stamp?: string;
+  /** CONFIDENCE BET (spec/confidence: W16): after the pick, three buttons on
+   *  the figure — 50/50, Fairly sure, Certain — say how sure; scored for
+   *  calibration over the cast ({calib}, {calib.score}). */
+  confidence?: boolean;
+}
+
+/** POLL AND COMPARE (W16, spec/poll.ts): an opinion question, then what a
+ *  study's people answered, beside the viewer's own answer. */
+export interface PollArg {
+  /** Buttons, each with the share of people who chose it (0–1). */
+  choices?: { text: string; share: number; icon?: string | { of: string; set?: string } }[];
+  /** A scale's id: the viewer sets a value on it; `others` is how people answered. */
+  on?: string;
+  /** With on: buckets of people's answers — the value and its share (0–1). */
+  others?: { value: number; share: number }[];
+  /** A `sources` id: the study the shares come from. */
+  source?: string;
+  /** Count this app's own viewers instead (needs a backend: not built; warns). */
+  live?: boolean;
 }
 
 /** A question's reveal stamp (spec/reveal-stamps.ts): its words, or the words

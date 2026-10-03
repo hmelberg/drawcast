@@ -885,6 +885,7 @@ const commandSchema = {
         },
         reveal_at: REVEAL_AT,
         reveal_stamp: REVEAL_LINK,
+        confidence: { type: "boolean", description: "true: a bet on how sure after the pick; {calib}, {calib.score}." },
       },
       required: ["question", "choices", "correct"],
       additionalProperties: false,
@@ -1055,6 +1056,19 @@ const commandSchema = {
         reveal_order: { enum: ["all", "each"], description: "all (default), or each: the truth part by part, 0.6 s apart." },
         keep: { type: "boolean", description: "Guess: true keeps yours past the next question and a later animate (it follows the part)." },
         stage: { const: "own", description: "own: the rest of the figure fades while the question stands (cards or options over the figure)." },
+        confidence: { type: "boolean", description: "With choose and answer: a bet, as on quiz." },
+        poll: {
+          type: "object",
+          description: "POLL: an opinion vs a study's answers — choices with shares (0–1), or on a scale with others; source: a sources id.",
+          properties: {
+            choices: { type: "array", minItems: 2, maxItems: 4, items: { type: "object", properties: { text: { type: "string", maxLength: 24 }, share: { type: "number", minimum: 0, maximum: 1 }, icon: { type: "string" } }, required: ["text", "share"], additionalProperties: false } },
+            on: { type: "string" },
+            others: { type: "array", minItems: 2, maxItems: 12, items: { type: "object", properties: { value: { type: "number" }, share: { type: "number", minimum: 0, maximum: 1 } }, required: ["value", "share"], additionalProperties: false } },
+            source: { type: "string" },
+            live: { type: "boolean", description: "Not built yet." },
+          },
+          additionalProperties: false,
+        },
         blanks: { type: "array", minItems: 1, items: { type: "string" }, description: "Tree: the parts of a decision_tree the viewer fills in — value_<node>, branchlabel_<parent>_<child>, effect_<node>, cost_<node>." },
         pick: { type: "string", description: "Tree: the decision node whose best branch the viewer taps." },
         work: { oneOf: [{ type: "string", enum: ["all"] }, { const: false }], description: "Tree: working lines under wrong blanks (default), \"all\" for every blank, or false for none." },
@@ -2055,7 +2069,7 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.store)) {
         errors.push(`commands[${i}]: quiz.store must be a simple name (letters, digits, underscores; starts with a letter)`);
       }
-      if (a.store !== undefined && isReservedVar(a.store)) {
+      if (a.store !== undefined && (isReservedVar(a.store) || a.store.toLowerCase() === "calib")) {
         errors.push(`commands[${i}]: quiz.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
       }
       errors.push(...revealStampErrors(i, "quiz", a.reveal, a.reveal_at, spec.template ? null : new Set((spec.elements ?? []).map((e) => e.id))));
@@ -2088,6 +2102,11 @@ function semanticErrors(spec: Spec): string[] {
       const isSpot = a.spot !== undefined;
       const isGuess = a.on !== undefined && !isTree && !isSpot;
       const isChoose = a.choose !== undefined;
+      const isPoll = a.poll !== undefined;
+      if (isPoll) errors.push(...pollErrors(i, a, spec, sourceIds));
+      if (a.confidence !== undefined && (!isChoose || a.answer === undefined || a.judge === false)) {
+        errors.push(`commands[${i}]: ask.confidence bets on a judged answer — it needs choose and answer (or use quiz confidence)`);
+      }
       if (isChoose) {
         const ids: string[] = [];
         const okList = Array.isArray(a.choose) && a.choose.length >= 2;
@@ -2126,10 +2145,10 @@ function semanticErrors(spec: Spec): string[] {
           errors.push(`commands[${i}]: ask.on is a guess on the figure — the truth is the figure's own number, so leave out answer, widget, items and code`);
         }
         if (a.retry !== undefined) errors.push(`commands[${i}]: ask.retry does not apply to a guess (the figure shows the truth after one answer)`);
-      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.readout !== undefined || a.revise !== undefined || a.budget !== undefined || a.account_label !== undefined || (a.judge !== undefined && !isChoose)) {
+      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.readout !== undefined || a.revise !== undefined || a.budget !== undefined || a.account_label !== undefined || (a.judge !== undefined && !isChoose && !isPoll)) {
         errors.push(`commands[${i}]: ask.from, relative, release, predict, readout, revise, budget, account_label and judge only apply to a guess (with on; judge also to choose)`);
       }
-      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && !isChoose && !isSpot && a.on === undefined) {
+      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && !isChoose && !isSpot && !isPoll && a.on === undefined) {
         errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);
       }
       if (a.answer !== undefined && (typeof a.answer !== "string" || a.answer.trim().length === 0)) {
@@ -2138,17 +2157,17 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.store)) {
         errors.push(`commands[${i}]: ask.store must be a simple name (letters, digits, underscores; starts with a letter)`);
       }
-      if (a.store !== undefined && isReservedVar(a.store)) {
+      if (a.store !== undefined && (isReservedVar(a.store) || a.store.toLowerCase() === "calib")) {
         errors.push(`commands[${i}]: ask.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
       }
       // A guess or a tree ask is answered on the figure: the movie fills in the truth.
-      if (a.store !== undefined && a.default === undefined && !isGuess && !isTree && !isChoose) {
+      if (a.store !== undefined && a.default === undefined && !isGuess && !isTree && !isChoose && !isPoll) {
         errors.push(`commands[${i}]: ask.default is required with store — the movie types it and skip falls back to it`);
       }
       // The drag widget's answer is implied by its items, so it is check mode without `answer`.
       const isDrag = a.widget === "drag";
       const isConnect = a.widget === "connect";
-      if (!isDrag && !isGuess && !isTree && !isChoose && !isSpot && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
+      if (!isDrag && !isGuess && !isTree && !isChoose && !isSpot && !isPoll && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
         errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
       }
       if (a.widget !== undefined && !isDrag && a.answer === undefined) {
@@ -2560,4 +2579,36 @@ export function validateSpec(spec: unknown): ValidationResult {
   // An ask's estimate (spec/slider.ts) is checked as the slider and the guess it expands to.
   const errors = [...estimateErrors(normalized as Spec), ...semanticErrors(expandEstimates(normalized as Spec))];
   return { ok: errors.length === 0, errors };
+}
+
+/** A poll's own rules (W16, spec/poll.ts): one form, real shares, a scale to stand on, a known study. */
+function pollErrors(i: number, a: NonNullable<Command["ask"]>, spec: Spec, sourceIds: ReadonlySet<string>): string[] {
+  const errors: string[] = [];
+  const p = a.poll;
+  if (!p || typeof p !== "object") return [`commands[${i}]: ask.poll must be an object (choices, or on with others)`];
+  const hasChoices = p.choices !== undefined, hasOn = p.on !== undefined;
+  if (hasChoices === hasOn) errors.push(`commands[${i}]: ask.poll takes choices (buttons) or on (a scale) — exactly one`);
+  if (hasChoices && p.others !== undefined) errors.push(`commands[${i}]: ask.poll.others goes with on (a scale); choices carry their own share`);
+  if (hasOn && (!Array.isArray(p.others) || p.others.length < 2)) errors.push(`commands[${i}]: ask.poll.on needs others — two or more buckets {value, share}`);
+  if (hasChoices && (!Array.isArray(p.choices) || p.choices.length < 2 || p.choices.length > 4)) errors.push(`commands[${i}]: ask.poll.choices must list 2–4 buttons {text, share}`);
+  for (const c of Array.isArray(p.choices) ? p.choices : []) {
+    if (typeof c?.text !== "string" || c.text.trim() === "" || c.text.length > 24) errors.push(`commands[${i}]: ask.poll.choices: each text is a word or three (24 characters at most)`);
+  }
+  const shares = [...(Array.isArray(p.choices) ? p.choices : []), ...(Array.isArray(p.others) ? p.others : [])].map((c) => c?.share);
+  if (shares.some((x) => typeof x !== "number" || !(x >= 0 && x <= 1))) errors.push(`commands[${i}]: ask.poll: every share is a fraction 0–1 (0.38 for 38%)`);
+  else if (shares.reduce((t, x) => t + (x as number), 0) > 1.02) errors.push(`commands[${i}]: ask.poll: the shares add up to more than 1`);
+  if (hasOn) {
+    const el = (spec.elements ?? []).find((e) => e.id === p.on);
+    if (!el || el.type !== "scale") errors.push(`commands[${i}]: ask.poll.on "${String(p.on)}" must be a scale element's id`);
+    if (Array.isArray(p.others) && p.others.some((o) => typeof o?.value !== "number")) errors.push(`commands[${i}]: ask.poll.others: each bucket has a numeric value`);
+  }
+  if (p.source !== undefined && !sourceIds.has(p.source)) errors.push(`commands[${i}]: ask.poll.source "${p.source}" is not in sources`);
+  if (p.live !== undefined && typeof p.live !== "boolean") errors.push(`commands[${i}]: ask.poll.live must be true or false`);
+  if (a.judge === true) errors.push(`commands[${i}]: ask.poll is an opinion — judge: true does not apply`);
+  // Expanded already (spec/poll.ts): its own buttons, or its scale as the guess.
+  const ownChoose = Array.isArray(a.choose) && a.choose.every((o) => typeof o === "string" && /^poll_\d+(?:_\d+)*_btn_\d+$/.test(o));
+  if (a.answer !== undefined || (a.choose !== undefined && !ownChoose) || (a.on !== undefined && a.on !== p.on) || a.widget !== undefined || a.items !== undefined || a.code !== undefined || a.retry !== undefined || a.confidence !== undefined) {
+    errors.push(`commands[${i}]: ask.poll makes its own buttons or guess — leave out answer, choose, on, widget, items, code, retry and confidence`);
+  }
+  return errors;
 }

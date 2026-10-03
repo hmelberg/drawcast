@@ -7,6 +7,7 @@ import { guessGateFor } from "./guess-gate";
 import { cardsGateFor } from "./cards-gate";
 import { chooseGateFor } from "./choose-gate";
 import { spotGateFor } from "./spot-gate";
+import { confidenceGateFor } from "./confidence-gate";
 import type { ChooseOption } from "../render/plan";
 import { treeGateFor } from "./tree-gate";
 import { formulaGateFor } from "./formula-gate";
@@ -157,6 +158,8 @@ interface QuizGateStep {
   choices: string[];
   correct: number;
   required: boolean;
+  /** A confidence bet follows (W16): the pick shows no verdict yet, and the card makes way for the bet's buttons. */
+  confidence?: unknown;
 }
 
 /** How long the answered card (with its right/wrong colors) stays on screen
@@ -200,6 +203,14 @@ export function quizGateFor(stage: HTMLElement, skipFeedback: () => void = () =>
           e.stopPropagation();
           if (settled) return;
           settled = true;
+          if (step.confidence) {
+            // The bet comes first (W16): the pick is marked, the card goes, the buttons on the figure ask how sure.
+            pill.classList.add("chosen");
+            for (const p of pills) p.disabled = true;
+            window.setTimeout(remove, 350);
+            resolve(i);
+            return;
+          }
           pill.classList.add(i === step.correct ? "right" : "wrong");
           pills[step.correct].classList.add("right");
           for (const p of pills) p.disabled = true;
@@ -1256,6 +1267,7 @@ export function attachPlayerControls(
 
   hd.timeline.inputGate = clickGate(stage);
   hd.timeline.quizGate = quizGateFor(stage, () => hd.timeline.skipFeedback());
+  hd.timeline.confidenceGate = confidenceGateFor(stage, hd);
   // The answered card lives exactly as long as the explanation it offers to skip.
   hd.timeline.feedbackHook = (active) => {
     const answered = stage.querySelector(".cs-cardgate.cs-cardgate-answered");

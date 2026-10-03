@@ -20,6 +20,9 @@ import type { Spec } from "../spec/types";
 import type { ExportKeepAlive } from "./keepalive";
 import { BufferSpeech, synthesizeAll } from "./tts";
 import { WebAudioTones } from "../render/tones";
+import { calibVars, confidenceLabels, CONFIDENCE_LEVELS, MOVIE_LEVEL, type Bet } from "../guess/confidence";
+import { pollChoiceVars } from "../guess/poll";
+import { gateLang } from "../ui/gate-words";
 
 /** Every distinct narration line in the spec's storyboard, with
  *  speaker/delivery/gender attached, and {var} tokens interpolated with the
@@ -56,6 +59,21 @@ export function collectSpeakLines(spec: Spec, carry?: { vars: Map<string, string
     }
     vars.set(`${AUTO_NAMESPACE}.count`, String(asked));
   };
+  // A confidence bet (W16): the movie answers right at "Fairly sure"; {calib}
+  // reads that from the start (the player's stand-in) and after every bet.
+  const bets: Bet[] = [];
+  const lang = gateLang(spec.lang ?? null);
+  const betCalib = (): void => {
+    for (const [k, v] of Object.entries(calibVars(bets.length > 0 ? bets : [{ p: CONFIDENCE_LEVELS[MOVIE_LEVEL], ok: true }], lang))) vars.set(k, v);
+  };
+  if ((spec.commands ?? []).some((c) => c.quiz?.confidence === true || c.ask?.confidence === true)) betCalib();
+  const betMade = (store: string | undefined): void => {
+    bets.push({ p: CONFIDENCE_LEVELS[MOVIE_LEVEL], ok: true });
+    betCalib();
+    const sure = confidenceLabels(lang)[MOVIE_LEVEL];
+    vars.set(`${AUTO_NAMESPACE}.${asked}.sure`, sure);
+    if (store) vars.set(`${store.toLowerCase()}.sure`, sure);
+  };
   for (const c of spec.commands ?? []) {
     const push = (text: unknown): void => {
       if (typeof text !== "string" || text.trim().length === 0) return;
@@ -89,6 +107,7 @@ export function collectSpeakLines(spec: Spec, carry?: { vars: Map<string, string
       answered++;
       publishScore();
       auto(c.quiz.store, c.quiz.choices[c.quiz.correct - 1], true);
+      if (c.quiz.confidence === true) betMade(c.quiz.store);
       push(c.quiz.right ?? c.quiz.choices[c.quiz.correct - 1]);
     }
     if (c.ask) {
@@ -105,6 +124,17 @@ export function collectSpeakLines(spec: Spec, carry?: { vars: Map<string, string
       // Check mode "types" the answer, collect mode the default — the same
       // string the player's auto path stores.
       auto(c.ask.store, c.ask.answer ?? c.ask.default ?? "", c.ask.answer !== undefined ? true : null);
+      if (c.ask.confidence === true && c.ask.answer !== undefined) betMade(c.ask.store);
+      // A poll's shares (W16): the movie's pick is the default, else the first button.
+      const shares = c.ask.poll?.choices?.map((ch) => ch.share);
+      if (shares && c.ask.store) {
+        const ids = (c.ask.choose ?? []).map((o) => (typeof o === "string" ? o : o.id));
+        const at = Math.max(0, ids.indexOf(c.ask.default ?? ""));
+        for (const [k, v] of Object.entries(pollChoiceVars(c.ask.store, c.ask.poll!.choices!.map((ch) => ch.text), shares, at))) vars.set(k, v);
+        vars.set(c.ask.store.toLowerCase(), c.ask.poll!.choices![at]?.text ?? "");
+      }
+      // An opinion (a poll, a choose or guess with judge: false) speaks its line whatever was chosen.
+      if (c.ask.answer === undefined && (c.ask.poll !== undefined || c.ask.judge === false)) push(c.ask.right ?? c.ask.wrong);
     }
   }
   return [...seen.values()];

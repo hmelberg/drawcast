@@ -1698,6 +1698,8 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
 .cs-questions { margin-left: 0.5rem; }
 .cs-cardgate-pill.right { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
 .cs-cardgate-pill.wrong { border-color: var(--loss); color: var(--loss); background: color-mix(in srgb, var(--loss) 10%, var(--surface)); }
+/* A pick waiting for its confidence bet (W16): chosen, no verdict yet. */
+.cs-cardgate-pill.chosen { border-color: #3f6fb5; color: #3f6fb5; background: color-mix(in srgb, #3f6fb5 10%, var(--surface)); }
 .cs-cardgate-pill.skip {
   align-self: flex-end;
   border-style: dashed;

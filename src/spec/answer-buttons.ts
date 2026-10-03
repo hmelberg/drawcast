@@ -154,7 +154,8 @@ export function placeButtons(
     if (!pick || cost < pick.cost) pick = { layout, c: { x: spot.x, y: spot.y }, cost };
   }
   if (!pick) {
-    const layout = layouts[0];
+    // A row too wide for the page stands as a column instead (a poll's four wide buttons).
+    const layout = layouts.length > 1 && blockSize(n, b, "row").w > PAGE_W - 2 * MARGIN ? "column" : layouts[0];
     const block = blockSize(n, b, layout);
     const c = { x: Math.max(PAGE_W / 2, PAGE_W - MARGIN - block.w / 2), y: BUTTONS_FLOOR + block.h / 2 };
     return { layout, centres: buttonCentres(n, b, layout, c) };
@@ -210,6 +211,52 @@ function leaves(id: string, byId: Map<string, SpecElement>, seen = new Set<strin
   return (el.members ?? []).flatMap((m) => leaves(m, byId, seen));
 }
 
+/**
+ * A set of answer buttons and their group (with the layout's hint): ids
+ * `<base>_btn_1…N`, placed clear of `near` (what stands on the page). `wider`
+ * adds room at each button's right end (a poll writes its share there).
+ * Shared by on-canvas quizzes and polls (spec/poll.ts).
+ */
+export function buttonSet(
+  base: string,
+  texts: string[],
+  icons: unknown[],
+  near: string[],
+  byId: Map<string, SpecElement>,
+  pin: { at?: { x: number; y: number }; layout?: ButtonsLayout },
+  wider = 0,
+): { ids: string[]; elements: SpecElement[] } {
+  const n = texts.length;
+  const hasIcons = icons.some((i) => i !== undefined);
+  const size0 = buttonSizes(texts, hasIcons);
+  const size = { w: size0.w + wider, h: size0.h };
+  const ids = texts.map((_, j) => `${base}_btn_${j + 1}`);
+  const boxes = near.flatMap((id) => leaves(id, byId)).map((id) => byId.get(id)).flatMap((el) => (el ? [declaredBox(el)].filter((b): b is BBox => b !== null) : []));
+  const { centres } = placeButtons(boxes, n, size, pin);
+  const elements: SpecElement[] = ids.map((id, j) => {
+    const icon = icons[j];
+    return {
+      id,
+      type: "node",
+      shape: "rect",
+      text: texts[j],
+      x: Math.round(centres[j].x),
+      y: Math.round(centres[j].y),
+      width: size.w,
+      height: size.h,
+      font_size: hasIcons ? BUTTON_ICON_FONT : BUTTON_FONT,
+      radius: BUTTON_RADIUS,
+      shadow: true,
+      style: { fill: CARD_PAPER, color: BUTTON_INK },
+      draw: BUTTON_DRAW,
+      ...(icon !== undefined ? { icon } : {}),
+    } as unknown as SpecElement;
+  });
+  const hint: AnswerButtonsHint = { near, buttons: ids, ...pin };
+  elements.push({ id: `${base}_buttons`, type: "group", members: ids, answer_buttons: hint } as unknown as SpecElement);
+  return { ids, elements };
+}
+
 /** The keys a quiz command keeps for the buttons; everything else of it goes to the ask. */
 const BUTTON_KEYS = ["on_canvas", "id", "buttons", "buttons_at", "buttons_layout", "say_question", "keep_buttons", "choices", "correct"] as const;
 
@@ -235,39 +282,13 @@ export function expandAnswerButtons(spec: Spec): Spec {
     k++;
     let base = typeof q.id === "string" && q.id.trim() !== "" ? q.id : `quiz_${k}`;
     while (taken.has(`${base}_buttons`)) base = `${base}_${k}`;
-    const n = q.choices.length;
     const looks = q.choices.map((_, j) => q.buttons?.[j] ?? {});
     const texts = q.choices.map((c, j) => (typeof looks[j].text === "string" && looks[j].text!.trim() !== "" ? looks[j].text! : c));
-    const icons = looks.some((l) => l.icon !== undefined);
-    const size = buttonSizes(texts, icons);
-    const ids = texts.map((_, j) => `${base}_btn_${j + 1}`);
-    const near = visibleBefore(out, out.length);
-    const boxes = near.flatMap((id) => leaves(id, byId)).map((id) => byId.get(id)).flatMap((el) => (el ? [declaredBox(el)].filter((b): b is BBox => b !== null) : []));
     const pin = { ...(q.buttons_at ? { at: q.buttons_at } : {}), ...(q.buttons_layout ? { layout: q.buttons_layout } : {}) };
-    const { centres } = placeButtons(boxes, n, size, pin);
-    ids.forEach((id, j) => {
-      const icon = looks[j].icon;
-      added.push({
-        id,
-        type: "node",
-        shape: "rect",
-        text: texts[j],
-        x: Math.round(centres[j].x),
-        y: Math.round(centres[j].y),
-        width: size.w,
-        height: size.h,
-        font_size: icons ? BUTTON_ICON_FONT : BUTTON_FONT,
-        radius: BUTTON_RADIUS,
-        shadow: true,
-        style: { fill: CARD_PAPER, color: BUTTON_INK },
-        draw: BUTTON_DRAW,
-        ...(icon !== undefined ? { icon } : {}),
-      } as unknown as SpecElement);
-      taken.add(id);
-    });
-    const hint: AnswerButtonsHint = { near, buttons: ids, ...pin };
-    added.push({ id: `${base}_buttons`, type: "group", members: ids, answer_buttons: hint } as unknown as SpecElement);
-    taken.add(`${base}_buttons`);
+    const set = buttonSet(base, texts, looks.map((l) => l.icon), visibleBefore(out, out.length), byId, pin);
+    added.push(...set.elements);
+    for (const el of set.elements) taken.add(el.id);
+    const ids = set.ids;
 
     // The command's other keys (a paired speak, a voice) ride on the ask.
     const { quiz: _q, ...rest } = cmd;

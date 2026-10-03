@@ -35,6 +35,9 @@ import type { ToneLike } from "./tones";
 import { isIdentity, posedBox, type Turn } from "./pose";
 import { decodeFigures } from "./decode-figures";
 import { smoothstep } from "./sweep";
+import { calibVars, confidenceHow, confidenceLabels, confidenceMarks, CONFIDENCE_LEVELS, MOVIE_LEVEL, type Bet } from "../guess/confidence";
+import { scaleGeometry } from "../spec/scale";
+import { nearestBucket, pollChoiceMarks, pollChoiceVars, pollScaleMarks, pollScaleVars } from "../guess/poll";
 import { deckCardMs, deckFlight } from "../cards/deck";
 import { chunkCaption, pageTimes } from "./caption-chunks";
 import { balancedSplit, budgetOf, defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessEnd, type GuessHandle, type GuessSetup } from "../guess/handles";
@@ -135,6 +138,8 @@ export const STAGE_DIM = 0.15;
 const STAGE_MS = 300;
 /** A line's given part drawing itself in before the viewer draws on. */
 const GIVEN_DRAW_MS = 2200;
+/** A poll's shares grow onto its buttons (W16). */
+const POLL_GROW_MS = 700;
 /** A revised guess's earlier one: the guess colour, faded. */
 const GUESS_PREV_COLOR = "#9fb6d8";
 
@@ -413,6 +418,12 @@ export class Player {
    * degrades to a short hold + reveal so a bare Player never deadlocks.
    */
   quizGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "quiz" }>) => Promise<number | null>) | null = null;
+  /** A confidence bet's buttons (W16, guess/confidence.ts), wired by the
+   *  controls to the choose gate: resolves the level tapped (0–2) or null
+   *  (skipped). Absent (movies, watch): the laser taps "Fairly sure". */
+  confidenceGate: ((signal: AbortSignal, bet: { boxes: BBox[]; labels: string[]; required: boolean }) => Promise<number | null>) | null = null;
+  /** The bets so far, by step (a re-answer overwrites): {calib}. */
+  private readonly bets = new Map<number, Bet>();
 
   /**
    * Provider for the typed ask verb, set by the controls layer (input card)
@@ -730,6 +741,10 @@ export class Player {
   readonly affirmer = new Affirmer();
   setSourceLang(lang: string | null): void {
     this.sourceLang = lang;
+    // The movie's stand-in {calib} (constructor), in the cast's language.
+    if (this.bets.size === 0 && this.vars.has("calib")) {
+      for (const [k, v] of Object.entries(calibVars([{ p: CONFIDENCE_LEVELS[MOVIE_LEVEL], ok: true }], gateLang(lang)))) this.vars.set(k, v);
+    }
   }
 
   /** Stops the narrated step's voice alone — a question the viewer has already answered or skipped. */
@@ -799,6 +814,11 @@ export class Player {
     plan.steps.forEach((s, i) => {
       if (s.kind === "quiz" || s.kind === "ask") this.ordinalOf.set(i, ++n);
     });
+    // {calib} before (or without) a bet — every bet skipped — reads what a
+    // movie's would: a skip stands in as the movie answers (W16).
+    if (plan.steps.some((s) => (s.kind === "quiz" || s.kind === "ask") && s.confidence)) {
+      for (const [k, v] of Object.entries(calibVars([{ p: CONFIDENCE_LEVELS[MOVIE_LEVEL], ok: true }], gateLang(this.sourceLang)))) this.vars.set(k, v);
+    }
     this.skipQuestions = opts.questions === "skip";
     this.hideAll();
   }
@@ -1884,6 +1904,17 @@ export class Player {
       for (const [k, v] of Object.entries(guessVars(step.store, truthHandles, guess, score))) this.vars.set(k, v);
       this.setRoundThreeVars(step.store, truthHandles, guess, fits(prev) ? prev : null);
     }
+    // A poll on a scale (W16): the people's answers over the line, theirs in the viewer's colour.
+    if (step.poll?.others && step.poll.others.length > 0 && truthHandles[0]?.scale) {
+      const others = step.poll.others;
+      const g = scaleGeometry(truthHandles[0].scale);
+      const v = guess[0]?.[0] ?? g.middle;
+      if (step.store) for (const [k, val] of Object.entries(pollScaleVars(step.store, others, v, (x) => g.format(x)))) this.vars.set(k, val);
+      const pollOwner = `poll_${index}`;
+      this.guessOwners.add(pollOwner);
+      this.guessMarkParts.set(pollOwner, marked);
+      this.effects?.setGuessMarks?.(pollOwner, pollScaleMarks(g, others, answered ? nearestBucket(others, v) : null, { lang: gateLang(this.sourceLang), ...(step.poll.source ? { source: step.poll.source } : {}) }));
+    }
     if (judged) {
       this.outcomes.set(index, ok);
       this.updateScoreVars(index, ok);
@@ -2393,7 +2424,8 @@ export class Player {
     let secs: number | null = null;
     if (live) {
       const from = performance.now();
-      const typed = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question) }));
+      // A bet comes before the verdict: no ✓/✗ on the tapped button yet (W16).
+      const typed = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question) }, step.confidence ? { judge: false as const } : {}));
       if (signal.aborted) return;
       secs = (performance.now() - from) / 1000;
       picked = typed === null ? undefined : opts.find((o) => o.id.toLowerCase() === typed.trim().toLowerCase());
@@ -2430,6 +2462,12 @@ export class Player {
       });
     }
 
+    // A poll (W16): what people chose, on the buttons, before its line.
+    if (step.poll?.shares && stands) await this.showPollChoices(index, step, opts, opts.indexOf(stands), signal);
+    if (signal.aborted) return;
+    // A confidence bet (W16): after the pick, before the verdict.
+    const betOwner = step.confidence && judged && (picked !== undefined || !live) ? await this.betOn(index, step.confidence.boxes, ok, live, step.required, signal, stands?.box) : null;
+    if (signal.aborted) return;
     if (judged && answerOpt) {
       const extra = live && picked ? this.feedbackAfter(step, ok ? "perfect" : "none", { parts: answerOpt.members, sparkle: !ok }, signal) : [];
       // Odd one out (spec/odd-one-out.ts): the ring and the rule arrive with the reveal.
@@ -2468,6 +2506,7 @@ export class Player {
       if (line) await this.glowWhile(live && picked ? [{ ids: picked.members }] : [], signal, () => this.speakLines(line, [], step, signal));
       if (signal.aborted) return;
     }
+    this.endBet(betOwner);
     // Live: to the chosen branch; the others are skipped on the way to `then`.
     if (live && picked?.goto !== undefined && this.plan.labels[picked.goto] !== undefined) {
       // Past the label: its boundary is the figure the question left (the planner starts each branch there).
@@ -2480,6 +2519,67 @@ export class Player {
   private async drawRevealIds(step: Extract<PlanStep, { kind: "ask" }>, signal: AbortSignal): Promise<void> {
     const els = this.els(step.revealDraw ?? []);
     await Promise.all(els.map((el) => this.animateRange(el, 0, 1, Math.min(Math.max(el.durationMs * 0.5, 350), 900), signal)));
+  }
+
+  /**
+   * A confidence bet (W16, guess/confidence.ts): three buttons on the
+   * figure, the viewer taps how sure they were (or skips); a movie's laser
+   * taps "Fairly sure". The bet is scored with the answer (`ok`) into
+   * {calib}, {calib.score}, {calib.n}, and kept as {<store>.sure} /
+   * {_answers.N.sure}. The buttons stay (the bet filled in) while the
+   * verdict is spoken: the owner to end after it, or null.
+   */
+  private async betOn(index: number, boxes: BBox[], ok: boolean, live: boolean, required: boolean, signal: AbortSignal, answered?: BBox): Promise<string | null> {
+    const lang = gateLang(this.sourceLang);
+    const labels = confidenceLabels(lang);
+    const how = confidenceHow(lang);
+    const owner = `bet_${index}`;
+    this.guessOwners.add(owner);
+    this.effects?.setGuessMarks?.(owner, confidenceMarks(boxes, labels, how, null, answered));
+    let level: number | null;
+    if (live && this.confidenceGate) {
+      level = await this.confidenceGate(signal, { boxes, labels: [...labels], required });
+    } else {
+      level = MOVIE_LEVEL;
+      if (this.effects) await this.tapAt(boxes[level], 1100);
+      else await this.waitScaled(800, signal);
+    }
+    if (signal.aborted) return owner;
+    if (level === null) {
+      this.endBet(owner);
+      return null;
+    }
+    this.effects?.setGuessMarks?.(owner, confidenceMarks(boxes, labels, how, level, answered));
+    this.bets.set(index, { p: CONFIDENCE_LEVELS[level], ok });
+    for (const [k, v] of Object.entries(calibVars([...this.bets.values()], lang))) this.vars.set(k, v);
+    const n = this.ordinalOf.get(index);
+    if (n !== undefined) this.vars.set(`${AUTO_NAMESPACE}.${n}.sure`, labels[level]);
+    const store = (this.plan.steps[index] as { store?: string }).store;
+    if (store) this.vars.set(`${store.toLowerCase()}.sure`, labels[level]);
+    return owner;
+  }
+
+  private endBet(owner: string | null): void {
+    if (owner === null) return;
+    this.effects?.setGuessMarks?.(owner, null);
+    this.guessOwners.delete(owner);
+  }
+
+  /**
+   * A poll's study numbers on its buttons (W16, guess/poll.ts): the shares
+   * grow in from each button's left edge, the viewer's own in their colour;
+   * {store.share}, {store.most} are set first, so the line may read them.
+   * The marks stay with the buttons (they end when the buttons go).
+   */
+  private async showPollChoices(index: number, step: Extract<PlanStep, { kind: "ask" }>, opts: ChooseOption[], picked: number, signal: AbortSignal): Promise<void> {
+    const shares = step.poll?.shares ?? [];
+    if (step.store) for (const [k, v] of Object.entries(pollChoiceVars(step.store, opts.map((o) => o.label), shares, Math.max(0, picked)))) this.vars.set(k, v);
+    const owner = `poll_${index}`;
+    this.guessOwners.add(owner);
+    this.guessMarkParts.set(owner, opts.flatMap((o) => [o.id, ...o.members]));
+    const head = { lang: gateLang(this.sourceLang), ...(step.poll?.source ? { source: step.poll.source } : {}) };
+    const boxes = opts.map((o) => o.box);
+    await this.progress(POLL_GROW_MS, signal, (t) => this.effects?.setGuessMarks?.(owner, pollChoiceMarks(boxes, shares, picked < 0 ? null : picked, head, smoothstep(t))));
   }
 
   /**
@@ -3584,6 +3684,7 @@ export class Player {
         const o = Player.chooseDefault(step);
         this.vars.set(step.store.toLowerCase(), o?.label ?? "");
         this.vars.set(`${step.store.toLowerCase()}.id`, o?.id ?? "");
+        if (step.poll?.shares && o) for (const [k, v] of Object.entries(pollChoiceVars(step.store, (step.choose ?? []).map((c) => c.label), step.poll.shares, (step.choose ?? []).indexOf(o)))) this.vars.set(k, v);
       } else if (step.kind === "ask" && step.store) this.vars.set(step.store.toLowerCase(), step.fallback ?? step.answer ?? "");
       if (step.kind === "quiz" && step.store) this.vars.set(step.store.toLowerCase(), step.choices[step.correct]);
       if (step.kind === "ask") for (const el of this.els(step.revealDraw ?? [])) el.finish();
@@ -3857,6 +3958,9 @@ export class Player {
             ...(quizSecs !== null ? { secs: quizSecs } : {}),
           });
         }
+        // A confidence bet (W16): after the pick, before the verdict.
+        const betOwner = step.confidence && (chosen !== null || !liveQuiz) ? await this.betOn(index, step.confidence.boxes, quizOk, liveQuiz, step.required, signal) : null;
+        if (signal.aborted) return;
         const reveal = step.right ?? step.choices[step.correct];
         // The feedback runs on its own signal, so the viewer can skip it
         // without skipping what comes after.
@@ -3908,6 +4012,7 @@ export class Player {
           }
         }
         if (signal.aborted) return;
+        this.endBet(betOwner);
         if (!this.autoAnswers && this.quizGate !== null && chosen !== null) {
           const target = chosen === step.correct ? step.rightGoto : step.wrongGoto;
           if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];

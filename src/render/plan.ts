@@ -36,6 +36,8 @@ import { SpeechManager } from "./speech";
 import { DEMO_EVERY_S, demoWalk, loopCount, RUN_EVERY_S, runValues } from "./sweep";
 import { parseControls, type ControlSpec, type ControlValue } from "../code/controls";
 import type { PlayArgs } from "../spec/types";
+import { confidenceBoxes } from "../guess/confidence";
+import { pollPlan } from "../guess/poll";
 import { animatableVars } from "../spec/vars";
 
 /**
@@ -83,7 +85,7 @@ export type PlanStep = (
    *  the explore beat's own seeded walk, played just before its gate. */
   | { kind: "run"; code: string; values: Record<string, ControlValue>[]; seconds: number; demo: boolean }
   | { kind: "if"; varName: string; op: "gt" | "lt" | "gte" | "lte" | "eq" | "ne"; value: number | string; target: string }
-  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string; store?: string; feedback?: FeedbackSpec; stamp?: string }
+  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string; store?: string; feedback?: FeedbackSpec; stamp?: string; confidence?: ConfidencePlan }
   | {
       kind: "ask";
       question: string;
@@ -162,6 +164,10 @@ export type PlanStep = (
        *  while the question stands — the asked parts, their cards, options,
        *  blanks and tiles; everything else on screen fades to STAGE_DIM. */
       stage?: string[];
+      /** CONFIDENCE BET after the pick (W16, guess/confidence.ts). */
+      confidence?: ConfidencePlan;
+      /** POLL AND COMPARE (W16, spec/poll.ts): what people answered. */
+      poll?: PollPlan;
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -490,6 +496,18 @@ export interface Plan {
 }
 
 /** One option of a choose ask (spec 2026-10-03-round6 §4). */
+/** A confidence bet's three buttons (W16): their boxes, logical, in level order. */
+export interface ConfidencePlan {
+  boxes: BBox[];
+}
+
+/** A poll's study numbers (W16): per choose option, or buckets on a scale; the study's name. */
+export interface PollPlan {
+  shares?: number[];
+  others?: { value: number; share: number }[];
+  source?: string;
+}
+
 export interface ChooseOption {
   id: string;
   label: string;
@@ -500,6 +518,8 @@ export interface ChooseOption {
 }
 
 export interface PlanOptions {
+  /** The spec's sources: a poll names its study by them (W16). */
+  sources?: readonly { id: string; authors?: string; year?: number; title?: string }[];
   /** A drawn thing's words for {c} (choose): its text, or its label. Null: the id humanised. */
   labelOf?: (id: string) => string | null;
   /** The spec's top-level `feedback` (spec 2026-10-03 §4.1): each question's step carries it resolved with its own. */
@@ -1068,6 +1088,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     const box = boxOf(id);
     return box ? posedBox(id, box) : null;
   };
+  /** A confidence bet's buttons, placed clear of everything on the page now (W16). */
+  const confidenceHere = (): ConfidencePlan => ({
+    boxes: confidenceBoxes(visible.flatMap((id) => {
+      const b = currentBox(id);
+      return b ? [b] : [];
+    })),
+  });
   /** A box in `id`'s original frame where it stands NOW: shifted, or — turned or scaled — the bounds of its four mapped corners. */
   const posedBox = (id: string, box: BBox): BBox => {
     const offset: Pt = offsets[id] ?? [0, 0];
@@ -1592,6 +1619,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.quiz.store !== undefined ? { store: cmd.quiz.store } : {}),
         ...feedbackOf(cmd.quiz.feedback),
         ...(stamp ? { stamp } : {}),
+        ...(cmd.quiz.confidence === true ? { confidence: confidenceHere() } : {}),
       });
     } else if (cmd.ask !== undefined) {
       // The question IS the narration unless the author paired a speak; the
@@ -1708,6 +1736,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const revealDraw = (cmd.ask.reveal_draw ?? []).filter((id) => known.has(id));
       revealDraw.forEach((id) => mentioned.add(id));
       makeVisible(revealDraw);
+      // Counting this app's own viewers needs a backend (W16): not yet — the study's numbers stand.
+      if (cmd.ask.poll?.live === true) warnings.push("ask.poll.live: counting this app's viewers is not built yet — the study's shares are shown instead");
       pushStep({
         kind: "ask",
         question: cmd.ask.question,
@@ -1763,6 +1793,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           : {}),
         ...(Array.isArray(cmd.ask.choose) ? { choose: chooseOptions(cmd.ask.choose), ...(cmd.ask.then !== undefined ? { then: cmd.ask.then } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) } : {}),
         ...(!sayQuestion ? { quiet: true as const } : {}),
+        ...(cmd.ask.confidence === true && Array.isArray(cmd.ask.choose) && cmd.ask.answer !== undefined ? { confidence: confidenceHere() } : {}),
+        ...(cmd.ask.poll !== undefined ? { poll: pollPlan(cmd.ask.poll, opts.sources) } : {}),
         ...feedbackOf(cmd.ask.feedback),
         ...(cmd.ask.reveal_style !== undefined ? { revealStyle: cmd.ask.reveal_style } : {}),
         ...(cmd.ask.reveal_order === "each" ? { revealOrder: "each" as const } : {}),
