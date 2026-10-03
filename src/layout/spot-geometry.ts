@@ -13,18 +13,19 @@ export interface SpotShape {
   rings?: Pt[][];
 }
 
-/** Even-odd over every ring: holes (a lake, the orbits) are outside. */
+/** Inside any one ring. Not even-odd across them: a part's outline comes
+ *  as its fill AND its closed stroke (the same ring twice), which even-odd
+ *  would cancel — the same rule as ui/hit.ts. */
 function insideRings(rings: readonly Pt[][], p: Pt): boolean {
-  let inside = false;
-  for (const ring of rings) {
-    if (ring.length < 3) continue;
+  return rings.some((ring) => {
+    let inside = false;
     for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
       const [xi, yi] = ring[i];
       const [xj, yj] = ring[j];
       if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) inside = !inside;
     }
-  }
-  return inside;
+    return ring.length >= 3 && inside;
+  });
 }
 
 function nearestOnSegment(a: Pt, b: Pt, p: Pt): Pt {

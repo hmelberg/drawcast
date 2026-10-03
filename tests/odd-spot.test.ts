@@ -71,11 +71,11 @@ describe("odd one out", () => {
     expect(out.commands![1].ask!.reveal_draw).toEqual(["odd_1_odd", "odd_1_rule"]);
     const rule = out.elements!.find((e) => e.id === "odd_1_rule") as { x: number; y: number };
     expect(rule.x).toBe(400);
-    expect(rule.y).toBe(360 - 34);
+    expect(rule.y).toBe(360 - 62);
   });
 
   test("rulePlace: over the options when below would reach the caption band", () => {
-    expect(rulePlace({ x: 100, y: 170, w: 200, h: 100 }).y).toBe(170 + 100 + 34);
+    expect(rulePlace({ x: 100, y: 170, w: 200, h: 100 }).y).toBe(170 + 100 + 62);
   });
 
   test("errors: two odd items, a rule with nothing odd, a rule with no answer", () => {
@@ -115,6 +115,8 @@ describe("spot it", () => {
     const L = { box: { x: 0, y: 0, w: 100, h: 100 }, rings: [[[0, 0], [100, 0], [100, 20], [20, 20], [20, 100], [0, 100]] as [number, number][]] };
     const p = spotPoint(L);
     expect(judgeSpot(L, p).inside).toBe(true);
+    // A part's fill and its closed stroke are the same ring twice: still inside.
+    expect(judgeSpot({ ...L, rings: [L.rings[0], L.rings[0]] }, [10, 10]).inside).toBe(true);
     expect(nearestEdge({ box: { x: 0, y: 0, w: 10, h: 10 } }, [5, 20])).toEqual([5, 10]);
   });
 

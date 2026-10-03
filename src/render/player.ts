@@ -3995,14 +3995,14 @@ export class Player {
               { ids: elementIds.filter((id) => !placed.has(id.toLowerCase())) },
             ];
           }
-        } else if (step.widget === "click" && step.answerBox && live && this.elements.has(answer)) {
+        } else if (step.widget === "click" && step.answerBox && live && !answer.includes(":")) {
           // (A spot on a picture region has no element to glow: its gate outlines the place.)
           groups = [{ ids: [answer], ...(isRight(typed) ? { color: ANSWER_OK_COLOR } : {}) }];
         }
         // The feedback band's line: a live viewer who answered, right or wrong.
         // A green group already glowing IS the sparkle; else the sparkle glows the answer.
         const greenNow = groups.some((g) => g.color === ANSWER_OK_COLOR && g.ids.length > 0);
-        const sparkleIds = step.widget === "click" ? (this.elements.has(answer) ? [answer] : []) : step.widget === "drag" && step.items ? step.items.filter((i) => i.element).map((i) => i.id) : [];
+        const sparkleIds = step.widget === "click" ? (answer.includes(":") ? [] : [answer]) : step.widget === "drag" && step.items ? step.items.filter((i) => i.element).map((i) => i.id) : [];
         const extra =
           live && typed !== null
             ? this.feedbackAfter(step, isRight(typed) ? "perfect" : "none", { long: step.widget === "drag" && isLong({ parts: sparkleIds.length }), parts: sparkleIds, sparkle: !greenNow }, signal)

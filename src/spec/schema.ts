@@ -995,6 +995,7 @@ const commandSchema = {
         },
         then: { type: "string", description: "With `choose` options that goto: the label after the branches where they meet again." },
         rule: { type: "string", description: "With choose and answer (ODD ONE OUT over drawn things): what the others share — written under them as the odd one is ringed." },
+        reveal_draw: { type: "array", items: { type: "string" }, description: "Set by the odd-one-out expansion — never write it." },
         spot: { type: "string", description: "SPOT IT ON THE PICTURE: the place the viewer taps — a region of the `on` image, a template part (liver, country_norway) or any drawn id; judged on its outline, the place outlined at the reveal. No answer or widget." },
         reveal_style: { enum: ["beside", "morph", "reorder"], description: "Reveal of a guess, cards, tree or formula: beside (default; the answer stays, the truth is drawn beside it), morph (the answer glides into the truth) or reorder (default for rank cards: they slide into the true order, a faint yours row behind)." },
         reveal_order: { enum: ["all", "each"], description: "all (default), or each: the truth part by part, 0.6 s apart." },

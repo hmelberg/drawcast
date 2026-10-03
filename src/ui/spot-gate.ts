@@ -55,7 +55,7 @@ const flip = (p: Pt): string => `${p[0].toFixed(1)},${(CANVAS.h - p[1]).toFixed(
 export function spotRevealGroup(shape: SpotShape, tap: Pt, verdict: { ok: boolean; nearest: Pt }): SVGGElement {
   const ink = verdict.ok ? OK_INK : SHOWN_INK;
   const g = svgEl("g", { class: "cs-spot-reveal", "pointer-events": "none" });
-  const outline = { fill: ink, "fill-opacity": 0.16, stroke: ink, "stroke-width": 4, "stroke-linejoin": "round", "fill-rule": "evenodd" };
+  const outline = { fill: ink, "fill-opacity": 0.16, stroke: ink, "stroke-width": 4, "stroke-linejoin": "round", "fill-rule": "nonzero" };
   if (shape.rings && shape.rings.length > 0) {
     const d = shape.rings.filter((r) => r.length >= 3).map((r) => `M${r.map(flip).join("L")}Z`).join("");
     g.appendChild(svgEl("path", { d, ...outline, class: "cs-spot-outline" }));

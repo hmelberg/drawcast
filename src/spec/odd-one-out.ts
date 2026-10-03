@@ -27,10 +27,10 @@ import { declaredBox } from "./answer-buttons";
 import type { AskArgs, Command, Spec, SpecElement } from "./types";
 
 /** The rule's look: quiet, a size under the cards' text. */
-const RULE_FONT = 24;
+const RULE_FONT = 26;
 const RULE_INK = "#6b655a";
-/** Between the options' lowest edge and the rule's middle. */
-const RULE_GAP = 34;
+/** Between the options' lowest edge and the rule's middle: clear of the ring round the odd one. */
+const RULE_GAP = 62;
 /** The rule never reaches into the caption band. */
 const RULE_FLOOR = CAPTION_TOP + 20;
 

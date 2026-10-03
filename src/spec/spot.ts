@@ -65,6 +65,8 @@ export function spotErrors(spec: Pick<Spec, "elements" | "commands">): string[] 
       errs.push(`commands[${i}]: ask.spot must name the place to tap (a region of the on image, a part, or an element id)`);
       return;
     }
+    // Already expanded (expandSpot): a click on its own place.
+    if (a.widget === "click" && a.answer === a.spot) return;
     const clash = (["answer", "widget", "items", "choose", "code", "blanks", "pick", "others", "retry"] as const).filter((k) => a[k] !== undefined);
     if (clash.length > 0) errs.push(`commands[${i}]: ask.spot is answered by tapping the place — leave out ${clash.join(", ")}`);
     if (Array.isArray(a.on) && a.on.length !== 1) errs.push(`commands[${i}]: ask.on with spot names one picture, template or map`);
