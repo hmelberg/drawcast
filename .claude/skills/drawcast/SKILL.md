@@ -50,13 +50,14 @@ every working file below is `dev-casts/<slug>…`.
    template's parameters: `node scripts/cast.mjs template <id>`.
 2. **Storyline first** (the app's default since 2026-09-28 — Settings'
    "Write the story first"): before any JSON, write the storyline to
-   `dev-casts/<slug>-story.md`. It opens with the brief — four lines:
+   `dev-casts/<slug>-story.md`. It opens with the brief — five lines:
 
    ```
    Audience: <who watches — a patient, a first-year student, nurses, a health economist…>
    Level: basic | standard | advanced
    Language: <the narration's language>
    Length: <number of spoken lines>
+   Subtitle: <one sentence, ~100–150 characters: what the viewer gets>
    ```
 
    The user may set any of them — in words ("for nurses", "keep it short")
@@ -73,6 +74,10 @@ every working file below is `dev-casts/<slug>…`.
      knowledge assumed): define a field's own terms once, in passing.
    - **Language:** the language the request is written in.
    - **Length:** 14–20 spoken lines; a length tag gives its own range.
+   - **Subtitle:** write one yourself: a single sentence in the narration's
+     language saying what the viewer gets ("How herd immunity protects
+     people who can't be vaccinated"), not "a drawcast about…". It is the
+     line under the title on the cast's link card when it is shared.
    Name the defaults you used in your report so the user can change them.
    The spec's `level` field is set only for `basic` or `advanced`.
 
@@ -102,7 +107,10 @@ every working file below is `dev-casts/<slug>…`.
    saw it yourself), and the canvas element that shows its number or claim
    carries `"cites": ["<id>"]`. A drawcast with only textbook facts and
    made-up example numbers has no `sources` — that is fine.
-4. **Write the spec** to `dev-casts/<slug>.json` as `{"request": …, "spec": …}`.
+4. **Write the spec** to `dev-casts/<slug>.json` as `{"request": …, "subtitle": …, "spec": …}`
+   — the brief's subtitle beside the spec, not inside it (`cast.mjs pack`
+   puts it in the published file's header). A course needs none per lecture:
+   its card's line is the first paragraph under the title in `course.md`.
 5. **Check it:** `node scripts/cast.mjs check dev-casts/<slug>.json`. Fix
    every INVALID and every `[error]`; warnings are for step 6's eyes — a
    `crowding` warning (too many texts on the page at once, or small print)

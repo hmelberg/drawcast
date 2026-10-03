@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { setPublishesCast } from "../src/cast-file";
+import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
+import { formatSpec } from "../src/spec/text";
 import {
   boundedFetch,
   checkName,
@@ -24,6 +26,7 @@ import {
   privatePayAdvice,
   waitForPrivate,
   privateCourseText,
+  packedCastText,
   listingAdvice,
   waitForListing,
   creditBalanceAdvice,
@@ -695,5 +698,27 @@ describe("waitForCredit (cast.mjs credit --buy: waits for the balance to rise)",
     const creditBalance = async () => answers.shift()!;
     const out = await waitForCredit({ api: "https://x", key: "k", startMicro: 1_000_000, creditBalance, timeoutS: 30, sleep: async () => {} });
     expect(out).toEqual({ balanceMicro: 2_000_000, balanceUsd: "2.00" });
+  });
+});
+
+describe("packedCastText (2026-10-03): a cast's one-line subtitle reaches its published header — the link card's description", () => {
+  const spec = { title: "Why vaccines work", elements: [{ id: "t", type: "text", text: "Herd", x: 100, y: 100 }], commands: [{ draw: ["t"] }] };
+  const lib = { singlePlaylist, formatPlaylist, formatSpec };
+  it("with a subtitle: a playlist header carries the title and the subtitle", () => {
+    const out = packedCastText({ request: "r", subtitle: "  How herd immunity protects the unvaccinated.  ", spec }, "yaml", lib);
+    const p = parsePlaylistText(out);
+    expect(p.meta.title).toBe("Why vaccines work");
+    expect(p.meta.subtitle).toBe("How herd immunity protects the unvaccinated.");
+    expect(itemsOf(p)).toHaveLength(1);
+  });
+  it("without one (missing, blank, not a string): the bare spec, exactly as before", () => {
+    for (const w of [{ spec }, { spec, subtitle: "   " }, { spec, subtitle: 42 }]) {
+      expect(packedCastText(w, "yaml", lib)).toBe(formatSpec(spec, "yaml"));
+    }
+  });
+  it("cast.mjs pack writes it", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../scripts/cast.mjs", import.meta.url), "utf8");
+    expect(src).toMatch(/packedCastText\(/);
   });
 });

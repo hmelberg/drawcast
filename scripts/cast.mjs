@@ -152,6 +152,7 @@ import {
   waitForName,
   waitForPrivate,
   writeSession,
+  packedCastText,
 } from "./cast-account.mjs";
 
 const [cmd, ...rest] = process.argv.slice(2);
@@ -763,6 +764,7 @@ const commands = {
     await withVite(async (load) => {
       const { validateSpec } = await load("/src/spec/schema.ts");
       const { formatSpec } = await load("/src/spec/text.ts");
+      const { singlePlaylist, formatPlaylist } = await load("/src/playlist/playlist.ts");
       const { publishExt, publishFormat } = await load("/src/cast-file.ts");
       const v = validateSpec(spec);
       if (!v.ok) throw new Error(`${file} is invalid:\n  ${v.errors.join("\n  ")}`);
@@ -772,7 +774,15 @@ const commands = {
       if (existing.length) throw new Error(`${work} already holds ${existing.join(", ")} — a cast workdir holds exactly one cast file (.cast or .yaml)`);
       const name = basename(file).replace(/\.json$/i, "");
       const out = resolve(wd, `${name}${publishExt()}`);
-      writeFileSync(out, formatSpec(spec, publishFormat()));
+      // A one-line `subtitle` beside the spec (the skill's brief) goes into the
+      // published header — the link card's description.
+      let wrapper = {};
+      try {
+        wrapper = JSON.parse(readFileSync(resolve(ROOT, file), "utf8"));
+      } catch {
+        /* not JSON: readCast already refused it above */
+      }
+      writeFileSync(out, packedCastText({ spec, subtitle: wrapper?.subtitle }, publishFormat(), { singlePlaylist, formatPlaylist, formatSpec }));
       console.log(`${relative(ROOT, out)}: ready for publish-target ${work} <owner/repo>`);
     });
   },
