@@ -131,3 +131,25 @@ describe("a derivation survives the round trip (2026-09-25)", () => {
     expect(check([spec])).toEqual({ broken: [], unstable: [] });
   });
 });
+
+describe("ids the grammar owns", () => {
+  // `below legend` read `legend` (a population field) as a key with no value;
+  // a mark `around a b` then `hidden true` swallowed `hidden true` as targets.
+  for (const id of ["legend", "label", "dashed", "below", "top", "text", "hidden", "plain_id"]) {
+    test(`an element named ${id} round-trips as a placement ref, an arrow end and a mark's target`, () => {
+      const spec = {
+        title: "t",
+        elements: [
+          { id, type: "text", text: "Key", x: 100, y: 100 },
+          { id: "lbl", type: "text", text: "A", at: { side: "below", ref: id } },
+          { id: "lbl2", type: "text", text: "B", at: { side: "right", ref: id, gap: 8 } },
+          { id: "arr", type: "arrow", from: { ref: id }, to: { ref: "lbl" } },
+          { id: "m", type: "annotation", target: [id, "lbl"] },
+        ],
+        commands: [{ draw: [id, "lbl", "lbl2", "arr"] }, { draw: ["m"] }, { erase: [id] }],
+      } as Spec;
+      const back = parseScriptPages(printScriptPages({}, [{ spec }])).pages[0].spec;
+      expect(canon({ elements: back.elements, commands: back.commands })).toEqual(canon({ elements: spec.elements, commands: spec.commands }));
+    });
+  }
+});
