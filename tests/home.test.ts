@@ -15,6 +15,7 @@ import {
   parseFeatured,
   tagRows,
   thumbUrl,
+  upNext,
   type FeaturedEntry,
 } from "../src/home/model";
 
@@ -129,5 +130,31 @@ describe("routing", () => {
   test("the front page never loads the editor", () => {
     expect(home).not.toMatch(/from "\.\/main"|import\("\.\/main"\)/);
     expect(home).toContain('href: "#create"');
+  });
+});
+
+describe("Up next (the watch page)", () => {
+  const e = (name: string, format: FeaturedEntry["format"], tags: string[]): FeaturedEntry => ({ name, title: name, format, tags });
+  const featured = [e("a", "drawcast", ["physics"]), e("b", "quiz", ["health"]), e("c", "drawcast", ["health", "statistics"]), e("d", "drawcast", ["health"]), e("me", "drawcast", ["health", "statistics"])];
+  test("shared topic tags first, then the same format, ties in curated order; never the one being watched", () => {
+    expect(upNext("me", featured, []).map((c) => c.name)).toEqual(["c", "d", "b", "a"]);
+  });
+  test("a lecture (name/3) relates through its course's name", () => {
+    expect(upNext("me/3", featured, []).map((c) => c.name)[0]).toBe("c");
+  });
+  test("an uncurated drawcast gets the curated list in order, then the newest, without duplicates or itself", () => {
+    const newest = [cardFromCatalogue(item({ name: "x" }), new Map()), cardFromCatalogue(item({ name: "a" }), new Map()), cardFromCatalogue(item({ name: "zz" }), new Map())];
+    expect(upNext("zz", featured, newest).map((c) => c.name)).toEqual(["a", "b", "c", "d", "me", "x"]);
+    expect(upNext(undefined, featured, [], 2)).toHaveLength(2);
+  });
+});
+
+describe("the watch page wiring", () => {
+  const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8");
+  test("the viewer mounts it on demand, never for a page carrying its own cast", () => {
+    expect(viewer).toContain('if (req.embedded === undefined) void import("./home/watch").then((m) => m.mountWatch(app, { name: req.watchName })).catch(() => undefined);');
+  });
+  test("a name link tells it which drawcast it is", () => {
+    expect(viewer).toContain("await runViewer({ ...req, watchName: name });");
   });
 });

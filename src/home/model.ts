@@ -150,3 +150,20 @@ export function tagRows(featured: FeaturedEntry[], min = 2): { tag: string; entr
     .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
     .map(([tag, entries]) => ({ tag, entries }));
 }
+
+/**
+ * The watch page's "Up next" (home/watch.ts): what to offer beside the
+ * drawcast being watched. Curated drawcasts sharing its topic tags first
+ * (two points a shared tag), the same format next (one point), ties in the
+ * curated order; then the rest of the curated list; then the catalogue's
+ * newest. Never the one being watched. A drawcast not in the curated list
+ * (or a course lecture, `name/3`) gets the curated list in its own order.
+ */
+export function upNext(current: string | undefined, featured: FeaturedEntry[], newest: HomeCard[], max = 12): HomeCard[] {
+  const base = current?.split("/", 1)[0];
+  const me = featured.find((e) => e.name === base);
+  const others = featured.filter((e) => e.name !== base);
+  const score = (e: FeaturedEntry): number => (me ? e.tags.filter((t) => me.tags.includes(t)).length * 2 + (e.format === me.format ? 1 : 0) : 0);
+  const ranked = others.map((e, i) => ({ e, i, s: score(e) })).sort((a, b) => b.s - a.s || a.i - b.i).map((x) => x.e);
+  return mergeCards(ranked.map(cardFromFeatured), newest.filter((c) => c.name !== base)).slice(0, max);
+}

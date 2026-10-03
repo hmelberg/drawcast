@@ -92,6 +92,8 @@ export interface ViewerRequest {
   embedded?: string;
   /** The cast's download, started by entry.ts before this module loaded (links/early-fetch.ts). */
   early?: EarlyFetch;
+  /** The name it was opened by (#name) — what the watch page's "Up next" relates to. */
+  watchName?: string;
   style: RenderStyle;
   mode: "narrated" | "silent" | "instant";
   speed: number;
@@ -481,7 +483,7 @@ export async function runNamed(hash: string, early?: Promise<Resolved | null>): 
     return;
   }
   status.remove();
-  await runViewer(req);
+  await runViewer({ ...req, watchName: name });
 }
 
 /**
@@ -779,6 +781,11 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   const problems = req.inline !== undefined ? problemsBox() : null;
   const found: CastProblems = emptyProblems();
   app.append(h("div", { class: "viewer-wrap" }, figureHost, meta.root, ...(problems ? [problems.root] : [])));
+  // On drawcast.app the player sits in the site's watch page (home/watch.ts):
+  // the top bar, "Up next", theatre mode. A drawcast's own page elsewhere
+  // (embedded) keeps the plain player. Loaded on demand, and never in the
+  // way: if it fails, the plain player is what remains.
+  if (req.embedded === undefined) void import("./home/watch").then((m) => m.mountWatch(app, { name: req.watchName })).catch(() => undefined);
 
   try {
     let audioNote = "";
