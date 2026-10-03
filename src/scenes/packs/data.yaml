@@ -648,9 +648,9 @@ layout: |
 
   const b = params.box;
   const boxed = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0;
-  // Default: the page's content area (src/layout/page.ts — x 60…940, y 160…660,
+  // Default: the page's content area (src/layout/page.ts — x 60…940, y 160…655,
   // clear of the caption band). guess/handles.ts pieGeometry mirrors all of this.
-  const area = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : { x0: 60, y0: 160, x1: 940, y1: 660 };
+  const area = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : { x0: 60, y0: 160, x1: 940, y1: 655 };
   const title = str(params.title, "");
   if (title) area.y1 = Math.min(area.y1, 650);
   const showPct = params.percent !== false;
