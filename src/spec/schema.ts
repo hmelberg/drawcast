@@ -376,10 +376,10 @@ const elementSchema = {
     height: { type: "number", description: "shape rect / node / pieces strips+grid (the rectangle to cut): height in logical units. inset: box height." },
     radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40). point: the dot's radius in canvas units (default 7; e.g. 20 for a ball) — bind it to animate. node rect: corner radius (default 0)." },
     shadow: { type: "boolean", description: "node rect: true = a soft shadow behind the box (for a filled box)." },
-    or: { ...ICON_OR, description: 'icon: fallback keywords tried in order when of finds none — the thing first, plainer after ("guinea pig" → ["hamster", "mouse"]).' },
+    or: { ...ICON_OR, description: 'icon: keywords tried in order when of finds none ("guinea pig" → ["hamster"]).' },
     icon: {
       ...ICON_VALUE,
-      description: 'node rect: an icon inside the box, above its text — a keyword ("shark"), keywords tried in order (["guinea pig", "hamster"]), or {"of", "set", "or"} like an icon element; the box grows to fit.',
+      description: 'node rect: an icon inside the box, above its text — a keyword ("shark"), a list tried in order, or {"of", "set", "or"}; the box grows to fit.',
     },
     icon_strokes: { type: "string", description: "node rect: the resolved icon (machine-written; copy VERBATIM if present)." },
     icon_key: { type: "string", description: "node/icon: what the icon was resolved for (machine-written; copy VERBATIM if present)." },

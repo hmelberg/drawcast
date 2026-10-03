@@ -115,6 +115,7 @@ every working file below is `dev-casts/<slug>…`.
    every INVALID and every `[error]`; warnings are for step 6's eyes — a
    `crowding` warning (too many texts on the page at once, or small print)
    means erase what has served or draw fewer, larger things.
+   `no icon for "X"` means a BLANK icon: give fallbacks (`"icon": ["guinea pig", "hamster"]`; an icon element's `"or": […]`) or draw it.
 6. **Look at it:** `node scripts/cast.mjs frames dev-casts/<slug>.json` →
    tiles in `dev-casts/frames-<slug>/`, one frame per spoken line (drawn
    mid-gesture where the line highlights, focuses, points or flows), plus the
