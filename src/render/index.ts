@@ -10,7 +10,7 @@ import { authoredScales } from "../spec/scale";
 import { formulaBlanks, hasBlanks } from "../formula/blanks";
 import type { BBox } from "../layout/geometry";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
-import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
+import { domainMapping, elementBBoxes, elementRings, layoutSpec, type LayoutResult } from "../layout/layout";
 import type { MeasureFn } from "../layout/measure";
 import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
 import type { LintIssue } from "../lint/lint";
@@ -606,6 +606,11 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
     book: spec.book !== undefined,
     ...(spec.feedback !== undefined ? { feedback: spec.feedback } : {}),
     bboxOf: (id) => bboxes.get(id) ?? null,
+    // A spot ask's point inside the place (spec/spot.ts): read once, on the first ask that wants it.
+    ringsOf: (() => {
+      let rings: Map<string, Pt[][]> | null = null;
+      return (id: string) => (rings ??= elementRings(layout)).get(id) ?? null;
+    })(),
     windows: layout.windows ?? {},
     // The layout's own frame when it has one: it is the RESOLVED domain
     // (`box: "auto"` becomes a rectangle there, and only there).

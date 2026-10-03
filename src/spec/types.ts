@@ -118,6 +118,8 @@ export interface CardItemSpec {
   bin?: string;
   /** select: the card belongs in the one box. */
   in?: boolean;
+  /** ODD ONE OUT (spec/odd-one-out.ts): the one card that does not belong. */
+  odd?: boolean;
   value?: number;
   match?: string;
   blank?: number;
@@ -460,6 +462,8 @@ export interface SpecElement {
   select?: string;
   /** cards (sort): one large card at a time, up to 30. */
   deck?: boolean;
+  /** cards, ODD ONE OUT (spec/odd-one-out.ts): what the others share, written under the cards at the reveal. */
+  rule?: string;
   /** cards (sort, select, deck): judge each card as it is dropped (default) or all at the end. */
   check?: "each" | "end";
   /** cards (rank): what the two ends mean. */
@@ -996,6 +1000,17 @@ export interface AskArgs {
   choose?: (string | { id: string; goto?: string })[];
   /** Choose with gotos: the label where the branches meet. */
   then?: string;
+  /** ODD ONE OUT (spec/odd-one-out.ts): with choose and answer (the odd one),
+   *  what the others share — written under the options, the odd one ringed,
+   *  as the answer is revealed. */
+  rule?: string;
+  /** Machine-written by the expansion (spec/odd-one-out.ts): the ids drawn
+   *  as the answer is revealed (the ring, the rule). Never authored. */
+  reveal_draw?: string[];
+  /** SPOT IT ON THE PICTURE (spec/spot.ts): the place the viewer taps — a
+   *  region of the `on` image, a template part (liver, country_norway) or
+   *  any drawn element id. Judged on its outline (or box), with tolerance. */
+  spot?: string;
   /** Tree (spec 2026-10-03 §4): the tree parts the viewer fills in —
    *  value_<node>, branchlabel_<parent>_<child>, effect_<node>, cost_<node>. */
   blanks?: string[];

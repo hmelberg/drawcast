@@ -43,6 +43,8 @@ export interface CardItem {
   blank?: number;
   /** select: the card belongs in the one box. */
   in?: boolean;
+  /** ODD ONE OUT (spec/odd-one-out.ts): the one that does not belong. */
+  odd?: boolean;
   /** An icon on the card (round 5 §3.3) — the card node's `icon`. */
   icon?: CardIcon;
   /** match: an icon on the partner card. */
@@ -93,6 +95,8 @@ export interface CardsElementLike {
   select?: string;
   /** sort: one large card at a time, centred; up to 30 items (round 6 §7). */
   deck?: boolean;
+  /** ODD ONE OUT (spec/odd-one-out.ts): what the others share — carried on the group for the expansion. */
+  rule?: string;
   /** sort, select, deck (round 7 §3): each (default) — every card is judged as it is dropped; end — all at Answer. */
   check?: "each" | "end";
   /** paper (default), flat or outline (the plain boxes of before). */
@@ -902,7 +906,7 @@ function deckGeometry(
 
 /** The authored fields a cards group carries back (authoredCards). `size` is
  *  the number expandCards chose, so the gate and the plan draw the same set. */
-const CARRIED = ["items", "bins", "ends", "arrange", "along", "compare", "pairs", "unit", "options", "then", "fill", "select", "deck", "check", "size", "x", "y", "width"] as const;
+const CARRIED = ["items", "rule", "bins", "ends", "arrange", "along", "compare", "pairs", "unit", "options", "then", "fill", "select", "deck", "check", "size", "x", "y", "width"] as const;
 
 /** compare: the words over the cards — `title` as given; by default the
  *  question, unless the page has a heading of its own (page frame 2026-10-04:

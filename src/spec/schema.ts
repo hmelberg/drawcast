@@ -22,6 +22,8 @@ import { parseABC } from "./abc";
 import { DATA_TOKEN_RE, MALFORMED_TOKEN_RE, scanDataTokens } from "../code/tokens";
 import { validateTemplateDoc } from "../scenes/doc";
 import { pictureErrors } from "./places";
+import { spotErrors } from "./spot";
+import { oddErrors } from "./odd-one-out";
 
 // ajv ships CJS; depending on the bundler/runtime the class is the module or its .default.
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
@@ -621,6 +623,7 @@ const elementSchema = {
               text: { type: "string" },
               bin: { type: "string" },
               in: { type: "boolean" },
+              odd: { type: "boolean" },
               value: { type: "number" },
               match: { type: "string" },
               blank: { type: "integer", minimum: 1 },
@@ -656,6 +659,7 @@ const elementSchema = {
       description: "cards: DECIDE — the choices (a few words each), each with goto: the label of the section that plays out its consequences. The viewer taps one and the cast goes there; best: true on one makes the decision scored. Movies play every branch in order, so write each to stand on its own (\"If you treat now: …\"). Give then: the label where the branches meet.",
     },
     select: { type: "string", description: "cards: TAP ALL THE … — the title of the one box (\"Mammals\"); items {text, in: true} belong in it, the rest ({text, in: false} or a plain string) stay out. The viewer taps the cards that belong (each judged as tapped), then Done. Not with bins." },
+    rule: { type: "string", description: "cards: ODD ONE OUT — 3–6 items, one {text, odd: true}: the viewer taps the one that does not belong (ask on: <id>); rule says what the others share, written under the cards as the odd one is ringed (\"All four are mammals; the shark is a fish.\")." },
     deck: { type: "boolean", description: "cards (sort): a DECK — one large card at a time in the middle; the viewer taps a box (or presses 1, 2, …), the card flies there and the next comes, with a ✓ or ✗ for each. Up to 30 items: for many quick calls." },
     check: { type: "string", enum: ["each", "end"], description: "cards (sort, select, deck): each (default) — every card is judged as it is dropped, a wrong one moved to its right box; end — sort freely, then Done (a test-like question)." },
     then: { type: "string", description: "cards (decide): the label where every branch meets again — a live viewer who chose one branch skips the others and goes on here." },
@@ -990,6 +994,8 @@ const commandSchema = {
             "CHOOSE ON THE FIGURE: the options are things ALREADY DRAWN — a node, an icon, a group, a template part — and the viewer taps the thing itself (hover rings; Tab/Enter on the keyboard). Better than cards or a quiz whose choices repeat what the figure shows. answer = the right option's id (judged); judge: false = an opinion (store it: {c} is the tapped thing's label, {c.id} its id); {id, goto} options branch like decide cards and meet again at `then`. In movies the laser taps `default`, else the answer, else the first option.",
         },
         then: { type: "string", description: "With `choose` options that goto: the label after the branches where they meet again." },
+        rule: { type: "string", description: "With choose and answer (ODD ONE OUT over drawn things): what the others share — written under them as the odd one is ringed." },
+        spot: { type: "string", description: "SPOT IT ON THE PICTURE: the place the viewer taps — a region of the `on` image, a template part (liver, country_norway) or any drawn id; judged on its outline, the place outlined at the reveal. No answer or widget." },
         reveal_style: { enum: ["beside", "morph", "reorder"], description: "Reveal of a guess, cards, tree or formula: beside (default; the answer stays, the truth is drawn beside it), morph (the answer glides into the truth) or reorder (default for rank cards: they slide into the true order, a faint yours row behind)." },
         reveal_order: { enum: ["all", "each"], description: "all (default), or each: the truth part by part, 0.6 s apart." },
         keep: { type: "boolean", description: "Guess: true keeps yours past the next question and a later animate (it follows the part)." },
@@ -1733,6 +1739,7 @@ function semanticErrors(spec: Spec): string[] {
   });
 
   errors.push(...pictureErrors(spec));
+  errors.push(...spotErrors(spec), ...oddErrors(spec));
 
   // A var named like a curve variable or a function could never be read.
   if (spec.vars !== undefined) errors.push(...varNameErrors(spec.vars));
@@ -1982,7 +1989,8 @@ function semanticErrors(spec: Spec): string[] {
       // A guess on the figure (spec 2026-10-01-guess-and-reveal): the truth is
       // the figure's own number, so no answer; right/wrong are its feedback.
       const isTree = a.blanks !== undefined || a.pick !== undefined;
-      const isGuess = a.on !== undefined && !isTree;
+      const isSpot = a.spot !== undefined;
+      const isGuess = a.on !== undefined && !isTree && !isSpot;
       const isChoose = a.choose !== undefined;
       if (isChoose) {
         const ids: string[] = [];
@@ -2025,7 +2033,7 @@ function semanticErrors(spec: Spec): string[] {
       } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.readout !== undefined || a.revise !== undefined || a.budget !== undefined || a.account_label !== undefined || (a.judge !== undefined && !isChoose)) {
         errors.push(`commands[${i}]: ask.from, relative, release, predict, readout, revise, budget, account_label and judge only apply to a guess (with on; judge also to choose)`);
       }
-      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && !isChoose && a.on === undefined) {
+      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && !isChoose && !isSpot && a.on === undefined) {
         errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);
       }
       if (a.answer !== undefined && (typeof a.answer !== "string" || a.answer.trim().length === 0)) {
@@ -2044,7 +2052,7 @@ function semanticErrors(spec: Spec): string[] {
       // The drag widget's answer is implied by its items, so it is check mode without `answer`.
       const isDrag = a.widget === "drag";
       const isConnect = a.widget === "connect";
-      if (!isDrag && !isGuess && !isTree && !isChoose && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
+      if (!isDrag && !isGuess && !isTree && !isChoose && !isSpot && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
         errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
       }
       if (a.widget !== undefined && !isDrag && a.answer === undefined) {
@@ -2067,7 +2075,7 @@ function semanticErrors(spec: Spec): string[] {
         if (isConnect && a.store !== undefined) {
           errors.push(`commands[${i}]: ask.store does not apply to the connect widget`);
         }
-        if (a.items !== undefined || (a.tolerance !== undefined && !isGuess && !isTree)) {
+        if (a.items !== undefined || (a.tolerance !== undefined && !isGuess && !isTree && !isSpot)) {
           const named = a.widget !== undefined ? ` (this one is "${a.widget}")` : "";
           errors.push(`commands[${i}]: ask.items and tolerance only apply to widget "drag"${named}`);
         }
