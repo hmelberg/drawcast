@@ -37,7 +37,7 @@ export function logicalPoint(stage: HTMLElement, e: MouseEvent): [number, number
   const r = svg.getBoundingClientRect();
   if (r.width === 0 || r.height === 0) return null;
   const vb = svg.viewBox.baseVal;
-  const f = svgFrame(r, vb, svg.getAttribute("preserveAspectRatio"));
+  const f = svgFrame(r, vb, svg.getAttribute?.("preserveAspectRatio") ?? null);
   const sx = vb.x + (e.clientX - f.ox) / f.sx;
   const sy = vb.y + (e.clientY - f.oy) / f.sy;
   return [sx, CANVAS.h - sy];
@@ -52,7 +52,7 @@ export function clientPointFor(stage: HTMLElement, p: [number, number]): [number
   const sr = stage.getBoundingClientRect();
   if (r.width === 0) return null;
   const vb = svg.viewBox.baseVal;
-  const f = svgFrame(r, vb, svg.getAttribute("preserveAspectRatio"));
+  const f = svgFrame(r, vb, svg.getAttribute?.("preserveAspectRatio") ?? null);
   const cx = f.ox + (p[0] - vb.x) * f.sx - sr.left;
   const cy = f.oy + (CANVAS.h - p[1] - vb.y) * f.sy - sr.top;
   return [cx, cy];
