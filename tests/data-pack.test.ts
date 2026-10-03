@@ -1810,7 +1810,7 @@ describe("heatmap", () => {
     const tall = at(500);
     expect(tall.issues).toEqual([]);
     expect(namesOf(tall)).toHaveLength(12);
-    expect(namesOf(tall)[0].fontSize).toBe(18);
+    expect(namesOf(tall)[0].fontSize).toBe(21); // W4: the full size is 21 (was 18)
 
     // The band the old constant overlapped in: names must SHRINK, stay at or
     // above the lint's floor, and still not collide (which `issues` proves).
