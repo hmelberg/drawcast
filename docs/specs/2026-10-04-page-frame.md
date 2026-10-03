@@ -64,3 +64,8 @@ and a short line in the compiler prompt.
 | W14 | Bar reorder | `bar_chart` re-sorts its bars on an animate (`sort: true`) — "English jumps to first" |
 | W15 | Estimate slider; steps in order | a big counter/slider scored by closeness; ordering with a first→last timeline look |
 | W16 | Confidence bet; poll-and-compare; before/after guess example | bet scored for calibration; poll compares with study numbers (viewers' own answers need backend counting — later) |
+
+## Round 2 additions (user, 2026-10-04)
+- **W17 Varied right-answer replies** — pools per language, random without repeats, streak lines, dry humour sometimes (by feedback style), `affirm` hatch; the whole pool baked into recorded narration.
+- **W18 Vertical settling** — after layout, centre the page's content (union over the whole run, heading excluded) vertically in the content area when the gaps are clearly uneven; relax spacing only where the engine owns positions (templates, cards, scales, laid-out groups); `page.valign` hatch ("center" default, "top", "none"). Starts after W1 merges (same files).
+- **Thumbnails** — the front-page card picture must be the real page scaled down (same aspect, letterboxed), never a re-layout at another aspect.
