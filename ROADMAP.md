@@ -3421,10 +3421,12 @@ again. Each is a fix in the app, not in a cast; together they would lift many ca
 First step when picked up: item 1 — it is in nearly every review, and it would let the
 hand-placed cue labels in the library casts be removed again.
 
-## Front page and watching: small gaps — noted 2026-10-03, maybe
+## Front page and watching: small gaps — noted 2026-10-03; 1–3 done 2026-10-03
 
 Left after formats, tags, Popular, 👍/👎, `/w/<name>` and course Up next
-went live (deliveries 2–3, 2026-10-03). Not sure they are worth it; each is small.
+went live (deliveries 2–3, 2026-10-03). Items 1–3 were fixed the same day (branch
+front-gaps): course topic tags, a Format choice in Publish plus a better quiz
+guess, lecture titles read from the course.md beside a lecture.
 
 1. **Course tags.** A cast registers the tags on its `tags:` line; a course
    registers none — `course.md`'s `#tags` are not sent with `/register`

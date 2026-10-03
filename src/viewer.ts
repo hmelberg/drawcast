@@ -12,7 +12,7 @@
 
 import { questionsOption } from "./question-mode";
 import { setLinkBase } from "./links/base";
-import { withCourse } from "./links/course";
+import { publishedLectureTitles, withCourse } from "./links/course";
 import type { LinkBase } from "./links/resolve";
 import "./styles.css";
 import { type RenderStyle } from "./render";
@@ -294,6 +294,16 @@ async function fetchGdriveText(fileId: string): Promise<string> {
 }
 
 /** Fetch the playlist from a public repo. Private repos are not served here. */
+/** The published lecture titles of the course a GitHub lecture sits in
+ *  ([] when there is no course.md beside it, or it cannot be read). */
+async function courseLectureTitles(gh: GhRef): Promise<string[]> {
+  const dir = gh.path.includes("/") ? gh.path.slice(0, gh.path.lastIndexOf("/") + 1) : "";
+  const text = await fetch(rawUrlFor({ ...gh, path: `${dir}course.md` }))
+    .then((r) => (r.ok ? r.text() : null))
+    .catch(() => null);
+  return text === null ? [] : publishedLectureTitles(text);
+}
+
 async function setViewerLinkBase(gh: GhRef | undefined, text: string): Promise<void> {
   if (!gh) return setLinkBase(null);
   const file: LinkBase = { kind: "gh", owner: gh.owner, repo: gh.repo, path: gh.path };
@@ -786,7 +796,10 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   // the top bar, "Up next", theatre mode. A drawcast's own page elsewhere
   // (embedded) keeps the plain player. Loaded on demand, and never in the
   // way: if it fails, the plain player is what remains.
-  if (req.embedded === undefined) void import("./home/watch").then((m) => m.mountWatch(app, { name: req.watchName })).catch(() => undefined);
+  // A course lecture (`spanish/2`) names the lectures after it in Up next,
+  // from the course.md beside it — read only then.
+  const lectureTitles = req.watchName?.includes("/") && req.gh ? courseLectureTitles(req.gh) : undefined;
+  if (req.embedded === undefined) void import("./home/watch").then((m) => m.mountWatch(app, { name: req.watchName, lectureTitles })).catch(() => undefined);
 
   try {
     let audioNote = "";

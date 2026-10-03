@@ -99,7 +99,8 @@ export function registerFor(origin, lib, courseText, castText) {
     const course = lib.parseCourse(courseText);
     const reg = lib.courseRegistration(course, repo, origin.coursesDir, pagesUrlFor(origin.owner, origin.repo, origin.path));
     if (!reg) throw new Error("the course has no slug — run publish-target and push first");
-    return { kind: reg.kind, target: reg.target, title: reg.title, page: reg.page, lectures: reg.lectures };
+    const tags = lib.courseTopicTags ? lib.courseTopicTags(course) : undefined;
+    return { kind: reg.kind, target: reg.target, title: reg.title, page: reg.page, lectures: reg.lectures, ...(tags ? { tags } : {}) };
   }
   if (origin.kind !== "cast") throw new Error(`a ${origin.kind} cannot be registered — only a cast or a course`);
   // The cast's own title, format and topics when its text is at hand (2026-10-03:
