@@ -24,7 +24,7 @@ import {
 import type { Registration } from "../names";
 import { lockLectureFiles, type LectureLock } from "./lock";
 import { castPageHtml } from "../standalone/page";
-import { transcriptLines } from "../standalone/transcript";
+import { castFacts } from "../standalone/transcript";
 
 export interface CastEntry {
   slug: string;
@@ -32,6 +32,9 @@ export interface CastEntry {
   /** Repo-relative-to-castsDir file name. */
   file: string;
   updated: string;
+  /** It has its own page, `<slug>.html` beside it (a public publish since
+   *  2026-10-03): the index and the sitemap link that, not drawcast.app. */
+  page?: boolean;
 }
 
 export interface CastIndex {
@@ -152,12 +155,15 @@ export function buildCastPlan(args: CastPlanArgs): CastPlan {
   const file = `${slug}${publishExt()}`;
   const path = joinPath(castsDir, file);
 
-  const next = upsertCast(index, { slug, title: title || "Untitled drawcast", file, updated: new Date().toISOString().slice(0, 10) });
+  const updated = new Date().toISOString().slice(0, 10);
+  const next = upsertCast(index, { slug, title: title || "Untitled drawcast", file, updated, ...(args.private ? {} : { page: true }) });
   const pagesUrl = `https://${repo.owner}.github.io/${repo.repo}/${castsDir ? `${castsDir}/` : ""}`;
   const files: PublishFile[] = [
     { path, content: text },
     { path: joinPath(castsDir, "casts.json"), content: JSON.stringify(next, null, 2) + "\n" },
     { path: joinPath(castsDir, "index.html"), content: castsPage(next.casts, viewerBase, repo, castsDir) },
+    // The list of pages for search engines (submit it in Search Console).
+    { path: joinPath(castsDir, "sitemap.xml"), content: castsSitemap(next.casts, pagesUrl) },
     { path: joinPath(castsDir, "README.md"), content: castsReadme(next.casts, viewerBase, repo, castsDir) },
   ];
   // Pages runs Jekyll by default, which rewrites and skips files by its own
@@ -176,11 +182,15 @@ export function buildCastPlan(args: CastPlanArgs): CastPlan {
       path: pagePathFor(path),
       content: castPageHtml({
         src: file,
-        transcript: transcriptLines(text),
+        ...castFacts(text),
         title: title || "Untitled drawcast",
         url: pageUrl,
         image: args.poster ? `${pagesUrl}${slug}.png` : undefined,
         from: { owner: repo.owner, repo: repo.repo, path },
+        author: repo.owner,
+        // No date here: the page stays byte-identical across a republish of
+        // an unchanged cast (the skill's push reads that as "no change");
+        // the sitemap, a bookkeeping file, carries each page's date.
       }),
     });
   }
@@ -202,8 +212,10 @@ export function castsPage(casts: CastEntry[], viewerBase: string, repo: RepoRef,
     .map(
       // The repo path, folder included (2026-10-03: it was left out, so a
       // cast published into casts/ was listed with a link that 404s).
+      // A cast with its own page links that: a crawler can follow it, where
+      // everything after drawcast.app's `#` is one empty page to a crawler.
       (c) =>
-        `<li><a class="t" href="${escapeHtml(castHref(viewerBase, repo.owner, repo.repo, joinPath(castsDir, c.file)))}">${escapeHtml(c.title)}</a> <span class="soon">${escapeHtml(c.updated)}</span></li>`,
+        `<li><a class="t" href="${escapeHtml(c.page ? `${stripDocExt(c.file)}.html` : castHref(viewerBase, repo.owner, repo.repo, joinPath(castsDir, c.file)))}">${escapeHtml(c.title)}</a> <span class="soon">${escapeHtml(c.updated)}</span></li>`,
     )
     .join("\n");
   return `<!doctype html>
@@ -218,6 +230,25 @@ ${items}
 </ol>
 <footer>Made with <a href="https://drawcast.app/">drawcast</a></footer>
 </html>
+`;
+}
+
+/**
+ * The casts folder's sitemap: its index and every cast with a page, with the
+ * date each was last published. Search engines find pages by links and by
+ * this; the author submits it once (Google Search Console → Sitemaps).
+ */
+export function castsSitemap(casts: CastEntry[], pagesUrl: string): string {
+  const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const newest = casts.reduce((d, c) => (c.updated > d ? c.updated : d), "");
+  const urls = [
+    `  <url><loc>${esc(pagesUrl)}</loc>${newest ? `<lastmod>${newest}</lastmod>` : ""}</url>`,
+    ...casts.filter((c) => c.page).map((c) => `  <url><loc>${esc(`${pagesUrl}${stripDocExt(c.file)}.html`)}</loc><lastmod>${esc(c.updated)}</lastmod></url>`),
+  ];
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.join("\n")}
+</urlset>
 `;
 }
 

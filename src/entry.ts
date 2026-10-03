@@ -55,7 +55,14 @@ async function boot(): Promise<void> {
   // reserved name prefix (names.ts RESERVED_PREFIXES) that could otherwise
   // never resolve as a name anyway, but must land on the catalogue rather
   // than falling through to the full app.
-  if (hash === "#browse" || hash.startsWith("#browse&")) {
+  // Bare drawcast.app (2026-10-03): the front page — drawcasts to see and
+  // find. The editor is #create (a reserved name, so it falls through to the
+  // app below, like every hash no branch here claims).
+  if (hash === "" || hash === "#") {
+    const { runHome } = await import("./home");
+    doneBooting();
+    runHome();
+  } else if (hash === "#browse" || hash.startsWith("#browse&")) {
     const { runCatalogue } = await import("./catalogue");
     doneBooting();
     await runCatalogue(hash);

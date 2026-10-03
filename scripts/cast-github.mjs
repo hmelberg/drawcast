@@ -110,7 +110,7 @@ export function takenSlugs({ kind, listed, tree }) {
 
 /** Bookkeeping a publish rewrites every time: on its own it is no change
  *  (the manifests' dates, READMEs, index pages, the registry claim). */
-const BOOKKEEPING_RE = /(^|\/)(courses\.json|casts\.json|index\.html|README\.md|\.drawcast\/claim)$/;
+const BOOKKEEPING_RE = /(^|\/)(courses\.json|casts\.json|index\.html|sitemap\.xml|README\.md|\.drawcast\/claim)$/;
 
 /**
  * What a push would change against upstream (cast.mjs push), compared by
