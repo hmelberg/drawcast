@@ -30,9 +30,11 @@
 
 import bundledExamples from "../examples.json";
 import { setTrustPolicy } from "../security/code-trust";
-import { elementBBoxes, layoutSpec } from "../layout/layout";
+import { elementBBoxes } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import { lintCommands } from "../lint/lint";
+import { posedIssues } from "../lint/posed";
+import { layoutAsSeen } from "../lint/at-scale";
 import { pacingReport, type PacingProblem } from "../lint/pacing-report";
 import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
@@ -90,6 +92,8 @@ interface PartReport {
   commandIssues: string[];
   /** Exceptions thrown while stepping the whole timeline boundary by boundary. */
   playbackErrors: string[];
+  /** Icons that resolved to nothing and so draw BLANK: one line each, with how to give fallbacks. */
+  iconIssues: string[];
   frames: FrameReport[];
   /** Timing, as the player would run it (lint/pacing-report.ts): the totals
    *  line, then one line per idle stretch, silent ink or overlong beat —
@@ -210,7 +214,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
   // resolved, as render() draws it — an unresolved icon draws nothing, and
   // its `at` would read as ignored.
   const withIcons = structuredClone(spec);
-  await resolveIcons(withIcons).catch(() => {});
+  const icons = await resolveIcons(withIcons).catch((err: unknown) => [{ id: "icons", ok: false, of: "", error: String(err) }]);
   const expanded = expandSpec(withIcons);
   const report: PartReport = {
     title: spec.title ?? "(untitled)",
@@ -219,6 +223,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
     planWarnings: [],
     commandIssues: lintCommands(expanded).map((i) => `[${i.severity}] ${i.rule}: ${i.message}`),
     playbackErrors: [],
+    iconIssues: icons.filter((r) => !r.ok).map((r) => `${r.id}: no icon for "${r.of ?? "?"}" — draws BLANK (${r.error ?? "not found"}); give fallbacks: "icon": ["${r.of ?? "…"}", "…"] (an icon element: "or": […]) or draw it by hand`),
     frames: [],
     pacing: { lines: [], totalMs: 0, spokenLines: 0, lengthBand: "", problems: [] },
   };
@@ -249,7 +254,8 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       // label a template drops at small h (tangent_secant's Δx) was reported
       // at the end frame although it was drawn, correctly, while it existed.
       const posed = Object.keys(params).length > 0;
-      const layout = layoutSpec(at, measure, undefined, undefined, posed ? { skipDrawBeatLint: true } : undefined);
+      // At the cast's text scale, as the player draws it (its drawables carry drawn sizes).
+      const layout = layoutAsSeen(at, measure, undefined, undefined, posed ? { skipDrawBeatLint: true } : undefined);
       const boxes = elementBBoxes(layout, measure);
       // What the viewer can actually see at this boundary. An overlap between
       // an element that is drawn and one that is not (a label erased two beats
@@ -257,8 +263,11 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       // exactly what the app's own lint has no way to know.
       const visible = new Set(hd.plan.states[frame.at - 1]?.visible ?? []);
       const onScreen = (ids: string[]) => ids.length === 0 || ids.every((id) => visible.has(id) || [...visible].some((v) => id.startsWith(`${v}__`)));
-      const seen = layout.issues.filter((i) => onScreen(i.ids));
-      const unseen = layout.issues.filter((i) => !onScreen(i.ids));
+      // …and where it stands: an element moved since it was drawn is judged at its new place.
+      const state = hd.plan.states[frame.at - 1];
+      const issues = state ? posedIssues(layout.drawables, measure, state, layout.issues, layout.world) : layout.issues;
+      const seen = issues.filter((i) => onScreen(i.ids));
+      const unseen = issues.filter((i) => !onScreen(i.ids));
       report.frames.push({
         at: frame.at,
         changed: frame.changed,
@@ -426,6 +435,7 @@ async function show(cast: Cast): Promise<CastReport> {
       ["plan", part.planWarnings],
       ["commands", part.commandIssues],
       ["playback", part.playbackErrors],
+      ["icons", part.iconIssues],
     ] as const) {
       if (lines.length > 0) section.append(h("pre", { class: "bad" }, `${label}: ${lines.join("\n")}`));
     }

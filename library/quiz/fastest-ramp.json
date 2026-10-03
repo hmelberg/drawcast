@@ -351,6 +351,17 @@
     "style": {
      "color": "#b5482e"
     }
+   },
+   {
+    "id": "lvl_l",
+    "type": "text",
+    "text": "dips below",
+    "x": 640,
+    "y": 303,
+    "font_size": 24,
+    "style": {
+     "color": "#b5482e"
+    }
    }
   ],
   "commands": [
@@ -370,14 +381,32 @@
     "speak": "Three ramps join the same two points. Which one gets a ball to the bottom first?"
    },
    {
+    "speak": "One is straight, one swoops down in a curve, and one drops steeply, then runs flat.",
+    "blocking": false
+   },
+   {
     "highlight": {
      "target": [
-      "r_straight",
-      "r_curve",
+      "r_straight"
+     ],
+     "duration": 1.5
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "r_curve"
+     ],
+     "duration": 1.9
+    }
+   },
+   {
+    "highlight": {
+     "target": [
       "r_drop"
-     ]
-    },
-    "speak": "One is straight, one swoops down in a curve, and one drops steeply, then runs flat."
+     ],
+     "duration": 2.6
+    }
    },
    {
     "ask": {
@@ -593,8 +622,10 @@
    },
    {
     "draw": [
-     "t_curve"
-    ]
+     "t_curve",
+     "lvl_l"
+    ],
+    "speak": "It even dips below the finish and climbs the last stretch: the speed it gains early is worth the climb."
    },
    {
     "draw": [

@@ -45,6 +45,7 @@ import { COLOR_WORDS, FLAGS, PLACE_WORDS, SIDE_WORDS } from "../spec/script/suga
 import { MODIFIER_KEYS } from "../spec/script/parse";
 import { inlineStrokes } from "../spec/assets";
 import { decodePicture } from "../spec/trace";
+import { iconAsk } from "../spec/icon-data";
 import { BANDS, isEnglish, resolveFeedback } from "../feedback/bands";
 
 /**
@@ -209,16 +210,26 @@ export function idsOf(raw: string[] | string | undefined): string[] {
  * joins an implicit final draw. Unknown ids in commands are simply ignored
  * here (the plan already warns about them); anything not provably transient
  * ends up coexisting, so approximation errs toward keeping warnings.
+ *
+ * Moves too: once a `move` or an `arrange` has taken an element off the
+ * place the layout drew it, the static geometry no longer says where it is,
+ * so a pair it joins after that is not judged here — a label drawn beside a
+ * glass that was slid away was flagged on the glass's old spot. Pairs from
+ * before the move still count. The frames harness judges the moved ones at
+ * their real place (src/dev/frames.ts, movedIssues).
  */
 export function coVisible(commands: Command[] | undefined, allIds: string[], expandId?: (id: string) => string[] | null | undefined): (a: string, b: string) => boolean {
   if (!commands || commands.length === 0) return () => true;
   const visible = new Set<string>();
   const managed = new Set<string>();
+  const moved = new Set<string>();
   const pairs = new Set<string>();
   const key = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
   const snapshot = () => {
     const list = [...visible];
-    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) pairs.add(key(list[i], list[j]));
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) if (!moved.has(list[i]) && !moved.has(list[j])) pairs.add(key(list[i], list[j]));
+    }
   };
   // A pieces id stands for all its pieces here too (the plan expands it the same way).
   const ids = (raw: string[] | string | undefined): string[] => {
@@ -249,6 +260,7 @@ export function coVisible(commands: Command[] | undefined, allIds: string[], exp
         managed.add(id);
       }
     }
+    for (const id of [...ids(c.move?.target), ...ids(c.arrange?.target)]) moved.add(id);
   }
   // A sub-drawable ("card_3_text" …) is never named in a command, so it
   // counts as on screen at the end — wrongly so when its owner was taken
@@ -452,6 +464,27 @@ function lintCueTiming(drawables: Drawable[], commands: Command[], expandId?: (i
   return issues;
 }
 
+/** font-too-small over text drawables, at the sizes they carry — drawn
+ *  sizes once applyTextStyle has scaled them (lint/at-scale.ts). */
+export function lintFontSizes(drawables: Drawable[]): LintIssue[] {
+  const issues: LintIssue[] = [];
+  for (const t of lintableLeaves(drawables)) {
+    if (t.kind !== "text" || t.text.trim() === "") continue;
+    // The C64 face fills its whole em square with an 8 × 8 pixel glyph, so a
+    // cell of 11 units reads where the handwriting needs 14 — and a 40-column
+    // screen at a sane width lands between the two.
+    if (t.fontSize < (t.font === "c64" ? C64_FONT_FLOOR : FONT_FLOOR)) {
+      issues.push({
+        rule: "font-too-small",
+        ids: [t.id],
+        message: `text "${t.id}" has font size ${Math.round(t.fontSize * 10) / 10} (< ${FONT_FLOOR} logical units — unreadable)`,
+        severity: "warn",
+      });
+    }
+  }
+  return issues;
+}
+
 export function lintLayoutDetailed(
   drawables: Drawable[],
   measure: MeasureFn,
@@ -481,19 +514,7 @@ export function lintLayoutDetailed(
   const coexist = (a: string, b: string) => together(owner.get(a) ?? a, owner.get(b) ?? b);
   const composed = (a: string, b: string) => !!sameGroup?.(owner.get(a) ?? a, owner.get(b) ?? b);
 
-  for (const t of texts) {
-    // The C64 face fills its whole em square with an 8 × 8 pixel glyph, so a
-    // cell of 11 units reads where the handwriting needs 14 — and a 40-column
-    // screen at a sane width lands between the two.
-    if (t.fontSize < (t.font === "c64" ? C64_FONT_FLOOR : FONT_FLOOR)) {
-      issues.push({
-        rule: "font-too-small",
-        ids: [t.id],
-        message: `text "${t.id}" has font size ${t.fontSize} (< ${FONT_FLOOR} logical units — unreadable)`,
-        severity: "warn",
-      });
-    }
-  }
+  issues.push(...lintFontSizes(texts));
 
   // A highlight `part` that names nothing lights the whole target instead
   // (render/svg-backend) — the author meant a piece, so say which was missed.
@@ -1733,10 +1754,11 @@ function lintFeedback(spec: Spec): LintIssue[] {
       if (typeof item !== "object" || item === null) return;
       for (const key of ["icon", "match_icon"] as const) {
         const v = (item as Record<string, unknown>)[key];
-        const kw = typeof v === "string" ? v : typeof v === "object" && v !== null ? (v as { of?: unknown }).of : undefined;
-        if (typeof kw !== "string") continue;
-        if (kw.trim().split(/\s+/).length > 3) {
-          warn("card-icon", [el.id], `${el.id} item ${i + 1}: ${key} "${kw}" is a sentence — an icon keyword is a word or two ("cheetah", "pill")`);
+        const ask = iconAsk(v);
+        for (const kw of ask ? [ask.of, ...(ask.or ?? [])] : []) {
+          if (kw.trim().split(/\s+/).length > 3) {
+            warn("card-icon", [el.id], `${el.id} item ${i + 1}: ${key} "${kw}" is a sentence — an icon keyword is a word or two ("cheetah", "pill")`);
+          }
         }
       }
     });

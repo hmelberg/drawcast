@@ -50,6 +50,9 @@ export function mountWatch(app: HTMLElement, opts: { name?: string; lectureTitle
   app.parentNode?.insertBefore(layout, app);
   main.append(app);
   body.prepend(top);
+  // Anything already laid out from the window's width (a book, book/shell.ts)
+  // measures again now that it sits in the narrower player column.
+  window.dispatchEvent(new Event("resize"));
 
   // Theatre: the player takes the full width, "Up next" drops below it.
   const theatre = h("button", { type: "button", class: "watch-theatre-btn", title: "Theatre mode: a wider player" }, "⇔ Theatre") as HTMLButtonElement;

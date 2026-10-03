@@ -198,18 +198,19 @@ describe("resolving, crediting and hoisting card icons", () => {
     const r = await resolveIcons(
       spec,
       deps({
-        [iconSearchUrl("cards-pill", DEFAULT_PREFIXES)]: { icons: ["lucide:pill"] },
-        [iconSearchUrl("cards-drop", DEFAULT_PREFIXES)]: { icons: ["lucide:droplet"] },
-        [iconSvgUrl("lucide", "pill")]: SVG,
-        [iconSvgUrl("lucide", "droplet")]: SVG,
+        // Named for the keyword: a match that names another thing is never drawn.
+        [iconSearchUrl("cards-pill", DEFAULT_PREFIXES)]: { icons: ["lucide:cards-pill"] },
+        [iconSearchUrl("cards-drop", DEFAULT_PREFIXES)]: { icons: ["lucide:cards-drop"] },
+        [iconSvgUrl("lucide", "cards-pill")]: SVG,
+        [iconSvgUrl("lucide", "cards-drop")]: SVG,
       }),
     );
-    expect(r).toEqual([{ id: "t_1", ok: true }, { id: "t_m_1", ok: true }]);
+    expect(r).toMatchObject([{ id: "t_1", ok: true }, { id: "t_m_1", ok: true }]);
     const it = (spec.elements![0].items as unknown as Record<string, string>[])[0];
     expect(iconRingsOf(it.icon_strokes)!.length).toBe(1);
-    expect(it.credit).toBe("pill from lucide · ISC");
+    expect(it.credit).toBe("cards-pill from lucide · ISC");
     expect(iconRingsOf(it.match_icon_strokes)!.length).toBe(1);
-    expect(it.match_credit).toBe("droplet from lucide · ISC");
+    expect(it.match_credit).toBe("cards-drop from lucide · ISC");
   });
 
   test("an unresolvable card icon is reported and leaves no strokes", async () => {
@@ -224,10 +225,10 @@ describe("resolving, crediting and hoisting card icons", () => {
     const authored = { elements: [{ ...match, size: 1, items: [{ text: "A", match: "B", icon: "cards-order-pill", match_icon: "cards-order-drop" }, { text: "C", match: "D" }] }], commands: [{ draw: ["t"] }] } as unknown as Spec;
     const before = JSON.stringify(authored);
     const icons = deps({
-      [iconSearchUrl("cards-order-pill", DEFAULT_PREFIXES)]: { icons: ["lucide:pill"] },
-      [iconSearchUrl("cards-order-drop", DEFAULT_PREFIXES)]: { icons: ["lucide:droplet"] },
-      [iconSvgUrl("lucide", "pill")]: SVG,
-      [iconSvgUrl("lucide", "droplet")]: SVG,
+      [iconSearchUrl("cards-order-pill", DEFAULT_PREFIXES)]: { icons: ["lucide:cards-order-pill"] },
+      [iconSearchUrl("cards-order-drop", DEFAULT_PREFIXES)]: { icons: ["lucide:cards-order-drop"] },
+      [iconSvgUrl("lucide", "cards-order-pill")]: SVG,
+      [iconSvgUrl("lucide", "cards-order-drop")]: SVG,
     });
     const none = async () => undefined;
     const spec = await expandedRenderSpec(authored, {

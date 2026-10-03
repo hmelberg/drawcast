@@ -24,6 +24,24 @@ describe("chunkCaption", () => {
     expect(clauses[0].endsWith(",")).toBe(true);
   });
 
+  test("an abbreviation or an initial is neither a sentence break nor a page turn", () => {
+    const rex = chunkCaption("The T. rex had tiny arms, yet its bite was the strongest of any land animal. Nothing it caught got away.", 90);
+    expect(rex[0]).toBe("The T. rex had tiny arms, yet its bite was the strongest of any land animal.");
+    const school = chunkCaption("The pupils of St. Mark's School were measured each spring by Dr. Hall. Their heights rose every year.", 70);
+    expect(school[0]).toBe("The pupils of St. Mark's School were measured each spring by Dr. Hall.");
+    // nor a page turn: the page breaks before the initial, never after it
+    expect(chunkCaption("Of all the hunters that ever lived, the best known is T. rex with its huge head and its tiny arms.", 60)[0]).toBe(
+      "Of all the hunters that ever lived, the best known is T. rex",
+    );
+    expect(chunkCaption("For forty years the doctors weighed the children of St. Mark's School in Boston every spring.", 60)[0]).toBe(
+      "For forty years the doctors weighed the children of",
+    );
+    const misc = chunkCaption("Prices rose approx. 3.5 percent in the U.S. economy, e.g. rents. Wages did not keep up at all.", 70);
+    expect(misc[0]).toBe("Prices rose approx. 3.5 percent in the U.S. economy, e.g. rents.");
+    // a real sentence end still breaks — also after a lower-case "no."
+    expect(chunkCaption("The answer was no. The second trial said the same thing again.", 50)[0]).toBe("The answer was no.");
+  });
+
   test("the last page is never a lone word or two", () => {
     const pages = chunkCaption("one two three four five six seven eight nine ten eleven twelve thirteen", 60);
     expect(pages[pages.length - 1].split(" ").length).toBeGreaterThan(2);

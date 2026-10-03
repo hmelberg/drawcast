@@ -43,8 +43,9 @@
 //        poster rides along, and a lock failure leaves nothing committed.
 //        Pictures: every public cast/lecture written gets `<file>.png` (cast.mjs poster draws one by hand); a repo
 //        published before pictures existed gets them with `pull` then `push`.
-//   node scripts/cast.mjs register <workdir>   after a PR-published first publish merges: verifies the claim
-//        and registers the item (a --direct push already does this on its own, right after the commit)
+//   node scripts/cast.mjs register <workdir> [--wait]   after a PR-published first publish merges: verifies the claim
+//        and registers the item (a --direct push already does this on its own, right after the commit); a registry
+//        that answers "rate limited" (its hourly budget per IP) is retried every 5 minutes for up to an hour with --wait
 //
 // Publishing something new (a course folder or a folder with one cast file) to a repo of the user's:
 //   node scripts/cast.mjs pack <cast.json> <workdir>   a {request, spec} (or bare spec) → <workdir>/<name>.yaml (.cast: see below),
@@ -107,6 +108,7 @@ import { createServer } from "vite";
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { iconCacheDir, iconFetcher, nodeFetch, routePage } from "./icon-fetch.mjs";
 import { homedir, hostname } from "node:os";
 import {
   DOC_EXT_RE,
@@ -393,7 +395,8 @@ async function courseLectures(load, text) {
  * every call bounded (boundedFetch — fix round 1: a stalled Anvil must
  * never hang `push --direct` after the git push has already landed, nor a
  * `push --dry-run`'s claim). Records any free name that comes back on
- * origin.freeName (written to origin.json only when one did).
+ * origin.freeName (written to origin.json only when one did). Returns
+ * {note, rate}: rate when the registry answered 429 (register --wait).
  *
  * verifyClaim/claimCourse/registerItem never throw on their own (a network
  * or server trouble is a string outcome, folded into the note
@@ -404,8 +407,9 @@ async function courseLectures(load, text) {
  * real error.
  */
 async function registerPublished(origin, wd, session, verify) {
+  const work = relative(ROOT, wd) || ".";
   const fetchImpl = boundedFetch();
-  const { note, name } = await withVite(async (load) => {
+  const { note, name, rate } = await withVite(async (load) => {
     const registry = await load("/src/registry.ts");
     const { parseCourse } = await load("/src/course/document.ts");
     const { courseRegistration, courseTopicTags } = await load("/src/course/publish.ts");
@@ -422,11 +426,36 @@ async function registerPublished(origin, wd, session, verify) {
     };
     const reg = registerFor(origin, { parseCourse, courseRegistration, courseTopicTags, castMeta }, courseText, castText);
     const names = origin.kind === "course" ? await load("/src/names.ts") : undefined;
-    return registerNow({ origin, session, verify, reg, registry, names, fetchImpl });
+    return registerNow({ origin, session, verify, reg, registry, names, fetchImpl, work });
   });
   if (name) origin.freeName = name;
   if (origin.freeName) writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
-  return note;
+  return { note, rate };
+}
+
+/**
+ * check's icon lines: what each icon resolved to (set:name, and the fallback
+ * that found it), printed before the lint; a keyword with no icon comes back
+ * as a warning issue, with how to give fallbacks — never a blank card found
+ * only in the frames.
+ */
+function iconReport(results, spec) {
+  if (!results?.length) return [];
+  const iconEls = new Set((spec.elements ?? []).filter((e) => e.type === "icon").map((e) => e.id));
+  const lines = [], issues = [];
+  for (const r of results) {
+    const asked = r.of ? `"${r.of}"` : r.id;
+    if (r.ok) {
+      lines.push(`  ${r.id} ${asked} → ${r.icon ?? "(kept)"}${r.via ? ` via fallback "${r.via}"` : ""}`);
+      continue;
+    }
+    lines.push(`  ${r.id} ${asked} → NOTHING (blank)`);
+    const how = iconEls.has(r.id) ? `"or": ["…", "…"] on the icon` : `"icon": [${JSON.stringify(r.of ?? "…")}, "…"]`;
+    const why = r.error && !/^no icon found/.test(r.error) ? ` (${r.error})` : / \(nearest: .*\)$/.test(r.error ?? "") ? ` ${r.error.slice(r.error.indexOf("(nearest"))}` : "";
+    issues.push({ severity: "warning", message: `no icon for ${asked} (${r.id}) — it would draw BLANK${why}; give alternatives: ${how}, or draw it by hand` });
+  }
+  console.log(`icons (${results.filter((r) => r.ok).length} of ${results.length} found):\n${lines.join("\n")}`);
+  return issues;
 }
 
 const commands = {
@@ -568,7 +597,9 @@ const commands = {
   async "course-open"(args) {
     const dir = args.find((a) => a !== "--launch");
     if (!dir) throw new Error("usage: cast.mjs course-open <dir> [--launch]");
-    const url = `${URL_BASE}/?course=${devPath(`${dir}/course.md`)}`;
+    // #create: bare drawcast.app is the front page now; the editor (which
+    // reads ?course= and ?open=) is #create.
+    const url = `${URL_BASE}/?course=${devPath(`${dir}/course.md`)}#create`;
     console.log(url + "\n(imports the course into the app's local courses — built lectures only — and opens its panel; reopening re-imports it)");
     if (args.includes("--launch")) {
       const { spawn } = await import("node:child_process");
@@ -1135,8 +1166,10 @@ const commands = {
    *  its free name — has to wait until the PR is merged and the claim file
    *  is live on the default branch. Run this once it is. A --direct push
    *  never needs it: push registers on its own, right after the commit. */
-  async register([work]) {
-    if (!work) throw new Error("usage: cast.mjs register <workdir>");
+  async register(args) {
+    const wait = args.includes("--wait");
+    const [work] = args.filter((a) => a !== "--wait");
+    if (!work) throw new Error("usage: cast.mjs register <workdir> [--wait]");
     const wd = resolve(ROOT, work);
     if (!existsSync(resolve(wd, "origin.json"))) throw new Error(`${work} is not published (no origin.json) — publish-target and push it first`);
     const origin = JSON.parse(readFileSync(resolve(wd, "origin.json"), "utf8"));
@@ -1148,7 +1181,14 @@ const commands = {
       writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
     }
     const session = readSession(homedir());
-    const note = await registerPublished(origin, wd, session, true);
+    // --wait: a 429 is the registry's hourly budget per IP — try again every
+    // 5 minutes until it clears, for up to an hour.
+    let { note, rate } = await registerPublished(origin, wd, session, true);
+    for (let tries = 0; wait && rate && tries < 12; tries++) {
+      console.log(`${work}: rate limited — trying again in 5 minutes (${tries + 1}/12)`);
+      await new Promise((r) => setTimeout(r, 5 * 60_000));
+      ({ note, rate } = await registerPublished(origin, wd, session, true));
+    }
     console.log(note ? `${work}${note}` : `${work}: registered (no free name)`);
   },
 
@@ -1479,7 +1519,7 @@ const commands = {
       // because the registry step after it stumbled.
       let note = "";
       try {
-        if (registrable(origin)) note = await registerPublished(origin, wd, session, Boolean(claim));
+        if (registrable(origin)) note = await registerPublished(origin, wd, session, Boolean(claim)).then((r) => r.note);
       } catch (err) {
         console.error("drawcast: registry step failed (the push itself already landed)", err);
       }
@@ -1532,7 +1572,7 @@ const commands = {
       }
       const { validateSpec } = await load("/src/spec/schema.ts");
       const { expandSpec } = await load("/src/spec/expand.ts");
-      const { layoutSpec } = await load("/src/layout/layout.ts");
+      const { layoutAsSeen } = await load("/src/lint/at-scale.ts");
       const { heuristicMeasure } = await load("/src/layout/measure.ts");
       const { lintCommands } = await load("/src/lint/lint.ts");
       const { lintCrowding } = await load("/src/lint/crowding.ts");
@@ -1547,16 +1587,20 @@ const commands = {
       // Icons are keywords (round 6): resolve them as the app does before it
       // plays (offline cache, then Iconify), on a copy, so the lint sees the
       // artwork and "no icon for X" names only a keyword that has none.
-      const { resolveIcons } = await load("/src/render/icon.ts");
+      // Iconify through the scripts' disk cache and retry (icon-fetch.mjs).
+      const { resolveIcons, defaultDeps } = await load("/src/render/icon.ts");
       const withIcons = structuredClone(spec);
-      await resolveIcons(withIcons).catch(() => {});
+      const iconResults = await resolveIcons(withIcons, { ...defaultDeps(), fetch: nodeFetch(iconFetcher({ dir: iconCacheDir(ROOT) })) }).catch((err) => [{ id: "icons", ok: false, error: String(err) }]);
+      const iconIssues = iconReport(iconResults, spec);
       const ex = expandSpec(withIcons);
-      const laid = layoutSpec(ex, heuristicMeasure);
+      const laid = layoutAsSeen(ex, heuristicMeasure); // at the cast's text scale, as drawn
       // The layout's own warnings too (a label moved off other ink, …): the
       // bundled-examples gate fails on them, so an author must see them here.
       // Crowding (texts on the page at once, small print) is checked by the
       // app's generation too — advisory; the examples gate does not read it.
-      const issues = [...laid.issues, ...(laid.warnings ?? []).map((message) => ({ severity: "warning", message })), ...lintCommands(ex), ...lintCrowding(laid, ex)];
+      // The layout's own "no icon for X" repeats what iconReport said, less helpfully.
+      const layoutWarnings = (laid.warnings ?? []).filter((m) => !(iconIssues.length > 0 && /^no icon for "/.test(m)));
+      const issues = [...iconIssues, ...laid.issues, ...layoutWarnings.map((message) => ({ severity: "warning", message })), ...lintCommands(ex), ...lintCrowding(laid, ex)];
       const speaks = (spec.commands ?? []).filter((c) => typeof c.speak === "string").length;
       console.log(`valid · ${speaks} spoken lines · ${(spec.elements ?? []).length} elements${spec.template ? ` · template ${spec.template}` : ""}`);
       console.log(issues.length ? issues.map((i) => `  [${i.severity}] ${i.message}`).join("\n") : "  lint clean (heuristic metrics — frames gives the browser's)");
@@ -1586,6 +1630,8 @@ const commands = {
       // to a row, each about twice as wide — for judging fine text.
       const W = large ? 760 : 1000;
       const page = await b.newPage({ viewport: { width: W, height: 900 } });
+      // Icons through the scripts' disk cache and retry: parallel runs drew blank on Iconify's 429.
+      await routePage(page, iconFetcher({ dir: iconCacheDir(ROOT) }));
       const errors = [];
       page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
       const url = `${URL_BASE}/frames.html?cast=${devPath(file)}&beats=all&v=${Date.now()}`;
@@ -1611,7 +1657,7 @@ const commands = {
       writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 1));
       console.log(`${tiles.length} tile(s): ${tiles.join(", ")} — one frame per spoken line (mid-gesture where the line highlights, focuses, points or flows)`);
       for (const part of report.parts ?? []) {
-        const bad = [...part.validationErrors, ...part.planWarnings, ...part.commandIssues, ...part.playbackErrors];
+        const bad = [...part.validationErrors, ...(part.iconIssues ?? []), ...part.planWarnings, ...part.commandIssues, ...part.playbackErrors];
         if (bad.length) console.log("  " + bad.join("\n  "));
         for (const fr of part.frames ?? []) if (fr.issues?.length) console.log(`  @${fr.at} ${fr.changed}: ${fr.issues.join(" · ")}`);
       }
@@ -1632,7 +1678,7 @@ const commands = {
   async open(args) {
     const [file] = args.filter((a) => a !== "--launch");
     if (!file) throw new Error("usage: cast.mjs open <cast.json> [--launch]");
-    const url = `${URL_BASE}/?open=${devPath(file)}`;
+    const url = `${URL_BASE}/?open=${devPath(file)}#create`; // #create: the editor, not the front page
     // The app's ?open= unwraps the same shapes frames reads (a spec, {request,
     // spec}, {request, title, playlist}; src/playlist/cast-file.ts). Say which
     // one this is, and refuse a JSON file that would open as a blank page.

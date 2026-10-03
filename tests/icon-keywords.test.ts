@@ -210,7 +210,7 @@ describe("a picture prefers the colour set", () => {
   test("a node's bare keyword: twemoji by its own name, no search", async () => {
     const d = routes({ [iconSvgUrl("twemoji", "kw-frog")]: COLOUR });
     const spec = node({ icon: "kw-frog" });
-    expect(await resolveIcons(spec, d)).toEqual([{ id: "b", ok: true }]);
+    expect(await resolveIcons(spec, d)).toMatchObject([{ id: "b", ok: true }]);
     expect(spec.elements![0].credit).toBe("kw-frog from twemoji · CC BY 4.0");
     expect(d.asked).toEqual([iconSvgUrl("twemoji", "kw-frog")]);
   });
@@ -250,7 +250,7 @@ describe("a picture prefers the colour set", () => {
     await resolveIcons({ elements: [{ ...n }], commands: [] } as unknown as Spec, d1);
     expect(d1.asked.length).toBeGreaterThan(0);
     const d2 = routes({});
-    expect(await resolveIcons({ elements: [{ ...n }], commands: [] } as unknown as Spec, d2)).toEqual([{ id: "b", ok: true }]);
+    expect(await resolveIcons({ elements: [{ ...n }], commands: [] } as unknown as Spec, d2)).toMatchObject([{ id: "b", ok: true }]);
     expect(d2.asked).toEqual([]);
   });
 });

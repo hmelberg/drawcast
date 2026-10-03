@@ -47,3 +47,20 @@ a mostly empty page.
   pinned numbers only when the change is the intended one, and say so in the commit.
 - Before/after frames of representative casts (examples + library/quiz) for the touched area,
   every tile viewed; a short note of what changed and what was checked.
+
+## Round 2 — quiz features (agreed 2026-10-04)
+
+Every feature ships with at least one bundled example (src/examples.json, zero lint warnings)
+and a short line in the compiler prompt.
+
+| # | Feature | Notes |
+|---|---|---|
+| W8 | On-canvas answer buttons (`quiz.on_canvas`) | True/Myth and yes/no runs without the modal; placed below-right of the figure |
+| W9 | `size_compare` template | same-scale comparisons: beside / inside / overlay, ratio label, "how many fit" |
+| W10 | Icon fallbacks + honest check | lists of keywords, a search order across sets, a warning instead of a blank or a wrong stand-in |
+| W11 | Reveal stamps | `reveal` on a question draws a short stamp beside the answer, landing WITH the right/wrong line |
+| W12 | `sequence` group | a run of pictures: the current one large in the centre, the done ones as a small row (progress) |
+| W13 | Odd one out; spot it on the picture | choose-based; picture regions / maps / anatomy parts |
+| W14 | Bar reorder | `bar_chart` re-sorts its bars on an animate (`sort: true`) — "English jumps to first" |
+| W15 | Estimate slider; steps in order | a big counter/slider scored by closeness; ordering with a first→last timeline look |
+| W16 | Confidence bet; poll-and-compare; before/after guess example | bet scored for calibration; poll compares with study numbers (viewers' own answers need backend counting — later) |

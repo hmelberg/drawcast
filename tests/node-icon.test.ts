@@ -28,11 +28,11 @@ type Leaf = Exclude<Drawable, { kind: "group" }>;
 describe("resolveIcons fills a node's icon_strokes", () => {
   test("a keyword icon on a node", async () => {
     const spec = node({ icon: "node-shark" });
-    const r = await resolveIcons(spec, deps({ [iconSearchUrl("node-shark", DEFAULT_PREFIXES)]: { icons: ["lucide:fish"] }, [iconSvgUrl("lucide", "fish")]: SVG }));
-    expect(r).toEqual([{ id: "b", ok: true }]);
+    const r = await resolveIcons(spec, deps({ [iconSearchUrl("node-shark", DEFAULT_PREFIXES)]: { icons: ["lucide:node-shark"] }, [iconSvgUrl("lucide", "node-shark")]: SVG }));
+    expect(r).toMatchObject([{ id: "b", ok: true, of: "node-shark", icon: "lucide:node-shark" }]);
     const el = spec.elements![0];
     expect(iconRingsOf(el.icon_strokes!)!.length).toBe(1);
-    expect(el.credit).toBe("fish from lucide · ISC");
+    expect(el.credit).toBe("node-shark from lucide · ISC");
   });
   test("{of, set} goes straight to the named set; a logo set is refused, no strokes", async () => {
     const ok = node({ icon: { of: "node fish", set: "tabler" } });
@@ -44,7 +44,7 @@ describe("resolveIcons fills a node's icon_strokes", () => {
   });
   test("already resolved: nothing fetched; a node without icon is not reported", async () => {
     const spec = { elements: [{ id: "b", type: "node", shape: "rect", text: "x", icon: "shark", icon_strokes: STROKES }, { id: "c", type: "node", text: "y" }], commands: [] } as unknown as Spec;
-    expect(await resolveIcons(spec, deps({}))).toEqual([{ id: "b", ok: true }]);
+    expect(await resolveIcons(spec, deps({}))).toMatchObject([{ id: "b", ok: true }]);
   });
 });
 

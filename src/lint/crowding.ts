@@ -130,7 +130,7 @@ export function castOwnIds(spec: Spec, minted: Record<string, string[]> = {}): (
   return (id) => own.has(id) || SUB_SUFFIXES.some((s) => id.endsWith(`_${s}`) && own.has(id.slice(0, -(s.length + 1))));
 }
 
-/** Top-level id → the population or deck it belongs to (its sets and legend, or its cards and boxes, are one figure). */
+/** Top-level id → the population, deck or number line it belongs to (its sets and legend, its cards and boxes, its tick numbers are one figure). */
 export function populationFigures(spec: Spec, minted: Record<string, string[]> = {}): (id: string) => string | undefined {
   const of = new Map<string, string>();
   for (const e of spec.elements ?? []) if (e.type === "population") for (const k of minted[e.id] ?? []) of.set(k, e.id);
@@ -139,7 +139,12 @@ export function populationFigures(spec: Spec, minted: Record<string, string[]> =
   // expanded spec keeps the flag on the cards' group.)
   const decks = (spec.elements ?? []).filter((e) => (e.type === "cards" || e.type === "group") && (e as { deck?: unknown }).deck === true).map((e) => e.id);
   const deckOf = (id: string) => decks.find((d) => id === d || new RegExp(`^${d.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}_(\\d+|bin_\\d+)(_|$)`).test(id));
-  return (id) => of.get(id) ?? deckOf(id);
+  // A number line's tick numbers and its unit are its axis — one figure, as a
+  // chart template's axis numbers are (spec/scale.ts; the expanded scale is
+  // the group that carries min and max).
+  const scales = (spec.elements ?? []).filter((e) => e.type === "group" && typeof e.min === "number" && typeof e.max === "number" && (e.members ?? []).includes(`${e.id}_line`)).map((e) => e.id);
+  const scaleOf = (id: string) => scales.find((sc) => id.startsWith(`${sc}_`) && /^_(tick_\d+_num|unit)$/.test(id.slice(sc.length)));
+  return (id) => of.get(id) ?? deckOf(id) ?? scaleOf(id);
 }
 
 /**

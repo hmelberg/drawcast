@@ -79122,7 +79122,7 @@
           "type": "text",
           "text": "OECD avg ≈ $5k",
           "x": 558,
-          "y": 310,
+          "y": 296,
           "font_size": 36,
           "style": {
             "color": "#8f887c"
@@ -82374,6 +82374,118 @@
         },
         {
           "speak": "So to find a mammal, ask how it feeds its young, not where it swims or flies."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Which of these foods and animals were first domesticated in the Andes? A tap-all quiz with icons. #interactive",
+    "spec": {
+      "title": "Gifts of the Andes",
+      "elements": [
+        {
+          "id": "andes",
+          "type": "cards",
+          "select": "From the Andes",
+          "items": [
+            {
+              "text": "Potato",
+              "in": true,
+              "icon": "potato"
+            },
+            {
+              "text": "Llama",
+              "in": true,
+              "icon": "llama"
+            },
+            {
+              "text": "Guinea pig",
+              "in": true,
+              "icon": [
+                "guinea pig",
+                "hamster"
+              ]
+            },
+            {
+              "text": "Horse",
+              "in": false,
+              "icon": "horse"
+            },
+            {
+              "text": "Chicken",
+              "in": false,
+              "icon": "chicken"
+            },
+            {
+              "text": "Rice",
+              "in": false,
+              "icon": [
+                "sheaf of rice",
+                "cooked rice"
+              ]
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Gifts of the Andes"
+          }
+        },
+        {
+          "draw": [
+            "andes"
+          ],
+          "speak": "This is about which foods and animals were first tamed high in the Andes, the mountains of western South America."
+        },
+        {
+          "speak": "Farmers there domesticated plants and animals thousands of years before Europeans arrived, and some of them now feed the whole world."
+        },
+        {
+          "ask": {
+            "question": "Which of these were first domesticated in the Andes? Tap every one.",
+            "on": "andes",
+            "store": "a",
+            "right": "All {a.total} right.",
+            "wrong": "{a} of {a.total} on the first try."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "andes_1"
+            ]
+          },
+          "speak": "The potato was first grown near Lake Titicaca, in today's Peru and Bolivia, some eight thousand years ago."
+        },
+        {
+          "speak": "Andean farmers bred thousands of kinds of it, and from there it spread to Europe and the rest of the world."
+        },
+        {
+          "highlight": {
+            "target": [
+              "andes_2",
+              "andes_3"
+            ]
+          },
+          "speak": "In the same mountains, people tamed the llama to carry loads, and the guinea pig to eat."
+        },
+        {
+          "highlight": {
+            "target": [
+              "andes_4",
+              "andes_5",
+              "andes_6"
+            ]
+          },
+          "speak": "The others came from far away: the horse from the grasslands of Central Asia, the chicken from Southeast Asia, and rice from China."
+        },
+        {
+          "speak": "Horses in fact reached the Americas only with the Spanish, in the fifteen hundreds."
+        },
+        {
+          "speak": "So the next time you eat a potato, remember the farmers of the Andes who first grew it."
         }
       ]
     }
