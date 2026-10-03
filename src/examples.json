@@ -83007,5 +83007,535 @@
         }
       ]
     }
+  },
+  {
+    "request": "Three quick questions about planet Earth, each followed by a bet on how sure you are, closing on how well calibrated your bets were. #interactive #short (confidence bet, W16)",
+    "spec": {
+      "title": "How sure are you about planet Earth?",
+      "sources": [
+        {
+          "id": "nasa",
+          "title": "Speed of light and the Sun–Earth distance (sunlight takes about 8 minutes 20 seconds)",
+          "authors": "NASA",
+          "url": "https://science.nasa.gov/sun/facts/",
+          "finding": "Sunlight reaches Earth in about 8 minutes 20 seconds"
+        },
+        {
+          "id": "geo",
+          "title": "Largest desert in the world",
+          "authors": "Geology.com",
+          "url": "https://geology.com/records/largest-desert.shtml",
+          "finding": "Antarctic Desert about 14 million km²; Sahara about 9.2 million km²"
+        },
+        {
+          "id": "usgs",
+          "title": "How much water is there on Earth?",
+          "authors": "USGS Water Science School",
+          "url": "https://www.usgs.gov/special-topics/water-science-school/science/how-much-water-there-earth",
+          "finding": "About 71 percent of Earth's surface is water-covered"
+        }
+      ],
+      "elements": [
+        {
+          "id": "sun",
+          "type": "node",
+          "shape": "circle",
+          "x": 230,
+          "y": 470,
+          "width": 150,
+          "height": 150,
+          "text": "Sun",
+          "style": {
+            "fill": "#f4c84a",
+            "color": "#9a6b00"
+          },
+          "cites": "nasa"
+        },
+        {
+          "id": "earth",
+          "type": "node",
+          "shape": "circle",
+          "x": 770,
+          "y": 470,
+          "width": 60,
+          "height": 60,
+          "style": {
+            "fill": "#6fa8dc",
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "earth_l",
+          "type": "text",
+          "text": "Earth",
+          "x": 770,
+          "y": 405,
+          "font_size": 24
+        },
+        {
+          "id": "ray",
+          "type": "arrow",
+          "from": {
+            "x": 320,
+            "y": 470
+          },
+          "to": {
+            "x": 730,
+            "y": 470
+          },
+          "style": {
+            "color": "#c9a227",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "ray_l",
+          "type": "text",
+          "text": "150 million km",
+          "x": 525,
+          "y": 505,
+          "font_size": 24
+        },
+        {
+          "id": "rain",
+          "type": "text",
+          "text": "A desert: under 250 mm of rain or snow a year",
+          "x": 500,
+          "y": 470,
+          "font_size": 34,
+          "cites": "geo"
+        },
+        {
+          "id": "globe",
+          "type": "node",
+          "shape": "circle",
+          "x": 500,
+          "y": 450,
+          "width": 220,
+          "height": 220,
+          "style": {
+            "fill": "#6fa8dc",
+            "color": "#2f6b8f"
+          },
+          "cites": "usgs"
+        },
+        {
+          "id": "globe_l",
+          "type": "text",
+          "text": "Earth's surface",
+          "x": 500,
+          "y": 310,
+          "font_size": 24
+        }
+      ],
+      "feedback": {
+        "style": "warm",
+        "perfect": "Three of three, and you knew it.",
+        "good": "Good going.",
+        "poor": "Tricky ones, these.",
+        "none": "Earth keeps its secrets today."
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "How sure are you about planet Earth?"
+          }
+        },
+        {
+          "draw": [
+            "sun",
+            "earth",
+            "earth_l"
+          ],
+          "speak": "Three questions about our planet, and after each answer one more: how sure were you? Being right counts, and so does knowing when you are."
+        },
+        {
+          "draw": [
+            "ray",
+            "ray_l"
+          ],
+          "speak": "Sunlight crosses a hundred and fifty million kilometres to reach us. How long does the trip take?"
+        },
+        {
+          "quiz": {
+            "question": "How long does sunlight take to reach Earth?",
+            "choices": [
+              "8 seconds",
+              "8 minutes",
+              "8 hours"
+            ],
+            "correct": 2,
+            "on_canvas": true,
+            "confidence": true,
+            "right": "About eight minutes and twenty seconds, so the Sun you see is the Sun of eight minutes ago."
+          }
+        },
+        {
+          "erase": [
+            "sun",
+            "earth",
+            "earth_l",
+            "ray",
+            "ray_l"
+          ]
+        },
+        {
+          "draw": [
+            "rain"
+          ],
+          "speak": "Next, deserts. A desert is any place where very little rain or snow falls, hot or cold."
+        },
+        {
+          "quiz": {
+            "question": "Which is the largest desert on Earth?",
+            "choices": [
+              "The Sahara",
+              "Antarctica",
+              "The Gobi"
+            ],
+            "correct": 2,
+            "confidence": true,
+            "wrong": "Think cold, not hot.",
+            "right": "Antarctica, about fourteen million square kilometres; the Sahara is about nine."
+          }
+        },
+        {
+          "erase": [
+            "rain"
+          ]
+        },
+        {
+          "draw": [
+            "globe",
+            "globe_l"
+          ],
+          "speak": "Last one. How much of Earth's surface lies under water?"
+        },
+        {
+          "quiz": {
+            "question": "How much of Earth's surface is water?",
+            "choices": [
+              "About half",
+              "About 71%",
+              "About 90%"
+            ],
+            "correct": 2,
+            "on_canvas": true,
+            "confidence": true,
+            "right": "About seventy-one percent, almost all of it ocean.",
+            "buttons_at": {
+              "x": 760,
+              "y": 450
+            },
+            "buttons_layout": "column"
+          }
+        },
+        {
+          "speak": "You got {score} of {score_total}, and your bets were {calib}: a calibration score of {calib.score} out of a hundred."
+        },
+        {
+          "speak": "Feeling sure when you are right, and unsure when you might not be, is a skill of its own."
+        }
+      ]
+    }
+  },
+  {
+    "request": "The ultimatum game: how much would you offer a stranger? Answer, then see what players in a study chose. #interactive #short (poll and compare, W16)",
+    "spec": {
+      "title": "How much would you offer a stranger?",
+      "sources": [
+        {
+          "id": "guth",
+          "title": "An experimental analysis of ultimatum bargaining",
+          "authors": "Güth, Schmittberger & Schwarze",
+          "year": 1982,
+          "doi": "10.1016/0167-2681(82)90011-7",
+          "finding": "The first ultimatum game experiment: many proposers offered an even split"
+        },
+        {
+          "id": "azar",
+          "title": "Beliefs and social behavior in a multi-period ultimatum game",
+          "authors": "Azar, Lahav & Voslinsky",
+          "year": 2015,
+          "doi": "10.3389/fnbeh.2015.00029",
+          "finding": "170 offers: 75 gave 41–50% of the pie, 45 gave 31–40%, 17 gave 21–30%, 23 gave 20% or less, 10 more than half"
+        },
+        {
+          "id": "oost",
+          "title": "Cultural differences in ultimatum game experiments: evidence from a meta-analysis",
+          "authors": "Oosterbeek, Sloof & van de Kuilen",
+          "year": 2004,
+          "doi": "10.1023/B:EXEC.0000026978.14316.74",
+          "finding": "37 papers, 75 results: proposers offer 40% of the pie on average; 16% of offers are rejected"
+        }
+      ],
+      "elements": [
+        {
+          "id": "you",
+          "type": "node",
+          "shape": "person",
+          "x": 170,
+          "y": 510,
+          "width": 90,
+          "height": 140,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "them",
+          "type": "node",
+          "shape": "person",
+          "x": 530,
+          "y": 510,
+          "width": 90,
+          "height": 140,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "you_l",
+          "type": "text",
+          "text": "You",
+          "x": 170,
+          "y": 410,
+          "font_size": 30
+        },
+        {
+          "id": "them_l",
+          "type": "text",
+          "text": "A stranger",
+          "x": 530,
+          "y": 410,
+          "font_size": 30
+        },
+        {
+          "id": "pot",
+          "type": "text",
+          "text": "100 kr",
+          "x": 350,
+          "y": 520,
+          "font_size": 48,
+          "cites": "guth"
+        },
+        {
+          "id": "rule",
+          "type": "text",
+          "text": "They say no: nobody gets a krone",
+          "x": 350,
+          "y": 340,
+          "font_size": 30
+        },
+        {
+          "id": "meta",
+          "type": "text",
+          "text": "37 studies: 40% offered on average",
+          "x": 350,
+          "y": 265,
+          "font_size": 28,
+          "cites": "oost"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How much would you offer a stranger?"
+          }
+        },
+        {
+          "draw": [
+            "you",
+            "you_l",
+            "them",
+            "them_l",
+            "pot"
+          ],
+          "speak": "You get a hundred kroner to share with a stranger, and you decide how much they get."
+        },
+        {
+          "draw": [
+            "rule"
+          ],
+          "speak": "There is one catch: if the stranger says no, neither of you gets anything. This is the ultimatum game, first played by Güth and colleagues in 1982."
+        },
+        {
+          "ask": {
+            "question": "How many of the 100 kroner do you offer the stranger?",
+            "poll": {
+              "choices": [
+                {
+                  "text": "41 to 50",
+                  "share": 0.44
+                },
+                {
+                  "text": "31 to 40",
+                  "share": 0.26
+                },
+                {
+                  "text": "21 to 30",
+                  "share": 0.1
+                },
+                {
+                  "text": "20 or less",
+                  "share": 0.14
+                }
+              ],
+              "source": "azar"
+            },
+            "judge": false,
+            "store": "p",
+            "right": "You and {p.share} of the players in one study chose {p}."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "poll_1_btn_1"
+            ]
+          },
+          "speak": "The most common choice was {p.most}, close to an even split, even though a stranger who takes one krone is better off than one who says no."
+        },
+        {
+          "highlight": {
+            "target": [
+              "poll_1_btn_4"
+            ]
+          },
+          "speak": "Only about one player in seven offered twenty kroner or less, and the lower the offer, the more often it is refused."
+        },
+        {
+          "draw": [
+            "meta"
+          ],
+          "speak": "Across thirty-seven studies, proposers offered about forty percent on average, and about one offer in six was turned down."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rule"
+            ]
+          },
+          "speak": "So a low offer is risky: people will give up money to punish a split they find unfair, and most proposers seem to know it."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How many people die on the world's roads each year? Guess, get a clue, guess again, then see the truth. #interactive #short (before/after revise guess, W16)",
+    "spec": {
+      "title": "How many people die on the world's roads each year?",
+      "sources": [
+        {
+          "id": "who",
+          "title": "Global status report on road safety 2023",
+          "authors": "World Health Organization",
+          "year": 2023,
+          "url": "https://www.who.int/publications/i/item/9789240086517",
+          "finding": "About 1.19 million road traffic deaths a year (2021), 5% fewer than in 2010; the leading killer of people aged 5–29"
+        }
+      ],
+      "elements": [
+        {
+          "id": "roads",
+          "type": "scale",
+          "min": 0,
+          "max": 3000000,
+          "value": 1190000,
+          "label": "Road deaths a year",
+          "cites": "who",
+          "ticks": 3,
+          "y": 300
+        },
+        {
+          "id": "clock",
+          "type": "text",
+          "text": "One road death about every 26 seconds",
+          "x": 500,
+          "y": 580,
+          "font_size": 34,
+          "cites": "who"
+        },
+        {
+          "id": "sum",
+          "type": "text",
+          "text": "31.5 million seconds ÷ 26 ≈ 1.2 million",
+          "x": 500,
+          "y": 500,
+          "font_size": 30
+        },
+        {
+          "id": "trend",
+          "type": "text",
+          "text": "5% fewer than in 2010",
+          "x": 500,
+          "y": 200,
+          "font_size": 28,
+          "cites": "who"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How many people die on the world's roads each year?"
+          }
+        },
+        {
+          "draw": [
+            "roads"
+          ],
+          "speak": "Car crashes rarely make the news unless they are big ones. So how many people die on the world's roads in a year?"
+        },
+        {
+          "ask": {
+            "question": "How many people die on the world's roads each year? Click the line.",
+            "on": "roads",
+            "reveal": false,
+            "store": "g1",
+            "default": "400000",
+            "right": "Hold on to that: {g1}."
+          }
+        },
+        {
+          "draw": [
+            "clock"
+          ],
+          "speak": "Here is a clue. Somewhere in the world, someone dies on a road about every twenty-six seconds, day and night."
+        },
+        {
+          "ask": {
+            "question": "With that clue, how many a year? Guess again.",
+            "on": "roads",
+            "revise": "g1",
+            "store": "g2",
+            "default": "1100000",
+            "relative": true,
+            "tolerance": 0.2,
+            "right": "From {g1} to {g2}: close. The World Health Organization counts about {g2.true}.",
+            "wrong": "From {g1} to {g2}. The World Health Organization counts about {g2.true}."
+          }
+        },
+        {
+          "draw": [
+            "sum"
+          ],
+          "speak": "There are about thirty-one million seconds in a year, so one death every twenty-six seconds comes to about one point two million."
+        },
+        {
+          "highlight": {
+            "target": [
+              "clock"
+            ]
+          },
+          "speak": "Road crashes are the leading killer of children and young people aged five to twenty-nine, and nine in ten of the deaths are in low and middle income countries."
+        },
+        {
+          "draw": [
+            "trend"
+          ],
+          "speak": "The number has fallen a little since 2010, by about five percent, while the world's cars kept multiplying."
+        }
+      ]
+    }
   }
 ]
