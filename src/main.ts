@@ -1511,10 +1511,10 @@ const sidebar = h(
     })(),
     dataRow,
     h("a", { class: "sidebar-row", href: "./help.html", target: "_blank", rel: "noopener" }, "Help"),
-    // The catalogue (registry deliveries 3–4, task 9): a standalone page,
-    // opened in its own tab exactly like Help — entry.ts routes "#browse"
-    // there before it ever reaches this editor.
-    h("a", { class: "sidebar-row", href: "#browse", target: "_blank", rel: "noopener" }, "Browse the catalogue"),
+    // The front page (2026-10-03): drawcasts to watch and find, in its own
+    // tab like Help — bare drawcast.app, which entry.ts routes there before
+    // it ever reaches this editor (the editor itself is #create).
+    h("a", { class: "sidebar-row", href: "./", target: "_blank", rel: "noopener" }, "Browse drawcasts"),
     (() => {
       const b = h("button", { class: "sidebar-row" }, "Sign in with Google");
       accountRow = b;
@@ -6374,4 +6374,6 @@ refreshChips();
 // ensureRendered() and would otherwise mint a bogus history entry the
 // instant the app opens, since lastRenderedText starts out null).
 markRendered(specArea.value);
-showMode(settings.uiMode);
+// Arriving by the front page's Create (drawcast.app/#create, 2026-10-03) is
+// asking for the editor, whatever mode was last used; other arrivals keep it.
+showMode(location.hash === "#create" ? "editor" : settings.uiMode);

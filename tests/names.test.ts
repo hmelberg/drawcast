@@ -14,7 +14,7 @@ describe("the rule is the server's rule", () => {
   // another agent on this same branch — may not have "browse" in it yet.
   test("regex source and reserved prefixes are pinned to server_code/names.py", () => {
     expect(NAME_RE.source).toBe("^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?(?:\\/[a-z0-9-]{1,20})?$");
-    expect([...RESERVED_PREFIXES]).toEqual(["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "browse", "www", "cast", "paste"]);
+    expect([...RESERVED_PREFIXES]).toEqual(["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "browse", "www", "cast", "paste", "create"]);
   });
   test("accepts and normalises", () => {
     expect(normalizeName(" Learn-Russian ")).toBe("learn-russian");
@@ -170,7 +170,7 @@ describe("registerName", () => {
 
 describe("the registration floor", () => {
   test("reserved prefixes still match the server, now including me", () => {
-    expect([...RESERVED_PREFIXES]).toEqual(["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "browse", "www", "cast", "paste"]);
+    expect([...RESERVED_PREFIXES]).toEqual(["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "browse", "www", "cast", "paste", "create"]);
     expect(normalizeName("me")).toBeNull();
     expect(normalizeName("me-too")).toBeNull();
   });

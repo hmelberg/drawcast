@@ -228,6 +228,8 @@ describe("/card/ pictures", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/png");
     expect(res.headers.get("cache-control")).toBe("public, max-age=3600");
+    // The CDN keeps it too: a front page of cards is one call per picture per hour.
+    expect(res.headers.get("netlify-cdn-cache-control")).toBe("public, durable, max-age=3600, stale-while-revalidate=86400");
     expect(res.headers.get("access-control-allow-origin")).toBe("*");
     expect(d.fetched).toContain("https://raw.githubusercontent.com/ann/casts/HEAD/casts/vaccines.png");
   });

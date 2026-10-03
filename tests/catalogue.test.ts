@@ -211,9 +211,9 @@ describe("a link to the catalogue from the app (task 9's own requirement)", () =
     expect(help).toMatch(/costs the same one-time fee as Private,\s+unless you have already paid/);
   });
 
-  test("the editor's sidebar links out to #browse, right beside Help — same target=_blank/rel=noopener pattern", () => {
+  test("the editor's sidebar links out to the front page, right beside Help — same target=_blank/rel=noopener pattern", () => {
     const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
     expect(main).toContain('h("a", { class: "sidebar-row", href: "./help.html", target: "_blank", rel: "noopener" }, "Help")');
-    expect(main).toContain('h("a", { class: "sidebar-row", href: "#browse", target: "_blank", rel: "noopener" }, "Browse the catalogue")');
+    expect(main).toContain('h("a", { class: "sidebar-row", href: "./", target: "_blank", rel: "noopener" }, "Browse drawcasts")');
   });
 });

@@ -169,7 +169,19 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
           // Read whole inside the deadline: a stream still open when the
           // request's signal fires would be cut off mid-picture.
           const bytes = await img.arrayBuffer();
-          return new Response(bytes, { status: 200, headers: { "content-type": "image/png", "cache-control": "public, max-age=3600", "access-control-allow-origin": "*" } });
+          // Netlify-CDN-Cache-Control (2026-10-03): the front page shows a
+          // grid of these, so Netlify's CDN keeps each for an hour (durable:
+          // shared across edge nodes) — one function call per picture per
+          // hour, not one per visitor; browsers still follow cache-control.
+          return new Response(bytes, {
+            status: 200,
+            headers: {
+              "content-type": "image/png",
+              "cache-control": "public, max-age=3600",
+              "netlify-cdn-cache-control": "public, durable, max-age=3600, stale-while-revalidate=86400",
+              "access-control-allow-origin": "*",
+            },
+          });
         }
       }
     } catch {

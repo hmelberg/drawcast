@@ -19,7 +19,7 @@ export const APEX = "drawcast.app";
 export const NAME_LABEL_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
 
 /** Mirrors RESERVED_PREFIXES in src/names.ts and server_code/names.py. */
-export const RESERVED_LABELS = ["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "browse", "www", "cast", "paste"] as const;
+export const RESERVED_LABELS = ["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "browse", "www", "cast", "paste", "create"] as const;
 
 /** A request's host without port, lower-cased. */
 export function bareHost(host: string): string {

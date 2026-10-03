@@ -1,0 +1,133 @@
+// The front page (bare drawcast.app, src/home.ts + src/home/model.ts): its
+// pure half — cards, formats, curated list, search, topic rows — and the
+// routing that puts it at the bare address with the editor at #create.
+import { readFileSync } from "node:fs";
+import { describe, expect, test } from "vitest";
+import type { CatalogueItem } from "../src/catalogue";
+import { isNameHash, normalizeName } from "../src/names";
+import {
+  cardFromCatalogue,
+  cardFromFeatured,
+  FORMAT_CHIPS,
+  homeHref,
+  matchesSearch,
+  mergeCards,
+  parseFeatured,
+  tagRows,
+  thumbUrl,
+  type FeaturedEntry,
+} from "../src/home/model";
+
+const item = (over: Partial<CatalogueItem> = {}): CatalogueItem => ({
+  kind: "cast",
+  title: "Supply and demand",
+  name: "supply-demand",
+  owner: "hmelberg",
+  lectures: 1,
+  updated: "2026-10-01T10:00:00+00:00",
+  private: false,
+  ...over,
+});
+
+describe("the curated list", () => {
+  test("keeps well-formed entries, normalises names and tags, drops the rest", () => {
+    const out = parseFeatured([
+      { name: "QALY-Intro", title: "What is a QALY?", format: "drawcast", tags: [" Health ", "economics", 3] },
+      { name: "qaly-intro", title: "dup", format: "quiz" }, // same name again
+      { name: "gh-x", title: "reserved", format: "drawcast" },
+      { name: "create", title: "the editor's address", format: "drawcast" },
+      { name: "ok", title: "no format" },
+      { name: "ok2", title: "bad format", format: "video" },
+      { name: "qaly-lectures", title: "A course", format: "course", lectures: 5, owner: "ann" },
+      null,
+      "nonsense",
+    ]);
+    expect(out).toEqual([
+      { name: "qaly-intro", title: "What is a QALY?", format: "drawcast", tags: ["health", "economics"] },
+      { name: "qaly-lectures", title: "A course", format: "course", tags: [], owner: "ann", lectures: 5 },
+    ]);
+    expect(parseFeatured({ not: "a list" })).toEqual([]);
+  });
+  test("the shipped list parses whole — nothing in it is silently dropped", () => {
+    const raw = JSON.parse(readFileSync(new URL("../src/home/featured.json", import.meta.url), "utf8")) as unknown[];
+    expect(parseFeatured(raw)).toHaveLength(raw.length);
+  });
+});
+
+describe("cards", () => {
+  const featured = new Map<string, FeaturedEntry>([["supply-demand", { name: "supply-demand", title: "Curated title", format: "quiz", tags: ["economics"] }]]);
+  test("a catalogue cast takes its format and tags from the curated list when curated", () => {
+    expect(cardFromCatalogue(item(), featured)).toEqual({
+      name: "supply-demand",
+      title: "Supply and demand",
+      owner: "hmelberg",
+      format: "quiz",
+      meta: "updated 2026-10-01",
+      private: false,
+      tags: ["economics"],
+    });
+  });
+  test("an uncurated cast has no format yet; a course is always a Course, with its lectures", () => {
+    expect(cardFromCatalogue(item({ name: "other" }), featured).format).toBeUndefined();
+    const c = cardFromCatalogue(item({ kind: "course", name: "qaly", lectures: 5 }), featured);
+    expect(c.format).toBe("course");
+    expect(c.meta).toBe("5 lectures · updated 2026-10-01");
+  });
+  test("an untitled item falls back to the curated title, then its name", () => {
+    expect(cardFromCatalogue(item({ title: "" }), featured).title).toBe("Curated title");
+    expect(cardFromCatalogue(item({ title: "", name: "bare" }), featured).title).toBe("bare");
+  });
+  test("a curated course says its lectures; links stay on this page; pictures come from the card function", () => {
+    expect(cardFromFeatured({ name: "c", title: "C", format: "course", tags: [], lectures: 1 }).meta).toBe("1 lecture");
+    expect(homeHref("qaly-intro")).toBe("#qaly-intro");
+    expect(thumbUrl("qaly-intro")).toBe("https://drawcast.app/card/qaly-intro.png");
+  });
+  test("merging keeps the first card for a name — curated wording wins", () => {
+    const a = cardFromFeatured({ name: "x", title: "Curated", format: "drawcast", tags: [] });
+    const b = cardFromCatalogue(item({ name: "x", title: "Catalogue" }), new Map());
+    const c = cardFromCatalogue(item({ name: "y" }), new Map());
+    expect(mergeCards([a], [b, c]).map((k) => k.title)).toEqual(["Curated", "Supply and demand"]);
+  });
+});
+
+describe("search and topic rows", () => {
+  const card = cardFromFeatured({ name: "q", title: "What is a QALY?", format: "drawcast", tags: ["health economics"] });
+  test("every word must appear in the title or a tag, any case", () => {
+    expect(matchesSearch(card, "qaly")).toBe(true);
+    expect(matchesSearch(card, "QALY health")).toBe(true);
+    expect(matchesSearch(card, "qaly vaccine")).toBe(false);
+    expect(matchesSearch(card, "  ")).toBe(true);
+  });
+  test("a topic row is a tag two or more curated drawcasts share, most used first", () => {
+    const e = (name: string, tags: string[]): FeaturedEntry => ({ name, title: name, format: "drawcast", tags });
+    const rows = tagRows([e("a", ["health", "stats"]), e("b", ["health"]), e("c", ["stats", "health"]), e("d", ["solo"])]);
+    expect(rows.map((r) => [r.tag, r.entries.map((x) => x.name)])).toEqual([
+      ["health", ["a", "b", "c"]],
+      ["stats", ["a", "c"]],
+    ]);
+  });
+  test("the chips: All, the three formats, and Courses", () => {
+    expect(FORMAT_CHIPS.map((c) => c.label)).toEqual(["All", "Drawcasts", "Quiz", "Xplanations", "Courses"]);
+  });
+});
+
+describe("routing", () => {
+  const entry = readFileSync(new URL("../src/entry.ts", import.meta.url), "utf8");
+  const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
+  const home = readFileSync(new URL("../src/home.ts", import.meta.url), "utf8");
+  test("bare drawcast.app is the front page, checked before every other route", () => {
+    const at = entry.indexOf('if (hash === "" || hash === "#") {');
+    expect(at).toBeGreaterThan(0);
+    expect(entry.slice(at, at + 200)).toContain('await import("./home")');
+    expect(at).toBeLessThan(entry.indexOf('hash === "#browse"'));
+  });
+  test("#create is the editor: a reserved name, so it falls through to the app", () => {
+    expect(normalizeName("create")).toBeNull();
+    expect(isNameHash("#create")).toBe(false);
+    expect(main).toContain('showMode(location.hash === "#create" ? "editor" : settings.uiMode);');
+  });
+  test("the front page never loads the editor", () => {
+    expect(home).not.toMatch(/from "\.\/main"|import\("\.\/main"\)/);
+    expect(home).toContain('href: "#create"');
+  });
+});
