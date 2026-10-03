@@ -919,8 +919,14 @@ export interface AskArgs {
   right?: string;
   /** Spoken on a wrong attempt (check mode only). */
   wrong?: string;
-  /** Check mode: speak the correct answer after a final wrong attempt (default true). */
-  reveal?: boolean;
+  /** Check mode: speak the correct answer after a final wrong attempt (default true).
+   *  A string or an object instead: a reveal STAMP (spec/reveal-stamps.ts) —
+   *  the short verdict drawn beside the figure as the answer is revealed. */
+  reveal?: boolean | Exclude<RevealArg, boolean>;
+  /** Where the reveal stamp goes: an element id (beside it) or the stamp's centre. */
+  reveal_at?: string | { x: number; y: number };
+  /** Machine-written (spec/reveal-stamps.ts), never authored: the stamp element this question lands. */
+  reveal_stamp?: string;
   /** Check mode: clear the field and ask again after a wrong attempt (default false). */
   retry?: boolean;
   /** Store the typed response under this name; later speak lines may use {name}. */
@@ -1097,7 +1103,22 @@ export interface QuizArgs {
   say_question?: boolean;
   /** on_canvas: the buttons stay after the answer (default: they fade). */
   keep_buttons?: boolean;
+  /** A reveal STAMP (spec/reveal-stamps.ts): a short verdict drawn beside the
+   *  figure as the answer is revealed — true = the correct choice's words. */
+  reveal?: RevealArg;
+  /** Where the reveal stamp goes: an element id (beside it) or the stamp's centre. */
+  reveal_at?: string | { x: number; y: number };
+  /** Machine-written (spec/reveal-stamps.ts), never authored: the stamp element this question lands. */
+  reveal_stamp?: string;
 }
+
+/** A question's reveal stamp (spec/reveal-stamps.ts): its words, or the words
+ *  with a pin, a colour, a text size, the plain-label look, and `keep` (it
+ *  stays when the figure it is beside goes). */
+export type RevealArg =
+  | boolean
+  | string
+  | { text?: string; at?: string | { x: number; y: number }; color?: string; size?: number; style?: "stamp" | "label"; keep?: boolean };
 
 /**
  * A var (design 2026-09-29 live math): a plain number, or the number with

@@ -11,6 +11,7 @@ import { codeDrawables, type CodeWindow } from "./code";
 import { UNIVERSAL_ANCHORS, boxAnchor, isUniversalAnchor, polygonAnchors, polylineAnchors, ptsBox, sectorAnchors } from "./anchors";
 import { boxOfId, unionBoxes } from "./boxes";
 import { placeAnswerButtons } from "./answer-buttons";
+import { placeRevealStamps } from "./reveal-stamps";
 import { fitTransform, ownBBox, pickSide, placementOrder, refBBox, relAt, relativeDelta, scaleDrawables, shiftDrawables, shiftPoints } from "./place";
 import { autoRow, placeDelta } from "./places";
 import { arrangementScale, bestColumns, DEFAULT_GAP, naturalNodeSize, NODE_ICON_EXTRA, nodeFontSize, nodeIconRings, nodeRectHeight, slotCentres, type GroupLayout } from "./group-layout";
@@ -930,6 +931,7 @@ export function layoutElements(
 
   placeFormulaTiles(elements, drawables, ctx, measure);
   placeAnswerButtons(elements, drawables, ctx, measure);
+  placeRevealStamps(elements, drawables, ctx, measure, opts.seedDrawables);
 
   // A label attached to an OUTLINE (a path, shape, polygon or ellipse) with
   // a side the author chose goes on that side of the outline's box, not
