@@ -194,3 +194,19 @@ describe("a prediction on a sorted chart", () => {
     expect(mine.some((m) => { const c = Math.min(...xs(m)); return c > 100 - 40 + 5 && c < 300 - 40 - 5; })).toBe(true);
   });
 });
+
+describe("the value over the first bar clears the y caption", () => {
+  test("a page heading puts the caption beside the arrow: the scale makes room", () => {
+    const spec = {
+      ...chart({ stage: 1, value_labels: true, y_label: "Speakers (millions)", values: [[990, 484, 390, 345], [1184, 558, 1528, 609]] }),
+      commands: [{ card: { title: "Which languages have the most speakers?" } }],
+    } as unknown as Spec;
+    const l = layoutSpec(expandSpec(spec));
+    const cap = all(l).find((d) => d.id === "axes__y_label") as TextDrawable;
+    const top = all(l).find((d) => d.id === "bar_3__v0") as TextDrawable;
+    expect(top.text).toBe("1528");
+    // The value's top stays under the caption's bottom.
+    expect(top.pos[1] + 20 * 0.625).toBeLessThanOrEqual(cap.pos[1] - 22 * 0.625);
+    expect(l.issues.filter((i) => /overlap/.test(i.message))).toEqual([]);
+  });
+});
