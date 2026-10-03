@@ -1666,7 +1666,7 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
     if (icon) {
       // Round 5 §3.3: the icon sits in the upper part of the box, the text
       // below it. nodeIconLayout is the one place both are placed.
-      const at = nodeIconLayout(c, h);
+      const at = nodeIconLayout(c, h, text ? text.split("\n").length * fontSize * 1.25 : 0);
       const picture = iconLookOf(el) === "picture" ? iconPictureOf(el.icon_strokes, style.color) : null;
       out.push(nodeIconGroup(el.id, icon, at.icon, at.size, style, drawOpts, picture));
       if (text) out.push(nodeText(el.id, at.text, text, fontSize, drawOpts));
@@ -1717,8 +1717,9 @@ const NODE_ICON_SHARE = 0.45;
 const NODE_ICON_TOP = 0.08;
 
 /** Where a rect node's icon (its centre and side) and its text go, in a box of height h centred on c (y-up). */
-function nodeIconLayout(c: Pt, h: number): { icon: Pt; size: number; text: Pt } {
-  const size = NODE_ICON_SHARE * h;
+function nodeIconLayout(c: Pt, h: number, textH = 0): { icon: Pt; size: number; text: Pt } {
+  // Two lines of text (a card's, spec/cards.ts) take their room first: the icon gives way.
+  const size = Math.max(0, Math.min(NODE_ICON_SHARE * h, h * (1 - 2 * NODE_ICON_TOP) - textH));
   const top = c[1] + h / 2;
   const iconBottom = top - NODE_ICON_TOP * h - size;
   return { icon: [c[0], top - NODE_ICON_TOP * h - size / 2], size, text: [c[0], (iconBottom + (c[1] - h / 2)) / 2] };

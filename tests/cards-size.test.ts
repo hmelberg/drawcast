@@ -74,7 +74,7 @@ describe("alone on the page: larger, up to ×1.6, inside the content area", () =
       expect(e.left).toBeGreaterThanOrEqual(MARGIN - 0.5);
       expect(e.right).toBeLessThanOrEqual(PAGE_W - MARGIN + 0.5);
       // Grown only as far as it fits whole (a set that does not fit at size 1 is made smaller, as with company).
-      if ((back.size ?? 1) > 1) expect(g.squeezed).toBeUndefined();
+      if (Number(back.size ?? 1) > 1) expect(g.squeezed).toBeUndefined();
     }
   });
   test("no heading (no card, no title): the strip is the cards' too", () => {

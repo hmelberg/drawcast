@@ -27,7 +27,7 @@ import type { BBox } from "../layout/geometry";
 import { FIGURE_GROUND } from "../layout/ink";
 import { authoredScales, scaleGeometry, type ScaleElementLike, type ScaleGeometry } from "./scale";
 import { wrapText } from "../layout/labels";
-import { heuristicMeasure } from "../layout/measure";
+import type { MeasureFn } from "../layout/measure";
 import { CAPTION_TOP, CONTENT_TOP, CONTENT_TOP_BARE, MARGIN, PAGE_W } from "../layout/page";
 
 export interface CardItem {
@@ -354,6 +354,9 @@ export const SIZE_MAX = 2;
 
 /** A card's text keeps this far from either side of the card (× the size). */
 const TEXT_PAD = 5;
+/** A card's words as the hand font draws them: about 0.46 em a letter (the
+ *  layout's heuristic, 0.52, is a safe bound that would wrap words that fit). */
+const cardMeasure: MeasureFn = (text, fontSize) => ({ w: Math.max(1, text.length) * fontSize * 0.46, h: fontSize * LINE_H });
 /** A line of card text, as a share of its font (the text drawable's own line advance). */
 const LINE_H = 1.25;
 /** Card text is made no smaller than this to fit: past it a long word runs over the edge. */
@@ -379,8 +382,8 @@ export interface CardTextFit {
  */
 export function fitCardTexts(texts: string[], w: number, font: number, k = 1): CardTextFit {
   const room = Math.max(1, w - 2 * TEXT_PAD * k);
-  const wrap = (f: number): string[][] => texts.map((t) => wrapText(t, f, room, heuristicMeasure));
-  const fits = (ls: string[], f: number): boolean => ls.length <= 2 && ls.every((l) => heuristicMeasure(l, f).w <= room);
+  const wrap = (f: number): string[][] => texts.map((t) => wrapText(t, f, room, cardMeasure));
+  const fits = (ls: string[], f: number): boolean => ls.length <= 2 && ls.every((l) => cardMeasure(l, f).w <= room);
   let f = font;
   let lines = wrap(f);
   // Three lines at the set's own font: the lint asks for fewer words (a long single word only shrinks).
