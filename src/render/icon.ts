@@ -542,7 +542,7 @@ const familyOf = (set: string): IconLook => (PICTURE_PREFIXES.includes(set) ? "p
 /** The ink sets, in tier order (twemoji is colour, whatever its tier). */
 const INK_PREFIXES = TIERS.flatMap((t) => t.prefixes).filter((p) => !PICTURE_PREFIXES.includes(p));
 
-/** An icon from one of `sets` with a well-named match only (a colour set: by name, or an exact name), or null. */
+/** An icon from one of `sets` by the same name only (a colour set: by name too), or null: a change of style must never change the thing ("pyramid" is not game-icons' "ball-pyramid"). */
 async function findIn(deps: IconDeps, req: IconAsk, sets: string[]): Promise<Got | null> {
   const alts = req.or ?? [];
   const colour = sets.every((s) => PICTURE_PREFIXES.includes(s));
@@ -556,7 +556,7 @@ async function findIn(deps: IconDeps, req: IconAsk, sets: string[]): Promise<Got
   }
   for (const q of searchQueries(req.of, alts)) {
     const h = await searchBest(deps, q, sets, ["permissive", "by"]);
-    if (!h || h.score < (colour ? EXACT : STRONG)) continue;
+    if (!h || h.score < EXACT) continue;
     const svg = await fetchSvg(deps, h.prefix, h.name);
     if (svg !== null) return gotOf(h.prefix, h.name, svg);
   }

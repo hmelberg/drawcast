@@ -125,4 +125,22 @@ describe("the weak-match rule", () => {
     const r = await resolveIcons(spec as never, deps(routes));
     expect(r[2]).toMatchObject({ ok: true, icon: "tabler:kf-ziggurat" });
   });
+
+  test("harmonising asks the main set for the same name only: a pyramid never becomes a ball pyramid", async () => {
+    const drawn = (id: string, of: string) => ({ id, type: "icon", of, x: 1, y: 1 });
+    const spec = { elements: [drawn("a", "kf-cone"), drawn("b", "kf-cube"), drawn("c", "kf-pyr")], commands: [] };
+    const BY = ["fa6-solid", "fa6-regular", "twemoji", "game-icons"];
+    const routes = {
+      [iconSearchUrl("kf-cone", BY)]: { icons: ["game-icons:kf-cone"] },
+      [iconSvgUrl("game-icons", "kf-cone")]: SVG,
+      [iconSearchUrl("kf-cube", BY)]: { icons: ["game-icons:kf-cube"] },
+      [iconSvgUrl("game-icons", "kf-cube")]: SVG,
+      [iconSearchUrl("kf-pyr", DEFAULT_PREFIXES)]: { icons: ["tabler:kf-pyr"] },
+      [iconSvgUrl("tabler", "kf-pyr")]: SVG,
+      [iconSearchUrl("kf-pyr", ["game-icons"])]: { icons: ["game-icons:ball-kf-pyr"] },
+      [iconSvgUrl("game-icons", "ball-kf-pyr")]: SVG,
+    };
+    const r = await resolveIcons(spec as never, deps(routes));
+    expect(r.map((x) => x.icon)).toEqual(["game-icons:kf-cone", "game-icons:kf-cube", "tabler:kf-pyr"]);
+  });
 });

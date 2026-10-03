@@ -433,6 +433,31 @@ async function registerPublished(origin, wd, session, verify) {
   return { note, rate };
 }
 
+/**
+ * check's icon lines: what each icon resolved to (set:name, and the fallback
+ * that found it), printed before the lint; a keyword with no icon comes back
+ * as a warning issue, with how to give fallbacks — never a blank card found
+ * only in the frames.
+ */
+function iconReport(results, spec) {
+  if (!results?.length) return [];
+  const iconEls = new Set((spec.elements ?? []).filter((e) => e.type === "icon").map((e) => e.id));
+  const lines = [], issues = [];
+  for (const r of results) {
+    const asked = r.of ? `"${r.of}"` : r.id;
+    if (r.ok) {
+      lines.push(`  ${r.id} ${asked} → ${r.icon ?? "(kept)"}${r.via ? ` via fallback "${r.via}"` : ""}`);
+      continue;
+    }
+    lines.push(`  ${r.id} ${asked} → NOTHING (blank)`);
+    const how = iconEls.has(r.id) ? `"or": ["…", "…"] on the icon` : `"icon": [${JSON.stringify(r.of ?? "…")}, "…"]`;
+    const why = r.error && !/^no icon found/.test(r.error) ? ` (${r.error})` : / \(nearest: .*\)$/.test(r.error ?? "") ? ` ${r.error.slice(r.error.indexOf("(nearest"))}` : "";
+    issues.push({ severity: "warning", message: `no icon for ${asked} (${r.id}) — it would draw BLANK${why}; give alternatives: ${how}, or draw it by hand` });
+  }
+  console.log(`icons (${results.filter((r) => r.ok).length} of ${results.length} found):\n${lines.join("\n")}`);
+  return issues;
+}
+
 const commands = {
   async prompt([request, out]) {
     if (!request) throw new Error('usage: cast.mjs prompt "<request>" [out.md]');
@@ -1565,14 +1590,17 @@ const commands = {
       // Iconify through the scripts' disk cache and retry (icon-fetch.mjs).
       const { resolveIcons, defaultDeps } = await load("/src/render/icon.ts");
       const withIcons = structuredClone(spec);
-      await resolveIcons(withIcons, { ...defaultDeps(), fetch: nodeFetch(iconFetcher({ dir: iconCacheDir(ROOT) })) }).catch(() => {});
+      const iconResults = await resolveIcons(withIcons, { ...defaultDeps(), fetch: nodeFetch(iconFetcher({ dir: iconCacheDir(ROOT) })) }).catch((err) => [{ id: "icons", ok: false, error: String(err) }]);
+      const iconIssues = iconReport(iconResults, spec);
       const ex = expandSpec(withIcons);
       const laid = layoutAsSeen(ex, heuristicMeasure); // at the cast's text scale, as drawn
       // The layout's own warnings too (a label moved off other ink, …): the
       // bundled-examples gate fails on them, so an author must see them here.
       // Crowding (texts on the page at once, small print) is checked by the
       // app's generation too — advisory; the examples gate does not read it.
-      const issues = [...laid.issues, ...(laid.warnings ?? []).map((message) => ({ severity: "warning", message })), ...lintCommands(ex), ...lintCrowding(laid, ex)];
+      // The layout's own "no icon for X" repeats what iconReport said, less helpfully.
+      const layoutWarnings = (laid.warnings ?? []).filter((m) => !(iconIssues.length > 0 && /^no icon for "/.test(m)));
+      const issues = [...iconIssues, ...laid.issues, ...layoutWarnings.map((message) => ({ severity: "warning", message })), ...lintCommands(ex), ...lintCrowding(laid, ex)];
       const speaks = (spec.commands ?? []).filter((c) => typeof c.speak === "string").length;
       console.log(`valid · ${speaks} spoken lines · ${(spec.elements ?? []).length} elements${spec.template ? ` · template ${spec.template}` : ""}`);
       console.log(issues.length ? issues.map((i) => `  [${i.severity}] ${i.message}`).join("\n") : "  lint clean (heuristic metrics — frames gives the browser's)");
