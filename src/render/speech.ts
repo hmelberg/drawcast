@@ -243,7 +243,8 @@ export class SpeechManager {
    * configured rate. Falls back to a timed wait on error/unavailability.
    */
   protected speakOne(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
-    const d = opts?.delivery ? DELIVERY[opts.delivery] : null;
+    // A retired hint (`soft`, 2026-09-21) finds no entry: plain speech.
+    const d = opts?.delivery ? (DELIVERY[opts.delivery] ?? null) : null;
     const deliveryRate = d?.rate ?? 1;
     const estimate = SpeechManager.estimateMs(text) / (speedMultiplier * deliveryRate);
     if (!this.synth || signal?.aborted) {

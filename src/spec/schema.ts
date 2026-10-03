@@ -1615,6 +1615,10 @@ export function normalizeSpec(spec: unknown): unknown {
   }
   for (const cmd of clone.commands ?? []) {
     if (!cmd) continue;
+    // `soft` left `delivery` on 2026-09-21 (75237fe7) with no migration, and
+    // published casts still carry it: read as no hint, never as a cast that
+    // will not open (15 of hmelberg/dcast's did not, 2026-10-03).
+    if ((cmd as { delivery?: unknown }).delivery === "soft") delete (cmd as { delivery?: unknown }).delivery;
     // A cue's resolution is a WORD of the line it is written in — speech has
     // no sub-word timing, and a cue between two letters would print with the
     // action wedged inside a word. So it snaps to the nearest gap between

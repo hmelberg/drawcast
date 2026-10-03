@@ -27,7 +27,7 @@ export function lineMs(text: string, delivery: Delivery | undefined): number {
   // The SPOKEN length, so the brackets of a `[de:ich]` mark are not counted
   // as syllables — an estimate taken over the raw string runs long and fires
   // every cue in the line late.
-  return SpeechManager.estimateMs(stripLangMarks(text)) / (delivery ? DELIVERY[delivery].rate : 1);
+  return SpeechManager.estimateMs(stripLangMarks(text)) / (delivery ? (DELIVERY[delivery]?.rate ?? 1) : 1);
 }
 
 export function cueStartMs(

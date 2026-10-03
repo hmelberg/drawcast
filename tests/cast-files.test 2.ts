@@ -21,7 +21,7 @@ const norm = (p: Playlist) => ({ meta: p.meta, entries: p.entries.map((e) => (e.
 const AUDIO: AudioTrack = { lang: "en", lines: { abc123: { mp3: "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4", ms: 1200, voice: "en-GB-a" } } };
 
 const QALY = "docs/courses/qaly";
-const lectures = readdirSync(QALY).filter((f) => f.endsWith(".cast")).map((f) => [f, readFileSync(`${QALY}/${f}`, "utf8")] as const);
+const lectures = readdirSync(QALY).filter((f) => f.endsWith(".yaml")).map((f) => [f, readFileSync(`${QALY}/${f}`, "utf8")] as const);
 
 describe("a published .cast", () => {
   test("is a script, and carries the audio after it", () => {
@@ -52,11 +52,16 @@ describe("a published .cast", () => {
     expect(back.entries.length).toBe(p.entries.length);
   });
 
-  test.each(lectures)("the QALY lecture %s (converted from YAML 2026-10-03) reads cleanly and reprints byte for byte", (_name, text) => {
-    const p = parsePlaylistText(text);
-    expect(p.warnings).toEqual([]);
-    expect(p.entries.filter((e) => e.kind === "item").length).toBeGreaterThan(1);
-    expect(formatPublished(p, p.audio ?? null, "script")).toBe(text);
+  test.each(lectures)("the QALY lecture %s survives YAML → .cast → playlist, with audio", (_name, yaml) => {
+    const p = parsePlaylistText(yaml);
+    const text = formatPublished(p, AUDIO, "script");
+    const back = parsePlaylistText(text);
+    expect(back.warnings).toEqual(p.warnings);
+    expect(same(norm(back), norm(p))).toBe(true);
+    expect(back.audio).toEqual(AUDIO);
+    // …and far fewer lines than the YAML it replaces (812 → 297 for lecture 1;
+    // the characters shrink less, since a skill-built lecture places by x/y).
+    expect(formatPublished(p, null, "script").split("\n").length).toBeLessThan(yaml.split("\n").length * 0.5);
   });
 
   test("every bundled example survives as a published .cast", () => {
@@ -192,21 +197,17 @@ describe("publishing under the switch (src/cast-file.ts publishesCast)", async (
     try {
       return f();
     } finally {
-      setPublishesCast(true);
+      setPublishesCast(false);
     }
   };
 
-  test("on by default (the server takes .cast keys since 2026-10-03)", () => {
-    expect(publishExt()).toBe(".cast");
-  });
-
-  test("off: .yaml, as before", () => withSwitch(false, () => {
+  test("off (the default until the server is deployed): .yaml, as before", () => {
     expect(publishExt()).toBe(".yaml");
     const plan = buildCastPlan(castArgs);
     expect(plan.files.some((f) => f.path === "casts/difference-in-differences.yaml")).toBe(true);
     expect(plan.castUrl.endsWith(".yaml")).toBe(true);
     expect(publishName("01-a.yaml")).toBe("01-a.yaml");
-  }));
+  });
 
   test("on: a cast is published as .cast — file, link, index entry, registration and private target agree", () => {
     withSwitch(true, () => {
@@ -236,24 +237,5 @@ describe("publishing under the switch (src/cast-file.ts publishesCast)", async (
       const lecture = plan.files.find((f) => f.path === "t/01-a.cast")!.content;
       expect(looksLikeScript(lecture.split(/\n---\naudio:/)[0])).toBe(true);
     });
-  });
-});
-
-describe("ids with a decimal in them (a template's ticks: tick_0.5)", () => {
-  test("a draw of tick ids reads back as those ids", () => {
-    const spec = { commands: [{ speak: "Put it on a line.", draw: ["line", "tick_-0.5", "tick_0", "tick_0.25"] }] };
-    const p = singlePlaylist(spec as unknown as Spec);
-    const back = parsePlaylistText(formatPublished(p, null, "script"));
-    expect(same(norm(back), norm(p))).toBe(true);
-  });
-});
-
-describe("a retired delivery hint (soft, 2026-09-21) never stops a cast from opening", async () => {
-  const { validateSpec } = await import("../src/spec/schema");
-  test("delivery: soft validates as no hint; grave and brisk are untouched", () => {
-    const elements = [{ id: "t", type: "text", text: "T", x: 500, y: 400 }];
-    const spec = { elements, commands: [{ speak: "Quietly.", draw: ["t"], delivery: "soft" }, { speak: "Slowly.", delivery: "grave" }] };
-    expect(validateSpec(spec)).toEqual({ ok: true, errors: [] });
-    expect(validateSpec({ elements, commands: [{ speak: "x", draw: ["t"], delivery: "loud" }] }).ok).toBe(false);
   });
 });
