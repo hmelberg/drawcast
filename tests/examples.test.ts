@@ -261,7 +261,7 @@ describe("bundled examples stay exemplary", () => {
   // until revised; the list only shrinks, and an entry leaves it the day it
   // lints clean at scale.
   const PENDING_AT_SCALE = new Set<string>([
-    // text.font_size 36: the card title runs off the top, axis labels and country labels collide.
+    // text.font_size 36: axis labels and country labels collide (the card title no longer runs off the top).
     "How much do rich countries spend on health, and does spending more buy longer lives? #interactive",
   ]);
   test.each(cases)("%s — lays out with no lint issue at all, not even a warning", (req, spec) => {

@@ -13,6 +13,7 @@
 import type { Drawable } from "./model";
 import type { LayoutResult } from "./layout";
 import type { MeasureFn } from "./measure";
+import { HEADING_Y, headingFont } from "./page";
 
 /** CSS generic families — the vocabulary the compiler prompt teaches. */
 export type TextFamily = "cursive" | "sans-serif" | "monospace";
@@ -107,7 +108,14 @@ export function applyTextStyle(layout: LayoutResult, style: TextStyle): LayoutRe
     // is a picture of text (spec 2026-09-17-inset §4.6).
     if (d.kind === "group" && d.role === "inset") return d;
     if (d.kind === "group") return { ...d, children: d.children.map(walk) };
-    if (d.kind === "text") return { ...d, fontSize: d.fontSize * style.scale, family: style.family, weight: style.weight };
+    if (d.kind === "text") {
+      // The top heading is sized for the page's width (spec/card.ts
+      // headingElements): never drawn larger than that, whatever the text
+      // size — a viewer's 48 would push it through the top edge.
+      const size = d.fontSize * style.scale;
+      const capped = /^card_\d+_title$/.test(d.id) && d.pos[1] === HEADING_Y ? Math.min(size, headingFont(d.text)) : size;
+      return { ...d, fontSize: capped, family: style.family, weight: style.weight };
+    }
     return d;
   };
   return { ...layout, drawables: layout.drawables.map(walk) };

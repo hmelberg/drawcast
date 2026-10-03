@@ -115,11 +115,11 @@ describe("fix round 1: doc().narrationUsd is priced by creditBakeCost, not bakeC
     expect(course).toContain("narrationCost: costLabel(addCosts(doneLectureCosts(course)))");
     expect(course).toContain("narrationUsd: addCosts(doneLectureCreditCosts(course)).usd");
     const fn = course.slice(course.indexOf("function doneLectureCreditCosts("), course.indexOf("function syncBusy("));
-    expect(fn).toContain("creditBakeCost(playlistSpeakLines(playlist), settings.cloudVoices, declaredLang)");
+    expect(fn).toContain("creditBakeCost(playlistBakeLines(playlist), settings.cloudVoices, declaredLang)");
     // doneLectureCosts itself (the own-key basis, and the Generate
     // projection's) is untouched — still bakeCost, still no declaredLang.
     const untouched = course.slice(course.indexOf("function doneLectureCosts("), course.indexOf("function doneLectureCreditCosts("));
-    expect(untouched).toContain("bakeCost(playlistSpeakLines(parsePlaylistText(text)), settings.cloudVoices)");
+    expect(untouched).toContain("bakeCost(playlistBakeLines(parsePlaylistText(text)), settings.cloudVoices)");
   });
 });
 

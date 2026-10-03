@@ -22,13 +22,16 @@ import { withMinted } from "./minted";
 import { splitVarOverrides, withOverrides } from "./params";
 import { withVarValues } from "../spec/vars";
 import { planCommands, sceneAt, type PlanOptions } from "./plan";
+import { withoutDefaultHeading } from "../spec/card";
 
 export type PlanOptsFor = (spec: Spec, layout: LayoutResult) => Partial<PlanOptions>;
 
 /** The source, already prepared (engines, cards, assets, text block), as its held final frame. */
 export function pictureOf(source: Spec, measure: MeasureFn, planOpts: PlanOptsFor, prefix: string): Pick<InsetPicture, "drawables" | "ink" | "boxes"> {
   // No pictures of pictures: the source is drawn without its own insets.
-  const src: Spec = { ...source, elements: (source.elements ?? []).filter((e) => e.type !== "inset") };
+  // Nor its default heading (spec/card.ts): the inset shows the figure.
+  const bare = withoutDefaultHeading(source);
+  const src: Spec = { ...bare, elements: (bare.elements ?? []).filter((e) => e.type !== "inset") };
   const style = effectiveTextStyle(src);
   const layoutAt = (params: Record<string, unknown>, overrides?: LayoutOverrides): LayoutResult => {
     const split = splitVarOverrides(params);

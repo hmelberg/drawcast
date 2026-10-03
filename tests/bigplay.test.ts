@@ -48,3 +48,16 @@ describe("the stage wiring (pins)", () => {
     expect(css).toMatch(/\.cs-bigplay \{\s*position: absolute;\s*left: 50%;\s*top: 50%;\s*transform: translate\(-50%, -50%\);/);
   });
 });
+
+describe("a pause after the start is not the poster", () => {
+  test("docks the ▶ small in the lower-left corner on a mid-cast pause", () => {
+    const rule = css.slice(css.indexOf(".cs-stage.is-paused .cs-bigplay {"));
+    expect(rule).toMatch(/^\.cs-stage\.is-paused \.cs-bigplay \{[^}]*left: 0\.6rem;[^}]*bottom: 0\.6rem;[^}]*width: 40px;/);
+  });
+  test("shows none at all while a question is up on the paused figure", () => {
+    expect(css).toContain(".cs-stage.is-paused:has(> .cs-figgate, > .cs-cardgate, > .cs-waitgate, > .cs-gatedock) .cs-bigplay { display: none; }");
+  });
+  test("lets the figure worked by hand keep its top-left dock (declared after)", () => {
+    expect(css.indexOf(".cs-stage.cs-handson .cs-bigplay,")).toBeGreaterThan(css.indexOf(".cs-stage.is-paused .cs-bigplay {"));
+  });
+});

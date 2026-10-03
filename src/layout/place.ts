@@ -8,6 +8,12 @@ import { ARROWHEAD_FLOOR, ARROWHEAD_SIZE, type Drawable, type Pt } from "./model
 import type { LintIssue } from "../lint/lint";
 import { SIDE_VALUES, type Side, type SpecElement } from "../spec/types";
 import type { Obstacle } from "./labels";
+import { headingFloorY } from "./canvas";
+
+/** What a thing placed above another keeps between its top and the heading's underline. */
+const UNDER_HEADING = 12;
+/** The least gap the heading may squeeze an "above" placement to. */
+const MIN_ABOVE_GAP = 6;
 
 /** The object form of `at` — the array form is `angle`'s vertex point. */
 export type RelPlacement = Exclude<NonNullable<SpecElement["at"]>, [number, number]>;
@@ -185,7 +191,16 @@ export function refBBox(ds: Drawable[], id: string, measure: MeasureFn, ctx: { p
 
 /** dx, dy that moves `own` so that at.side / at.anchor holds against `ref`. */
 export function relativeDelta(own: BBox, ref: BBox, refAnchors: Record<string, Pt>, at: RelPlacement, ownAnchor: string | undefined): Pt {
-  const gap = at.gap ?? 8;
+  let gap = at.gap ?? 8;
+  // Placed above something, under the page's heading: the gap gives way
+  // before the heading's strip is entered (a droplet 50 over its number
+  // line reached through the underline). Never below MIN_ABOVE_GAP — what
+  // still does not fit is the heading-intrusion lint's to report.
+  const floor = headingFloorY();
+  if (floor !== null && at.side?.startsWith("above") && ref.y + ref.h < floor) {
+    const room = floor - UNDER_HEADING - (ref.y + ref.h) - own.h;
+    if (room < gap) gap = Math.max(MIN_ABOVE_GAP, room);
+  }
   let target: Pt;
   let ownName: string;
   if (at.side) {

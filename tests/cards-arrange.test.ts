@@ -1,3 +1,4 @@
+import { CONTENT_TOP } from "../src/layout/page";
 // Cards above the boxes (round 7 §5): drop by default (the cards on top,
 // the boxes below), side (a column of cards on the left), rise (as before) —
 // every layout on the canvas, the counter's row included.
@@ -116,10 +117,10 @@ describe("side: the cards a column on the left, the boxes on the right", () => {
 });
 
 describe("rise: the boxes on top, as before", () => {
-  test("sort: the boxes' top at 660, the cards below them, the counter between", () => {
+  test("sort: the boxes' top at the content area's top (655), the cards below them, the counter between", () => {
     const g = cardsGeometry({ id: "s", type: "cards", arrange: "rise", bins: ["A", "B"], items: items(6, ["A", "B"]) } as CardsElementLike);
     expect(g.layout).toBe("rise");
-    expect(boxTop(g)).toBeCloseTo(660, 5);
+    expect(boxTop(g)).toBeCloseTo(CONTENT_TOP, 5);
     expect(Math.max(...g.home.map((p) => p[1] + g.h / 2))).toBeLessThan(boxBottom(g));
     counterClear(g);
   });

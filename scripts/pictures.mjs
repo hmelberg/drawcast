@@ -81,6 +81,12 @@ export async function drawPictures(texts, opts = {}) {
     const icons = iconFetcher({ dir: iconCacheDir(opts.root ?? process.cwd()) });
     const open = async () => {
       const page = await browser.newPage({ viewport: { width: 1000, height: 750 } });
+      // Why a poster was not drawn (snapshot.ts posterPng says "poster: …"),
+      // said out loud: a missing font must not pass as a quiet null.
+      page.on?.("console", (m) => {
+        const t = m.text();
+        if (/^poster:/.test(t)) (opts.log ?? console.warn)(t);
+      });
       await routePage(page, icons); // Iconify through the scripts' disk cache and retry
       await page.goto(`${server.url}frames.html`);
       await page.waitForFunction(() => typeof window.__poster === "function", null, { timeout: 60000 });

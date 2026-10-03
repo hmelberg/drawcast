@@ -12,6 +12,7 @@ import { walkTree } from "../scenes/decision_tree/rollback";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { authoredScales } from "../spec/scale";
 import { authoredCards, cardsGeometry, cardsMode, type CardsElementLike } from "../spec/cards";
+import { isDefaultHeadingBeat } from "../spec/card";
 import { lintAsks } from "./ask-lint";
 import { parseTarget } from "../links/resolve";
 import { CANVAS } from "../layout/canvas";
@@ -113,6 +114,8 @@ export interface LintIssue {
     | "out-of-canvas"
     | "font-too-small"
     | "slow-start"
+    /** advisory only (lint/fill.ts): a small figure on an empty page — check and frames print it, layoutSpec never reports it */
+    | "fill"
     /** authoring only: a figure of many strokes exposes no named, outlined part the identify drill or a click ask could use */
     | "drillable-parts"
     | "talky-stretch"
@@ -1914,6 +1917,8 @@ export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIs
 
   let speaksBeforeInk = 0;
   for (const c of cmds) {
+    // The default heading is the page's frame, not its first ink.
+    if (isDefaultHeadingBeat(c)) continue;
     if (isVisibleAction(c)) break;
     if (isStandaloneSpeak(c)) speaksBeforeInk++;
   }

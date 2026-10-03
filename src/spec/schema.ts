@@ -1350,6 +1350,7 @@ export const specSchema = {
     "Commands interleave narration (speak) with drawing (draw) for a gradually built, narrated figure.",
   properties: {
     title: { type: "string", description: "Short title of the figure." },
+    heading: { oneOf: [{ type: "string" }, { const: false }], description: "Top heading: omitted, the title (on a page with no card); a string, that text; false, none." },
     end_page: { type: "boolean", description: "Machine-written; never write it." },
     zoom_from: {
       type: "string",
@@ -1358,6 +1359,15 @@ export const specSchema = {
     },
     level: { type: "string", enum: ["basic", "advanced"], description: "Difficulty of the explanation, when the request states one. Shown as a badge; omit if unspecified." },
     feedback: feedbackSchema(CAST_FEEDBACK),
+    affirm: {
+      oneOf: [
+        { type: "string", enum: ["plain", "playful"] },
+        { type: "array", items: { type: "string" }, minItems: 1, maxItems: 12 },
+        { type: "boolean", enum: [false] },
+      ],
+      description:
+        'What a viewer hears after a RIGHT quiz answer. Omit (default): a short varied affirmation in the cast\'s language ("Spot on.", "Two in a row."). "playful": now and then a dry joke ("Suspiciously good."), for a light cast; "plain": the one word "Correct."; a list of your own short phrases; false: nothing.',
+    },
     record: { type: "boolean", description: "false: keep no local record of the viewer's answers in their browser. Omit (default true)." },
     voice: {
       type: "string",

@@ -21,7 +21,7 @@ import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
 import { setFigureLocale } from "../scenes/kit";
 import { setHeadingBox } from "./axes";
-import { HEADING_Y } from "../spec/card";
+import { FIT_BAND, GUTTER, HEADING_Y, MARGIN, PAGE_H, PAGE_W } from "./page";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
 import { annotationDrawables, DEFAULT_FIT, padFor } from "./annotate";
@@ -35,9 +35,9 @@ import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, flattenDrawables, leafDrawables, Z_TOP, type Drawable, type Pt } from "./model";
 import { isScratchPart, scratchCards } from "../spec/scratch";
 import { authoredCards } from "../spec/cards";
-import { domainPlot, frameToCanvas, linearScale, setHeadingFloor, worldBounds, type DataFrame } from "./canvas";
+import { domainPlot, frameToCanvas, headingFloorY, linearScale, setHeadingFloor, worldBounds, type DataFrame } from "./canvas";
 import { figureSplit } from "./figure-split";
-import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
+import { fitSceneLayout, GROW_REGION, GROW_REGION_BARE, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
 import type { SceneLayout } from "../scenes/types";
 import { FIT_NAMES, isFitName } from "./regions";
 import { expandBoxAnimate, readParam, withOverrides } from "../render/params";
@@ -206,9 +206,13 @@ export function layoutSpec(
     if (title) {
       const font = typeof title.font_size === "number" ? title.font_size : 36;
       const w = measure(title.text as string, font).w;
-      const underline = HEADING_Y - font * 0.82;
-      setHeadingBox({ x: 500 - w / 2, y: underline, w, h: 750 - underline });
-      setHeadingFloor(underline);
+      // The underline as drawn (its points are placed for the heading's
+      // drawn size, spec/card.ts headingElements), else estimated.
+      const line = (spec.elements ?? []).find((e) => e.id === title.id.replace(/_title$/, "_line"));
+      const ys = Array.isArray(line?.points) ? (line.points as unknown[]).flatMap((p) => (Array.isArray(p) && typeof p[1] === "number" ? [p[1] as number] : [])) : [];
+      const underline = ys.length > 0 ? Math.min(...ys) : HEADING_Y - font * 0.82;
+      setHeadingBox({ x: PAGE_W / 2 - w / 2, y: underline, w, h: PAGE_H - underline });
+      setHeadingFloor(underline, effectiveTextStyle(spec).scale);
     } else {
       setHeadingBox(null);
       setHeadingFloor(null);
@@ -227,7 +231,7 @@ export function layoutSpec(
         // brings it in, so it is neither grown nor — under a box — kept.
         world = box ? null : worldBounds(sceneLayout.world);
         if (box && !native) fit = fitSceneLayout(sceneLayout, box, measure) ?? undefined;
-        else if (!box && !native && !world && mayGrow(spec, scene.manifest)) fit = growSceneLayout(sceneLayout, measure) ?? undefined;
+        else if (!box && !native && !world && mayGrow(spec, scene.manifest)) fit = growSceneLayout(sceneLayout, measure, headingFloorY() === null ? GROW_REGION_BARE : GROW_REGION) ?? undefined;
         if (fit && fit.s < FIT_SCALE_FLOOR) {
           const where = isFitName(rawBox) ? `"${rawBox}"` : JSON.stringify(fit.box);
           issues.push({
@@ -941,7 +945,7 @@ function autoChartBox(spec: Spec, measure: MeasureFn): { x: number; y: number; w
     add(e.x - half, e.x + half);
   }
   if (!Number.isFinite(lo)) return "full";
-  const GUTTER = 40, MARGIN = 60, BAND_Y = 95, BAND_H = 560, W = 1000;
+  const BAND_Y = FIT_BAND.y, BAND_H = FIT_BAND.h, W = PAGE_W;
   // The chart goes on the side with more room.
   return lo - MARGIN > W - MARGIN - hi
     ? { x: MARGIN, y: BAND_Y, w: Math.max(200, lo - GUTTER - MARGIN), h: BAND_H }

@@ -28,7 +28,8 @@ import { FIGURE_GROUND } from "../layout/ink";
 import { authoredScales, scaleGeometry, type ScaleElementLike, type ScaleGeometry } from "./scale";
 import { wrapText } from "../layout/labels";
 import type { MeasureFn } from "../layout/measure";
-import { CAPTION_TOP, CONTENT_TOP, CONTENT_TOP_BARE, MARGIN, PAGE_W } from "../layout/page";
+import { CAPTION_TOP, CONTENT_TOP, CONTENT_TOP_BARE, HEADING_Y, MARGIN, PAGE_W } from "../layout/page";
+import { pageHeading } from "./card";
 
 export interface CardItem {
   text: string;
@@ -1045,14 +1046,14 @@ export function cardsGeometryIn(spec: Pick<Spec, "elements">, id: string, blanks
 /** Element types the cards may share the page with and still be alone on it: words about them. */
 const WORDS = new Set(["text", "label", "annotation"]);
 
-/** The page has a heading: a `card` command, or the cast's title drawn as one
- *  (page frame W1: unless `heading: false`; `heading: "<text>"` is one too). */
-export function pageHasHeading(spec: Pick<Spec, "commands" | "title">): boolean {
+/** The page has a heading: a `card` command, a heading already expanded, or
+ *  the default heading spec/card.ts pageHeading will draw (its rule: the
+ *  title or `heading` text, unless `heading: false`, a book part, an end
+ *  page, a page with no commands, or one already drawing in the strip). */
+export function pageHasHeading(spec: Spec): boolean {
   if ((spec.commands ?? []).some((c) => (c as { card?: unknown }).card !== undefined)) return true;
-  const h = (spec as { heading?: unknown }).heading;
-  if (h === false) return false;
-  if (typeof h === "string") return h.trim() !== "";
-  return typeof spec.title === "string" && spec.title.trim() !== "";
+  if ((spec.elements ?? []).some((e) => /^card_\d+_title$/.test(e.id) && e.y === HEADING_Y)) return true;
+  return pageHeading(spec) !== null;
 }
 
 /** Alone on the page (page frame §3): nothing else drawn but words (text,

@@ -20,12 +20,12 @@ describe("a region name stands for its rectangle in param paths", () => {
     expect(readParam({ box: { x: 1, y: 2, w: 3, h: 4 } }, "box.h")).toBe(4);
   });
   test("withOverrides replaces a fit name by its rectangle before writing into it", () => {
-    expect(withOverrides({ box: "full" }, { "box.x": 520, "box.w": 420 })).toEqual({ box: { x: 520, y: 95, w: 420, h: 560 } });
+    expect(withOverrides({ box: "full" }, { "box.x": 520, "box.w": 420 })).toEqual({ box: { x: 520, y: 160, w: 420, h: 495 } });
     // untouched when the path does not continue into the box
     expect(withOverrides({ box: "full" }, { other: 1 })).toEqual({ box: "full", other: 1 });
   });
   test("expandBoxAnimate turns a name into four numeric keys and leaves the rest", () => {
-    expect(expandBoxAnimate({ box: "right", stage: 1 })).toEqual({ "box.x": 520, "box.y": 95, "box.w": 420, "box.h": 560, stage: 1 });
+    expect(expandBoxAnimate({ box: "right", stage: 1 })).toEqual({ "box.x": 520, "box.y": 160, "box.w": 420, "box.h": 495, stage: 1 });
     expect(expandBoxAnimate({ box: "nowhere" })).toEqual({ box: "nowhere" });
     expect(expandBoxAnimate({ "box.x": 5 })).toEqual({ "box.x": 5 });
   });
@@ -34,7 +34,7 @@ describe("a region name stands for its rectangle in param paths", () => {
     expect(withOverrides({ rule: "left" }, { "rule.x": 5 })).toEqual({ rule: "left" });
     // nested under `box` still resolves — the segment that produced the string is `box`
     expect(readParam({ shift: { box: "left" } }, "shift.box.x")).toBe(60);
-    expect(withOverrides({ shift: { box: "left" } }, { "shift.box.x": 7 })).toEqual({ shift: { box: { x: 7, y: 95, w: 420, h: 560 } } });
+    expect(withOverrides({ shift: { box: "left" } }, { "shift.box.x": 7 })).toEqual({ shift: { box: { x: 7, y: 160, w: 420, h: 495 } } });
   });
 });
 
@@ -60,8 +60,8 @@ describe("animate: {box: name} in the planner", () => {
   test("targets are the region's numbers and the starts are the base region's — no jump warning", () => {
     const p = plan(cast({ box: "right" }));
     const step = p.steps.find((s) => s.kind === "animate") as { targets: Record<string, number>; starts: Record<string, number | null> };
-    expect(step.targets).toEqual({ "box.x": 520, "box.y": 95, "box.w": 420, "box.h": 560 });
-    expect(step.starts).toEqual({ "box.x": 60, "box.y": 95, "box.w": 880, "box.h": 560 });
+    expect(step.targets).toEqual({ "box.x": 520, "box.y": 160, "box.w": 420, "box.h": 495 });
+    expect(step.starts).toEqual({ "box.x": 60, "box.y": 160, "box.w": 880, "box.h": 495 });
     expect(p.warnings).toEqual([]);
   });
   test("the layout at the animate's end is the right-half fit", () => {
@@ -113,7 +113,7 @@ describe("the lint judges a panel drawn after an animate on the layout of that b
     expect(r.issues.some((i) => i.rule === "overlap-code-figure")).toBe(true);
   });
   test("paramsAtFirstDraw folds the animates before the panel's first draw and is null without any", () => {
-    expect(paramsAtFirstDraw(knobs("right"), "sim")).toEqual({ box: { x: 520, y: 95, w: 420, h: 560 } });
+    expect(paramsAtFirstDraw(knobs("right"), "sim")).toEqual({ box: { x: 520, y: 160, w: 420, h: 495 } });
     const plain = { ...knobs("right"), commands: [{ draw: SIR_IDS }, { draw: ["sim", "sim_out"] }] } as unknown as Spec;
     expect(paramsAtFirstDraw(plain, "sim")).toBeNull();
   });
@@ -145,7 +145,7 @@ describe("the lint judges a panel drawn after an animate on the layout of that b
         { explore: { code: "sim" }, speak: "Turn beta." },
       ],
     } as unknown as Spec;
-    expect(paramsAtFirstDraw(spec, "sim")).toEqual({ box: { x: 520, y: 95, w: 420, h: 560 } });
+    expect(paramsAtFirstDraw(spec, "sim")).toEqual({ box: { x: 520, y: 160, w: 420, h: 495 } });
     expect(layoutSpec(spec).issues).toEqual([]);
   });
 });

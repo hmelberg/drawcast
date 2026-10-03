@@ -189,16 +189,21 @@ export function guessSetup(
       else {
         h.toLogical = toLogical;
         if (toLogical) {
-          // Bar i sits at domain x = i (the frame runs -0.5 … n-0.5); its
-          // width is the slot less the gap (bar_chart's own default 0.35).
+          // Bar i sits at domain x = its slot (the frame runs -0.5 … n-0.5) —
+          // i itself, or its rank when the chart is sorted; its width is the
+          // slot less the gap (bar_chart's own default 0.35).
           const gap = typeof params["gap"] === "number" ? Math.max(0, Math.min(0.8, params["gap"] as number)) : 0.35;
-          const a = toLogical([h.dx!, 0]);
-          const b = toLogical([h.dx! + 1, 0]);
+          const at = barSlot(params, h.dx!);
+          const a = toLogical([at, 0]);
+          const b = toLogical([at + 1, 0]);
           h.cx = a[0];
           h.halfW = (Math.abs(b[0] - a[0]) * (1 - gap)) / 2;
         }
         handles.push(h);
         if (frame) pin = { ...pin, ylim: [frame.y[0], frame.y[1]] };
+        // A sorted chart ranks by the true numbers while it is guessed, so the
+        // bar being dragged keeps its place (and gives nothing away by moving).
+        if (sortDir(params) !== 0 && Array.isArray(params["values"]) && !("sort_values" in pin)) pin = { ...pin, sort_values: params["values"] };
       }
       continue;
     }
@@ -240,6 +245,41 @@ export function guessSetup(
     warnings.push(`guess: "${part}" is not a guessable part of this figure (a bar, a line, a pie slice, a population state or a scale)`);
   }
   return { handles, pin, warnings };
+}
+
+const sortDir = (params: Record<string, unknown>): number =>
+  Array.isArray(params["series"]) ? 0 : params["sort"] === "desc" ? -1 : params["sort"] === "asc" ? 1 : 0;
+
+/**
+ * Where bar_chart (scenes/packs/data.yaml) puts category `i` (0-based): its
+ * slot, i itself unless the chart is sorted — then its rank by value at each
+ * integer stage, interpolated at a fractional one. The same arithmetic as the
+ * template (`sort`, `sort_values`); keep the two in step.
+ */
+export function barSlot(params: Record<string, unknown>, i: number): number {
+  const dir = sortDir(params);
+  if (dir === 0) return i;
+  const raw = Array.isArray(params["sort_values"]) ? params["sort_values"] : params["values"];
+  if (!Array.isArray(raw) || raw.length === 0) return i;
+  const stages = (Array.isArray(raw[0]) ? raw : [raw]) as unknown[][];
+  if (!stages.every(Array.isArray)) return i;
+  const labels = Array.isArray(params["labels"]) ? params["labels"].length : 0;
+  const n = Math.min(40, Math.max(labels, ...stages.map((st) => st.length)));
+  if (n <= 1 || i >= n) return i;
+  const K = Math.min(200, stages.length);
+  const stage = clamp(isNum(params["stage"]) ? params["stage"] : 0, 0, K - 1);
+  const k0 = Math.floor(stage);
+  const k1 = Math.min(K - 1, k0 + 1);
+  const t = stage - k0;
+  const rank = (k: number): number => {
+    const st = stages[k];
+    const v = (j: number): number => (isNum(st[j]) ? st[j] : 0);
+    let r = 0;
+    for (let j = 0; j < n; j++) if (j !== i && (dir * (v(j) - v(i)) < 0 || (v(j) === v(i) && j < i))) r++;
+    return r;
+  };
+  const a = rank(k0);
+  return a + (rank(k1) - a) * t;
 }
 
 function barHandle(

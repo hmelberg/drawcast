@@ -28,7 +28,7 @@ import { cueStartMs, lineMs } from "./cue";
 import { MARK_RELEASE_MS, markFrameAt, markReleaseAt } from "./marks";
 import { stripLangMarks } from "./lang-spans";
 import { SpeechManager, type SpeechLike } from "./speech";
-import { correctWord } from "./quiz-words";
+import { Affirmer } from "./affirm";
 import { EMPHASIS_EASE_MS, EMPHASIS_FIRST_PEAK_MS, EMPHASIS_HOLD_AT_MS, EMPHASIS_ONE_SWELL_MS, EMPHASIS_RELEASE_MS, easeInLevel, emphasisLevel, releaseLevel, swellLevel } from "./emphasis";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
@@ -722,6 +722,8 @@ export class Player {
   private readonly liveMarks = new Map<string, symbol>();
   /** The language the cast is written in (spec.lang), for the words the player says itself. */
   private sourceLang: string | null = null;
+  /** What a right quiz answer hears (render/affirm.ts); render/index.ts configures it from the cast. */
+  readonly affirmer = new Affirmer();
   setSourceLang(lang: string | null): void {
     this.sourceLang = lang;
   }
@@ -1740,7 +1742,10 @@ export class Player {
       // A market handle carries its own truth (the curve at the animate's end).
       if (animIndex < 0 || setup.handles.some((h) => h.kind === "market")) return setup.handles;
       const later = this.guessSetupAt(step.on, step.from, this.planned(animIndex), true);
-      return later && later.handles.length === setup.handles.length ? setup.handles.map((h, k) => ({ ...h, truth: later.handles[k].truth })) : setup.handles;
+      // A sorted bar chart's bar may change places in that animate: the marks end where it ends.
+      return later && later.handles.length === setup.handles.length
+        ? setup.handles.map((h, k) => ({ ...h, truth: later.handles[k].truth, ...(later.handles[k].cx !== undefined ? { cx: later.handles[k].cx } : {}) }))
+        : setup.handles;
     })();
     // What the question shows: everything the plan reveals at this step (the
     // guessed parts), painted from the guess instead of the truth.
@@ -2361,7 +2366,13 @@ export class Player {
     if (judged && answerOpt) {
       const extra = live && picked ? this.feedbackAfter(step, ok ? "perfect" : "none", { parts: answerOpt.members, sparkle: !ok }, signal) : [];
       if (ok) {
-        await this.glowWhile(live ? [{ ids: answerOpt.members, color: ANSWER_OK_COLOR }] : [], signal, () => this.speakLines(step.right, extra, step, signal));
+        // An on-canvas quiz (a quiet ask, spec/answer-buttons.ts) keeps its
+        // `right` — the explanation is the point of a True/Myth run — and a
+        // live right answer hears the varied affirmation first ("Spot on.
+        // Myth. The wall is…", Hans 2026-10-04; render/affirm.ts).
+        const nod = live && picked && step.quiet ? this.affirmer.say(this.sourceLang, step, { streak: this.streak(), score: Number(this.vars.get("score") ?? 0), total: this.outcomes.size, last: Math.max(...this.ordinalOf.keys()) === index }) : null;
+        const said = nod && step.right ? `${nod} ${step.right}` : (nod ?? step.right);
+        await this.glowWhile(live ? [{ ids: answerOpt.members, color: ANSWER_OK_COLOR }] : [], signal, () => this.speakLines(said, extra, step, signal));
       } else {
         if (picked && step.wrong) await this.speakLine(step.wrong, step, signal);
         if (signal.aborted) return;
@@ -3756,8 +3767,13 @@ export class Player {
           // for the viewer, who has not.
           // A `right` that reads a live value ("That makes {score}.") is news,
           // not repetition, and is still said.
-          if (liveQuiz) lines.push(step.right && /\{[A-Za-z_][\w.]*\}/.test(step.right) ? step.right : correctWord(this.sourceLang, step.question));
-          else if (step.right) lines.push(step.right);
+          // Not the same "Correct." every time (Hans 2026-10-04): a varied
+          // affirmation, a streak line, now and then a joke (render/affirm.ts).
+          if (liveQuiz) {
+            const said = step.right && /\{[A-Za-z_][\w.]*\}/.test(step.right) ? step.right
+              : this.affirmer.say(this.sourceLang, step, { streak: this.streak(), score: Number(this.vars.get("score") ?? 0), total: this.outcomes.size, last: Math.max(...this.ordinalOf.keys()) === index });
+            if (said) lines.push(said);
+          } else if (step.right) lines.push(step.right);
         } else if (chosen !== null) {
           // `wrong` is a hint BEFORE the reveal; one that just repeats the
           // reveal would say the same sentence twice (Hans 2026-09-25).
@@ -4185,8 +4201,13 @@ export class Player {
         const besideCarry = carry !== null && carry.step.revealStyle !== "morph";
         const carryMarks = (e: number): GuessMarks | null => {
           if (!carry) return null;
-          if (!besideCarry || carry.truthHandles.some((h) => h.kind === "market")) return guessMarks(carry.truthHandles, carry.guess, e, besideCarry ? { beside: true } : {});
-          return besideMarks(carry.truthHandles, carry.guess, carry.truthHandles.map(() => e));
+          // A bar that changes places (a sorted chart) carries its marks along with it.
+          const hs = carry.truthHandles.map((h, k) => {
+            const from = carry.setup.handles[k]?.cx;
+            return from !== undefined && h.cx !== undefined && from !== h.cx ? { ...h, cx: from + (h.cx - from) * e } : h;
+          });
+          if (!besideCarry || hs.some((h) => h.kind === "market")) return guessMarks(hs, carry.guess, e, besideCarry ? { beside: true } : {});
+          return besideMarks(hs, carry.guess, hs.map(() => e));
         };
         if (carry && besideCarry) Object.assign(held, carry.setup.pin);
         if (carry && !besideCarry) {

@@ -21,7 +21,9 @@ description: >-
   Up to 200 stages, but a script's harvest caps at 5000 numbers — 20 bars
   × 200 stages fits, 40 × 200 does not. GUESSABLE (one series): an ask
   with `on: bar_2` lets the viewer drag that bar to their guess before it
-  rises to the truth; `on: all` guesses every bar.
+  rises to the truth; `on: all` guesses every bar. `sort: "desc"` keeps the
+  bars in order of their current value, so an animate between stages slides
+  them into their new places (bar_N stays with its category).
 params:
   type: object
   properties:
@@ -58,6 +60,9 @@ params:
     value_labels:
       type: boolean
       description: "Write each bar's value above it (default false)."
+    sort:
+      enum: [none, desc, asc]
+      description: "none (default) — the bars in label order; desc / asc — largest first / smallest first by the value at the stage shown, so an animate between stages slides the bars to their new places as they grow (ties keep label order). One series only. Ids stay with the category: bar_3 is the third LABEL wherever it stands."
     y_ticks:
       type: boolean
       description: "Round numbers up the y axis (0, 5, 10, 15, 20 — four to six of them), so a bar can be read and guessed against the scale (default true). false: a bare y axis."
@@ -270,6 +275,51 @@ layout: |
       plot.y0 = y0;
     } else withIcons = false;
   }
+  // Sorted bars (W14): each bar's SLOT is its rank by value at each integer
+  // stage, and a fractional stage interpolates the rank (as bar_race does), so
+  // an animate slides the bars to their new places while they grow — ranking
+  // the interpolated values instead would snap a bar across at the crossing.
+  // Ties keep label order. Ids, colours and labels stay with the category.
+  // A guess pins `sort_values` (run time, never an author) to the true
+  // numbers, so the bar being dragged keeps its place while it is guessed.
+  const sortDir = params.sort === "desc" ? -1 : params.sort === "asc" ? 1 : 0;
+  const sorted = sortDir !== 0 && series.length === 1 && !Array.isArray(params.series) && n > 1;
+  const sortStages = sorted ? toStages(params.sort_values) || series[0].stages : null;
+  const rankAt = (k) => {
+    const st = sortStages[Math.min(k, sortStages.length - 1)];
+    const v = (i) => (typeof st[i] === "number" ? st[i] : 0);
+    const idx = Array.from({ length: n }, (_, i) => i);
+    idx.sort((a, b) => sortDir * (v(a) - v(b)) || a - b);
+    const r = new Array(n);
+    idx.forEach((i, pos) => { r[i] = pos; });
+    return r;
+  };
+  const r0 = sorted ? rankAt(k0) : null, r1 = sorted ? rankAt(k1) : null;
+  const slotOf = (i) => (sorted ? r0[i] + (r1[i] - r0[i]) * t : i);
+  // Room under the y caption (W14): placed beside the arrow tip (under a
+  // page heading) it stands over the first slots, where a sorted chart's
+  // tallest bar always is — the value written above such a bar would sit on
+  // the caption. The scale grows (no ylim given) until every value label
+  // under the caption clears it, at every stage.
+  const yLab0 = str(params.y_label, "");
+  if (yLab0 && params.value_labels === true && !ylim && series.length === 1 && !stacked && n > 0 && yMax > 0) {
+    const cap = kit.axisLabel("axes__y_label", "y", plot, yLab0, { fontSize: 22 });
+    const cw = kit.textWidth(yLab0, 22), ch = 22 * 1.25;
+    const cx0 = cap.anchor === "start" ? cap.pos[0] : cap.anchor === "end" ? cap.pos[0] - cw : cap.pos[0] - cw / 2;
+    const room = cap.pos[1] - ch / 2 - 4 - (20 * 0.75 + 6 + 20 * 0.625) /* a value label at its largest size, 20 */ - plot.y0;
+    const H = plot.y1 - plot.y0, sw = (plot.x1 - plot.x0) / n;
+    if (room > H * 0.5 && room < H) {
+      for (let k = 0; k < K; k++) {
+        const rk = sorted ? rankAt(k) : null;
+        for (let i = 0; i < n; i++) {
+          const v = atStage(series[0], k, i);
+          const s0 = plot.x0 + sw * (rk ? rk[i] : i);
+          if (v <= 0 || s0 > cx0 + cw + 4 || s0 + sw < cx0 - 4) continue;
+          yMax = Math.max(yMax, yMin + ((v - yMin) * H) / room);
+        }
+      }
+    }
+  }
   const Y = (v) => plot.y0 + ((v - yMin) / (yMax - yMin)) * (plot.y1 - plot.y0);
   const base = Y(clamp(0, yMin, yMax)); // the bars' baseline: the zero line, or the axis when 0 is off-scale
   const m = series.length;
@@ -452,7 +502,8 @@ layout: |
   for (let i = 0; i < n; i++) {
     const id = "bar_" + (i + 1);
     const halved = besideBars.includes(i);
-    const xc = plot.x0 + slotW * (i + 0.5);
+    const slot = slotOf(i);
+    const xc = plot.x0 + slotW * (slot + 0.5);
     const children = [];
     let reach = base;
     series.forEach((s, j) => {
@@ -460,8 +511,8 @@ layout: |
       // Grouped bars sit side by side within the category slot; stacked bars
       // share the whole slot width and pile on top of the running total.
       const x0 = stacked
-        ? plot.x0 + slotW * i + (slotW - groupW) / 2
-        : plot.x0 + slotW * i + (slotW - groupW) / 2 + barW * j;
+        ? plot.x0 + slotW * slot + (slotW - groupW) / 2
+        : plot.x0 + slotW * slot + (slotW - groupW) / 2 + barW * j;
       const w0 = stacked ? groupW : barW;
       const x = halved ? x0 + w0 / 2 + 1.5 : x0;
       const w = halved ? w0 / 2 - 1.5 : w0;
@@ -556,6 +607,7 @@ lint: |
   const n = Math.max(labels.length, Array.isArray(params.values) ? params.values.length : 0);
   if (icons.length > 0 && n > 12) out.push({ severity: "warn", message: "icons are shown on up to 12 bars — with " + n + " they are left out" });
   if (icons.length > 0 && labels.length > 0 && icons.length !== labels.length) out.push({ severity: "warn", message: "icons: one per bar, as labels (" + icons.length + " icons, " + labels.length + " labels)" });
+  if ((params.sort === "desc" || params.sort === "asc") && Array.isArray(params.series)) out.push({ severity: "warn", message: "sort orders one series only — with series (grouped or stacked) the bars keep label order" });
   return out;
 ---
 template: pie_chart
@@ -648,9 +700,9 @@ layout: |
 
   const b = params.box;
   const boxed = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0;
-  // Default: the page's content area (src/layout/page.ts — x 60…940, y 160…660,
+  // Default: the page's content area (src/layout/page.ts — x 60…940, y 160…655,
   // clear of the caption band). guess/handles.ts pieGeometry mirrors all of this.
-  const area = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : { x0: 60, y0: 160, x1: 940, y1: 660 };
+  const area = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : { x0: 60, y0: 160, x1: 940, y1: 655 };
   const title = str(params.title, "");
   if (title) area.y1 = Math.min(area.y1, 650);
   const showPct = params.percent !== false;

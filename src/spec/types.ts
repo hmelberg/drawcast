@@ -1124,6 +1124,12 @@ export type VarDef =
 
 export interface Spec {
   title?: string;
+  /**
+   * The page's top heading (page frame spec 2026-10-04): absent, the title is
+   * drawn as the heading on a page with no `card`; a string draws that text
+   * instead; false draws none. spec/card.ts pageHeading has the rule.
+   */
+  heading?: string | false;
   /** Machine-written: a course lecture's generated end page (playlist.ts
    *  makeEndPage) — links to the previous and next lecture. The poster skips it. */
   end_page?: boolean;
@@ -1154,6 +1160,12 @@ export interface Spec {
   lang?: string;
   /** Cast-level feedback flavour (spec 2026-10-03 §4.1): plain (default), warm, dry, or with the author's lines. */
   feedback?: FeedbackArg;
+  /**
+   * What a live viewer hears after a right quiz answer (render/affirm.ts).
+   * Absent: a varied short affirmation in the cast's language. "plain": the
+   * single word ("Correct."); a list: the cast's own phrases; false: nothing.
+   */
+  affirm?: "plain" | "playful" | string[] | false;
   /**
    * Drawn text a template computes for itself, and its replacement. A scene
    * supplies its own captions ("Susceptible" for compartment "S"), so those
