@@ -73,7 +73,7 @@ const KEYS = {
  *  destination (spec §7) — a finished file in the author's own Drive, not a
  *  link the app hands out. "server" is the third (round 0 spec §4): the
  *  drawcast server, per account, the one that can keep a cast behind sign-in. */
-export type ShareTo = "link" | "youtube" | "video" | "drive" | "server" | "pretty";
+export type ShareTo = "link" | "youtube" | "video" | "drive" | "server" | "pretty" | "page";
 
 /**
  * A settings blob written before the source download moved out of Share can
@@ -87,6 +87,17 @@ export type ShareTo = "link" | "youtube" | "video" | "drive" | "server" | "prett
  */
 export function migrateShareTo(v: string): ShareTo {
   return v === "youtube" || v === "video" || v === "drive" || v === "server" || v === "pretty" ? v : "link";
+}
+
+/**
+ * Export's remembered choice (2026-10-03: Export split from Publish — copies
+ * in another form, which do not follow later edits): one of its own three, or
+ * the web page. Before the split YouTube and Video file were remembered in
+ * `shareTo`; a stored one of those carries over the first time.
+ */
+export function migrateExportTo(v: string | undefined, shareTo: string): ShareTo {
+  if (v === "page" || v === "video" || v === "youtube") return v;
+  return shareTo === "video" || shareTo === "youtube" ? shareTo : "page";
 }
 
 export interface Settings {
@@ -192,8 +203,10 @@ export interface Settings {
   lookPass: boolean;
   /** Save to disk's format (Script — a .cast — by default; parsing accepts all three). */
   specFormat: SpecFormat;
-  /** The Share destination used last, so a repeat publish is one keypress. */
+  /** The Publish destination used last, so a repeat publish is one keypress. */
   shareTo: ShareTo;
+  /** The Export choice used last (web page, video file, YouTube). */
+  exportTo: ShareTo;
   /** Domain pack ids (M3) currently enabled — loaded and registered at startup. */
   enabledPacks: string[];
   /** Enabled pack ids whose templates get a full catalog entry (never summarized). */
@@ -262,6 +275,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lookPass: true,
   specFormat: "script",
   shareTo: "link",
+  exportTo: "page",
   // Every built-in pack, on. A pack that is off is invisible to the compiler
   // (its templates are not in the catalog at all), so a chemistry request
   // silently degrades to hand-composed primitives instead of the SMILES
@@ -320,6 +334,7 @@ export function loadSettings(): Settings {
   // hold "spec" here — see migrateShareTo's own comment. Applied on every
   // load (cheap, idempotent) rather than as a one-shot flag: nothing else in
   // this file writes shareTo back to storage on its own.
+  s.exportTo = migrateExportTo(s.exportTo, s.shareTo);
   s.shareTo = migrateShareTo(s.shareTo);
   // Opus 5.5 replaced Opus 5 in the model list (2026-09-27): a stored choice
   // of the old id follows it rather than naming a model the picker lacks.

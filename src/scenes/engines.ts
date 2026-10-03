@@ -24,7 +24,6 @@ import { DEFAULT_MATH_FONT, type MathFont } from "../layout/text-style";
 import type { Topology, GeometryCollection } from "topojson-specification";
 import type { FeatureCollection, Geometry, Polygon, MultiPolygon, Position } from "geojson";
 import { sampleSvgPath } from "./svgpath";
-import { handRingsFor } from "./math-hand";
 import type { Atlas, AtlasPart, AtlasSystem, AnatomyEngine } from "./anatomy/types";
 export type { AnatomyEngine } from "./anatomy/types";
 import type { ChemElement, ElementsEngine } from "./elements/types";
@@ -280,7 +279,10 @@ const MATH_FONT_MODULES: Record<MathFont, () => Promise<{ font: unknown; dynamic
 };
 
 async function loadMathJax(): Promise<MathJaxEngine> {
-  const [{ mathjax }, { TeX }, { SVG }, { liteAdaptor }, { RegisterHTMLHandler }] = await Promise.all([
+  // math-hand rides with the engine (2026-10-03): its two glyph tables are
+  // ~80 KB that only a figure with a formula needs, and as a static import
+  // they sat in the core chunk every viewer waits for.
+  const [{ mathjax }, { TeX }, { SVG }, { liteAdaptor }, { RegisterHTMLHandler }, , { handRingsFor }] = await Promise.all([
     import("@mathjax/src/js/mathjax.js"),
     import("@mathjax/src/js/input/tex.js"),
     import("@mathjax/src/js/output/svg.js"),
@@ -291,6 +293,7 @@ async function loadMathJax(): Promise<MathJaxEngine> {
     // ignored, so without this line \begin{pmatrix} dies as "unknown
     // environment". AllPackages is gone in 4; this is the one we need.
     import("@mathjax/src/js/input/tex/ams/AmsConfiguration.js"),
+    import("./math-hand"),
   ]);
   const adaptor = liteAdaptor();
   RegisterHTMLHandler(adaptor);

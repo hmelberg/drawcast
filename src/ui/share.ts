@@ -243,6 +243,8 @@ export function payListedFields(wantPrivate: boolean, wantListed: boolean): { pr
 
 export interface ShareDeps {
   subject: "drawcast" | "course";
+  /** Which button opened it: ↗ Publish (the default) or ⤓ Export. */
+  group?: ShareGroup;
   /** The open document/course, read fresh each time — never cached. */
   doc: () => ShareDoc;
   /** The live settings object; Share writes `shareTo` and `burnCaptions` onto
@@ -346,6 +348,17 @@ export interface ShareDeps {
    */
   buyPrettyLink: (choice: { name: string; target: string }) => Promise<void>;
   /**
+   * Export → Web page → Download: the same prepared copy a publish sends
+   * (`bake` and `embedImages` as above), inside a page of its own
+   * (standalone/page.ts), downloaded as `<name>.html`. `name` is the panel's
+   * name field, a slug — the page's file name and so, wherever it is put,
+   * its address — undefined when left empty.
+   *
+   * Required for the reason `publishDrive` is: a course never shows the
+   * Export rows, so course.ts passes a stub it had to write.
+   */
+  exportPage: (choices: { bake: boolean; embedImages: boolean; name?: string }) => Promise<void>;
+  /**
    * The existing render path (export/video.ts's `exportVideo`, wrapped with
    * the offscreen canvas and the keep-alive worker that survive a hidden tab).
    * Null means the TTS key is missing, the render failed, or it was
@@ -362,7 +375,17 @@ export interface ShareDeps {
   setAbort: (c: AbortController | null) => void;
 }
 
+/**
+ * Which button a destination sits under (2026-10-03). Publish makes the
+ * drawcast itself public, at an address that follows your later edits;
+ * Export makes a copy in another form — a web page, a video, a YouTube
+ * upload — that does not. "Copies don't follow your edits" is the line an
+ * author decides by.
+ */
+export type ShareGroup = "publish" | "export";
+
 interface DestRow extends ShareDest {
+  group: ShareGroup;
   /** Hidden entirely when false. Only an environment credential the author
    *  cannot supply from Settings (Google's client config) says no here — a
    *  capability like that must never advertise itself (spec §6). */
@@ -375,14 +398,14 @@ interface DestRow extends ShareDest {
 }
 
 const DESTS: DestRow[] = [
-  { id: "link", label: "Publish to GitHub", action: "Publish", offered: () => true, ready: (c) => c.github, reason: "Set a repository and token in Settings", courses: true },
+  { id: "link", group: "publish", label: "Publish to GitHub", action: "Publish", offered: () => true, ready: (c) => c.github, reason: "Set a repository and token in Settings", courses: true },
   // Drive's only credential is the build's Google client config — an env
   // credential, so it hides rather than showing a reason nobody can act on.
   // Once it IS configured there is nothing left to be ready FOR: sign-in
   // happens at the publish itself, exactly as Save → Drive already does, so
   // this row never shows the third (disabled) state. Courses stay GitHub-only
   // (spec §9) — a course is many files, and Drive publishing writes one.
-  { id: "drive", label: "Google Drive", action: "Publish", offered: (c) => c.google, ready: () => true, reason: "", courses: false },
+  { id: "drive", group: "publish", label: "Google Drive", action: "Publish", offered: (c) => c.google, ready: () => true, reason: "", courses: false },
   // The drawcast server (round 0 spec §4, §9): the app's own storage, per
   // account — the one destination that can keep a cast behind sign-in. Its
   // only credential is the session token, and Settings → Publishing is where
@@ -391,13 +414,20 @@ const DESTS: DestRow[] = [
   // is for. The panel's Publish button is what says "Sign in to publish
   // here" (refreshServerSignIn), not the rail. Courses stay GitHub-only in
   // this round: one cast per key, and a course is many files.
-  { id: "server", label: "drawcast server", action: "Publish", offered: () => true, ready: () => true, reason: "", courses: false },
+  { id: "server", group: "publish", label: "drawcast server", action: "Publish", offered: () => true, ready: () => true, reason: "", courses: false },
   // The pretty link (2026-09-18): not a place the work goes but an address for
   // where it already is — drawcast.app/#name and name.drawcast.app — bought
   // once. Offered for both subjects; sign-in happens at the button.
-  { id: "pretty", label: "Pretty link", action: "Buy", offered: () => true, ready: () => true, reason: "", courses: true },
-  { id: "youtube", label: "YouTube", action: "Upload", offered: (c) => c.google, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
-  { id: "video", label: "Video file", action: "Export", offered: () => true, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
+  { id: "pretty", group: "publish", label: "Pretty link", action: "Buy", offered: () => true, ready: () => true, reason: "", courses: true },
+  // ---- Export: copies in another form ----
+  // The web page (standalone/page.ts): the cast inside an .html file, the
+  // player from drawcast.app. Needs nothing — no key, no account — so it is
+  // first, and Export always has a row that works.
+  { id: "page", group: "export", label: "Web page", action: "Download", offered: () => true, ready: () => true, reason: "", courses: false },
+  { id: "video", group: "export", label: "Video file", action: "Export", offered: () => true, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
+  // YouTube is a place with a link, but what lands there is a video copy
+  // that never changes with the cast — an export, beside the video file.
+  { id: "youtube", group: "export", label: "YouTube", action: "Upload", offered: (c) => c.google, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
 ];
 
 /** One destination as Share's rail offers it: shown, and either ready to
@@ -419,9 +449,9 @@ export interface DestOffer {
  * its reason when missing; an environment credential (Google) that the
  * author cannot supply stays hidden instead (spec §0.1).
  */
-export function destinationOffers(caps: ShareCaps, subject: "drawcast" | "course"): DestOffer[] {
+export function destinationOffers(caps: ShareCaps, subject: "drawcast" | "course", group?: ShareGroup): DestOffer[] {
   return DESTS
-    .filter((d) => (subject === "course" ? d.courses : true) && d.offered(caps))
+    .filter((d) => (subject === "course" ? d.courses : true) && (group === undefined || d.group === group) && d.offered(caps))
     .map(({ id, label, action, ready, reason }) =>
       ready(caps) ? { id, label, action, enabled: true } : { id, label, action, enabled: false, reason },
     );
@@ -433,8 +463,8 @@ export function destinationOffers(caps: ShareCaps, subject: "drawcast" | "course
  * and several callers/tests still want "just the usable ones" — this keeps
  * that shape rather than making every caller filter for itself.
  */
-export function shareDestinations(caps: ShareCaps, subject: "drawcast" | "course"): ShareDest[] {
-  return destinationOffers(caps, subject)
+export function shareDestinations(caps: ShareCaps, subject: "drawcast" | "course", group?: ShareGroup): ShareDest[] {
+  return destinationOffers(caps, subject, group)
     .filter((o) => o.enabled)
     .map(({ id, label, action }) => ({ id, label, action }));
 }
@@ -443,7 +473,7 @@ export function shareDestinations(caps: ShareCaps, subject: "drawcast" | "course
 const ALL_DESTS: ShareTo[] = DESTS.map((d) => d.id);
 
 /**
- * Which of the six panels should be visible: exactly the selected one, and
+ * Which of the seven panels should be visible: exactly the selected one, and
  * ONLY if it is actually offered right now. A destination that is filtered
  * out of `available` (an unconfigured capability) must never show its panel
  * even if `selected` still names it — a stale/unavailable selection hides
@@ -671,7 +701,7 @@ function build(): ShareSession {
         embedImagesHint.textContent =
           embedCount === 0
             ? "all images are already in the file"
-            : "the published file carries them; your document is unchanged";
+            : "the copy carries them; your document is unchanged";
         // Narration used to have exactly two states — a key, or disabled —
         // and now has three: an own/vended key (free chain, as before), no
         // key but signed in (credit — costs money too, just not this
@@ -679,7 +709,7 @@ function build(): ShareSession {
         const my = ++creditToken; // invalidates any in-flight balance fetch from a previous refresh
         const tts = Boolean(getTtsKey());
         const token = getToken();
-        const speaks = "the published file speaks; viewers need no key";
+        const speaks = "the copy speaks; viewers need no key";
         if (tts) {
           bakeCb.disabled = false;
           bakeCb.checked = bakeDefault;
@@ -711,7 +741,7 @@ function build(): ShareSession {
           bakeCb.disabled = true;
           bakeCb.checked = false;
           creditBuyRow.hidden = true;
-          bakeHint.textContent = "add a Google TTS key in Settings to publish the narration";
+          bakeHint.textContent = "add a Google TTS key in Settings to include the narration";
         }
       },
       choices: () => ({
@@ -1401,6 +1431,30 @@ function build(): ShareSession {
     void deps.publishDrive(choices);
   });
 
+  // ---- Web page panel (Export) — the same prepared copy, inside a page ----
+
+  const pageHint = h(
+    "div",
+    { class: "hint" },
+    "This drawcast inside a web page of its own — put it on your site or a course platform, or send it. It plays wherever there is internet (the player comes from drawcast.app). It is a copy: later edits do not change it; export again.",
+  );
+  // A slug, not a fileSafe name: the file's name becomes part of its address
+  // wherever it is put, and an address wants no spaces.
+  const pageNameInput = h("input", { type: "text", class: "yt-field", "aria-label": "Page name" }) as HTMLInputElement;
+  pageNameInput.addEventListener("blur", () => {
+    pageNameInput.value = slugify(pageNameInput.value || current.doc().title || "drawcast");
+  });
+  const pageNameRow = h("div", {}, h("label", { class: "quiet-label" }, "Name ", pageNameInput, h("span", { class: "hint" }, " .html")));
+  const pageChoices = buildEmbedChoices("page");
+  const pagePanel = h("div", { class: "share-panel" }, pageHint, pageNameRow, ...pageChoices.rows);
+  const pageGo = h("button", { class: "primary" }, "Download") as HTMLButtonElement;
+  pageGo.addEventListener("click", () => {
+    const deps = current;
+    const choices = { ...pageChoices.choices(), name: pageNameInput.value.trim() ? slugify(pageNameInput.value) : undefined };
+    modal.dialog.close();
+    void deps.exportPage(choices);
+  });
+
   // ---- Video file panel ----
 
   const videoBurnCb = h("input", { type: "checkbox" }) as HTMLInputElement;
@@ -1992,11 +2046,11 @@ function build(): ShareSession {
 
   // ---- the modal shell: rail on the left, that destination's panel on the right ----
 
-  const panels: Record<ShareTo, HTMLElement> = { link: linkPanel, drive: drivePanel, server: serverPanel, pretty: prettyPanel, youtube: youtubePanel, video: videoPanel };
-  const actionBtns: Record<ShareTo, HTMLButtonElement> = { link: publishGo, drive: driveGo, server: serverGo, pretty: prettyGo, youtube: ytGo, video: videoGo };
+  const panels: Record<ShareTo, HTMLElement> = { link: linkPanel, drive: drivePanel, server: serverPanel, pretty: prettyPanel, youtube: youtubePanel, video: videoPanel, page: pagePanel };
+  const actionBtns: Record<ShareTo, HTMLButtonElement> = { link: publishGo, drive: driveGo, server: serverGo, pretty: prettyGo, youtube: ytGo, video: videoGo, page: pageGo };
 
   const rail = h("div", { class: "share-rail" });
-  const panelHost = h("div", { class: "share-panel-host" }, linkPanel, drivePanel, serverPanel, prettyPanel, youtubePanel, videoPanel);
+  const panelHost = h("div", { class: "share-panel-host" }, linkPanel, drivePanel, serverPanel, prettyPanel, pagePanel, youtubePanel, videoPanel);
   const layout = h("div", { class: "share-layout" }, rail, panelHost);
   const settingsBtn = h("button", { class: "small" }, "Open Settings");
   settingsBtn.addEventListener("click", () => {
@@ -2019,6 +2073,8 @@ function build(): ShareSession {
   const modal = createModal("↗ Publish", { size: "m", class: "share-modal", backdropCloses: false });
   modal.body.append(layout, emptyHint);
   document.body.append(modal.dialog);
+  // One modal for both buttons: refresh() names it for the one that opened it.
+  const modalTitle = modal.dialog.querySelector(".dialog-head h3") as HTMLElement;
 
   let destinations: DestOffer[] = [];
   let railButtons: HTMLButtonElement[] = [];
@@ -2037,7 +2093,10 @@ function build(): ShareSession {
     // is handed the same `settings` main.ts passes for a drawcast), so this
     // is the one place that has to tell the two subjects apart.
     if (current.subject === "drawcast") {
-      current.settings.shareTo = id;
+      // Each button remembers its own: an Export of a video must not make
+      // the next Publish open on nothing.
+      if ((current.group ?? "publish") === "export") current.settings.exportTo = id;
+      else current.settings.shareTo = id;
       current.persist();
     }
     // Every panel, not just the enabled ones — a disabled/filtered-out
@@ -2108,6 +2167,8 @@ function build(): ShareSession {
     // renames the same file" to be about.
     driveNameHint.hidden = !doc.drivePublishedId;
     driveChoices.refresh(doc, current.subject);
+    pageNameInput.value = doc.publishedAs ?? slugify(doc.title || "drawcast");
+    pageChoices.refresh(doc, current.subject);
     ytDesc.value = "Made with drawcast.";
     ytPrivacy.value = "private";
     ytTranslations.clear();
@@ -2137,7 +2198,9 @@ function build(): ShareSession {
     // missing rather than hidden (spec §0.1) — only the two Google rows
     // (`drive`, `youtube`) can drop out entirely, since their credential is
     // the build's, not one Settings can supply.
-    destinations = destinationOffers(currentCaps(deps.settings), deps.subject);
+    const group = deps.group ?? "publish";
+    destinations = destinationOffers(currentCaps(deps.settings), deps.subject, group);
+    modalTitle.textContent = group === "export" ? "⤓ Export" : "↗ Publish";
     prepPanels();
     railButtons = destinations.map((d) => {
       const b = h("button", { class: d.enabled ? "share-dest" : "share-dest dest-off" }, d.label) as HTMLButtonElement;
@@ -2165,7 +2228,7 @@ function build(): ShareSession {
       modal.footer.replaceChildren();
       return;
     }
-    const remembered = deps.settings.shareTo;
+    const remembered = group === "export" ? deps.settings.exportTo : deps.settings.shareTo;
     selectDestination(enabled.some((d) => d.id === remembered) ? remembered : enabled[0].id);
   }
 

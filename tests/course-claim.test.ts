@@ -308,7 +308,7 @@ describe("the Pretty link panel — wiring (pretty-link round, 2026-09-18)", () 
   const panel = readFileSync(new URL("../src/ui/course.ts", import.meta.url), "utf8");
   const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
   test("Pretty link is a rail row for both subjects, with its own panel and Buy button", () => {
-    expect(share).toMatch(/\{ id: "pretty", label: "Pretty link", action: "Buy", offered: \(\) => true, ready: \(\) => true, reason: "", courses: true \}/);
+    expect(share).toMatch(/\{ id: "pretty", group: "publish", label: "Pretty link", action: "Buy", offered: \(\) => true, ready: \(\) => true, reason: "", courses: true \}/);
     expect(share).toMatch(/pretty: prettyPanel/);
     expect(share).toMatch(/pretty: prettyGo/);
     expect(share).toMatch(/void current\.buyPrettyLink\(\{ name, target \}\)/);

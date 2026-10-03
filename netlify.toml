@@ -42,6 +42,24 @@
   [headers.values]
     Access-Control-Allow-Origin = "*"
 
+# The player for drawcast pages (src/play.ts, src/standalone/page.ts): a
+# `<name>.html` on github.io or anyone's site loads drawcast.app/play.js as a
+# module, and a module script from another origin is a CORS request — so it
+# and every chunk it imports need this header. Public code, nothing secret.
+# play.js keeps its name (pages link it), so it is revalidated each load;
+# the hashed chunks never change.
+[[headers]]
+  for = "/play.js"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Cache-Control = "public, max-age=31536000, immutable"
+
 # Content-Security-Policy (security review 2026-09-28,
 # docs/security/2026-09-28-code-execution-inventory.md). Defence in depth
 # behind the code-trust gate (src/security/code-trust.ts): if code ever does

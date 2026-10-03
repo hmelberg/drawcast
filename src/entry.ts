@@ -11,7 +11,7 @@
 
 import { redeemFromAddress } from "./account";
 import { DEFAULT_ENROLL_API } from "./learn";
-import { isNameHash } from "./names";
+import { isNameHash, lookupNamed } from "./names";
 import { bootRoute, onViewOrigin } from "./security/view-origin";
 
 async function boot(): Promise<void> {
@@ -72,9 +72,11 @@ async function boot(): Promise<void> {
     if (req) await runViewer(req);
     else showUnplayable();
   } else if (!remix && isNameHash(hash)) {
+    // Ask the registry now, while the viewer downloads — not after it.
+    const early = lookupNamed(hash, DEFAULT_ENROLL_API, fetch, document.referrer);
     const { runNamed } = await import("./viewer");
     doneBooting();
-    await runNamed(hash);
+    await runNamed(hash, early);
   } else {
     try {
       await import("./main");

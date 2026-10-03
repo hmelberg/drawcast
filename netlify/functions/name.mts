@@ -62,6 +62,14 @@ export interface NameDeps {
   statsSecret: string;
   readRange: (name: string, days: number) => Promise<Array<{ day: string } & DayRecord>>;
   cache: Map<string, CacheEntry>;
+  /**
+   * Keep the function alive for work done after the answer is sent
+   * (Netlify's context.waitUntil). With it, the visit is recorded AFTER the
+   * reply instead of before: the Blobs read + write used to sit between
+   * Anvil's answer and the viewer, adding a few hundred ms to every name
+   * link. Without it (tests, older runtimes) the visit is awaited as before.
+   */
+  defer?: (work: Promise<unknown>) => void;
 }
 
 function json(body: unknown, status: number): Response {
@@ -134,16 +142,20 @@ export async function handleNameRequest(req: Request, deps: NameDeps): Promise<R
     // The answer is already built above; a Blobs hiccup here must never
     // change what the caller gets back — swallow it, same as views.mts does
     // for its own storage failures.
-    try {
-      // Under the BASE name: a lecture (`name/3`) counts toward its course,
-      // which is what the dashboard's ?stats=<name> reads (final review I4).
-      const key = visitKey(name.split("/", 1)[0], dayString(now));
-      const rec = await deps.readDay(key);
-      const next = addVisit(rec, { country: deps.country(req), source, ref: refDomain(ref) });
-      await deps.writeDay(key, next);
-    } catch (e) {
-      console.warn(`name visit for ${name} failed (allowing):`, e instanceof Error ? e.message : String(e));
-    }
+    const record = async (): Promise<void> => {
+      try {
+        // Under the BASE name: a lecture (`name/3`) counts toward its course,
+        // which is what the dashboard's ?stats=<name> reads (final review I4).
+        const key = visitKey(name.split("/", 1)[0], dayString(now));
+        const rec = await deps.readDay(key);
+        const next = addVisit(rec, { country: deps.country(req), source, ref: refDomain(ref) });
+        await deps.writeDay(key, next);
+      } catch (e) {
+        console.warn(`name visit for ${name} failed (allowing):`, e instanceof Error ? e.message : String(e));
+      }
+    };
+    if (deps.defer) deps.defer(record());
+    else await record();
   }
 
   return json(body, status);
@@ -209,6 +221,7 @@ const warmCache = new Map<string, CacheEntry>();
 
 interface NetlifyGeoContext {
   geo?: { country?: { code?: string } };
+  waitUntil?: (work: Promise<unknown>) => void;
 }
 
 export default async (req: Request, context?: NetlifyGeoContext): Promise<Response> => {
@@ -222,6 +235,7 @@ export default async (req: Request, context?: NetlifyGeoContext): Promise<Respon
     statsSecret: process.env.NAME_STATS_SECRET ?? "",
     readRange: defaultReadRange(store),
     cache: warmCache,
+    defer: context?.waitUntil ? (work) => context.waitUntil!(work) : undefined,
   });
 };
 

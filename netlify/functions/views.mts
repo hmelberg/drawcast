@@ -59,6 +59,17 @@ function allowedOrigins(): string[] {
   return [...base, "http://localhost:5173", "http://localhost:8888"];
 }
 
+/**
+ * An author's own GitHub Pages site (`https://<owner>.github.io`) — where a
+ * cast's own page lives (src/standalone/page.ts, 2026-10-03). It may count
+ * views for that owner's casts only: the POST below checks the key's owner
+ * against it. The owner, lower-cased, or null for any other origin.
+ */
+export function pagesOwner(origin: string): string | null {
+  const m = /^https:\/\/([a-z0-9-]+)\.github\.io$/i.exec(origin);
+  return m ? m[1].toLowerCase() : null;
+}
+
 const REPO_RE = /^([\w.-]+)\/([\w.-]+)$/;
 
 /**
@@ -110,7 +121,7 @@ export function viewBudgetId(ip: string): string {
 function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("origin") ?? "";
   return {
-    ...(allowedOrigins().includes(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
+    ...(allowedOrigins().includes(origin) || pagesOwner(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "content-type",
     "Vary": "Origin",
@@ -126,7 +137,8 @@ export async function handleViewsRequest(req: Request, deps: ViewsDeps): Promise
 
   if (req.method === "POST") {
     const origin = req.headers.get("origin") ?? "";
-    if (!allowedOrigins().includes(origin)) return json({ error: "origin" }, 403, headers);
+    const owner = pagesOwner(origin);
+    if (!allowedOrigins().includes(origin) && !owner) return json({ error: "origin" }, 403, headers);
 
     // Checked before touching the body, exactly like keys.mts checks its
     // password-failure budget before comparing the password: a throttled
@@ -140,6 +152,8 @@ export async function handleViewsRequest(req: Request, deps: ViewsDeps): Promise
     const key = (await req.text()).trim();
     if (!isValidCastKey(key)) return json({ error: "key" }, 400, headers);
     if (isPrivateCastKey(key)) return json({ error: "private" }, 400, headers);
+    // A Pages site counts its own owner's casts, nobody else's.
+    if (owner && !allowedOrigins().includes(origin) && key.split("/", 1)[0].toLowerCase() !== owner) return json({ error: "origin" }, 403, headers);
     try {
       const count = await deps.record(key);
       await deps.recordWrite(ip); // charged only once the write actually landed

@@ -1,7 +1,7 @@
 // The view-counting endpoint. Storage is injected, so this suite is about
 // HTTP: routing, CORS, validation, and the response shape.
 import { describe, expect, test } from "vitest";
-import { defaultClientIp, handleViewsRequest, viewBudgetId, type ViewsDeps } from "../netlify/functions/views.mts";
+import { defaultClientIp, handleViewsRequest, pagesOwner, viewBudgetId, type ViewsDeps } from "../netlify/functions/views.mts";
 
 const KEY = "hmelberg/kurs/casts/did.yaml";
 
@@ -309,5 +309,27 @@ describe("reading counts", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ count: 7 });
     expect(d.recorded).toEqual([KEY]);
+  });
+});
+
+describe("a cast's own page on its owner's GitHub Pages (standalone/page.ts)", () => {
+  test("counts a view for that owner's cast, with the origin echoed for CORS", async () => {
+    const d = deps();
+    const res = await handleViewsRequest(post("annenberg/kurs/casts/did.cast", "https://Annenberg.github.io"), d);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("https://Annenberg.github.io");
+    expect(d.recorded).toEqual(["annenberg/kurs/casts/did.cast"]);
+  });
+  test("refuses another owner's cast from that site", async () => {
+    const d = deps();
+    const res = await handleViewsRequest(post("someoneelse/kurs/casts/did.cast", "https://annenberg.github.io"), d);
+    expect(res.status).toBe(403);
+    expect(d.recorded).toEqual([]);
+  });
+  test("pagesOwner reads only a bare https github.io origin", () => {
+    expect(pagesOwner("https://a-b.github.io")).toBe("a-b");
+    expect(pagesOwner("http://a.github.io")).toBeNull();
+    expect(pagesOwner("https://a.github.io.evil.example")).toBeNull();
+    expect(pagesOwner("https://x.a.github.io")).toBeNull();
   });
 });

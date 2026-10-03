@@ -191,6 +191,24 @@ export async function resolveName(
   }
 }
 
+/**
+ * Resolves the name a hash carries — null when it carries none or the
+ * registry says no. One call for both callers: entry.ts starts it the moment
+ * the page knows the hash, so the lookup runs WHILE the viewer chunks
+ * download (it used to start only after them, ~1.4 s into a cold load), and
+ * runNamed awaits that same promise — or starts its own when it has none.
+ */
+export function lookupNamed(
+  hash: string,
+  api: string,
+  fetchImpl: typeof fetch = fetch,
+  referrer = "",
+): Promise<Resolved | null> {
+  const name = nameInHash(hash);
+  if (!name) return Promise.resolve(null);
+  return resolveName(api, name, fetchImpl, { src: name.includes("/") ? "lecture" : "name", ref: referrer });
+}
+
 export interface Registration {
   key: string;
   name: string;

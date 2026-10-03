@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
 const entry = readFileSync(new URL("../src/entry.ts", import.meta.url), "utf8");
+const names = readFileSync(new URL("../src/names.ts", import.meta.url), "utf8");
 const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 
 describe("entry routes names", () => {
@@ -12,7 +13,10 @@ describe("entry routes names", () => {
     expect(gh).toBeGreaterThan(0);
     expect(named).toBeGreaterThan(gh);
     expect(app).toBeGreaterThan(named);
-    expect(entry).toMatch(/runNamed\(hash\)/);
+    expect(entry).toMatch(/runNamed\(hash, early\)/);
+    // The lookup starts BEFORE the viewer chunk is imported, so the two overlap.
+    expect(entry.indexOf("lookupNamed(hash, DEFAULT_ENROLL_API")).toBeGreaterThan(named);
+    expect(entry.indexOf("lookupNamed(hash, DEFAULT_ENROLL_API")).toBeLessThan(entry.indexOf('await import("./viewer");\n    doneBooting();\n    await runNamed'));
   });
   test("spends an arriving sign-in token BEFORE reading the hash it routes on", () => {
     // The redeem strips `t=` from the address; a hash read before it would
@@ -36,13 +40,12 @@ describe("entry routes names", () => {
 
 describe("runNamed", () => {
   test("resolves against the registry, opens the door for a course, plays casts through parseViewerHash", () => {
-    expect(viewer).toMatch(/export async function runNamed\(hash: string\)/);
+    expect(viewer).toMatch(/export async function runNamed\(hash: string, early\?: Promise<Resolved \| null>\)/);
+    expect(viewer).toMatch(/await \(early \?\? lookupNamed\(hash, DEFAULT_ENROLL_API, fetch, typeof document !== "undefined" \? document\.referrer : ""\)\)/);
     // The Netlify name endpoint records a visit per lookup, and needs to know
     // WHY the lookup happened (a bare name vs. a course lecture) and where it
     // came from — src/ref, sent explicitly rather than guessed server-side.
-    expect(viewer).toMatch(/resolveName\(DEFAULT_ENROLL_API, name, fetch, \{/);
-    expect(viewer).toMatch(/src: name\.includes\("\/"\) \? "lecture" : "name"/);
-    expect(viewer).toMatch(/ref: typeof document !== "undefined" \? document\.referrer : ""/);
+    expect(names).toMatch(/resolveName\(api, name, fetchImpl, \{ src: name\.includes\("\/"\) \? "lecture" : "name", ref: referrer \}\)/);
     expect(viewer).toMatch(/kind === "course"/);
     // A course name with a page opens that page (Task 8) — UNLESS the hash
     // already carries `&join` (the page's own Join link, or a copied one),
@@ -98,7 +101,7 @@ describe("the course door's live wiring", () => {
     expect(viewer).toMatch(
       /export function courseDoor\(\s*name: string,\s*resolved: Resolved,\s*deps: DoorDeps = liveDoorDeps,\s*opts: \{ onJoined\?: \(\) => void; lead\?: string; title\?: string \} = \{\},\s*\): HTMLElement/,
     );
-    expect(viewer).toMatch(/import \{ anvilHashFor, nameInHash, resolveName, type Resolved \} from "\.\/names"/);
+    expect(viewer).toMatch(/import \{ anvilHashFor, lookupNamed, nameInHash, type Resolved \} from "\.\/names"/);
     expect(live.length).toBeGreaterThan(0);
   });
   test("the token is the account's, a dead one is dropped through setToken, and sign-in is the handshake returning to this very address — a bare #<name>", () => {

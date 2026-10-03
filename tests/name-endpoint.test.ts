@@ -47,6 +47,28 @@ describe("a lookup", () => {
     });
   });
 
+  test("with defer, the answer does not wait for the visit — the visit is handed over and still recorded", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const deferred: Promise<unknown>[] = [];
+    const d = deps({ readDay: async () => { await gate; return null; }, defer: (work) => deferred.push(work) });
+    const res = await handleNameRequest(get("?n=learn-russian"), d);
+    expect(res.status).toBe(200);
+    expect(d.writes.length).toBe(0); // answered while the Blobs read is still blocked
+    expect(deferred.length).toBe(1);
+    release();
+    await Promise.all(deferred);
+    expect(d.writes.length).toBe(1);
+  });
+
+  test("with defer, a Blobs failure is swallowed inside the deferred work", async () => {
+    const deferred: Promise<unknown>[] = [];
+    const d = deps({ writeDay: async () => { throw new Error("blobs down"); }, defer: (work) => deferred.push(work) });
+    const res = await handleNameRequest(get("?n=learn-russian"), d);
+    expect(res.status).toBe(200);
+    await expect(Promise.all(deferred)).resolves.toBeDefined();
+  });
+
   test("no src given defaults to 'name'; an unrecognised src also defaults to 'name'", async () => {
     const d1 = deps();
     await handleNameRequest(get("?n=learn-russian"), d1);

@@ -58,7 +58,8 @@ import { h } from "./ui/dom";
 import { playerMeta } from "./ui/player-meta";
 import { openCoursePanel } from "./ui/course";
 import { parseCourse, referencedLectureIds } from "./course/document";
-import { fileSafe, openShare, payListedFields } from "./ui/share";
+import { fileSafe, openShare, payListedFields, type ShareGroup } from "./ui/share";
+import { castPageHtml } from "./standalone/page";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
 import { openEmbedDialog, openInsertData, openInsertPortrait, unembeddedImages } from "./ui/insert";
@@ -1176,7 +1177,16 @@ function refreshCredentialMenus(): void {
 // One button for every way a drawcast leaves the app — replaces ⬇, ⬆ Publish,
 // ☑ with narration, 🎬 Export video and ▶ YouTube (spec §2). Its modal picks
 // which of those still applies; an unconfigured one just does not appear.
-const shareBtn = h("button", { class: "small", title: "Publish to GitHub, upload to YouTube, or export a video" }, "↗ Publish");
+const shareBtn = h("button", { class: "small", title: "Make this drawcast public: GitHub, Google Drive, the drawcast server, a pretty link" }, "↗ Publish");
+// Export (2026-10-03): copies in another form — a web page, a video file, a
+// YouTube upload — that do not follow later edits. The same modal, its other
+// half (ui/share.ts ShareGroup).
+const exportBtn = h("button", { class: "small", title: "A copy to take away: a web page, a video file, or a YouTube upload" }, "⤓ Export");
+/** Both leave-the-app buttons are frozen while one of their jobs runs. */
+function setShareBusy(busy: boolean): void {
+  shareBtn.disabled = busy;
+  exportBtn.disabled = busy;
+}
 // Background-export progress chip: the render/upload runs without a modal, so
 // this chip in the pane bar is the only visible trace — status text + cancel.
 // (Created here with its pane-bar siblings; wired in the video-export section.)
@@ -1451,7 +1461,7 @@ const editorWrap = h(
     h(
       "div",
       { class: "panel editor-preview" },
-      h("div", { class: "pane-bar" }, lintChip, editedDot, h("span", { class: "pane-spacer" }), reviewBtn, shareBtn, ratingBox, promoteBtn, exportChip),
+      h("div", { class: "pane-bar" }, lintChip, editedDot, h("span", { class: "pane-spacer" }), reviewBtn, shareBtn, exportBtn, ratingBox, promoteBtn, exportChip),
       previewHost,
       lintBox,
     ),
@@ -5215,7 +5225,7 @@ async function publishDrawcast({
     setStatus("There is nothing to publish yet.", "error");
     return;
   }
-  shareBtn.disabled = true;
+  setShareBusy(true);
   lastBakeNote = "";
   lastEmbedNote = "";
   const ac = new AbortController();
@@ -5253,7 +5263,7 @@ async function publishDrawcast({
   // the box says: its course keeps it private (task 10 fix round 2).
   if (!isPrivate && inPrivateCourse(doc.id, loadLibrary(), loadCourses())) {
     setStatus("This lecture belongs to a private course — publish the course, or tick Private, so it is locked.", "error");
-    shareBtn.disabled = false;
+    setShareBusy(false);
     return;
   }
   try {
@@ -5344,7 +5354,9 @@ async function publishDrawcast({
     if (lock) setStatus(`Published locked — only enrolled learners can watch. ${out.castUrl}${lastEmbedNote}${regSuffix}`, "ok");
     else {
       const link = shareLinkFor(doc.freeName ? `#${doc.freeName}` : `#gh=${repoStr}/${joinPath(castsDir, `${out.slug}${publishExt()}`)}`);
-      const text = `Published to ${out.castUrl}${lastEmbedNote}${lastBakeNote}${regSuffix}`;
+      // Its own page (standalone/page.ts) opens fastest — live once GitHub Pages has built it.
+      const pageNote = out.pageUrl ? ` Its own page (a minute or so for GitHub Pages): ${out.pageUrl}` : "";
+      const text = `Published to ${out.castUrl}${pageNote}${lastEmbedNote}${lastBakeNote}${regSuffix}`;
       if (link) setStatusAction(text, "Share…", () => openShareBox({ link, title: doc.title, subtitle: doc.playlist.meta.subtitle, image: cardImageUrl(link) }), "ok");
       else setStatus(text, "ok");
     }
@@ -5354,7 +5366,7 @@ async function publishDrawcast({
     // A lock refusal is already the whole sentence ("Not published: …").
     setStatus(e instanceof LockError || e instanceof CreditError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
   } finally {
-    shareBtn.disabled = false;
+    setShareBusy(false);
   }
 }
 
@@ -5475,7 +5487,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
   }
   const file = `${doc.publishedAs ?? (slugify(doc.title) || "lecture")}${publishExt()}`;
   const cast = serverCastKey(slug, file);
-  shareBtn.disabled = true;
+  setShareBusy(true);
   lastBakeNote = "";
   lastEmbedNote = "";
   const ac = new AbortController();
@@ -5545,7 +5557,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
     const e = err as Error;
     setStatus(e instanceof CreditError ? e.message : `Publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
   } finally {
-    shareBtn.disabled = false;
+    setShareBusy(false);
   }
 }
 
@@ -5575,7 +5587,7 @@ async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; em
     setStatus("There is nothing to publish yet.", "error");
     return;
   }
-  shareBtn.disabled = true;
+  setShareBusy(true);
   lastBakeNote = "";
   lastEmbedNote = "";
   const ac = new AbortController();
@@ -5658,7 +5670,43 @@ async function publishDriveCast({ bake, embedImages, name }: { bake: boolean; em
     const e = err as Error;
     setStatus(e instanceof CreditError ? e.message : `Drive publish failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
   } finally {
-    shareBtn.disabled = false;
+    setShareBusy(false);
+  }
+}
+
+/**
+ * Export → Web page (standalone/page.ts): the prepared copy a publish would
+ * send — narration baked and images embedded as the panel chose, narration
+ * reused from the GitHub copy when there is one — inside a page of its own,
+ * downloaded. Nothing is published and nothing on the document changes.
+ */
+async function exportPageCast({ bake, embedImages, name }: { bake: boolean; embedImages: boolean; name?: string }): Promise<void> {
+  // A private drawcast exists in the clear nowhere but here; a page would be
+  // a plain copy of it, readable by anyone it reaches.
+  if (isPrivateDoc()) {
+    setStatus("This is private — a web page would carry it unlocked, so it isn't offered.", "error");
+    return;
+  }
+  if (itemsOf(doc.playlist).length === 0) {
+    setStatus("There is nothing to export yet.", "error");
+    return;
+  }
+  setShareBusy(true);
+  lastBakeNote = "";
+  lastEmbedNote = "";
+  const ac = new AbortController();
+  try {
+    setStatus("Making the web page…");
+    const text = await publishTextFor(ac.signal, bake, embedImages);
+    const file = `${slugify(name ?? doc.title) || "drawcast"}.html`;
+    downloadBlob(file, new Blob([castPageHtml({ text, title: doc.title || "drawcast" })], { type: "text/html" }));
+    setStatus(`Downloaded ${file} — put it on any web site, or send it; it plays wherever there is internet.${lastEmbedNote}${lastBakeNote}`, "ok");
+  } catch (err) {
+    console.error("drawcast: web page export failed", err);
+    const e = err as Error;
+    setStatus(e instanceof CreditError ? e.message : `Export failed — ${e.name}: ${e.message} (full details in the browser console)`, "error");
+  } finally {
+    setShareBusy(false);
   }
 }
 
@@ -5946,11 +5994,11 @@ function beginExport(status: string): void {
   ensureRendered();
   exportChipText.textContent = status;
   exportChip.hidden = false;
-  shareBtn.disabled = true;
+  setShareBusy(true);
 }
 function endExport(): void {
   exportChip.hidden = true;
-  shareBtn.disabled = false;
+  setShareBusy(false);
   exportAbort = null;
 }
 
@@ -6005,12 +6053,16 @@ async function renderVideo(specs: Spec[], burnCaptions: boolean, of = "", siblin
 // source. The panels' own logic (translation, upload, the
 // YouTube-into-fresh-playlists trap) lives in ui/share.ts now; this is just
 // the wiring to this app's live state.
-shareBtn.addEventListener("click", () => {
+shareBtn.addEventListener("click", () => openShareFor("publish"));
+exportBtn.addEventListener("click", () => openShareFor("export"));
+
+function openShareFor(group: ShareGroup): void {
   // The modal reads `doc` live (below) — catch it up to the text on screen
   // first, so a link/upload never ships a stale drawing.
   ensureRendered();
   openShare({
     subject: "drawcast",
+    group,
     // playlist: read from the editor text, not doc.playlist — render()
     // resolves portraits/sources IN PLACE on the document's own spec
     // objects on every preview render (render/index.ts), so by the time
@@ -6048,13 +6100,14 @@ shareBtn.addEventListener("click", () => {
     publishDrive: (choices) => publishDriveCast(choices),
     publishServer: (choices) => publishServerCast(choices),
     buyPrettyLink: (choice) => buyPrettyLink(choice),
+    exportPage: (choices) => exportPageCast(choices),
     renderVideo,
     beginExport,
     setProgress: (text) => (exportChipText.textContent = text),
     endExport,
     setAbort: (c) => (exportAbort = c),
   });
-});
+}
 
 // ---------- prompt library ----------
 

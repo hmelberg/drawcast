@@ -135,3 +135,38 @@ describe("the cast index", () => {
     expect(two.casts[0].title).toBe("Renamed");
   });
 });
+
+describe("the cast's own page (standalone/page.ts)", () => {
+  test("a public publish writes <slug>.html beside the cast, carrying it and naming its GitHub copy", () => {
+    const plan = buildCastPlan({ ...base, poster: new Uint8Array([1]) });
+    const page = plan.files.find((f) => f.path === "casts/difference-in-differences.html");
+    expect(page).toBeDefined();
+    expect(page!.content).toContain(base.text);
+    expect(page!.content).toContain('data-gh="hmelberg/kurs/casts/difference-in-differences.yaml"');
+    expect(page!.content).toContain('<script type="module" src="https://drawcast.app/play.js" crossorigin>');
+    expect(page!.content).toContain('content="https://hmelberg.github.io/kurs/casts/difference-in-differences.png"');
+    expect(plan.pageUrl).toBe("https://hmelberg.github.io/kurs/casts/difference-in-differences.html");
+  });
+
+  test("a private publish gets no page — it would carry the cast unlocked", () => {
+    const plan = buildCastPlan({ ...base, private: true });
+    expect(plan.files.some((f) => f.path.endsWith(".html") && f.path !== "casts/index.html")).toBe(false);
+    expect(plan.pageUrl).toBeUndefined();
+  });
+
+  test("no poster, no picture in the link card", () => {
+    const page = buildCastPlan(base).files.find((f) => f.path.endsWith("difference-in-differences.html"))!;
+    expect(page.content).not.toContain("og:image");
+  });
+});
+
+describe("the casts index page", () => {
+  test("links each cast by its full repo path, folder included", () => {
+    const index = buildCastPlan(base).files.find((f) => f.path === "casts/index.html")!;
+    expect(index.content).toContain("#gh=hmelberg/kurs/casts/difference-in-differences.yaml");
+  });
+  test("a repo-root cast has no folder to add", () => {
+    const index = buildCastPlan({ ...base, castsDir: "" }).files.find((f) => f.path === "index.html")!;
+    expect(index.content).toContain("#gh=hmelberg/kurs/difference-in-differences.yaml");
+  });
+});

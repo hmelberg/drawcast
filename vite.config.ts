@@ -5,6 +5,17 @@ export default defineConfig({
   base: "./",
   build: {
     target: "es2022",
+    rollupOptions: {
+      // A second entry: the player drawcast pages load (src/play.ts,
+      // standalone/page.ts), at the one name they link — drawcast.app/play.js.
+      // It shares its chunks with the app, so a reader who has been on
+      // drawcast.app has the player already. The relative base above is what
+      // lets a page on another site load those chunks from here.
+      input: { index: "index.html", play: "src/play.ts" },
+      output: {
+        entryFileNames: (chunk) => (chunk.name === "play" ? "play.js" : "assets/[name]-[hash].js"),
+      },
+    },
   },
   test: {
     environment: "node",

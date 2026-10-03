@@ -164,7 +164,7 @@ describe("publishToServer", () => {
 
 describe("the drawcast server in Share", () => {
   test("is a destination row after Drive, labelled for what it is, never for a course", () => {
-    expect(share).toMatch(/\{ id: "server", label: "drawcast server", action: "Publish"/);
+    expect(share).toMatch(/\{ id: "server", group: "publish", label: "drawcast server", action: "Publish"/);
     expect(share).toMatch(/id: "server"[^\n]*courses: false/);
     const dests = share.slice(share.indexOf("const DESTS: DestRow[] = ["), share.indexOf("/** One destination as Share's rail offers it"));
     expect(dests.indexOf('id: "server"')).toBeGreaterThan(dests.indexOf('id: "drive"'));
@@ -223,7 +223,7 @@ describe("the drawcast server in Share", () => {
     expect(share.match(/bakeCb\.checked = bakeDefault;/g)).toHaveLength(1);
     expect(share).toContain("bakeCb.checked = false;");
     // Declaration + three instantiations — still one copy of the rows.
-    expect(share.match(/buildEmbedChoices\(/g)).toHaveLength(4);
+    expect(share.match(/buildEmbedChoices\(/g)).toHaveLength(5); // + Export's web page (2026-10-03)
   });
   test("the name is a slug like Link's, prefilled the same way — and slugified on Publish too, not only on blur", () => {
     const panel = share.slice(share.indexOf("// ---- drawcast server panel"), share.indexOf("// ---- Drive panel"));

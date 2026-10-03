@@ -53,7 +53,7 @@ describe("the Embed-narration box — three states through buildEmbedChoices", (
   });
 
   test("neither: disabled and UNCHECKED (never checked-but-disabled), same fixed hint as before", () => {
-    expect(fn).toMatch(/\} else \{\s*bakeCb\.disabled = true;\s*bakeCb\.checked = false;\s*creditBuyRow\.hidden = true;\s*bakeHint\.textContent = "add a Google TTS key in Settings to publish the narration";/);
+    expect(fn).toMatch(/\} else \{\s*bakeCb\.disabled = true;\s*bakeCb\.checked = false;\s*creditBuyRow\.hidden = true;\s*bakeHint\.textContent = "add a Google TTS key in Settings to include the narration";/);
   });
 
   test("the balance is fetched from the SAME server every /credit call goes to, keyed on the account token", () => {

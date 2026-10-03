@@ -23,6 +23,7 @@ import {
 } from "./github";
 import type { Registration } from "../names";
 import { lockLectureFiles, type LectureLock } from "./lock";
+import { castPageHtml } from "../standalone/page";
 
 export interface CastEntry {
   slug: string;
@@ -64,6 +65,9 @@ export interface CastPlan {
   readmeUrl: string;
   /** The Pages index of every published drawcast. */
   pagesUrl: string;
+  /** The cast's own page (`<slug>.html`, standalone/page.ts) — the fastest
+   *  link to it. Absent for a private cast, which gets no page. */
+  pageUrl?: string;
 }
 
 export interface CastPlanArgs {
@@ -87,6 +91,8 @@ export interface CastPlanArgs {
   /** The poster PNG (export/snapshot.ts posterPng), committed beside the
    *  cast as `<slug>.png` — the viewer shows it while the cast loads. */
   poster?: Uint8Array | null;
+  /** A private cast: no page of its own (it would carry the cast unlocked). */
+  private?: boolean;
 }
 
 /** Where a cast's poster lives: beside it, `.png` for `.yaml` (the viewer
@@ -108,6 +114,11 @@ export function privateCastTarget(repo: RepoRef, castsDir: string, field: string
   const slug = slugify((field ?? "").trim() || publishedAs || title || "lecture");
   const target = `${repo.owner}/${repo.repo}/${joinPath(castsDir, `${slug}${publishExt()}`)}`;
   return { target, item: stripDocExt(target) };
+}
+
+/** Where a cast's own page lives: beside it, `<slug>.html`. */
+export function pagePathFor(castPath: string): string {
+  return stripDocExt(castPath) + ".html";
 }
 
 export function castHref(base: string, owner: string, repo: string, path: string): string {
@@ -141,10 +152,11 @@ export function buildCastPlan(args: CastPlanArgs): CastPlan {
   const path = joinPath(castsDir, file);
 
   const next = upsertCast(index, { slug, title: title || "Untitled drawcast", file, updated: new Date().toISOString().slice(0, 10) });
+  const pagesUrl = `https://${repo.owner}.github.io/${repo.repo}/${castsDir ? `${castsDir}/` : ""}`;
   const files: PublishFile[] = [
     { path, content: text },
     { path: joinPath(castsDir, "casts.json"), content: JSON.stringify(next, null, 2) + "\n" },
-    { path: joinPath(castsDir, "index.html"), content: castsPage(next.casts, viewerBase, repo) },
+    { path: joinPath(castsDir, "index.html"), content: castsPage(next.casts, viewerBase, repo, castsDir) },
     { path: joinPath(castsDir, "README.md"), content: castsReadme(next.casts, viewerBase, repo, castsDir) },
   ];
   // Pages runs Jekyll by default, which rewrites and skips files by its own
@@ -153,23 +165,42 @@ export function buildCastPlan(args: CastPlanArgs): CastPlan {
   // Jekyll site, and this file at its root would break it.
   if (castsDir === "") files.push({ path: ".nojekyll", content: "" });
   if (args.poster) files.push({ path: posterPathFor(path), content: "", bytes: args.poster });
+  // The cast's own page (standalone/page.ts): the cast inside it, the player
+  // from drawcast.app — opens without a name lookup or a second fetch. Its
+  // views and comments stay the GitHub cast's (`from`).
+  const pageUrl = args.private ? undefined : `${pagesUrl}${slug}.html`;
+  if (pageUrl) {
+    files.push({
+      path: pagePathFor(path),
+      content: castPageHtml({
+        text,
+        title: title || "Untitled drawcast",
+        url: pageUrl,
+        image: args.poster ? `${pagesUrl}${slug}.png` : undefined,
+        from: { owner: repo.owner, repo: repo.repo, path },
+      }),
+    });
+  }
 
   return {
     slug,
     files,
     castUrl: castHref(viewerBase, repo.owner, repo.repo, path),
     readmeUrl: `https://github.com/${repo.owner}/${repo.repo}/tree/HEAD/${castsDir}`,
-    pagesUrl: `https://${repo.owner}.github.io/${repo.repo}/${castsDir ? `${castsDir}/` : ""}`,
+    pagesUrl,
+    ...(pageUrl ? { pageUrl } : {}),
   };
 }
 
 /** The list a visitor opens: every published drawcast, newest first. */
-export function castsPage(casts: CastEntry[], viewerBase: string, repo: RepoRef): string {
+export function castsPage(casts: CastEntry[], viewerBase: string, repo: RepoRef, castsDir = ""): string {
   const items = [...casts]
     .sort((a, b) => b.updated.localeCompare(a.updated) || a.title.localeCompare(b.title))
     .map(
+      // The repo path, folder included (2026-10-03: it was left out, so a
+      // cast published into casts/ was listed with a link that 404s).
       (c) =>
-        `<li><a class="t" href="${escapeHtml(castHref(viewerBase, repo.owner, repo.repo, c.file))}">${escapeHtml(c.title)}</a> <span class="soon">${escapeHtml(c.updated)}</span></li>`,
+        `<li><a class="t" href="${escapeHtml(castHref(viewerBase, repo.owner, repo.repo, joinPath(castsDir, c.file)))}">${escapeHtml(c.title)}</a> <span class="soon">${escapeHtml(c.updated)}</span></li>`,
     )
     .join("\n");
   return `<!doctype html>
@@ -234,6 +265,7 @@ export interface CastPublishResult {
   castUrl: string;
   readmeUrl: string;
   pagesUrl: string;
+  pageUrl?: string;
   defaultBranch: string;
   count: number;
 }
@@ -246,7 +278,7 @@ export async function publishCast(args: CastPublishArgs): Promise<CastPublishRes
 
   // A private cast gets no poster at all — `poster` is dropped here, before
   // the plan, so no .png path can exist to be committed.
-  const plan = buildCastPlan({ ...args, poster: args.lock ? null : args.poster, index });
+  const plan = buildCastPlan({ ...args, poster: args.lock ? null : args.poster, private: !!args.lock, index });
   const castPath = joinPath(args.castsDir, `${plan.slug}${publishExt()}`);
   const own = args.lock ? await lockLectureFiles(plan.files, [castPath], args.lock) : plan.files;
   // The claim file (registry delivery 1), when this publish is proving repo
@@ -260,13 +292,16 @@ export async function publishCast(args: CastPublishArgs): Promise<CastPublishRes
   // cast written as .cast removes the .yaml it was before (if the repo has
   // one): the republish is its conversion.
   const before = castPath.endsWith(".cast") ? [`${stripDocExt(castPath)}.yaml`] : [];
-  await commitFiles(args.repo, args.token, defaultBranch, files, [], `drawcast: publish "${args.title || "Untitled drawcast"}"`, fetchImpl, undefined, [...(args.lock ? [posterPathFor(castPath)] : []), ...before]);
+  // Likewise its page: a page from a public publish carries the cast in the
+  // clear, so going private removes it.
+  await commitFiles(args.repo, args.token, defaultBranch, files, [], `drawcast: publish "${args.title || "Untitled drawcast"}"`, fetchImpl, undefined, [...(args.lock ? [posterPathFor(castPath), pagePathFor(castPath)] : []), ...before]);
 
   return {
     slug: plan.slug,
     castUrl: plan.castUrl,
     readmeUrl: plan.readmeUrl,
     pagesUrl: plan.pagesUrl,
+    ...(plan.pageUrl ? { pageUrl: plan.pageUrl } : {}),
     defaultBranch,
     count: files.length,
   };
