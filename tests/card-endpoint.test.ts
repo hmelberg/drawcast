@@ -272,3 +272,30 @@ test("the app's own page carries the generic Open Graph card", async () => {
     '<meta name="twitter:card" content="summary_large_image"',
   ]) expect(html).toContain(tag);
 });
+
+
+describe(".cast casts (published since 2026-10-03)", () => {
+  const CAST_SCRIPT = '# Why vaccines work\nsubtitle: "Herd immunity, drawn."\n\n## Why vaccines work\nHello.\n    text t "Herd" x 100 y 100\n';
+  const dotCast = (over: Partial<CardDeps> = {}) =>
+    deps({
+      resolve: async (n) => (n === "herd" ? { kind: "cast", target: "ann/casts/casts/herd.cast" } : null),
+      fetchText: async (url) => (url.endsWith("casts/herd.cast") ? CAST_SCRIPT : null),
+      fetchImage: async (url) => (url.endsWith("casts/herd.png") ? new Response(new Uint8Array([137, 80, 78, 71]), { headers: { "content-type": "image/png" } }) : null),
+      ...over,
+    });
+  test("a name pointing at a .cast file: its own title, line and picture", async () => {
+    const html = await (await handleCardRequest(get("/c/herd", FB), dotCast())).text();
+    expect(html).toContain('og:title" content="Why vaccines work"');
+    expect(html).toContain('og:description" content="Herd immunity, drawn."');
+    expect(html).toContain('og:image" content="https://drawcast.app/card/herd.png"');
+  });
+  test("/card/<name>.png streams the .cast's poster", async () => {
+    const res = await handleCardRequest(get("/card/herd.png", FB), dotCast());
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+  });
+  test("a locked .cast is the generic card", async () => {
+    const html = await (await handleCardRequest(get("/c/herd", FB), dotCast({ fetchText: async () => "drawcast-encrypted: 1\ncipher: AAAA\n" }))).text();
+    expect(html).toContain('og:title" content="drawcast"');
+  });
+});

@@ -118,7 +118,7 @@ async function find(t: ShareTarget, deps: CardDeps, signal: AbortSignal): Promis
     return text === "locked" ? null : { text };
   }
   const k = splitKey(r.target);
-  if (!k || !/\.ya?ml$/i.test(k.path)) return null;
+  if (!k || !/\.(cast|ya?ml)$/i.test(k.path)) return null;
   const text = await castText(rawUrl(k.owner, k.repo, k.path), deps, signal);
   return text === "locked" ? null : { text, poster: posterUrlFor(k.owner, k.repo, k.path) };
 }

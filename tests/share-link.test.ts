@@ -69,3 +69,15 @@ describe("platformUrl", () => {
     expect(TAKES_TEXT).toEqual({ facebook: false, linkedin: false, x: true, bluesky: true, whatsapp: true, email: true });
   });
 });
+
+describe(".cast casts (published since 2026-10-03) get card links too", () => {
+  test("a #gh= .cast link becomes a /c/gh/ link, and parseSharePath takes it back", async () => {
+    const { parseSharePath } = await import("../netlify/lib/share-card.mts");
+    const link = shareLinkFor("#gh=ann/casts/casts/herd.cast&mode=silent");
+    expect(link).toEqual({ url: "https://drawcast.app/c/gh/ann/casts/casts/herd.cast", card: true });
+    expect(parseSharePath(new URL(link!.url).pathname, "/c/")).toEqual({ kind: "gh", owner: "ann", repo: "casts", path: "casts/herd.cast" });
+  });
+  test("another extension still keeps its # link", () => {
+    expect(shareLinkFor("#gh=ann/casts/casts/herd.json")).toEqual({ url: "https://drawcast.app/#gh=ann/casts/casts/herd.json", card: false });
+  });
+});

@@ -26,7 +26,7 @@ export const TAKES_TEXT: Record<Platform, boolean> = { facebook: false, linkedin
 const GH_PART_RE = /^[\w.-]+$/;
 
 function cardableGh(path: string): boolean {
-  if (path.includes("%") || !/\.ya?ml$/i.test(path)) return false;
+  if (path.includes("%") || !/\.(cast|ya?ml)$/i.test(path)) return false;
   const parts = path.split("/");
   return parts.length >= 3 && parts.every((p) => GH_PART_RE.test(p) && p !== "." && p !== "..");
 }
