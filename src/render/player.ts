@@ -1557,6 +1557,16 @@ export class Player {
     this.endMarks();
   }
 
+  /** Steps cards' arrows, drawn in one after another (spec/steps.ts); false when aborted. */
+  private async drawStepArrows(ids: string[], signal: AbortSignal): Promise<boolean> {
+    const els = this.els(ids);
+    for (const el of els) el.setProgress(0);
+    const each = 260;
+    await this.progress(each * Math.max(1, els.length), signal, (t) => els.forEach((el, i) => el.setProgress(Math.max(0, Math.min(1, t * els.length - i)))));
+    for (const el of els) el.finish();
+    return !signal.aborted;
+  }
+
   /**
    * A guess on the figure (spec 2026-10-01-guess-and-reveal): the guessed
    * parts are painted at the viewer's guess while the question stands, the
@@ -2018,7 +2028,7 @@ export class Player {
     // The cards are the question: if the cast did not draw them first, the
     // question shows them (never a compare pair's numbers — those are the answer).
     // (Nor a deck's waiting cards: the deal shows each in turn.)
-    const answerIds = new Set([...(g.valueIds ?? []), ...(g.deal ?? []).slice(1).map((i) => g.cards[i])]);
+    const answerIds = new Set([...(g.valueIds ?? []), ...(g.arrows ?? []), ...(g.deal ?? []).slice(1).map((i) => g.cards[i])]);
     show([...this.elements.keys()].filter((id) => id.startsWith(`${g.id}_`) && !answerIds.has(id)));
     const live = !this.autoAnswers && this.askGate !== null;
     let arrangement: Arrangement = start;
@@ -2213,6 +2223,8 @@ export class Player {
           });
         });
       }
+      // Steps (spec/steps.ts): the arrows draw in between the cards, now in order.
+      if (g.arrows && !signal.aborted) await this.drawStepArrows(g.arrows, signal);
       // The gate's nudges go (an abort too): the plan puts the cards at the truth.
       for (const id of g.cards) place(id, 0, 0);
       if (signal.aborted) {

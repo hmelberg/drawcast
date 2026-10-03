@@ -255,8 +255,9 @@ export interface SpecElement {
   shape?: "decision" | "chance" | "terminal" | "rect" | "circle" | "triangle" | "person";
   // tier-3 raw coordinates (logical units)
   points?: [number, number][];
-  /** math: the lines of a derivation that follow `tex`, written one per `step` beat (spec/derive.ts). */
-  steps?: (string | { tex: string; note?: string })[];
+  /** math: the lines of a derivation that follow `tex`, written one per `step` beat (spec/derive.ts).
+   *  cards (rank): true — PUT THE STEPS IN ORDER, numbered slots joined by arrows (W15). */
+  steps?: (string | { tex: string; note?: string })[] | boolean;
   /** math with steps: canvas units between lines (default ≈ 3.2 × size). */
   step_gap?: number;
   /** math with steps: where the notes' column starts, canvas units right of the formula's centre (default 220). */
@@ -514,6 +515,8 @@ export interface SpecElement {
   tick_format?: "words" | "numerals" | "power";
   /** scale: years before year 1 — "BC" (default on a timeline into negative years), "BCE", or "none". */
   era?: "BC" | "BCE" | "none";
+  /** scale: drawn as an estimate slider — a chunky track and a big counter (W15; an ask's `estimate` writes it). */
+  slider?: boolean;
   /** population: how many people (default: the states' sum, else 100). */
   count?: number;
   /** population: people per state, in order; the FIRST is the remainder. Bind a count (`bind: {"states.sick": "i"}`) to animate it. */
@@ -1048,6 +1051,9 @@ export interface AskArgs {
   check?: "direction" | "shape" | "size";
   /** Formula: wrong tiles; the right contents are always tiles. */
   others?: string[];
+  /** ESTIMATE SLIDER (W15): a big counter on a slider, scored by closeness
+   *  like a scale guess; expands to a slider scale and `on` (spec/slider.ts). */
+  estimate?: { min: number; max: number; value: number; unit?: string; log?: boolean; label?: string; tick_format?: "words" | "numerals" | "power"; era?: "BC" | "BCE" | "none" };
   /** Formula, typed: "exact" compares the written form, not the value. */
   form?: "exact";
   /** Feedback flavour for this question (spec 2026-10-03 §4.1); wins over the cast's. */

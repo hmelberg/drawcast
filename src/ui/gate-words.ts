@@ -42,6 +42,8 @@ export interface GateWords {
     angle: string;
     count: string;
     point: string;
+    /** An estimate slider (spec/slider.ts). */
+    slider: string;
     market: string;
     bars: string;
     edges: string;
@@ -78,6 +80,7 @@ const EN: GateWords = {
     angle: "Drag the slice's edge",
     count: "Drag across the people",
     point: "Click where you think it is",
+    slider: "Drag the slider to your estimate",
     market: "Drag the middle to move it, an end to turn it",
     bars: "Drag each bar to your guess",
     edges: "Drag the edges between the slices",
@@ -124,6 +127,7 @@ const NB: GateWords = {
     angle: "Dra kanten på kakestykket",
     count: "Dra over personene",
     point: "Klikk der du tror det er",
+    slider: "Dra glidebryteren til ditt anslag",
     market: "Dra midten for å flytte, en ende for å vri",
     bars: "Dra hver søyle dit du tror",
     edges: "Dra kantene mellom kakestykkene",

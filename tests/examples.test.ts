@@ -206,7 +206,7 @@ describe("bundled examples stay exemplary", () => {
         const offsets: Record<string, [number, number]> = {};
         g.cards.forEach((c, i) => (offsets[c] = [g.truth[i][0] - g.home[i][0], g.truth[i][1] - g.home[i][1]]));
         const hides = g.mode === "fill" ? g.cards.filter((_, i) => g.truthBin[i] >= 0) : [];
-        return { cards: g.cards, offsets, shows: g.valueIds ?? [], ...(hides.length > 0 ? { hides } : {}) };
+        return { cards: g.cards, offsets, shows: [...(g.valueIds ?? []), ...(g.arrows ?? [])], ...(hides.length > 0 ? { hides } : {}) };
       },
       formulaFor: (id) => {
         const rt = formulas.formula(id);

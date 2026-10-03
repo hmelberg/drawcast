@@ -68,7 +68,9 @@ export function rankVerdicts(g: CardsGeometry, a: Arrangement): GuessMarks {
 function labelAt(g: CardsGeometry, s: number): Pt {
   const p = g.slots[s];
   // Well clear of the cards, so each connector climbs to its card rather than running along the row.
-  return isColumn(g) ? [p[0] - g.w / 2 - 44, p[1]] : [p[0], Math.min(740, p[1] + g.h / 2 + 56)];
+  // Steps' number badges (spec/steps.ts) stand where the row's labels would: these go over them.
+  const badge = g.arrows ? 26 : 0;
+  return isColumn(g) ? [p[0] - g.w / 2 - 44 - badge, p[1]] : [p[0], Math.min(740, p[1] + g.h / 2 + 56 + badge)];
 }
 
 /** The viewer's order, faint: a short label at each slot whose card was wrong (the right ones leave a gap), the word at its start. */

@@ -6,6 +6,7 @@
 // Per-type requirements are enforced by the semantic checks below and fed back
 // to the LLM in the repair round.
 
+import { estimateErrors, expandEstimates } from "./slider";
 import AjvModule, { type ValidateFunction } from "ajv";
 import { fillIconDataInPlace } from "./icon-data";
 import { ASSET_MAX_BYTES, assetBytes, assetRef, formatAssetSize, isDataAsset, paramAssetRefs, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
@@ -378,9 +379,14 @@ const elementSchema = {
     dots: { type: "integer", minimum: 0, maximum: 2, description: "music: dots after a note (each adds half)." },
     time: { type: "string", description: "music: the time signature for symbol time, e.g. \"3/4\"." },
     steps: {
-      type: "array",
-      items: { oneOf: [{ type: "string" }, { type: "object", properties: { tex: { type: "string" }, note: { type: "string" } }, required: ["tex"], additionalProperties: false }] },
-      description: 'math: a DERIVATION — the lines after `tex`, each written by one {"step": id} beat (copied down, morphed glyph by glyph); {"tex", "note"} adds a note beside the line. Lines are <id>_2, <id>_3, …; notes <id>_2_note.',
+      anyOf: [
+        {
+          type: "array",
+          items: { oneOf: [{ type: "string" }, { type: "object", properties: { tex: { type: "string" }, note: { type: "string" } }, required: ["tex"], additionalProperties: false }] },
+        },
+        { type: "boolean" },
+      ],
+      description: 'math: a DERIVATION — the lines after `tex`, each written by one {"step": id} beat (copied down, morphed glyph by glyph); {"tex", "note"} adds a note beside the line. Lines are <id>_2, <id>_3, …; notes <id>_2_note. cards (rank): true — numbered slots joined by arrows.',
     },
     step_gap: { type: "number", description: "math with steps: canvas units between lines (default ≈ 3.2 × size)." },
     note_dx: { type: "number", description: "math with steps: the notes' column, canvas units right of the formula's centre (default 220)." },
@@ -702,6 +708,7 @@ const elementSchema = {
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
     tick_format: { type: "string", enum: ["words", "numerals", "power"], description: "scale: words (default: \"43 million\"), numerals, or power (10ⁿ)." },
     era: { type: "string", enum: ["BC", "BCE", "none"], description: "scale: negative years as BC (default), BCE, or none (minus)." },
+    slider: { type: "boolean", description: "scale: set by an ask's estimate — never write it." },
     states: {
       type: "object",
       additionalProperties: { type: "number" },
@@ -1053,6 +1060,22 @@ const commandSchema = {
         work: { oneOf: [{ type: "string", enum: ["all"] }, { const: false }], description: "Tree: working lines under wrong blanks (default), \"all\" for every blank, or false for none." },
         check: { type: "string", enum: ["direction", "shape", "size"], description: "Market guess (with `on` a supply or demand curve): what right means — direction, shape (default) or size." },
         others: { type: "array", items: { type: "string" }, description: "Formula (on a math element with \\blank): wrong tiles; the right contents are always tiles." },
+        estimate: {
+          type: "object",
+          properties: {
+            min: { type: "number" },
+            max: { type: "number" },
+            value: { type: "number", description: "The TRUE number." },
+            unit: { type: "string" },
+            log: { type: "boolean" },
+            label: { type: "string" },
+            tick_format: { type: "string", enum: ["words", "numerals", "power"] },
+            era: { type: "string", enum: ["BC", "BCE", "none"] },
+          },
+          required: ["min", "max", "value"],
+          additionalProperties: false,
+          description: "ESTIMATE SLIDER: a big counter over a slider (the ask draws it), scored like a guess on a scale. Never with on.",
+        },
         form: { const: "exact", description: "Formula, typed: \"exact\" compares the written form, not the value." },
         feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
         say_question: { type: "boolean", description: "false: the question is neither spoken nor shown." },
@@ -2534,6 +2557,7 @@ export function validateSpec(spec: unknown): ValidationResult {
   const normalized = normalizeSpec(spec);
   const sErrors = structuralErrors(normalized);
   if (sErrors.length > 0) return { ok: false, errors: sErrors };
-  const errors = semanticErrors(normalized as Spec);
+  // An ask's estimate (spec/slider.ts) is checked as the slider and the guess it expands to.
+  const errors = [...estimateErrors(normalized as Spec), ...semanticErrors(expandEstimates(normalized as Spec))];
   return { ok: errors.length === 0, errors };
 }

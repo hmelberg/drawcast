@@ -4,7 +4,7 @@
 // (layout/spot-geometry.ts).
 //
 // The whole figure answers, so the hand cursor stands over all of it (never
-// a crosshair). The reveal is drawn into the figure itself, in logical
+// a technical cursor; ui/cursors.ts). The reveal is drawn into the figure itself, in logical
 // coordinates, so it stays put while the dock gives the drawing back its
 // height: the place outlined and softly filled — green when found, amber
 // when shown after a miss — the tap marked ✓, or ✗ with a dashed line to

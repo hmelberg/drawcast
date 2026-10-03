@@ -30,6 +30,7 @@ import { wrapText } from "../layout/labels";
 import type { MeasureFn } from "../layout/measure";
 import { CAPTION_TOP, CONTENT_TOP, CONTENT_TOP_BARE, HEADING_Y, MARGIN, PAGE_W } from "../layout/page";
 import { pageHeading } from "./card";
+import { stepsArrowIds, stepsArrows, stepsColumn, stepsColumnSlots, stepsEnds, stepsExtentAdd, stepsRow, stepsSlotElements } from "./steps";
 
 export interface CardItem {
   text: string;
@@ -75,6 +76,8 @@ export interface CardsElementLike {
   items?: (string | CardItem)[];
   bins?: string[];
   ends?: string[];
+  /** rank: PUT THE STEPS IN ORDER — numbered slots joined by arrows (spec/steps.ts). */
+  steps?: boolean;
   /** rank: a row (default) or a column of cards; sort, select, deck (round 7 §5): drop (default — the cards above the boxes), side (a column on the left, up to 8), rise (the boxes on top). */
   arrange?: "row" | "column" | "drop" | "side" | "rise";
   /** place: the scale element the cards go on. */
@@ -185,6 +188,10 @@ export interface CardsGeometry {
   squeezed?: true;
   /** compare, decide (page frame 2026-10-04): labels and values that move with each card, by card id. */
   followers?: Record<string, string[]>;
+  /** rank with steps (spec/steps.ts): the arrows between the slots — drawn once the cards stand in the true order. */
+  arrows?: string[];
+  /** rank with steps: the slots run down a column. */
+  column?: true;
 }
 
 const CARD_H = 56;
@@ -467,7 +474,8 @@ export function cardsExtent(g: CardsGeometry, el?: Pick<CardsElementLike, "ends"
     const c = counterAt(g);
     add(c[0], c[0], c[1] - 12 * k, c[1] + 12 * k);
   }
-  if (g.mode === "rank" && Array.isArray(el?.ends) && el.ends.length === 2 && g.slots.length > 0) {
+  if (g.arrows) stepsExtentAdd(g.slots, g.w, g.h, g.column === true, k, Array.isArray(el?.ends) && el.ends.length === 2, add);
+  else if (g.mode === "rank" && Array.isArray(el?.ends) && el.ends.length === 2 && g.slots.length > 0) {
     const first = g.slots[0], last = g.slots[g.slots.length - 1];
     if (el.arrange === "column") {
       add(first[0], first[0], first[1], first[1] + g.h / 2 + 34 * k);
@@ -653,6 +661,24 @@ function cardsGeometryAt(el: CardsElementLike, k: number, ch0: number, scaleOf?:
   const truthBin = items.map((it) => (select ? (it.in === true ? 0 : -1) : Math.max(0, bins.indexOf(it.bin ?? ""))));
   const perm = shuffleOrder(n);
   if (deck) return deckGeometry(el, base, items.map((it) => it.text), truthBin, bins, perm, icons, x0, width, sortLayout(el, n), k);
+
+  if (mode === "rank" && el.steps === true) {
+    // Steps (spec/steps.ts): a row with room for an arrow between each two; a column when asked or when the row is too tight for the words.
+    const row = stepsRow(n, x0, width, isNum(el.y) ? el.y : 380, k);
+    const rowFit = fitCardTexts(texts, row.w, fontAt(20, CARD_H * k), k);
+    const column = stepsColumn(el.arrange, rowFit.tooLong.length > 0, n);
+    let slots = row.slots;
+    let w = row.w;
+    let fit = rowFit;
+    if (column) {
+      w = Math.min(340 * k, width);
+      fit = fitCardTexts(texts, w, fontAt(20, CARD_H * k), k);
+      slots = stepsColumnSlots(n, (x0 + x1) / 2, isNum(el.y) ? el.y : 600, ch0 + fit.extra, k);
+    }
+    const home: Pt[] = new Array(n);
+    perm.forEach((card, s) => (home[card] = slots[s]));
+    return { ...base, cards, texts, w, h: ch0 + fit.extra, home, slots, truth: slots.slice(), arrows: stepsArrowIds(el.id, n), ...(column ? { column: true as const } : {}), ...textFields(fit, 20) };
+  }
 
   if (mode === "rank") {
     const column = el.arrange === "column";
@@ -906,7 +932,7 @@ function deckGeometry(
 
 /** The authored fields a cards group carries back (authoredCards). `size` is
  *  the number expandCards chose, so the gate and the plan draw the same set. */
-const CARRIED = ["items", "rule", "bins", "ends", "arrange", "along", "compare", "pairs", "unit", "options", "then", "fill", "select", "deck", "check", "size", "x", "y", "width"] as const;
+const CARRIED = ["items", "rule", "bins", "ends", "steps", "arrange", "along", "compare", "pairs", "unit", "options", "then", "fill", "select", "deck", "check", "size", "x", "y", "width"] as const;
 
 /** compare: the words over the cards — `title` as given; by default the
  *  question, unless the page has a heading of its own (page frame 2026-10-04:
@@ -955,6 +981,8 @@ export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => Sc
     const top = Math.max(...g.home.map((p) => p[1])) + g.h / 2 + 40 * k;
     out.push({ id: `${el.id}_title`, type: "text", text: title, x: 500, y: Math.min(720, top), font_size: Math.round(24 * k) });
   }
+  // Steps: the numbered places, under the cards.
+  if (g.arrows) out.push(...stepsSlotElements(el.id, g.slots, g.w, g.h, g.column === true, k));
   // A deck is drawn as a stack: the card dealt first is drawn last, on top.
   const drawOrder = g.deal ? [...g.deal].reverse() : g.cards.map((_, i) => i);
   drawOrder.forEach((i) => {
@@ -969,7 +997,8 @@ export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => Sc
     const text = g.lines?.[i]?.join("\n") ?? g.texts[i];
     out.push({ id, type: "node", shape: "rect", text, x: g.home[i][0], y: g.home[i][1], width: g.w, height: g.h, font_size: g.font ?? (g.mode === "decide" ? 24 : 20), ...looks, ...iconOf(i) });
   });
-  if (g.mode === "rank" && Array.isArray(el.ends) && el.ends.length === 2) {
+  if (g.arrows && Array.isArray(el.ends) && el.ends.length === 2) out.push(...stepsEnds(el.id, el.ends, g.slots, g.h, g.column === true, k));
+  else if (g.mode === "rank" && Array.isArray(el.ends) && el.ends.length === 2) {
     const first = g.slots[0], last = g.slots[g.slots.length - 1];
     const column = el.arrange === "column";
     const at = (p: Pt, sign: 1 | -1): [number, number] => (column ? [p[0], p[1] + sign * (g.h / 2 + 22 * k)] : [p[0], p[1] - g.h / 2 - 26 * k]);
@@ -989,6 +1018,8 @@ export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => Sc
       out.push({ id, type: "text", text: compareValueText(g.values![i], el.unit), x: g.home[i][0], y: g.home[i][1] - g.h / 2 - 20 * k, font_size: Math.round(20 * k), style: { color: "#3f6fb5" } });
     });
   }
+  // Steps: the arrows stand outside the group — the answer draws them.
+  if (g.arrows) out.push(...stepsArrows(el.id, g.slots, g.w, g.h, g.column === true, k));
   const keep: Record<string, unknown> = {};
   for (const f of CARRIED) {
     if (el[f] !== undefined) keep[f] = el[f];

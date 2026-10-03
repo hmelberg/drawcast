@@ -13,6 +13,7 @@
 
 import { CAPTION_TOP, contentBox, MARGIN } from "../layout/page";
 import type { Spec, SpecElement } from "./types";
+import { isSlider, sliderLineElements, sliderValueElements, sliderY } from "./slider";
 
 /** The authored scale element's fields this module reads. */
 export interface ScaleElementLike {
@@ -47,6 +48,8 @@ export interface ScaleElementLike {
    *  scale is alone on the page); an authored one is ignored. Default 22; the
    *  marker's number and the caption follow. */
   font_size?: number;
+  /** Drawn as an estimate slider (spec/slider.ts, W15). */
+  slider?: boolean;
   style?: SpecElement["style"];
 }
 
@@ -291,6 +294,7 @@ const LABEL_GAP = 16;
 
 /** The marker and its number at value v: `<id>_answer` (a group) and its two members. */
 export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement[] {
+  if (isSlider(sc)) return sliderValueElements(sc, v);
   const g = scaleGeometry(sc);
   const x = g.xAt(v);
   const color = sc.style?.color ?? ACCENT;
@@ -368,6 +372,7 @@ function unitOnLine(g: ScaleGeometry): string | null {
 
 /** The line, ticks, numbers and caption: `<id>` (a group) and its members. */
 export function scaleLineElements(sc: ScaleElementLike, textScale = 1): SpecElement[] {
+  if (isSlider(sc)) return sliderLineElements(sc, scaleKeep(sc), textScale);
   const g = scaleGeometry(sc);
   const sizes = g.sizes ?? { tick: TICK_SIZE, answer: 28, caption: 26 };
   const drop = g.tickDrop ?? 37;
@@ -410,8 +415,13 @@ export function scaleLineElements(sc: ScaleElementLike, textScale = 1): SpecElem
     }
   }
   if (sc.label) out.push({ id: `${sc.id}_caption`, type: "text", text: sc.label, x: (g.x0 + g.x1) / 2, y: g.y + 44 + Math.round(sizes.answer * 1.2 + sizes.caption * 0.5), font_size: sizes.caption });
-  // The group keeps the scale's numbers (not its caption: a group's label
-  // means nothing) — the guess reads its truth and geometry back from here.
+  out.push({ id: sc.id, type: "group", members: out.map((e) => e.id), ...scaleKeep(sc) });
+  return out;
+}
+
+/** The scale's numbers its group keeps (not its caption: a group's label
+ *  means nothing) — the guess reads its truth and geometry back from them. */
+function scaleKeep(sc: ScaleElementLike): Partial<SpecElement> {
   const keep: Partial<SpecElement> = { min: sc.min, max: sc.max, ...(isNum(sc.value) ? { value: sc.value } : {}) };
   if (sc.log !== undefined) keep.log = sc.log;
   if (sc.unit !== undefined) keep.unit = sc.unit;
@@ -422,9 +432,9 @@ export function scaleLineElements(sc: ScaleElementLike, textScale = 1): SpecElem
   if (sc.tick_format !== undefined) keep.tick_format = sc.tick_format;
   if (sc.era !== undefined) keep.era = sc.era;
   if (sc.font_size !== undefined) keep.font_size = sc.font_size;
+  if (sc.slider === true) keep.slider = true;
   if (sc.style !== undefined) keep.style = sc.style;
-  out.push({ id: sc.id, type: "group", members: out.map((e) => e.id), ...keep });
-  return out;
+  return keep;
 }
 
 /** The scales of an expanded spec: the groups expandScales left, read back. */
@@ -448,6 +458,7 @@ export function authoredScales(spec: Pick<Spec, "elements">): ScaleElementLike[]
       ...(el.tick_format !== undefined ? { tick_format: el.tick_format } : {}),
       ...(el.era !== undefined ? { era: el.era } : {}),
       ...(el.font_size !== undefined ? { font_size: el.font_size } : {}),
+      ...(el.slider === true ? { slider: true } : {}),
       ...(el.style !== undefined ? { style: el.style } : {}),
     });
   }
@@ -513,6 +524,8 @@ export function placeScale(sc: ScaleElementLike, spec: Pick<Spec, "elements"> & 
       const lowest = box.y + 10 + 86 + rows * h + (rows - 1) * 14;
       const highest = box.y + box.h - 10 - 40 - 2 * (h + 8);
       y = highest > lowest ? (lowest + highest) / 2 : lowest;
+    } else if (isSlider(sc)) {
+      y = sliderY(box);
     } else {
       y = box.y + box.h * (alone ? 0.45 : 0.3);
     }

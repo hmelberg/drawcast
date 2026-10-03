@@ -710,7 +710,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Merged layout-w11 2026-10-04: +1706 (reveal stamps). -> 402517.
 // Merged layout-w18 2026-10-04: +235 (page.valign). -> 402752.
 // Merged layout-w13 2026-10-04: +1606 (odd one out, spot it). -> 404358.
-const BASELINE_SYSTEM_CHARS = 404358;
+// Merged layout-w15 2026-10-04: +1187 (estimate, steps). -> 405545.
+const BASELINE_SYSTEM_CHARS = 405545;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -821,7 +822,8 @@ const BASELINE_SYSTEM_CHARS = 404358;
 // Merged layout-w11 2026-10-04: +1463 (reveal stamps). -> 118071.
 // Merged layout-w18 2026-10-04: +235 (page.valign). -> 118306.
 // Merged layout-w13 2026-10-04: +858 (odd one out, spot it). -> 119164.
-const BASELINE_SCHEMA_CHARS = 119164;
+// Merged layout-w15 2026-10-04: +713 (estimate, steps). -> 119877.
+const BASELINE_SCHEMA_CHARS = 119877;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

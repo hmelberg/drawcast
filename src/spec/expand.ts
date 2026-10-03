@@ -10,6 +10,7 @@ import { expandDerivations } from "./derive";
 import { expandSound } from "./sound";
 import { expandWalks } from "./walk";
 import { expandScales } from "./scale";
+import { expandEstimates } from "./slider";
 import { withIconData } from "./icon-data";
 import { expandAnswerButtons } from "./answer-buttons";
 import { expandSequences } from "./sequence";
@@ -89,5 +90,5 @@ export function expandSpec(spec: Spec): Spec {
   // Icons named by keyword take their data from `assets:` or the offline
   // cache FIRST (spec/icon-data.ts): a card's height depends on whether its
   // icon is there, and that is decided when the cards expand.
-  return markBarGuess(expandWalks(expandSound(expandDerivations(expandDefaultHeading(expandCards(expandScratch(expandOddOneOut(expandCardSets(expandFormulaTiles(expandScales(expandEquationPreset(withIconData(expandSpot(linkStampsToButtons(expandAnswerButtons(expandRevealStamps(expandSequences(spec))))))))))))))))));
+  return markBarGuess(expandWalks(expandSound(expandDerivations(expandDefaultHeading(expandCards(expandScratch(expandOddOneOut(expandCardSets(expandFormulaTiles(expandScales(expandEstimates(expandEquationPreset(withIconData(expandSpot(linkStampsToButtons(expandAnswerButtons(expandRevealStamps(expandSequences(spec)))))))))))))))))));
 }

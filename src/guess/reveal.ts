@@ -23,6 +23,7 @@ import { scaleBracketDrop, scaleGeometry, scaleLabelWidth } from "../spec/scale"
 import { GUESS_COLOR } from "./color";
 import { pointFor, type GuessHandle } from "./handles";
 import { ratioText, signed, signedScale, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "./marks";
+import { onSlider, sliderMarks, sliderRevealValue } from "./slider-marks";
 
 /** The colour language. */
 export const YOURS = GUESS_COLOR;
@@ -177,7 +178,8 @@ export function besideValues(handles: GuessHandle[], guess: number[][], prog: nu
       case "curve":
         return g.slice();
       case "point":
-        return h.truth.slice();
+        // A slider's thumb and counter run from yours to the truth (spec/slider.ts).
+        return onSlider(h) ? h.truth.map((v, j) => sliderRevealValue(g[j] ?? v, v, p)) : h.truth.slice();
       default:
         return g.map((v, j) => lerp(v, h.truth[j] ?? v, ease(p)));
     }
@@ -191,7 +193,7 @@ const PIN_DROP = 70;
 export function besideOffsets(handles: GuessHandle[], prog: number[]): Record<string, Pt> {
   const out: Record<string, Pt> = {};
   handles.forEach((h, k) => {
-    if (h.kind !== "point") return;
+    if (h.kind !== "point" || onSlider(h)) return;
     const dy = PIN_DROP * (1 - ease(Math.max(0, Math.min(1, prog[k] ?? 1))));
     if (dy <= 0.01) return;
     for (const id of [h.part, `${h.part}_pin`, `${h.part}_num`]) out[id] = [0, dy];
@@ -347,6 +349,13 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
       }
       case "point": {
         if (!h.scale) break;
+        if (onSlider(h)) {
+          const m = sliderMarks(h, g[0], p, { fade });
+          fills.push(...m.fills);
+          lines.push(...m.lines);
+          texts.push(...m.texts);
+          break;
+        }
         const sg = scaleGeometry(h.scale);
         const x = sg.xAt(g[0]);
         const y = sg.y;

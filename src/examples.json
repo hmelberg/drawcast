@@ -83631,5 +83631,259 @@
         }
       ]
     }
+  },
+  {
+    "request": "How many bones does an adult have? Let me estimate it on a slider first. #interactive #short (estimate slider, W15)",
+    "spec": {
+      "title": "How many bones does an adult have?",
+      "sources": [
+        {
+          "id": "healthline",
+          "title": "How Many Bones Are Babies Born With?",
+          "authors": "Healthline",
+          "year": 2023,
+          "url": "https://healthline.com/health/how-many-bones-does-a-baby-have",
+          "finding": "babies are born with about 270–300 bones; adults have 206"
+        },
+        {
+          "id": "gray",
+          "title": "Gray's Anatomy: The Anatomical Basis of Clinical Practice",
+          "authors": "Standring (ed.)",
+          "year": 2020,
+          "finding": "the adult skeleton has 206 bones; each hand 27, each foot 26"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How many bones does an adult have?"
+          }
+        },
+        {
+          "speak": "Your skeleton holds you up, guards your brain and heart, and even makes your blood. But how many pieces is it made of?"
+        },
+        {
+          "ask": {
+            "question": "How many bones does an adult human have? Drag the slider to your estimate.",
+            "estimate": {
+              "min": 0,
+              "max": 500,
+              "value": 206,
+              "unit": "bones"
+            },
+            "store": "g",
+            "default": "150",
+            "tolerance": 0.06,
+            "right": "Close: you said {g}, and an adult has {g.true}.",
+            "wrong": "You said {g}. An adult has {g.true}, so you were {g.off} away."
+          }
+        },
+        {
+          "erase": [
+            "estimate_1",
+            "estimate_1_answer"
+          ]
+        },
+        {
+          "draw": [
+            "hands"
+          ],
+          "speak": "More than half of them are in your hands and feet: twenty-seven in each hand,"
+        },
+        {
+          "draw": [
+            "feet"
+          ],
+          "speak": "and twenty-six in each foot."
+        },
+        {
+          "draw": [
+            "baby"
+          ],
+          "speak": "A newborn baby has more: about two hundred and seventy to three hundred, many still partly cartilage."
+        },
+        {
+          "draw": [
+            "adult"
+          ],
+          "speak": "As a child grows, many of them fuse: the plates of the skull join, and five small bones at the base of the spine become one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "adult"
+            ]
+          },
+          "speak": "So you once had more bones than you have today, and you lost none of them: they grew together."
+        }
+      ],
+      "elements": [
+        {
+          "id": "hands",
+          "type": "text",
+          "text": "each hand: 27",
+          "x": 500,
+          "y": 540,
+          "font_size": 36
+        },
+        {
+          "id": "feet",
+          "type": "text",
+          "text": "each foot: 26",
+          "x": 500,
+          "y": 470,
+          "font_size": 36
+        },
+        {
+          "id": "baby",
+          "type": "text",
+          "text": "newborn: about 300",
+          "x": 500,
+          "y": 360,
+          "font_size": 36,
+          "cites": [
+            "healthline"
+          ]
+        },
+        {
+          "id": "adult",
+          "type": "text",
+          "text": "adult: 206",
+          "x": 500,
+          "y": 290,
+          "font_size": 36,
+          "cites": [
+            "gray"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "request": "Put these in order: the Big Bang, the first stars, the Sun, the Earth, the first life. #interactive #short (steps in order, W15)",
+    "spec": {
+      "title": "In what order did these happen?",
+      "elements": [
+        {
+          "id": "cosmos",
+          "type": "cards",
+          "steps": true,
+          "items": [
+            "Big Bang",
+            "First stars",
+            "Sun forms",
+            "Earth forms",
+            "First life"
+          ],
+          "ends": [
+            "first",
+            "last"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "id": "planck",
+          "title": "Planck 2018 results. VI. Cosmological parameters",
+          "authors": "Planck Collaboration",
+          "year": 2020,
+          "finding": "age of the universe 13.787 ± 0.020 billion years"
+        },
+        {
+          "id": "nasa_stars",
+          "title": "What Were the First Stars Like?",
+          "authors": "NASA Science (Webb)",
+          "year": 2024,
+          "url": "https://science.nasa.gov/mission/webb/science-overview/science-explainers/what-were-the-first-stars-like/",
+          "finding": "the first stars formed within the first few hundred million years; simulations put them at 100–250 million years after the Big Bang"
+        },
+        {
+          "id": "sun",
+          "title": "How old is the Sun?",
+          "authors": "Stanford Solar Center",
+          "url": "https://solar-center.stanford.edu/FAQ/Qage.html",
+          "finding": "the Sun is about 4.6 billion years old"
+        },
+        {
+          "id": "usgs",
+          "title": "Age of the Earth",
+          "authors": "Dalrymple, G. B. (USGS)",
+          "year": 1997,
+          "finding": "the Earth is 4.54 ± 0.05 billion years old"
+        },
+        {
+          "id": "life",
+          "title": "Evidence of Archean life: stromatolites and microfossils",
+          "authors": "Schopf et al., Precambrian Research",
+          "year": 2007,
+          "finding": "stromatolites of the Dresser Formation, Western Australia, about 3.48 billion years old"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "In what order did these happen?"
+          }
+        },
+        {
+          "draw": [
+            "cosmos"
+          ],
+          "speak": "Here are five moments from the story of everything, from the birth of the universe to the first living cells, shuffled."
+        },
+        {
+          "ask": {
+            "question": "In what order did these happen? Drag the earliest to the first place.",
+            "on": "cosmos",
+            "store": "k",
+            "right": "{k} in place. The Big Bang, the first stars, our Sun, our Earth, then life.",
+            "wrong": "You got {k}. The universe came first, the stars long before the Sun, and the Earth just after it."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "cosmos_1"
+            ]
+          },
+          "speak": "It starts with the Big Bang, about thirteen point eight billion years ago."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cosmos_2"
+            ]
+          },
+          "speak": "Within a hundred to two hundred million years, gas clouds collapsed and the first stars lit up."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cosmos_3"
+            ]
+          },
+          "speak": "Our Sun is a latecomer: it formed about four point six billion years ago, from gas that older stars had enriched."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cosmos_4"
+            ]
+          },
+          "speak": "The Earth grew from the leftover disc around it, about four and a half billion years ago."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cosmos_5"
+            ]
+          },
+          "speak": "And life came quickly after that: fossil mats of microbes are at least three and a half billion years old."
+        },
+        {
+          "speak": "So for about two thirds of the universe's history, there was no Earth at all."
+        }
+      ]
+    }
   }
 ]
