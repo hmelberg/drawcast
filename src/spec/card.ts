@@ -8,7 +8,7 @@
 // before layout, so live playback, lint and export all see one thing.
 
 import type { Command, Spec, SpecElement } from "./types";
-import { HEADING_Y } from "../layout/page";
+import { CONTENT_TOP, HEADING_Y } from "../layout/page";
 
 export { HEADING_Y };
 
@@ -50,6 +50,117 @@ export function headingElements(title: string, prefix: string): SpecElement[] {
     { id: `${prefix}_title`, type: "text", text: title, x: 500, y: HEADING_Y, font_size: font, draw: { mode: "sketch", duration: 0.35 } },
     { id: `${prefix}_line`, type: "path", points: [[500 - half, HEADING_Y - font * 0.78], [500 + half, HEADING_Y - font * 0.82]], draw: { mode: "sketch", duration: 0.3 } },
   ];
+}
+
+/** The default heading's prefix: `card_0_title` over `card_0_line`. A
+ *  `card` command numbers from 1, so the two never meet — and every reader
+ *  that knows the card heading by `card_<n>_` (the heading floor, the
+ *  heading-intrusion lint, the headline CSS) knows this one too. */
+export const DEFAULT_HEADING = "card_0";
+
+/**
+ * The heading a page gets without asking (page frame spec 2026-10-04 §2):
+ * `spec.heading` when it is a string, else the title — or null when the page
+ * gets none. None when:
+ *   - `heading: false` (or an empty string), or no title to draw;
+ *   - the cast writes its own `card` (either style) — the author has spoken;
+ *   - a book part (`book`): the text pane writes the title, as a heading;
+ *   - a course's generated end page (`end_page`);
+ *   - a page with no commands: nothing plays, so nothing would draw it;
+ *   - a page that already carries a card heading (`card_<n>_title`): it
+ *     has been expanded already;
+ *   - a page whose authored ink already reaches into the heading strip
+ *     (usesHeadingStrip): the heading yields rather than collide.
+ * The video title page (playlist makeTitlePage) has no `title` field and so
+ * none either. Exported so an expansion that runs BEFORE this one (cards,
+ * scales sizing themselves to the content area) can ask whether the page
+ * will have a heading.
+ */
+export function pageHeading(spec: Spec): string | null {
+  if (spec.heading === false || spec.book !== undefined || spec.end_page === true) return null;
+  const commands = spec.commands ?? [];
+  if (commands.length === 0 || commands.some((c) => c.card !== undefined)) return null;
+  // Already expanded — a card's heading, or this one (expandSpec runs again
+  // on an expanded spec: the layout, the gate, revise).
+  if ((spec.elements ?? []).some((e) => /^card_\d+_title$/.test(e.id))) return null;
+  if (usesHeadingStrip(spec)) return null;
+  const text = (typeof spec.heading === "string" ? spec.heading : spec.title ?? "").trim();
+  return text === "" ? null : text;
+}
+
+/** Rough top of an element the author placed in canvas units, or null when
+ *  it is placed relative to something, in data units, or has no position. */
+function placedTop(e: SpecElement): number | null {
+  if (e.data === true) return null;
+  const at = e.at as { ref?: unknown; place?: unknown; data?: unknown } | undefined;
+  if (at && !Array.isArray(at) && (at.ref !== undefined || at.place !== undefined || at.data !== undefined)) return null;
+  const ys: number[] = [];
+  if (Array.isArray(e.points)) for (const p of e.points as unknown[]) if (Array.isArray(p) && typeof p[1] === "number") ys.push(p[1]);
+  for (const end of [e.from, e.to] as unknown[]) {
+    if (end && typeof end === "object" && !Array.isArray(end) && typeof (end as { y?: unknown }).y === "number") ys.push((end as { y: number }).y);
+    else if (Array.isArray(end) && typeof end[1] === "number") ys.push(end[1]);
+  }
+  if (typeof e.y === "number") {
+    const half =
+      typeof e.height === "number" ? e.height / 2
+        : typeof e.radius === "number" ? e.radius
+          : typeof e.size === "number" ? e.size / 2
+            : typeof e.font_size === "number" ? e.font_size * 0.6
+              : e.type === "text" || e.type === "math" || e.type === "label" ? 17 : 0;
+    ys.push(e.y + half);
+  }
+  return ys.length > 0 ? Math.max(...ys) : null;
+}
+
+/** The author already drew in the heading strip (above the content area's
+ *  top, layout/page.ts CONTENT_TOP): a page made before the default heading
+ *  — its own title text at the top, a flask's stopper at y 680 — keeps the
+ *  page it was made as, and the heading yields. Positions as written; what
+ *  is placed relative to something else is not judged here. */
+function usesHeadingStrip(spec: Spec): boolean {
+  return (spec.elements ?? []).some((e) => {
+    if (e.type === "group" || /^card_\d+_/.test(e.id)) return false;
+    const top = placedTop(e);
+    return top !== null && top > CONTENT_TOP;
+  });
+}
+
+/**
+ * The default heading, expanded: the same elements a `card` draws, sketched
+ * in quickly by one unnarrated beat just before the cast's first ink — no
+ * push-in, so the opening line still rides the first strokes a moment
+ * later. Returns the same object when the page gets none.
+ */
+export function expandDefaultHeading(spec: Spec): Spec {
+  const text = pageHeading(spec);
+  if (text === null) return spec;
+  const els = headingElements(text, DEFAULT_HEADING);
+  // Just before the first ink, so an announcement spoken over the empty page
+  // stays one; a cast that never draws gets it first.
+  const commands = [...(spec.commands ?? [])];
+  const first = commands.findIndex((c) => c.draw !== undefined || c.show !== undefined || c.animate !== undefined);
+  commands.splice(Math.max(0, first), 0, { draw: els.map((e) => e.id), parallel: true });
+  return { ...spec, elements: [...(spec.elements ?? []), ...els], commands };
+}
+
+/** The default heading's own beat (expandDefaultHeading): lints that ask
+ *  "has anything been drawn yet?" look past it. */
+export function isDefaultHeadingBeat(c: Command): boolean {
+  return Array.isArray(c.draw) && c.draw.length > 0 && c.draw.every((id) => typeof id === "string" && id.startsWith(`${DEFAULT_HEADING}_`));
+}
+
+/** The page without its default heading — for an inset, whose picture is
+ *  the source's FIGURE: the heading would only widen the crop and shrink
+ *  the drawing inside the thumbnail. Unexpanded specs pass through. */
+export function withoutDefaultHeading(spec: Spec): Spec {
+  const ids = new Set([`${DEFAULT_HEADING}_title`, `${DEFAULT_HEADING}_line`]);
+  if (!(spec.elements ?? []).some((e) => ids.has(e.id))) return { ...spec, heading: false };
+  return {
+    ...spec,
+    heading: false,
+    elements: (spec.elements ?? []).filter((e) => !ids.has(e.id)),
+    commands: (spec.commands ?? []).filter((c) => !isDefaultHeadingBeat(c)),
+  };
 }
 
 /**

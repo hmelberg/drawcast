@@ -26,6 +26,7 @@
 import { lintableLeaves, type LintIssue } from "./lint";
 import { SUB_SUFFIXES, type Drawable, type TextDrawable } from "../layout/model";
 import type { Command, Spec } from "../spec/types";
+import { DEFAULT_HEADING } from "../spec/card";
 
 /** More of the cast's own text items than this on one page state is crowding. */
 export const CROWDING_MAX_TEXTS = 14;
@@ -123,7 +124,9 @@ export function crowdingStates(drawables: Drawable[], commands: Command[] | unde
 
 /** The ids the crowding lint counts for `spec`: its own elements (and their sub-drawables), code panes excluded. */
 export function castOwnIds(spec: Spec, minted: Record<string, string[]> = {}): (id: string) => boolean {
-  const own = new Set((spec.elements ?? []).filter((e) => e.type !== "code").map((e) => e.id));
+  // Not the default heading (spec/card.ts): it is the page's frame, which
+  // every titled page has — counting it would make the cap one text lower.
+  const own = new Set((spec.elements ?? []).filter((e) => e.type !== "code" && !e.id.startsWith(`${DEFAULT_HEADING}_`)).map((e) => e.id));
   // What an element of the cast mints under ids of its own (a population's
   // sets and legend) is the cast's too.
   for (const e of spec.elements ?? []) if (e.type === "population") for (const k of minted[e.id] ?? []) own.add(k);

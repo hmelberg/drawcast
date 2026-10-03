@@ -85,6 +85,10 @@ const HEADING_CLEAR = 50;
 export function setHeadingFloor(y: number | null): void {
   headingFloor = y;
 }
+/** This page's heading underline, or null with no heading (setHeadingFloor). */
+export function headingFloorY(): number | null {
+  return headingFloor;
+}
 
 /**
  * The plot a page's `domain` is drawn on: the standard plot area, or — with
