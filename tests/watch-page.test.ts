@@ -31,6 +31,10 @@ describe("watch address", () => {
     expect(out).toContain('content="https://drawcast.app/w/moon"');
     expect(out).toContain("About astronomy.");
     expect(out.match(/<title>/g)).toHaveLength(1);
+    // A folder or index page is a listing, never the canonical.
+    for (const page of ["https://hmelberg.github.io/drawcast-library/casts/", "https://x.github.io/r/index.html"]) {
+      expect(watchHead(INDEX, "moon", { title: "M", page })).toContain('<link rel="canonical" href="https://drawcast.app/w/moon" />');
+    }
     expect(out.match(/name="description"/g)).toHaveLength(1);
   });
   test("unknown, private or unreachable: still a working page, canonical to itself", () => {

@@ -61,7 +61,10 @@ export function watchDescription(meta: WatchMeta): string {
 export function watchHead(html: string, name: string, meta: WatchMeta | null): string {
   const base = name.split("/", 1)[0];
   const self = watchUrl(name);
-  const canonical = meta?.page && /^https:\/\//.test(meta.page) && !name.includes("/") ? meta.page : self;
+  // Only a specific page (`…/casts/moon.html`) is a door page: the registry
+  // also holds folder and index pages (`…/casts/`), which are a listing.
+  const door = meta?.page && /^https:\/\/.+\/(?!index\.html$)[^/]+\.html$/.test(meta.page) ? meta.page : null;
+  const canonical = door && !name.includes("/") ? door : self;
   const title = meta?.title?.trim() || base;
   const description = meta ? watchDescription(meta) : "A drawcast — a drawn explanation you can watch and play with.";
   const image = `${APEX_ORIGIN}/card/${base}.png`;
