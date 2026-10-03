@@ -148,3 +148,9 @@ export function creditBaseline(args: {
   creditBalance: (api: string, key: string, fetchImpl?: typeof fetch) => Promise<CreditBalanceOutcomeLike>;
   fetchImpl?: typeof fetch;
 }): Promise<number>;
+
+export function packedCastText(
+  wrapper: { spec: unknown; subtitle?: unknown; [key: string]: unknown },
+  format: "yaml" | "script",
+  lib: { singlePlaylist: (spec: never) => { meta: { title?: string; subtitle?: string } }; formatPlaylist: (playlist: never, format: "yaml" | "script") => string; formatSpec: (spec: unknown, format: "yaml" | "script") => string },
+): string;

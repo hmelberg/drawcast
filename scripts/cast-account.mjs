@@ -442,3 +442,22 @@ export async function waitForCredit({ api, key, startMicro, creditBalance, timeo
   }
   return "timeout";
 }
+
+/**
+ * The published text `cast.mjs pack` writes for a `{request, subtitle?, spec}`
+ * (2026-10-03): with a one-line `subtitle`, a playlist header carrying the
+ * cast's title and that line — the description its link card shows
+ * (netlify/lib/share-card.mts castCardText reads `playlist.subtitle`);
+ * without one, the bare spec exactly as before. `lib` is the app's own
+ * playlist/playlist.ts singlePlaylist + formatPlaylist and spec/text.ts
+ * formatSpec; `format` is cast-file.ts publishFormat().
+ */
+export function packedCastText(wrapper, format, lib) {
+  const spec = wrapper.spec;
+  const subtitle = typeof wrapper.subtitle === "string" ? wrapper.subtitle.trim() : "";
+  if (!subtitle) return lib.formatSpec(spec, format);
+  const playlist = lib.singlePlaylist(spec);
+  if (typeof spec.title === "string" && spec.title.trim()) playlist.meta.title = spec.title;
+  playlist.meta.subtitle = subtitle;
+  return lib.formatPlaylist(playlist, format);
+}
