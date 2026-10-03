@@ -706,7 +706,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Merged layout-w1 2026-10-04: +164 (heading field). -> 398894.
 // Re-pinned UP 2026-10-04 (W16 confidence bet + poll): quiz/ask confidence and ask.poll in the
 // schema (+1003), one sentence on confidence in the quiz bullet and POLL in the ask bullet. +1649. -> 400543.
-const BASELINE_SYSTEM_CHARS = 400543;
+// Re-pinned UP 2026-10-04 (W16): the on-canvas buttons' group hint `answer_buttons` is allowed as
+// machine-written, so an expanded spec validates (bundled examples). +84. -> 400627.
+const BASELINE_SYSTEM_CHARS = 400627;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -814,7 +816,8 @@ const BASELINE_SYSTEM_CHARS = 400543;
 // Merged layout-w1 2026-10-04: +164 (heading field). -> 115244.
 // Re-pinned UP 2026-10-04 (W16): quiz.confidence, ask.confidence, ask.poll (choices, on, others,
 // source, live). +1003. -> 116247.
-const BASELINE_SCHEMA_CHARS = 116247;
+// Re-pinned UP 2026-10-04 (W16): element answer_buttons (machine-written). +84. -> 116331.
+const BASELINE_SCHEMA_CHARS = 116331;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

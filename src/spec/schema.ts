@@ -383,6 +383,7 @@ const elementSchema = {
     },
     icon_strokes: { type: "string", description: "node rect: the resolved icon (machine-written; copy VERBATIM if present)." },
     icon_key: { type: "string", description: "node/icon: what the icon was resolved for (machine-written; copy VERBATIM if present)." },
+    answer_buttons: { type: "object", description: "Machine-written; never write it." },
     icon_look: { type: "string", enum: ["picture", "drawn"], description: 'node/cards/icon: picture (its own artwork; nodes/cards default) or drawn (traced; icon default) — drawn only when the icon is the subject.' },
     font_size: { type: "number", description: "text: font size in logical units (≥ 14; default 26). node: its text size (default 24; a text-fitted box grows with it)." },
     // sector / arc / polygon / pieces
