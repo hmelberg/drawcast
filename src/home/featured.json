@@ -1,1 +1,601 @@
-[]
+[
+  {
+    "name": "the-deadliest-animal",
+    "title": "The deadliest animal",
+    "format": "drawcast",
+    "tags": [
+      "health",
+      "biology",
+      "epidemiology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-fast-can-they-run",
+    "title": "How fast can they run?",
+    "format": "quiz",
+    "tags": [
+      "biology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "why-the-moon-never-lands",
+    "title": "Why the Moon never lands",
+    "format": "drawcast",
+    "tags": [
+      "physics",
+      "astronomy"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-99-accurate-is-worth",
+    "title": "A 99 % accurate test says yes. Are you ill?",
+    "format": "drawcast",
+    "tags": [
+      "statistics",
+      "medicine"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "blue-sky-red-sunset-by-hmelberg",
+    "title": "Why the sky is blue and sunsets red",
+    "format": "drawcast",
+    "tags": [
+      "physics",
+      "earth"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "the-broad-street-pump",
+    "title": "The map that blamed a water pump",
+    "format": "drawcast",
+    "tags": [
+      "history of science",
+      "epidemiology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "bayes-and-the-screening-test-a-book",
+    "title": "Bayes and the screening test",
+    "format": "xplanation",
+    "tags": [
+      "statistics",
+      "medicine"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "the-herd-immunity-threshold",
+    "title": "How many must be immune to stop a disease?",
+    "format": "drawcast",
+    "tags": [
+      "epidemiology",
+      "health"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "where-a-heat-pump-s-extra-heat-comes",
+    "title": "Where a heat pump's extra heat comes from",
+    "format": "drawcast",
+    "tags": [
+      "physics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "is-it-a-fruit-by-hmelberg",
+    "title": "Is a tomato a fruit?",
+    "format": "quiz",
+    "tags": [
+      "biology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "the-prisoner-s-dilemma",
+    "title": "Why two rational suspects both confess",
+    "format": "drawcast",
+    "tags": [
+      "economics",
+      "mathematics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-big-is-jupiter-by-hmelberg",
+    "title": "How big is Jupiter?",
+    "format": "drawcast",
+    "tags": [
+      "astronomy"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "180-litres-in-1-5-out",
+    "title": "180 litres in, 1.5 out",
+    "format": "drawcast",
+    "tags": [
+      "biology",
+      "medicine"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "bremselengden-vokser-med-kvadratet",
+    "title": "Dobbel fart, firedobbel bremselengde",
+    "format": "drawcast",
+    "tags": [
+      "physics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "does-a-minimum-wage-cost-jobs",
+    "title": "Does a minimum wage cost jobs?",
+    "format": "drawcast",
+    "tags": [
+      "economics",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "euler-s-identity-as-half-a-turn",
+    "title": "Euler's identity, as half a turn",
+    "format": "drawcast",
+    "tags": [
+      "mathematics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-a-fridge-keeps-cold",
+    "title": "How a fridge keeps cold",
+    "format": "drawcast",
+    "tags": [
+      "physics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-a-magnifying-glass-works",
+    "title": "How a magnifying glass really works",
+    "format": "drawcast",
+    "tags": [
+      "physics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-a-nerve-signal-travels",
+    "title": "How a nerve signal travels",
+    "format": "drawcast",
+    "tags": [
+      "biology",
+      "medicine"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "mozart-s-short-life-by-hmelberg",
+    "title": "How long did Mozart live?",
+    "format": "quiz",
+    "tags": [
+      "music"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "extreme-poverty-by-hmelberg",
+    "title": "How many people live in extreme poverty?",
+    "format": "quiz",
+    "tags": [
+      "economics",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "demand-shifts-the-equilibrium-follows",
+    "title": "How the price finds its way",
+    "format": "drawcast",
+    "tags": [
+      "economics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "sirkelens-areal-med-kakestykker",
+    "title": "Hvorfor sirkelens areal er πr²",
+    "format": "drawcast",
+    "tags": [
+      "mathematics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "hvorfor-stortinget-buler-ut",
+    "title": "Hvorfor Stortinget buler ut",
+    "format": "drawcast",
+    "tags": [
+      "history of science"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "difference-in-differences",
+    "title": "Measuring a policy against what never happened",
+    "format": "drawcast",
+    "tags": [
+      "statistics",
+      "economics",
+      "epidemiology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "price-elasticity-a-book",
+    "title": "Price elasticity: how much less do people buy?",
+    "format": "xplanation",
+    "tags": [
+      "economics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "scholar-s-mate-by-hmelberg",
+    "title": "Scholar's Mate: the four-move trap",
+    "format": "drawcast",
+    "tags": [
+      "games"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "simpson-s-paradox-drawn",
+    "title": "Simpson's paradox: win both, lose overall",
+    "format": "drawcast",
+    "tags": [
+      "statistics",
+      "medicine"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "surgery-or-medication",
+    "title": "Surgery or medication?",
+    "format": "drawcast",
+    "tags": [
+      "health economics",
+      "medicine"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "thales-theorem-by-hmelberg",
+    "title": "Thales' theorem",
+    "format": "drawcast",
+    "tags": [
+      "mathematics",
+      "history of science"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "the-tower-of-hanoi-by-hmelberg",
+    "title": "The Tower of Hanoi: why 2ⁿ − 1 moves",
+    "format": "drawcast",
+    "tags": [
+      "mathematics",
+      "games",
+      "computing"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "lorenz-curve-and-gini",
+    "title": "Two countries, one Gini",
+    "format": "drawcast",
+    "tags": [
+      "economics",
+      "statistics",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "two-pumps-in-one-heart",
+    "title": "Two pumps in one heart",
+    "format": "drawcast",
+    "tags": [
+      "biology",
+      "medicine"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-95-confidence-means",
+    "title": "What 95% confidence means",
+    "format": "drawcast",
+    "tags": [
+      "statistics",
+      "medicine"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-a-1-fee-costs-by-hmelberg",
+    "title": "What a 1% fee really costs",
+    "format": "drawcast",
+    "tags": [
+      "finance",
+      "economics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-a-confounder-does",
+    "title": "What a confounder does",
+    "format": "drawcast",
+    "tags": [
+      "epidemiology",
+      "statistics",
+      "health"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "the-derivative-is-a-limit-of-slopes",
+    "title": "What a derivative is",
+    "format": "drawcast",
+    "tags": [
+      "mathematics",
+      "physics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-mitochondria-do",
+    "title": "What do mitochondria actually do?",
+    "format": "drawcast",
+    "tags": [
+      "biology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "sensitivity-and-specificity",
+    "title": "What do sensitivity and specificity measure?",
+    "format": "drawcast",
+    "tags": [
+      "statistics",
+      "medicine",
+      "epidemiology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-a-qaly-gained-measures",
+    "title": "What does a 'QALY gained' actually count?",
+    "format": "drawcast",
+    "tags": [
+      "health economics",
+      "health"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "a-positive-test-by-hmelberg",
+    "title": "What does a positive test mean?",
+    "format": "quiz",
+    "tags": [
+      "statistics",
+      "medicine"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-kills-us-by-hmelberg",
+    "title": "What kills the most people?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "epidemiology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-p-0-05-means-by-hmelberg",
+    "title": "What p < 0.05 really means",
+    "format": "drawcast",
+    "tags": [
+      "statistics",
+      "medicine"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "where-do-your-24-hours-go",
+    "title": "Where does an average day go?",
+    "format": "quiz",
+    "tags": [
+      "data",
+      "economics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "where-the-206-bones-are",
+    "title": "Where the 206 bones are",
+    "format": "drawcast",
+    "tags": [
+      "biology",
+      "medicine"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "where-the-quadratic-formula-comes-from",
+    "title": "Where the quadratic formula comes from",
+    "format": "drawcast",
+    "tags": [
+      "mathematics",
+      "history of science"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-of-these-are-mammals",
+    "title": "Which of these are mammals?",
+    "format": "quiz",
+    "tags": [
+      "biology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "who-pays-a-ticket-tax",
+    "title": "Who pays a ticket tax?",
+    "format": "drawcast",
+    "tags": [
+      "economics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "why-45-goes-farthest",
+    "title": "Why 45° goes farthest",
+    "format": "drawcast",
+    "tags": [
+      "physics",
+      "mathematics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "why-a-major-chord-sounds-sweet",
+    "title": "Why a major chord sounds sweet",
+    "format": "drawcast",
+    "tags": [
+      "music",
+      "physics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "why-a-straw-looks-bent-in-water",
+    "title": "Why a straw looks bent in water",
+    "format": "drawcast",
+    "tags": [
+      "physics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "why-an-epidemic-turns",
+    "title": "Why an epidemic turns by itself",
+    "format": "drawcast",
+    "tags": [
+      "epidemiology",
+      "health"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "why-averages-make-a-bell",
+    "title": "Why averages make a bell",
+    "format": "drawcast",
+    "tags": [
+      "statistics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "why-bubble-sort-is-slow",
+    "title": "Why bubble sort is so slow",
+    "format": "drawcast",
+    "tags": [
+      "computing",
+      "mathematics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "darwin-s-twenty-year-wait",
+    "title": "Why did Darwin wait twenty years?",
+    "format": "drawcast",
+    "tags": [
+      "history of science",
+      "biology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "base-pairing-the-copying-rule",
+    "title": "Why DNA pairs A with T and C with G",
+    "format": "drawcast",
+    "tags": [
+      "biology",
+      "history of science"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "most-findings-are-false",
+    "title": "Why most published findings are false",
+    "format": "drawcast",
+    "tags": [
+      "statistics",
+      "health"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "why-queues-explode-near-100-busy",
+    "title": "Why queues explode near 100% busy",
+    "format": "drawcast",
+    "tags": [
+      "mathematics",
+      "health",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "the-water-cycle-by-hmelberg",
+    "title": "Why rain is fresh",
+    "format": "drawcast",
+    "tags": [
+      "earth",
+      "chemistry"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "lead-time-bias-by-hmelberg",
+    "title": "Why screening can look better than it is",
+    "format": "drawcast",
+    "tags": [
+      "epidemiology",
+      "health",
+      "statistics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "comparative-advantage",
+    "title": "Why trade if you're better at everything?",
+    "format": "drawcast",
+    "tags": [
+      "economics",
+      "history of science"
+    ],
+    "owner": "hmelberg"
+  }
+]

@@ -30,6 +30,9 @@ import {
 } from "./home/model";
 
 const featured = parseFeatured(featuredJson);
+/** How many cards a row shows before "All N" (a row is a glance, not the catalogue). */
+const FEATURED_ROW = 12;
+const TOPIC_ROW = 8;
 const featuredByName = new Map(featured.map((e) => [e.name, e]));
 
 /** One catalogue page per query, kept for this visit: switching chips back
@@ -156,10 +159,19 @@ export function runHome(): void {
     }
     const [casts, courses] = await Promise.all([catalogue("cast"), catalogue("course")]);
     return [
-      section("Featured", featuredCards()),
+      // The first twelve of the curated list, in its order (home/featured.json
+      // is ordered by hand: best first); every one is reachable through the
+      // format chips, the topic rows and search.
+      section("Featured", featuredCards().slice(0, FEATURED_ROW)),
       section("Newest drawcasts", fromCatalogue(casts).slice(0, 12), h("a", { class: "home-more", href: "#browse&kind=cast" }, "More")),
       section("Courses", fromCatalogue(courses).slice(0, 8), h("a", { class: "home-more", href: "#browse&kind=course" }, "All courses")),
-      ...tagRows(featured).map((row) => section(row.tag[0].toUpperCase() + row.tag.slice(1), row.entries.map(cardFromFeatured))),
+      ...tagRows(featured).map((row) =>
+        section(
+          row.tag[0].toUpperCase() + row.tag.slice(1),
+          row.entries.slice(0, TOPIC_ROW).map(cardFromFeatured),
+          row.entries.length > TOPIC_ROW ? h("a", { class: "home-more", href: `?q=${encodeURIComponent(row.tag)}` }, `All ${row.entries.length}`) : undefined,
+        ),
+      ),
       casts === "error" && courses === "error" ? note("The catalogue can't be reached right now.", "error") : null,
     ];
   }
