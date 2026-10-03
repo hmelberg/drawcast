@@ -50,6 +50,7 @@ import { pointerPath } from "../render/effects";
 // they carry runs without the viewer prompt (security/code-trust.ts).
 setTrustPolicy("all");
 import { sceneAt, type PlanStep } from "../render/plan";
+import { posedBox } from "../render/pose";
 import { gestureAt, gestureLabel } from "./gesture-beats";
 import { MARK_GLIDE_MS, MARK_IN_MS, markFrameAt } from "../render/marks";
 import type { RenderHandle } from "../render/index";
@@ -324,8 +325,7 @@ function paintGesture(hd: RenderHandle, at: number, step: PlanStep, canvas: HTML
       const boxList = step.ids.flatMap((id) => {
         const b = step.boxes[id];
         if (!b) return [];
-        const [dx, dy] = before.offsets[id] ?? [0, 0];
-        return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
+        return [posedBox(b, before.offsets[id] ?? [0, 0], before.turns[id])];
       });
       effects.setHighlight(step.ids, step.effect, 1, boxList.length > 0 ? boxList : null, step.color, 10_000, step.part);
       return;

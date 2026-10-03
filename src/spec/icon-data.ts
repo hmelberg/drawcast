@@ -251,6 +251,14 @@ export function iconSlots(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "tem
         const m = iconAsk(item.match_icon);
         if (m) out.push({ ask: m, look, host: item, data: "match_icon_strokes", credit: "match_credit" });
       }
+    } else if ((el.type as string) === "sequence" && Array.isArray(el.items)) {
+      // A sequence's pictures (spec/sequence.ts): each item hosts its own data, shown as a picture.
+      for (const it of el.items) {
+        if (typeof it !== "object" || it === null) continue;
+        const item = it as unknown as Record<string, unknown>;
+        const a = iconAsk(item.icon);
+        if (a) out.push({ ask: a, look: "picture", host: item, data: "icon_strokes", credit: "credit" });
+      }
     }
   }
   const p = spec.params as Record<string, unknown> | undefined;

@@ -160,6 +160,8 @@ export function apiSchema(opts: { code?: boolean; sound?: boolean; c64?: boolean
   delete props.elements.items.properties.fill;
   // …and the player's: the answer shown in each \blank box.
   delete props.elements.items.properties.fills;
+  // …and an on-canvas quiz's: what its buttons' group tells the layout.
+  delete props.elements.items.properties.answer_buttons;
   const itemObject = (props.elements.items.properties.items?.items?.anyOf as any[] | undefined)?.find((b) => b?.type === "object");
   if (itemObject?.properties) delete itemObject.properties.blank;
   if (opts.code === false) {

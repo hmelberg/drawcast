@@ -83007,5 +83007,161 @@
         }
       ]
     }
+  },
+  {
+    "request": "Four animals: which ones sleep standing up? A yes/no on each, with pictures. #interactive #short",
+    "spec": {
+      "title": "Which animals sleep standing up?",
+      "elements": [
+        {
+          "id": "sleepers",
+          "type": "sequence",
+          "items": [
+            {
+              "icon": "horse",
+              "label": "Horse",
+              "mark": {
+                "text": "Yes",
+                "color": "#3f7d4e"
+              }
+            },
+            {
+              "icon": [
+                "cow",
+                "cow face"
+              ],
+              "label": "Cow",
+              "mark": {
+                "text": "No",
+                "color": "#b5482e"
+              }
+            },
+            {
+              "icon": "flamingo",
+              "label": "Flamingo",
+              "mark": {
+                "text": "Yes",
+                "color": "#3f7d4e"
+              }
+            },
+            {
+              "icon": "giraffe",
+              "label": "Giraffe",
+              "mark": {
+                "text": "Yes",
+                "color": "#3f7d4e"
+              }
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Asleep on their feet?"
+          }
+        },
+        {
+          "speak": "This is about which animals can sleep standing up."
+        },
+        {
+          "draw": [
+            "sleepers_1"
+          ],
+          "speak": "First the horse, which spends most of its day on its feet."
+        },
+        {
+          "quiz": {
+            "question": "Can a horse sleep standing up?",
+            "choices": [
+              "Yes",
+              "No"
+            ],
+            "correct": 1,
+            "on_canvas": true,
+            "right": "Yes. Tendons called the stay apparatus lock a horse's legs, so it can doze on its feet without falling."
+          }
+        },
+        {
+          "draw": [
+            "sleepers_2"
+          ],
+          "speak": "Next, the cow, another big grazer that stands for much of the day."
+        },
+        {
+          "quiz": {
+            "question": "Does a cow sleep standing up?",
+            "choices": [
+              "Yes",
+              "No"
+            ],
+            "correct": 2,
+            "on_canvas": true,
+            "right": "No. A cow may doze while standing, but it lies down to sleep, and spends ten hours or more a day lying down."
+          }
+        },
+        {
+          "draw": [
+            "sleepers_3"
+          ],
+          "speak": "Then the flamingo, a bird famous for standing on one leg."
+        },
+        {
+          "quiz": {
+            "question": "Does a flamingo sleep standing up?",
+            "choices": [
+              "Yes",
+              "No"
+            ],
+            "correct": 1,
+            "on_canvas": true,
+            "right": "Yes. Flamingos often sleep standing, many on a single leg, which their body holds with almost no effort."
+          }
+        },
+        {
+          "draw": [
+            "sleepers_4"
+          ],
+          "speak": "And last, the giraffe, whose long legs make lying down a slow business."
+        },
+        {
+          "quiz": {
+            "question": "Does a giraffe sleep standing up?",
+            "choices": [
+              "Yes",
+              "No"
+            ],
+            "correct": 1,
+            "on_canvas": true,
+            "right": "Yes. A giraffe often naps on its feet, and lies down with its neck curled back only for short spells."
+          }
+        },
+        {
+          "draw": [
+            "sleepers_strip"
+          ],
+          "speak": "You got {score} of {score_total}."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sleepers_2"
+            ],
+            "effect": "circle"
+          },
+          "speak": "Of the four, only the cow does its sleeping lying down."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sleepers_1",
+              "sleepers_4"
+            ],
+            "effect": "circle"
+          },
+          "speak": "Even the horse and the giraffe, though, lie down, a few minutes at a time, for their deepest sleep."
+        }
+      ]
+    }
   }
 ]

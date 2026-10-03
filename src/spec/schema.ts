@@ -9,7 +9,7 @@
 import AjvModule, { type ValidateFunction } from "ajv";
 import { fillIconDataInPlace } from "./icon-data";
 import { ASSET_MAX_BYTES, assetBytes, assetRef, formatAssetSize, isDataAsset, paramAssetRefs, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
-import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement, ACTIVITY_IDS, MUSIC_SYMBOLS } from "./types";
+import { BUILTIN_WIDGETS, SIDE_VALUES, type CardItemSpec, type Command, type Spec, type SpecElement, ACTIVITY_IDS, MUSIC_SYMBOLS } from "./types";
 import { isReservedVar } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
 import { UNIVERSAL_ANCHORS } from "../layout/anchors";
@@ -182,7 +182,7 @@ const elementSchema = {
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code", "scratch",
         "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
-        "group", "math", "image", "icon", "inset", "music", "population", "link", "scale", "cards",
+        "group", "math", "image", "icon", "inset", "music", "population", "link", "scale", "cards", "sequence",
       ],
     },
     // axes
@@ -637,9 +637,23 @@ const elementSchema = {
             required: ["text"],
             additionalProperties: false,
           },
+          {
+            type: "object",
+            properties: {
+              icon: ICON_VALUE,
+              text: { type: "string" },
+              label: { type: "string" },
+              mark: { oneOf: [{ type: "string" }, { type: "object", properties: { text: { type: "string" }, color: { type: "string" } }, required: ["text"], additionalProperties: false }] },
+              icon_strokes: { type: "string" },
+              credit: { type: "string" },
+              icon_key: { type: "string" },
+            },
+            additionalProperties: false,
+          },
         ],
       },
       description:
+        "sequence: the pictures in turn — {icon, label} (icon a keyword or fallbacks [\"brick\", \"wall\"]), {text, label} for a paper card, or the id of an element you drew; mark: a short verdict word or a colour, shown under it in the strip once done. " +
         "cards: cards the viewer ORDERS or SORTS, asked with an ask on: <id> (rank: they drag the cards and press Answer, and the cards slide into the true order; sort: each card is judged as it is dropped, a wrong one moved to its right box — check: \"end\" waits for Answer). RANK: the items in their TRUE order, first = most/earliest/top (a word or three each: \"USA\", \"Norway\"), with ends naming the two ends. SORT: give bins, and each item {text, bin} (the viewer drags or TAPS a card to send it to a box); deck: true deals up to 30 cards one at a time. TAP ALL THE …: give select (the one box's title) and items {text, in: true} for those that belong; the rest stay out. 2–8 items, up to 30 with deck. The cards are drawn SHUFFLED, so draw <id> before the ask; after it they stand in the true order. Cards are <id>_1 … in true order; sort's boxes <id>_bin_1 …. An item {text, icon: \"shark\"} draws an icon on its card (match_icon: on its partner).",
     },
     bins: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" }, description: "cards: the boxes to sort into (a word or two each); every item's bin is one of them." },
@@ -659,6 +673,11 @@ const elementSchema = {
     deck: { type: "boolean", description: "cards (sort): a DECK — one large card at a time in the middle; the viewer taps a box (or presses 1, 2, …), the card flies there and the next comes, with a ✓ or ✗ for each. Up to 30 items: for many quick calls." },
     check: { type: "string", enum: ["each", "end"], description: "cards (sort, select, deck): each (default) — every card is judged as it is dropped, a wrong one moved to its right box; end — sort freely, then Done (a test-like question)." },
     then: { type: "string", description: "cards (decide): the label where every branch meets again — a live viewer who chose one branch skips the others and goes on here." },
+    // Written by an on-canvas quiz's expansion (spec/answer-buttons.ts) on its buttons' group: Ajv knows it; the model never writes it.
+    answer_buttons: { type: "object" },
+    strip: { type: "string", enum: ["top", "bottom", "none"], description: "sequence: where done items wait, small — top (default), bottom, none." },
+    show_upcoming: { type: "string", enum: ["dots", "none"], description: "sequence: dots — a placeholder in each slot not reached yet." },
+    recap: { type: "boolean", description: "sequence: false keeps the row at the top when <id>_strip is drawn (default: it comes to the middle, larger)." },
     fill: { type: "string", description: "cards: set by the expansion of a formula ask with others (the tiles of math <id> are cards <id>_tiles) — never write it." },
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
     tick_format: { type: "string", enum: ["words", "numerals", "power"], description: "scale: words (default: \"43 million\"), numerals, or power (10ⁿ)." },
@@ -2135,6 +2154,17 @@ function semanticErrors(spec: Spec): string[] {
     }
   }
 
+  // A sequence (spec/sequence.ts) mints "<id>_1 …", "<id>_strip", "<id>_dot_k";
+  // an item named by id must be an element of the page.
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "sequence") continue;
+    for (const it of Array.isArray(el.items) ? el.items : []) {
+      if (typeof it === "string" && !seen.has(it)) errors.push(`element "${el.id}" (sequence): item "${it}" is not an element — give {icon, label} or {text}, or draw it first`);
+    }
+    const minted = new RegExp(`^${el.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}_(\\d+(_label|_mark)?|strip|dot_\\d+)$`);
+    for (const id of seen) if (minted.test(id)) errors.push(`element id "${id}" collides with a part of sequence "${el.id}" — rename it`);
+  }
+
   // Data tokens ("{sim.y}") must name a CODE element of this drawcast. A
   // brace+dot string that fails the grammar is a typo worth naming; anything
   // else with braces is prose.
@@ -2351,6 +2381,7 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "cards": {
       const items = Array.isArray(el.items) ? el.items : [];
+      need(items.every((it) => typeof it === "string" || typeof (it as { text?: unknown }).text === "string"), "every item is its words or {text, …} (label and mark are a sequence's)");
       const opts = (el as { options?: unknown[] }).options;
       if (Array.isArray(opts)) {
         need(opts.length >= 2 && opts.length <= 4, "decide: needs 2–4 options");
@@ -2374,8 +2405,19 @@ function elementErrors(el: SpecElement): string[] {
       if (items.some((it) => typeof it === "object" && it !== null && (it as { match?: unknown }).match !== undefined)) need(items.every((it) => typeof it === "object" && it !== null && typeof (it as { match?: unknown }).match === "string"), "match: every item needs {text, match}");
       if (Array.isArray(el.bins) && el.bins.length > 0) {
         const bins = el.bins;
-        need(items.every((it) => typeof it === "object" && it !== null && typeof it.bin === "string" && bins.includes(it.bin)), "sorting (bins): every item needs {text, bin} with bin one of bins");
+        need(items.every((it) => typeof it === "object" && it !== null && typeof (it as CardItemSpec).bin === "string" && bins.includes((it as CardItemSpec).bin!)), "sorting (bins): every item needs {text, bin} with bin one of bins");
       }
+      break;
+    }
+    case "sequence": {
+      const items = Array.isArray(el.items) ? el.items : [];
+      need(items.length >= 2 && items.length <= 12, "needs 2–12 items");
+      items.forEach((it, i) => {
+        if (typeof it === "string") return;
+        const o = it as { icon?: unknown; text?: unknown; label?: unknown };
+        need((o.icon !== undefined) !== (typeof o.text === "string"), `items[${i}]: give icon (a picture) or text (a card), one of them — or the id of an element you drew`);
+        if (typeof o.label === "string") need(o.label.length <= 40, `items[${i}]: label is a few words`);
+      });
       break;
     }
     case "scale": {

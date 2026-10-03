@@ -625,7 +625,8 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
   };
   const jobs: Job[] = [];
   for (const el of spec.elements ?? []) {
-    if (el.type === "cards") {
+    // A sequence's items (spec/sequence.ts) carry their icons as a card's do.
+    if (el.type === "cards" || el.type === "sequence") {
       await resolveCardIcons(spec, el, note, jobs, deps, opts);
       continue;
     }
