@@ -154,9 +154,21 @@ describe("answering on the buttons", () => {
     await player.play();
     expect(gated!.quiet).toBe(true);
     expect(speech.spoken).not.toContain("Goldfish memory: true or myth?");
-    expect(speech.spoken).toContain("Myth: months.");
+    // A varied affirmation, then the explanation (Hans 2026-10-04).
+    const right = speech.spoken.find((l) => l.endsWith("Myth: months."));
+    expect(right).toMatch(/^\S.*\S Myth: months\.$/);
     expect(speech.spoken.at(-1)).toBe("You got 1 of 1; you said Myth.");
     expect(player.vars.get("g.ok")).toBe("true");
+  });
+
+  it("affirm: plain puts the single word before the explanation", async () => {
+    const speech = new RecordingSpeech();
+    const spec = { ...structuredClone(TWO), affirm: "plain" } as Spec;
+    const { player } = playerOf(spec, speech);
+    player.affirmer.configure(spec);
+    player.askGate = async () => "quiz_1_btn_2";
+    await player.play();
+    expect(speech.spoken).toContain("Correct. Myth: months.");
   });
 
   it("a wrong tap: wrong, then the reveal; score 0", async () => {

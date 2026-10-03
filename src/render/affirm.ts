@@ -4,7 +4,8 @@
 // short affirmation, in the cast's language.
 //
 // The rules, in order:
-// - `affirm` on the cast: false says nothing, "plain" the old single word
+// - `affirm` on the cast: false says nothing, "playful" jokes now and then
+//   even with no feedback block, "plain" the old single word
 //   (quiz-words.ts correctWord), a list of phrases is the cast's own pool;
 // - a streak line when it fits: the last question of the cast with every
 //   answer right ("A clean sweep."), two/three/… in a row, or "Back on track."
@@ -25,7 +26,7 @@ import { FALLBACK_LINES } from "../feedback/lines";
 import { castLang, correctWord } from "./quiz-words";
 import { detectLang } from "./speech";
 
-export type AffirmSetting = "plain" | string[] | false;
+export type AffirmSetting = "plain" | "playful" | string[] | false;
 
 interface StreakWords {
   two: string;
@@ -140,7 +141,7 @@ function codeOf(lang: string | null | undefined, question: string): string {
 
 /** The cast's `affirm`, validated: anything else reads as unset (the default). */
 export function parseAffirm(v: unknown): AffirmSetting | undefined {
-  if (v === false || v === "plain") return v;
+  if (v === false || v === "plain" || v === "playful") return v;
   if (Array.isArray(v)) {
     const own = v.filter((s): s is string => typeof s === "string").map((s) => s.trim()).filter((s) => s !== "");
     return own.length > 0 ? own : undefined;
@@ -255,7 +256,9 @@ export class Affirmer {
     if (streak !== null) return this.said(streak);
     const after = bandAfter(step.feedback, lang);
     const jokes = notEchoed(p.humour, after);
-    if (!this.memory.joke && jokes.length > 0 && this.rng() < humourChance(step.feedback, lang)) return this.said(this.pick(jokes), true);
+    // `affirm: "playful"` (a light cast with no feedback block) jokes about one time in four.
+    const chance = setting === "playful" ? Math.max(0.25, humourChance(step.feedback, lang)) : humourChance(step.feedback, lang);
+    if (!this.memory.joke && jokes.length > 0 && this.rng() < chance) return this.said(this.pick(jokes), true);
     const { warm, plain } = plainPools(p, step.feedback, after);
     return this.said(this.pick(warm.length > 0 && this.rng() < 0.5 ? warm : plain));
   }
@@ -286,7 +289,7 @@ export function affirmLines(spec: { lang?: string | null; affirm?: unknown; feed
     const after = bandAfter(fb, lang);
     const { warm, plain } = plainPools(p, fb, after);
     for (const l of [...warm, ...plain]) out.add(l);
-    if (humourChance(fb, lang) > 0) for (const l of notEchoed(p.humour, after)) out.add(l);
+    if (setting === "playful" || humourChance(fb, lang) > 0) for (const l of notEchoed(p.humour, after)) out.add(l);
   }
   if (commands.filter((c) => c.quiz || c.ask).length >= 2) {
     const s = p.streak;

@@ -1159,7 +1159,7 @@ export interface Spec {
    * Absent: a varied short affirmation in the cast's language. "plain": the
    * single word ("Correct."); a list: the cast's own phrases; false: nothing.
    */
-  affirm?: "plain" | string[] | false;
+  affirm?: "plain" | "playful" | string[] | false;
   /**
    * Drawn text a template computes for itself, and its replacement. A scene
    * supplies its own captions ("Susceptible" for compartment "S"), so those

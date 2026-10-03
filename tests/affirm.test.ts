@@ -278,3 +278,28 @@ describe("affirmLines: what a bake records", () => {
     }
   });
 });
+
+describe("affirm: playful (2026-10-04)", () => {
+  test("a light cast with no feedback block jokes about one time in four, never twice in a row", () => {
+    let seed = 7;
+    const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const memory: AffirmMemory = { last: null, joke: false };
+    const a = new Affirmer(rng, memory);
+    a.configure({ affirm: "playful", commands: [{ quiz: {} }] });
+    const pool = new Set(affirmLines({ lang: "en", affirm: "playful", commands: [{ quiz: { question: "Is it?" } }] }));
+    let jokes = 0;
+    let prevJoke = false;
+    for (let i = 0; i < 4000; i++) {
+      const line = a.say("en", { question: "Is it?" }, { streak: 1, score: 1, total: 1, last: false });
+      expect(pool.has(line!)).toBe(true);
+      expect(memory.joke && prevJoke).toBe(false);
+      if (memory.joke) jokes++;
+      prevJoke = memory.joke;
+    }
+    expect(jokes / 4000).toBeGreaterThan(0.15);
+    expect(jokes / 4000).toBeLessThan(0.3);
+  });
+  test("parses", () => {
+    expect(parseAffirm("playful")).toBe("playful");
+  });
+});

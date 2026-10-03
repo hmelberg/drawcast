@@ -1360,12 +1360,12 @@ export const specSchema = {
     feedback: feedbackSchema(CAST_FEEDBACK),
     affirm: {
       oneOf: [
-        { type: "string", enum: ["plain"] },
+        { type: "string", enum: ["plain", "playful"] },
         { type: "array", items: { type: "string" }, minItems: 1, maxItems: 12 },
         { type: "boolean", enum: [false] },
       ],
       description:
-        'What a viewer hears after a RIGHT quiz answer. Omit (default): a short varied affirmation in the cast\'s language ("Spot on.", "Two in a row."). "plain": the one word "Correct."; a list of your own short phrases; false: nothing.',
+        'What a viewer hears after a RIGHT quiz answer. Omit (default): a short varied affirmation in the cast\'s language ("Spot on.", "Two in a row."). "playful": now and then a dry joke ("Suspiciously good."), for a light cast; "plain": the one word "Correct."; a list of your own short phrases; false: nothing.',
     },
     record: { type: "boolean", description: "false: keep no local record of the viewer's answers in their browser. Omit (default true)." },
     voice: {

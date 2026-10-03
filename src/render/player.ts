@@ -2363,7 +2363,13 @@ export class Player {
     if (judged && answerOpt) {
       const extra = live && picked ? this.feedbackAfter(step, ok ? "perfect" : "none", { parts: answerOpt.members, sparkle: !ok }, signal) : [];
       if (ok) {
-        await this.glowWhile(live ? [{ ids: answerOpt.members, color: ANSWER_OK_COLOR }] : [], signal, () => this.speakLines(step.right, extra, step, signal));
+        // An on-canvas quiz (a quiet ask, spec/answer-buttons.ts) keeps its
+        // `right` — the explanation is the point of a True/Myth run — and a
+        // live right answer hears the varied affirmation first ("Spot on.
+        // Myth. The wall is…", Hans 2026-10-04; render/affirm.ts).
+        const nod = live && picked && step.quiet ? this.affirmer.say(this.sourceLang, step, { streak: this.streak(), score: Number(this.vars.get("score") ?? 0), total: this.outcomes.size, last: Math.max(...this.ordinalOf.keys()) === index }) : null;
+        const said = nod && step.right ? `${nod} ${step.right}` : (nod ?? step.right);
+        await this.glowWhile(live ? [{ ids: answerOpt.members, color: ANSWER_OK_COLOR }] : [], signal, () => this.speakLines(said, extra, step, signal));
       } else {
         if (picked && step.wrong) await this.speakLine(step.wrong, step, signal);
         if (signal.aborted) return;
