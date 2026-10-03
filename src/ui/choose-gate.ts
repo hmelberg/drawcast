@@ -198,7 +198,9 @@ export function chooseGateFor(
       signal.addEventListener("abort", onAbort);
       document.addEventListener("keydown", onKey, true);
       stage.appendChild(gate);
-      dock = mountGateDock(stage, gate, docked, placeRing, { question: step.question, how: hint });
+      // A quiet ask (on-canvas quiz buttons): the buttons say what to do and
+      // the line before said the question — no headline, no hint, Skip only.
+      dock = mountGateDock(stage, gate, docked, placeRing, step.quiet ? undefined : { question: step.question, how: hint });
       dock.relayout();
     });
 }

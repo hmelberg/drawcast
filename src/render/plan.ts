@@ -141,6 +141,8 @@ export type PlanStep = (
       choose?: ChooseOption[];
       /** Choose: where the options' branches meet. */
       then?: string;
+      /** say_question: false (on-canvas quiz buttons): neither spoken nor shown over the figure. */
+      quiet?: true;
       /** A reveal (spec 2026-10-03-round6 §3, round 7 §4): as written — absent
        *  means the form's own default (beside; reorder for rank cards). */
       revealStyle?: "beside" | "morph" | "reorder";
@@ -1572,8 +1574,11 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     } else if (cmd.ask !== undefined) {
       // The question IS the narration unless the author paired a speak; the
       // intro prepends either way (inside the step, so skipping skips it).
-      if (currentNarration === undefined) currentNarration = cmd.ask.question;
-      if (cmd.ask.intro) currentNarration = `${cmd.ask.intro} ${currentNarration}`;
+      // say_question: false — the line before said it (on-canvas quiz buttons):
+      // only a paired speak or the intro is narrated.
+      const sayQuestion = cmd.ask.say_question !== false;
+      if (currentNarration === undefined && sayQuestion) currentNarration = cmd.ask.question;
+      if (cmd.ask.intro) currentNarration = currentNarration === undefined ? cmd.ask.intro : `${cmd.ask.intro} ${currentNarration}`;
       // The drag widget: each item is an element of the figure (its box; shown
       // when the question ends), a piano note or a chess square. What nothing
       // locates is skipped and said. The answer is all of them.
@@ -1714,6 +1719,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           ? { answerBox: chessSquareBox(opts.animateBase?.["flip"] === true, cmd.ask.answer.trim().slice(-2))! }
           : {}),
         ...(Array.isArray(cmd.ask.choose) ? { choose: chooseOptions(cmd.ask.choose), ...(cmd.ask.then !== undefined ? { then: cmd.ask.then } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) } : {}),
+        ...(!sayQuestion ? { quiet: true as const } : {}),
         ...feedbackOf(cmd.ask.feedback),
         ...(cmd.ask.reveal_style !== undefined ? { revealStyle: cmd.ask.reveal_style } : {}),
         ...(cmd.ask.reveal_order === "each" ? { revealOrder: "each" as const } : {}),

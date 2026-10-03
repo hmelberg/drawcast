@@ -808,6 +808,36 @@ const commandSchema = {
             "Store the chosen option's TEXT under this simple name (letters, digits, underscores; starts with a letter): later speak lines may use {name}, {name.ok} (true/false) and {name.secs} (seconds the viewer took). Movies and skipped questions store the correct option.",
         },
         feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
+        on_canvas: {
+          type: "boolean",
+          description:
+            "true: the choices are BUTTONS DRAWN ON THE FIGURE (below it, a bit to the side), tapped by the viewer — no question card, and the question is not said again (say it in the line before). For True/Myth and yes/no runs and short choices about a picture.",
+        },
+        id: { type: "string", description: "With on_canvas: the buttons are <id>_btn_1 … (default quiz_<k>)." },
+        buttons: {
+          type: "array",
+          minItems: 2,
+          maxItems: 4,
+          items: {
+            type: "object",
+            properties: {
+              text: { type: "string", description: "The button's words (default: the choice)." },
+              icon: { anyOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }], description: "An icon keyword drawn above the words." },
+            },
+            additionalProperties: false,
+          },
+          description: "With on_canvas: each choice's look, by index (text, icon). Default: the choice's words, no icon.",
+        },
+        buttons_at: {
+          type: "object",
+          properties: { x: { type: "number" }, y: { type: "number" } },
+          required: ["x", "y"],
+          additionalProperties: false,
+          description: "With on_canvas: the centre of the buttons (default: placed clear of the figure and the captions).",
+        },
+        buttons_layout: { type: "string", enum: ["row", "column"], description: "With on_canvas: a row or a column of buttons (default: whichever fits)." },
+        say_question: { type: "boolean", description: "With on_canvas: true speaks the question and shows it over the figure after all." },
+        keep_buttons: { type: "boolean", description: "With on_canvas: true keeps the buttons after the answer (default: they fade)." },
       },
       required: ["question", "choices", "correct"],
       additionalProperties: false,
@@ -977,6 +1007,7 @@ const commandSchema = {
         others: { type: "array", items: { type: "string" }, description: "Formula (on a math element with \\blank): wrong tiles; the right contents are always tiles." },
         form: { const: "exact", description: "Formula, typed: \"exact\" compares the written form, not the value." },
         feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
+        say_question: { type: "boolean", description: "false: the question is neither spoken nor shown over the figure (the line before said it)." },
         release: { type: "boolean", description: "With `on`: letting go of the drag is the answer (default true). false shows an Answer button, so the viewer can adjust before answering — for a careful estimate. Several parts (on: all, a whole pie) always get the button." },
         relative: { type: "boolean", description: "With `on`: tolerance is a fraction of the true value (within 20 % = tolerance 0.2) — for money and other quantities spanning orders of magnitude." },
         code: {
@@ -1922,6 +1953,21 @@ function semanticErrors(spec: Spec): string[] {
       }
       if (a.store !== undefined && isReservedVar(a.store)) {
         errors.push(`commands[${i}]: quiz.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
+      }
+      const canvasOnly = (["id", "buttons", "buttons_at", "buttons_layout", "say_question", "keep_buttons"] as const).filter((k) => a[k] !== undefined);
+      if (a.on_canvas !== true && canvasOnly.length > 0) {
+        errors.push(`commands[${i}]: quiz.${canvasOnly.join(", ")} only apply with on_canvas: true`);
+      }
+      if (a.on_canvas === true) {
+        if (Array.isArray(a.buttons) && Array.isArray(a.choices) && a.buttons.length !== a.choices.length) {
+          errors.push(`commands[${i}]: quiz.buttons must give one entry per choice (${a.choices.length})`);
+        }
+        if (a.id !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.id)) {
+          errors.push(`commands[${i}]: quiz.id must be a simple name (letters, digits, underscores; starts with a letter)`);
+        }
+        if (Array.isArray(a.choices) && a.choices.some((c) => typeof c === "string" && c.length > 24)) {
+          errors.push(`commands[${i}]: quiz on_canvas: choices are buttons on the figure — a word or three each (24 characters at most)`);
+        }
       }
     }
     if (verb === "ask" && cmd.ask) {
