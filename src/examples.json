@@ -82888,5 +82888,124 @@
         }
       ]
     }
+  },
+  {
+    "request": "Which languages have the most speakers? Native speakers first, then everyone who speaks them: the bars re-sort and English jumps to first. #interactive #short (bar_chart sort, W14)",
+    "spec": {
+      "title": "Which languages have the most speakers?",
+      "template": "bar_chart",
+      "params": {
+        "labels": [
+          "Mandarin",
+          "Spanish",
+          "English",
+          "Hindi"
+        ],
+        "values": [
+          [
+            990,
+            484,
+            390,
+            345
+          ],
+          [
+            1184,
+            558,
+            1528,
+            609
+          ]
+        ],
+        "stage": 0,
+        "sort": "desc",
+        "value_labels": true,
+        "y_label": "Speakers (millions)"
+      },
+      "sources": [
+        {
+          "id": "eth",
+          "title": "Ethnologue 200: the world's most spoken languages (2025)",
+          "authors": "Eberhard, Simons & Fennig (SIL International)",
+          "year": 2025,
+          "finding": "first-language / total speakers, millions: English 390 / 1,528; Mandarin 990 / 1,184; Hindi 345 / 609; Spanish 484 / 558"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Which languages have the most speakers?"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Which languages have the most speakers? That depends on who you count, so let's count twice."
+        },
+        {
+          "draw": [
+            "bar_1",
+            "bar_2",
+            "bar_3",
+            "bar_4"
+          ],
+          "speak": "First, native speakers only: people who grew up with the language. Mandarin leads by far, with almost a billion, then Spanish, English and Hindi."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_3"
+            ]
+          },
+          "speak": "Keep an eye on English, in third place with about three hundred and ninety million."
+        },
+        {
+          "ask": {
+            "question": "Now count everyone who speaks English, as a first or a second language. How many millions? Drag its bar.",
+            "on": "bar_3",
+            "predict": true,
+            "store": "e",
+            "default": "600",
+            "relative": true,
+            "tolerance": 0.2,
+            "right": "Close: you said {e} million; it is about {e.true} million.",
+            "wrong": "You said {e} million. It is about {e.true} million, four times its native speakers."
+          }
+        },
+        {
+          "animate": {
+            "stage": 1
+          },
+          "duration": 2.5,
+          "speak": "Add the second-language speakers and the order changes. English jumps to first place, with about one and a half billion."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_3"
+            ]
+          },
+          "speak": "Only one English speaker in four learned it at home. The rest learned it for school, work and the internet."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_1"
+            ]
+          },
+          "speak": "Mandarin barely moves, because most people who speak it grew up speaking it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_4"
+            ]
+          },
+          "speak": "Hindi nearly doubles and passes Spanish, which is spoken mostly as a first language too."
+        },
+        {
+          "speak": "So the biggest language at home is Mandarin, but the one most people share is English."
+        }
+      ]
+    }
   }
 ]
