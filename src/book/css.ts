@@ -87,7 +87,8 @@ export const BOOK_CSS = `
 .bk-block pre.bk-listing .s { color: #4a7c59; }
 .bk-block pre.bk-listing .n { color: #b5482e; }
 .bk-block pre.bk-listing .c { color: #7a756c; }
-.bk-block code.bk-tex-fallback { font-size: .8em; }
+/* A formula while the math engine is out: plain readable text in the pane's own hand (math.ts plainTex), drawn in place when the engine comes. */
+.bk-block code.bk-tex-fallback { font: inherit; }
 svg.bk-mark { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 3; }
 svg.bk-mark.bk-behind { z-index: 0; }
 svg.bk-mark .bk-ink { fill: none; stroke: #b5482e; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }

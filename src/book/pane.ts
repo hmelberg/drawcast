@@ -7,7 +7,7 @@
 import rough from "roughjs";
 import type { TextMarkEffect, TextOp } from "../render/plan";
 import { renderMarkdown } from "./markdown";
-import { texSvg } from "./math";
+import { texSvg, upgradeMath } from "./math";
 import { settle, transitionOut, type BookTransition } from "./transitions";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -101,6 +101,12 @@ export class TextPane {
     }
   }
 
+  /** Draw the formulas still written as plain TeX (the math engine came in
+   *  after they were written), then re-place the marks around them. */
+  refreshMath(): void {
+    if (upgradeMath(this.root) > 0) this.relayout();
+  }
+
   /** Re-place every mark (the pane re-wrapped: a resize, a new font size). */
   relayout(): void {
     for (const m of this.marks) this.place(m);
@@ -130,6 +136,8 @@ export class TextPane {
     const el = document.createElement("div");
     el.className = "bk-block";
     el.innerHTML = renderMarkdown(text, texSvg);
+    // Earlier blocks written before the engine was in: draw them now too.
+    this.refreshMath();
     const heading = /^H[1-3]$/.test(el.firstElementChild?.tagName ?? "");
     // Body text under a heading sits a little in from it.
     if (!heading && this.root.querySelector(".bk-block h1, .bk-block h2, .bk-block h3")) el.classList.add("bk-under");
