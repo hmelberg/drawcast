@@ -698,7 +698,9 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-04 (on-canvas quiz buttons): quiz on_canvas and its hatches in the schema, one
 // sentence in the quiz bullet. +1357. -> 396866.
 // Merged 2026-10-04: 396287 + 1357 -> 397644.
-const BASELINE_SYSTEM_CHARS = 397644;
+// Re-pinned UP 2026-10-04 (size_compare, the compare pack on by default): one catalog index line. +238. -> 395747.
+// Merged 2026-10-04: 397644 + 238 -> 397882.
+const BASELINE_SYSTEM_CHARS = 397882;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

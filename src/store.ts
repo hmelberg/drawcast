@@ -58,7 +58,8 @@ const KEYS = {
   // gets re-enabled once (accepted: no back-compat guarantee here, see
   // feedback_no_backwards_compat).
   // v8 on 2026-09-25: the isometric pack joined the default set.
-  packsUpgrade: "drawcast.packsDefault.v8",
+  // v9 on 2026-10-04: the compare pack (size_compare) joined it.
+  packsUpgrade: "drawcast.packsDefault.v9",
   // One-shot (2026-10-03): Save to disk defaults to Script (.cast). Every
   // stored settings blob carries specFormat — persist writes them all — so a
   // "yaml" there was almost never a choice; it is moved once, and a YAML
@@ -285,7 +286,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // Object.keys(PACK_DEFS) — store.ts is imported by the viewer, and reaching
   // into scenes/packs.ts would drag the whole scene registry into that chunk.
   // tests/pack-defaults.test.ts pins this list against PACK_DEFS instead.
-  enabledPacks: ["physics", "chemistry", "biology", "economics", "evidence", "mathlogic", "medicine", "anatomy", "macro", "empirics", "hta", "music", "stats", "data", "space", "isometric"],
+  enabledPacks: ["physics", "chemistry", "biology", "economics", "evidence", "mathlogic", "medicine", "anatomy", "macro", "empirics", "hta", "music", "stats", "data", "space", "isometric", "compare"],
   priorityPacks: [],
   contactEmail: "",
   githubRepo: "",
