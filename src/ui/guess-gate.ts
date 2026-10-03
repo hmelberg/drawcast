@@ -21,6 +21,7 @@ import type { RenderHandle } from "../render";
 import type { GuessSession } from "../render/player";
 import { accountOf, budgetBalanced, budgetReachable, encodeGuess, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, pickHandle, pointFor, valueAt, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
+import { onSlider } from "../guess/slider-marks";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
 import type { AskGateStep } from "./controls";
@@ -55,8 +56,12 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       const accountLabel = session.account && !session.account.isDefault ? session.account.label : null;
       // A market curve is moved AND turned (spec 2026-10-03 §3.2): one gesture
       // is rarely the whole answer, so it waits for Answer unless release: true.
+      // An estimate slider (spec/slider.ts) is adjusted, then Done.
+      const slider = handles.length === 1 && onSlider(handles[0]);
       const onRelease =
-        handles[0].kind === "market"
+        slider
+          ? step.release === true
+          : handles[0].kind === "market"
           ? step.release === true && handles.length === 1
           : step.release !== false && handles.length === 1 && !(handles[0].kind === "angle" && handles[0].truth.length > 1);
       /** A beat between letting go and the reveal: the guess is seen standing. */
@@ -67,7 +72,9 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           ? words.guess.bars
           : handles[0].kind === "angle" && multiEntry(handles[0])
             ? words.guess.edges
-            : words.guess[handles[0].kind];
+            : slider
+              ? words.guess.slider
+              : words.guess[handles[0].kind];
       const hintFull = onRelease ? (handles[0].kind === "point" ? hintText : words.letGo(hintText)) : words.thenDone(hintText);
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint", title: hintFull }, hintFull);
       const pill = h("button", { class: "cs-guess-value", type: "button", title: words.typeNumber });
@@ -87,7 +94,7 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         hint.setAttribute("title", msg ?? hintDefault);
         answer.disabled = msg !== null;
       };
-      const gate = h("div", { class: "cs-figgate cs-guessgate" }, pill);
+      const gate = h("div", { class: slider ? "cs-figgate cs-guessgate cs-slidergate" : "cs-figgate cs-guessgate" }, pill);
       let dock: GateDock | null = null;
 
       // —— painting: one frame at most per animation frame ——

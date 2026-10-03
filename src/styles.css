@@ -1802,6 +1802,9 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
 .cs-formula-key:active { background: rgba(63, 111, 181, 0.12); }
 /* A budget's running total, under the hint. */
 .cs-guessgate.dragging { cursor: grabbing; }
+/* An estimate slider (spec/slider.ts): a hand, never a crosshair. */
+.cs-guessgate.cs-slidergate { cursor: grab; }
+.cs-guessgate.cs-slidergate.dragging { cursor: grabbing; }
 .cs-guess-value,
 .cs-guess-field {
   position: absolute;

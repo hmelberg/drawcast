@@ -9,6 +9,7 @@ import { accountOf, angleOf, budgetBalanced, dockNumber, pointFor, type GuessHan
 import { scaleBracketDrop, scaleGeometry } from "../spec/scale";
 import { MARKET_DOMAIN, along, clipToSquare, curveOfGaps, impliedEquilibrium } from "./market";
 import { GUESS_COLOR } from "./color";
+import { onSlider, sliderMarks } from "./slider-marks";
 import { CANVAS } from "../layout/canvas";
 import { AXIS_OVERHANG } from "../layout/axes";
 
@@ -170,6 +171,13 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
       }
       case "point": {
         if (!h.scale) break;
+        if (onSlider(h)) {
+          // An estimate slider (guess/slider-marks.ts): your thumb as a ghost, the gap bracketed.
+          const m = sliderMarks(h, g[0], t, { dashed: true });
+          lines.push(...m.lines);
+          texts.push(...m.texts);
+          break;
+        }
         const sg = scaleGeometry(h.scale);
         const x = sg.xAt(g[0]);
         const y = sg.y;

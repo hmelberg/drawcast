@@ -631,10 +631,12 @@ function scaleHandle(spec: Spec, part: string): GuessHandle | null {
   const sc = authoredScales(spec).find((s) => s.id === part);
   if (!sc || typeof sc.value !== "number") return null;
   const g = scaleGeometry(sc);
-  const step = g.kind === "log" ? 0 : niceStep(g.max - g.min);
+  // A slider's arrow keys fine-tune (a tenth of the line's step; Shift: ten of them).
+  const step = g.kind === "log" ? 0 : sc.slider === true ? niceStep(g.max - g.min) / 10 : niceStep(g.max - g.min);
   return {
     part: `${sc.id}_answer`,
-    shows: [`${sc.id}_answer`],
+    // A slider (spec/slider.ts): the ask draws its track too.
+    shows: sc.slider === true ? [sc.id, `${sc.id}_answer`] : [`${sc.id}_answer`],
     kind: "point",
     truth: [g.value],
     min: g.min,

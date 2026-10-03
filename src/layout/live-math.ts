@@ -252,7 +252,7 @@ export function varsShownInMath(elements: readonly SpecElement[], vars: Readonly
   const out = new Set<string>();
   for (const el of elements) {
     if (el.type !== "math") continue;
-    const texs = [el.tex, ...(el.steps ?? []).map((s) => (typeof s === "string" ? s : s.tex))];
+    const texs = [el.tex, ...(Array.isArray(el.steps) ? el.steps : []).map((s) => (typeof s === "string" ? s : s.tex))];
     for (const tex of texs) {
       if (typeof tex !== "string") continue;
       for (const m of tex.matchAll(TOKEN)) if (Object.prototype.hasOwnProperty.call(vars, m[1]) && !isArgument(tex, m.index!)) out.add(m[1]);
