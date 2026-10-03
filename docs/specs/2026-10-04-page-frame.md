@@ -108,7 +108,8 @@ and a short line in the compiler prompt.
   page with no domain; `formulaHooksFor(…, settle)` moves a cards element's spec-computed geometry
   (homes, slots, truth, bins, `binSlot`, `placeAt`, its scale's line) for the plan and the player.
   On-canvas answer buttons, choose options and formula tiles are read off the layout already.
-- Left as laid out: `page.valign: "none"`, books, insets, a shown code pane, live `vars`, a
+- Left as laid out: `page.valign: "none"`, a page with no heading (composed on the whole canvas
+  by hand) or no commands (a preview, a unit figure), books, insets, a shown code pane, live `vars`, a
   template that lays out in (or is fitted/grown to) its box, a world larger than the page, a widget
   or interactive template, and any cast whose figure changes over the run in ways one layout cannot
   show (animate, move, arrange, flip, morph, copy, ghost, trail, run, explore, step), a guess on a
