@@ -2,27 +2,35 @@ import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 import { markSvg } from "../src/brand/mark";
 
-// Hans 2026-09-02, picking from the three candidates: "1" — a clean play
-// triangle in a rounded rust square. No sketch texture at all: the
-// hand-drawn quality lives in the drawings, and a mark has to read at 16px,
-// where the old roughjs strokes vanished. Two fixed colours in both themes —
-// the square is the app's rust accent, the triangle its paper — so the mark
-// needs no ink, no currentColor, and no theme awareness.
+// Hans 2026-10-03, picking from five drawn for the front page: "B" — a play
+// triangle drawn as one pen stroke that overshoots its start. It replaced
+// the solid play in a rounded rust square (2026-09-02), too close to
+// YouTube's logo once drawcast.app became a page of drawcasts to watch.
+// One colour (the rust), no ink and no currentColor: the favicon file
+// cannot read a CSS custom property, and it must read on paper and in dark
+// chrome alike.
 
-describe("markSvg — the clean play mark", () => {
-  it("is a rounded rust square with a paper play triangle, and nothing else", () => {
+describe("markSvg — the hand-drawn play", () => {
+  it("is ONE rust pen stroke: a triangle whose end overshoots its start, faintly filled", () => {
     const svg = markSvg();
-    expect(svg).toMatch(/<svg[^>]*viewBox="0 0 24 24"/);
-    expect(svg).toMatch(/<rect[^>]*rx="[^"]+"[^>]*fill="#b5482e"/);
-    expect(svg).toMatch(/<path[^>]*d="M[^"]*Z"[^>]*fill="#faf6ec"/);
-    expect((svg.match(/<(rect|path|circle|polygon|line)\b/g) ?? []).length).toBe(2);
+    expect(svg).toMatch(/<svg[^>]*viewBox="0 0 64 64"/);
+    expect((svg.match(/<(rect|path|circle|polygon|line)\b/g) ?? []).length).toBe(1);
+    expect(svg).toMatch(/stroke="#b5482e"/);
+    expect(svg).toMatch(/fill="#b5482e" fill-opacity="0\.14"/);
+    expect(svg).toMatch(/stroke-linecap="round"/);
+    // An open path — the stroke runs past where it began, never closed with Z.
+    const d = /d="([^"]+)"/.exec(svg)![1];
+    expect(d).not.toMatch(/Z/i);
   });
 
-  it("has no ink and no strokes — identical on paper and in dark chrome", () => {
+  it("has no ink and no currentColor — identical on paper and in dark chrome", () => {
     const svg = markSvg();
     expect(svg).not.toContain("#3d3833");
     expect(svg).not.toContain("currentColor");
-    expect(svg).not.toMatch(/stroke/);
+  });
+
+  it("is no longer a filled square — the shape that read as YouTube's", () => {
+    expect(markSvg()).not.toMatch(/<rect/);
   });
 
   it("sizes to the caller without redrawing", () => {

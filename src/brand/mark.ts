@@ -1,30 +1,25 @@
-// The drawcast favicon: a play triangle in a rounded rust square. Hans
-// picked it by eye (2026-09-02) from three candidates drawn after "the logo
-// is ugly, make something new and simple" — then, minutes later, took the
-// mark out of the topbar altogether ("no logo might be better, just the
-// drawcast word in handwritten fonts"). So this is drawn for one place: the
-// browser tab, where a page needs an icon and a word cannot be one.
+// The drawcast mark: a play triangle drawn as ONE pen stroke that overshoots
+// where it started, like a quick sketch (variant B, picked by Hans
+// 2026-10-03 from five drawn for the front page). It replaced the solid
+// play in a rounded rust square (2026-09-02), which had come too close to
+// YouTube's own logo once drawcast.app became a page of drawcasts to watch.
 //
-// Nothing sketched. The first mark was drawn by rough.js like every figure;
-// at 16px its rough strokes vanished, and at 30px next to the cleaner chrome
-// they read as a rendering bug rather than hand-drawn charm. The hand-drawn
-// quality lives in the drawings. The mark is the button that plays them.
+// Where it appears: the browser tab (public/mark.svg), the front page's top
+// bar beside the wordmark (home.ts), and drawcast pages' icon. The editor's
+// top bar still carries the wordmark alone (Hans, 2026-09-02).
 //
-// Two fixed colours and no ink: the square is the app's rust accent
-// (styles.css --rust), the triangle its paper. One drawing therefore serves
-// the favicon file (which cannot read a CSS custom property) and the topbar
-// in both themes alike — there is no currentColor variant to keep in step.
+// One colour, the app's rust (styles.css --rust), at full strength for the
+// stroke and faint inside — so it reads on paper and in dark chrome alike,
+// and stays a clear shape at 16 px (checked at 16 and 32 px with the other
+// candidates). No currentColor: the favicon file cannot read CSS.
 
 const RUST = "#b5482e";
-import { FIGURE_GROUND } from "../layout/ink";
-
-const PAPER = FIGURE_GROUND;
 
 export function markSvg(size = 64): string {
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}">` +
-    `<rect x="1.5" y="1.5" width="21" height="21" rx="5.5" fill="${RUST}"/>` +
-    `<path d="M9.4 7.3 L17.2 12 L9.4 16.7 Z" fill="${PAPER}"/>` +
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="${size}" height="${size}">` +
+    `<path d="M19 15 C 29 20, 41 26, 52 32 C 41 38, 30 44, 19 50 C 17.5 39, 17.5 27, 20 11" ` +
+    `fill="${RUST}" fill-opacity="0.14" stroke="${RUST}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>` +
     `</svg>`
   );
 }
