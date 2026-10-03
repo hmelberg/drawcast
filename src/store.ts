@@ -59,6 +59,11 @@ const KEYS = {
   // feedback_no_backwards_compat).
   // v8 on 2026-09-25: the isometric pack joined the default set.
   packsUpgrade: "drawcast.packsDefault.v8",
+  // One-shot (2026-10-03): Save to disk defaults to Script (.cast). Every
+  // stored settings blob carries specFormat — persist writes them all — so a
+  // "yaml" there was almost never a choice; it is moved once, and a YAML
+  // picked after that stays.
+  specFormatScript: "drawcast.specFormatScript.v1",
 } as const;
 
 /** Where Share last sent this document. Declared here rather than in the UI:
@@ -185,7 +190,7 @@ export interface Settings {
    * the prompt lab's blind reviews put the visual gain here (2026-09-27).
    */
   lookPass: boolean;
-  /** How the editor presents the spec text (parsing always accepts both). */
+  /** Save to disk's format (Script — a .cast — by default; parsing accepts all three). */
   specFormat: SpecFormat;
   /** The Share destination used last, so a repeat publish is one keypress. */
   shareTo: ShareTo;
@@ -255,7 +260,7 @@ export const DEFAULT_SETTINGS: Settings = {
   developerMode: false,
   visualRepair: false,
   lookPass: true,
-  specFormat: "yaml",
+  specFormat: "script",
   shareTo: "link",
   // Every built-in pack, on. A pack that is off is invisible to the compiler
   // (its templates are not in the catalog at all), so a chemistry request
@@ -345,6 +350,17 @@ export function loadSettings(): Settings {
   // Guarded like read()/readArray(): the viewer calls loadSettings in
   // environments without storage at all, where it must degrade to the
   // defaults rather than throw.
+  try {
+    if (!localStorage.getItem(KEYS.specFormatScript)) {
+      localStorage.setItem(KEYS.specFormatScript, "1");
+      if (s.specFormat === "yaml") {
+        s.specFormat = "script";
+        saveSettings(s);
+      }
+    }
+  } catch {
+    /* no storage — the default already is script */
+  }
   try {
     if (!localStorage.getItem(KEYS.packsUpgrade)) {
       localStorage.setItem(KEYS.packsUpgrade, "1");
