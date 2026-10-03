@@ -1112,7 +1112,19 @@ class SvgElementHandle implements RenderedElement {
   /** Pose: see poseTransform. */
   setTransform(dx: number, dy: number, deg: number, pivot: Pt, scale = 1, mirror = false, squash?: Squash): void {
     const t = poseTransform(dx, dy, deg, pivot, scale, mirror, squash);
+    // A picture pivots its reveal on itself (transform-box: fill-box,
+    // makeLeafHandle), and CSS applies that origin to the transform
+    // ATTRIBUTE too: a pose that scales or turns — written about its own
+    // pivot from the SVG origin — would land somewhere else entirely (a
+    // sequence's picture shrinking into its strip slot flew off the page).
+    // While posed, the picture's box is the SVG's; a plain move needs no origin.
+    const turned = deg !== 0 || scale !== 1 || mirror || (squash !== undefined && squash.k < 1);
     for (const g of this.groups) {
+      if (g.style.transformBox === "fill-box" || g.dataset.box !== undefined) {
+        if (g.dataset.box === undefined) g.dataset.box = "1";
+        g.style.transformBox = turned ? "view-box" : "fill-box";
+        g.style.transformOrigin = turned ? "0 0" : "center";
+      }
       if (t === null) g.removeAttribute("transform");
       else g.setAttribute("transform", t);
     }
