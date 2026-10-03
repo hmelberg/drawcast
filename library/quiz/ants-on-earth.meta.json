@@ -1,0 +1,16 @@
+{
+ "file": "ants-on-earth.json",
+ "title": "How many ants are there on Earth?",
+ "subtitle": "Guess how many ants are alive on Earth, then see the 2022 count: twenty quadrillion, outweighing every wild bird and mammal combined.",
+ "format": "quiz",
+ "tags": [
+  "biology",
+  "earth"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "log scale ticks carry no unit: caption drawn by hand and erased at the reveal."
+}

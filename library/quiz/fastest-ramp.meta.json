@@ -1,0 +1,17 @@
+{
+ "file": "fastest-ramp.json",
+ "title": "Which ramp is fastest?",
+ "subtitle": "A straight ramp, a steep drop, or a swooping curve: tap the one that wins the race, then hear how Newton solved it overnight.",
+ "format": "quiz",
+ "tags": [
+  "physics",
+  "history of science",
+  "mathematics"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "moves cannot run in parallel or with gravity timing: balls race one after another with ease-in durations."
+}

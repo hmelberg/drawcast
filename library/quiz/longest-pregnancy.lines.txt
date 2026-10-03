@@ -1,0 +1,12 @@
+Which of these animals carries its baby the longest before it is born?
+[ASK] Put them in order of how long a pregnancy lasts, the longest first.
+  [right] You got {p}.
+  [wrong] You got {p}.
+The champion is the elephant: about twenty-two months, almost two years.
+A giraffe takes about fifteen months, and its calf arrives with a drop of about one and a half metres to the ground.
+We come third, with nine months.
+Then a big drop: a dog needs only about two months.
+And a golden hamster just sixteen days, one of the shortest of any mammal.
+So why does the elephant wait so long? Its calf is born big, at about a hundred kilograms.
+And it is born ready: within hours it stands, and soon walks with the herd.
+On the open savanna, a baby that cannot keep up does not survive. So the long wait pays.

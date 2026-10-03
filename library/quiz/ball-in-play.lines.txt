@@ -1,0 +1,11 @@
+A football match lasts ninety minutes, plus added time. But the ball is not moving all that while.
+[ASK] In a Premier League match, how many minutes is the ball actually in play? Click on the line.
+  [right] Close: you said {m} minutes, and it is about {m.true}.
+  [wrong] You said {m} minutes; it is about {m.true}.
+With added time, a match now runs about ninety-eight minutes, and the ball is in play for about fifty-seven of them.
+So for about forty minutes, the ball is standing still.
+It goes on throw-ins, free kicks and goal kicks, on substitutions, injuries and goal celebrations.
+And on the slow walk to take them, when a team is winning and the clock is its friend.
+So in 2023 the Premier League told referees to add on the time lost to goals, substitutions and injuries.
+Added time grew, and the ball was in play for about three and a half minutes more per match.
+Even so, about forty minutes of every match are football with the ball at rest.

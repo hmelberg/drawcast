@@ -1,0 +1,16 @@
+{
+ "file": "sunlight-travel-time.json",
+ "title": "How long does sunlight take to reach Earth?",
+ "subtitle": "Guess how many minutes sunlight takes to reach Earth, then see why you always see the Sun as it was, and how old its light really is.",
+ "format": "quiz",
+ "tags": [
+  "astronomy",
+  "physics"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "scale tick numbers fixed at 18 px"
+}

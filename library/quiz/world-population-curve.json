@@ -1,0 +1,313 @@
+{
+ "request": "How fast did the world's population grow to 8 billion? Let me draw the rest of the line from 1950. #interactive #short",
+ "subtitle": "Draw how the world's population grew from 1950 to today, then see how each new billion arrived faster, and where the curve is heading.",
+ "spec": {
+  "title": "How fast did the world's population grow to 8 billion?",
+  "template": "line_chart",
+  "params": {
+   "x": [
+    1800,
+    1804,
+    1850,
+    1900,
+    1927,
+    1950,
+    1960,
+    1974,
+    1987,
+    1999,
+    2011,
+    2022,
+    2024,
+    2050,
+    2084,
+    2100
+   ],
+   "series": [
+    {
+     "name": "World",
+     "values": [
+      [
+       0.98,
+       1.0,
+       1.26,
+       1.65,
+       2.0,
+       2.5,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       0.98,
+       1.0,
+       1.26,
+       1.65,
+       2.0,
+       2.5,
+       3.02,
+       4.0,
+       5.0,
+       6.0,
+       7.0,
+       8.0,
+       8.16,
+       null,
+       null,
+       null
+      ]
+     ]
+    },
+    {
+     "name": "UN forecast",
+     "values": [
+      [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       8.16,
+       9.66,
+       10.29,
+       10.18
+      ]
+     ]
+    }
+   ],
+   "stage": 0,
+   "x_ticks": false,
+   "xlim": [
+    1800,
+    2100
+   ],
+   "ylim": [
+    0,
+    11
+   ],
+   "y_label": "Billions of people",
+   "x_label": "Year"
+  },
+  "text": {
+   "font_size": 34
+  },
+  "sources": [
+   {
+    "id": "un",
+    "title": "World population milestones / Day of Eight Billion",
+    "authors": "United Nations",
+    "year": 2022,
+    "url": "https://www.un.org/en/dayof8billion",
+    "finding": "1 billion about 1804, 2 billion 1927, 3 billion 1960, 4 billion 1974, 7 billion 2011, 8 billion on 15 November 2022"
+   },
+   {
+    "id": "owid",
+    "title": "Population",
+    "authors": "Our World in Data (HYDE, UN WPP)",
+    "year": 2024,
+    "url": "https://ourworldindata.org/population-growth",
+    "finding": "world population about 1.65 billion in 1900, 2.5 billion in 1950, 6.15 billion in 2000, 8.16 billion in 2024"
+   },
+   {
+    "id": "wpp",
+    "title": "World Population Prospects 2024",
+    "authors": "United Nations",
+    "year": 2024,
+    "finding": "world population is projected to reach 9.66 billion in 2050 and peak at about 10.3 billion in the mid-2080s, 10.2 billion in 2100"
+   }
+  ],
+  "elements": [
+   {
+    "id": "p1",
+    "type": "point",
+    "at": {
+     "data": [
+      1804,
+      1.0
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "p1_l",
+    "type": "text",
+    "text": "1 bn: 1804",
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "p1",
+     "side": "above-right",
+     "gap": 14
+    }
+   },
+   {
+    "id": "p2",
+    "type": "point",
+    "at": {
+     "data": [
+      1927,
+      2.0
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "p2_l",
+    "type": "text",
+    "text": "2 bn: 1927",
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "p2",
+     "side": "above-left",
+     "gap": 14
+    }
+   },
+   {
+    "id": "p8",
+    "type": "point",
+    "at": {
+     "data": [
+      2022,
+      8.0
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "p8_l",
+    "type": "text",
+    "text": "8 bn: 2022",
+    "font_size": 34,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "p8",
+     "side": "left",
+     "gap": 14
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How fast did we reach 8 billion?"
+    }
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "How did the world's population grow to eight billion?"
+   },
+   {
+    "draw": [
+     "line_1"
+    ],
+    "speak": "In 1800 there were about one billion of us. By 1950, about two and a half billion."
+   },
+   {
+    "ask": {
+     "question": "Here is the line up to 1950. Draw the rest: how did it grow to today?",
+     "on": "line_1",
+     "from": 1950,
+     "store": "g",
+     "right": "Close. You drew {g}; the real line ends at {g.true} billion.",
+     "wrong": "You drew {g}; the real line ends at {g.true} billion."
+    }
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 1.8
+   },
+   {
+    "draw": [
+     "p1",
+     "p1_l"
+    ],
+    "speak": "For all of human history until about 1804, we never reached one billion."
+   },
+   {
+    "draw": [
+     "p2",
+     "p2_l"
+    ],
+    "speak": "The second billion took a hundred and twenty-three years, until 1927."
+   },
+   {
+    "draw": [
+     "p8",
+     "p8_l"
+    ],
+    "speak": "Then the billions came faster: three in 1960, four in 1974, and the eighth in 2022,"
+   },
+   {
+    "highlight": {
+     "target": [
+      "p8_l"
+     ]
+    },
+    "speak": "only eleven years after the seventh."
+   },
+   {
+    "highlight": {
+     "target": [
+      "line_1"
+     ]
+    },
+    "speak": "Not because people had more children, but because far fewer died young."
+   },
+   {
+    "draw": [
+     "line_2"
+    ],
+    "speak": "And the curve is already bending: the United Nations expects a peak of about ten billion in the 2080s."
+   }
+  ]
+ }
+}

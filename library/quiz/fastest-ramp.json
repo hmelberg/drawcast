@@ -1,0 +1,635 @@
+{
+ "request": "Three ramps between the same two points: tap the fastest one, then the brachistochrone story. #interactive #short",
+ "subtitle": "A straight ramp, a steep drop, or a swooping curve: tap the one that wins the race, then hear how Newton solved it overnight.",
+ "spec": {
+  "title": "Which ramp is fastest?",
+  "sources": [
+   {
+    "id": "brach",
+    "title": "Brachistochrone curve",
+    "authors": "Wikipedia; V. F. Rickey, 'History of the brachistochrone'",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/Brachistochrone_curve",
+    "finding": "Johann Bernoulli posed the problem in June 1696; Newton received it on 29 January 1697 and, by his niece Catherine Conduitt's account, had solved it by 4 am; Bernoulli recognised the anonymous solution 'tanquam ex ungue leonem'"
+   }
+  ],
+  "elements": [
+   {
+    "id": "p_straight",
+    "type": "path",
+    "points": [
+     [
+      150,
+      560
+     ],
+     [
+      850,
+      330
+     ]
+    ],
+    "style": {
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "p_curve",
+    "type": "path",
+    "points": [
+     [
+      150.0,
+      560.0
+     ],
+     [
+      150.1,
+      558.7
+     ],
+     [
+      150.5,
+      554.7
+     ],
+     [
+      151.6,
+      548.3
+     ],
+     [
+      153.8,
+      539.4
+     ],
+     [
+      157.3,
+      528.2
+     ],
+     [
+      162.5,
+      515.0
+     ],
+     [
+      169.6,
+      499.9
+     ],
+     [
+      178.9,
+      483.4
+     ],
+     [
+      190.5,
+      465.5
+     ],
+     [
+      204.5,
+      446.8
+     ],
+     [
+      221.2,
+      427.6
+     ],
+     [
+      240.5,
+      408.1
+     ],
+     [
+      262.4,
+      388.7
+     ],
+     [
+      286.9,
+      369.9
+     ],
+     [
+      313.9,
+      351.9
+     ],
+     [
+      343.3,
+      335.1
+     ],
+     [
+      374.8,
+      319.8
+     ],
+     [
+      408.4,
+      306.3
+     ],
+     [
+      443.6,
+      294.8
+     ],
+     [
+      480.2,
+      285.5
+     ],
+     [
+      517.9,
+      278.6
+     ],
+     [
+      556.4,
+      274.3
+     ],
+     [
+      595.3,
+      272.5
+     ],
+     [
+      634.3,
+      273.4
+     ],
+     [
+      672.9,
+      276.9
+     ],
+     [
+      711.0,
+      283.0
+     ],
+     [
+      748.0,
+      291.5
+     ],
+     [
+      783.7,
+      302.3
+     ],
+     [
+      817.8,
+      315.2
+     ],
+     [
+      850.0,
+      330.0
+     ]
+    ],
+    "style": {
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "p_drop",
+    "type": "path",
+    "points": [
+     [
+      150,
+      560
+     ],
+     [
+      165,
+      450
+     ],
+     [
+      185,
+      360
+     ],
+     [
+      215,
+      334
+     ],
+     [
+      260,
+      330
+     ],
+     [
+      850,
+      330
+     ]
+    ],
+    "style": {
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "l_straight",
+    "type": "text",
+    "text": "Straight",
+    "x": 560,
+    "y": 490,
+    "font_size": 34
+   },
+   {
+    "id": "l_curve",
+    "type": "text",
+    "text": "Curve",
+    "x": 575,
+    "y": 232,
+    "font_size": 34
+   },
+   {
+    "id": "l_drop",
+    "type": "text",
+    "text": "Drop",
+    "x": 280,
+    "y": 290,
+    "font_size": 34
+   },
+   {
+    "id": "r_straight",
+    "type": "group",
+    "members": [
+     "p_straight",
+     "l_straight"
+    ]
+   },
+   {
+    "id": "r_curve",
+    "type": "group",
+    "members": [
+     "p_curve",
+     "l_curve"
+    ]
+   },
+   {
+    "id": "r_drop",
+    "type": "group",
+    "members": [
+     "p_drop",
+     "l_drop"
+    ]
+   },
+   {
+    "id": "start",
+    "type": "text",
+    "text": "Start",
+    "x": 150,
+    "y": 615,
+    "font_size": 34
+   },
+   {
+    "id": "finish",
+    "type": "text",
+    "text": "Finish",
+    "x": 880,
+    "y": 385,
+    "font_size": 34
+   },
+   {
+    "id": "b1",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 14,
+    "x": 150,
+    "y": 560,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c"
+    }
+   },
+   {
+    "id": "b2",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 14,
+    "x": 150,
+    "y": 560,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f"
+    }
+   },
+   {
+    "id": "b3",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 14,
+    "x": 150,
+    "y": 560,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "t_straight",
+    "type": "text",
+    "text": "3rd",
+    "x": 430,
+    "y": 510,
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "t_drop",
+    "type": "text",
+    "text": "2nd",
+    "x": 420,
+    "y": 368,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "t_curve",
+    "type": "text",
+    "text": "1st",
+    "x": 445,
+    "y": 245,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "cyc",
+    "type": "text",
+    "text": "cycloid",
+    "x": 745,
+    "y": 235,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "claw",
+    "type": "text",
+    "text": "the lion's claw",
+    "x": 770,
+    "y": 600,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which ramp is fastest?"
+    }
+   },
+   {
+    "draw": [
+     "start",
+     "finish",
+     "r_straight",
+     "r_curve",
+     "r_drop"
+    ],
+    "speak": "Three ramps join the same two points. Which one gets a ball to the bottom first?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "r_straight",
+      "r_curve",
+      "r_drop"
+     ]
+    },
+    "speak": "One is straight, one swoops down in a curve, and one drops steeply, then runs flat."
+   },
+   {
+    "ask": {
+     "question": "Which ramp gets a rolling ball from start to finish fastest? Tap it.",
+     "choose": [
+      "r_straight",
+      "r_curve",
+      "r_drop"
+     ],
+     "answer": "r_curve",
+     "store": "c",
+     "right": "The curve. It dips first, so the ball gains speed early, and that speed carries it the rest of the way.",
+     "wrong": "Think about where the ball picks up its speed.",
+     "stage": "own"
+    }
+   },
+   {
+    "draw": [
+     "b1"
+    ]
+   },
+   {
+    "move": {
+     "target": [
+      "b1"
+     ],
+     "path": [
+      [
+       700,
+       -230
+      ]
+     ],
+     "duration": 3.3,
+     "easing": "ease-in"
+    },
+    "speak": "Race them. The straight line is the shortest path, but the ball gathers speed slowly."
+   },
+   {
+    "draw": [
+     "t_straight",
+     "b2"
+    ]
+   },
+   {
+    "move": {
+     "target": [
+      "b2"
+     ],
+     "path": [
+      [
+       15,
+       -110
+      ],
+      [
+       35,
+       -200
+      ],
+      [
+       65,
+       -226
+      ],
+      [
+       110,
+       -230
+      ],
+      [
+       700,
+       -230
+      ]
+     ],
+     "duration": 2.5,
+     "easing": "ease-in"
+    },
+    "speak": "The steep drop builds speed fast, then spends it on a long flat run."
+   },
+   {
+    "draw": [
+     "t_drop",
+     "b3"
+    ]
+   },
+   {
+    "move": {
+     "target": [
+      "b3"
+     ],
+     "path": [
+      [
+       0.1,
+       -1.3
+      ],
+      [
+       0.5,
+       -5.3
+      ],
+      [
+       1.6,
+       -11.7
+      ],
+      [
+       3.8,
+       -20.6
+      ],
+      [
+       7.3,
+       -31.8
+      ],
+      [
+       12.5,
+       -45.0
+      ],
+      [
+       19.6,
+       -60.1
+      ],
+      [
+       28.9,
+       -76.6
+      ],
+      [
+       40.5,
+       -94.5
+      ],
+      [
+       54.5,
+       -113.2
+      ],
+      [
+       71.2,
+       -132.4
+      ],
+      [
+       90.5,
+       -151.9
+      ],
+      [
+       112.4,
+       -171.3
+      ],
+      [
+       136.9,
+       -190.1
+      ],
+      [
+       163.9,
+       -208.1
+      ],
+      [
+       193.3,
+       -224.9
+      ],
+      [
+       224.8,
+       -240.2
+      ],
+      [
+       258.4,
+       -253.7
+      ],
+      [
+       293.6,
+       -265.2
+      ],
+      [
+       330.2,
+       -274.5
+      ],
+      [
+       367.9,
+       -281.4
+      ],
+      [
+       406.4,
+       -285.7
+      ],
+      [
+       445.3,
+       -287.5
+      ],
+      [
+       484.3,
+       -286.6
+      ],
+      [
+       522.9,
+       -283.1
+      ],
+      [
+       561.0,
+       -277.0
+      ],
+      [
+       598.0,
+       -268.5
+      ],
+      [
+       633.7,
+       -257.7
+      ],
+      [
+       667.8,
+       -244.8
+      ],
+      [
+       700.0,
+       -230.0
+      ]
+     ],
+     "duration": 2.3,
+     "easing": "ease-in"
+    },
+    "speak": "The curve is steep at first, then swoops through and beats them both."
+   },
+   {
+    "draw": [
+     "t_curve"
+    ]
+   },
+   {
+    "draw": [
+     "cyc"
+    ],
+    "cue": 0.3,
+    "speak": "That curve is a cycloid: the path traced by a point on the rim of a rolling wheel."
+   },
+   {
+    "highlight": {
+     "target": [
+      "p_curve"
+     ]
+    },
+    "speak": "In 1696 Johann Bernoulli challenged the best mathematicians of Europe to find this fastest path."
+   },
+   {
+    "highlight": {
+     "target": [
+      "l_curve",
+      "cyc"
+     ]
+    },
+    "speak": "Isaac Newton got the problem one afternoon in January 1697, after a day at the Royal Mint. By four the next morning, he had solved it."
+   },
+   {
+    "speak": "He sent his answer without a name. But Bernoulli knew at once who it was: you can tell the lion by its claw.",
+    "draw": [
+     "claw"
+    ],
+    "cue": 0.5
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

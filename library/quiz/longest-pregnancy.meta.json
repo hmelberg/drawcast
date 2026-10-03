@@ -1,0 +1,15 @@
+{
+ "file": "longest-pregnancy.json",
+ "title": "Which animal has the longest pregnancy?",
+ "subtitle": "Rank five animals by pregnancy length, from the elephant's two years to the hamster's sixteen days, and see why size sets the clock.",
+ "format": "quiz",
+ "tags": [
+  "biology"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "Rank cards (row, fixed small size) then the reveal as freehand horizontal bars, one per animal, values on the bars; record values red."
+}

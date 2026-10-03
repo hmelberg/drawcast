@@ -1,0 +1,13 @@
+Which is the tallest mountain on Earth?
+Everest is the highest: its summit stands 8,849 metres above the sea.
+[ASK] Measured from its foot to its summit, which mountain is tallest?  choices=['Everest', 'K2', 'Mauna Kea', 'Kilimanjaro']
+  [right] Mauna Kea, in Hawaii: from its foot on the sea floor, it rises about ten thousand two hundred metres.
+  [wrong] Think of where a mountain's foot can hide.
+Above the waves, Mauna Kea is only about 4,200 metres.
+But its foot lies some six thousand metres down, on the floor of the Pacific.
+Counted from there, it beats Everest by more than a kilometre.
+And there is a third champion: Chimborazo, a volcano in Ecuador.
+The Earth bulges at the equator, and Chimborazo sits almost on it.
+So its summit is the point farthest from Earth's centre,
+about two kilometres farther out than Everest's.
+But the tallest of them all is mostly underwater.

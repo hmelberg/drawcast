@@ -1,0 +1,13 @@
+A: You toss a fair coin five times, and it lands heads every time. What comes next?
+B: Tails, obviously. It's overdue!
+[ASK] After five heads in a row, what is the chance the next toss is tails?  choices=['More than half', 'Exactly half', 'Less than half']
+  [right] Exactly half. The coin has no memory: every toss starts from scratch.
+  [wrong] Ask what the coin remembers.
+B: But five heads in a row is rare. Doesn't that count for something?
+A: It is rare: one chance in thirty-two.
+A: But those five are already done. Only the next toss is still open, and it is a plain coin toss.
+B: Tell that to a casino.
+A: Funny you should say that. In Monte Carlo, in August 1913, a roulette ball landed on black twenty-six times in a row.
+A: Gamblers piled their money on red, sure it was due. They lost millions.
+B: So the gambler's fallacy has a home address.
+A: It does. It's often called the Monte Carlo fallacy, and the wheel never knew it was on a streak.

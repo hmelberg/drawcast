@@ -1,0 +1,16 @@
+{
+ "file": "body-myths.json",
+ "title": "Body myths: true or myth?",
+ "subtitle": "Five things people say about your body, from cracked knuckles to swallowed spiders: true or myth? Guess each one, then hear the story behind it.",
+ "format": "quiz",
+ "tags": [
+  "health",
+  "biology"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "twemoji icons via Iconify (429 rate limits can blank them); no stomach emoji exists, so the stomach item uses a calendar; per-item MYTH/TRUE stamps are drawn on silent beats (not in frame tiles); final row carries stamps."
+}

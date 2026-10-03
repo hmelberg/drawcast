@@ -1,0 +1,16 @@
+{
+ "file": "which-is-heavier.json",
+ "title": "Which is heavier? Three surprising pairs",
+ "subtitle": "Tap the heavier of three surprising pairs, from a blue whale's heart to a puffy cloud, and see why weight hides in things spread thin.",
+ "format": "quiz",
+ "tags": [
+  "biology",
+  "physics"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 5,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "Compare cards (compare: ' ' to suppress the duplicate sub-title), then the cards and their value labels hidden and each pair drawn as a big tipping balance, one at a time. hide on the cards group does not hide the value labels heavy_v_N: list them."
+}

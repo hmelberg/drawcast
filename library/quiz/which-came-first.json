@@ -1,0 +1,310 @@
+{
+ "request": "Which came first? Surprising pairs from history: tap the older one in each pair. #interactive #short",
+ "subtitle": "The fax or the telephone? Oxford or the Aztecs? The pyramids or the last mammoths? Tap the older one, and watch history's timeline fold.",
+ "spec": {
+  "title": "Which came first?",
+  "sources": [
+   {
+    "id": "bain",
+    "title": "Alexander Bain (inventor)",
+    "authors": "Wikipedia",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/Alexander_Bain_(inventor)",
+    "finding": "Bain received British patent 9745 for his 'electric printing telegraph', the first fax, on 27 May 1843; Bell's telephone patent came in 1876"
+   },
+   {
+    "id": "oxford",
+    "title": "University of Oxford: history",
+    "authors": "University of Oxford",
+    "year": 2024,
+    "finding": "there is no clear date of foundation, but teaching existed at Oxford in some form in 1096"
+   },
+   {
+    "id": "wrangel",
+    "title": "Temporal dynamics of woolly mammoth genome erosion prior to extinction (Cell)",
+    "authors": "M. Dehasque et al.",
+    "year": 2024,
+    "finding": "the Wrangel Island mammoth population survived until about 4,000 years ago"
+   }
+  ],
+  "elements": [
+   {
+    "id": "pairs",
+    "type": "cards",
+    "compare": "Tap the older one",
+    "unit": "years ago",
+    "y": 560,
+    "items": [
+     {
+      "text": "Fax machine",
+      "value": 183
+     },
+     {
+      "text": "Telephone",
+      "value": 150
+     },
+     {
+      "text": "Tenochtitlan",
+      "value": 701
+     },
+     {
+      "text": "Oxford lectures",
+      "value": 930
+     },
+     {
+      "text": "Last mammoth",
+      "value": 4000
+     },
+     {
+      "text": "Great Pyramid",
+      "value": 4580
+     }
+    ],
+    "cites": [
+     "bain",
+     "oxford",
+     "wrangel"
+    ]
+   },
+   {
+    "id": "y_fax",
+    "type": "text",
+    "text": "1843",
+    "x": 105,
+    "y": 560,
+    "font_size": 50,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "y_tel",
+    "type": "text",
+    "text": "1876",
+    "x": 895,
+    "y": 560,
+    "font_size": 50,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "y_ox",
+    "type": "text",
+    "text": "1096",
+    "x": 895,
+    "y": 460,
+    "font_size": 50,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "y_az",
+    "type": "text",
+    "text": "1325",
+    "x": 105,
+    "y": 460,
+    "font_size": 50,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "y_mam",
+    "type": "text",
+    "text": "2000 BC",
+    "x": 105,
+    "y": 360,
+    "font_size": 44,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "y_pyr",
+    "type": "text",
+    "text": "2560 BC",
+    "x": 895,
+    "y": 360,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "i_fax",
+    "type": "icon",
+    "of": "fax machine",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 105,
+    "x": 380,
+    "y": 232
+   },
+   {
+    "id": "i_tel",
+    "type": "icon",
+    "of": "telephone",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 105,
+    "x": 620,
+    "y": 232
+   },
+   {
+    "id": "i_az",
+    "type": "icon",
+    "of": "classical building",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 105,
+    "x": 380,
+    "y": 232
+   },
+   {
+    "id": "i_ox",
+    "type": "icon",
+    "of": "graduation cap",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 105,
+    "x": 620,
+    "y": 232
+   },
+   {
+    "id": "i_mam",
+    "type": "icon",
+    "of": "mammoth",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 105,
+    "x": 380,
+    "y": 232
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which came first?"
+    }
+   },
+   {
+    "draw": [
+     "pairs"
+    ],
+    "speak": "Which came first? Three pairs, and in each one, history plays a trick on you."
+   },
+   {
+    "ask": {
+     "question": "Which came first? In each pair, tap the one that is older.",
+     "on": "pairs",
+     "store": "c",
+     "right": "The fax, Oxford and the pyramid all came first.",
+     "wrong": "{c} of {c.total} on the first try.",
+     "feedback": {
+      "style": "warm",
+      "perfect": "A historian's instinct.",
+      "good": "History tricked you only a little.",
+      "poor": "These three fool almost everyone.",
+      "none": "History won this round."
+     }
+    }
+   },
+   {
+    "draw": [
+     "i_fax",
+     "i_tel"
+    ],
+    "parallel": true,
+    "speak": "First: the fax is older than the telephone."
+   },
+   {
+    "draw": [
+     "y_fax",
+     "y_tel"
+    ],
+    "speak": "Alexander Bain patented a way to send pictures by telegraph in 1843, thirty-three years before Bell's phone."
+   },
+   {
+    "erase": [
+     "i_tel"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "i_fax",
+      "pairs_1"
+     ]
+    },
+    "speak": "His design used two swinging pendulums, kept in step, to scan a picture line by line."
+   },
+   {
+    "erase": [
+     "i_fax"
+    ]
+   },
+   {
+    "draw": [
+     "y_ox",
+     "y_az",
+     "i_ox",
+     "i_az"
+    ],
+    "speak": "Next, Oxford was teaching students by 1096, more than two centuries before the Aztecs founded their capital, Tenochtitlan."
+   },
+   {
+    "highlight": {
+     "target": [
+      "pairs_4",
+      "i_ox"
+     ]
+    },
+    "speak": "So when that city rose from its lake, Oxford had already been teaching for generations."
+   },
+   {
+    "erase": [
+     "i_ox",
+     "i_az"
+    ]
+   },
+   {
+    "draw": [
+     "i_mam"
+    ],
+    "parallel": true,
+    "speak": "And the Great Pyramid is older than the last woolly mammoths."
+   },
+   {
+    "draw": [
+     "y_pyr",
+     "y_mam"
+    ],
+    "speak": "The pyramid was finished around 2560 BC."
+   },
+   {
+    "highlight": {
+     "target": [
+      "pairs_5",
+      "i_mam"
+     ]
+    },
+    "speak": "A small herd survived on Wrangel Island, in the Arctic Ocean, until about four thousand years ago."
+   },
+   {
+    "highlight": {
+     "target": [
+      "i_mam",
+      "y_mam"
+     ],
+     "effect": "circle"
+    },
+    "speak": "So when the pyramid was already five centuries old, mammoths still walked the Earth."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

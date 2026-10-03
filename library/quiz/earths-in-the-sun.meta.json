@@ -1,0 +1,15 @@
+{
+ "file": "earths-in-the-sun.json",
+ "title": "How many Earths would fit inside the Sun?",
+ "subtitle": "Guess how many Earths would fit inside the Sun on a line where every step is ten times bigger, then see why the answer runs into millions.",
+ "format": "quiz",
+ "tags": [
+  "astronomy"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "log scale guess (10 to 10 million; from 1 the end tick labels overflow); Sun and Earth drawn to scale; the scale marker prints 1300 000 (engine number format)."
+}

@@ -1,0 +1,16 @@
+{
+ "file": "most-spoken-languages.json",
+ "title": "Which languages have the most native speakers?",
+ "subtitle": "Rank five great languages by native speakers, then see how the order flips when you count everyone who speaks them.",
+ "format": "quiz",
+ "tags": [
+  "language",
+  "culture"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "rank cards fixed size (font 22 with icons)"
+}

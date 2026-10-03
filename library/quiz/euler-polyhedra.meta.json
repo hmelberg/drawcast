@@ -1,0 +1,15 @@
+{
+ "file": "euler-polyhedra.json",
+ "title": "Corners minus edges plus faces: what does a cube give?",
+ "subtitle": "Count a cube's corners, edges and faces, type what V − E + F gives, and see why Euler's answer, 2, holds for every solid without holes.",
+ "format": "quiz",
+ "tags": [
+  "mathematics"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "Typed ask; cube counted (corners dotted, edges highlighted, a face washed); pyramid with dotted corners; ends on a drawn picture frame and 'V − E + F = 0 → topology'."
+}

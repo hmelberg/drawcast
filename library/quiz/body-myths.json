@@ -1,0 +1,496 @@
+{
+ "request": "Body myths: true or myth? Cracking knuckles, swallowed spiders, shaved hair, the senses, the stomach. #interactive #short",
+ "subtitle": "Five things people say about your body, from cracked knuckles to swallowed spiders: true or myth? Guess each one, then hear the story behind it.",
+ "spec": {
+  "title": "Body myths: true or myth?",
+  "sources": [
+   {
+    "id": "unger",
+    "title": "Does knuckle cracking lead to arthritis of the fingers?",
+    "authors": "D. L. Unger",
+    "year": 1998,
+    "finding": "one man cracked the knuckles of his left hand, not his right, for over 60 years: no arthritis in either; Ig Nobel Prize in Medicine 2009"
+   },
+   {
+    "id": "hair",
+    "title": "The effect of shaving on the growth of hair",
+    "authors": "M. Trotter",
+    "year": 1928,
+    "finding": "shaving did not change the colour, coarseness or rate of growth of hair"
+   },
+   {
+    "id": "stomach",
+    "title": "Anatomy and Physiology: The Stomach",
+    "authors": "OpenStax",
+    "year": 2022,
+    "finding": "the stomach's surface epithelial cells are replaced every 3 to 5 days"
+   }
+  ],
+  "elements": [
+   {
+    "id": "knk",
+    "type": "icon",
+    "of": "hand with fingers splayed",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 300,
+    "x": 500,
+    "y": 450,
+    "cites": [
+     "unger"
+    ]
+   },
+   {
+    "id": "knk_l",
+    "type": "text",
+    "text": "Knuckles → arthritis",
+    "font_size": 48,
+    "x": 500,
+    "y": 225
+   },
+   {
+    "id": "knk_v",
+    "type": "text",
+    "text": "MYTH",
+    "x": 790,
+    "y": 580,
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "rs_knk",
+    "type": "text",
+    "text": "MYTH",
+    "x": 140,
+    "y": 310,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "r_knk",
+    "type": "icon",
+    "of": "hand with fingers splayed",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 165,
+    "x": 140,
+    "y": 430
+   },
+   {
+    "id": "spd",
+    "type": "icon",
+    "of": "spider",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 300,
+    "x": 500,
+    "y": 450
+   },
+   {
+    "id": "spd_l",
+    "type": "text",
+    "text": "Swallowed spiders",
+    "font_size": 48,
+    "x": 500,
+    "y": 225
+   },
+   {
+    "id": "spd_v",
+    "type": "text",
+    "text": "MYTH",
+    "x": 790,
+    "y": 580,
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "rs_spd",
+    "type": "text",
+    "text": "MYTH",
+    "x": 320,
+    "y": 310,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "r_spd",
+    "type": "icon",
+    "of": "spider",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 165,
+    "x": 320,
+    "y": 430
+   },
+   {
+    "id": "raz",
+    "type": "icon",
+    "of": "razor",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 300,
+    "x": 500,
+    "y": 450,
+    "cites": [
+     "hair"
+    ]
+   },
+   {
+    "id": "raz_l",
+    "type": "text",
+    "text": "Shaved hair: thicker?",
+    "font_size": 48,
+    "x": 500,
+    "y": 225
+   },
+   {
+    "id": "raz_v",
+    "type": "text",
+    "text": "MYTH",
+    "x": 790,
+    "y": 580,
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "rs_raz",
+    "type": "text",
+    "text": "MYTH",
+    "x": 500,
+    "y": 310,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "r_raz",
+    "type": "icon",
+    "of": "razor",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 165,
+    "x": 500,
+    "y": 430
+   },
+   {
+    "id": "ear",
+    "type": "icon",
+    "of": "ear",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 300,
+    "x": 500,
+    "y": 450
+   },
+   {
+    "id": "ear_l",
+    "type": "text",
+    "text": "More than five senses",
+    "font_size": 48,
+    "x": 500,
+    "y": 225
+   },
+   {
+    "id": "ear_v",
+    "type": "text",
+    "text": "TRUE",
+    "x": 790,
+    "y": 580,
+    "font_size": 64,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "rs_ear",
+    "type": "text",
+    "text": "TRUE",
+    "x": 680,
+    "y": 310,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "r_ear",
+    "type": "icon",
+    "of": "ear",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 165,
+    "x": 680,
+    "y": 430
+   },
+   {
+    "id": "cal",
+    "type": "icon",
+    "of": "spiral calendar",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 300,
+    "x": 500,
+    "y": 450,
+    "cites": [
+     "stomach"
+    ]
+   },
+   {
+    "id": "cal_l",
+    "type": "text",
+    "text": "New stomach lining",
+    "font_size": 48,
+    "x": 500,
+    "y": 225
+   },
+   {
+    "id": "cal_v",
+    "type": "text",
+    "text": "TRUE",
+    "x": 790,
+    "y": 580,
+    "font_size": 64,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "rs_cal",
+    "type": "text",
+    "text": "TRUE",
+    "x": 860,
+    "y": 310,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "r_cal",
+    "type": "icon",
+    "of": "spiral calendar",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 165,
+    "x": 860,
+    "y": 430
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Body myths: true or myth?"
+    }
+   },
+   {
+    "draw": [
+     "knk",
+     "knk_l"
+    ],
+    "speak": "Your body, true or myth? First: cracking your knuckles gives you arthritis."
+   },
+   {
+    "quiz": {
+     "question": "Cracking your knuckles gives you arthritis. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "right": "Myth. A doctor, Donald Unger, cracked the knuckles of one hand for sixty years and never the other: no arthritis in either, and an Ig Nobel Prize."
+    }
+   },
+   {
+    "draw": [
+     "knk_v"
+    ]
+   },
+   {
+    "pause": 1.5
+   },
+   {
+    "hide": [
+     "knk",
+     "knk_l",
+     "knk_v"
+    ]
+   },
+   {
+    "draw": [
+     "spd",
+     "spd_l"
+    ],
+    "speak": "Next, the one that ruins bedtime: we all swallow spiders in our sleep."
+   },
+   {
+    "quiz": {
+     "question": "We swallow spiders in our sleep. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "right": "Myth. No case has ever been recorded, and a big, breathing, rumbling sleeper is the last place a spider wants to go."
+    }
+   },
+   {
+    "draw": [
+     "spd_v"
+    ]
+   },
+   {
+    "pause": 1.5
+   },
+   {
+    "hide": [
+     "spd",
+     "spd_l",
+     "spd_v"
+    ]
+   },
+   {
+    "draw": [
+     "raz",
+     "raz_l"
+    ],
+    "speak": "Then the razor: shaved hair grows back thicker."
+   },
+   {
+    "quiz": {
+     "question": "Shaved hair grows back thicker. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "right": "Myth. The razor leaves a blunt tip that feels coarse, but a study in 1928 already found the hair grows back no thicker and no faster."
+    }
+   },
+   {
+    "draw": [
+     "raz_v"
+    ]
+   },
+   {
+    "pause": 1.5
+   },
+   {
+    "hide": [
+     "raz",
+     "raz_l",
+     "raz_v"
+    ]
+   },
+   {
+    "draw": [
+     "ear",
+     "ear_l"
+    ],
+    "speak": "Now a school lesson: you have more than five senses."
+   },
+   {
+    "quiz": {
+     "question": "Humans have more than five senses. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 1,
+     "right": "True. Balance, heat, pain, and knowing where your arms are with your eyes shut are senses too: scientists count far more than five."
+    }
+   },
+   {
+    "draw": [
+     "ear_v"
+    ]
+   },
+   {
+    "pause": 1.5
+   },
+   {
+    "hide": [
+     "ear",
+     "ear_l",
+     "ear_v"
+    ]
+   },
+   {
+    "draw": [
+     "cal",
+     "cal_l"
+    ],
+    "speak": "And last: your stomach gets a new lining every few days."
+   },
+   {
+    "quiz": {
+     "question": "Your stomach lining renews itself every few days. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 1,
+     "right": "True. The cells on the stomach's surface are replaced every three to five days, before its own acid can digest them."
+    }
+   },
+   {
+    "draw": [
+     "cal_v"
+    ]
+   },
+   {
+    "pause": 1.5
+   },
+   {
+    "hide": [
+     "cal",
+     "cal_l",
+     "cal_v"
+    ]
+   },
+   {
+    "draw": [
+     "r_knk",
+     "rs_knk",
+     "r_spd",
+     "rs_spd",
+     "r_raz",
+     "rs_raz",
+     "r_ear",
+     "rs_ear",
+     "r_cal",
+     "rs_cal"
+    ],
+    "parallel": true,
+    "speak": "You got {score} of {score_total}."
+   },
+   {
+    "highlight": {
+     "target": [
+      "r_ear",
+      "r_cal"
+     ],
+     "effect": "circle"
+    },
+    "speak": "The three family warnings were myths. The two from biology class were true."
+   }
+  ],
+  "feedback": {
+   "style": "warm",
+   "perfect": "Your body has no secrets from you.",
+   "good": "A sharp eye for an old wives' tale.",
+   "poor": "These myths fool almost everyone.",
+   "none": "The myths won this round."
+  }
+ }
+}

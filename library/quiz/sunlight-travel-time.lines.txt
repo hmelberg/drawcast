@@ -1,0 +1,11 @@
+Light is the fastest thing there is, three hundred thousand kilometres every second. And the Sun is a hundred and fifty million kilometres away.
+[ASK] How many minutes does sunlight take to reach the Earth? Click on the line.
+  [right] Close: you said {t} minutes, and it is about {t.true}.
+  [wrong] You said {t} minutes; it is about {t.true}.
+So even light needs eight minutes and twenty seconds to cross the gap.
+When you glance at the Sun, you see it as it was eight minutes ago.
+If it vanished this instant, the sky would stay bright for eight more minutes before anyone on Earth could know.
+Moonlight is quicker. It is sunlight bounced off the Moon, and covers the last stretch to us in just over a second.
+But sunlight is old long before it sets out, because it starts deep inside the Sun.
+The energy made in the core bounces around in there for tens of thousands of years, maybe far more, before it reaches the surface.
+And then the final dash to your eyes takes just eight minutes.

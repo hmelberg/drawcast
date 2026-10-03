@@ -1,0 +1,443 @@
+{
+ "request": "When was the Eiffel Tower finished? Let me guess the year on a line. #interactive #short",
+ "subtitle": "Guess the year the Eiffel Tower was finished, then hear how a tower built to last twenty years, and hated by artists, was saved by radio.",
+ "spec": {
+  "title": "When was the Eiffel Tower finished?",
+  "sources": [
+   {
+    "id": "te",
+    "title": "How radio saved the Eiffel Tower from destruction",
+    "authors": "Société d'Exploitation de la Tour Eiffel (official site)",
+    "year": 2019,
+    "url": "https://www.toureiffel.paris/en/news/130-years/why-was-eiffel-tower-kept",
+    "finding": "built for the 1889 Exposition Universelle on a 20-year permit; kept after 1909 because of its use as a radio antenna"
+   },
+   {
+    "id": "hist",
+    "title": "How the Eiffel Tower Was Saved From Being Demolished",
+    "authors": "History.com",
+    "year": 2023,
+    "url": "https://www.history.com/articles/eiffel-tower-survival",
+    "finding": "artists and writers, among them Maupassant, protested in Le Temps on 14 February 1887 against the 'useless and monstrous' tower"
+   }
+  ],
+  "text": {
+   "font_size": 36
+  },
+  "elements": [
+   {
+    "id": "yr",
+    "type": "scale",
+    "min": 1850,
+    "max": 1950,
+    "ticks": 4,
+    "value": 1889,
+    "x": 120,
+    "y": 240,
+    "width": 760,
+    "cites": [
+     "te"
+    ]
+   },
+   {
+    "id": "leg_l",
+    "type": "path",
+    "points": [
+     [
+      306,
+      320
+     ],
+     [
+      356,
+      420
+     ],
+     [
+      394,
+      540
+     ],
+     [
+      410,
+      630
+     ]
+    ],
+    "smooth": true,
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "leg_r",
+    "type": "path",
+    "points": [
+     [
+      526,
+      320
+     ],
+     [
+      476,
+      420
+     ],
+     [
+      438,
+      540
+     ],
+     [
+      422,
+      630
+     ]
+    ],
+    "smooth": true,
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "arch",
+    "type": "path",
+    "points": [
+     [
+      341,
+      320
+     ],
+     [
+      376,
+      352
+     ],
+     [
+      416,
+      362
+     ],
+     [
+      456,
+      352
+     ],
+     [
+      491,
+      320
+     ]
+    ],
+    "smooth": true,
+    "style": {
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "deck1",
+    "type": "path",
+    "points": [
+     [
+      341,
+      380
+     ],
+     [
+      491,
+      380
+     ]
+    ],
+    "style": {
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "deck2",
+    "type": "path",
+    "points": [
+     [
+      378,
+      480
+     ],
+     [
+      454,
+      480
+     ]
+    ],
+    "style": {
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "deck3",
+    "type": "path",
+    "points": [
+     [
+      404,
+      600
+     ],
+     [
+      428,
+      600
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "mast",
+    "type": "path",
+    "points": [
+     [
+      416,
+      630
+     ],
+     [
+      416,
+      660
+     ]
+    ],
+    "style": {
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "tower",
+    "type": "group",
+    "members": [
+     "leg_l",
+     "leg_r",
+     "arch",
+     "deck1",
+     "deck2",
+     "deck3",
+     "mast"
+    ]
+   },
+   {
+    "id": "y1889",
+    "type": "text",
+    "text": "1889",
+    "x": 170,
+    "y": 560,
+    "font_size": 60,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "h300",
+    "type": "text",
+    "text": "300 m",
+    "x": 170,
+    "y": 470,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "ugly",
+    "type": "text",
+    "text": "1887: \"monstrous\"",
+    "x": 790,
+    "y": 610,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "hist"
+    ]
+   },
+   {
+    "id": "permit",
+    "type": "text",
+    "text": "permit ends 1909",
+    "x": 790,
+    "y": 530,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "te"
+    ]
+   },
+   {
+    "id": "radio",
+    "type": "text",
+    "text": "saved by radio",
+    "x": 790,
+    "y": 455,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "te"
+    ]
+   },
+   {
+    "id": "m1909",
+    "type": "path",
+    "points": [
+     [
+      568.4,
+      240
+     ],
+     [
+      568.4,
+      262
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "l1909",
+    "type": "text",
+    "text": "1909",
+    "x": 578.4,
+    "y": 285,
+    "font_size": 26,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "m1930",
+    "type": "path",
+    "points": [
+     [
+      728.0,
+      240
+     ],
+     [
+      728.0,
+      262
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "l1930",
+    "type": "text",
+    "text": "1930",
+    "x": 728.0,
+    "y": 285,
+    "font_size": 26,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "chrys",
+    "type": "text",
+    "text": "1930: Chrysler Building",
+    "x": 790,
+    "y": 380,
+    "font_size": 30,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "still",
+    "type": "text",
+    "text": "still standing",
+    "x": 170,
+    "y": 380,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "When was the Eiffel Tower finished?"
+    }
+   },
+   {
+    "draw": [
+     "yr"
+    ],
+    "speak": "Paris without the Eiffel Tower is hard to picture. But when was it finished?"
+   },
+   {
+    "ask": {
+     "question": "In what year was the Eiffel Tower finished? Click on the line.",
+     "on": "yr",
+     "store": "y",
+     "default": "1900",
+     "tolerance": 0.05,
+     "right": "Close: you said {y}, and it was {y.true}.",
+     "wrong": "You said {y}; it was {y.true}."
+    }
+   },
+   {
+    "draw": [
+     "tower"
+    ],
+    "speak": "It opened in 1889, for the World's Fair, a hundred years after the French Revolution began."
+   },
+   {
+    "draw": [
+     "y1889"
+    ]
+   },
+   {
+    "draw": [
+     "h300"
+    ],
+    "speak": "At three hundred metres, it was the tallest structure on Earth,"
+   },
+   {
+    "draw": [
+     "m1930",
+     "l1930",
+     "chrys"
+    ],
+    "speak": "until New York's Chrysler Building passed it in 1930."
+   },
+   {
+    "draw": [
+     "ugly"
+    ],
+    "speak": "But Paris did not love it at first. In 1887, artists and writers signed a letter calling it useless and monstrous."
+   },
+   {
+    "highlight": {
+     "target": [
+      "ugly"
+     ]
+    },
+    "speak": "One of them, the story goes, was Guy de Maupassant, who later ate lunch in the tower, because it was the one place in Paris he could not see it."
+   },
+   {
+    "draw": [
+     "permit",
+     "m1909",
+     "l1909"
+    ],
+    "speak": "And it was never meant to last. Eiffel's permit ran for just twenty years, until 1909."
+   },
+   {
+    "draw": [
+     "radio"
+    ],
+    "speak": "So Eiffel gave his tower a job: weather instruments, experiments, and above all radio antennas at the top."
+   },
+   {
+    "speak": "By 1909 it was the army's radio station: too useful to pull down.",
+    "point": {
+     "at": {
+      "ref": "mast"
+     },
+     "gesture": "circle"
+    }
+   },
+   {
+    "speak": "In the First World War it caught enemy radio messages. The tower that was meant to come down is still standing.",
+    "draw": [
+     "still"
+    ]
+   }
+  ]
+ }
+}

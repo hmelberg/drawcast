@@ -1,0 +1,202 @@
+{
+ "request": "Match four scientists to their discoveries: Harvey, Faraday, Noether and Meitner. #interactive #short",
+ "subtitle": "Match Harvey, Faraday, Noether and Meitner to what they discovered, and hear how Lise Meitner missed a Nobel but got an element.",
+ "spec": {
+  "title": "Who discovered what? Match four scientists",
+  "sources": [
+   {
+    "id": "harvey",
+    "title": "Exercitatio Anatomica de Motu Cordis et Sanguinis in Animalibus",
+    "authors": "William Harvey",
+    "year": 1628,
+    "finding": "the heart pumps the blood in a continuous circuit round the body"
+   },
+   {
+    "id": "faraday",
+    "title": "Michael Faraday",
+    "authors": "Encyclopaedia Britannica",
+    "year": 2024,
+    "finding": "in 1821 Faraday made a current-carrying wire rotate round a magnet: the first electric motor"
+   },
+   {
+    "id": "noether",
+    "title": "Noether's theorem",
+    "authors": "Encyclopaedia Britannica",
+    "year": 2024,
+    "finding": "Emmy Noether proved in 1918 that every continuous symmetry of a physical system corresponds to a conserved quantity"
+   },
+   {
+    "id": "meitner",
+    "title": "Lise Meitner",
+    "authors": "Encyclopaedia Britannica / Nobel Prize Outreach",
+    "year": 2024,
+    "finding": "with Otto Frisch she explained nuclear fission (1938-39); the 1944 Nobel Prize in Chemistry went to Otto Hahn alone; element 109, meitnerium, is named after her"
+   }
+  ],
+  "text": {
+   "font_size": 34
+  },
+  "elements": [
+   {
+    "id": "sci",
+    "type": "cards",
+    "x": 60,
+    "width": 880,
+    "y": 615,
+    "items": [
+     {
+      "text": "William Harvey",
+      "match": "Blood circulation",
+      "match_icon": {
+       "of": "anatomical heart",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Michael Faraday",
+      "match": "Electric motor",
+      "match_icon": {
+       "of": "high voltage",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Emmy Noether",
+      "match": "Symmetry laws",
+      "match_icon": {
+       "of": "balance scale",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Lise Meitner",
+      "match": "Nuclear fission",
+      "match_icon": {
+       "of": "atom symbol",
+       "set": "twemoji"
+      }
+     }
+    ],
+    "cites": [
+     "harvey",
+     "faraday",
+     "noether",
+     "meitner"
+    ]
+   },
+   {
+    "id": "nob",
+    "type": "text",
+    "text": "no Nobel",
+    "x": 500,
+    "y": 318,
+    "font_size": 34,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "meitner"
+    ]
+   },
+   {
+    "id": "mt",
+    "type": "text",
+    "text": "element 109",
+    "x": 500,
+    "y": 250,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "meitner"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Who discovered what?"
+    }
+   },
+   {
+    "draw": [
+     "sci"
+    ],
+    "speak": "Four scientists, four discoveries. Some of these names you know; some you should. Who found what?"
+   },
+   {
+    "ask": {
+     "question": "Match each scientist to their discovery: drag from one card to its partner.",
+     "on": "sci",
+     "store": "m",
+     "right": "All {m} right.",
+     "wrong": "{m} right. Here are the true pairs.",
+     "feedback": {
+      "style": "warm",
+      "perfect": "A walking history of science.",
+      "good": "Nearly a full set.",
+      "poor": "These four are less famous than they should be.",
+      "none": "Now you know four names worth knowing."
+     }
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "sci_1",
+      "sci_m_1"
+     ]
+    },
+    "speak": "William Harvey, an English doctor, showed in 1628 that the heart pumps the same blood round and round the body."
+   },
+   {
+    "highlight": {
+     "target": [
+      "sci_2",
+      "sci_m_2"
+     ]
+    },
+    "speak": "Michael Faraday, a blacksmith's son, built the first electric motor in 1821: a wire that spun round a magnet."
+   },
+   {
+    "highlight": {
+     "target": [
+      "sci_3",
+      "sci_m_3"
+     ]
+    },
+    "speak": "Emmy Noether proved in 1918 that every symmetry in the laws of nature comes with something conserved, such as energy."
+   },
+   {
+    "highlight": {
+     "target": [
+      "sci_3"
+     ]
+    },
+    "speak": "Einstein called her a creative mathematical genius."
+   },
+   {
+    "highlight": {
+     "target": [
+      "sci_4",
+      "sci_m_4"
+     ]
+    },
+    "speak": "And Lise Meitner, with her nephew Otto Frisch, explained nuclear fission at the end of 1938: an atom's core splitting in two."
+   },
+   {
+    "draw": [
+     "nob"
+    ],
+    "speak": "But the Nobel Prize for it went to her colleague Otto Hahn alone."
+   },
+   {
+    "draw": [
+     "mt"
+    ],
+    "speak": "Science made amends later: element 109 is named meitnerium, after her."
+   }
+  ]
+ }
+}

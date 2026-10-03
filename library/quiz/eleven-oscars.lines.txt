@@ -1,0 +1,10 @@
+The record for Oscars won by a single film is eleven, and only a handful of films have reached it.
+[ASK] Which of these films won eleven Oscars? Tap every one.
+  [right] All {f.total} right.
+  [wrong] {f} of {f.total} on the first try.
+Three films share the record. Ben-Hur came first, in 1959, chariot race and all.
+Titanic matched it in 1997, from fourteen nominations.
+West Side Story came painfully close, with ten.
+But the third, The Lord of the Rings: The Return of the King, did something the others did not.
+It won every single award it was nominated for: eleven out of eleven.
+And it was the first fantasy film ever to win Best Picture.

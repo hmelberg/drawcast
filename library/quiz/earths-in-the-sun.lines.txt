@@ -1,0 +1,11 @@
+How many Earths would fit inside the Sun?
+Here is the Earth beside it, drawn to scale: that tiny dot.
+Make your guess on this line. Each step along it is ten times the last.
+[ASK] How many Earths would fit inside the Sun? Click on the line.
+  [right] Close: you said {g}, and it is about {g.true}.
+  [wrong] You said {g}; it is about {g.true}.
+The Sun is a hundred and nine times as wide as the Earth.
+And volume grows with the cube: a hundred and nine, times a hundred and nine, times a hundred and nine.
+That makes about one point three million Earths, if you could melt them down to fill every gap.
+The Sun also holds about 99.8 percent of all the mass in the solar system.
+So everything else, Jupiter and us included, is crumbs.

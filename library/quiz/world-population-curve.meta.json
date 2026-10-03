@@ -1,0 +1,16 @@
+{
+ "file": "world-population-curve.json",
+ "title": "How fast did the world's population grow to 8 billion?",
+ "subtitle": "Draw how the world's population grew from 1950 to today, then see how each new billion arrived faster, and where the curve is heading.",
+ "format": "quiz",
+ "tags": [
+  "data",
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "line_chart staged: prefix to 1950 drawn first (lint warns the guessed line is pre-drawn, but stage 0 shows only the known part), ask from 1950, then animate stage 1; UN forecast series cannot be dashed; milestone points placed in data units."
+}

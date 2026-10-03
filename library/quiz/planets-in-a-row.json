@@ -1,0 +1,907 @@
+{
+ "request": "How many Earths fit between the Earth and the Moon? And could all the planets fit in the gap? #interactive #short",
+ "subtitle": "Guess how many Earths would fill the gap to the Moon, then watch all the other planets squeeze into the same gap, drawn to scale.",
+ "spec": {
+  "title": "How many Earths fit between Earth and the Moon?",
+  "sources": [
+   {
+    "id": "nasa",
+    "title": "Planetary Fact Sheet",
+    "authors": "NASA Goddard Space Flight Center",
+    "year": 2024,
+    "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/",
+    "finding": "average Earth-Moon distance 384,400 km; Earth's diameter 12,756 km; equatorial and polar diameters of the planets (Jupiter 142,984 / 133,708 km)"
+   }
+  ],
+  "text": {
+   "font_size": 32
+  },
+  "elements": [
+   {
+    "id": "earth",
+    "type": "shape",
+    "shape": "circle",
+    "x": 60,
+    "y": 390,
+    "radius": 14.585015608740894,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f"
+    }
+   },
+   {
+    "id": "moon",
+    "type": "shape",
+    "shape": "circle",
+    "x": 940,
+    "y": 390,
+    "radius": 3.9764828303850157,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c"
+    }
+   },
+   {
+    "id": "earth_l",
+    "type": "text",
+    "text": "Earth",
+    "x": 70,
+    "y": 450,
+    "font_size": 30,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "moon_l",
+    "type": "text",
+    "text": "Moon",
+    "x": 930,
+    "y": 450,
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "gap_line",
+    "type": "path",
+    "points": [
+     [
+      78.58501560874089,
+      390
+     ],
+     [
+      936,
+      390
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "dash": true,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "dist",
+    "type": "text",
+    "text": "384,400 km",
+    "x": 500,
+    "y": 430,
+    "font_size": 34,
+    "style": {
+     "color": "#8f887c"
+    },
+    "cites": [
+     "nasa"
+    ]
+   },
+   {
+    "id": "n",
+    "type": "scale",
+    "min": 0,
+    "max": 100,
+    "ticks": 5,
+    "value": 30,
+    "x": 120,
+    "y": 610,
+    "width": 760,
+    "cites": [
+     "nasa"
+    ]
+   },
+   {
+    "id": "mercury",
+    "type": "ellipse",
+    "x": 80.2,
+    "y": 390,
+    "rx": 5.6,
+    "ry": 5.6,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.5
+    }
+   },
+   {
+    "id": "venus",
+    "type": "ellipse",
+    "x": 99.6,
+    "y": 390,
+    "rx": 13.9,
+    "ry": 13.9,
+    "style": {
+     "color": "#d9a21b",
+     "fill": "#d9a21b",
+     "fill_style": "wash",
+     "opacity": 0.5
+    }
+   },
+   {
+    "id": "mars",
+    "type": "ellipse",
+    "x": 121.2,
+    "y": 390,
+    "rx": 7.8,
+    "ry": 7.8,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "opacity": 0.5
+    }
+   },
+   {
+    "id": "jupiter",
+    "type": "ellipse",
+    "x": 282.0,
+    "y": 390,
+    "rx": 153.0,
+    "ry": 163.7,
+    "style": {
+     "color": "#c8955a",
+     "fill": "#c8955a",
+     "fill_style": "wash",
+     "opacity": 0.5
+    }
+   },
+   {
+    "id": "jupiter_l",
+    "type": "text",
+    "text": "Jupiter",
+    "x": 282.0,
+    "y": 390,
+    "font_size": 34
+   },
+   {
+    "id": "saturn",
+    "type": "ellipse",
+    "x": 559.5,
+    "y": 390,
+    "rx": 124.5,
+    "ry": 138.0,
+    "style": {
+     "color": "#d9b26b",
+     "fill": "#d9b26b",
+     "fill_style": "wash",
+     "opacity": 0.5
+    }
+   },
+   {
+    "id": "saturn_l",
+    "type": "text",
+    "text": "Saturn",
+    "x": 559.5,
+    "y": 390,
+    "font_size": 34
+   },
+   {
+    "id": "uranus",
+    "type": "ellipse",
+    "x": 741.2,
+    "y": 390,
+    "rx": 57.2,
+    "ry": 58.5,
+    "style": {
+     "color": "#7fb8c4",
+     "fill": "#7fb8c4",
+     "fill_style": "wash",
+     "opacity": 0.5
+    }
+   },
+   {
+    "id": "uranus_l",
+    "type": "text",
+    "text": "Uranus",
+    "x": 741.2,
+    "y": 390,
+    "font_size": 22
+   },
+   {
+    "id": "neptune",
+    "type": "ellipse",
+    "x": 854.1,
+    "y": 390,
+    "rx": 55.7,
+    "ry": 56.7,
+    "style": {
+     "color": "#3f6fb5",
+     "fill": "#3f6fb5",
+     "fill_style": "wash",
+     "opacity": 0.5
+    }
+   },
+   {
+    "id": "neptune_l",
+    "type": "text",
+    "text": "Neptune",
+    "x": 854.1,
+    "y": 390,
+    "font_size": 22
+   },
+   {
+    "id": "small",
+    "type": "group",
+    "members": [
+     "mercury",
+     "venus",
+     "mars"
+    ]
+   },
+   {
+    "id": "giants",
+    "type": "group",
+    "members": [
+     "jupiter",
+     "jupiter_l",
+     "saturn",
+     "saturn_l",
+     "uranus",
+     "uranus_l",
+     "neptune",
+     "neptune_l"
+    ]
+   },
+   {
+    "id": "t30",
+    "type": "text",
+    "text": "≈ 30 Earths",
+    "x": 500,
+    "y": 620,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "spare",
+    "type": "text",
+    "text": "just fits!",
+    "x": 800,
+    "y": 600,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "e0",
+    "type": "shape",
+    "shape": "circle",
+    "x": 89.2,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e1",
+    "type": "shape",
+    "shape": "circle",
+    "x": 118.3,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e2",
+    "type": "shape",
+    "shape": "circle",
+    "x": 147.5,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e3",
+    "type": "shape",
+    "shape": "circle",
+    "x": 176.7,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e4",
+    "type": "shape",
+    "shape": "circle",
+    "x": 205.9,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e5",
+    "type": "shape",
+    "shape": "circle",
+    "x": 235.0,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e6",
+    "type": "shape",
+    "shape": "circle",
+    "x": 264.2,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e7",
+    "type": "shape",
+    "shape": "circle",
+    "x": 293.4,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e8",
+    "type": "shape",
+    "shape": "circle",
+    "x": 322.5,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e9",
+    "type": "shape",
+    "shape": "circle",
+    "x": 351.7,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e10",
+    "type": "shape",
+    "shape": "circle",
+    "x": 380.9,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e11",
+    "type": "shape",
+    "shape": "circle",
+    "x": 410.0,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e12",
+    "type": "shape",
+    "shape": "circle",
+    "x": 439.2,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e13",
+    "type": "shape",
+    "shape": "circle",
+    "x": 468.4,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e14",
+    "type": "shape",
+    "shape": "circle",
+    "x": 497.6,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e15",
+    "type": "shape",
+    "shape": "circle",
+    "x": 526.7,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e16",
+    "type": "shape",
+    "shape": "circle",
+    "x": 555.9,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e17",
+    "type": "shape",
+    "shape": "circle",
+    "x": 585.1,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e18",
+    "type": "shape",
+    "shape": "circle",
+    "x": 614.2,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e19",
+    "type": "shape",
+    "shape": "circle",
+    "x": 643.4,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e20",
+    "type": "shape",
+    "shape": "circle",
+    "x": 672.6,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e21",
+    "type": "shape",
+    "shape": "circle",
+    "x": 701.7,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e22",
+    "type": "shape",
+    "shape": "circle",
+    "x": 730.9,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e23",
+    "type": "shape",
+    "shape": "circle",
+    "x": 760.1,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e24",
+    "type": "shape",
+    "shape": "circle",
+    "x": 789.3,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e25",
+    "type": "shape",
+    "shape": "circle",
+    "x": 818.4,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e26",
+    "type": "shape",
+    "shape": "circle",
+    "x": 847.6,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e27",
+    "type": "shape",
+    "shape": "circle",
+    "x": 876.8,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e28",
+    "type": "shape",
+    "shape": "circle",
+    "x": 905.9,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "e29",
+    "type": "shape",
+    "shape": "circle",
+    "x": 935.1,
+    "y": 390,
+    "radius": 13.6,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "earths",
+    "type": "group",
+    "members": [
+     "e0",
+     "e1",
+     "e2",
+     "e3",
+     "e4",
+     "e5",
+     "e6",
+     "e7",
+     "e8",
+     "e9",
+     "e10",
+     "e11",
+     "e12",
+     "e13",
+     "e14",
+     "e15",
+     "e16",
+     "e17",
+     "e18",
+     "e19",
+     "e20",
+     "e21",
+     "e22",
+     "e23",
+     "e24",
+     "e25",
+     "e26",
+     "e27",
+     "e28",
+     "e29"
+    ]
+   },
+   {
+    "id": "small_l",
+    "type": "text",
+    "text": "Mercury, Venus, Mars",
+    "x": 230,
+    "y": 300,
+    "font_size": 28
+   },
+   {
+    "id": "small_a",
+    "type": "arrow",
+    "from": {
+     "x": 180,
+     "y": 318
+    },
+    "to": {
+     "x": 118,
+     "y": 378
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How many Earths fit to the Moon?"
+    }
+   },
+   {
+    "draw": [
+     "earth",
+     "earth_l",
+     "moon",
+     "moon_l"
+    ],
+    "speak": "Here is the Earth, and here is the Moon, drawn to scale. How many Earths could you line up in the gap between them?"
+   },
+   {
+    "draw": [
+     "gap_line",
+     "dist",
+     "n"
+    ]
+   },
+   {
+    "ask": {
+     "question": "How many Earths, side by side, would fill the gap to the Moon? Click on the line.",
+     "on": "n",
+     "store": "g",
+     "default": "10",
+     "tolerance": 0.06,
+     "right": "Close: you said {g}, and it is about {g.true}.",
+     "wrong": "You said {g}; it is about {g.true}."
+    }
+   },
+   {
+    "hide": [
+     "n"
+    ]
+   },
+   {
+    "draw": [
+     "earths",
+     "t30"
+    ],
+    "speak": "About thirty. The Moon is much farther away than most pictures suggest."
+   },
+   {
+    "erase": [
+     "t30",
+     "dist",
+     "gap_line",
+     "earths"
+    ]
+   },
+   {
+    "draw": [
+     "small",
+     "small_l",
+     "small_a"
+    ],
+    "speak": "But here's the real surprise. Start lining up the other planets: Mercury, Venus, Mars."
+   },
+   {
+    "erase": [
+     "small_l",
+     "small_a"
+    ]
+   },
+   {
+    "draw": [
+     "giants"
+    ],
+    "speak": "Then the giants: Jupiter, Saturn, Uranus and Neptune."
+   },
+   {
+    "draw": [
+     "spare"
+    ],
+    "speak": "All seven fit in the gap. Just."
+   },
+   {
+    "highlight": {
+     "target": [
+      "jupiter",
+      "saturn"
+     ]
+    },
+    "speak": "It's tight, though. Jupiter and Saturn spin so fast they bulge at the middle, so they have to stand pole to pole, like here."
+   },
+   {
+    "speak": "And when the Moon is at its farthest, they fit whichever way you turn them.",
+    "move": {
+     "target": [
+      "moon"
+     ],
+     "by": [
+      44,
+      0
+     ],
+     "duration": 1.5
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "jupiter",
+      "saturn"
+     ]
+    },
+    "speak": "So more than half of that gap is just Jupiter and Saturn."
+   }
+  ]
+ }
+}

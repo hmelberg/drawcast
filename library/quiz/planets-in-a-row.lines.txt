@@ -1,0 +1,11 @@
+Here is the Earth, and here is the Moon, drawn to scale. How many Earths could you line up in the gap between them?
+[ASK] How many Earths, side by side, would fill the gap to the Moon? Click on the line.
+  [right] Close: you said {g}, and it is about {g.true}.
+  [wrong] You said {g}; it is about {g.true}.
+About thirty. The Moon is much farther away than most pictures suggest.
+But here's the real surprise. Start lining up the other planets: Mercury, Venus, Mars.
+Then the giants: Jupiter, Saturn, Uranus and Neptune.
+All seven fit in the gap. Just.
+It's tight, though. Jupiter and Saturn spin so fast they bulge at the middle, so they have to stand pole to pole, like here.
+And when the Moon is at its farthest, they fit whichever way you turn them.
+So more than half of that gap is just Jupiter and Saturn.

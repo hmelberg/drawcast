@@ -1,0 +1,15 @@
+{
+ "file": "eiffel-tower-year.json",
+ "title": "When was the Eiffel Tower finished?",
+ "subtitle": "Guess the year the Eiffel Tower was finished, then hear how a tower built to last twenty years, and hated by artists, was saved by radio.",
+ "format": "quiz",
+ "tags": [
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "Year scale 1850–1950 with drawn 1909/1930 marks; tower stands on 1889. Scale tick numbers stay small (fixed 18) even with text.font_size 36."
+}

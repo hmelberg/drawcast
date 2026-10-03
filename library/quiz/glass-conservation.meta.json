@@ -1,0 +1,15 @@
+{
+ "file": "glass-conservation.json",
+ "title": "Which glass has more water?",
+ "subtitle": "Water is poured from a short glass into a tall one: tap the glass with more, then hear why young children choose the tall one, as Piaget found.",
+ "format": "quiz",
+ "tags": [
+  "psychology"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "notes": "Choose on the figure (two glass groups + 'Same' rect). After the pour the tall glass slides beside the wide one (move). Lint flags labels on the tall glass's ORIGINAL position (it ignores the move): false positives."
+}

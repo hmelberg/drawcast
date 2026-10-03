@@ -1,0 +1,341 @@
+{
+ "request": "On the Moon, a hammer and a feather are dropped together: which lands first? A multiple-choice quiz with Apollo 15. #interactive #short",
+ "subtitle": "Drop a hammer and a feather on the Moon: which lands first? Guess, then watch Apollo 15's famous test prove Galileo right.",
+ "spec": {
+  "title": "On the Moon, which lands first: a hammer or a feather?",
+  "sources": [
+   {
+    "id": "nasa",
+    "title": "The Apollo 15 Hammer-Feather Drop",
+    "authors": "NASA",
+    "year": 1971,
+    "url": "https://nssdc.gsfc.nasa.gov/planetary/lunar/apollo_15_feather_drop.html",
+    "finding": "David Scott dropped a 1.32 kg aluminium hammer and a 0.03 kg falcon feather on 2 August 1971; they landed together. 'This proves that Mr. Galileo was correct in his findings.'"
+   }
+  ],
+  "elements": [
+   {
+    "id": "ground",
+    "type": "path",
+    "points": [
+     [
+      40,
+      225
+     ],
+     [
+      150,
+      232
+     ],
+     [
+      260,
+      220
+     ],
+     [
+      380,
+      228
+     ],
+     [
+      500,
+      222
+     ],
+     [
+      620,
+      230
+     ],
+     [
+      740,
+      221
+     ],
+     [
+      860,
+      229
+     ],
+     [
+      960,
+      224
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "crater1",
+    "type": "ellipse",
+    "x": 180,
+    "y": 200,
+    "rx": 45,
+    "ry": 10,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "crater2",
+    "type": "ellipse",
+    "x": 820,
+    "y": 198,
+    "rx": 60,
+    "ry": 12,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "moon",
+    "type": "group",
+    "members": [
+     "ground",
+     "crater1",
+     "crater2"
+    ]
+   },
+   {
+    "id": "hammer",
+    "type": "icon",
+    "of": "hammer",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 220,
+    "x": 380,
+    "y": 520
+   },
+   {
+    "id": "feather",
+    "type": "icon",
+    "of": "feather",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 220,
+    "x": 620,
+    "y": 520
+   },
+   {
+    "id": "m_h",
+    "type": "text",
+    "text": "1.3 kg",
+    "x": 170,
+    "y": 520,
+    "font_size": 48,
+    "cites": [
+     "nasa"
+    ]
+   },
+   {
+    "id": "m_f",
+    "type": "text",
+    "text": "30 g",
+    "x": 830,
+    "y": 520,
+    "font_size": 48,
+    "cites": [
+     "nasa"
+    ]
+   },
+   {
+    "id": "same",
+    "type": "text",
+    "text": "together!",
+    "x": 500,
+    "y": 480,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "gal",
+    "type": "text",
+    "text": "Galileo was right",
+    "x": 500,
+    "y": 590,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "apollo",
+    "type": "text",
+    "text": "Apollo 15, 1971",
+    "x": 845,
+    "y": 400,
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    },
+    "cites": [
+     "nasa"
+    ]
+   },
+   {
+    "id": "earthf",
+    "type": "icon",
+    "of": "feather",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 870,
+    "y": 540,
+    "style": {
+     "opacity": 0.45
+    }
+   },
+   {
+    "id": "onearth",
+    "type": "text",
+    "text": "on Earth",
+    "x": 870,
+    "y": 635,
+    "font_size": 36,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "falcon",
+    "type": "text",
+    "text": "falcon feather",
+    "x": 820,
+    "y": 330,
+    "font_size": 42,
+    "style": {
+     "color": "#8f887c"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Hammer or feather: which lands first?"
+    }
+   },
+   {
+    "draw": [
+     "moon",
+     "hammer",
+     "feather"
+    ],
+    "speak": "On the Moon, an astronaut drops a hammer and a feather at the same moment. Which one lands first?"
+   },
+   {
+    "draw": [
+     "m_h",
+     "m_f"
+    ],
+    "speak": "The hammer weighs over a kilo. The feather, about thirty grams."
+   },
+   {
+    "quiz": {
+     "question": "On the Moon, which lands first?",
+     "choices": [
+      "The hammer",
+      "The feather",
+      "Both together"
+     ],
+     "correct": 3,
+     "right": "They land together. With no air to hold the feather back, gravity speeds both up at exactly the same rate.",
+     "wrong": "Ask what slows a feather down on Earth."
+    }
+   },
+   {
+    "erase": [
+     "m_h",
+     "m_f"
+    ]
+   },
+   {
+    "draw": [
+     "apollo"
+    ],
+    "speak": "Astronaut David Scott tried it on Apollo 15, in 1971, live on television."
+   },
+   {
+    "move": {
+     "target": [
+      "hammer",
+      "feather"
+     ],
+     "by": [
+      0,
+      -185
+     ],
+     "duration": 1.4,
+     "easing": "ease-in"
+    },
+    "speak": "Side by side, they hit the dust together."
+   },
+   {
+    "draw": [
+     "same"
+    ]
+   },
+   {
+    "erase": [
+     "apollo"
+    ]
+   },
+   {
+    "draw": [
+     "gal"
+    ],
+    "speak": "'How about that,' said Scott. 'Mr. Galileo was correct in his findings.'"
+   },
+   {
+    "highlight": {
+     "target": [
+      "gal"
+     ]
+    },
+    "speak": "Galileo had argued, more than three centuries earlier, that without air, heavy and light things fall alike."
+   },
+   {
+    "draw": [
+     "earthf",
+     "onearth"
+    ]
+   },
+   {
+    "move": {
+     "target": [
+      "earthf"
+     ],
+     "path": [
+      [
+       -35,
+       -45
+      ],
+      [
+       25,
+       -90
+      ],
+      [
+       -30,
+       -135
+      ],
+      [
+       5,
+       -180
+      ]
+     ],
+     "duration": 5,
+     "easing": "linear"
+    },
+    "speak": "On Earth, the air pushes back on the feather's broad, light vanes, so it drifts while the hammer drops."
+   },
+   {
+    "erase": [
+     "earthf",
+     "onearth"
+    ]
+   },
+   {
+    "draw": [
+     "falcon"
+    ],
+    "speak": "And it was a falcon's feather, a nod to their lunar module, which was called Falcon."
+   }
+  ]
+ }
+}

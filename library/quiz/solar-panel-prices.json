@@ -1,0 +1,238 @@
+{
+ "request": "How fast did solar panels get cheaper? Let me draw the rest of the price line. #interactive #short",
+ "subtitle": "Draw where the price of solar panels went after 2008, then see the crash: from $132 a watt in 1975 to about 27 cents today.",
+ "spec": {
+  "title": "How fast did solar panels get cheaper?",
+  "template": "line_chart",
+  "params": {
+   "x": [
+    2000,
+    2004,
+    2006,
+    2008,
+    2010,
+    2012,
+    2014,
+    2016,
+    2018,
+    2020,
+    2022,
+    2024
+   ],
+   "series": [
+    {
+     "name": "Solar panels",
+     "values": [
+      6.5,
+      4.7,
+      5.17,
+      4.75,
+      2.51,
+      1.11,
+      0.79,
+      0.68,
+      0.51,
+      0.37,
+      0.37,
+      0.27
+     ]
+    }
+   ],
+   "ylim": [
+    0,
+    8
+   ],
+   "y_label": "Price per watt, 2025 US$",
+   "points": true
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Solar (photovoltaic) panel prices",
+    "authors": "Our World in Data, from Nemet (2009), Farmer & Lafond (2016) and IRENA",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/solar-pv-prices",
+    "finding": "module price per watt in 2025 dollars: $132 in 1975, $6.50 in 2000, $4.75 in 2008, $0.27 in 2024"
+   },
+   {
+    "id": "iea",
+    "title": "World Energy Outlook 2020",
+    "authors": "International Energy Agency",
+    "year": 2020,
+    "finding": "solar PV now offers some of the lowest-cost electricity ever seen"
+   }
+  ],
+  "elements": [
+   {
+    "id": "yt2",
+    "type": "text",
+    "text": "2",
+    "font_size": 26,
+    "style": {
+     "color": "#8f887c"
+    },
+    "x": 150,
+    "y": 347
+   },
+   {
+    "id": "yt4",
+    "type": "text",
+    "text": "4",
+    "font_size": 26,
+    "style": {
+     "color": "#8f887c"
+    },
+    "x": 150,
+    "y": 455
+   },
+   {
+    "id": "yt6",
+    "type": "text",
+    "text": "6",
+    "font_size": 26,
+    "style": {
+     "color": "#8f887c"
+    },
+    "x": 150,
+    "y": 562
+   },
+   {
+    "id": "end",
+    "type": "text",
+    "text": "2024: $0.27",
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ],
+    "x": 730,
+    "y": 315
+   },
+   {
+    "id": "drop",
+    "type": "text",
+    "text": "−94%",
+    "font_size": 60,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ],
+    "x": 610,
+    "y": 440
+   },
+   {
+    "id": "y1975",
+    "type": "text",
+    "text": "1975: $132 ↑",
+    "x": 640,
+    "y": 610,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "total",
+    "type": "text",
+    "text": "−99.8% since 1975",
+    "x": 640,
+    "y": 540,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How fast did solar get cheaper?"
+    }
+   },
+   {
+    "draw": [
+     "axes",
+     "yt2",
+     "yt4",
+     "yt6"
+    ],
+    "speak": "How fast have solar panels become cheaper? Here is the price of one watt of panel, in today's dollars."
+   },
+   {
+    "ask": {
+     "intro": "In 2000 a watt cost about six and a half dollars. By 2008 it was still almost five.",
+     "question": "What happened next? Draw the line on to 2024.",
+     "on": "line_1",
+     "from": 2008,
+     "store": "g",
+     "default": "4.4,4,3.6,3.2,2.9,2.6,2.4,2.2",
+     "tolerance": 0.08,
+     "right": "Close: you were {g.off} dollars off on average. The price crashed, to about a quarter of a dollar.",
+     "wrong": "You were {g.off} dollars off on average. The price crashed: by 2024 a watt cost about twenty-seven cents."
+    }
+   },
+   {
+    "draw": [
+     "end",
+     "drop"
+    ],
+    "speak": "That is a fall of about ninety-four percent in sixteen years, to twenty-seven cents."
+   },
+   {
+    "point": {
+     "at": {
+      "data": [
+       2010,
+       2.51
+      ]
+     },
+     "gesture": "circle"
+    },
+    "speak": "After 2008, giant factories, many of them in China, pushed the price down faster than ever."
+   },
+   {
+    "highlight": {
+     "target": [
+      "line_1"
+     ]
+    },
+    "speak": "The rule of thumb, called Swanson's law: every doubling of all the panels ever made cuts the price by about a fifth."
+   },
+   {
+    "highlight": {
+     "target": [
+      "end"
+     ]
+    },
+    "speak": "That is why the International Energy Agency calls solar some of the cheapest electricity ever seen."
+   },
+   {
+    "draw": [
+     "y1975"
+    ],
+    "cue": 0.2,
+    "speak": "And the story starts earlier. In 1975, the same watt cost about a hundred and thirty-two dollars, far off the top of this chart."
+   },
+   {
+    "draw": [
+     "total"
+    ],
+    "cue": 0.3,
+    "speak": "From then to now, the price has fallen by more than ninety-nine percent."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

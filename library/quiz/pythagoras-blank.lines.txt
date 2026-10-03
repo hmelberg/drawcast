@@ -1,0 +1,11 @@
+A right-angled triangle, with sides a, b and c: three, four and five. How are the three sides linked?
+Build a square on each side, and the answer is hiding in their areas.
+[ASK] Which tile finishes the theorem, so that it holds for every right triangle?
+  [right] c squared: the two small squares together fill the big one.
+  [wrong] Look at what the squares measure: areas.
+Check it here. The square on the short side holds nine little squares,
+the one on the side of four holds sixteen,
+and nine plus sixteen is twenty-five: exactly the big square.
+It carries the name of Pythagoras, a Greek of about 500 BC. But a Babylonian clay tablet, Plimpton 322, lists such triples more than a thousand years earlier.
+And builders still use the trick: measure three along one wall and four along the other, and if the gap is five, the corner is square.
+So the big square is the sum of the two small ones, on every right triangle there is.

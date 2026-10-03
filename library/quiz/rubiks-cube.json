@@ -1,0 +1,1139 @@
+{
+ "request": "How many positions does a Rubik's cube have? Let me guess on a log scale. #interactive #short",
+ "subtitle": "Guess how many ways a Rubik's cube can be mixed up, on a scale of powers of ten, then learn why every mess is at most twenty moves from solved.",
+ "spec": {
+  "title": "How many ways can a Rubik's cube be mixed up?",
+  "sources": [
+   {
+    "id": "cube20",
+    "title": "God's Number is 20",
+    "authors": "T. Rokicki, H. Kociemba, M. Davidson, J. Dethridge",
+    "year": 2010,
+    "url": "https://cube20.org/",
+    "finding": "every one of the 43,252,003,274,489,856,000 positions can be solved in 20 moves or fewer; about 35 CPU-years donated by Google"
+   },
+   {
+    "id": "kociemba",
+    "title": "Rubik's Cube group",
+    "authors": "Wikipedia",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/Rubik%27s_Cube_group",
+    "finding": "the cube has about 4.3 × 10^19 reachable positions"
+   }
+  ],
+  "text": {
+   "font_size": 32
+  },
+  "elements": [
+   {
+    "id": "pos",
+    "type": "scale",
+    "min": 1000,
+    "max": 1e+21,
+    "log": true,
+    "value": 4.3e+19,
+    "x": 100,
+    "y": 240,
+    "width": 800,
+    "cites": [
+     "kociemba"
+    ]
+   },
+   {
+    "id": "big",
+    "type": "text",
+    "text": "43 quintillion",
+    "x": 710,
+    "y": 590,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "cube20"
+    ]
+   },
+   {
+    "id": "age",
+    "type": "text",
+    "text": "100 × the universe's age",
+    "x": 710,
+    "y": 500,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "god",
+    "type": "text",
+    "text": "≤ 20 moves",
+    "x": 710,
+    "y": 400,
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "cube20"
+    ]
+   },
+   {
+    "id": "n_0",
+    "type": "text",
+    "text": "thousand",
+    "x": 100.0,
+    "y": 205,
+    "font_size": 22,
+    "style": {
+     "color": "#7a7468"
+    }
+   },
+   {
+    "id": "n_1",
+    "type": "text",
+    "text": "million",
+    "x": 233.33333333333334,
+    "y": 205,
+    "font_size": 22,
+    "style": {
+     "color": "#7a7468"
+    }
+   },
+   {
+    "id": "n_2",
+    "type": "text",
+    "text": "billion",
+    "x": 366.6666666666667,
+    "y": 205,
+    "font_size": 22,
+    "style": {
+     "color": "#7a7468"
+    }
+   },
+   {
+    "id": "n_3",
+    "type": "text",
+    "text": "trillion",
+    "x": 500.0,
+    "y": 205,
+    "font_size": 22,
+    "style": {
+     "color": "#7a7468"
+    }
+   },
+   {
+    "id": "n_4",
+    "type": "text",
+    "text": "quadrillion",
+    "x": 633.3333333333334,
+    "y": 205,
+    "font_size": 22,
+    "style": {
+     "color": "#7a7468"
+    }
+   },
+   {
+    "id": "n_5",
+    "type": "text",
+    "text": "quintillion",
+    "x": 766.6666666666666,
+    "y": 205,
+    "font_size": 22,
+    "style": {
+     "color": "#7a7468"
+    }
+   },
+   {
+    "id": "n_6",
+    "type": "text",
+    "text": "sextillion",
+    "x": 900.0,
+    "y": 205,
+    "font_size": 22,
+    "style": {
+     "color": "#7a7468"
+    }
+   },
+   {
+    "id": "names",
+    "type": "group",
+    "members": [
+     "n_0",
+     "n_1",
+     "n_2",
+     "n_3",
+     "n_4",
+     "n_5",
+     "n_6"
+    ]
+   },
+   {
+    "id": "st_r00",
+    "type": "path",
+    "points": [
+     [
+      270.0,
+      255.0
+     ],
+     [
+      323.7,
+      286.0
+     ],
+     [
+      323.7,
+      348.0
+     ],
+     [
+      270.0,
+      317.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#f1c40f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_r01",
+    "type": "path",
+    "points": [
+     [
+      270.0,
+      317.0
+     ],
+     [
+      323.7,
+      348.0
+     ],
+     [
+      323.7,
+      410.0
+     ],
+     [
+      270.0,
+      379.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_r02",
+    "type": "path",
+    "points": [
+     [
+      270.0,
+      379.0
+     ],
+     [
+      323.7,
+      410.0
+     ],
+     [
+      323.7,
+      472.0
+     ],
+     [
+      270.0,
+      441.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#c0392b",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_r10",
+    "type": "path",
+    "points": [
+     [
+      323.7,
+      286.0
+     ],
+     [
+      377.4,
+      317.0
+     ],
+     [
+      377.4,
+      379.0
+     ],
+     [
+      323.7,
+      348.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#e67e22",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_r11",
+    "type": "path",
+    "points": [
+     [
+      323.7,
+      348.0
+     ],
+     [
+      377.4,
+      379.0
+     ],
+     [
+      377.4,
+      441.0
+     ],
+     [
+      323.7,
+      410.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#f5f5f0",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_r12",
+    "type": "path",
+    "points": [
+     [
+      323.7,
+      410.0
+     ],
+     [
+      377.4,
+      441.0
+     ],
+     [
+      377.4,
+      503.0
+     ],
+     [
+      323.7,
+      472.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#f5f5f0",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_r20",
+    "type": "path",
+    "points": [
+     [
+      377.4,
+      317.0
+     ],
+     [
+      431.1,
+      348.0
+     ],
+     [
+      431.1,
+      410.0
+     ],
+     [
+      377.4,
+      379.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#f1c40f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_r21",
+    "type": "path",
+    "points": [
+     [
+      377.4,
+      379.0
+     ],
+     [
+      431.1,
+      410.0
+     ],
+     [
+      431.1,
+      472.0
+     ],
+     [
+      377.4,
+      441.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#c0392b",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_r22",
+    "type": "path",
+    "points": [
+     [
+      377.4,
+      441.0
+     ],
+     [
+      431.1,
+      472.0
+     ],
+     [
+      431.1,
+      534.0
+     ],
+     [
+      377.4,
+      503.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#c0392b",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_l00",
+    "type": "path",
+    "points": [
+     [
+      270.0,
+      255.0
+     ],
+     [
+      216.3,
+      286.0
+     ],
+     [
+      216.3,
+      348.0
+     ],
+     [
+      270.0,
+      317.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#c0392b",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_l01",
+    "type": "path",
+    "points": [
+     [
+      270.0,
+      317.0
+     ],
+     [
+      216.3,
+      348.0
+     ],
+     [
+      216.3,
+      410.0
+     ],
+     [
+      270.0,
+      379.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#f5f5f0",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_l02",
+    "type": "path",
+    "points": [
+     [
+      270.0,
+      379.0
+     ],
+     [
+      216.3,
+      410.0
+     ],
+     [
+      216.3,
+      472.0
+     ],
+     [
+      270.0,
+      441.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#27ae60",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_l10",
+    "type": "path",
+    "points": [
+     [
+      216.3,
+      286.0
+     ],
+     [
+      162.6,
+      317.0
+     ],
+     [
+      162.6,
+      379.0
+     ],
+     [
+      216.3,
+      348.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_l11",
+    "type": "path",
+    "points": [
+     [
+      216.3,
+      348.0
+     ],
+     [
+      162.6,
+      379.0
+     ],
+     [
+      162.6,
+      441.0
+     ],
+     [
+      216.3,
+      410.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#c0392b",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_l12",
+    "type": "path",
+    "points": [
+     [
+      216.3,
+      410.0
+     ],
+     [
+      162.6,
+      441.0
+     ],
+     [
+      162.6,
+      503.0
+     ],
+     [
+      216.3,
+      472.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#f1c40f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_l20",
+    "type": "path",
+    "points": [
+     [
+      162.6,
+      317.0
+     ],
+     [
+      108.9,
+      348.0
+     ],
+     [
+      108.9,
+      410.0
+     ],
+     [
+      162.6,
+      379.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#27ae60",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_l21",
+    "type": "path",
+    "points": [
+     [
+      162.6,
+      379.0
+     ],
+     [
+      108.9,
+      410.0
+     ],
+     [
+      108.9,
+      472.0
+     ],
+     [
+      162.6,
+      441.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#27ae60",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_l22",
+    "type": "path",
+    "points": [
+     [
+      162.6,
+      441.0
+     ],
+     [
+      108.9,
+      472.0
+     ],
+     [
+      108.9,
+      534.0
+     ],
+     [
+      162.6,
+      503.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_t00",
+    "type": "path",
+    "points": [
+     [
+      270.0,
+      441.0
+     ],
+     [
+      323.7,
+      472.0
+     ],
+     [
+      270.0,
+      503.0
+     ],
+     [
+      216.3,
+      472.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_t01",
+    "type": "path",
+    "points": [
+     [
+      216.3,
+      472.0
+     ],
+     [
+      270.0,
+      503.0
+     ],
+     [
+      216.3,
+      534.0
+     ],
+     [
+      162.6,
+      503.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#f1c40f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_t02",
+    "type": "path",
+    "points": [
+     [
+      162.6,
+      503.0
+     ],
+     [
+      216.3,
+      534.0
+     ],
+     [
+      162.6,
+      565.0
+     ],
+     [
+      108.9,
+      534.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#c0392b",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_t10",
+    "type": "path",
+    "points": [
+     [
+      323.7,
+      472.0
+     ],
+     [
+      377.4,
+      503.0
+     ],
+     [
+      323.7,
+      534.0
+     ],
+     [
+      270.0,
+      503.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_t11",
+    "type": "path",
+    "points": [
+     [
+      270.0,
+      503.0
+     ],
+     [
+      323.7,
+      534.0
+     ],
+     [
+      270.0,
+      565.0
+     ],
+     [
+      216.3,
+      534.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#f1c40f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_t12",
+    "type": "path",
+    "points": [
+     [
+      216.3,
+      534.0
+     ],
+     [
+      270.0,
+      565.0
+     ],
+     [
+      216.3,
+      596.0
+     ],
+     [
+      162.6,
+      565.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#c0392b",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_t20",
+    "type": "path",
+    "points": [
+     [
+      377.4,
+      503.0
+     ],
+     [
+      431.1,
+      534.0
+     ],
+     [
+      377.4,
+      565.0
+     ],
+     [
+      323.7,
+      534.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#e67e22",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_t21",
+    "type": "path",
+    "points": [
+     [
+      323.7,
+      534.0
+     ],
+     [
+      377.4,
+      565.0
+     ],
+     [
+      323.7,
+      596.0
+     ],
+     [
+      270.0,
+      565.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "st_t22",
+    "type": "path",
+    "points": [
+     [
+      270.0,
+      565.0
+     ],
+     [
+      323.7,
+      596.0
+     ],
+     [
+      270.0,
+      627.0
+     ],
+     [
+      216.3,
+      596.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.9,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "cube",
+    "type": "group",
+    "members": [
+     "st_r00",
+     "st_r01",
+     "st_r02",
+     "st_r10",
+     "st_r11",
+     "st_r12",
+     "st_r20",
+     "st_r21",
+     "st_r22",
+     "st_l00",
+     "st_l01",
+     "st_l02",
+     "st_l10",
+     "st_l11",
+     "st_l12",
+     "st_l20",
+     "st_l21",
+     "st_l22",
+     "st_t00",
+     "st_t01",
+     "st_t02",
+     "st_t10",
+     "st_t11",
+     "st_t12",
+     "st_t20",
+     "st_t21",
+     "st_t22"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How many ways to mix a Rubik's cube?"
+    }
+   },
+   {
+    "draw": [
+     "cube"
+    ],
+    "parallel": true,
+    "speak": "Twist a Rubik's cube a few times, and it's a mess. But how many different messes are there?"
+   },
+   {
+    "hide": [
+     "pos_tick_1_num",
+     "pos_tick_2_num",
+     "pos_tick_3_num",
+     "pos_tick_4_num",
+     "pos_tick_5_num",
+     "pos_tick_6_num",
+     "pos_tick_7_num",
+     "pos_tick_8_num",
+     "pos_tick_9_num",
+     "pos_tick_10_num",
+     "pos_tick_11_num",
+     "pos_tick_12_num",
+     "pos_tick_13_num",
+     "pos_tick_14_num",
+     "pos_tick_15_num",
+     "pos_tick_16_num",
+     "pos_tick_17_num",
+     "pos_tick_18_num",
+     "pos_tick_19_num"
+    ]
+   },
+   {
+    "draw": [
+     "pos_line",
+     "pos_tick_1",
+     "pos_tick_2",
+     "pos_tick_3",
+     "pos_tick_4",
+     "pos_tick_5",
+     "pos_tick_6",
+     "pos_tick_7",
+     "pos_tick_8",
+     "pos_tick_9",
+     "pos_tick_10",
+     "pos_tick_11",
+     "pos_tick_12",
+     "pos_tick_13",
+     "pos_tick_14",
+     "pos_tick_15",
+     "pos_tick_16",
+     "pos_tick_17",
+     "pos_tick_18",
+     "pos_tick_19",
+     "names"
+    ],
+    "speak": "Each step along this line is ten times the one before.",
+    "parallel": true
+   },
+   {
+    "ask": {
+     "question": "How many different positions can a Rubik's cube be in? Click on the line.",
+     "on": "pos",
+     "store": "g",
+     "default": "1000000000",
+     "tolerance": 0.08,
+     "right": "Close. It is about forty-three quintillion.",
+     "wrong": "Most people guess far too low."
+    }
+   },
+   {
+    "hide": [
+     "pos_answer_num"
+    ]
+   },
+   {
+    "draw": [
+     "big"
+    ],
+    "speak": "Forty-three quintillion: a forty-three followed by eighteen zeros."
+   },
+   {
+    "draw": [
+     "age"
+    ],
+    "speak": "Show one new position every second, and you'd need about a hundred times the age of the universe to see them all."
+   },
+   {
+    "draw": [
+     "god"
+    ],
+    "speak": "And yet every single one can be solved in twenty moves or fewer."
+   },
+   {
+    "highlight": {
+     "target": [
+      "god"
+     ]
+    },
+    "speak": "That limit is called God's number. A team proved it in 2010, using about thirty-five years of computer time donated by Google."
+   },
+   {
+    "speak": "They did not solve the positions one by one: they grouped them into huge families, and used the cube's symmetry to deal with whole families at once.",
+    "highlight": {
+     "target": [
+      "god"
+     ]
+    }
+   },
+   {
+    "speak": "So no mess is ever more than twenty twists from home, even if finding those twenty is the hard part.",
+    "highlight": {
+     "target": [
+      "god"
+     ],
+     "effect": "circle"
+    }
+   }
+  ]
+ }
+}

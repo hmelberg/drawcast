@@ -1,0 +1,15 @@
+(a) Three famous names, and every one of them tells a fib. Can you spot where?
+(a) First, the Hundred Years' War, between England and France.
+[ASK] How long did the Hundred Years' War last?
+  [right] A hundred and sixteen years: England and France fought on and off from 1337 to 1453.
+(b) A hundred and sixteen? I'd have said a hundred, obviously.
+(b) Next one. The Panama hat. Surely that one's safe?
+[ASK] Where are Panama hats made?
+  [right] Ecuador. They are woven from toquilla palm straw, around towns like Montecristi and Cuenca.
+(a) They were shipped out through Panama, and the workers who dug the canal wore them.
+(b) And the guinea pig. At least that's from Guinea?
+[ASK] Where do guinea pigs come from?
+  [right] The Andes of South America, where people tamed them thousands of years ago, and still eat them today.
+(b) So not from Guinea. And not a pig either.
+(a) You got {score} of {score_total}. Three names, three fibs.
+(a) As for the guinea pig: it's a rodent. It just squeals a bit like a piglet.

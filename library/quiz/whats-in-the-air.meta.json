@@ -1,0 +1,16 @@
+{
+ "file": "whats-in-the-air.json",
+ "title": "What is the air you breathe made of?",
+ "subtitle": "Share out the pie: how much of the air you breathe is nitrogen, oxygen and argon? Then see where carbon dioxide's tiny sliver fits.",
+ "format": "quiz",
+ "tags": [
+  "chemistry",
+  "earth"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 3,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "pie_chart guess on all; pie slice labels are small and the pie cannot be made larger than ~400 units across; 1 % slice is fiddly to drag."
+}

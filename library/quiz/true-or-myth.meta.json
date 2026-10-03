@@ -1,0 +1,16 @@
+{
+ "file": "true-or-myth.json",
+ "title": "True or myth? Five things everyone has heard",
+ "subtitle": "Five things almost everyone has heard, from goldfish memory to radioactive bananas: true or myth? Guess each, then find out why.",
+ "format": "quiz",
+ "tags": [
+  "culture",
+  "biology"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "pilot"
+}

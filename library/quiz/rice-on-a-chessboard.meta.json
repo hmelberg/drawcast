@@ -1,0 +1,16 @@
+{
+ "file": "rice-on-a-chessboard.json",
+ "title": "How much rice on the last square of a chessboard?",
+ "subtitle": "Guess how much rice ends up on the last square of a chessboard when you double each time, and see why doubling fools everyone.",
+ "format": "quiz",
+ "tags": [
+  "mathematics",
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "notes": "log scale tick numbers fixed at 18 px; board drawn freehand (32 dark squares)"
+}

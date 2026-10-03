@@ -1,0 +1,290 @@
+{
+ "request": "How many minutes of a 90-minute football match is the ball actually in play? Let me guess. #interactive #short",
+ "subtitle": "Guess how many minutes of a football match the ball is really in play, and find out where the other forty minutes go.",
+ "spec": {
+  "title": "How many minutes is the ball actually in play?",
+  "sources": [
+   {
+    "id": "pl",
+    "title": "How new added time rules transformed the Premier League",
+    "authors": "Premier League",
+    "year": 2024,
+    "url": "https://www.premierleague.com/en/news/3860720",
+    "finding": "after new timekeeping directives in summer 2023, ball-in-play time rose from 54:52 (2022-23) to 58:37 (2023-24 so far), almost four minutes more per match"
+   },
+   {
+    "id": "pl25",
+    "title": "Ball in play: are we seeing less football in the Premier League this season?",
+    "authors": "24live",
+    "year": 2025,
+    "url": "https://24live.com/blog/2025/10/ball-in-play-are-we-seeing-less.html",
+    "finding": "the ball was in play about 57 minutes per match on average in 2024-25; matches with added time last about 98 minutes"
+   }
+  ],
+  "elements": [
+   {
+    "id": "ball",
+    "type": "icon",
+    "of": "soccer ball",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 120,
+    "x": 130,
+    "y": 570
+   },
+   {
+    "id": "mins",
+    "type": "scale",
+    "min": 0,
+    "max": 90,
+    "ticks": 3,
+    "value": 57,
+    "unit": "min",
+    "x": 80,
+    "y": 330,
+    "width": 840,
+    "label": "minutes the ball is in play",
+    "cites": [
+     "pl25"
+    ]
+   },
+   {
+    "id": "total",
+    "type": "text",
+    "text": "a match: ≈ 98 min",
+    "x": 540,
+    "y": 570,
+    "font_size": 46,
+    "style": {
+     "color": "#5e584e"
+    },
+    "cites": [
+     "pl25"
+    ]
+   },
+   {
+    "id": "seg_play",
+    "type": "path",
+    "points": [
+     [
+      60,
+      250
+     ],
+     [
+      571.8367346938776,
+      250
+     ],
+     [
+      571.8367346938776,
+      500
+     ],
+     [
+      60,
+      500
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.3,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "play_l",
+    "type": "text",
+    "text": "in play ≈ 57",
+    "x": 315.9183673469388,
+    "y": 385,
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "pl25"
+    ]
+   },
+   {
+    "id": "seg_stop",
+    "type": "path",
+    "points": [
+     [
+      571.8367346938776,
+      250
+     ],
+     [
+      940,
+      250
+     ],
+     [
+      940,
+      500
+     ],
+     [
+      571.8367346938776,
+      500
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "opacity": 0.3,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "stop_l",
+    "type": "text",
+    "text": "stopped ≈ 40",
+    "x": 755.9183673469388,
+    "y": 455,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "c1",
+    "type": "text",
+    "text": "throw-ins",
+    "x": 755.9183673469388,
+    "y": 395,
+    "font_size": 32,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "c2",
+    "type": "text",
+    "text": "free kicks, goal kicks",
+    "x": 755.9183673469388,
+    "y": 345,
+    "font_size": 32,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "c3",
+    "type": "text",
+    "text": "subs, injuries, goals",
+    "x": 755.9183673469388,
+    "y": 295,
+    "font_size": 32,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "rule",
+    "type": "text",
+    "text": "2023: added time counts",
+    "x": 500,
+    "y": 205,
+    "font_size": 38,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "pl"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How long is the ball in play?"
+    }
+   },
+   {
+    "draw": [
+     "ball",
+     "mins"
+    ],
+    "parallel": true,
+    "speak": "A football match lasts ninety minutes, plus added time. But the ball is not moving all that while."
+   },
+   {
+    "ask": {
+     "question": "In a Premier League match, how many minutes is the ball actually in play? Click on the line.",
+     "on": "mins",
+     "store": "m",
+     "default": "80",
+     "right": "Close: you said {m} minutes, and it is about {m.true}.",
+     "wrong": "You said {m} minutes; it is about {m.true}."
+    }
+   },
+   {
+    "erase": [
+     "mins",
+     "mins_answer"
+    ]
+   },
+   {
+    "draw": [
+     "total",
+     "seg_play",
+     "play_l"
+    ],
+    "speak": "With added time, a match now runs about ninety-eight minutes, and the ball is in play for about fifty-seven of them."
+   },
+   {
+    "draw": [
+     "seg_stop",
+     "stop_l"
+    ],
+    "speak": "So for about forty minutes, the ball is standing still."
+   },
+   {
+    "draw": [
+     "c1",
+     "c2",
+     "c3"
+    ],
+    "speak": "It goes on throw-ins, free kicks and goal kicks, on substitutions, injuries and goal celebrations."
+   },
+   {
+    "highlight": {
+     "target": [
+      "seg_stop"
+     ]
+    },
+    "speak": "And on the slow walk to take them, when a team is winning and the clock is its friend."
+   },
+   {
+    "draw": [
+     "rule"
+    ],
+    "speak": "So in 2023 the Premier League told referees to add on the time lost to goals, substitutions and injuries."
+   },
+   {
+    "highlight": {
+     "target": [
+      "seg_play"
+     ]
+    },
+    "speak": "Added time grew, and the ball was in play for about three and a half minutes more per match."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "stop_l"
+     },
+     "gesture": "underline"
+    },
+    "speak": "Even so, about forty minutes of every match are football with the ball at rest."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  },
+  "assets": {
+   "icon.soccer-ball.twemoji": "ics1:twemoji:soccer-ball:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><circle cx=\"18\" cy=\"18\" r=\"18\" fill=\"#f5f8fa\"/><path fill=\"#ccd6dd\" d=\"M18 11a1 1 0 0 1-1-1V3a1 1 0 0 1 2 0v7a1 1 0 0 1-1 1m-6.583 4.5a1 1 0 0 1-.302-.047l-8.041-2.542a1 1 0 1 1 .603-1.907l8.042 2.542a1 1 0 0 1-.302 1.954m13.625-.291a1.001 1.001 0 0 1-.278-1.961l6.75-1.958a1 1 0 0 1 .556 1.921l-6.75 1.958a1 1 0 0 1-.278.04m2.001 14.958a1 1 0 0 1-.803-.403l-5.459-7.333a1 1 0 1 1 1.604-1.194l5.459 7.333a1 1 0 0 1-.801 1.597m-18.294-.083a1 1 0 0 1-.82-1.571l5.125-7.375a1 1 0 1 1 1.642 1.141l-5.125 7.375a1 1 0 0 1-.822.43M3.5 27.062c-.44 0-.844-.293-.965-.738L.347 18.262a1 1 0 1 1 1.931-.523l2.188 8.062a.998.998 0 0 1-.966 1.261M22 34h-9a1 1 0 1 1 0-2h9a1 1 0 1 1 0 2m10.126-6.875a1 1 0 0 1-.971-1.239l2.125-8.625a1 1 0 1 1 1.941.479l-2.125 8.625c-.113.455-.521.76-.97.76M30.312 7.688a1 1 0 0 1-.5-.134L22.25 3.179a1 1 0 0 1-.364-1.367a1 1 0 0 1 1.366-.365l7.562 4.375a1 1 0 0 1-.502 1.866m-24.811 0a1 1 0 0 1-.584-1.813l6.188-4.438a1.001 1.001 0 0 1 1.167 1.625L6.083 7.5a1 1 0 0 1-.582.188\"/><path fill=\"#31373d\" d=\"m25.493 13.516l-7.208-5.083a1 1 0 0 0-1.161.006l-7.167 5.167a1 1 0 0 0-.375 1.091l2.5 8.583a1 1 0 0 0 .96.72H22a1 1 0 0 0 .948-.681l2.917-8.667a1 1 0 0 0-.372-1.136M1.292 19.542a1 1 0 0 0 .872-.51l3.375-6a1 1 0 0 0 .108-.291L6.98 6.2A1 1 0 0 0 6 5h-.428C2.145 8.277 0 12.884 0 18c0 .266.028.525.04.788l.602.514c.182.156.413.24.65.24m9.325-16.547a.75.75 0 0 0 .553.412l6.375 1.042a.8.8 0 0 0 .243 0l6.084-1a.75.75 0 0 0 .613-.889l-.292-1.443A17.9 17.9 0 0 0 18 0c-2.425 0-4.734.486-6.845 1.356l-.521.95a.75.75 0 0 0-.017.689m20.517 2.724l-1.504-.095a.76.76 0 0 0-.609.249a.74.74 0 0 0-.175.63l1.167 6.198a.7.7 0 0 0 .093.224c1.492 2.504 3.152 5.301 3.381 5.782c.024.084.062.079.114.151c.14.195.372.142.612.142h.007c.198 0 .323.094 1.768-.753c.001-.083.012-.164.012-.247c0-4.753-1.856-9.064-4.866-12.281M14.541 33.376a.76.76 0 0 0-.191-.544l-4.5-5a.8.8 0 0 0-.211-.163c-5.885-3.069-5.994-3.105-6.066-3.13a.8.8 0 0 0-.242-.039c-.537 0-.695.065-1.185 2.024a18.04 18.04 0 0 0 10.644 8.703l1.5-1.333a.75.75 0 0 0 .251-.518m17.833-8.567a.75.75 0 0 0-.592.005l-6.083 2.667a.74.74 0 0 0-.274.205l-4.25 5.083a.75.75 0 0 0 .1 1.062c.683.559 1.261 1.03 1.767 1.44a18.02 18.02 0 0 0 10.454-8.146l-.712-1.889a.75.75 0 0 0-.41-.427\"/></svg>"
+  }
+ }
+}

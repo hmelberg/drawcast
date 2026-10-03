@@ -1,0 +1,14 @@
+(a) Here's a puzzle about our neighbour Venus. Like Earth, it spins on its axis, and it circles the Sun.
+(b) So which is longer there, a day or a year? A year, surely. A day is just one spin.
+[ASK] On Venus, which takes longer: one turn on its axis, or one trip round the Sun?
+  [right] The day. Venus takes 243 Earth days to turn once, but only 225 to go round the Sun.
+  [wrong] Venus is the slowest spinner of all the planets.
+(a) Watch the red marker. Venus goes once round the Sun, and in that time it hasn't quite turned once.
+(b) So it turns once in more than a year? That's lazy.
+(a) Very. Its ground turns at about six and a half kilometres an hour: walking pace.
+(a) And it spins backwards, the opposite way to Earth and almost every other planet.
+(b) Backwards? So the Sun comes up on the wrong side?
+(a) It does: on Venus the Sun rises in the west and sets in the east.
+(a) Why backwards? No one knows for sure. Maybe a giant collision long ago, or the Sun's pull on its thick atmosphere.
+(a) And because it spins backwards as it orbits, the two motions add up: from one sunrise to the next takes about a hundred and seventeen Earth days.
+(b) So a whole Venus year has only about two sunrises. I'd love the lie-in.

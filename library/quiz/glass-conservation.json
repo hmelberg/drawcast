@@ -1,0 +1,408 @@
+{
+ "request": "Which glass holds more water: the tall thin one or the short wide one? Piaget's conservation task, as a two-voice quiz where I tap the glass. #interactive #short",
+ "subtitle": "Water is poured from a short glass into a tall one: tap the glass with more, then hear why young children choose the tall one, as Piaget found.",
+ "spec": {
+  "title": "Which glass has more water?",
+  "sources": [
+   {
+    "id": "piaget",
+    "title": "La genèse du nombre chez l'enfant (The Child's Conception of Number)",
+    "authors": "J. Piaget, A. Szeminska",
+    "year": 1941,
+    "finding": "in the liquid conservation task, children in the preoperational stage (about 2-7) judge that a taller, thinner glass holds more; most conserve by about 6-7"
+   }
+  ],
+  "text": {
+   "font_size": 34
+  },
+  "elements": [
+   {
+    "id": "ga",
+    "type": "path",
+    "points": [
+     [
+      80,
+      460
+     ],
+     [
+      80,
+      230
+     ],
+     [
+      320,
+      230
+     ],
+     [
+      320,
+      460
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "wa",
+    "type": "path",
+    "points": [
+     [
+      84,
+      233
+     ],
+     [
+      316,
+      233
+     ],
+     [
+      316,
+      350
+     ],
+     [
+      84,
+      350
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.45,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "gb",
+    "type": "path",
+    "points": [
+     [
+      380,
+      460
+     ],
+     [
+      380,
+      230
+     ],
+     [
+      620,
+      230
+     ],
+     [
+      620,
+      460
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "wb",
+    "type": "path",
+    "points": [
+     [
+      384,
+      233
+     ],
+     [
+      616,
+      233
+     ],
+     [
+      616,
+      350
+     ],
+     [
+      384,
+      350
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.45,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "gc",
+    "type": "path",
+    "points": [
+     [
+      690,
+      640
+     ],
+     [
+      690,
+      230
+     ],
+     [
+      790,
+      230
+     ],
+     [
+      790,
+      640
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "wc",
+    "type": "path",
+    "points": [
+     [
+      694,
+      233
+     ],
+     [
+      786,
+      233
+     ],
+     [
+      786,
+      518
+     ],
+     [
+      694,
+      518
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.45,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "glass_a",
+    "type": "group",
+    "members": [
+     "ga",
+     "wa"
+    ]
+   },
+   {
+    "id": "glass_b",
+    "type": "group",
+    "members": [
+     "gb",
+     "wb"
+    ]
+   },
+   {
+    "id": "glass_c",
+    "type": "group",
+    "members": [
+     "gc",
+     "wc"
+    ]
+   },
+   {
+    "id": "pour",
+    "type": "arrow",
+    "from": {
+     "x": 540,
+     "y": 500
+    },
+    "to": {
+     "x": 670,
+     "y": 610
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "same",
+    "type": "node",
+    "shape": "rect",
+    "text": "Same",
+    "x": 790,
+    "y": 420,
+    "width": 150,
+    "font_size": 34
+   },
+   {
+    "id": "st_same",
+    "type": "text",
+    "text": "same water",
+    "x": 790,
+    "y": 600,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "st_age",
+    "type": "text",
+    "text": "most get it by ~7",
+    "x": 790,
+    "y": 520,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "piaget"
+    ]
+   },
+   {
+    "id": "st_pia",
+    "type": "text",
+    "text": "Piaget, 1941",
+    "x": 790,
+    "y": 440,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "piaget"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which glass has more water?"
+    }
+   },
+   {
+    "draw": [
+     "glass_a",
+     "glass_b"
+    ],
+    "speak": "Which glass has more water? Start with two identical glasses, filled to exactly the same level.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "pour"
+    ]
+   },
+   {
+    "erase": [
+     "wb"
+    ]
+   },
+   {
+    "draw": [
+     "glass_c"
+    ],
+    "speak": "Now I pour this one into a tall, thin glass. Not a drop spilled.",
+    "voice": "a"
+   },
+   {
+    "erase": [
+     "pour",
+     "gb"
+    ]
+   },
+   {
+    "move": {
+     "target": [
+      "glass_c"
+     ],
+     "by": [
+      -240,
+      0
+     ],
+     "duration": 1
+    }
+   },
+   {
+    "draw": [
+     "same"
+    ],
+    "speak": "Easy. The tall one, obviously. Look how high the water is.",
+    "voice": "b"
+   },
+   {
+    "ask": {
+     "question": "Which glass has more water now? Tap the glass, or tap Same.",
+     "choose": [
+      "glass_a",
+      "glass_c",
+      "same"
+     ],
+     "answer": "same",
+     "store": "c",
+     "right": "The same. Nothing was added or spilled; the water only changed shape.",
+     "wrong": "Think back to the pouring."
+    }
+   },
+   {
+    "erase": [
+     "same"
+    ]
+   },
+   {
+    "draw": [
+     "st_same"
+    ],
+    "speak": "Hang on. I said the tall one.",
+    "voice": "b"
+   },
+   {
+    "highlight": {
+     "target": [
+      "glass_c"
+     ]
+    },
+    "speak": "So do most four-year-olds. They point to the tall glass, because the water is higher.",
+    "voice": "a"
+   },
+   {
+    "highlight": {
+     "target": [
+      "wc"
+     ]
+    },
+    "speak": "Even after watching it being poured?",
+    "voice": "b"
+   },
+   {
+    "draw": [
+     "st_pia"
+    ],
+    "speak": "Even then. The Swiss psychologist Jean Piaget made this little test famous.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "st_age"
+    ],
+    "speak": "He called it conservation: knowing that an amount stays the same when its shape changes. Most children get it at around six or seven.",
+    "voice": "a"
+   },
+   {
+    "highlight": {
+     "target": [
+      "glass_c"
+     ]
+    },
+    "speak": "So that's why my little brother always grabbed the tall glass.",
+    "voice": "b"
+   },
+   {
+    "highlight": {
+     "target": [
+      "st_same"
+     ],
+     "effect": "circle"
+    },
+    "speak": "Smart move, though: same juice, bigger-looking prize.",
+    "voice": "a"
+   }
+  ]
+ }
+}

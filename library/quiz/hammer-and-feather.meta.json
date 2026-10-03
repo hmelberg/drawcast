@@ -1,0 +1,17 @@
+{
+ "file": "hammer-and-feather.json",
+ "title": "On the Moon, which lands first: a hammer or a feather?",
+ "subtitle": "Drop a hammer and a feather on the Moon: which lands first? Guess, then watch Apollo 15's famous test prove Galileo right.",
+ "format": "quiz",
+ "tags": [
+  "physics",
+  "astronomy",
+  "history of science"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "Needs twemoji hammer/feather icons; Iconify 429 rate limits during authoring blanked them in some frame runs."
+}

@@ -1,0 +1,15 @@
+{
+ "file": "muller-lyer.json",
+ "title": "Which line is longer?",
+ "subtitle": "Two lines, one looks longer: tap the longer one, then see why the Müller-Lyer illusion fools almost everyone, even when you know the trick.",
+ "format": "quiz",
+ "tags": [
+  "psychology"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "pilot"
+}

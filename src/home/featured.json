@@ -597,5 +597,489 @@
       "history of science"
     ],
     "owner": "hmelberg"
+  },
+  {
+    "name": "planets-in-a-row-by-hmelberg",
+    "title": "How many Earths fit between Earth and the Moon?",
+    "format": "quiz",
+    "tags": [
+      "astronomy"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "venus-day-year-by-hmelberg",
+    "title": "On Venus, which is longer: a day or a year?",
+    "format": "quiz",
+    "tags": [
+      "astronomy"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-is-heavier-by-hmelberg",
+    "title": "Which is heavier? Three surprising pairs",
+    "format": "quiz",
+    "tags": [
+      "biology",
+      "physics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "coin-streaks-by-hmelberg",
+    "title": "After five heads in a row, is tails more likely?",
+    "format": "quiz",
+    "tags": [
+      "statistics",
+      "mathematics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "cells-vs-bacteria-by-hmelberg",
+    "title": "Are there more bacteria in your body than human cells?",
+    "format": "quiz",
+    "tags": [
+      "biology",
+      "health"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "body-myths-by-hmelberg",
+    "title": "Body myths: true or myth?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "biology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "cleopatra-closer-by-hmelberg",
+    "title": "Cleopatra: closer to the pyramids or the Moon?",
+    "format": "quiz",
+    "tags": [
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "euler-polyhedra-by-hmelberg",
+    "title": "Corners minus edges plus faces: what does a cube give?",
+    "format": "quiz",
+    "tags": [
+      "mathematics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "birthday-paradox-by-hmelberg",
+    "title": "Do two of 23 people share a birthday?",
+    "format": "quiz",
+    "tags": [
+      "mathematics",
+      "statistics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "world-population-curve",
+    "title": "How fast did the world's population grow to 8 billion?",
+    "format": "quiz",
+    "tags": [
+      "data",
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "animal-sleep-by-hmelberg",
+    "title": "How long do animals sleep?",
+    "format": "quiz",
+    "tags": [
+      "biology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "earths-in-the-sun-by-hmelberg",
+    "title": "How many Earths would fit inside the Sun?",
+    "format": "quiz",
+    "tags": [
+      "astronomy"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "rubiks-cube-by-hmelberg",
+    "title": "How many ways can a Rubik's cube be mixed up?",
+    "format": "quiz",
+    "tags": [
+      "mathematics",
+      "games"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "is-it-a-dinosaur-by-hmelberg",
+    "title": "Is it a dinosaur?",
+    "format": "quiz",
+    "tags": [
+      "biology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "linda-problem-by-hmelberg",
+    "title": "Linda: bank teller, or feminist bank teller?",
+    "format": "quiz",
+    "tags": [
+      "psychology",
+      "statistics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "hammer-and-feather-by-hmelberg",
+    "title": "On the Moon, which lands first: a hammer or a feather?",
+    "format": "quiz",
+    "tags": [
+      "physics",
+      "astronomy",
+      "history of science"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "true-or-myth-by-hmelberg",
+    "title": "True or myth? Five things everyone has heard",
+    "format": "quiz",
+    "tags": [
+      "culture",
+      "biology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "pythagoras-blank-by-hmelberg",
+    "title": "What finishes Pythagoras' theorem?",
+    "format": "quiz",
+    "tags": [
+      "mathematics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "eiffel-tower-year-by-hmelberg",
+    "title": "When was the Eiffel Tower finished?",
+    "format": "quiz",
+    "tags": [
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "first-text-message-by-hmelberg",
+    "title": "When was the first text message sent?",
+    "format": "quiz",
+    "tags": [
+      "computing",
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "longest-pregnancy-by-hmelberg",
+    "title": "Which animal has the longest pregnancy?",
+    "format": "quiz",
+    "tags": [
+      "biology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-came-first-by-hmelberg",
+    "title": "Which came first?",
+    "format": "quiz",
+    "tags": [
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "most-time-zones-by-hmelberg",
+    "title": "Which country has the most time zones?",
+    "format": "quiz",
+    "tags": [
+      "geography"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "glass-conservation-by-hmelberg",
+    "title": "Which glass has more water?",
+    "format": "quiz",
+    "tags": [
+      "psychology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "tallest-mountain-by-hmelberg",
+    "title": "Which is the tallest mountain on Earth?",
+    "format": "quiz",
+    "tags": [
+      "geography",
+      "earth"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "muller-lyer-by-hmelberg",
+    "title": "Which line is longer?",
+    "format": "quiz",
+    "tags": [
+      "psychology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "viking-words-by-hmelberg",
+    "title": "Which words came from the Vikings?",
+    "format": "quiz",
+    "tags": [
+      "language",
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "sort-the-scientists-by-hmelberg",
+    "title": "Who discovered what? Match four scientists",
+    "format": "quiz",
+    "tags": [
+      "history of science"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "famous-paintings-by-hmelberg",
+    "title": "Who painted it? Match four famous paintings",
+    "format": "quiz",
+    "tags": [
+      "culture",
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "ultimatum-game-by-hmelberg",
+    "title": "You have $100 to split with a stranger. How much would you offer?",
+    "format": "quiz",
+    "tags": [
+      "economics",
+      "psychology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "whats-in-the-air-by-hmelberg",
+    "title": "What is the air you breathe made of?",
+    "format": "quiz",
+    "tags": [
+      "chemistry",
+      "earth"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "misnamed-things-by-hmelberg",
+    "title": "Do these names tell the truth?",
+    "format": "quiz",
+    "tags": [
+      "history",
+      "language",
+      "culture"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "greenland-vs-africa-by-hmelberg",
+    "title": "How big is Greenland next to Africa?",
+    "format": "quiz",
+    "tags": [
+      "geography"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "solar-panel-prices-by-hmelberg",
+    "title": "How fast did solar panels get cheaper?",
+    "format": "quiz",
+    "tags": [
+      "economics",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "hottest-peppers-by-hmelberg",
+    "title": "How hot are the world's hottest peppers?",
+    "format": "quiz",
+    "tags": [
+      "food",
+      "biology",
+      "chemistry"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "sunlight-travel-time",
+    "title": "How long does sunlight take to reach Earth?",
+    "format": "quiz",
+    "tags": [
+      "astronomy",
+      "physics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-loud-is-loud-by-hmelberg",
+    "title": "How loud is loud?",
+    "format": "quiz",
+    "tags": [
+      "physics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "ants-on-earth-by-hmelberg",
+    "title": "How many ants are there on Earth?",
+    "format": "quiz",
+    "tags": [
+      "biology",
+      "earth"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "ball-in-play-by-hmelberg",
+    "title": "How many minutes is the ball actually in play?",
+    "format": "quiz",
+    "tags": [
+      "sports"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "moonwalkers-by-hmelberg",
+    "title": "How many people have walked on the Moon?",
+    "format": "quiz",
+    "tags": [
+      "astronomy",
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "paper-folding-by-hmelberg",
+    "title": "How many times can you fold paper in half?",
+    "format": "quiz",
+    "tags": [
+      "mathematics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "first-hard-drive-by-hmelberg",
+    "title": "How much did the first hard drive weigh?",
+    "format": "quiz",
+    "tags": [
+      "computing",
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "rice-on-a-chessboard",
+    "title": "How much rice on the last square of a chessboard?",
+    "format": "quiz",
+    "tags": [
+      "mathematics",
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "baby-animal-names-by-hmelberg",
+    "title": "What are their babies called?",
+    "format": "quiz",
+    "tags": [
+      "biology",
+      "language"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-the-universe-is-made-of",
+    "title": "What is the universe made of?",
+    "format": "quiz",
+    "tags": [
+      "astronomy",
+      "physics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "eleven-oscars-by-hmelberg",
+    "title": "Which films won eleven Oscars?",
+    "format": "quiz",
+    "tags": [
+      "culture",
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "most-spoken-languages",
+    "title": "Which languages have the most native speakers?",
+    "format": "quiz",
+    "tags": [
+      "language",
+      "culture"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "missing-letter-states",
+    "title": "Which letter is in no US state's name?",
+    "format": "quiz",
+    "tags": [
+      "geography",
+      "language"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "fastest-ramp-by-hmelberg",
+    "title": "Which ramp is fastest?",
+    "format": "quiz",
+    "tags": [
+      "physics",
+      "history of science",
+      "mathematics"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "diamonds-and-water-by-hmelberg",
+    "title": "Why is water cheap and diamonds dear?",
+    "format": "quiz",
+    "tags": [
+      "economics"
+    ],
+    "owner": "hmelberg"
   }
 ]

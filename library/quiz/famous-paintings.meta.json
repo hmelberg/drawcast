@@ -1,0 +1,16 @@
+{
+ "file": "famous-paintings.json",
+ "title": "Who painted it? Match four famous paintings",
+ "subtitle": "Match the Mona Lisa, The Starry Night, The Scream and Girl with a Pearl Earring to their painters, and hear how a theft made one world-famous.",
+ "format": "quiz",
+ "tags": [
+  "culture",
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "Match cards with icons; middle column: 'stolen 1911 / found 1913', an empty frame drawn at the theft, a sketched Mona Lisa put back in it at the return, 'most famous' under it. Cards cannot be enlarged."
+}

@@ -1,0 +1,16 @@
+{
+ "file": "first-text-message.json",
+ "title": "When was the first text message sent?",
+ "subtitle": "Guess the year of the first text message, then hear what it said, who got it, and why he could not reply.",
+ "format": "quiz",
+ "tags": [
+  "computing",
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "pilot"
+}

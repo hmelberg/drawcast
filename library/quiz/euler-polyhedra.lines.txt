@@ -1,0 +1,14 @@
+Take a cube. Count its corners, take away its edges, and add its faces. What do you get?
+[ASK] For a cube: corners minus edges plus faces. Type the number you get.
+  [right] Two: eight corners, minus twelve edges, plus six faces.
+  [wrong] Count the hidden corner at the back too.
+Eight corners, twelve edges,
+and six faces: the front, the back, and four around the sides.
+So eight minus twelve plus six makes two.
+Now a pyramid with a square base: five corners, eight edges, five faces.
+Two again. And it works for every solid without holes, however many sides it has.
+A football's panels: sixty corners, ninety edges, thirty-two faces. Two.
+Leonhard Euler spotted the rule in 1750, and wrote about it to his friend Christian Goldbach.
+But drill a hole through a solid, like this picture frame,
+and the answer drops to zero.
+So the number keeps track of holes, and that idea grew into a whole field of maths: topology.

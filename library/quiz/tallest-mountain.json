@@ -1,0 +1,301 @@
+{
+ "request": "Which is the tallest mountain on Earth? A multiple-choice quiz, then a bar chart of Everest, Mauna Kea and Chimborazo. #interactive #short",
+ "subtitle": "Everest is the highest, but is it the tallest? Guess, then watch Mauna Kea rise from the sea floor and meet the summit closest to the stars.",
+ "spec": {
+  "title": "Which is the tallest mountain on Earth?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Everest",
+    "Mauna Kea"
+   ],
+   "values": [
+    [
+     8849,
+     4207
+    ],
+    [
+     8849,
+     10210
+    ]
+   ],
+   "stage": 0,
+   "value_labels": true,
+   "ylim": [
+    0,
+    13000
+   ],
+   "y_label": "Metres",
+   "box": {
+    "x": 50,
+    "y": 205,
+    "w": 560,
+    "h": 440
+   }
+  },
+  "text": {
+   "font_size": 34
+  },
+  "sources": [
+   {
+    "id": "noaa",
+    "title": "What is the highest point on Earth as measured from Earth's center?",
+    "authors": "US National Ocean Service (NOAA)",
+    "year": 2024,
+    "url": "https://oceanservice.noaa.gov/facts/highestpoint.html",
+    "finding": "Chimborazo's summit is the point farthest from Earth's centre, about 2 km farther out than Everest's, because Earth bulges at the equator"
+   },
+   {
+    "id": "gwr",
+    "title": "Tallest mountain",
+    "authors": "Guinness World Records",
+    "year": 2024,
+    "url": "https://www.guinnessworldrecords.com/world-records/tallest-mountain",
+    "finding": "Mauna Kea rises about 10,210 m from its base on the Pacific floor, 4,205 m of it above sea level"
+   }
+  ],
+  "elements": [
+   {
+    "id": "above_sea",
+    "type": "text",
+    "text": "above sea",
+    "x": 205,
+    "y": 560,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "seafloor",
+    "type": "text",
+    "text": "from sea floor",
+    "x": 440,
+    "y": 625,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "gwr"
+    ]
+   },
+   {
+    "id": "earth",
+    "type": "ellipse",
+    "x": 810,
+    "y": 390,
+    "rx": 145,
+    "ry": 118,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "core",
+    "type": "point",
+    "at": {
+     "canvas": [
+      810,
+      390
+     ]
+    }
+   },
+   {
+    "id": "equator",
+    "type": "path",
+    "points": [
+     [
+      665,
+      390
+     ],
+     [
+      955,
+      390
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "dash": true,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "r_chim",
+    "type": "path",
+    "points": [
+     [
+      810,
+      390
+     ],
+     [
+      955,
+      390
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "chim_l",
+    "type": "text",
+    "text": "Chimborazo",
+    "x": 810,
+    "y": 603,
+    "font_size": 38,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "noaa"
+    ]
+   },
+   {
+    "id": "r_ev",
+    "type": "path",
+    "points": [
+     [
+      810,
+      390
+     ],
+     [
+      938,
+      445
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "ev_l",
+    "type": "text",
+    "text": "Everest",
+    "x": 888,
+    "y": 475,
+    "font_size": 32,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "plus",
+    "type": "text",
+    "text": "+2 km from centre",
+    "x": 810,
+    "y": 548,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "noaa"
+    ]
+   },
+   {
+    "id": "bulge",
+    "type": "text",
+    "text": "equator",
+    "x": 740,
+    "y": 362,
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which mountain is tallest?"
+    }
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "Which is the tallest mountain on Earth?"
+   },
+   {
+    "draw": [
+     "bar_1",
+     "above_sea"
+    ],
+    "speak": "Everest is the highest: its summit stands 8,849 metres above the sea."
+   },
+   {
+    "quiz": {
+     "question": "Measured from its foot to its summit, which mountain is tallest?",
+     "choices": [
+      "Everest",
+      "K2",
+      "Mauna Kea",
+      "Kilimanjaro"
+     ],
+     "correct": 3,
+     "right": "Mauna Kea, in Hawaii: from its foot on the sea floor, it rises about ten thousand two hundred metres.",
+     "wrong": "Think of where a mountain's foot can hide."
+    }
+   },
+   {
+    "draw": [
+     "bar_2"
+    ],
+    "speak": "Above the waves, Mauna Kea is only about 4,200 metres."
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 2.5,
+    "speak": "But its foot lies some six thousand metres down, on the floor of the Pacific."
+   },
+   {
+    "draw": [
+     "seafloor"
+    ],
+    "speak": "Counted from there, it beats Everest by more than a kilometre."
+   },
+   {
+    "draw": [
+     "earth",
+     "core",
+     "equator"
+    ],
+    "speak": "And there is a third champion: Chimborazo, a volcano in Ecuador."
+   },
+   {
+    "draw": [
+     "r_chim",
+     "chim_l",
+     "bulge"
+    ],
+    "speak": "The Earth bulges at the equator, and Chimborazo sits almost on it."
+   },
+   {
+    "draw": [
+     "r_ev",
+     "ev_l"
+    ],
+    "speak": "So its summit is the point farthest from Earth's centre,"
+   },
+   {
+    "draw": [
+     "plus"
+    ],
+    "speak": "about two kilometres farther out than Everest's."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    },
+    "speak": "But the tallest of them all is mostly underwater."
+   }
+  ]
+ }
+}

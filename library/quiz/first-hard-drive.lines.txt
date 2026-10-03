@@ -1,0 +1,11 @@
+In 1956, IBM shipped the first hard drive, a cabinet as tall as a person. It held five million characters, about three and three-quarter megabytes.
+That is about one photo on your phone today.
+[ASK] How many kilograms did the first hard drive weigh? Click on the line.
+  [right] Close: you said {w}, and it was about {w.true}.
+  [wrong] You said {w}; it was about {w.true}.
+Nearly a tonne, as heavy as a small car. It was moved with forklifts, and flown in cargo planes.
+Inside, fifty metal disks, each sixty-one centimetres across, spun twelve hundred times a minute.
+And you could not buy one. Companies rented the whole system, for about three thousand two hundred dollars a month.
+Now draw a microSD card at the same scale. It is this speck, and it weighs under a gram.
+Yet a one-terabyte card holds more than a quarter of a million times as much.
+Megabyte for megabyte, today's card is hundreds of billions of times lighter.

@@ -1,0 +1,16 @@
+{
+ "file": "coin-streaks.json",
+ "title": "After five heads in a row, is tails more likely?",
+ "subtitle": "Five heads in a row: is tails now due? Guess, then hear why the coin has no memory, and how a Monte Carlo roulette wheel cost gamblers millions.",
+ "format": "quiz",
+ "tags": [
+  "statistics",
+  "mathematics"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "notes": "freehand nodes + big text; no roulette icon used."
+}

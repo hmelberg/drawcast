@@ -1,0 +1,226 @@
+{
+ "request": "Which country has the most time zones? A quick quiz as a two-voice dialogue. #interactive #short",
+ "subtitle": "Russia? The USA? Guess which country runs the most clocks, then hear why the answer is France, and why vast China gets by with just one.",
+ "spec": {
+  "title": "Which country has the most time zones?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Russia",
+    "USA",
+    "France",
+    "China"
+   ],
+   "values": [
+    11,
+    11,
+    12,
+    1
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    16
+   ],
+   "y_label": "Time zones"
+  },
+  "text": {
+   "font_size": 34
+  },
+  "sources": [
+   {
+    "id": "tad",
+    "title": "Which country has the most time zones?",
+    "authors": "timeanddate.com",
+    "year": 2025,
+    "url": "https://www.timeanddate.com/time/country-with-the-most-time-zones.html",
+    "finding": "France uses 12 time zones (13 with its Antarctic claim), Russia and the USA 11 each; China uses one"
+   }
+  ],
+  "elements": [
+   {
+    "id": "island",
+    "type": "icon",
+    "of": "desert island",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 600,
+    "y": 600,
+    "cites": [
+     "tad"
+    ]
+   },
+   {
+    "id": "overseas",
+    "type": "text",
+    "text": "islands!",
+    "x": 730,
+    "y": 600,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "beijing",
+    "type": "text",
+    "text": "Beijing time",
+    "x": 830,
+    "y": 290,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "sunrise",
+    "type": "icon",
+    "of": "sunrise",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 110,
+    "x": 830,
+    "y": 370
+   },
+   {
+    "id": "daytime",
+    "type": "text",
+    "text": "always day",
+    "x": 830,
+    "y": 420,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "daytime2",
+    "type": "text",
+    "text": "somewhere",
+    "x": 830,
+    "y": 355,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which country has the most time zones?"
+    }
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "Which country on Earth has the most time zones?",
+    "voice": "a"
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "axes"
+     },
+     "gesture": "underline"
+    },
+    "speak": "Easy. Russia. It's the biggest country there is.",
+    "voice": "b"
+   },
+   {
+    "quiz": {
+     "question": "Which country has the most time zones?",
+     "choices": [
+      "Russia",
+      "United States",
+      "France",
+      "China"
+     ],
+     "correct": 3,
+     "right": "France, with twelve, thanks to islands and territories scattered around the globe.",
+     "wrong": "Think of islands, not land."
+    }
+   },
+   {
+    "draw": [
+     "bar_1",
+     "bar_2"
+    ],
+    "parallel": true,
+    "speak": "Russia has eleven. The United States, counting its Pacific islands, also has eleven.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "bar_3"
+    ],
+    "speak": "France? Mainland France would fit inside Texas!",
+    "voice": "b"
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_3"
+     ]
+    },
+    "speak": "The mainland has just one clock.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "island",
+     "overseas"
+    ],
+    "speak": "But Tahiti, Guadeloupe, Réunion and New Caledonia are France too, each on its own time.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "bar_4"
+    ],
+    "speak": "And China? It's almost as wide as the United States.",
+    "voice": "b"
+   },
+   {
+    "draw": [
+     "beijing"
+    ],
+    "speak": "One time zone. All of China runs on Beijing time.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "sunrise"
+    ],
+    "speak": "So in the far west, a winter sunrise comes after ten in the morning.",
+    "voice": "a"
+   },
+   {
+    "erase": [
+     "sunrise",
+     "beijing"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_3"
+     ],
+     "effect": "circle"
+    },
+    "speak": "So the sun never sets on France?",
+    "voice": "b"
+   },
+   {
+    "speak": "Just about. From Polynesia to the Indian Ocean, it is nearly always daytime somewhere in France.",
+    "voice": "a",
+    "draw": [
+     "daytime",
+     "daytime2"
+    ]
+   }
+  ]
+ }
+}

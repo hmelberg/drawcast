@@ -1,0 +1,16 @@
+{
+ "file": "birthday-paradox.json",
+ "title": "Do two of 23 people share a birthday?",
+ "subtitle": "Twenty-three people in a room: guess the chance that two share a birthday, then hear two friends work out why it is a coin flip.",
+ "format": "quiz",
+ "tags": [
+  "mathematics",
+  "statistics"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "notes": "scale ticks small; 23-dot ring with 46 pair lines drawn by hand."
+}

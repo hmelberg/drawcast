@@ -1,0 +1,15 @@
+{
+ "file": "diamonds-and-water.json",
+ "title": "Why is water cheap and diamonds dear?",
+ "subtitle": "Adam Smith's puzzle: why is life-giving water cheap and useless diamonds dear? Answer, then see the last glass of water explain it.",
+ "format": "quiz",
+ "tags": [
+  "economics"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "notes": "bar-chart labels fixed small"
+}

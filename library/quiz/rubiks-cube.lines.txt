@@ -1,0 +1,11 @@
+Twist a Rubik's cube a few times, and it's a mess. But how many different messes are there?
+Each step along this line is ten times the one before.
+[ASK] How many different positions can a Rubik's cube be in? Click on the line.
+  [right] Close. It is about forty-three quintillion.
+  [wrong] Most people guess far too low.
+Forty-three quintillion: a forty-three followed by eighteen zeros.
+Show one new position every second, and you'd need about a hundred times the age of the universe to see them all.
+And yet every single one can be solved in twenty moves or fewer.
+That limit is called God's number. A team proved it in 2010, using about thirty-five years of computer time donated by Google.
+They did not solve the positions one by one: they grouped them into huge families, and used the cube's symmetry to deal with whole families at once.
+So no mess is ever more than twenty twists from home, even if finding those twenty is the hard part.

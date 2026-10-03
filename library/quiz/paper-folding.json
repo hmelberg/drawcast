@@ -1,0 +1,426 @@
+{
+ "request": "How many times can you fold a piece of paper in half? Let me guess on a number line. #interactive #short",
+ "subtitle": "Guess the record for folding paper in half, then see how a student beat the 'seven folds' myth, and why doubling makes each fold harder.",
+ "spec": {
+  "title": "How many times can you fold paper in half?",
+  "sources": [
+   {
+    "id": "gallivan",
+    "title": "How to Fold Paper in Half Twelve Times: An 'Impossible Challenge' Solved and Explained",
+    "authors": "B. Gallivan",
+    "year": 2002,
+    "finding": "in January 2002 she folded a roughly 1.2 km strip of toilet paper in half twelve times in one direction, and derived the length each fold needs"
+   },
+   {
+    "id": "stmarks",
+    "title": "St. Mark's School team breaks paper-folding record",
+    "authors": "The Boston Globe",
+    "year": 2011,
+    "url": "http://archive.boston.com/news/local/articles/2011/04/10/st_marks_school_team_breaks_paper_folding_record/",
+    "finding": "students folded toilet paper 13 times in MIT's Infinite Corridor"
+   }
+  ],
+  "elements": [
+   {
+    "id": "sheet",
+    "type": "icon",
+    "of": "page facing up",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 110,
+    "x": 160,
+    "y": 590
+   },
+   {
+    "id": "folds",
+    "type": "scale",
+    "min": 0,
+    "max": 20,
+    "ticks": 4,
+    "value": 12,
+    "x": 150,
+    "y": 470,
+    "width": 700,
+    "cites": [
+     "gallivan"
+    ]
+   },
+   {
+    "id": "old",
+    "type": "text",
+    "text": "old 'limit'",
+    "x": 395,
+    "y": 545,
+    "font_size": 34,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "roll",
+    "type": "icon",
+    "of": "roll of paper",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 270,
+    "y": 290
+   },
+   {
+    "id": "km",
+    "type": "text",
+    "text": "1.2 km of paper",
+    "x": 600,
+    "y": 290,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "moon",
+    "type": "icon",
+    "of": "crescent moon",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 120,
+    "x": 250,
+    "y": 290
+   },
+   {
+    "id": "moon_t",
+    "type": "text",
+    "text": "42 folds: past the Moon",
+    "x": 580,
+    "y": 290,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "t13",
+    "type": "text",
+    "text": "2011: 13",
+    "x": 805,
+    "y": 545,
+    "font_size": 34,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "mark7",
+    "type": "path",
+    "points": [
+     [
+      395,
+      520
+     ],
+     [
+      395,
+      478
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "st0",
+    "type": "shape",
+    "shape": "rect",
+    "x": 180,
+    "y": 217.5,
+    "width": 56,
+    "height": 5,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "stl0",
+    "type": "text",
+    "text": "1",
+    "x": 180,
+    "y": 242,
+    "font_size": 28,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "st1",
+    "type": "shape",
+    "shape": "rect",
+    "x": 260,
+    "y": 220.0,
+    "width": 56,
+    "height": 10,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "stl1",
+    "type": "text",
+    "text": "2",
+    "x": 260,
+    "y": 247,
+    "font_size": 28,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "st2",
+    "type": "shape",
+    "shape": "rect",
+    "x": 340,
+    "y": 225.0,
+    "width": 56,
+    "height": 20,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "stl2",
+    "type": "text",
+    "text": "4",
+    "x": 340,
+    "y": 257,
+    "font_size": 28,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "st3",
+    "type": "shape",
+    "shape": "rect",
+    "x": 420,
+    "y": 235.0,
+    "width": 56,
+    "height": 40,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "stl3",
+    "type": "text",
+    "text": "8",
+    "x": 420,
+    "y": 277,
+    "font_size": 28,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "st4",
+    "type": "shape",
+    "shape": "rect",
+    "x": 500,
+    "y": 255.0,
+    "width": 56,
+    "height": 80,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "stl4",
+    "type": "text",
+    "text": "16",
+    "x": 500,
+    "y": 317,
+    "font_size": 28,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "st5",
+    "type": "shape",
+    "shape": "rect",
+    "x": 580,
+    "y": 295.0,
+    "width": 56,
+    "height": 160,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "stl5",
+    "type": "text",
+    "text": "32",
+    "x": 580,
+    "y": 397,
+    "font_size": 28,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "lay2",
+    "type": "text",
+    "text": "12 folds: 4,096",
+    "x": 790,
+    "y": 330,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How many folds in half?"
+    }
+   },
+   {
+    "draw": [
+     "sheet",
+     "folds"
+    ],
+    "speak": "How many times can you fold a sheet of paper in half?"
+   },
+   {
+    "ask": {
+     "question": "What is the most times one piece of paper has been folded in half? Click on the line.",
+     "on": "folds",
+     "store": "f",
+     "default": "7",
+     "right": "Close: you said {f}. The record on a single sheet is {f.true}, set in 2002.",
+     "wrong": "You said {f}. The record on a single sheet is {f.true}, set in 2002."
+    }
+   },
+   {
+    "draw": [
+     "mark7",
+     "old"
+    ],
+    "speak": "For years, people said seven folds was the limit."
+   },
+   {
+    "highlight": {
+     "target": [
+      "folds"
+     ]
+    },
+    "speak": "Then, in 2002, a high-school student in California, Britney Gallivan, set out to prove them wrong."
+   },
+   {
+    "draw": [
+     "roll",
+     "km"
+    ],
+    "speak": "She worked out how much paper each fold would need, and found a roll of toilet paper about one point two kilometres long.",
+    "cue": 0.4
+   },
+   {
+    "highlight": {
+     "target": [
+      "km"
+     ]
+    },
+    "speak": "Then she folded it in half twelve times, in the same direction."
+   },
+   {
+    "erase": [
+     "roll",
+     "km"
+    ]
+   },
+   {
+    "draw": [
+     "t13"
+    ],
+    "speak": "Nine years later, students from Saint Mark's School taped toilet paper down a corridor at MIT and managed thirteen.",
+    "cue": 0.4
+   },
+   {
+    "draw": [
+     "st0",
+     "stl0",
+     "st1",
+     "stl1",
+     "st2",
+     "stl2",
+     "st3",
+     "stl3",
+     "st4",
+     "stl4",
+     "st5",
+     "stl5"
+    ],
+    "speak": "Why is it so hard? Each fold doubles the layers: one, two, four, eight, sixteen, thirty-two."
+   },
+   {
+    "draw": [
+     "lay2"
+    ],
+    "speak": "After twelve folds, there are four thousand and ninety-six."
+   },
+   {
+    "highlight": {
+     "target": [
+      "st5"
+     ]
+    },
+    "speak": "And each fold needs far more length than the last, because the paper must wrap around an ever thicker stack."
+   },
+   {
+    "erase": [
+     "st0",
+     "stl0",
+     "st1",
+     "stl1",
+     "st2",
+     "stl2",
+     "st3",
+     "stl3",
+     "st4",
+     "stl4",
+     "st5",
+     "stl5",
+     "lay2"
+    ]
+   },
+   {
+    "draw": [
+     "moon",
+     "moon_t"
+    ],
+    "speak": "Keep doubling a sheet a tenth of a millimetre thick, forty-two times, and the stack would reach past the Moon.",
+    "cue": 0.4
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

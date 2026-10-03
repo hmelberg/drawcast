@@ -1,0 +1,241 @@
+{
+ "request": "Which everyday English words came from the Vikings? Tap all the Old Norse ones. #interactive #short",
+ "subtitle": "Tap the everyday English words that came from the Vikings' Old Norse, and hear what 'window' and 'husband' first meant.",
+ "spec": {
+  "title": "Which words came from the Vikings?",
+  "sources": [
+   {
+    "id": "oed",
+    "title": "Online Etymology Dictionary: window, husband, egg, sky, knife, they",
+    "authors": "D. Harper",
+    "year": 2024,
+    "url": "https://www.etymonline.com",
+    "finding": "window from Old Norse vindauga 'wind-eye'; husband from húsbóndi; egg, sky, knife and they from Old Norse"
+   },
+   {
+    "id": "caxton",
+    "title": "Prologue to Eneydos",
+    "authors": "William Caxton",
+    "year": 1490,
+    "finding": "a merchant asking for 'egges' in Kent was told the woman spoke no French; she called them 'eyren'"
+   }
+  ],
+  "elements": [
+   {
+    "id": "words",
+    "type": "cards",
+    "select": "From Old Norse",
+    "cites": [
+     "oed"
+    ],
+    "items": [
+     {
+      "text": "window",
+      "in": true
+     },
+     {
+      "text": "beef",
+      "in": false
+     },
+     {
+      "text": "sky",
+      "in": true
+     },
+     {
+      "text": "table",
+      "in": false
+     },
+     {
+      "text": "egg",
+      "in": true
+     },
+     {
+      "text": "husband",
+      "in": true
+     },
+     {
+      "text": "chair",
+      "in": false
+     },
+     {
+      "text": "knife",
+      "in": true
+     }
+    ]
+   },
+   {
+    "id": "gl_window",
+    "type": "text",
+    "text": "vindauga = wind-eye",
+    "x": 500,
+    "y": 265,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "gl_husband",
+    "type": "text",
+    "text": "húsbóndi = house-keeper",
+    "x": 500,
+    "y": 265,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "gl_egg",
+    "type": "text",
+    "text": "Old English: eyren",
+    "x": 500,
+    "y": 265,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "gl_french",
+    "type": "text",
+    "text": "Norman French",
+    "x": 500,
+    "y": 265,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "gl_they",
+    "type": "text",
+    "text": "they = Norse þeir",
+    "x": 500,
+    "y": 265,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which words came from the Vikings?"
+    }
+   },
+   {
+    "draw": [
+     "words"
+    ],
+    "speak": "Which of these everyday English words did the Vikings bring with them?"
+   },
+   {
+    "ask": {
+     "question": "Which of these words came into English from the Vikings' Old Norse? Tap every one.",
+     "on": "words",
+     "store": "v",
+     "right": "All {v.total} right.",
+     "wrong": "{v} of {v.total} on the first try.",
+     "feedback": {
+      "style": "warm",
+      "perfect": "Spoken like a true Dane.",
+      "good": "Most of the raid was a success.",
+      "poor": "The Normans muddied the waters here.",
+      "none": "A tricky crossing. The French words hide well."
+     }
+    }
+   },
+   {
+    "draw": [
+     "gl_window"
+    ],
+    "speak": "Window is Norse vindauga: a wind-eye, the hole in the roof that let the smoke out and the air in."
+   },
+   {
+    "erase": [
+     "gl_window"
+    ]
+   },
+   {
+    "draw": [
+     "gl_husband"
+    ],
+    "speak": "Husband is húsbóndi, the one who keeps the house."
+   },
+   {
+    "highlight": {
+     "target": [
+      "words_3",
+      "words_5",
+      "words_8"
+     ]
+    },
+    "speak": "Sky, egg and knife came the same way, from Vikings who settled in northern and eastern England from the eight hundreds."
+   },
+   {
+    "erase": [
+     "gl_husband"
+    ]
+   },
+   {
+    "draw": [
+     "gl_egg"
+    ],
+    "speak": "For centuries, the old English word for eggs lived on beside it: eyren."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "words_5"
+     },
+     "gesture": "underline"
+    },
+    "speak": "In 1490 the printer William Caxton told of a merchant who asked a woman in Kent for eggs, and was told she spoke no French."
+   },
+   {
+    "highlight": {
+     "target": [
+      "words_5"
+     ]
+    },
+    "speak": "She only understood when someone else asked for eyren."
+   },
+   {
+    "erase": [
+     "gl_egg"
+    ]
+   },
+   {
+    "draw": [
+     "gl_french"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "words_2",
+      "words_4",
+      "words_7"
+     ]
+    },
+    "speak": "Beef and chair are French: they came with the Normans after 1066, and table, older, was reinforced by them."
+   },
+   {
+    "erase": [
+     "gl_french"
+    ]
+   },
+   {
+    "draw": [
+     "gl_they"
+    ],
+    "speak": "And one of the commonest words in English is Norse as well: they."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

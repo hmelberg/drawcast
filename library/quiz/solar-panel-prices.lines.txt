@@ -1,0 +1,10 @@
+How fast have solar panels become cheaper? Here is the price of one watt of panel, in today's dollars.
+[ASK] What happened next? Draw the line on to 2024.
+  [right] Close: you were {g.off} dollars off on average. The price crashed, to about a quarter of a dollar.
+  [wrong] You were {g.off} dollars off on average. The price crashed: by 2024 a watt cost about twenty-seven cents.
+That is a fall of about ninety-four percent in sixteen years, to twenty-seven cents.
+After 2008, giant factories, many of them in China, pushed the price down faster than ever.
+The rule of thumb, called Swanson's law: every doubling of all the panels ever made cuts the price by about a fifth.
+That is why the International Energy Agency calls solar some of the cheapest electricity ever seen.
+And the story starts earlier. In 1975, the same watt cost about a hundred and thirty-two dollars, far off the top of this chart.
+From then to now, the price has fallen by more than ninety-nine percent.

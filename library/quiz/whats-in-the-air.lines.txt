@@ -1,0 +1,11 @@
+Take a breath. What is that air actually made of?
+[ASK] How is the air split? Drag the dividers to share out the pie.
+  [right] Close: off by {g.off} points on average.
+  [wrong] Off by {g.off} points on average.
+Nitrogen is the giant: seventy-eight percent of every breath.
+And it goes straight back out again: our bodies can't use it at all.
+Oxygen, the gas we actually need, is only about a fifth.
+Nearly all the rest is argon, a gas so unreactive that its name comes from the Greek for lazy.
+And carbon dioxide, the gas behind global warming?
+About 0.04 percent: four molecules in every ten thousand.
+Tiny, yet that share has grown by half since before the industrial age.

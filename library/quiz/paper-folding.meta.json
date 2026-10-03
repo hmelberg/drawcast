@@ -1,0 +1,15 @@
+{
+ "file": "paper-folding.json",
+ "title": "How many times can you fold paper in half?",
+ "subtitle": "Guess the record for folding paper in half, then see how a student beat the 'seven folds' myth, and why doubling makes each fold harder.",
+ "format": "quiz",
+ "tags": [
+  "mathematics"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": ""
+}

@@ -1,0 +1,12 @@
+Chilli heat is measured in Scoville units, and a sweet bell pepper scores zero. Each step on this line is ten times hotter than the last.
+[ASK] How hot is each pepper? Drag each card to its place on the Scoville scale.
+  [right] All {p.total} close.
+  [wrong] {p} of {p.total} close.
+A jalapeño is a gentle few thousand units.
+A habanero sits in the hundreds of thousands.
+The Carolina Reaper averages about one point six million: as hot as some police pepper spray.
+And since 2023 the record belongs to Pepper X, from the same grower, at about two point seven million.
+Yet none of it is real heat. The burn comes from capsaicin, which switches on a heat sensor in your nerves called TRPV1.
+Your brain is told you are on fire. David Julius used chilli to find that sensor, and shared the Nobel Prize for it in 2021.
+Birds have a version of the sensor that capsaicin cannot switch on. So they eat chillies happily, and spread the seeds.
+The burn may be the plant's way of choosing who gets to eat it.

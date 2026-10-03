@@ -1,0 +1,16 @@
+{
+ "file": "eleven-oscars.json",
+ "title": "Which films won eleven Oscars?",
+ "subtitle": "Tap the three films that share the record of eleven Oscars, and find out which one won every award it was up for.",
+ "format": "quiz",
+ "tags": [
+  "culture",
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "card size fixed (max width 180); icons make the cards taller"
+}

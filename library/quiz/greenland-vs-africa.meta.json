@@ -1,0 +1,15 @@
+{
+ "file": "greenland-vs-africa.json",
+ "title": "How big is Greenland next to Africa?",
+ "subtitle": "Guess Greenland's size next to Africa with a bar, then see why the Mercator map makes the two look the same size.",
+ "format": "quiz",
+ "tags": [
+  "geography"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": ""
+}

@@ -1,0 +1,13 @@
+How many times can you fold a sheet of paper in half?
+[ASK] What is the most times one piece of paper has been folded in half? Click on the line.
+  [right] Close: you said {f}. The record on a single sheet is {f.true}, set in 2002.
+  [wrong] You said {f}. The record on a single sheet is {f.true}, set in 2002.
+For years, people said seven folds was the limit.
+Then, in 2002, a high-school student in California, Britney Gallivan, set out to prove them wrong.
+She worked out how much paper each fold would need, and found a roll of toilet paper about one point two kilometres long.
+Then she folded it in half twelve times, in the same direction.
+Nine years later, students from Saint Mark's School taped toilet paper down a corridor at MIT and managed thirteen.
+Why is it so hard? Each fold doubles the layers: one, two, four, eight, sixteen, thirty-two.
+After twelve folds, there are four thousand and ninety-six.
+And each fold needs far more length than the last, because the paper must wrap around an ever thicker stack.
+Keep doubling a sheet a tenth of a millimetre thick, forty-two times, and the stack would reach past the Moon.

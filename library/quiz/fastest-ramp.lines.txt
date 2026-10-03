@@ -1,0 +1,12 @@
+Three ramps join the same two points. Which one gets a ball to the bottom first?
+One is straight, one swoops down in a curve, and one drops steeply, then runs flat.
+[ASK] Which ramp gets a rolling ball from start to finish fastest? Tap it.
+  [right] The curve. It dips first, so the ball gains speed early, and that speed carries it the rest of the way.
+  [wrong] Think about where the ball picks up its speed.
+Race them. The straight line is the shortest path, but the ball gathers speed slowly.
+The steep drop builds speed fast, then spends it on a long flat run.
+The curve is steep at first, then swoops through and beats them both.
+That curve is a cycloid: the path traced by a point on the rim of a rolling wheel.
+In 1696 Johann Bernoulli challenged the best mathematicians of Europe to find this fastest path.
+Isaac Newton got the problem one afternoon in January 1697, after a day at the Royal Mint. By four the next morning, he had solved it.
+He sent his answer without a name. But Bernoulli knew at once who it was: you can tell the lion by its claw.

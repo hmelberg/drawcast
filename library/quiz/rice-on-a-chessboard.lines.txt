@@ -1,0 +1,14 @@
+(a) An old legend says a king offered the inventor of chess any reward he liked. He asked for rice.
+(a) One grain on the first square, two on the second, four on the third, doubling all the way to the sixty-fourth.
+(b) That sounds modest. A few sacks, tops?
+[ASK] The last square alone: how many years of the whole world's rice harvest would it hold? Click on the line.
+  [right] Close: you said {g}, and it is about {g.true}.
+  [wrong] You said {g}; it is about {g.true}.
+(a) Nearly three centuries of harvests, on that one square.
+(a) It gets two to the power sixty-three grains: about nine quintillion.
+(b) Wait. How heavy is nine quintillion grains?
+(a) At about twenty-five milligrams a grain, two hundred and thirty billion tonnes. The world grows about eight hundred million tonnes a year.
+(b) So the first squares fooled the king.
+(a) Exactly. The first twenty squares together hold about one sack, some twenty-five kilos.
+(a) It is the last doublings that do the damage: each square holds more than all the squares before it put together.
+(b) Remind me never to let you set my salary.

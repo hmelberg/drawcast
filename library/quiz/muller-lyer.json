@@ -1,0 +1,370 @@
+{
+ "request": "Which of two lines is longer? The Müller-Lyer illusion, with a tap on the figure. #interactive #short",
+ "subtitle": "Two lines, one looks longer: tap the longer one, then see why the Müller-Lyer illusion fools almost everyone, even when you know the trick.",
+ "spec": {
+  "title": "Which line is longer?",
+  "sources": [
+   {
+    "id": "ml",
+    "title": "Optische Urteilstäuschungen",
+    "authors": "F. C. Müller-Lyer",
+    "year": 1889,
+    "finding": "the original illusion: fins pointing out make a line look longer than fins pointing in"
+   },
+   {
+    "id": "amir",
+    "title": "Is visual perception WEIRD? The Müller-Lyer illusion and the Cultural Byproduct Hypothesis",
+    "authors": "D. Amir, C. Firestone et al.",
+    "year": 2025,
+    "finding": "the 1960s reports that some cultures barely see the illusion rest on flawed methods; the illusion appears to be universal"
+   }
+  ],
+  "elements": [
+   {
+    "id": "ln_a",
+    "type": "path",
+    "points": [
+     [
+      130,
+      525
+     ],
+     [
+      608,
+      525
+     ]
+    ],
+    "style": {
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "top_fins",
+    "type": "group",
+    "members": [
+     "tf1",
+     "tf2",
+     "tf3",
+     "tf4"
+    ]
+   },
+   {
+    "id": "tf1",
+    "type": "path",
+    "points": [
+     [
+      130,
+      525
+     ],
+     [
+      73,
+      588
+     ]
+    ],
+    "style": {
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "tf2",
+    "type": "path",
+    "points": [
+     [
+      130,
+      525
+     ],
+     [
+      73,
+      462
+     ]
+    ],
+    "style": {
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "tf3",
+    "type": "path",
+    "points": [
+     [
+      608,
+      525
+     ],
+     [
+      666,
+      588
+     ]
+    ],
+    "style": {
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "tf4",
+    "type": "path",
+    "points": [
+     [
+      608,
+      525
+     ],
+     [
+      666,
+      462
+     ]
+    ],
+    "style": {
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "ln_b",
+    "type": "path",
+    "points": [
+     [
+      130,
+      275
+     ],
+     [
+      608,
+      275
+     ]
+    ],
+    "style": {
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "bottom_fins",
+    "type": "group",
+    "members": [
+     "bf1",
+     "bf2",
+     "bf3",
+     "bf4"
+    ]
+   },
+   {
+    "id": "bf1",
+    "type": "path",
+    "points": [
+     [
+      130,
+      275
+     ],
+     [
+      187,
+      338
+     ]
+    ],
+    "style": {
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "bf2",
+    "type": "path",
+    "points": [
+     [
+      130,
+      275
+     ],
+     [
+      187,
+      212
+     ]
+    ],
+    "style": {
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "bf3",
+    "type": "path",
+    "points": [
+     [
+      608,
+      275
+     ],
+     [
+      551,
+      338
+     ]
+    ],
+    "style": {
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "bf4",
+    "type": "path",
+    "points": [
+     [
+      608,
+      275
+     ],
+     [
+      551,
+      212
+     ]
+    ],
+    "style": {
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "top_line",
+    "type": "group",
+    "members": [
+     "ln_a",
+     "top_fins"
+    ]
+   },
+   {
+    "id": "bottom_line",
+    "type": "group",
+    "members": [
+     "ln_b",
+     "bottom_fins"
+    ]
+   },
+   {
+    "id": "same",
+    "type": "node",
+    "text": "Same length",
+    "x": 860,
+    "y": 400,
+    "width": 230,
+    "shape": "rect",
+    "font_size": 34
+   },
+   {
+    "id": "g1",
+    "type": "path",
+    "points": [
+     [
+      130,
+      638
+     ],
+     [
+      130,
+      188
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "dash": true,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "g2",
+    "type": "path",
+    "points": [
+     [
+      608,
+      638
+     ],
+     [
+      608,
+      188
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "dash": true,
+     "stroke_width": 2
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which line is longer?"
+    }
+   },
+   {
+    "draw": [
+     "top_line"
+    ],
+    "speak": "Here is a line with its fins flared out, like the feathers on an arrow's tail."
+   },
+   {
+    "draw": [
+     "bottom_line"
+    ],
+    "speak": "And here is a second one, with its ends folded in, like arrowheads."
+   },
+   {
+    "draw": [
+     "same"
+    ]
+   },
+   {
+    "ask": {
+     "question": "Which line is longer? Tap it, or tap Same length.",
+     "choose": [
+      "top_line",
+      "bottom_line",
+      "same"
+     ],
+     "answer": "same",
+     "store": "c",
+     "right": "They are exactly the same length.",
+     "wrong": "Look again in a moment."
+    }
+   },
+   {
+    "erase": [
+     "same"
+    ]
+   },
+   {
+    "draw": [
+     "g1",
+     "g2"
+    ],
+    "parallel": true,
+    "speak": "Drop a straight edge from each end, and both lines start and stop at the same place."
+   },
+   {
+    "erase": [
+     "top_fins",
+     "bottom_fins"
+    ],
+    "speak": "Take the fins away, and the two lines are plainly twins."
+   },
+   {
+    "draw": [
+     "top_fins",
+     "bottom_fins"
+    ],
+    "parallel": true,
+    "speak": "Put them back, and the top one looks longer again, even though you now know better."
+   },
+   {
+    "highlight": {
+     "target": [
+      "top_line",
+      "bottom_line"
+     ]
+    },
+    "speak": "This is the Müller-Lyer illusion, drawn by the German Franz Müller-Lyer in 1889."
+   },
+   {
+    "highlight": {
+     "target": [
+      "top_fins"
+     ]
+    },
+    "speak": "In the 1960s, researchers reported that people who grew up without square rooms, such as San foragers in the Kalahari, hardly saw it."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bottom_fins"
+     ]
+    },
+    "speak": "But a 2025 review found those studies had serious flaws. The illusion seems to come with our eyes and brains, not with our buildings."
+   }
+  ]
+ }
+}

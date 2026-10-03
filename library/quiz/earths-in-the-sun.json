@@ -1,0 +1,216 @@
+{
+ "request": "How many Earths would fit inside the Sun? Let me guess on a log scale. #interactive #short",
+ "subtitle": "Guess how many Earths would fit inside the Sun on a line where every step is ten times bigger, then see why the answer runs into millions.",
+ "spec": {
+  "title": "How many Earths would fit inside the Sun?",
+  "text": {
+   "font_size": 34
+  },
+  "sources": [
+   {
+    "id": "nasa",
+    "title": "Sun: Facts",
+    "authors": "NASA Science",
+    "year": 2024,
+    "url": "https://science.nasa.gov/sun/facts/",
+    "finding": "the Sun is about 109 times as wide as Earth; about 1.3 million Earths would fit inside it; it holds 99.8 % of the solar system's mass"
+   }
+  ],
+  "elements": [
+   {
+    "id": "sun",
+    "type": "ellipse",
+    "x": 235,
+    "y": 415,
+    "rx": 228,
+    "ry": 228,
+    "style": {
+     "color": "#d08a1e",
+     "fill": "#f2c14e",
+     "fill_style": "wash",
+     "opacity": 0.5
+    }
+   },
+   {
+    "id": "sun_l",
+    "type": "text",
+    "text": "Sun",
+    "x": 235,
+    "y": 415,
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "earth",
+    "type": "ellipse",
+    "x": 520,
+    "y": 415,
+    "rx": 2.1,
+    "ry": 2.1,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 1
+    }
+   },
+   {
+    "id": "earth_arrow",
+    "type": "arrow",
+    "from": {
+     "x": 610,
+     "y": 500
+    },
+    "to": {
+     "x": 527,
+     "y": 422
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "earth_l",
+    "type": "text",
+    "text": "Earth, to scale",
+    "x": 740,
+    "y": 530,
+    "font_size": 42,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "n",
+    "type": "scale",
+    "min": 10,
+    "max": 10000000,
+    "log": true,
+    "value": 1300000,
+    "x": 475,
+    "y": 250,
+    "width": 470,
+    "cites": [
+     "nasa"
+    ]
+   },
+   {
+    "id": "wide",
+    "type": "text",
+    "text": "109 × wider",
+    "x": 735,
+    "y": 600,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "nasa"
+    ]
+   },
+   {
+    "id": "cube",
+    "type": "math",
+    "tex": "109^3 \\approx 1{,}300{,}000",
+    "x": 735,
+    "y": 500,
+    "size": 34
+   },
+   {
+    "id": "mass",
+    "type": "text",
+    "text": "99.8 % of the mass",
+    "x": 770,
+    "y": 395,
+    "font_size": 42,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "nasa"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How many Earths fit in the Sun?"
+    }
+   },
+   {
+    "draw": [
+     "sun",
+     "sun_l"
+    ],
+    "speak": "How many Earths would fit inside the Sun?"
+   },
+   {
+    "draw": [
+     "earth",
+     "earth_arrow",
+     "earth_l"
+    ],
+    "speak": "Here is the Earth beside it, drawn to scale: that tiny dot."
+   },
+   {
+    "draw": [
+     "n"
+    ],
+    "speak": "Make your guess on this line. Each step along it is ten times the last."
+   },
+   {
+    "ask": {
+     "question": "How many Earths would fit inside the Sun? Click on the line.",
+     "on": "n",
+     "store": "g",
+     "default": "10000",
+     "right": "Close: you said {g}, and it is about {g.true}.",
+     "wrong": "You said {g}; it is about {g.true}."
+    }
+   },
+   {
+    "erase": [
+     "earth_arrow",
+     "earth_l"
+    ]
+   },
+   {
+    "draw": [
+     "wide"
+    ],
+    "speak": "The Sun is a hundred and nine times as wide as the Earth."
+   },
+   {
+    "draw": [
+     "cube"
+    ],
+    "speak": "And volume grows with the cube: a hundred and nine, times a hundred and nine, times a hundred and nine."
+   },
+   {
+    "highlight": {
+     "target": [
+      "cube"
+     ]
+    },
+    "speak": "That makes about one point three million Earths, if you could melt them down to fill every gap."
+   },
+   {
+    "draw": [
+     "mass"
+    ],
+    "speak": "The Sun also holds about 99.8 percent of all the mass in the solar system."
+   },
+   {
+    "highlight": {
+     "target": [
+      "earth"
+     ],
+     "effect": "circle"
+    },
+    "speak": "So everything else, Jupiter and us included, is crumbs."
+   }
+  ]
+ }
+}

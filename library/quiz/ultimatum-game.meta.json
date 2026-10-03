@@ -1,0 +1,16 @@
+{
+ "file": "ultimatum-game.json",
+ "title": "You have $100 to split with a stranger. How much would you offer?",
+ "subtitle": "You have $100 to split with a stranger who can refuse. Make your offer, then hear what people really do and why low offers get turned down.",
+ "format": "quiz",
+ "tags": [
+  "economics",
+  "psychology"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "notes": "scale ask with judge:false; scale tick labels small (engine)."
+}

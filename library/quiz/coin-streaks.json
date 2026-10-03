@@ -1,0 +1,289 @@
+{
+ "request": "After five heads in a row, is tails more likely? A two-voice dialogue quiz on the gambler's fallacy. #interactive #short",
+ "subtitle": "Five heads in a row: is tails now due? Guess, then hear why the coin has no memory, and how a Monte Carlo roulette wheel cost gamblers millions.",
+ "spec": {
+  "title": "After five heads in a row, is tails more likely?",
+  "sources": [
+   {
+    "id": "mc",
+    "title": "Gambler's fallacy",
+    "authors": "Wikipedia",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/Gambler's_fallacy",
+    "finding": "at the Monte Carlo Casino on 18 August 1913, black came up 26 times in a row; gamblers lost millions betting on red"
+   }
+  ],
+  "elements": [
+   {
+    "id": "h1",
+    "type": "node",
+    "shape": "circle",
+    "text": "H",
+    "x": 120,
+    "y": 410,
+    "width": 136,
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "h2",
+    "type": "node",
+    "shape": "circle",
+    "text": "H",
+    "x": 272,
+    "y": 410,
+    "width": 136,
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "h3",
+    "type": "node",
+    "shape": "circle",
+    "text": "H",
+    "x": 424,
+    "y": 410,
+    "width": 136,
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "h4",
+    "type": "node",
+    "shape": "circle",
+    "text": "H",
+    "x": 576,
+    "y": 410,
+    "width": 136,
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "h5",
+    "type": "node",
+    "shape": "circle",
+    "text": "H",
+    "x": 728,
+    "y": 410,
+    "width": 136,
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "next",
+    "type": "node",
+    "shape": "circle",
+    "text": "?",
+    "x": 880,
+    "y": 410,
+    "width": 136,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "heads",
+    "type": "group",
+    "members": [
+     "h1",
+     "h2",
+     "h3",
+     "h4",
+     "h5"
+    ]
+   },
+   {
+    "id": "fifty",
+    "type": "text",
+    "text": "50 : 50",
+    "x": 880,
+    "y": 255,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "odds",
+    "type": "text",
+    "text": "1 in 32",
+    "x": 424,
+    "y": 255,
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "big",
+    "type": "text",
+    "text": "26",
+    "x": 500,
+    "y": 470,
+    "font_size": 200,
+    "style": {
+     "color": "#222222"
+    },
+    "cites": [
+     "mc"
+    ]
+   },
+   {
+    "id": "bets",
+    "type": "text",
+    "text": "bets on red",
+    "x": 800,
+    "y": 470,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "big_l",
+    "type": "text",
+    "text": "blacks in a row",
+    "x": 500,
+    "y": 320,
+    "font_size": 52
+   },
+   {
+    "id": "where",
+    "type": "text",
+    "text": "Monte Carlo, 1913",
+    "x": 500,
+    "y": 610,
+    "font_size": 44,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "fall",
+    "type": "text",
+    "text": "the Monte Carlo fallacy",
+    "x": 500,
+    "y": 215,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Five heads in a row: what next?"
+    }
+   },
+   {
+    "draw": [
+     "heads"
+    ],
+    "speak": "You toss a fair coin five times, and it lands heads every time. What comes next?",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "next"
+    ],
+    "speak": "Tails, obviously. It's overdue!",
+    "voice": "b"
+   },
+   {
+    "quiz": {
+     "question": "After five heads in a row, what is the chance the next toss is tails?",
+     "choices": [
+      "More than half",
+      "Exactly half",
+      "Less than half"
+     ],
+     "correct": 2,
+     "right": "Exactly half. The coin has no memory: every toss starts from scratch.",
+     "wrong": "Ask what the coin remembers."
+    }
+   },
+   {
+    "draw": [
+     "fifty"
+    ],
+    "speak": "But five heads in a row is rare. Doesn't that count for something?",
+    "voice": "b"
+   },
+   {
+    "draw": [
+     "odds"
+    ],
+    "speak": "It is rare: one chance in thirty-two.",
+    "voice": "a"
+   },
+   {
+    "highlight": {
+     "target": [
+      "next"
+     ]
+    },
+    "speak": "But those five are already done. Only the next toss is still open, and it is a plain coin toss.",
+    "voice": "a"
+   },
+   {
+    "erase": [
+     "heads",
+     "next",
+     "fifty",
+     "odds"
+    ]
+   },
+   {
+    "draw": [
+     "where"
+    ],
+    "speak": "Tell that to a casino.",
+    "voice": "b"
+   },
+   {
+    "draw": [
+     "big",
+     "big_l"
+    ],
+    "cue": 0.3,
+    "speak": "Funny you should say that. In Monte Carlo, in August 1913, a roulette ball landed on black twenty-six times in a row.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "bets"
+    ],
+    "speak": "Gamblers piled their money on red, sure it was due. They lost millions.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "fall"
+    ],
+    "speak": "So the gambler's fallacy has a home address.",
+    "voice": "b"
+   },
+   {
+    "highlight": {
+     "target": [
+      "fall"
+     ]
+    },
+    "speak": "It does. It's often called the Monte Carlo fallacy, and the wheel never knew it was on a streak.",
+    "voice": "a"
+   }
+  ]
+ }
+}

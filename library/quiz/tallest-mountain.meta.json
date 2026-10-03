@@ -1,0 +1,16 @@
+{
+ "file": "tallest-mountain.json",
+ "title": "Which is the tallest mountain on Earth?",
+ "subtitle": "Everest is the highest, but is it the tallest? Guess, then watch Mauna Kea rise from the sea floor and meet the summit closest to the stars.",
+ "format": "quiz",
+ "tags": [
+  "geography",
+  "earth"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "bar_chart (Everest, Mauna Kea staged sea level -> sea floor) in a box + freehand Earth inset for Chimborazo; bar labels small (template)."
+}

@@ -1,0 +1,13 @@
+(a) Twenty-three people in a room. What is the chance that two of them share a birthday?
+(b) Twenty-three out of three hundred and sixty-five days? That sounds tiny. Maybe six percent?
+[ASK] In a room of 23 people, what is the chance that two share a birthday? Click on the line.
+  [right] Close: you said {p}, and it is {p.true}.
+  [wrong] You said {p}. It is {p.true}: better than a coin flip.
+(b) Half? With only twenty-three people? That can't be right.
+(a) The trick is that it's not just your birthday against everyone else's. Every person is compared with every other person.
+Twenty-three people make two hundred and fifty-three pairs, and each pair is a fresh chance of a match.
+(b) So it's not twenty-three tries. It's two hundred and fifty-three.
+(a) Right. Each pair matches only once in three hundred and sixty-five, but with that many tries, missing every single time gets unlikely.
+(b) And a bigger room? Say, seventy people?
+(a) Then a shared birthday is all but certain: ninety-nine point nine percent.
+(b) Next office party, I'm taking bets.

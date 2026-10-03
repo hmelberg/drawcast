@@ -1,0 +1,15 @@
+{
+ "file": "most-time-zones.json",
+ "title": "Which country has the most time zones?",
+ "subtitle": "Russia? The USA? Guess which country runs the most clocks, then hear why the answer is France, and why vast China gets by with just one.",
+ "format": "quiz",
+ "tags": [
+  "geography"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "notes": "bar_chart category/value labels stay small whatever text.font_size says."
+}

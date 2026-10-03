@@ -1,0 +1,16 @@
+{
+ "file": "rubiks-cube.json",
+ "title": "How many ways can a Rubik's cube be mixed up?",
+ "subtitle": "Guess how many ways a Rubik's cube can be mixed up, on a scale of powers of ten, then learn why every mess is at most twenty moves from solved.",
+ "format": "quiz",
+ "tags": [
+  "mathematics",
+  "games"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "TEMPLATE GAP: a log scale prints every decade's full number, unreadable over 18 decades. Workaround: draw only pos_line + pos_tick_N, hide pos_tick_N_num, add word labels (thousand…sextillion), hide pos_answer_num after the guess. Isometric cube from 27 filled paths."
+}

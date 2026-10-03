@@ -1,0 +1,752 @@
+{
+ "request": "Which is heavier? Higher-or-lower pairs: a whale's heart vs a car, a bedroom's air vs a child, a cloud vs a jumbo jet. #interactive #short",
+ "subtitle": "Tap the heavier of three surprising pairs, from a blue whale's heart to a puffy cloud, and see why weight hides in things spread thin.",
+ "spec": {
+  "title": "Which is heavier? Three surprising pairs",
+  "sources": [
+   {
+    "id": "rom",
+    "title": "Blue whale heart, Royal Ontario Museum",
+    "authors": "Royal Ontario Museum / CBC News",
+    "year": 2017,
+    "finding": "the plastinated heart of a blue whale stranded in Newfoundland in 2014 weighs about 180 kg"
+   },
+   {
+    "id": "air",
+    "title": "U.S. Standard Atmosphere",
+    "authors": "NOAA, NASA, US Air Force",
+    "year": 1976,
+    "finding": "air at sea level weighs about 1.2 kg per cubic metre; a 4 × 4 × 2.5 m bedroom holds 40 m³, about 48 kg"
+   },
+   {
+    "id": "cloud",
+    "title": "How much does a cloud weigh?",
+    "authors": "Margaret LeMone, National Center for Atmospheric Research (via USGS)",
+    "year": 2016,
+    "url": "https://www.usgs.gov/special-topics/water-science-school/science/how-much-does-a-cloud-weigh",
+    "finding": "a fair-weather cumulus about 1 km across holds about 500 tonnes of water droplets"
+   },
+   {
+    "id": "cdc",
+    "title": "CDC growth charts",
+    "authors": "US Centers for Disease Control and Prevention",
+    "year": 2000,
+    "finding": "the median 10-year-old weighs about 32 kg"
+   }
+  ],
+  "text": {
+   "font_size": 34
+  },
+  "elements": [
+   {
+    "id": "heavy",
+    "type": "cards",
+    "compare": " ",
+    "unit": "kg",
+    "x": 60,
+    "width": 880,
+    "y": 565,
+    "items": [
+     {
+      "text": "Blue whale heart",
+      "value": 180,
+      "icon": {
+       "of": "anatomical heart",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Small car",
+      "value": 1000,
+      "icon": {
+       "of": "automobile",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Air in a bedroom",
+      "value": 48,
+      "icon": {
+       "of": "bed",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "A 10-year-old",
+      "value": 32,
+      "icon": {
+       "of": "child",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "A puffy cloud",
+      "value": 500000,
+      "icon": {
+       "of": "cloud",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Jumbo jet, full",
+      "value": 400000,
+      "icon": {
+       "of": "airplane",
+       "set": "twemoji"
+      }
+     }
+    ],
+    "cites": [
+     "rom",
+     "air",
+     "cloud"
+    ]
+   },
+   {
+    "id": "b1_post",
+    "type": "path",
+    "points": [
+     [
+      500,
+      520
+     ],
+     [
+      460,
+      420
+     ],
+     [
+      540,
+      420
+     ],
+     [
+      500,
+      520
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "b1_beam",
+    "type": "path",
+    "points": [
+     [
+      215.3,
+      575.3
+     ],
+     [
+      784.7,
+      464.7
+     ]
+    ],
+    "style": {
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "b1_l_str",
+    "type": "path",
+    "points": [
+     [
+      215.3,
+      575.3
+     ],
+     [
+      215.3,
+      475.29999999999995
+     ]
+    ],
+    "style": {
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "b1_l_pan",
+    "type": "path",
+    "points": [
+     [
+      135.3,
+      475.29999999999995
+     ],
+     [
+      295.3,
+      475.29999999999995
+     ]
+    ],
+    "style": {
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "b1_l_name",
+    "type": "text",
+    "text": "Whale's heart",
+    "x": 215.3,
+    "y": 430.3,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "b1_l_val",
+    "type": "text",
+    "text": "180 kg",
+    "x": 215.3,
+    "y": 380.3,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "b1_r_str",
+    "type": "path",
+    "points": [
+     [
+      784.7,
+      464.7
+     ],
+     [
+      784.7,
+      364.7
+     ]
+    ],
+    "style": {
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "b1_r_pan",
+    "type": "path",
+    "points": [
+     [
+      704.7,
+      364.7
+     ],
+     [
+      864.7,
+      364.7
+     ]
+    ],
+    "style": {
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "b1_r_name",
+    "type": "text",
+    "text": "Small car",
+    "x": 784.7,
+    "y": 319.7,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "b1_r_val",
+    "type": "text",
+    "text": "~1,000 kg",
+    "x": 784.7,
+    "y": 269.7,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "bal1",
+    "type": "group",
+    "members": [
+     "b1_post",
+     "b1_beam",
+     "b1_l_str",
+     "b1_l_pan",
+     "b1_l_name",
+     "b1_l_val",
+     "b1_r_str",
+     "b1_r_pan",
+     "b1_r_name",
+     "b1_r_val"
+    ]
+   },
+   {
+    "id": "b2_post",
+    "type": "path",
+    "points": [
+     [
+      500,
+      520
+     ],
+     [
+      460,
+      420
+     ],
+     [
+      540,
+      420
+     ],
+     [
+      500,
+      520
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "b2_beam",
+    "type": "path",
+    "points": [
+     [
+      215.3,
+      464.7
+     ],
+     [
+      784.7,
+      575.3
+     ]
+    ],
+    "style": {
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "b2_l_str",
+    "type": "path",
+    "points": [
+     [
+      215.3,
+      464.7
+     ],
+     [
+      215.3,
+      364.7
+     ]
+    ],
+    "style": {
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "b2_l_pan",
+    "type": "path",
+    "points": [
+     [
+      135.3,
+      364.7
+     ],
+     [
+      295.3,
+      364.7
+     ]
+    ],
+    "style": {
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "b2_l_name",
+    "type": "text",
+    "text": "Bedroom air",
+    "x": 215.3,
+    "y": 319.7,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "b2_l_val",
+    "type": "text",
+    "text": "~48 kg",
+    "x": 215.3,
+    "y": 269.7,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "b2_r_str",
+    "type": "path",
+    "points": [
+     [
+      784.7,
+      575.3
+     ],
+     [
+      784.7,
+      475.29999999999995
+     ]
+    ],
+    "style": {
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "b2_r_pan",
+    "type": "path",
+    "points": [
+     [
+      704.7,
+      475.29999999999995
+     ],
+     [
+      864.7,
+      475.29999999999995
+     ]
+    ],
+    "style": {
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "b2_r_name",
+    "type": "text",
+    "text": "10-year-old",
+    "x": 784.7,
+    "y": 430.3,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "b2_r_val",
+    "type": "text",
+    "text": "~32 kg",
+    "x": 784.7,
+    "y": 380.3,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "bal2",
+    "type": "group",
+    "members": [
+     "b2_post",
+     "b2_beam",
+     "b2_l_str",
+     "b2_l_pan",
+     "b2_l_name",
+     "b2_l_val",
+     "b2_r_str",
+     "b2_r_pan",
+     "b2_r_name",
+     "b2_r_val"
+    ]
+   },
+   {
+    "id": "b3_post",
+    "type": "path",
+    "points": [
+     [
+      500,
+      520
+     ],
+     [
+      460,
+      420
+     ],
+     [
+      540,
+      420
+     ],
+     [
+      500,
+      520
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "b3_beam",
+    "type": "path",
+    "points": [
+     [
+      215.3,
+      464.7
+     ],
+     [
+      784.7,
+      575.3
+     ]
+    ],
+    "style": {
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "b3_l_str",
+    "type": "path",
+    "points": [
+     [
+      215.3,
+      464.7
+     ],
+     [
+      215.3,
+      364.7
+     ]
+    ],
+    "style": {
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "b3_l_pan",
+    "type": "path",
+    "points": [
+     [
+      135.3,
+      364.7
+     ],
+     [
+      295.3,
+      364.7
+     ]
+    ],
+    "style": {
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "b3_l_name",
+    "type": "text",
+    "text": "Puffy cloud",
+    "x": 215.3,
+    "y": 319.7,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "b3_l_val",
+    "type": "text",
+    "text": "~500 t",
+    "x": 215.3,
+    "y": 269.7,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "b3_r_str",
+    "type": "path",
+    "points": [
+     [
+      784.7,
+      575.3
+     ],
+     [
+      784.7,
+      475.29999999999995
+     ]
+    ],
+    "style": {
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "b3_r_pan",
+    "type": "path",
+    "points": [
+     [
+      704.7,
+      475.29999999999995
+     ],
+     [
+      864.7,
+      475.29999999999995
+     ]
+    ],
+    "style": {
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "b3_r_name",
+    "type": "text",
+    "text": "Jumbo jet",
+    "x": 784.7,
+    "y": 430.3,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "b3_r_val",
+    "type": "text",
+    "text": "~400 t",
+    "x": 784.7,
+    "y": 380.3,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "bal3",
+    "type": "group",
+    "members": [
+     "b3_post",
+     "b3_beam",
+     "b3_l_str",
+     "b3_l_pan",
+     "b3_l_name",
+     "b3_l_val",
+     "b3_r_str",
+     "b3_r_pan",
+     "b3_r_name",
+     "b3_r_val"
+    ]
+   },
+   {
+    "id": "air_t",
+    "type": "text",
+    "text": "1 m³ of air ≈ 1.2 kg",
+    "x": 500,
+    "y": 650,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "air"
+    ]
+   },
+   {
+    "id": "cl_t",
+    "type": "text",
+    "text": "water drops, 1 km across",
+    "x": 500,
+    "y": 650,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "cloud"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which is heavier?"
+    }
+   },
+   {
+    "draw": [
+     "heavy"
+    ],
+    "speak": "Which is heavier? Three pairs, and in each one your eyes may fool you."
+   },
+   {
+    "ask": {
+     "question": "Which is heavier? Tap the heavier one in each pair.",
+     "on": "heavy",
+     "store": "h",
+     "right": "All {h} right.",
+     "wrong": "{h} right. Here are the weights.",
+     "feedback": {
+      "style": "warm",
+      "perfect": "A perfect pair of scales.",
+      "good": "Your scales are nearly calibrated.",
+      "poor": "These pairs fool almost everyone.",
+      "none": "Weight hides well. Now you know where."
+     }
+    }
+   },
+   {
+    "hide": [
+     "heavy",
+     "heavy_v_1",
+     "heavy_v_2",
+     "heavy_v_3",
+     "heavy_v_4",
+     "heavy_v_5",
+     "heavy_v_6",
+     "heavy_1",
+     "heavy_2",
+     "heavy_3",
+     "heavy_4",
+     "heavy_5",
+     "heavy_6",
+     "heavy_title"
+    ]
+   },
+   {
+    "draw": [
+     "bal1"
+    ],
+    "speak": "A blue whale's heart is the biggest heart on Earth, yet the one in a Toronto museum weighs about a hundred and eighty kilos. A small car weighs five times as much."
+   },
+   {
+    "erase": [
+     "bal1"
+    ]
+   },
+   {
+    "draw": [
+     "bal2",
+     "air_t"
+    ],
+    "speak": "But the air in a bedroom outweighs a ten-year-old. Each cubic metre weighs over a kilo, and a bedroom holds about forty."
+   },
+   {
+    "erase": [
+     "bal2",
+     "air_t"
+    ]
+   },
+   {
+    "draw": [
+     "bal3",
+     "cl_t"
+    ],
+    "speak": "And a puffy summer cloud, a kilometre across, holds about five hundred tonnes of water: more than a fully loaded jumbo jet."
+   },
+   {
+    "highlight": {
+     "target": [
+      "b3_l_name",
+      "b3_l_val"
+     ]
+    },
+    "speak": "So why doesn't it fall? Its droplets are so tiny that rising warm air holds them up."
+   },
+   {
+    "highlight": {
+     "target": [
+      "b3_beam"
+     ]
+    },
+    "speak": "Weight hides in things spread thin: air and mist feel like nothing, but there is a lot of them."
+   },
+   {
+    "highlight": {
+     "target": [
+      "b3_l_val"
+     ],
+     "effect": "circle"
+    },
+    "speak": "Next time a cloud drifts by, picture a jumbo jet's worth of water floating over your head."
+   }
+  ]
+ }
+}

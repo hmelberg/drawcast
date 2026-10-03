@@ -1,0 +1,17 @@
+{
+ "file": "misnamed-things.json",
+ "title": "Do these names tell the truth?",
+ "subtitle": "Three famous names, three fibs: guess how long the Hundred Years' War lasted, where Panama hats are made and where guinea pigs come from.",
+ "format": "quiz",
+ "tags": [
+  "history",
+  "language",
+  "culture"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "notes": "no guinea pig emoji: a hamster stands in"
+}

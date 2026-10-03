@@ -1,0 +1,163 @@
+{
+ "request": "How many hours a day do animals sleep? Let me guess the bars for a bat, a cat, a giraffe and an elephant. #interactive #short",
+ "subtitle": "Guess how long a bat, a cat, a giraffe and a wild elephant sleep each day, and see why some sleep the day away while others barely sleep at all.",
+ "spec": {
+  "title": "How long do animals sleep?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Brown bat",
+    "Cat",
+    "Human",
+    "Giraffe",
+    "Elephant"
+   ],
+   "values": [
+    19.9,
+    12.5,
+    8,
+    4.6,
+    2
+   ],
+   "icons": [
+    "bat",
+    "cat",
+    "person",
+    "giraffe",
+    "elephant"
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    24
+   ],
+   "y_label": "Hours of sleep a day"
+  },
+  "sources": [
+   {
+    "id": "siegel",
+    "title": "Clues to the functions of mammalian sleep",
+    "authors": "J. M. Siegel",
+    "year": 2005,
+    "doi": "10.1038/nature04285",
+    "finding": "bats sleep 18-20 hours a day, giraffes and elephants 3-4 (in captivity); sleep falls with body size in plant-eaters"
+   },
+   {
+    "id": "gravett",
+    "title": "Inactivity/sleep in two wild free-roaming African elephant matriarchs",
+    "authors": "N. Gravett et al.",
+    "year": 2017,
+    "doi": "10.1371/journal.pone.0171903",
+    "finding": "wild elephants slept about 2 hours a day, and sometimes went 46 hours without sleep"
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How long do animals sleep?"
+    }
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "How long does an animal sleep in a day? The answers range wider than you might think."
+   },
+   {
+    "draw": [
+     "bar_3"
+    ],
+    "speak": "Start with us: an adult needs about eight hours."
+   },
+   {
+    "ask": {
+     "question": "How many hours do the others sleep? Drag each bar to your guess.",
+     "on": [
+      "bar_1",
+      "bar_2",
+      "bar_4",
+      "bar_5"
+     ],
+     "store": "g",
+     "default": "12,14,6,4",
+     "right": "Close on all of them.",
+     "wrong": "Off by {g.off} hours on average."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1"
+     ]
+    },
+    "speak": "The champion is the brown bat, asleep about twenty hours a day, and awake mainly at dusk, when the insects fly."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    },
+    "speak": "A cat manages twelve hours or more: a hunter eats in a few big meals, and has few predators to fear."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_4"
+     ]
+    },
+    "speak": "Giraffes in zoos sleep under five hours, in short naps, often standing up."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_5"
+     ]
+    },
+    "speak": "And wild African elephants sleep about two hours a day, the least of any mammal measured."
+   },
+   {
+    "speak": "Researchers in Botswana put sleep trackers on two elephant matriarchs.",
+    "highlight": {
+     "target": [
+      "bar_5"
+     ]
+    }
+   },
+   {
+    "speak": "Some nights, they went forty-six hours without any sleep at all.",
+    "draw": [
+     "awake"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_4",
+      "bar_5"
+     ]
+    },
+    "speak": "Big plant-eaters spend most of their day eating, and sleep little; a small animal in a safe roost can sleep the day away."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  },
+  "elements": [
+   {
+    "id": "awake",
+    "type": "text",
+    "text": "46 hours awake!",
+    "x": 760,
+    "y": 560,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "gravett"
+    ]
+   }
+  ]
+ }
+}

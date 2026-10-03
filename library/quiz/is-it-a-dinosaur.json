@@ -1,0 +1,282 @@
+{
+ "request": "Which of these animals are dinosaurs? Let me tap all the dinosaurs. #interactive #short",
+ "subtitle": "T. rex, a pterodactyl, a chicken, a mammoth: tap every true dinosaur, and find out why one of them lays your breakfast eggs.",
+ "spec": {
+  "title": "Is it a dinosaur?",
+  "sources": [
+   {
+    "id": "nhm",
+    "title": "Are birds dinosaurs? / What is a dinosaur?",
+    "authors": "Natural History Museum, London",
+    "year": 2023,
+    "finding": "birds are living theropod dinosaurs; pterosaurs, plesiosaurs and Dimetrodon are not dinosaurs"
+   },
+   {
+    "id": "birds",
+    "title": "IOC World Bird List",
+    "authors": "F. Gill, D. Donsker, P. Rasmussen (eds)",
+    "year": 2024,
+    "finding": "about 11,000 living bird species"
+   }
+  ],
+  "elements": [
+   {
+    "id": "zoo",
+    "type": "cards",
+    "select": "Dinosaurs",
+    "y": 640,
+    "cites": [
+     "nhm"
+    ],
+    "items": [
+     {
+      "text": "T. rex",
+      "in": true,
+      "icon": {
+       "of": "t-rex",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Pterodactyl",
+      "in": false
+     },
+     {
+      "text": "Chicken",
+      "in": true,
+      "icon": {
+       "of": "chicken",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Mammoth",
+      "in": false,
+      "icon": {
+       "of": "mammoth",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Triceratops",
+      "in": true
+     },
+     {
+      "text": "Plesiosaur",
+      "in": false
+     },
+     {
+      "text": "Dimetrodon",
+      "in": false
+     },
+     {
+      "text": "Stegosaurus",
+      "in": true
+     }
+    ]
+   },
+   {
+    "id": "g_ptero",
+    "type": "text",
+    "text": "Pterodactyl: flying reptile",
+    "x": 500,
+    "y": 240,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "g_ples",
+    "type": "text",
+    "text": "Plesiosaur: sea reptile",
+    "x": 500,
+    "y": 240,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "g_dime",
+    "type": "text",
+    "text": "Dimetrodon: kin of mammals",
+    "x": 500,
+    "y": 240,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "g_mam",
+    "type": "text",
+    "text": "Mammoth: a mammal",
+    "x": 500,
+    "y": 240,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "g_chick",
+    "type": "text",
+    "text": "Chicken: a living dinosaur",
+    "x": 500,
+    "y": 240,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "birds"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Is it a dinosaur?"
+    }
+   },
+   {
+    "draw": [
+     "zoo"
+    ],
+    "speak": "Seven famous animals, and one from the farmyard. Only some of them are dinosaurs."
+   },
+   {
+    "ask": {
+     "question": "Which of these animals are dinosaurs? Tap every dinosaur, then Done.",
+     "on": "zoo",
+     "store": "d",
+     "right": "All {d.total} right.",
+     "wrong": "{d} of {d.total} on the first try.",
+     "feedback": {
+      "style": "warm",
+      "perfect": "A palaeontologist in disguise.",
+      "good": "The museum would hire you.",
+      "poor": "Even museums mixed these up for years.",
+      "none": "The chicken fooled you, didn't it?"
+     }
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "zoo_1",
+      "zoo_5",
+      "zoo_8"
+     ]
+    },
+    "speak": "Tyrannosaurus, Triceratops and Stegosaurus are the easy ones."
+   },
+   {
+    "draw": [
+     "g_ptero"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "zoo_2"
+     ]
+    },
+    "speak": "But the pterodactyl is not a dinosaur. Pterosaurs were flying reptiles, cousins on a branch of their own."
+   },
+   {
+    "erase": [
+     "g_ptero"
+    ]
+   },
+   {
+    "draw": [
+     "g_ples"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "zoo_6"
+     ]
+    },
+    "speak": "Plesiosaurs swam the seas, another branch of reptiles, and no dinosaurs either."
+   },
+   {
+    "erase": [
+     "g_ples"
+    ]
+   },
+   {
+    "draw": [
+     "g_dime"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "zoo_7"
+     ]
+    },
+    "speak": "And Dimetrodon, with the sail on its back, lived before the first dinosaurs, and is closer kin to us mammals."
+   },
+   {
+    "erase": [
+     "g_dime"
+    ]
+   },
+   {
+    "draw": [
+     "g_mam"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "zoo_4"
+     ]
+    },
+    "speak": "The mammoth is plainly a mammal: an elephant in a woolly coat."
+   },
+   {
+    "erase": [
+     "g_mam"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "zoo_3"
+     ]
+    },
+    "speak": "Which leaves the surprise: the chicken."
+   },
+   {
+    "draw": [
+     "g_chick"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "zoo_3"
+     ]
+    },
+    "speak": "Birds descend from the same group of meat-eating dinosaurs as Tyrannosaurus, so biologists count them as dinosaurs."
+   },
+   {
+    "highlight": {
+     "target": [
+      "zoo_3"
+     ],
+     "effect": "circle"
+    },
+    "speak": "So the dinosaurs never all died out: about eleven thousand species of them are still flying around us."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

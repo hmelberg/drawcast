@@ -1,0 +1,16 @@
+{
+ "file": "linda-problem.json",
+ "title": "Linda: bank teller, or feminist bank teller?",
+ "subtitle": "Meet Linda, then pick the likelier story about her. See why most people choose wrong, and how two circles expose the conjunction fallacy.",
+ "format": "quiz",
+ "tags": [
+  "psychology",
+  "statistics"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "notes": "freehand person node + nested ellipses."
+}

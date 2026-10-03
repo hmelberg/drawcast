@@ -1,0 +1,15 @@
+{
+ "file": "is-it-a-dinosaur.json",
+ "title": "Is it a dinosaur?",
+ "subtitle": "T. rex, a pterodactyl, a chicken, a mammoth: tap every true dinosaur, and find out why one of them lays your breakfast eggs.",
+ "format": "quiz",
+ "tags": [
+  "biology"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "select cards' size and the box height are fixed by the engine; twemoji icons only for T. rex, chicken, mammoth."
+}

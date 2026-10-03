@@ -1,0 +1,15 @@
+{
+ "file": "venus-day-year.json",
+ "title": "On Venus, which is longer: a day or a year?",
+ "subtitle": "Guess whether a day or a year lasts longer on Venus, then hear why it spins so slowly, and backwards, so that the Sun rises in the west.",
+ "format": "quiz",
+ "tags": [
+  "astronomy"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 5,
+ "verdict": "keep",
+ "dialogue": true,
+ "notes": "Venus + red marker moved round the orbit in one move (path + rotate −333° about Venus): one lap, not quite one turn. Ends on 'sunrise to sunrise: 117 d'."
+}

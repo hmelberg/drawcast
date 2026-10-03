@@ -1,0 +1,183 @@
+{
+ "request": "What is the universe made of? Let me guess the ordinary-matter slice of the pie. #interactive #short",
+ "subtitle": "Dark energy, dark matter, and everything we can see: guess how big a slice of the universe is ordinary matter, and see how little we know.",
+ "spec": {
+  "title": "What is the universe made of?",
+  "template": "pie_chart",
+  "params": {
+   "labels": [
+    "Dark energy",
+    "Dark matter",
+    "Ordinary matter"
+   ],
+   "values": [
+    68,
+    27,
+    5
+   ],
+   "box": {
+    "x": 100,
+    "y": 140,
+    "w": 800,
+    "h": 500
+   },
+   "percent": false
+  },
+  "sources": [
+   {
+    "id": "planck",
+    "title": "Planck 2018 results. VI. Cosmological parameters",
+    "authors": "Planck Collaboration",
+    "year": 2020,
+    "doi": "10.1051/0004-6361/201833910",
+    "finding": "about 68% dark energy, 27% dark matter and 5% ordinary matter"
+   },
+   {
+    "id": "sn",
+    "title": "The Nobel Prize in Physics 2011",
+    "authors": "Nobel Foundation",
+    "year": 2011,
+    "finding": "Perlmutter, Schmidt and Riess: distant supernovae in 1998 showed the expansion of the universe is accelerating"
+   }
+  ],
+  "elements": [
+   {
+    "id": "p68",
+    "type": "text",
+    "text": "68%",
+    "x": 610,
+    "y": 330,
+    "font_size": 56,
+    "style": {
+     "color": "#2f2b26"
+    },
+    "cites": [
+     "planck"
+    ]
+   },
+   {
+    "id": "p27",
+    "type": "text",
+    "text": "27%",
+    "x": 385,
+    "y": 445,
+    "font_size": 52,
+    "style": {
+     "color": "#2f2b26"
+    },
+    "cites": [
+     "planck"
+    ]
+   },
+   {
+    "id": "p5",
+    "type": "text",
+    "text": "5%",
+    "x": 565,
+    "y": 628,
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "planck"
+    ]
+   },
+   {
+    "id": "unknown",
+    "type": "text",
+    "text": "95% unknown",
+    "x": 810,
+    "y": 560,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "planck"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "What is the universe made of?"
+    }
+   },
+   {
+    "draw": [
+     "slice_1"
+    ],
+    "speak": "What is the universe made of? The biggest share is dark energy, which makes space expand faster and faster."
+   },
+   {
+    "draw": [
+     "slice_2"
+    ],
+    "speak": "Next comes dark matter: unseen stuff whose gravity holds the galaxies together."
+   },
+   {
+    "ask": {
+     "question": "And everything else, every star, planet and person: how big a share is that? Drag its edge.",
+     "on": "slice_3",
+     "store": "g",
+     "default": "20",
+     "right": "You said {g}; it is {g.true}: all the ordinary matter is about one twentieth.",
+     "wrong": "You said {g}. It is only {g.true}: about one twentieth of everything."
+    }
+   },
+   {
+    "draw": [
+     "p5"
+    ],
+    "speak": "Every atom on the periodic table fits in that thin wedge: every star, every planet, and you."
+   },
+   {
+    "draw": [
+     "p27"
+    ],
+    "speak": "Dark matter is about five times as much as all of that."
+   },
+   {
+    "highlight": {
+     "target": [
+      "slice_2"
+     ]
+    },
+    "speak": "We know it is there because galaxies spin too fast to hold together on the gravity of what we can see."
+   },
+   {
+    "draw": [
+     "p68"
+    ],
+    "speak": "And dark energy is about two thirds of everything."
+   },
+   {
+    "highlight": {
+     "target": [
+      "slice_1"
+     ]
+    },
+    "speak": "It turned up in 1998, when distant exploding stars looked dimmer than expected: the expansion is speeding up."
+   },
+   {
+    "highlight": {
+     "target": [
+      "slice_1",
+      "slice_2"
+     ]
+    },
+    "speak": "The shares come from the Planck satellite, which mapped the oldest light in the universe."
+   },
+   {
+    "draw": [
+     "unknown"
+    ],
+    "speak": "So about ninety-five percent of the universe is something nobody has yet identified."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

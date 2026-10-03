@@ -1,0 +1,412 @@
+{
+ "request": "On Venus, which is longer: a day or a year? A short two-voice quiz. #interactive #short",
+ "subtitle": "Guess whether a day or a year lasts longer on Venus, then hear why it spins so slowly, and backwards, so that the Sun rises in the west.",
+ "spec": {
+  "title": "On Venus, which is longer: a day or a year?",
+  "sources": [
+   {
+    "id": "venus",
+    "title": "Venus",
+    "authors": "Wikipedia (from NASA planetary fact sheets)",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/Venus",
+    "finding": "Venus turns once in 243 Earth days (retrograde) and orbits the Sun in 224.7 days; its solar day is about 117 Earth days; its equator turns at about 6.5 km/h"
+   }
+  ],
+  "text": {
+   "font_size": 34
+  },
+  "elements": [
+   {
+    "id": "orbit",
+    "type": "shape",
+    "shape": "circle",
+    "x": 310,
+    "y": 410,
+    "radius": 240,
+    "style": {
+     "color": "#8f887c",
+     "dash": true,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "sun",
+    "type": "shape",
+    "shape": "circle",
+    "x": 310,
+    "y": 410,
+    "radius": 66,
+    "style": {
+     "color": "#d9a21b",
+     "fill": "#f2c94c"
+    }
+   },
+   {
+    "id": "sun_l",
+    "type": "text",
+    "text": "Sun",
+    "x": 310,
+    "y": 410,
+    "font_size": 32
+   },
+   {
+    "id": "venus",
+    "type": "shape",
+    "shape": "circle",
+    "x": 550,
+    "y": 410,
+    "radius": 38,
+    "style": {
+     "color": "#b8893a",
+     "fill": "#e8c27a"
+    }
+   },
+   {
+    "id": "flag",
+    "type": "path",
+    "points": [
+     [
+      550,
+      410
+     ],
+     [
+      550,
+      470
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "venus_set",
+    "type": "group",
+    "members": [
+     "venus",
+     "flag"
+    ]
+   },
+   {
+    "id": "venus_l",
+    "type": "text",
+    "text": "Venus",
+    "x": 550,
+    "y": 330,
+    "font_size": 32
+   },
+   {
+    "id": "year_t",
+    "type": "text",
+    "text": "Year: 225 days",
+    "x": 790,
+    "y": 500,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "venus"
+    ]
+   },
+   {
+    "id": "day_t",
+    "type": "text",
+    "text": "Day: 243 days",
+    "x": 790,
+    "y": 570,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "venus"
+    ]
+   },
+   {
+    "id": "spin",
+    "type": "text",
+    "text": "↻ spins backwards",
+    "x": 790,
+    "y": 410,
+    "font_size": 38,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "west",
+    "type": "text",
+    "text": "Sunrise: west",
+    "x": 790,
+    "y": 330,
+    "font_size": 38,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "walk",
+    "type": "text",
+    "text": "turns at 6.5 km/h",
+    "x": 790,
+    "y": 410,
+    "font_size": 38,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "venus"
+    ]
+   },
+   {
+    "id": "s117",
+    "type": "text",
+    "text": "sunrise to sunrise: 117 d",
+    "x": 740,
+    "y": 250,
+    "font_size": 32,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "venus"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "On Venus: day or year, which is longer?"
+    }
+   },
+   {
+    "draw": [
+     "sun",
+     "sun_l",
+     "orbit"
+    ],
+    "speak": "Here's a puzzle about our neighbour Venus. Like Earth, it spins on its axis, and it circles the Sun.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "venus_set",
+     "venus_l"
+    ],
+    "speak": "So which is longer there, a day or a year? A year, surely. A day is just one spin.",
+    "voice": "b"
+   },
+   {
+    "quiz": {
+     "question": "On Venus, which takes longer: one turn on its axis, or one trip round the Sun?",
+     "choices": [
+      "The day",
+      "The year",
+      "About the same"
+     ],
+     "correct": 1,
+     "store": "v",
+     "right": "The day. Venus takes 243 Earth days to turn once, but only 225 to go round the Sun.",
+     "wrong": "Venus is the slowest spinner of all the planets."
+    }
+   },
+   {
+    "draw": [
+     "day_t",
+     "year_t"
+    ],
+    "parallel": true
+   },
+   {
+    "erase": [
+     "venus_l"
+    ]
+   },
+   {
+    "move": {
+     "target": [
+      "venus_set"
+     ],
+     "path": [
+      [
+       -8.2,
+       62.1
+      ],
+      [
+       -32.2,
+       120.0
+      ],
+      [
+       -70.3,
+       169.7
+      ],
+      [
+       -120.0,
+       207.8
+      ],
+      [
+       -177.9,
+       231.8
+      ],
+      [
+       -240.0,
+       240.0
+      ],
+      [
+       -302.1,
+       231.8
+      ],
+      [
+       -360.0,
+       207.8
+      ],
+      [
+       -409.7,
+       169.7
+      ],
+      [
+       -447.8,
+       120.0
+      ],
+      [
+       -471.8,
+       62.1
+      ],
+      [
+       -480.0,
+       0.0
+      ],
+      [
+       -471.8,
+       -62.1
+      ],
+      [
+       -447.8,
+       -120.0
+      ],
+      [
+       -409.7,
+       -169.7
+      ],
+      [
+       -360.0,
+       -207.8
+      ],
+      [
+       -302.1,
+       -231.8
+      ],
+      [
+       -240.0,
+       -240.0
+      ],
+      [
+       -177.9,
+       -231.8
+      ],
+      [
+       -120.0,
+       -207.8
+      ],
+      [
+       -70.3,
+       -169.7
+      ],
+      [
+       -32.2,
+       -120.0
+      ],
+      [
+       -8.2,
+       -62.1
+      ],
+      [
+       0.0,
+       -0.0
+      ]
+     ],
+     "rotate": -333,
+     "pivot": {
+      "ref": "venus"
+     },
+     "duration": 6,
+     "easing": "linear"
+    },
+    "speak": "Watch the red marker. Venus goes once round the Sun, and in that time it hasn't quite turned once.",
+    "voice": "a"
+   },
+   {
+    "highlight": {
+     "target": [
+      "day_t"
+     ]
+    },
+    "speak": "So it turns once in more than a year? That's lazy.",
+    "voice": "b"
+   },
+   {
+    "draw": [
+     "walk"
+    ],
+    "speak": "Very. Its ground turns at about six and a half kilometres an hour: walking pace.",
+    "voice": "a"
+   },
+   {
+    "erase": [
+     "walk"
+    ]
+   },
+   {
+    "draw": [
+     "spin"
+    ],
+    "speak": "And it spins backwards, the opposite way to Earth and almost every other planet.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "west"
+    ],
+    "speak": "Backwards? So the Sun comes up on the wrong side?",
+    "voice": "b"
+   },
+   {
+    "highlight": {
+     "target": [
+      "west"
+     ]
+    },
+    "speak": "It does: on Venus the Sun rises in the west and sets in the east.",
+    "voice": "a"
+   },
+   {
+    "highlight": {
+     "target": [
+      "venus"
+     ]
+    },
+    "speak": "Why backwards? No one knows for sure. Maybe a giant collision long ago, or the Sun's pull on its thick atmosphere.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "s117"
+    ],
+    "speak": "And because it spins backwards as it orbits, the two motions add up: from one sunrise to the next takes about a hundred and seventeen Earth days.",
+    "voice": "a"
+   },
+   {
+    "highlight": {
+     "target": [
+      "s117"
+     ],
+     "effect": "circle"
+    },
+    "speak": "So a whole Venus year has only about two sunrises. I'd love the lie-in.",
+    "voice": "b"
+   }
+  ]
+ }
+}

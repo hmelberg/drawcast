@@ -1,0 +1,15 @@
+{
+ "file": "animal-sleep.json",
+ "title": "How long do animals sleep?",
+ "subtitle": "Guess how long a bat, a cat, a giraffe and a wild elephant sleep each day, and see why some sleep the day away while others barely sleep at all.",
+ "format": "quiz",
+ "tags": [
+  "biology"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "pilot"
+}

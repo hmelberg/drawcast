@@ -1,0 +1,11 @@
+How many ants are alive on Earth right now?
+[ASK] How many ants live on Earth? Click on the line: each step is ten times the last.
+  [right] Close: you said {a}, and it is about {a.true}.
+  [wrong] You said {a}. It is about {a.true}.
+That is twenty thousand trillion, or twenty quadrillion: a two followed by sixteen zeros.
+The number comes from a 2022 study that pooled 489 ant counts, from rainforests to deserts.
+Shared out, that is about two and a half million ants for every person alive.
+Each ant weighs almost nothing, but together their bodies hold about twelve million tonnes of carbon.
+That is more than all the wild birds and wild mammals on Earth put together.
+And it is a low count: ants that live underground, and whole regions without surveys, were left out.
+So next time you see one ant, spare a thought for the other twenty quadrillion.

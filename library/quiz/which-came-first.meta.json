@@ -1,0 +1,15 @@
+{
+ "file": "which-came-first.json",
+ "title": "Which came first?",
+ "subtitle": "The fax or the telephone? Oxford or the Aztecs? The pyramids or the last mammoths? Tap the older one, and watch history's timeline fold.",
+ "format": "quiz",
+ "tags": [
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "compare cards cannot show icons and their size is fixed (max 240 wide), so the grid cannot be scaled up; values are 'years ago' because compare always rewards the bigger value."
+}

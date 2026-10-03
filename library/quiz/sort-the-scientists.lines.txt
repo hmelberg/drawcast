@@ -1,0 +1,11 @@
+Four scientists, four discoveries. Some of these names you know; some you should. Who found what?
+[ASK] Match each scientist to their discovery: drag from one card to its partner.
+  [right] All {m} right.
+  [wrong] {m} right. Here are the true pairs.
+William Harvey, an English doctor, showed in 1628 that the heart pumps the same blood round and round the body.
+Michael Faraday, a blacksmith's son, built the first electric motor in 1821: a wire that spun round a magnet.
+Emmy Noether proved in 1918 that every symmetry in the laws of nature comes with something conserved, such as energy.
+Einstein called her a creative mathematical genius.
+And Lise Meitner, with her nephew Otto Frisch, explained nuclear fission at the end of 1938: an atom's core splitting in two.
+But the Nobel Prize for it went to her colleague Otto Hahn alone.
+Science made amends later: element 109 is named meitnerium, after her.

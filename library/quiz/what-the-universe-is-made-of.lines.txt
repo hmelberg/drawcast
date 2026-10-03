@@ -1,0 +1,12 @@
+What is the universe made of? The biggest share is dark energy, which makes space expand faster and faster.
+Next comes dark matter: unseen stuff whose gravity holds the galaxies together.
+[ASK] And everything else, every star, planet and person: how big a share is that? Drag its edge.
+  [right] You said {g}; it is {g.true}: all the ordinary matter is about one twentieth.
+  [wrong] You said {g}. It is only {g.true}: about one twentieth of everything.
+Every atom on the periodic table fits in that thin wedge: every star, every planet, and you.
+Dark matter is about five times as much as all of that.
+We know it is there because galaxies spin too fast to hold together on the gravity of what we can see.
+And dark energy is about two thirds of everything.
+It turned up in 1998, when distant exploding stars looked dimmer than expected: the expansion is speeding up.
+The shares come from the Planck satellite, which mapped the oldest light in the universe.
+So about ninety-five percent of the universe is something nobody has yet identified.

@@ -1,0 +1,13 @@
+(a) In 1776 Adam Smith posed a puzzle. Nothing is more useful than water, yet it buys almost nothing.
+(b) And diamonds are no use at all, but cost a fortune. Is that a puzzle? Diamonds are pretty.
+[ASK] Why is water cheap and diamonds dear?
+  [right] Price follows the last glass, not the first: we have so much water that one more is worth very little.
+(b) Hang on. What do you mean, the last glass?
+(a) Picture your glasses of water in a day. The first one keeps you alive.
+(a) The next ones go on tea, on washing, on the plants. Each is worth a little less than the one before.
+(b) So I keep going until one more glass isn't worth what it costs.
+(a) Exactly. And water is so plentiful that its price is tiny, so you go far out, to where one more glass is worth next to nothing.
+(a) Diamonds are so scarce that even the next one is still way up here.
+(a) Economists call it marginal utility. It took them a century after Smith to work it out, in the 1870s.
+(b) So in a desert, I'd swap my ring for a bottle.
+(a) Gladly. In the desert, the last glass is the first.

@@ -1,0 +1,16 @@
+{
+ "file": "moonwalkers.json",
+ "title": "How many people have walked on the Moon?",
+ "subtitle": "Type how many people have ever walked on the Moon, then meet the first and the last, and the mission that never landed.",
+ "format": "quiz",
+ "tags": [
+  "astronomy",
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": ""
+}

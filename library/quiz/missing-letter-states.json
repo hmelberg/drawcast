@@ -1,0 +1,239 @@
+{
+ "request": "Which letter appears in no US state name? A multiple-choice quiz with the states that rescue the other letters. #interactive #short",
+ "subtitle": "J, Q, X or Z: one letter appears in no US state name. Pick it, then meet the lone states that save the other three.",
+ "spec": {
+  "title": "Which letter is in no US state's name?",
+  "elements": [
+   {
+    "id": "t_J",
+    "type": "node",
+    "shape": "rect",
+    "text": "J",
+    "x": 140,
+    "y": 525,
+    "width": 210,
+    "height": 210,
+    "font_size": 140
+   },
+   {
+    "id": "t_Q",
+    "type": "node",
+    "shape": "rect",
+    "text": "Q",
+    "x": 380,
+    "y": 525,
+    "width": 210,
+    "height": 210,
+    "font_size": 140
+   },
+   {
+    "id": "t_X",
+    "type": "node",
+    "shape": "rect",
+    "text": "X",
+    "x": 620,
+    "y": 525,
+    "width": 210,
+    "height": 210,
+    "font_size": 140
+   },
+   {
+    "id": "t_Z",
+    "type": "node",
+    "shape": "rect",
+    "text": "Z",
+    "x": 860,
+    "y": 525,
+    "width": 210,
+    "height": 210,
+    "font_size": 140
+   },
+   {
+    "id": "s_J",
+    "type": "text",
+    "text": "New Jersey",
+    "x": 140,
+    "y": 375,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "s_Z",
+    "type": "text",
+    "text": "Arizona",
+    "x": 860,
+    "y": 375,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "s_X1",
+    "type": "text",
+    "text": "Texas",
+    "x": 620,
+    "y": 375,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "s_X2",
+    "type": "text",
+    "text": "New Mexico",
+    "x": 620,
+    "y": 325,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "s_Q",
+    "type": "text",
+    "text": "none!",
+    "x": 380,
+    "y": 375,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "abq",
+    "type": "text",
+    "text": "Albuquerque",
+    "x": 430,
+    "y": 250,
+    "font_size": 48,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "qc",
+    "type": "text",
+    "text": "Quebec",
+    "x": 500,
+    "y": 250,
+    "font_size": 48,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "abq2",
+    "type": "text",
+    "text": "2 Qs",
+    "x": 720,
+    "y": 250,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which letter is in no state?"
+    }
+   },
+   {
+    "draw": [
+     "t_J",
+     "t_Q",
+     "t_X",
+     "t_Z"
+    ],
+    "speak": "Fifty US states, from Alabama to Wyoming. One of these four letters appears in none of their names."
+   },
+   {
+    "highlight": {
+     "target": [
+      "t_J",
+      "t_Q",
+      "t_X",
+      "t_Z"
+     ]
+    },
+    "speak": "All four are rare letters in English. But only one is missing completely."
+   },
+   {
+    "quiz": {
+     "question": "Which letter appears in no US state name?",
+     "choices": [
+      "J",
+      "Q",
+      "X",
+      "Z"
+     ],
+     "correct": 2,
+     "right": "Q. Not one of the fifty states has a Q in its name.",
+     "wrong": "Try spelling the states with the most unusual names."
+    }
+   },
+   {
+    "draw": [
+     "s_J"
+    ],
+    "speak": "J is rescued by a single state: New Jersey."
+   },
+   {
+    "draw": [
+     "s_Z"
+    ],
+    "speak": "Z also hangs on by one: Arizona."
+   },
+   {
+    "draw": [
+     "s_X1",
+     "s_X2"
+    ],
+    "speak": "X does a little better, with Texas and New Mexico."
+   },
+   {
+    "draw": [
+     "s_Q"
+    ],
+    "speak": "But Q has nobody at all."
+   },
+   {
+    "draw": [
+     "abq",
+     "abq2"
+    ],
+    "cue": 0.3,
+    "speak": "The nearest miss is a city: Albuquerque, in New Mexico, which has two Qs of its own."
+   },
+   {
+    "erase": [
+     "abq",
+     "abq2"
+    ]
+   },
+   {
+    "draw": [
+     "qc"
+    ],
+    "cue": 0.3,
+    "speak": "For a Q, you have to cross the border, to the Canadian province of Quebec."
+   },
+   {
+    "highlight": {
+     "target": [
+      "t_Q"
+     ]
+    },
+    "speak": "So Q is the only letter of the alphabet that no state name uses."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

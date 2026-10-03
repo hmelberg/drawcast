@@ -1,0 +1,450 @@
+{
+ "request": "Which animal has the longest pregnancy? Let me rank an elephant, a giraffe, a human, a dog and a hamster. #interactive #short",
+ "subtitle": "Rank five animals by pregnancy length, from the elephant's two years to the hamster's sixteen days, and see why size sets the clock.",
+ "spec": {
+  "title": "Which animal has the longest pregnancy?",
+  "sources": [
+   {
+    "id": "gest",
+    "title": "List of mammalian gestation durations",
+    "authors": "Wikipedia",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/List_of_mammalian_gestation_durations",
+    "finding": "African elephant about 22 months, giraffe about 15 months, human about 9 months, dog about 63 days, golden hamster about 16 days"
+   }
+  ],
+  "text": {
+   "font_size": 34
+  },
+  "elements": [
+   {
+    "id": "preg",
+    "type": "cards",
+    "cites": [
+     "gest"
+    ],
+    "ends": [
+     "longest",
+     "shortest"
+    ],
+    "items": [
+     {
+      "text": "Elephant",
+      "icon": {
+       "of": "elephant",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Giraffe",
+      "icon": {
+       "of": "giraffe",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Human",
+      "icon": {
+       "of": "baby",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Dog",
+      "icon": {
+       "of": "dog face",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Hamster",
+      "icon": {
+       "of": "hamster",
+       "set": "twemoji"
+      }
+     }
+    ],
+    "x": 60,
+    "width": 880,
+    "y": 610
+   },
+   {
+    "id": "nm0",
+    "type": "text",
+    "text": "Elephant",
+    "x": 160,
+    "y": 490,
+    "font_size": 32
+   },
+   {
+    "id": "bar0",
+    "type": "path",
+    "points": [
+     [
+      270,
+      468
+     ],
+     [
+      754,
+      468
+     ],
+     [
+      754,
+      512
+     ],
+     [
+      270,
+      512
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "opacity": 0.4,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "val0",
+    "type": "text",
+    "text": "22 months",
+    "x": 674,
+    "y": 490,
+    "font_size": 32,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "row0",
+    "type": "group",
+    "members": [
+     "nm0",
+     "bar0",
+     "val0"
+    ]
+   },
+   {
+    "id": "nm1",
+    "type": "text",
+    "text": "Giraffe",
+    "x": 160,
+    "y": 422,
+    "font_size": 32
+   },
+   {
+    "id": "bar1",
+    "type": "path",
+    "points": [
+     [
+      270,
+      400
+     ],
+     [
+      600,
+      400
+     ],
+     [
+      600,
+      444
+     ],
+     [
+      270,
+      444
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.4,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "val1",
+    "type": "text",
+    "text": "15 months",
+    "x": 520,
+    "y": 422,
+    "font_size": 32,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "row1",
+    "type": "group",
+    "members": [
+     "nm1",
+     "bar1",
+     "val1"
+    ]
+   },
+   {
+    "id": "nm2",
+    "type": "text",
+    "text": "Human",
+    "x": 160,
+    "y": 354,
+    "font_size": 32
+   },
+   {
+    "id": "bar2",
+    "type": "path",
+    "points": [
+     [
+      270,
+      332
+     ],
+     [
+      468,
+      332
+     ],
+     [
+      468,
+      376
+     ],
+     [
+      270,
+      376
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.4,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "val2",
+    "type": "text",
+    "text": "9 months",
+    "x": 548,
+    "y": 354,
+    "font_size": 32,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "row2",
+    "type": "group",
+    "members": [
+     "nm2",
+     "bar2",
+     "val2"
+    ]
+   },
+   {
+    "id": "nm3",
+    "type": "text",
+    "text": "Dog",
+    "x": 160,
+    "y": 286,
+    "font_size": 32
+   },
+   {
+    "id": "bar3",
+    "type": "path",
+    "points": [
+     [
+      270,
+      264
+     ],
+     [
+      316.2,
+      264
+     ],
+     [
+      316.2,
+      308
+     ],
+     [
+      270,
+      308
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.4,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "val3",
+    "type": "text",
+    "text": "2 months",
+    "x": 396.2,
+    "y": 286,
+    "font_size": 32,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "row3",
+    "type": "group",
+    "members": [
+     "nm3",
+     "bar3",
+     "val3"
+    ]
+   },
+   {
+    "id": "nm4",
+    "type": "text",
+    "text": "Hamster",
+    "x": 160,
+    "y": 218,
+    "font_size": 32
+   },
+   {
+    "id": "bar4",
+    "type": "path",
+    "points": [
+     [
+      270,
+      196
+     ],
+     [
+      281.66,
+      196
+     ],
+     [
+      281.66,
+      240
+     ],
+     [
+      270,
+      240
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "opacity": 0.4,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "val4",
+    "type": "text",
+    "text": "16 days",
+    "x": 361.66,
+    "y": 218,
+    "font_size": 32,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "row4",
+    "type": "group",
+    "members": [
+     "nm4",
+     "bar4",
+     "val4"
+    ]
+   },
+   {
+    "id": "calf",
+    "type": "text",
+    "text": "calf ≈ 100 kg",
+    "x": 865,
+    "y": 490,
+    "font_size": 30,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which pregnancy lasts longest?"
+    }
+   },
+   {
+    "draw": [
+     "preg"
+    ],
+    "speak": "Which of these animals carries its baby the longest before it is born?"
+   },
+   {
+    "ask": {
+     "question": "Put them in order of how long a pregnancy lasts, the longest first.",
+     "on": "preg",
+     "store": "p",
+     "right": "You got {p}.",
+     "wrong": "You got {p}."
+    }
+   },
+   {
+    "draw": [
+     "row0"
+    ],
+    "speak": "The champion is the elephant: about twenty-two months, almost two years."
+   },
+   {
+    "draw": [
+     "row1"
+    ],
+    "speak": "A giraffe takes about fifteen months, and its calf arrives with a drop of about one and a half metres to the ground."
+   },
+   {
+    "draw": [
+     "row2"
+    ],
+    "speak": "We come third, with nine months."
+   },
+   {
+    "draw": [
+     "row3"
+    ],
+    "speak": "Then a big drop: a dog needs only about two months."
+   },
+   {
+    "draw": [
+     "row4"
+    ],
+    "speak": "And a golden hamster just sixteen days, one of the shortest of any mammal."
+   },
+   {
+    "draw": [
+     "calf"
+    ],
+    "speak": "So why does the elephant wait so long? Its calf is born big, at about a hundred kilograms."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar0"
+     ]
+    },
+    "speak": "And it is born ready: within hours it stands, and soon walks with the herd."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar0",
+      "val0"
+     ],
+     "effect": "circle"
+    },
+    "speak": "On the open savanna, a baby that cannot keep up does not survive. So the long wait pays."
+   }
+  ]
+ }
+}

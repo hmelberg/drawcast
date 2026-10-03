@@ -1,0 +1,15 @@
+{
+ "file": "pythagoras-blank.json",
+ "title": "What finishes Pythagoras' theorem?",
+ "subtitle": "Pick the tile that finishes a² + b² = ?, check it on a 3-4-5 triangle, and meet the Babylonian tablet that knew it a thousand years before Pythagoras.",
+ "format": "quiz",
+ "tags": [
+  "mathematics"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "Fill the formula with others tiles; 3×3/4×4/5×5 grid lines drawn as paths (pieces grid cannot rotate for the hypotenuse square). Figure size is capped by the 170–650 band (11 units tall); math 'size' seems capped, so the formula stays small."
+}

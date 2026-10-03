@@ -1,0 +1,15 @@
+{
+ "file": "ball-in-play.json",
+ "title": "How many minutes is the ball actually in play?",
+ "subtitle": "Guess how many minutes of a football match the ball is really in play, and find out where the other forty minutes go.",
+ "format": "quiz",
+ "tags": [
+  "sports"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": ""
+}

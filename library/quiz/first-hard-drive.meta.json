@@ -1,0 +1,16 @@
+{
+ "file": "first-hard-drive.json",
+ "title": "How much did the first hard drive weigh?",
+ "subtitle": "Guess how much the first hard drive weighed in 1956, then compare it with the microSD card in your phone, a gram that holds a terabyte.",
+ "format": "quiz",
+ "tags": [
+  "computing",
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "scale tick numbers fixed at 18 px; cabinet drawn freehand"
+}

@@ -1,0 +1,179 @@
+{
+ "request": "What is air made of? Let me guess the pie chart of nitrogen, oxygen and argon. #interactive #short",
+ "subtitle": "Share out the pie: how much of the air you breathe is nitrogen, oxygen and argon? Then see where carbon dioxide's tiny sliver fits.",
+ "spec": {
+  "title": "What is the air you breathe made of?",
+  "template": "pie_chart",
+  "params": {
+   "labels": [
+    "Nitrogen",
+    "Oxygen",
+    "Argon & rest"
+   ],
+   "values": [
+    78.08,
+    20.95,
+    0.97
+   ],
+   "box": {
+    "x": 120,
+    "y": 165,
+    "w": 760,
+    "h": 490
+   }
+  },
+  "text": {
+   "font_size": 34
+  },
+  "sources": [
+   {
+    "id": "noaa",
+    "title": "Trends in atmospheric carbon dioxide",
+    "authors": "NOAA Global Monitoring Laboratory",
+    "year": 2025,
+    "url": "https://gml.noaa.gov/ccgg/trends/",
+    "finding": "CO2 is about 420-425 ppm (about 0.04 %), up from about 280 ppm before 1750"
+   },
+   {
+    "id": "comp",
+    "title": "Atmosphere of Earth",
+    "authors": "Wikipedia",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/Atmosphere_of_Earth",
+    "finding": "dry air is 78.08 % nitrogen, 20.95 % oxygen, 0.93 % argon, about 0.04 % carbon dioxide"
+   }
+  ],
+  "elements": [
+   {
+    "id": "breath",
+    "type": "node",
+    "shape": "circle",
+    "text": "air",
+    "x": 500,
+    "y": 420,
+    "width": 380,
+    "font_size": 72,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "lazy",
+    "type": "text",
+    "text": "argos = lazy",
+    "x": 800,
+    "y": 610,
+    "font_size": 40,
+    "style": {
+     "color": "#8f6aa8"
+    }
+   },
+   {
+    "id": "co2",
+    "type": "text",
+    "text": "CO₂: 0.04 %",
+    "x": 145,
+    "y": 330,
+    "font_size": 42,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "noaa"
+    ]
+   },
+   {
+    "id": "rise",
+    "type": "text",
+    "text": "+50 % since 1750",
+    "x": 145,
+    "y": 270,
+    "font_size": 34,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "noaa"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "What is air made of?"
+    }
+   },
+   {
+    "draw": [
+     "breath"
+    ],
+    "speak": "Take a breath. What is that air actually made of?"
+   },
+   {
+    "hide": [
+     "breath"
+    ]
+   },
+   {
+    "ask": {
+     "question": "How is the air split? Drag the dividers to share out the pie.",
+     "on": "all",
+     "store": "g",
+     "default": "40,55,5",
+     "right": "Close: off by {g.off} points on average.",
+     "wrong": "Off by {g.off} points on average."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "slice_1"
+     ]
+    },
+    "speak": "Nitrogen is the giant: seventy-eight percent of every breath."
+   },
+   {
+    "highlight": {
+     "target": [
+      "slice_1"
+     ]
+    },
+    "speak": "And it goes straight back out again: our bodies can't use it at all."
+   },
+   {
+    "highlight": {
+     "target": [
+      "slice_2"
+     ]
+    },
+    "speak": "Oxygen, the gas we actually need, is only about a fifth."
+   },
+   {
+    "draw": [
+     "lazy"
+    ],
+    "speak": "Nearly all the rest is argon, a gas so unreactive that its name comes from the Greek for lazy."
+   },
+   {
+    "draw": [
+     "co2"
+    ],
+    "speak": "And carbon dioxide, the gas behind global warming?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "co2"
+     ]
+    },
+    "speak": "About 0.04 percent: four molecules in every ten thousand."
+   },
+   {
+    "draw": [
+     "rise"
+    ],
+    "speak": "Tiny, yet that share has grown by half since before the industrial age."
+   }
+  ]
+ }
+}

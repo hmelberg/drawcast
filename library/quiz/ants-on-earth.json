@@ -1,0 +1,200 @@
+{
+ "request": "How many ants are there on Earth? Let me guess on a log scale. #interactive #short",
+ "subtitle": "Guess how many ants are alive on Earth, then see the 2022 count: twenty quadrillion, outweighing every wild bird and mammal combined.",
+ "spec": {
+  "title": "How many ants are there on Earth?",
+  "sources": [
+   {
+    "id": "schultheiss",
+    "title": "The abundance, biomass, and distribution of ants on Earth",
+    "authors": "P. Schultheiss, S. S. Nooten, R. Wang et al.",
+    "year": 2022,
+    "doi": "10.1073/pnas.2201550119",
+    "finding": "about 20 quadrillion (2 × 10^16) ants, about 12 megatons of dry carbon: more than wild birds and wild mammals combined, about 20% of human biomass; a conservative estimate from 489 studies"
+   }
+  ],
+  "elements": [
+   {
+    "id": "ant",
+    "type": "icon",
+    "of": "ant",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170,
+    "x": 500,
+    "y": 570
+   },
+   {
+    "id": "count",
+    "type": "scale",
+    "min": 0.01,
+    "max": 100000,
+    "log": true,
+    "unit": "trillion",
+    "value": 20000,
+    "x": 100,
+    "y": 440,
+    "width": 800,
+    "cites": [
+     "schultheiss"
+    ]
+   },
+   {
+    "id": "zeros",
+    "type": "text",
+    "text": "20,000,000,000,000,000",
+    "x": 500,
+    "y": 320,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "per",
+    "type": "text",
+    "text": "2.5 million per person",
+    "x": 500,
+    "y": 250,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "mt",
+    "type": "text",
+    "text": "12 million tonnes of carbon",
+    "x": 500,
+    "y": 320,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "bird",
+    "type": "icon",
+    "of": "bird",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 90,
+    "x": 250,
+    "y": 240
+   },
+   {
+    "id": "vs",
+    "type": "text",
+    "text": "> all wild birds + mammals",
+    "x": 560,
+    "y": 240,
+    "font_size": 38,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "unit",
+    "type": "text",
+    "text": "ants, in trillions",
+    "x": 500,
+    "y": 360,
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How many ants are on Earth?"
+    }
+   },
+   {
+    "draw": [
+     "ant",
+     "count",
+     "unit"
+    ],
+    "speak": "How many ants are alive on Earth right now?"
+   },
+   {
+    "ask": {
+     "question": "How many ants live on Earth? Click on the line: each step is ten times the last.",
+     "on": "count",
+     "store": "a",
+     "default": "1",
+     "right": "Close: you said {a}, and it is about {a.true}.",
+     "wrong": "You said {a}. It is about {a.true}."
+    }
+   },
+   {
+    "erase": [
+     "unit"
+    ]
+   },
+   {
+    "draw": [
+     "zeros"
+    ],
+    "speak": "That is twenty thousand trillion, or twenty quadrillion: a two followed by sixteen zeros."
+   },
+   {
+    "highlight": {
+     "target": [
+      "count"
+     ]
+    },
+    "speak": "The number comes from a 2022 study that pooled 489 ant counts, from rainforests to deserts."
+   },
+   {
+    "draw": [
+     "per"
+    ],
+    "cue": 0.3,
+    "speak": "Shared out, that is about two and a half million ants for every person alive."
+   },
+   {
+    "erase": [
+     "zeros",
+     "per"
+    ]
+   },
+   {
+    "draw": [
+     "mt"
+    ],
+    "cue": 0.3,
+    "speak": "Each ant weighs almost nothing, but together their bodies hold about twelve million tonnes of carbon."
+   },
+   {
+    "draw": [
+     "bird",
+     "vs"
+    ],
+    "speak": "That is more than all the wild birds and wild mammals on Earth put together."
+   },
+   {
+    "highlight": {
+     "target": [
+      "count"
+     ]
+    },
+    "speak": "And it is a low count: ants that live underground, and whole regions without surveys, were left out."
+   },
+   {
+    "highlight": {
+     "target": [
+      "ant"
+     ],
+     "effect": "circle"
+    },
+    "speak": "So next time you see one ant, spare a thought for the other twenty quadrillion."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

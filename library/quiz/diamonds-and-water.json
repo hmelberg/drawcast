@@ -1,0 +1,336 @@
+{
+ "request": "A dialogue quiz: why is water, which we cannot live without, cheap, and diamonds dear? Adam Smith's paradox of value. #interactive #short",
+ "subtitle": "Adam Smith's puzzle: why is life-giving water cheap and useless diamonds dear? Answer, then see the last glass of water explain it.",
+ "spec": {
+  "title": "Why is water cheap and diamonds dear?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "1st",
+    "2nd",
+    "3rd",
+    "4th",
+    "5th",
+    "6th"
+   ],
+   "values": [
+    100,
+    45,
+    22,
+    12,
+    6,
+    3
+   ],
+   "ylim": [
+    0,
+    110
+   ],
+   "y_label": "Worth of one more glass",
+   "x_label": "Glasses of water in a day",
+   "bar_colors": "same",
+   "box": {
+    "x": 140,
+    "y": 230,
+    "w": 780,
+    "h": 400
+   }
+  },
+  "sources": [
+   {
+    "id": "smith",
+    "title": "An Inquiry into the Nature and Causes of the Wealth of Nations, Book I, ch. 4",
+    "authors": "Adam Smith",
+    "year": 1776,
+    "finding": "nothing is more useful than water, but it will purchase scarce any thing; a diamond has scarce any value in use, but a very great quantity of other goods may be had in exchange for it"
+   }
+  ],
+  "elements": [
+   {
+    "id": "water",
+    "type": "icon",
+    "of": "droplet",
+    "icon_look": "picture",
+    "size": 280,
+    "x": 280,
+    "y": 450,
+    "cites": [
+     "smith"
+    ]
+   },
+   {
+    "id": "gem",
+    "type": "icon",
+    "of": "gem stone",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 280,
+    "x": 720,
+    "y": 450,
+    "cites": [
+     "smith"
+    ]
+   },
+   {
+    "id": "cheap",
+    "type": "text",
+    "text": "cheap",
+    "x": 280,
+    "y": 250,
+    "font_size": 54,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "dear",
+    "type": "text",
+    "text": "dear",
+    "x": 720,
+    "y": 250,
+    "font_size": 54,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "price",
+    "type": "path",
+    "points": [
+     [
+      140,
+      266.3636363636364
+     ],
+     [
+      920,
+      266.3636363636364
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "price_l",
+    "type": "text",
+    "text": "price of a glass",
+    "x": 800,
+    "y": 306.3636363636364,
+    "font_size": 32,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "stop",
+    "type": "text",
+    "text": "stop here",
+    "x": 660,
+    "y": 380,
+    "font_size": 38,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "stop_a",
+    "type": "arrow",
+    "from": {
+     "x": 660,
+     "y": 350
+    },
+    "to": {
+     "x": 660,
+     "y": 274.3636363636364
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "mu",
+    "type": "text",
+    "text": "marginal utility",
+    "x": 470,
+    "y": 470,
+    "font_size": 42,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "gem2",
+    "type": "icon",
+    "of": "gem stone",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 830,
+    "y": 560
+   },
+   {
+    "id": "gem2_line",
+    "type": "path",
+    "points": [
+     [
+      140,
+      560
+     ],
+     [
+      760,
+      560
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "dash": true,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "gem2_l",
+    "type": "text",
+    "text": "scarce: still up here",
+    "x": 560,
+    "y": 600,
+    "font_size": 34,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Why is water cheap and diamonds dear?"
+    }
+   },
+   {
+    "draw": [
+     "water",
+     "cheap"
+    ],
+    "voice": "a",
+    "speak": "In 1776 Adam Smith posed a puzzle. Nothing is more useful than water, yet it buys almost nothing."
+   },
+   {
+    "draw": [
+     "gem",
+     "dear"
+    ],
+    "voice": "b",
+    "speak": "And diamonds are no use at all, but cost a fortune. Is that a puzzle? Diamonds are pretty."
+   },
+   {
+    "quiz": {
+     "question": "Why is water cheap and diamonds dear?",
+     "choices": [
+      "Diamonds are more useful",
+      "There is so much water that one more glass is worth little",
+      "Diamond prices are set by law"
+     ],
+     "correct": 2,
+     "right": "Price follows the last glass, not the first: we have so much water that one more is worth very little."
+    }
+   },
+   {
+    "hide": [
+     "water",
+     "gem",
+     "cheap",
+     "dear"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "bar_1"
+    ],
+    "voice": "b",
+    "speak": "Hang on. What do you mean, the last glass?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1"
+     ]
+    },
+    "voice": "a",
+    "speak": "Picture your glasses of water in a day. The first one keeps you alive."
+   },
+   {
+    "draw": [
+     "bar_2",
+     "bar_3",
+     "bar_4",
+     "bar_5",
+     "bar_6"
+    ],
+    "voice": "a",
+    "speak": "The next ones go on tea, on washing, on the plants. Each is worth a little less than the one before."
+   },
+   {
+    "draw": [
+     "price",
+     "price_l"
+    ],
+    "voice": "b",
+    "speak": "So I keep going until one more glass isn't worth what it costs."
+   },
+   {
+    "draw": [
+     "stop",
+     "stop_a"
+    ],
+    "voice": "a",
+    "speak": "Exactly. And water is so plentiful that its price is tiny, so you go far out, to where one more glass is worth next to nothing."
+   },
+   {
+    "draw": [
+     "gem2",
+     "gem2_line",
+     "gem2_l"
+    ],
+    "voice": "a",
+    "speak": "Diamonds are so scarce that even the next one is still way up here."
+   },
+   {
+    "erase": [
+     "gem2_l"
+    ]
+   },
+   {
+    "draw": [
+     "mu"
+    ],
+    "voice": "a",
+    "speak": "Economists call it marginal utility. It took them a century after Smith to work it out, in the 1870s."
+   },
+   {
+    "voice": "b",
+    "speak": "So in a desert, I'd swap my ring for a bottle.",
+    "highlight": {
+     "target": [
+      "gem2"
+     ]
+    }
+   },
+   {
+    "voice": "a",
+    "speak": "Gladly. In the desert, the last glass is the first.",
+    "highlight": {
+     "target": [
+      "bar_1"
+     ]
+    }
+   }
+  ],
+  "text": {
+   "font_size": 34
+  },
+  "assets": {
+   "icon.gem-stone.twemoji": "ics1:twemoji:gem-stone:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#bdddf4\" d=\"M13 3H7l-7 9h10z\"/><path fill=\"#5dadec\" d=\"m36 12l-7-9h-6l3 9z\"/><path fill=\"#4289c1\" d=\"M26 12h10L18 33z\"/><path fill=\"#8ccaf7\" d=\"M10 12H0l18 21zm3-9l-3 9h16l-3-9z\"/><path fill=\"#5dadec\" d=\"m18 33l-8-21h16z\"/></svg>"
+  }
+ }
+}

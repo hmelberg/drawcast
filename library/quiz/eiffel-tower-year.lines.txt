@@ -1,0 +1,13 @@
+Paris without the Eiffel Tower is hard to picture. But when was it finished?
+[ASK] In what year was the Eiffel Tower finished? Click on the line.
+  [right] Close: you said {y}, and it was {y.true}.
+  [wrong] You said {y}; it was {y.true}.
+It opened in 1889, for the World's Fair, a hundred years after the French Revolution began.
+At three hundred metres, it was the tallest structure on Earth,
+until New York's Chrysler Building passed it in 1930.
+But Paris did not love it at first. In 1887, artists and writers signed a letter calling it useless and monstrous.
+One of them, the story goes, was Guy de Maupassant, who later ate lunch in the tower, because it was the one place in Paris he could not see it.
+And it was never meant to last. Eiffel's permit ran for just twenty years, until 1909.
+So Eiffel gave his tower a job: weather instruments, experiments, and above all radio antennas at the top.
+By 1909 it was the army's radio station: too useful to pull down.
+In the First World War it caught enemy radio messages. The tower that was meant to come down is still standing.

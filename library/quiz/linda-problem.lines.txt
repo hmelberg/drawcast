@@ -1,0 +1,13 @@
+A: Here's a famous puzzle about a woman called Linda. Which story about her is more probable?
+A: Linda is thirty-one, single, outspoken and very bright.
+A: She studied philosophy. As a student she cared deeply about discrimination, and marched against nuclear weapons.
+[ASK] Which is more probable?  choices=['Linda is a bank teller', 'Linda is a bank teller and a feminist']
+  [right] Bank teller. Every feminist bank teller is a bank teller too, so the pair can never be more likely.
+  [wrong] Count what each answer needs to be true.
+B: But she sounds exactly like a feminist!
+A: She does. But draw it. Here are all the bank tellers in the world.
+A: The feminist bank tellers are a group inside that one. However likely the story, the inner group can't be bigger.
+A: Yet in Tversky and Kahneman's 1983 study, about eighty-five percent of people picked the second answer.
+B: So more detail made the story feel more likely?
+A: Exactly. They called it the conjunction fallacy: each added detail makes a story less likely, but more believable.
+B: Even the biologist Stephen Jay Gould admitted a little voice in his head kept shouting: but she can't just be a bank teller!

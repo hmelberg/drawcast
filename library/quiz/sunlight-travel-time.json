@@ -1,0 +1,333 @@
+{
+ "request": "How long does sunlight take to reach Earth? Let me guess the minutes. #interactive #short",
+ "subtitle": "Guess how many minutes sunlight takes to reach Earth, then see why you always see the Sun as it was, and how old its light really is.",
+ "spec": {
+  "title": "How long does sunlight take to reach Earth?",
+  "sources": [
+   {
+    "id": "nasa",
+    "title": "Sun: facts; How long does it take sunlight to reach the Earth?",
+    "authors": "NASA",
+    "year": 2024,
+    "finding": "sunlight crosses the 150 million km to Earth in about 8 minutes 20 seconds; energy from the core takes about 170,000 years to reach the surface (estimates range from about 10,000 to a million years); moonlight reaches Earth in about 1.3 seconds"
+   }
+  ],
+  "elements": [
+   {
+    "id": "sun",
+    "type": "icon",
+    "of": "sun",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 300,
+    "x": 210,
+    "y": 470
+   },
+   {
+    "id": "earth",
+    "type": "icon",
+    "of": "globe showing europe-africa",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170,
+    "x": 830,
+    "y": 470
+   },
+   {
+    "id": "mins",
+    "type": "scale",
+    "min": 0,
+    "max": 20,
+    "ticks": 4,
+    "value": 8.3,
+    "unit": "min",
+    "x": 100,
+    "y": 235,
+    "width": 800,
+    "cites": [
+     "nasa"
+    ]
+   },
+   {
+    "id": "beam",
+    "type": "arrow",
+    "from": {
+     "x": 370,
+     "y": 470
+    },
+    "to": {
+     "x": 735,
+     "y": 470
+    },
+    "style": {
+     "color": "#d89b1c",
+     "dash": true,
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "t_res",
+    "type": "text",
+    "text": "8 min 20 s",
+    "x": 550,
+    "y": 530,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "nasa"
+    ]
+   },
+   {
+    "id": "ago",
+    "type": "text",
+    "text": "8 minutes ago",
+    "x": 210,
+    "y": 285,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "moon",
+    "type": "icon",
+    "of": "crescent moon",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 110,
+    "x": 830,
+    "y": 240
+   },
+   {
+    "id": "moon_arrow",
+    "type": "arrow",
+    "from": {
+     "x": 830,
+     "y": 300
+    },
+    "to": {
+     "x": 830,
+     "y": 380
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "moon_l",
+    "type": "text",
+    "text": "1.3 s",
+    "x": 930,
+    "y": 340,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "walk",
+    "type": "path",
+    "points": [
+     [
+      210,
+      470
+     ],
+     [
+      200,
+      539
+     ],
+     [
+      173,
+      494
+     ],
+     [
+      261,
+      416
+     ],
+     [
+      143,
+      520
+     ],
+     [
+      206,
+      459
+     ],
+     [
+      189,
+      520
+     ],
+     [
+      278,
+      540
+     ],
+     [
+      261,
+      501
+     ],
+     [
+      178,
+      459
+     ],
+     [
+      178,
+      533
+     ],
+     [
+      239,
+      403
+     ],
+     [
+      156,
+      440
+     ],
+     [
+      150,
+      477
+     ],
+     [
+      147,
+      468
+     ],
+     [
+      261,
+      499
+     ],
+     [
+      249,
+      501
+     ],
+     [
+      300,
+      470
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "inside",
+    "type": "text",
+    "text": "~170,000 years",
+    "x": 210,
+    "y": 285,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "nasa"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How long does sunlight take to reach us?"
+    }
+   },
+   {
+    "draw": [
+     "sun",
+     "earth",
+     "mins"
+    ],
+    "parallel": true,
+    "speak": "Light is the fastest thing there is, three hundred thousand kilometres every second. And the Sun is a hundred and fifty million kilometres away."
+   },
+   {
+    "ask": {
+     "question": "How many minutes does sunlight take to reach the Earth? Click on the line.",
+     "on": "mins",
+     "store": "t",
+     "default": "2",
+     "right": "Close: you said {t} minutes, and it is about {t.true}.",
+     "wrong": "You said {t} minutes; it is about {t.true}."
+    }
+   },
+   {
+    "erase": [
+     "mins",
+     "mins_answer"
+    ]
+   },
+   {
+    "draw": [
+     "beam",
+     "t_res"
+    ],
+    "speak": "So even light needs eight minutes and twenty seconds to cross the gap."
+   },
+   {
+    "draw": [
+     "ago"
+    ],
+    "speak": "When you glance at the Sun, you see it as it was eight minutes ago."
+   },
+   {
+    "fade": {
+     "target": [
+      "sun"
+     ],
+     "to": 0.2,
+     "duration": 2
+    },
+    "speak": "If it vanished this instant, the sky would stay bright for eight more minutes before anyone on Earth could know."
+   },
+   {
+    "fade": {
+     "target": [
+      "sun"
+     ],
+     "to": 1,
+     "duration": 0.5
+    }
+   },
+   {
+    "draw": [
+     "moon",
+     "moon_arrow",
+     "moon_l"
+    ],
+    "speak": "Moonlight is quicker. It is sunlight bounced off the Moon, and covers the last stretch to us in just over a second."
+   },
+   {
+    "erase": [
+     "ago"
+    ]
+   },
+   {
+    "draw": [
+     "walk"
+    ],
+    "speak": "But sunlight is old long before it sets out, because it starts deep inside the Sun."
+   },
+   {
+    "draw": [
+     "inside"
+    ],
+    "speak": "The energy made in the core bounces around in there for tens of thousands of years, maybe far more, before it reaches the surface."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "t_res"
+     },
+     "gesture": "underline"
+    },
+    "speak": "And then the final dash to your eyes takes just eight minutes."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  },
+  "assets": {
+   "icon.crescent-moon.twemoji": "ics1:twemoji:crescent-moon:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#ffd983\" d=\"M30.312.776C32 19 20 32 .776 30.312c8.199 7.717 21.091 7.588 29.107-.429C37.9 21.867 38.03 8.975 30.312.776\"/><path fill=\"#ffcc4d\" d=\"M30.705 15.915a1.163 1.163 0 1 0 1.643 1.641a1.163 1.163 0 0 0-1.643-1.641m-16.022 14.38a1.74 1.74 0 0 0 0 2.465a1.742 1.742 0 1 0 0-2.465m13.968-2.147a2.904 2.904 0 0 1-4.108 0a2.9 2.9 0 0 1 0-4.107a2.9 2.9 0 0 1 4.108 0a2.9 2.9 0 0 1 0 4.107\"/></svg>",
+   "icon.globe-showing-europe-africa.twemoji": "ics1:twemoji:globe-showing-europe-africa:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><circle cx=\"18\" cy=\"18\" r=\"18\" fill=\"#88c9f9\"/><path fill=\"#5c913b\" d=\"M25.716 1.756c-1.022.568-1.872 1.528-3.028 1.181c-1.875-.562-4.375-1.812-6-.25s-2 3 0 2.938s3.375-2.438 4.375-1.438s.749 1.813-1.625 2.125S14.5 7 13.125 7s-1.688.812-.75 1.688s-.563.937-2.125 1.812s.375 1.25 1.688 2s2.312-.188 2.875-1.438s2.981-2.75 3.99-2.562s1.01.688.822 1.562s.75.625.812-.375s1.188-1.75 2.062-1.812s1.625 1.188.625 1.812s-2 1.125-.75 1.438s2.125 1.938.688 2.625s-3.937 1.125-5.062.562s-3.688-1.375-4.375-.938s-1.062.89-1.875 1.195s-4.125 1.805-4.188 3.743s-.124 4.126 1.188 4.188s4.5-.812 5.5-1.625s2.375-.625 2.812.312s.125 1.5-.312 3s.286 2.25.987 3.562s1.263 2.062 1.263 3s1 1.875 2.5.312s2.875-4.625 3.5-5.75s1.125-3.625 1.875-4.125s1.938-1.688 1.062-1.5s-2.625-.062-3.062-1.312s-2.312-3.625-1.438-3.875s1.875 1.39 2.25 2.164s.875 1.711 1.625 1.961s2.375-1.673 2.875-1.961s.125-1.476-.875-1.351s-2.312 0-2.312-.624s1.25-1.438 2.25-1.25s1.75.5 2.375 1.25s1.875 2.125 2.375 3s.875 1 1.125-.562c.166-1.038.387-1.609.59-2.222c-1.013-5.829-4.82-10.683-9.999-13.148\"/></svg>",
+   "icon.sun.twemoji": "ics1:twemoji:sun:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#ffac33\" d=\"M16 2s0-2 2-2s2 2 2 2v2s0 2-2 2s-2-2-2-2zm18 14s2 0 2 2s-2 2-2 2h-2s-2 0-2-2s2-2 2-2zM4 16s2 0 2 2s-2 2-2 2H2s-2 0-2-2s2-2 2-2zm5.121-8.707s1.414 1.414 0 2.828s-2.828 0-2.828 0L4.878 8.708s-1.414-1.414 0-2.829c1.415-1.414 2.829 0 2.829 0zm21 21s1.414 1.414 0 2.828s-2.828 0-2.828 0l-1.414-1.414s-1.414-1.414 0-2.828s2.828 0 2.828 0zm-.413-18.172s-1.414 1.414-2.828 0s0-2.828 0-2.828l1.414-1.414s1.414-1.414 2.828 0s0 2.828 0 2.828zm-21 21s-1.414 1.414-2.828 0s0-2.828 0-2.828l1.414-1.414s1.414-1.414 2.828 0s0 2.828 0 2.828zM16 32s0-2 2-2s2 2 2 2v2s0 2-2 2s-2-2-2-2z\"/><circle cx=\"18\" cy=\"18\" r=\"10\" fill=\"#ffac33\"/></svg>"
+  }
+ }
+}

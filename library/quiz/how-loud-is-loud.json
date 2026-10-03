@@ -1,0 +1,419 @@
+{
+ "request": "How loud is loud? Let me rank five sounds, then explain decibels. #interactive #short",
+ "subtitle": "Rank five sounds from a whisper to a jet, then see why ten decibels more means ten times the energy, and when loud starts to harm.",
+ "spec": {
+  "title": "How loud is loud?",
+  "sources": [
+   {
+    "id": "cdc",
+    "title": "What noises cause hearing loss?",
+    "authors": "US Centers for Disease Control and Prevention",
+    "year": 2024,
+    "url": "https://www.cdc.gov/hearing-loss/causes/",
+    "finding": "normal conversation 60-70 dBA; long or repeated exposure at or above 85 dBA can cause hearing loss; fireworks 140-160 dBA"
+   }
+  ],
+  "elements": [
+   {
+    "id": "sounds",
+    "type": "cards",
+    "ends": [
+     "loudest",
+     "quietest"
+    ],
+    "y": 600,
+    "items": [
+     {
+      "text": "Jet take-off",
+      "icon": {
+       "of": "airplane departure",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Rock concert",
+      "icon": {
+       "of": "guitar",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Lawnmower"
+     },
+     {
+      "text": "Conversation",
+      "icon": {
+       "of": "speech balloon",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Whisper",
+      "icon": {
+       "of": "shushing face",
+       "set": "twemoji"
+      }
+     }
+    ],
+    "cites": [
+     "cdc"
+    ]
+   },
+   {
+    "id": "bar1",
+    "type": "shape",
+    "shape": "rect",
+    "x": 180,
+    "y": 288.5,
+    "width": 90,
+    "height": 217.0,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "db1",
+    "type": "text",
+    "text": "140 dB",
+    "x": 180,
+    "y": 425.0,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "bar2",
+    "type": "shape",
+    "shape": "rect",
+    "x": 340,
+    "y": 265.25,
+    "width": 90,
+    "height": 170.5,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "db2",
+    "type": "text",
+    "text": "110 dB",
+    "x": 340,
+    "y": 378.5,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "bar3",
+    "type": "shape",
+    "shape": "rect",
+    "x": 500,
+    "y": 249.75,
+    "width": 90,
+    "height": 139.5,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "db3",
+    "type": "text",
+    "text": "90 dB",
+    "x": 500,
+    "y": 347.5,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "bar4",
+    "type": "shape",
+    "shape": "rect",
+    "x": 660,
+    "y": 226.5,
+    "width": 90,
+    "height": 93.0,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "db4",
+    "type": "text",
+    "text": "60 dB",
+    "x": 660,
+    "y": 301.0,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "bar5",
+    "type": "shape",
+    "shape": "rect",
+    "x": 820,
+    "y": 203.25,
+    "width": 90,
+    "height": 46.5,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "db5",
+    "type": "text",
+    "text": "30 dB",
+    "x": 820,
+    "y": 254.5,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "rule",
+    "type": "text",
+    "text": "+10 dB = 10× energy",
+    "x": 640,
+    "y": 470,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "k1000",
+    "type": "text",
+    "text": "chat = 1,000× whisper",
+    "x": 640,
+    "y": 470,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "sq_big",
+    "type": "shape",
+    "shape": "rect",
+    "x": 640,
+    "y": 310,
+    "width": 250,
+    "height": 250,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "sq_small",
+    "type": "shape",
+    "shape": "rect",
+    "x": 280,
+    "y": 400,
+    "width": 3,
+    "height": 3,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f"
+    }
+   },
+   {
+    "id": "l_big",
+    "type": "text",
+    "text": "concert",
+    "x": 640,
+    "y": 480,
+    "font_size": 34,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "l_small",
+    "type": "text",
+    "text": "chat",
+    "x": 280,
+    "y": 360,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "k100k",
+    "type": "text",
+    "text": "100,000×",
+    "x": 280,
+    "y": 470,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "k2",
+    "type": "text",
+    "text": "sounds 2× as loud",
+    "x": 280,
+    "y": 280,
+    "font_size": 34,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "k85",
+    "type": "text",
+    "text": "85 dB+: hearing risk",
+    "x": 280,
+    "y": 280,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How loud is loud?"
+    }
+   },
+   {
+    "draw": [
+     "sounds"
+    ],
+    "speak": "How loud is loud? Here are five everyday sounds."
+   },
+   {
+    "ask": {
+     "question": "Put these sounds in order, from the loudest to the quietest: drag the cards, then press Answer.",
+     "on": "sounds",
+     "store": "r",
+     "right": "From the top: the jet, the concert, the mower, a chat, and a whisper.",
+     "wrong": "You got {r}."
+    }
+   },
+   {
+    "draw": [
+     "bar5",
+     "bar4",
+     "db5",
+     "db4"
+    ],
+    "speak": "Sound is measured in decibels. A whisper is about thirty, a conversation about sixty."
+   },
+   {
+    "draw": [
+     "bar3",
+     "db3"
+    ],
+    "speak": "A lawnmower is around ninety."
+   },
+   {
+    "draw": [
+     "bar2",
+     "bar1",
+     "db2",
+     "db1"
+    ],
+    "speak": "A rock concert is about a hundred and ten, and a jet taking off nearby, about a hundred and forty."
+   },
+   {
+    "draw": [
+     "rule"
+    ],
+    "speak": "But a decibel is not like a centimetre: every ten decibels means ten times the sound energy."
+   },
+   {
+    "erase": [
+     "rule"
+    ]
+   },
+   {
+    "draw": [
+     "k1000"
+    ],
+    "speak": "So a conversation carries a thousand times the energy of a whisper."
+   },
+   {
+    "erase": [
+     "k1000",
+     "bar1",
+     "bar2",
+     "bar3",
+     "bar4",
+     "bar5",
+     "db1",
+     "db2",
+     "db3",
+     "db4",
+     "db5"
+    ]
+   },
+   {
+    "draw": [
+     "sq_small",
+     "l_small",
+     "sq_big",
+     "l_big",
+     "k100k"
+    ],
+    "speak": "And a rock concert, fifty decibels louder than a chat, carries a hundred thousand times as much."
+   },
+   {
+    "draw": [
+     "k2"
+    ],
+    "cue": 0.3,
+    "speak": "Your ears soften the blow: each ten decibels only sounds about twice as loud."
+   },
+   {
+    "erase": [
+     "k2"
+    ]
+   },
+   {
+    "draw": [
+     "k85"
+    ],
+    "cue": 0.3,
+    "speak": "Which is why it is easy to forget that long hours above eighty-five decibels can harm your hearing for good."
+   },
+   {
+    "highlight": {
+     "target": [
+      "sounds_2"
+     ],
+     "effect": "circle"
+    },
+    "speak": "Earplugs at the next concert are not a bad idea."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

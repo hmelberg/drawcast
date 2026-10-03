@@ -1,0 +1,17 @@
+{
+ "file": "hottest-peppers.json",
+ "title": "How hot are the world's hottest peppers?",
+ "subtitle": "Place four chillies on a ten-times-per-step heat scale, then learn why the burn is not real heat, and why birds do not feel it.",
+ "format": "quiz",
+ "tags": [
+  "food",
+  "biology",
+  "chemistry"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "card size fixed; cards along a scale stack when values are close"
+}

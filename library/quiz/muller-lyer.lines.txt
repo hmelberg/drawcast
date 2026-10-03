@@ -1,0 +1,11 @@
+Here is a line with its ends flared outwards, like a tail.
+And here is a second one, with its ends folded in, like arrowheads.
+[ASK] Which line is longer? Tap it, or tap Same length.
+  [right] They are exactly the same length.
+  [wrong] Look again in a moment.
+Drop a straight edge from each end, and both lines start and stop at the same place.
+Take the fins away, and the two lines are plainly twins.
+Put them back, and the top one looks longer again, even though you now know better.
+This is the Müller-Lyer illusion, drawn by the German Franz Müller-Lyer in 1889.
+In the 1960s, researchers reported that people who grew up without square rooms, such as San foragers in the Kalahari, hardly saw it.
+But a recent review found those studies were flawed. The illusion seems to come with our eyes and brains, not with our buildings.

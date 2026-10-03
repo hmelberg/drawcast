@@ -1,0 +1,16 @@
+{
+ "file": "baby-animal-names.json",
+ "title": "What are their babies called?",
+ "subtitle": "Joey, cygnet, leveret, elver: match four animals to the names of their young, and meet the best baby name of all.",
+ "format": "quiz",
+ "tags": [
+  "biology",
+  "language"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "match grid moved left (x 50, width 620) to give the puggle punchline its own card; no eel icon in twemoji; card icons small."
+}

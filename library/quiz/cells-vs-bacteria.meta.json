@@ -1,0 +1,16 @@
+{
+ "file": "cells-vs-bacteria.json",
+ "title": "Are there more bacteria in your body than human cells?",
+ "subtitle": "Do bacteria outnumber your own cells ten to one? Guess, then watch the famous ratio shrink and learn why one trip to the toilet can tip it.",
+ "format": "quiz",
+ "tags": [
+  "biology",
+  "health"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "bar_chart staged old (10:1) vs new (~1.3:1); animate ghost does not work on template bars, so the old bar is a hand-placed dashed outline (canvas coords read from frames)."
+}

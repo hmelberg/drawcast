@@ -1,0 +1,236 @@
+{
+ "request": "Did Cleopatra live closer in time to the building of the Great Pyramid or to the Moon landing? Let me place them on a timeline. #interactive #short",
+ "subtitle": "Place the Great Pyramid, Cleopatra and the Moon landing on one timeline, and see how 'ancient' Egypt stretches across time.",
+ "spec": {
+  "title": "Cleopatra: closer to the pyramids or the Moon?",
+  "sources": [
+   {
+    "id": "pyr",
+    "title": "Great Pyramid of Giza",
+    "authors": "Encyclopaedia Britannica",
+    "year": 2024,
+    "finding": "built for the pharaoh Khufu, finished around 2560 BC"
+   },
+   {
+    "id": "cleo",
+    "title": "Cleopatra",
+    "authors": "Encyclopaedia Britannica",
+    "year": 2024,
+    "finding": "born 69 BC, died 30 BC; a Ptolemy of Macedonian descent, said by Plutarch to be the first of her line to learn Egyptian"
+   }
+  ],
+  "elements": [
+   {
+    "id": "time",
+    "type": "scale",
+    "min": -3000,
+    "max": 2000,
+    "ticks": 5,
+    "x": 100,
+    "y": 420,
+    "width": 800,
+    "cites": [
+     "pyr",
+     "cleo"
+    ]
+   },
+   {
+    "id": "when",
+    "type": "cards",
+    "look": "flat",
+    "along": "time",
+    "items": [
+     {
+      "text": "Great Pyramid",
+      "icon": {
+       "of": "pyramid",
+       "or": [
+        "triangle"
+       ]
+      },
+      "value": -2560
+     },
+     {
+      "text": "Cleopatra dies",
+      "icon": {
+       "of": "crown",
+       "set": "twemoji"
+      },
+      "value": -30
+     },
+     {
+      "text": "Moon landing",
+      "icon": {
+       "of": "rocket",
+       "set": "twemoji"
+      },
+      "value": 1969
+     }
+    ]
+   },
+   {
+    "id": "gap1",
+    "type": "arrow",
+    "from": {
+     "x": 170.4,
+     "y": 300
+    },
+    "to": {
+     "x": 575.2,
+     "y": 300
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "gap1_l",
+    "type": "text",
+    "text": "2,530 years",
+    "x": 372.8,
+    "y": 255,
+    "font_size": 32,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "gap2",
+    "type": "arrow",
+    "from": {
+     "x": 575.2,
+     "y": 300
+    },
+    "to": {
+     "x": 895.04,
+     "y": 300
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "gap2_l",
+    "type": "text",
+    "text": "< 2,000 years",
+    "x": 735.12,
+    "y": 255,
+    "font_size": 32,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "bc",
+    "type": "text",
+    "text": "BC",
+    "x": 500.0,
+    "y": 370,
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "ad",
+    "type": "text",
+    "text": "AD",
+    "x": 660.0,
+    "y": 370,
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Closer to the pyramids, or the Moon?"
+    }
+   },
+   {
+    "draw": [
+     "time",
+     "bc",
+     "ad"
+    ],
+    "speak": "Did Cleopatra live closer in time to the builders of the Great Pyramid, or to the first Moon landing?"
+   },
+   {
+    "draw": [
+     "when"
+    ],
+    "speak": "Here are the three moments: the pyramid is finished, Cleopatra dies, and Apollo 11 lands."
+   },
+   {
+    "ask": {
+     "question": "When did each happen? Drag each card to its year on the timeline.",
+     "on": "when",
+     "store": "w",
+     "tolerance": 0.06,
+     "right": "All {w.total} close.",
+     "wrong": "{w} of {w.total} close."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "when_1"
+     ]
+    },
+    "speak": "The Great Pyramid was finished around 2560 BC, for the pharaoh Khufu."
+   },
+   {
+    "draw": [
+     "gap1",
+     "gap1_l"
+    ],
+    "speak": "That is about two and a half thousand years before Cleopatra died."
+   },
+   {
+    "highlight": {
+     "target": [
+      "when_2"
+     ]
+    },
+    "speak": "She died in 30 BC."
+   },
+   {
+    "draw": [
+     "gap2",
+     "gap2_l"
+    ],
+    "speak": "And from her death to the Moon landing in 1969 is less than two thousand years."
+   },
+   {
+    "highlight": {
+     "target": [
+      "gap2",
+      "gap2_l"
+     ]
+    },
+    "speak": "So Cleopatra lived closer to Neil Armstrong than to the pyramid builders."
+   },
+   {
+    "highlight": {
+     "target": [
+      "when_1"
+     ]
+    },
+    "speak": "To her, the pyramids were already ancient: older to her than she is to us."
+   },
+   {
+    "highlight": {
+     "target": [
+      "when_2"
+     ]
+    },
+    "speak": "And she was not Egyptian by descent. Her family, the Ptolemies, were Macedonian Greeks, and Plutarch says she was the first of them to learn Egyptian."
+   }
+  ],
+  "text": {
+   "font_size": 32
+  }
+ }
+}

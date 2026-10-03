@@ -1,0 +1,16 @@
+{
+ "file": "solar-panel-prices.json",
+ "title": "How fast did solar panels get cheaper?",
+ "subtitle": "Draw where the price of solar panels went after 2008, then see the crash: from $132 a watt in 1975 to about 27 cents today.",
+ "format": "quiz",
+ "tags": [
+  "economics",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "line_chart: no y tick values (only the ends) — drawn by hand; free texts near the line are pushed away by the label layout, so the end value is written as '2024: $0.27' rather than beside the point; no log y axis."
+}

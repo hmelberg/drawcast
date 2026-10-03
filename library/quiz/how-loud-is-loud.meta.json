@@ -1,0 +1,15 @@
+{
+ "file": "how-loud-is-loud.json",
+ "title": "How loud is loud?",
+ "subtitle": "Rank five sounds from a whisper to a jet, then see why ten decibels more means ten times the energy, and when loud starts to harm.",
+ "format": "quiz",
+ "tags": [
+  "physics"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "no twemoji lawnmower (text only); dB staircase as hand-drawn rects; energy shown as a 250-unit square vs a 3-unit dot."
+}

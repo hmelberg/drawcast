@@ -1,0 +1,16 @@
+{
+ "file": "missing-letter-states.json",
+ "title": "Which letter is in no US state's name?",
+ "subtitle": "J, Q, X or Z: one letter appears in no US state name. Pick it, then meet the lone states that save the other three.",
+ "format": "quiz",
+ "tags": [
+  "geography",
+  "language"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": ""
+}

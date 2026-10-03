@@ -1,0 +1,712 @@
+{
+ "request": "Fill in the missing piece of Pythagoras' theorem, over a 3-4-5 triangle with squares on its sides. #interactive #short",
+ "subtitle": "Pick the tile that finishes a² + b² = ?, check it on a 3-4-5 triangle, and meet the Babylonian tablet that knew it a thousand years before Pythagoras.",
+ "spec": {
+  "title": "What finishes Pythagoras' theorem?",
+  "sources": [
+   {
+    "id": "p322",
+    "title": "Plimpton 322",
+    "authors": "ISAW, New York University: Before Pythagoras exhibition",
+    "year": 2010,
+    "url": "https://isaw.nyu.edu/exhibitions/before-pythagoras/items/plimpton-322/",
+    "finding": "an Old Babylonian clay tablet (about 1800-1600 BC) listing Pythagorean triples, over a thousand years before Pythagoras"
+   }
+  ],
+  "text": {
+   "font_size": 32
+  },
+  "elements": [
+   {
+    "id": "tri",
+    "type": "path",
+    "points": [
+     [
+      200,
+      346
+     ],
+     [
+      376,
+      346
+     ],
+     [
+      200,
+      478
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "rt",
+    "type": "path",
+    "points": [
+     [
+      200,
+      366
+     ],
+     [
+      220,
+      366
+     ],
+     [
+      220,
+      346
+     ]
+    ],
+    "style": {
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "sq_a",
+    "type": "path",
+    "points": [
+     [
+      200,
+      346
+     ],
+     [
+      200,
+      478
+     ],
+     [
+      68,
+      478
+     ],
+     [
+      68,
+      346
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.25,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "sq_b",
+    "type": "path",
+    "points": [
+     [
+      200,
+      346
+     ],
+     [
+      376,
+      346
+     ],
+     [
+      376,
+      170
+     ],
+     [
+      200,
+      170
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.25,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "sq_c",
+    "type": "path",
+    "points": [
+     [
+      200,
+      478
+     ],
+     [
+      376,
+      346
+     ],
+     [
+      508,
+      522
+     ],
+     [
+      332,
+      654
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "opacity": 0.25,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "la",
+    "type": "text",
+    "text": "a",
+    "x": 216,
+    "y": 406,
+    "font_size": 30,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "lb",
+    "type": "text",
+    "text": "b",
+    "x": 300,
+    "y": 364,
+    "font_size": 30,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "lc",
+    "type": "text",
+    "text": "c",
+    "x": 295,
+    "y": 426,
+    "font_size": 30,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "n9",
+    "type": "text",
+    "text": "9",
+    "x": 134,
+    "y": 412,
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "n16",
+    "type": "text",
+    "text": "16",
+    "x": 288,
+    "y": 258,
+    "font_size": 60,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "n25",
+    "type": "text",
+    "text": "25",
+    "x": 354.0,
+    "y": 500.0,
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "law",
+    "type": "math",
+    "tex": "a^2 + b^2 = \\blank{c^2}",
+    "x": 760,
+    "y": 560,
+    "font_size": 48,
+    "size": 34
+   },
+   {
+    "id": "check",
+    "type": "text",
+    "text": "9 + 16 = 25",
+    "x": 760,
+    "y": 440,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "tablet",
+    "type": "text",
+    "text": "Babylon, ~1800 BC",
+    "x": 760,
+    "y": 330,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "p322"
+    ]
+   },
+   {
+    "id": "rope",
+    "type": "text",
+    "text": "3-4-5 = square corner",
+    "x": 760,
+    "y": 250,
+    "font_size": 30,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "ga_v1",
+    "type": "path",
+    "points": [
+     [
+      156,
+      346
+     ],
+     [
+      156,
+      478
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "ga_h1",
+    "type": "path",
+    "points": [
+     [
+      68,
+      390
+     ],
+     [
+      200,
+      390
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "ga_v2",
+    "type": "path",
+    "points": [
+     [
+      112,
+      346
+     ],
+     [
+      112,
+      478
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "ga_h2",
+    "type": "path",
+    "points": [
+     [
+      68,
+      434
+     ],
+     [
+      200,
+      434
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gb_v1",
+    "type": "path",
+    "points": [
+     [
+      244,
+      346
+     ],
+     [
+      244,
+      170
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gb_h1",
+    "type": "path",
+    "points": [
+     [
+      200,
+      302
+     ],
+     [
+      376,
+      302
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gb_v2",
+    "type": "path",
+    "points": [
+     [
+      288,
+      346
+     ],
+     [
+      288,
+      170
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gb_h2",
+    "type": "path",
+    "points": [
+     [
+      200,
+      258
+     ],
+     [
+      376,
+      258
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gb_v3",
+    "type": "path",
+    "points": [
+     [
+      332,
+      346
+     ],
+     [
+      332,
+      170
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gb_h3",
+    "type": "path",
+    "points": [
+     [
+      200,
+      214
+     ],
+     [
+      376,
+      214
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gc_a1",
+    "type": "path",
+    "points": [
+     [
+      235.2,
+      451.6
+     ],
+     [
+      367.2,
+      627.6
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gc_b1",
+    "type": "path",
+    "points": [
+     [
+      226.4,
+      513.2
+     ],
+     [
+      402.4,
+      381.2
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gc_a2",
+    "type": "path",
+    "points": [
+     [
+      270.4,
+      425.2
+     ],
+     [
+      402.4,
+      601.2
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gc_b2",
+    "type": "path",
+    "points": [
+     [
+      252.8,
+      548.4
+     ],
+     [
+      428.8,
+      416.4
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gc_a3",
+    "type": "path",
+    "points": [
+     [
+      305.6,
+      398.8
+     ],
+     [
+      437.6,
+      574.8
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gc_b3",
+    "type": "path",
+    "points": [
+     [
+      279.2,
+      583.6
+     ],
+     [
+      455.2,
+      451.6
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gc_a4",
+    "type": "path",
+    "points": [
+     [
+      340.8,
+      372.4
+     ],
+     [
+      472.8,
+      548.4
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "gc_b4",
+    "type": "path",
+    "points": [
+     [
+      305.6,
+      618.8
+     ],
+     [
+      481.6,
+      486.8
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 1.5
+    }
+   },
+   {
+    "id": "grid_a",
+    "type": "group",
+    "members": [
+     "ga_v1",
+     "ga_h1",
+     "ga_v2",
+     "ga_h2"
+    ]
+   },
+   {
+    "id": "grid_b",
+    "type": "group",
+    "members": [
+     "gb_v1",
+     "gb_h1",
+     "gb_v2",
+     "gb_h2",
+     "gb_v3",
+     "gb_h3"
+    ]
+   },
+   {
+    "id": "grid_c",
+    "type": "group",
+    "members": [
+     "gc_a1",
+     "gc_b1",
+     "gc_a2",
+     "gc_b2",
+     "gc_a3",
+     "gc_b3",
+     "gc_a4",
+     "gc_b4"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "What finishes Pythagoras' theorem?"
+    }
+   },
+   {
+    "draw": [
+     "tri",
+     "rt",
+     "la",
+     "lb",
+     "lc"
+    ],
+    "speak": "A right-angled triangle, with sides a, b and c: three, four and five. How are the three sides linked?"
+   },
+   {
+    "draw": [
+     "sq_a",
+     "sq_b",
+     "sq_c"
+    ],
+    "speak": "Build a square on each side, and the answer is hiding in their areas."
+   },
+   {
+    "draw": [
+     "law"
+    ]
+   },
+   {
+    "ask": {
+     "question": "Which tile finishes the theorem, so that it holds for every right triangle?",
+     "on": "law",
+     "others": [
+      "c",
+      "2c",
+      "(a+b)^2"
+     ],
+     "store": "t",
+     "right": "c squared: the two small squares together fill the big one.",
+     "wrong": "Look at what the squares measure: areas."
+    }
+   },
+   {
+    "draw": [
+     "grid_a",
+     "n9"
+    ],
+    "speak": "Check it here. The square on the short side holds nine little squares,"
+   },
+   {
+    "draw": [
+     "grid_b",
+     "n16"
+    ],
+    "speak": "the one on the side of four holds sixteen,"
+   },
+   {
+    "draw": [
+     "grid_c",
+     "n25",
+     "check"
+    ],
+    "speak": "and nine plus sixteen is twenty-five: exactly the big square."
+   },
+   {
+    "draw": [
+     "tablet"
+    ],
+    "speak": "It carries the name of Pythagoras, a Greek of about 500 BC. But a Babylonian clay tablet, Plimpton 322, lists such triples more than a thousand years earlier."
+   },
+   {
+    "draw": [
+     "rope"
+    ],
+    "speak": "And builders still use the trick: measure three along one wall and four along the other, and if the gap is five, the corner is square."
+   },
+   {
+    "highlight": {
+     "target": [
+      "sq_c"
+     ]
+    },
+    "speak": "So the big square is the sum of the two small ones, on every right triangle there is."
+   }
+  ]
+ }
+}

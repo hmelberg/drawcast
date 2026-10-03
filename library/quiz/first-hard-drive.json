@@ -1,0 +1,496 @@
+{
+ "request": "How much did the first hard drive weigh? Let me guess on a log scale. #interactive #short",
+ "subtitle": "Guess how much the first hard drive weighed in 1956, then compare it with the microSD card in your phone, a gram that holds a terabyte.",
+ "spec": {
+  "title": "How much did the first hard drive weigh?",
+  "sources": [
+   {
+    "id": "ibm350",
+    "title": "IBM 350",
+    "authors": "Wikipedia",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/IBM_350",
+    "finding": "5 million 6-bit characters (3.75 MB) on fifty 24-inch disks at 1,200 rpm; cabinet 152 cm long, 172 cm high, 74 cm wide; the RAMAC 305 system leased for $3,200 a month"
+   },
+   {
+    "id": "thelen",
+    "title": "Myths about IBM RAMAC, the first HDD",
+    "authors": "E. Thelen",
+    "year": 2015,
+    "url": "https://ed-thelen.org/RAMAC/Myths.html",
+    "finding": "the IBM 350 weighed 1,730 lb (785 kg); 'over a ton' figures include the separate air compressor"
+   }
+  ],
+  "elements": [
+   {
+    "id": "cab",
+    "type": "path",
+    "points": [
+     [
+      55,
+      290
+     ],
+     [
+      347,
+      290
+     ],
+     [
+      347,
+      620
+     ],
+     [
+      55,
+      620
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#5e584e",
+     "fill": "#c9c2b4",
+     "fill_style": "wash",
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "win",
+    "type": "path",
+    "points": [
+     [
+      105,
+      360
+     ],
+     [
+      297,
+      360
+     ],
+     [
+      297,
+      590
+     ],
+     [
+      105,
+      590
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#5e584e",
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "d0",
+    "type": "path",
+    "points": [
+     [
+      115,
+      380
+     ],
+     [
+      287,
+      380
+     ]
+    ],
+    "style": {
+     "color": "#5e584e",
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "d1",
+    "type": "path",
+    "points": [
+     [
+      115,
+      406
+     ],
+     [
+      287,
+      406
+     ]
+    ],
+    "style": {
+     "color": "#5e584e",
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "d2",
+    "type": "path",
+    "points": [
+     [
+      115,
+      432
+     ],
+     [
+      287,
+      432
+     ]
+    ],
+    "style": {
+     "color": "#5e584e",
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "d3",
+    "type": "path",
+    "points": [
+     [
+      115,
+      458
+     ],
+     [
+      287,
+      458
+     ]
+    ],
+    "style": {
+     "color": "#5e584e",
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "d4",
+    "type": "path",
+    "points": [
+     [
+      115,
+      484
+     ],
+     [
+      287,
+      484
+     ]
+    ],
+    "style": {
+     "color": "#5e584e",
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "d5",
+    "type": "path",
+    "points": [
+     [
+      115,
+      510
+     ],
+     [
+      287,
+      510
+     ]
+    ],
+    "style": {
+     "color": "#5e584e",
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "d6",
+    "type": "path",
+    "points": [
+     [
+      115,
+      536
+     ],
+     [
+      287,
+      536
+     ]
+    ],
+    "style": {
+     "color": "#5e584e",
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "d7",
+    "type": "path",
+    "points": [
+     [
+      115,
+      562
+     ],
+     [
+      287,
+      562
+     ]
+    ],
+    "style": {
+     "color": "#5e584e",
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "cabinet",
+    "type": "group",
+    "members": [
+     "cab",
+     "win",
+     "d0",
+     "d1",
+     "d2",
+     "d3",
+     "d4",
+     "d5",
+     "d6",
+     "d7"
+    ]
+   },
+   {
+    "id": "name",
+    "type": "text",
+    "text": "IBM 350, 1956",
+    "x": 680,
+    "y": 600,
+    "font_size": 46
+   },
+   {
+    "id": "cap",
+    "type": "text",
+    "text": "3.75 MB",
+    "x": 680,
+    "y": 535,
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "ibm350"
+    ]
+   },
+   {
+    "id": "kg",
+    "type": "scale",
+    "min": 0.0001,
+    "max": 10000,
+    "log": true,
+    "value": 800,
+    "unit": "kg",
+    "x": 60,
+    "y": 225,
+    "width": 880,
+    "cites": [
+     "thelen"
+    ]
+   },
+   {
+    "id": "kg_l",
+    "type": "text",
+    "text": "kg",
+    "x": 965,
+    "y": 225,
+    "font_size": 30
+   },
+   {
+    "id": "ton",
+    "type": "text",
+    "text": "nearly a tonne",
+    "x": 680,
+    "y": 460,
+    "font_size": 50,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "thelen"
+    ]
+   },
+   {
+    "id": "car",
+    "type": "icon",
+    "of": "automobile",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 110,
+    "x": 680,
+    "y": 385
+   },
+   {
+    "id": "platters",
+    "type": "text",
+    "text": "50 disks, 61 cm",
+    "x": 680,
+    "y": 460,
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "rent",
+    "type": "text",
+    "text": "$3,200 a month",
+    "x": 680,
+    "y": 460,
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "sd",
+    "type": "path",
+    "points": [
+     [
+      398,
+      290
+     ],
+     [
+      404,
+      290
+     ],
+     [
+      404,
+      294
+     ],
+     [
+      398,
+      294
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "sd_arrow",
+    "type": "arrow",
+    "from": {
+     "x": 500,
+     "y": 360
+    },
+    "to": {
+     "x": 408,
+     "y": 296
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "sd_l",
+    "type": "text",
+    "text": "microSD",
+    "x": 560,
+    "y": 385,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "tb",
+    "type": "text",
+    "text": "1 TB, under 1 g",
+    "x": 680,
+    "y": 460,
+    "font_size": 46,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How much did the first hard drive weigh?"
+    }
+   },
+   {
+    "draw": [
+     "cabinet",
+     "name",
+     "cap"
+    ],
+    "speak": "In 1956, IBM shipped the first hard drive, a cabinet as tall as a person. It held five million characters, about three and three-quarter megabytes."
+   },
+   {
+    "draw": [
+     "kg",
+     "kg_l"
+    ],
+    "speak": "That is about one photo on your phone today."
+   },
+   {
+    "ask": {
+     "question": "How many kilograms did the first hard drive weigh? Click on the line.",
+     "on": "kg",
+     "store": "w",
+     "default": "10",
+     "right": "Close: you said {w}, and it was about {w.true}.",
+     "wrong": "You said {w}; it was about {w.true}."
+    }
+   },
+   {
+    "draw": [
+     "ton",
+     "car"
+    ],
+    "speak": "Nearly a tonne, as heavy as a small car. It was moved with forklifts, and flown in cargo planes."
+   },
+   {
+    "erase": [
+     "ton",
+     "car"
+    ]
+   },
+   {
+    "draw": [
+     "platters"
+    ],
+    "speak": "Inside, fifty metal disks, each sixty-one centimetres across, spun twelve hundred times a minute."
+   },
+   {
+    "erase": [
+     "platters"
+    ]
+   },
+   {
+    "draw": [
+     "rent"
+    ],
+    "speak": "And you could not buy one. Companies rented the whole system, for about three thousand two hundred dollars a month."
+   },
+   {
+    "erase": [
+     "rent"
+    ]
+   },
+   {
+    "draw": [
+     "sd",
+     "sd_arrow",
+     "sd_l"
+    ],
+    "speak": "Now draw a microSD card at the same scale. It is this speck, and it weighs under a gram."
+   },
+   {
+    "draw": [
+     "tb"
+    ],
+    "speak": "Yet a one-terabyte card holds more than a quarter of a million times as much."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "sd_l"
+     },
+     "gesture": "underline"
+    },
+    "speak": "Megabyte for megabyte, today's card is hundreds of billions of times lighter."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  },
+  "assets": {
+   "icon.automobile.twemoji": "ics1:twemoji:automobile:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#dd2e44\" d=\"M13 32h20s3 0 3-4c0-2 0-6-1-7s-8-7-11-7h-6c-3 0-10 7-10 7l-4 1s-3 1-3 3v3s-1 .338-1 1.957C0 32 2 32 2 32z\"/><path fill=\"#bbddf5\" d=\"M20 16h-2c-2 0-8 6-8 6s4.997-.263 10-.519zm10 3c-1-1-5-3-7-3h-1v5.379c4.011-.204 7.582-.379 8-.379c1 0 1-1 0-2\"/><circle cx=\"10\" cy=\"31\" r=\"4\" fill=\"#292f33\"/><circle cx=\"10\" cy=\"31\" r=\"2\" fill=\"#ccd6dd\"/><circle cx=\"27\" cy=\"31\" r=\"4\" fill=\"#292f33\"/><circle cx=\"27\" cy=\"31\" r=\"2\" fill=\"#ccd6dd\"/></svg>"
+  }
+ }
+}

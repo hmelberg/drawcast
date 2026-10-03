@@ -1,0 +1,13 @@
+(a) Which glass has more water? Start with two identical glasses, filled to exactly the same level.
+(a) Now I pour this one into a tall, thin glass. Not a drop spilled.
+(b) Easy. The tall one, obviously. Look how high the water is.
+[ASK] Which glass has more water now? Tap the glass, or tap Same.
+  [right] The same. Nothing was added or spilled; the water only changed shape.
+  [wrong] Think back to the pouring.
+(b) Hang on. I said the tall one.
+(a) So do most four-year-olds. They point to the tall glass, because the water is higher.
+(b) Even after watching it being poured?
+(a) Even then. The Swiss psychologist Jean Piaget made this little test famous.
+(a) He called it conservation: knowing that an amount stays the same when its shape changes. Most children get it at around six or seven.
+(b) So that's why my little brother always grabbed the tall glass.
+(a) Smart move, though: same juice, bigger-looking prize.

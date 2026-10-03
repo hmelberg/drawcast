@@ -1,0 +1,12 @@
+Seven famous animals, and one from the farmyard. Only some of them are dinosaurs.
+[ASK] Which of these animals are dinosaurs? Tap every dinosaur, then Done.
+  [right] All {d.total} right.
+  [wrong] {d} of {d.total} on the first try.
+Tyrannosaurus, Triceratops and Stegosaurus are the easy ones.
+But the pterodactyl is not a dinosaur. Pterosaurs were flying reptiles, cousins on a branch of their own.
+Plesiosaurs swam the seas, another branch of reptiles, and no dinosaurs either.
+And Dimetrodon, with the sail on its back, lived before the first dinosaurs, and is closer kin to us mammals.
+The mammoth is plainly a mammal: an elephant in a woolly coat.
+Which leaves the surprise: the chicken.
+Birds descend from the same group of meat-eating dinosaurs as Tyrannosaurus, so biologists count them as dinosaurs.
+So the dinosaurs never all died out: about eleven thousand species of them are still flying around us.

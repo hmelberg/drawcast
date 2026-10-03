@@ -1,0 +1,15 @@
+{
+ "file": "cleopatra-closer.json",
+ "title": "Cleopatra: closer to the pyramids or the Moon?",
+ "subtitle": "Place the Great Pyramid, Cleopatra and the Moon landing on one timeline, and see how 'ancient' Egypt stretches across time.",
+ "format": "quiz",
+ "tags": [
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "pilot"
+}

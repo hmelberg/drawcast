@@ -1,0 +1,13 @@
+How loud is loud? Here are five everyday sounds.
+[ASK] Put these sounds in order, from the loudest to the quietest: drag the cards, then press Answer.
+  [right] From the top: the jet, the concert, the mower, a chat, and a whisper.
+  [wrong] You got {r}.
+Sound is measured in decibels. A whisper is about thirty, a conversation about sixty.
+A lawnmower is around ninety.
+A rock concert is about a hundred and ten, and a jet taking off nearby, about a hundred and forty.
+But a decibel is not like a centimetre: every ten decibels means ten times the sound energy.
+So a conversation carries a thousand times the energy of a whisper.
+And a rock concert, fifty decibels louder than a chat, carries a hundred thousand times as much.
+Your ears soften the blow: each ten decibels only sounds about twice as loud.
+Which is why it is easy to forget that long hours above eighty-five decibels can harm your hearing for good.
+Earplugs at the next concert are not a bad idea.

@@ -1,0 +1,210 @@
+{
+ "request": "When was the first text message sent, and what did it say? Let me guess the year. #interactive #short",
+ "subtitle": "Guess the year of the first text message, then hear what it said, who got it, and why he could not reply.",
+ "spec": {
+  "title": "When was the first text message sent?",
+  "sources": [
+   {
+    "id": "voda",
+    "title": "25 years since the world's first text message",
+    "authors": "Vodafone",
+    "year": 2017,
+    "url": "https://www.vodafone.com/news/newsroom/technology/25-anniversary-text-message",
+    "finding": "Neil Papworth sent 'Merry Christmas' from a computer to Richard Jarvis's Orbitel 901 on 3 December 1992"
+   },
+   {
+    "id": "hill",
+    "title": "SMS",
+    "authors": "Wikipedia",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/SMS",
+    "finding": "Friedhelm Hillebrand set the 160-character limit in 1985 after counting the characters in typical postcards and telex messages"
+   },
+   {
+    "id": "nft",
+    "title": "First SMS sells as NFT for 107,000 euros",
+    "authors": "Reuters",
+    "year": 2021,
+    "finding": "Vodafone auctioned the 'Merry Christmas' text as an NFT in Paris, December 2021"
+   }
+  ],
+  "elements": [
+   {
+    "id": "year",
+    "type": "scale",
+    "min": 1970,
+    "max": 2010,
+    "ticks": 4,
+    "value": 1992,
+    "x": 150,
+    "y": 520,
+    "width": 700,
+    "cites": [
+     "voda"
+    ]
+   },
+   {
+    "id": "bubble",
+    "type": "node",
+    "text": "Merry Christmas",
+    "x": 500,
+    "y": 320,
+    "width": 330,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "shape": "rect"
+   },
+   {
+    "id": "limit",
+    "type": "text",
+    "text": "1985: 160 characters",
+    "x": 412.5,
+    "y": 450,
+    "font_size": 28,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "hill"
+    ]
+   },
+   {
+    "id": "pc",
+    "type": "icon",
+    "of": "desktop computer",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 200,
+    "y": 320
+   },
+   {
+    "id": "phone",
+    "type": "icon",
+    "of": "mobile phone",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 800,
+    "y": 320
+   },
+   {
+    "id": "noreply",
+    "type": "text",
+    "text": "no reply",
+    "x": 800,
+    "y": 205,
+    "font_size": 34,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "mark85",
+    "type": "path",
+    "points": [
+     [
+      412.5,
+      515
+     ],
+     [
+      412.5,
+      478
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "stroke_width": 3
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "When was the first text sent?"
+    }
+   },
+   {
+    "draw": [
+     "year"
+    ],
+    "speak": "Billions of text messages are sent every day. But when was the very first one sent?"
+   },
+   {
+    "ask": {
+     "question": "In what year was the first text message sent? Click on the line.",
+     "on": "year",
+     "store": "y",
+     "default": "1998",
+     "tolerance": 0.05,
+     "right": "Close: you said {y}, and it was {y.true}.",
+     "wrong": "You said {y}; it was {y.true}."
+    }
+   },
+   {
+    "draw": [
+     "pc",
+     "bubble"
+    ],
+    "speak": "On the third of December 1992, a twenty-two-year-old engineer, Neil Papworth, sent two words: Merry Christmas."
+   },
+   {
+    "highlight": {
+     "target": [
+      "pc"
+     ]
+    },
+    "speak": "He typed it on a computer, because no phone could write a message yet."
+   },
+   {
+    "draw": [
+     "phone"
+    ],
+    "speak": "It reached Richard Jarvis of Vodafone, at his office Christmas party."
+   },
+   {
+    "draw": [
+     "noreply"
+    ],
+    "speak": "His phone could receive it, but he had no way to reply."
+   },
+   {
+    "draw": [
+     "mark85",
+     "limit"
+    ],
+    "speak": "The famous limit of one hundred and sixty characters is older still."
+   },
+   {
+    "highlight": {
+     "target": [
+      "limit"
+     ]
+    },
+    "speak": "In 1985, Friedhelm Hillebrand counted the letters on postcards and telex messages, and found that was enough to say most things."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bubble"
+     ]
+    },
+    "speak": "In 2021 Vodafone sold that first message as a digital collectible, for a hundred and seven thousand euros."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "bubble"
+     },
+     "gesture": "underline"
+    },
+    "speak": "Not bad for a Christmas greeting that could not be answered."
+   }
+  ],
+  "text": {
+   "font_size": 32
+  }
+ }
+}

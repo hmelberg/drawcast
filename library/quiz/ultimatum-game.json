@@ -1,0 +1,315 @@
+{
+ "request": "The ultimatum game: you get $100 to split with a stranger who can say no. How much would you offer? A two-voice dialogue. #interactive #short",
+ "subtitle": "You have $100 to split with a stranger who can refuse. Make your offer, then hear what people really do and why low offers get turned down.",
+ "spec": {
+  "title": "You have $100 to split with a stranger. How much would you offer?",
+  "sources": [
+   {
+    "id": "guth",
+    "title": "An experimental analysis of ultimatum bargaining",
+    "authors": "W. Güth, R. Schmittberger, B. Schwarze",
+    "year": 1982,
+    "doi": "10.1016/0167-2681(82)90011-7",
+    "finding": "the first ultimatum game experiment: many proposers offered close to half, and low offers were rejected"
+   },
+   {
+    "id": "camerer",
+    "title": "Behavioral Game Theory",
+    "authors": "C. F. Camerer",
+    "year": 2003,
+    "finding": "across many studies, mean offers are about 40 % of the pie; offers below 20 % are rejected about half the time"
+   },
+   {
+    "id": "engel",
+    "title": "Dictator games: a meta study",
+    "authors": "C. Engel",
+    "year": 2011,
+    "doi": "10.1007/s10683-011-9283-7",
+    "finding": "when the receiver cannot refuse, dictators give on average about 28 %, and about two in three give something"
+   }
+  ],
+  "elements": [
+   {
+    "id": "you",
+    "type": "node",
+    "shape": "person",
+    "text": "",
+    "x": 180,
+    "y": 555,
+    "width": 160,
+    "height": 180,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "you_l",
+    "type": "text",
+    "text": "You",
+    "x": 180,
+    "y": 425,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "stranger",
+    "type": "node",
+    "shape": "person",
+    "text": "",
+    "x": 820,
+    "y": 555,
+    "width": 160,
+    "height": 180,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "stranger_l",
+    "type": "text",
+    "text": "Stranger",
+    "x": 820,
+    "y": 425,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "cash",
+    "type": "node",
+    "shape": "rect",
+    "text": "$100",
+    "x": 500,
+    "y": 540,
+    "width": 240,
+    "font_size": 64
+   },
+   {
+    "id": "offer",
+    "type": "scale",
+    "min": 0,
+    "max": 100,
+    "ticks": 5,
+    "value": 40,
+    "x": 120,
+    "y": 290,
+    "width": 760,
+    "cites": [
+     "camerer"
+    ]
+   },
+   {
+    "id": "refuse",
+    "type": "path",
+    "points": [
+     [
+      120,
+      292
+     ],
+     [
+      272.0,
+      292
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "stroke_width": 14
+    }
+   },
+   {
+    "id": "refuse_l",
+    "type": "text",
+    "text": "often refused",
+    "x": 236.0,
+    "y": 345,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "camerer"
+    ]
+   },
+   {
+    "id": "fair",
+    "type": "path",
+    "points": [
+     [
+      424.0,
+      292
+     ],
+     [
+      500.0,
+      292
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 14
+    }
+   },
+   {
+    "id": "dict_tick",
+    "type": "path",
+    "points": [
+     [
+      332.8,
+      240
+     ],
+     [
+      332.8,
+      330
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "dict_l",
+    "type": "text",
+    "text": "can't refuse: ~28",
+    "x": 322.8,
+    "y": 205,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "engel"
+    ]
+   },
+   {
+    "id": "guth",
+    "type": "text",
+    "text": "Güth, 1982",
+    "x": 500,
+    "y": 425,
+    "font_size": 36,
+    "style": {
+     "color": "#8f887c"
+    },
+    "cites": [
+     "guth"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How much would you offer?"
+    }
+   },
+   {
+    "draw": [
+     "cash",
+     "you",
+     "you_l",
+     "stranger",
+     "stranger_l"
+    ],
+    "speak": "Say I hand you a hundred dollars, but you must offer part of it to a stranger. How much would you give?",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "offer"
+    ],
+    "speak": "If they accept, you each keep your share. If they refuse, you both get nothing.",
+    "voice": "a"
+   },
+   {
+    "ask": {
+     "question": "How many of the 100 dollars would you offer the stranger? Click on the line.",
+     "on": "offer",
+     "judge": false,
+     "store": "o",
+     "default": "40",
+     "right": "You offered {o}. In experiments, the typical offer is about forty."
+    }
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "stranger"
+     }
+    },
+    "speak": "Wait. Why not offer one dollar? One dollar beats nothing.",
+    "voice": "b"
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "cash"
+     }
+    },
+    "speak": "That's what the textbook says: a purely selfish stranger takes the dollar.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "refuse",
+     "refuse_l"
+    ],
+    "speak": "But real strangers don't. Offers under twenty dollars are turned down about half the time.",
+    "voice": "a"
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "refuse_l"
+     }
+    },
+    "speak": "They'd rather walk away with nothing than take an insult?",
+    "voice": "b"
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "refuse"
+     }
+    },
+    "speak": "Many would.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "guth"
+    ],
+    "speak": "Werner Güth and his colleagues first showed it in Germany in 1982, and it has been repeated around the world.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "fair"
+    ],
+    "speak": "So offers cluster around forty to fifty: people offer what they expect to be accepted.",
+    "voice": "a"
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "you"
+     }
+    },
+    "speak": "So my fairness is really fear of being turned down?",
+    "voice": "b"
+   },
+   {
+    "draw": [
+     "dict_tick",
+     "dict_l"
+    ],
+    "speak": "Partly. When the stranger cannot refuse at all, offers drop to about thirty, but most people still give something.",
+    "voice": "a"
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

@@ -1,0 +1,12 @@
+Did Cleopatra live closer in time to the builders of the Great Pyramid, or to the first Moon landing?
+Here are the three moments: the pyramid is finished, Cleopatra dies, and Apollo 11 lands.
+[ASK] When did each happen? Drag each card to its year on the timeline.
+  [right] All {w.total} close.
+  [wrong] {w} of {w.total} close.
+The Great Pyramid was finished around 2560 BC, for the pharaoh Khufu.
+That is about two and a half thousand years before Cleopatra died.
+She died in 30 BC.
+And from her death to the Moon landing in 1969 is less than two thousand years.
+So Cleopatra lived closer to Neil Armstrong than to the pyramid builders.
+To her, the pyramids were already ancient: older to her than she is to us.
+And she was not Egyptian by descent. Her family, the Ptolemies, were Macedonian Greeks, and Plutarch says she was the first of them to learn Egyptian.

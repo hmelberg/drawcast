@@ -1,0 +1,11 @@
+On most wall maps, Greenland looks about as big as Africa.
+[ASK] Africa is drawn. How big is Greenland? Drag its bar to your guess.
+  [right] Close: you said {g} million square kilometres, and it is {g.true}.
+  [wrong] You said {g} million square kilometres; it is only {g.true}.
+Africa is about fourteen times bigger: thirty million square kilometres against two.
+The culprit is the map itself, drawn by Gerardus Mercator in 1569 for sailors.
+It keeps compass directions true, so a straight line on it is a steady course across the sea.
+But to do that it stretches the land more and more toward the poles, and Greenland sits far in the north.
+In fact Greenland is smaller than a single African country, the Democratic Republic of the Congo.
+And Africa could swallow the United States, China and India together, with room to spare.
+So next time you see a world map, look twice at the top and bottom.

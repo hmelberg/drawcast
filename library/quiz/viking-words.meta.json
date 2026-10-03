@@ -1,0 +1,16 @@
+{
+ "file": "viking-words.json",
+ "title": "Which words came from the Vikings?",
+ "subtitle": "Tap the everyday English words that came from the Vikings' Old Norse, and hear what 'window' and 'husband' first meant.",
+ "format": "quiz",
+ "tags": [
+  "language",
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "notes": "pilot"
+}

@@ -1,0 +1,19 @@
+Five things almost everyone has heard. For each one: true, or myth?
+First: you can see the Great Wall of China from space.
+First: you can see the Great Wall of China from space.
+[QUIZ] The Great Wall can be seen from space with the naked eye. True or myth?  choices=['True', 'Myth']
+  [right] Myth. The wall is long but only about as wide as a road, and China's first astronaut, Yang Liwei, could not see it in 2003.
+Next, the goldfish, said to forget everything in three seconds.
+[QUIZ] A goldfish's memory lasts only about three seconds. True or myth?  choices=['True', 'Myth']
+  [right] Myth. Goldfish remember for months: they learn when food comes, and which sound means dinner.
+Then the old saying that lightning never strikes the same place twice.
+[QUIZ] Lightning never strikes the same place twice. True or myth?  choices=['True', 'Myth']
+  [right] Myth. Tall things get hit again and again: the Empire State Building is struck about twenty-five times a year.
+Now the breakfast table: bananas are said to be radioactive.
+[QUIZ] Bananas are radioactive. True or myth?  choices=['True', 'Myth']
+  [right] True. A tiny share of their potassium is radioactive potassium-40, though your body keeps its potassium level steady, so it does no harm.
+And last, the octopus, said to have three hearts.
+[QUIZ] An octopus has three hearts. True or myth?  choices=['True', 'Myth']
+  [right] True. Two hearts pump blood through the gills, and a third sends it round the body.
+You got {score} of {score_total}.
+And the two that sounded most like myths were the true ones.

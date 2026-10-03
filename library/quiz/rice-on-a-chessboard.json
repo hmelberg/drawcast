@@ -1,0 +1,1369 @@
+{
+ "request": "A dialogue quiz: one grain of rice on the first chess square, doubling each square. How much on the last? Let me guess on a log scale. #interactive #short",
+ "subtitle": "Guess how much rice ends up on the last square of a chessboard when you double each time, and see why doubling fools everyone.",
+ "spec": {
+  "title": "How much rice on the last square of a chessboard?",
+  "sources": [
+   {
+    "id": "fao",
+    "title": "FAOSTAT analytical brief 96: agricultural production statistics 2010-2023",
+    "authors": "FAO",
+    "year": 2024,
+    "finding": "world rice production was about 800 million tonnes (paddy) in 2023"
+   }
+  ],
+  "elements": [
+   {
+    "id": "b_frame",
+    "type": "path",
+    "points": [
+     [
+      50,
+      170
+     ],
+     [
+      514,
+      170
+     ],
+     [
+      514,
+      634
+     ],
+     [
+      50,
+      634
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "sq00",
+    "type": "path",
+    "points": [
+     [
+      50,
+      170
+     ],
+     [
+      108,
+      170
+     ],
+     [
+      108,
+      228
+     ],
+     [
+      50,
+      228
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq02",
+    "type": "path",
+    "points": [
+     [
+      166,
+      170
+     ],
+     [
+      224,
+      170
+     ],
+     [
+      224,
+      228
+     ],
+     [
+      166,
+      228
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq04",
+    "type": "path",
+    "points": [
+     [
+      282,
+      170
+     ],
+     [
+      340,
+      170
+     ],
+     [
+      340,
+      228
+     ],
+     [
+      282,
+      228
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq06",
+    "type": "path",
+    "points": [
+     [
+      398,
+      170
+     ],
+     [
+      456,
+      170
+     ],
+     [
+      456,
+      228
+     ],
+     [
+      398,
+      228
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq11",
+    "type": "path",
+    "points": [
+     [
+      108,
+      228
+     ],
+     [
+      166,
+      228
+     ],
+     [
+      166,
+      286
+     ],
+     [
+      108,
+      286
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq13",
+    "type": "path",
+    "points": [
+     [
+      224,
+      228
+     ],
+     [
+      282,
+      228
+     ],
+     [
+      282,
+      286
+     ],
+     [
+      224,
+      286
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq15",
+    "type": "path",
+    "points": [
+     [
+      340,
+      228
+     ],
+     [
+      398,
+      228
+     ],
+     [
+      398,
+      286
+     ],
+     [
+      340,
+      286
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq17",
+    "type": "path",
+    "points": [
+     [
+      456,
+      228
+     ],
+     [
+      514,
+      228
+     ],
+     [
+      514,
+      286
+     ],
+     [
+      456,
+      286
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq20",
+    "type": "path",
+    "points": [
+     [
+      50,
+      286
+     ],
+     [
+      108,
+      286
+     ],
+     [
+      108,
+      344
+     ],
+     [
+      50,
+      344
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq22",
+    "type": "path",
+    "points": [
+     [
+      166,
+      286
+     ],
+     [
+      224,
+      286
+     ],
+     [
+      224,
+      344
+     ],
+     [
+      166,
+      344
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq24",
+    "type": "path",
+    "points": [
+     [
+      282,
+      286
+     ],
+     [
+      340,
+      286
+     ],
+     [
+      340,
+      344
+     ],
+     [
+      282,
+      344
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq26",
+    "type": "path",
+    "points": [
+     [
+      398,
+      286
+     ],
+     [
+      456,
+      286
+     ],
+     [
+      456,
+      344
+     ],
+     [
+      398,
+      344
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq31",
+    "type": "path",
+    "points": [
+     [
+      108,
+      344
+     ],
+     [
+      166,
+      344
+     ],
+     [
+      166,
+      402
+     ],
+     [
+      108,
+      402
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq33",
+    "type": "path",
+    "points": [
+     [
+      224,
+      344
+     ],
+     [
+      282,
+      344
+     ],
+     [
+      282,
+      402
+     ],
+     [
+      224,
+      402
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq35",
+    "type": "path",
+    "points": [
+     [
+      340,
+      344
+     ],
+     [
+      398,
+      344
+     ],
+     [
+      398,
+      402
+     ],
+     [
+      340,
+      402
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq37",
+    "type": "path",
+    "points": [
+     [
+      456,
+      344
+     ],
+     [
+      514,
+      344
+     ],
+     [
+      514,
+      402
+     ],
+     [
+      456,
+      402
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq40",
+    "type": "path",
+    "points": [
+     [
+      50,
+      402
+     ],
+     [
+      108,
+      402
+     ],
+     [
+      108,
+      460
+     ],
+     [
+      50,
+      460
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq42",
+    "type": "path",
+    "points": [
+     [
+      166,
+      402
+     ],
+     [
+      224,
+      402
+     ],
+     [
+      224,
+      460
+     ],
+     [
+      166,
+      460
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq44",
+    "type": "path",
+    "points": [
+     [
+      282,
+      402
+     ],
+     [
+      340,
+      402
+     ],
+     [
+      340,
+      460
+     ],
+     [
+      282,
+      460
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq46",
+    "type": "path",
+    "points": [
+     [
+      398,
+      402
+     ],
+     [
+      456,
+      402
+     ],
+     [
+      456,
+      460
+     ],
+     [
+      398,
+      460
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq51",
+    "type": "path",
+    "points": [
+     [
+      108,
+      460
+     ],
+     [
+      166,
+      460
+     ],
+     [
+      166,
+      518
+     ],
+     [
+      108,
+      518
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq53",
+    "type": "path",
+    "points": [
+     [
+      224,
+      460
+     ],
+     [
+      282,
+      460
+     ],
+     [
+      282,
+      518
+     ],
+     [
+      224,
+      518
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq55",
+    "type": "path",
+    "points": [
+     [
+      340,
+      460
+     ],
+     [
+      398,
+      460
+     ],
+     [
+      398,
+      518
+     ],
+     [
+      340,
+      518
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq57",
+    "type": "path",
+    "points": [
+     [
+      456,
+      460
+     ],
+     [
+      514,
+      460
+     ],
+     [
+      514,
+      518
+     ],
+     [
+      456,
+      518
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq60",
+    "type": "path",
+    "points": [
+     [
+      50,
+      518
+     ],
+     [
+      108,
+      518
+     ],
+     [
+      108,
+      576
+     ],
+     [
+      50,
+      576
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq62",
+    "type": "path",
+    "points": [
+     [
+      166,
+      518
+     ],
+     [
+      224,
+      518
+     ],
+     [
+      224,
+      576
+     ],
+     [
+      166,
+      576
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq64",
+    "type": "path",
+    "points": [
+     [
+      282,
+      518
+     ],
+     [
+      340,
+      518
+     ],
+     [
+      340,
+      576
+     ],
+     [
+      282,
+      576
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq66",
+    "type": "path",
+    "points": [
+     [
+      398,
+      518
+     ],
+     [
+      456,
+      518
+     ],
+     [
+      456,
+      576
+     ],
+     [
+      398,
+      576
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq71",
+    "type": "path",
+    "points": [
+     [
+      108,
+      576
+     ],
+     [
+      166,
+      576
+     ],
+     [
+      166,
+      634
+     ],
+     [
+      108,
+      634
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq73",
+    "type": "path",
+    "points": [
+     [
+      224,
+      576
+     ],
+     [
+      282,
+      576
+     ],
+     [
+      282,
+      634
+     ],
+     [
+      224,
+      634
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq75",
+    "type": "path",
+    "points": [
+     [
+      340,
+      576
+     ],
+     [
+      398,
+      576
+     ],
+     [
+      398,
+      634
+     ],
+     [
+      340,
+      634
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "sq77",
+    "type": "path",
+    "points": [
+     [
+      456,
+      576
+     ],
+     [
+      514,
+      576
+     ],
+     [
+      514,
+      634
+     ],
+     [
+      456,
+      634
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "wash",
+     "opacity": 0.35,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "board",
+    "type": "group",
+    "members": [
+     "b_frame",
+     "sq00",
+     "sq02",
+     "sq04",
+     "sq06",
+     "sq11",
+     "sq13",
+     "sq15",
+     "sq17",
+     "sq20",
+     "sq22",
+     "sq24",
+     "sq26",
+     "sq31",
+     "sq33",
+     "sq35",
+     "sq37",
+     "sq40",
+     "sq42",
+     "sq44",
+     "sq46",
+     "sq51",
+     "sq53",
+     "sq55",
+     "sq57",
+     "sq60",
+     "sq62",
+     "sq64",
+     "sq66",
+     "sq71",
+     "sq73",
+     "sq75",
+     "sq77"
+    ]
+   },
+   {
+    "id": "n1",
+    "type": "text",
+    "text": "1",
+    "x": 79.0,
+    "y": 199.0,
+    "font_size": 30,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "n2",
+    "type": "text",
+    "text": "2",
+    "x": 137.0,
+    "y": 199.0,
+    "font_size": 30,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "n3",
+    "type": "text",
+    "text": "4",
+    "x": 195.0,
+    "y": 199.0,
+    "font_size": 30,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "n4",
+    "type": "text",
+    "text": "8",
+    "x": 253.0,
+    "y": 199.0,
+    "font_size": 30,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "n5",
+    "type": "text",
+    "text": "16",
+    "x": 311.0,
+    "y": 199.0,
+    "font_size": 30,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "lit64",
+    "type": "path",
+    "points": [
+     [
+      456.0,
+      576.0
+     ],
+     [
+      514.0,
+      576.0
+     ],
+     [
+      514.0,
+      634.0
+     ],
+     [
+      456.0,
+      634.0
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "opacity": 0.85,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "q64",
+    "type": "text",
+    "text": "64",
+    "x": 485.0,
+    "y": 605.0,
+    "font_size": 28,
+    "style": {
+     "color": "#ffffff"
+    }
+   },
+   {
+    "id": "first20",
+    "type": "path",
+    "points": [
+     [
+      50,
+      170
+     ],
+     [
+      514,
+      170
+     ],
+     [
+      514,
+      286
+     ],
+     [
+      282,
+      286
+     ],
+     [
+      282,
+      344
+     ],
+     [
+      50,
+      344
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.5,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "grains",
+    "type": "scale",
+    "min": 0.001,
+    "max": 1000,
+    "log": true,
+    "value": 290,
+    "unit": "years",
+    "x": 560,
+    "y": 540,
+    "width": 410,
+    "cites": [
+     "fao"
+    ]
+   },
+   {
+    "id": "grains_l",
+    "type": "text",
+    "text": "years of world harvest",
+    "x": 765,
+    "y": 475,
+    "font_size": 28
+   },
+   {
+    "id": "big",
+    "type": "text",
+    "text": "2⁶³ ≈ 9.2 quintillion",
+    "x": 765,
+    "y": 400,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "tonnes",
+    "type": "text",
+    "text": "230 billion tonnes",
+    "x": 765,
+    "y": 330,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "fao"
+    ]
+   },
+   {
+    "id": "sack",
+    "type": "text",
+    "text": "first 20: one sack",
+    "x": 765,
+    "y": 250,
+    "font_size": 38,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "sack_arrow",
+    "type": "arrow",
+    "from": {
+     "x": 600,
+     "y": 250
+    },
+    "to": {
+     "x": 294,
+     "y": 315.0
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How much rice on the last square?"
+    }
+   },
+   {
+    "draw": [
+     "board"
+    ],
+    "voice": "a",
+    "speak": "An old legend says a king offered the inventor of chess any reward he liked. He asked for rice."
+   },
+   {
+    "draw": [
+     "n1",
+     "n2",
+     "n3",
+     "n4",
+     "n5"
+    ],
+    "voice": "a",
+    "speak": "One grain on the first square, two on the second, four on the third, doubling all the way to the sixty-fourth."
+   },
+   {
+    "draw": [
+     "lit64",
+     "q64",
+     "grains",
+     "grains_l"
+    ],
+    "voice": "b",
+    "speak": "That sounds modest. A few sacks, tops?"
+   },
+   {
+    "ask": {
+     "question": "The last square alone: how many years of the whole world's rice harvest would it hold? Click on the line.",
+     "on": "grains",
+     "store": "g",
+     "default": "0.01",
+     "right": "Close: you said {g}, and it is about {g.true}.",
+     "wrong": "You said {g}; it is about {g.true}."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "grains_answer"
+     ]
+    },
+    "voice": "a",
+    "speak": "Nearly three centuries of harvests, on that one square."
+   },
+   {
+    "draw": [
+     "big"
+    ],
+    "voice": "a",
+    "speak": "It gets two to the power sixty-three grains: about nine quintillion."
+   },
+   {
+    "voice": "b",
+    "speak": "Wait. How heavy is nine quintillion grains?",
+    "highlight": {
+     "target": [
+      "lit64"
+     ]
+    }
+   },
+   {
+    "draw": [
+     "tonnes"
+    ],
+    "voice": "a",
+    "speak": "At about twenty-five milligrams a grain, two hundred and thirty billion tonnes. The world grows about eight hundred million tonnes a year."
+   },
+   {
+    "voice": "b",
+    "speak": "So the first squares fooled the king.",
+    "point": {
+     "at": {
+      "ref": "n1"
+     },
+     "gesture": "underline"
+    }
+   },
+   {
+    "draw": [
+     "first20",
+     "sack",
+     "sack_arrow"
+    ],
+    "voice": "a",
+    "speak": "Exactly. The first twenty squares together hold about one sack, some twenty-five kilos."
+   },
+   {
+    "highlight": {
+     "target": [
+      "lit64"
+     ],
+     "effect": "circle"
+    },
+    "voice": "a",
+    "speak": "It is the last doublings that do the damage: each square holds more than all the squares before it put together."
+   },
+   {
+    "voice": "b",
+    "speak": "Remind me never to let you set my salary.",
+    "highlight": {
+     "target": [
+      "tonnes"
+     ]
+    }
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

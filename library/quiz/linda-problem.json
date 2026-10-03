@@ -1,0 +1,281 @@
+{
+ "request": "The Linda problem: is Linda more likely a bank teller, or a feminist bank teller? A two-voice dialogue quiz, with the nested sets drawn. #interactive #short",
+ "subtitle": "Meet Linda, then pick the likelier story about her. See why most people choose wrong, and how two circles expose the conjunction fallacy.",
+ "spec": {
+  "title": "Linda: bank teller, or feminist bank teller?",
+  "sources": [
+   {
+    "id": "tk",
+    "title": "Extensional versus intuitive reasoning: the conjunction fallacy in probability judgment",
+    "authors": "A. Tversky, D. Kahneman",
+    "year": 1983,
+    "doi": "10.1037/0033-295X.90.4.293",
+    "finding": "about 85 % of respondents ranked 'bank teller and active in the feminist movement' as more probable than 'bank teller'"
+   },
+   {
+    "id": "gould",
+    "title": "Bully for Brontosaurus",
+    "authors": "S. J. Gould",
+    "year": 1991,
+    "finding": "Gould wrote that a homunculus in his head kept shouting that Linda can't just be a bank teller"
+   }
+  ],
+  "elements": [
+   {
+    "id": "linda",
+    "type": "node",
+    "shape": "person",
+    "text": "",
+    "x": 230,
+    "y": 450,
+    "width": 230,
+    "height": 300,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "linda_l",
+    "type": "text",
+    "text": "Linda",
+    "x": 230,
+    "y": 255,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "t1",
+    "type": "text",
+    "text": "31, outspoken",
+    "x": 650,
+    "y": 570,
+    "font_size": 48
+   },
+   {
+    "id": "t2",
+    "type": "text",
+    "text": "philosophy major",
+    "x": 650,
+    "y": 490,
+    "font_size": 48
+   },
+   {
+    "id": "t3",
+    "type": "text",
+    "text": "fights discrimination",
+    "x": 650,
+    "y": 410,
+    "font_size": 48
+   },
+   {
+    "id": "t4",
+    "type": "text",
+    "text": "anti-nuclear marches",
+    "x": 650,
+    "y": 330,
+    "font_size": 48
+   },
+   {
+    "id": "tellers",
+    "type": "ellipse",
+    "x": 500,
+    "y": 445,
+    "rx": 420,
+    "ry": 195,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "tellers_l",
+    "type": "text",
+    "text": "Bank tellers",
+    "x": 250,
+    "y": 445,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "fem",
+    "type": "ellipse",
+    "x": 630,
+    "y": 400,
+    "rx": 200,
+    "ry": 115,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "fem_l",
+    "type": "text",
+    "text": "+ feminist",
+    "x": 630,
+    "y": 435,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "conj",
+    "type": "text",
+    "text": "conjunction fallacy",
+    "x": 500,
+    "y": 205,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "tk"
+    ]
+   },
+   {
+    "id": "bubble",
+    "type": "node",
+    "shape": "rect",
+    "text": "She can't just be a bank teller!",
+    "x": 370,
+    "y": 590,
+    "width": 600,
+    "height": 80,
+    "font_size": 42,
+    "style": {
+     "fill": "#fbf3df"
+    },
+    "cites": [
+     "gould"
+    ]
+   },
+   {
+    "id": "pct",
+    "type": "text",
+    "text": "85 % chose it",
+    "x": 630,
+    "y": 365,
+    "font_size": 38,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "tk"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which is more probable?"
+    }
+   },
+   {
+    "draw": [
+     "linda",
+     "linda_l"
+    ],
+    "speak": "Here's a famous puzzle about a woman called Linda. Which story about her is more probable?",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "t1"
+    ],
+    "speak": "Linda is thirty-one, single, outspoken and very bright.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "t2",
+     "t3",
+     "t4"
+    ],
+    "speak": "She studied philosophy. As a student she cared deeply about discrimination, and marched against nuclear weapons.",
+    "voice": "a"
+   },
+   {
+    "quiz": {
+     "question": "Which is more probable?",
+     "choices": [
+      "Linda is a bank teller",
+      "Linda is a bank teller and a feminist"
+     ],
+     "correct": 1,
+     "right": "Bank teller. Every feminist bank teller is a bank teller too, so the pair can never be more likely.",
+     "wrong": "Count what each answer needs to be true."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "t3",
+      "t4"
+     ]
+    },
+    "speak": "But she sounds exactly like a feminist!",
+    "voice": "b"
+   },
+   {
+    "erase": [
+     "linda",
+     "linda_l",
+     "t1",
+     "t2",
+     "t3",
+     "t4"
+    ]
+   },
+   {
+    "draw": [
+     "tellers",
+     "tellers_l"
+    ],
+    "speak": "She does. But draw it. Here are all the bank tellers in the world.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "fem",
+     "fem_l"
+    ],
+    "speak": "The feminist bank tellers are a group inside that one. However likely the story, the inner group can't be bigger.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "pct"
+    ],
+    "speak": "Yet in Tversky and Kahneman's 1983 study, about eighty-five percent of people picked the second answer.",
+    "voice": "a"
+   },
+   {
+    "highlight": {
+     "target": [
+      "fem",
+      "fem_l"
+     ]
+    },
+    "speak": "So more detail made the story feel more likely?",
+    "voice": "b"
+   },
+   {
+    "draw": [
+     "conj"
+    ],
+    "speak": "Exactly. They called it the conjunction fallacy: each added detail makes a story less likely, but more believable.",
+    "voice": "a"
+   },
+   {
+    "draw": [
+     "bubble"
+    ],
+    "speak": "Even the biologist Stephen Jay Gould admitted a little voice in his head kept shouting: but she can't just be a bank teller!",
+    "voice": "b"
+   }
+  ]
+ }
+}

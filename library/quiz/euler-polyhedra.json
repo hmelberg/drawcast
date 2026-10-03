@@ -1,0 +1,1016 @@
+{
+ "request": "For a cube, what is corners minus edges plus faces? Let me type the answer. #interactive #short",
+ "subtitle": "Count a cube's corners, edges and faces, type what V − E + F gives, and see why Euler's answer, 2, holds for every solid without holes.",
+ "spec": {
+  "title": "Corners minus edges plus faces: what does a cube give?",
+  "sources": [
+   {
+    "id": "euler",
+    "title": "Euler's polyhedron formula",
+    "authors": "Plus Magazine, University of Cambridge",
+    "year": 2007,
+    "url": "https://plus.maths.org/eulers-polyhedron-formula",
+    "finding": "V − E + F = 2 for every convex polyhedron; Euler stated it in a 1750 letter to Christian Goldbach"
+   }
+  ],
+  "text": {
+   "font_size": 32
+  },
+  "elements": [
+   {
+    "id": "f01",
+    "type": "path",
+    "points": [
+     [
+      120,
+      220
+     ],
+     [
+      380,
+      220
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "f12",
+    "type": "path",
+    "points": [
+     [
+      380,
+      220
+     ],
+     [
+      380,
+      480
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "f23",
+    "type": "path",
+    "points": [
+     [
+      380,
+      480
+     ],
+     [
+      120,
+      480
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "f30",
+    "type": "path",
+    "points": [
+     [
+      120,
+      480
+     ],
+     [
+      120,
+      220
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "b12",
+    "type": "path",
+    "points": [
+     [
+      500,
+      320
+     ],
+     [
+      500,
+      580
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "b23",
+    "type": "path",
+    "points": [
+     [
+      500,
+      580
+     ],
+     [
+      240,
+      580
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "c1",
+    "type": "path",
+    "points": [
+     [
+      380,
+      220
+     ],
+     [
+      500,
+      320
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "c2",
+    "type": "path",
+    "points": [
+     [
+      380,
+      480
+     ],
+     [
+      500,
+      580
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "c3",
+    "type": "path",
+    "points": [
+     [
+      120,
+      480
+     ],
+     [
+      240,
+      580
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "b01",
+    "type": "path",
+    "points": [
+     [
+      240,
+      320
+     ],
+     [
+      500,
+      320
+     ]
+    ],
+    "style": {
+     "stroke_width": 2,
+     "dash": true,
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "b30",
+    "type": "path",
+    "points": [
+     [
+      240,
+      580
+     ],
+     [
+      240,
+      320
+     ]
+    ],
+    "style": {
+     "stroke_width": 2,
+     "dash": true,
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "c0",
+    "type": "path",
+    "points": [
+     [
+      120,
+      220
+     ],
+     [
+      240,
+      320
+     ]
+    ],
+    "style": {
+     "stroke_width": 2,
+     "dash": true,
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "cube",
+    "type": "group",
+    "members": [
+     "f01",
+     "f12",
+     "f23",
+     "f30",
+     "b12",
+     "b23",
+     "c1",
+     "c2",
+     "c3",
+     "b01",
+     "b30",
+     "c0"
+    ]
+   },
+   {
+    "id": "v0",
+    "type": "shape",
+    "shape": "circle",
+    "x": 120,
+    "y": 220,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "v1",
+    "type": "shape",
+    "shape": "circle",
+    "x": 380,
+    "y": 220,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "v2",
+    "type": "shape",
+    "shape": "circle",
+    "x": 380,
+    "y": 480,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "v3",
+    "type": "shape",
+    "shape": "circle",
+    "x": 120,
+    "y": 480,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "v4",
+    "type": "shape",
+    "shape": "circle",
+    "x": 240,
+    "y": 320,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "v5",
+    "type": "shape",
+    "shape": "circle",
+    "x": 500,
+    "y": 320,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "v6",
+    "type": "shape",
+    "shape": "circle",
+    "x": 500,
+    "y": 580,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "v7",
+    "type": "shape",
+    "shape": "circle",
+    "x": 240,
+    "y": 580,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "corners",
+    "type": "group",
+    "members": [
+     "v0",
+     "v1",
+     "v2",
+     "v3",
+     "v4",
+     "v5",
+     "v6",
+     "v7"
+    ]
+   },
+   {
+    "id": "p0",
+    "type": "path",
+    "points": [
+     [
+      110,
+      250
+     ],
+     [
+      370,
+      250
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "p1",
+    "type": "path",
+    "points": [
+     [
+      370,
+      250
+     ],
+     [
+      490,
+      350
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "p2",
+    "type": "path",
+    "points": [
+     [
+      110,
+      250
+     ],
+     [
+      300,
+      620
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "p3",
+    "type": "path",
+    "points": [
+     [
+      370,
+      250
+     ],
+     [
+      300,
+      620
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "p4",
+    "type": "path",
+    "points": [
+     [
+      490,
+      350
+     ],
+     [
+      300,
+      620
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "ph0",
+    "type": "path",
+    "points": [
+     [
+      490,
+      350
+     ],
+     [
+      230,
+      350
+     ]
+    ],
+    "style": {
+     "stroke_width": 2,
+     "dash": true,
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "ph1",
+    "type": "path",
+    "points": [
+     [
+      230,
+      350
+     ],
+     [
+      110,
+      250
+     ]
+    ],
+    "style": {
+     "stroke_width": 2,
+     "dash": true,
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "ph2",
+    "type": "path",
+    "points": [
+     [
+      230,
+      350
+     ],
+     [
+      300,
+      620
+     ]
+    ],
+    "style": {
+     "stroke_width": 2,
+     "dash": true,
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "pyr",
+    "type": "group",
+    "members": [
+     "p0",
+     "p1",
+     "p2",
+     "p3",
+     "p4",
+     "ph0",
+     "ph1",
+     "ph2"
+    ]
+   },
+   {
+    "id": "tv",
+    "type": "text",
+    "text": "8 corners",
+    "x": 790,
+    "y": 590,
+    "font_size": 46,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "te",
+    "type": "text",
+    "text": "12 edges",
+    "x": 790,
+    "y": 530,
+    "font_size": 46,
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "tf",
+    "type": "text",
+    "text": "6 faces",
+    "x": 790,
+    "y": 470,
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "sum_c",
+    "type": "text",
+    "x": 790,
+    "y": 390,
+    "text": "8 − 12 + 6 = 2",
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "sum_p",
+    "type": "text",
+    "x": 790,
+    "y": 390,
+    "text": "5 − 8 + 5 = 2",
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "ball",
+    "type": "text",
+    "text": "football: 60 − 90 + 32",
+    "x": 790,
+    "y": 305,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "eul",
+    "type": "text",
+    "text": "Euler, 1750",
+    "x": 790,
+    "y": 500,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "euler"
+    ]
+   },
+   {
+    "id": "fr_out",
+    "type": "path",
+    "points": [
+     [
+      120.0,
+      220.0
+     ],
+     [
+      380.0,
+      220.0
+     ],
+     [
+      380.0,
+      480.0
+     ],
+     [
+      120.0,
+      480.0
+     ],
+     [
+      120.0,
+      220.0
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "fr_in",
+    "type": "path",
+    "points": [
+     [
+      190.0,
+      290.0
+     ],
+     [
+      310.0,
+      290.0
+     ],
+     [
+      310.0,
+      410.0
+     ],
+     [
+      190.0,
+      410.0
+     ],
+     [
+      190.0,
+      290.0
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "fr_back",
+    "type": "path",
+    "points": [
+     [
+      180.0,
+      530.0
+     ],
+     [
+      440.0,
+      530.0
+     ],
+     [
+      440.0,
+      270.0
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "fr_c1",
+    "type": "path",
+    "points": [
+     [
+      120.0,
+      480.0
+     ],
+     [
+      180.0,
+      530.0
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "fr_c2",
+    "type": "path",
+    "points": [
+     [
+      380.0,
+      480.0
+     ],
+     [
+      440.0,
+      530.0
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "fr_c3",
+    "type": "path",
+    "points": [
+     [
+      380.0,
+      220.0
+     ],
+     [
+      440.0,
+      270.0
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "fr_h",
+    "type": "path",
+    "points": [
+     [
+      190.0,
+      290.0
+     ],
+     [
+      250.0,
+      340.0
+     ],
+     [
+      310.0,
+      340.0
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "fr_h2",
+    "type": "path",
+    "points": [
+     [
+      250.0,
+      340.0
+     ],
+     [
+      250.0,
+      410.0
+     ]
+    ],
+    "style": {
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "frame",
+    "type": "group",
+    "members": [
+     "fr_out",
+     "fr_in",
+     "fr_back",
+     "fr_c1",
+     "fr_c2",
+     "fr_c3",
+     "fr_h",
+     "fr_h2"
+    ]
+   },
+   {
+    "id": "zero",
+    "type": "text",
+    "text": "V − E + F = 0",
+    "x": 760,
+    "y": 440,
+    "font_size": 60,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "topo",
+    "type": "text",
+    "text": "→ topology",
+    "x": 760,
+    "y": 350,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "face",
+    "type": "path",
+    "points": [
+     [
+      120,
+      220
+     ],
+     [
+      380,
+      220
+     ],
+     [
+      380,
+      480
+     ],
+     [
+      120,
+      480
+     ]
+    ],
+    "closed": true,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.3,
+     "stroke_width": 1
+    }
+   },
+   {
+    "id": "pv0",
+    "type": "shape",
+    "shape": "circle",
+    "x": 110,
+    "y": 250,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "pv1",
+    "type": "shape",
+    "shape": "circle",
+    "x": 370,
+    "y": 250,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "pv2",
+    "type": "shape",
+    "shape": "circle",
+    "x": 490,
+    "y": 350,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "pv3",
+    "type": "shape",
+    "shape": "circle",
+    "x": 230,
+    "y": 350,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "pv4",
+    "type": "shape",
+    "shape": "circle",
+    "x": 300,
+    "y": 620,
+    "radius": 9,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "pdots",
+    "type": "group",
+    "members": [
+     "pv0",
+     "pv1",
+     "pv2",
+     "pv3",
+     "pv4"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Corners − edges + faces = ?"
+    }
+   },
+   {
+    "draw": [
+     "cube"
+    ],
+    "speak": "Take a cube. Count its corners, take away its edges, and add its faces. What do you get?"
+   },
+   {
+    "ask": {
+     "question": "For a cube: corners minus edges plus faces. Type the number you get.",
+     "answer": "2",
+     "right": "Two: eight corners, minus twelve edges, plus six faces.",
+     "wrong": "Count the hidden corner at the back too."
+    }
+   },
+   {
+    "draw": [
+     "corners",
+     "tv"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "cube"
+     ]
+    },
+    "speak": "Eight corners, twelve edges,"
+   },
+   {
+    "draw": [
+     "face",
+     "tf"
+    ],
+    "speak": "and six faces: the front, the back, and four around the sides."
+   },
+   {
+    "erase": [
+     "face"
+    ]
+   },
+   {
+    "draw": [
+     "sum_c"
+    ],
+    "speak": "So eight minus twelve plus six makes two."
+   },
+   {
+    "hide": [
+     "cube",
+     "corners",
+     "tv",
+     "te",
+     "tf",
+     "sum_c"
+    ]
+   },
+   {
+    "draw": [
+     "pyr",
+     "pdots"
+    ],
+    "speak": "Now a pyramid with a square base: five corners, eight edges, five faces."
+   },
+   {
+    "draw": [
+     "sum_p"
+    ],
+    "speak": "Two again. And it works for every solid without holes, however many sides it has."
+   },
+   {
+    "draw": [
+     "ball"
+    ],
+    "speak": "A football's panels: sixty corners, ninety edges, thirty-two faces. Two."
+   },
+   {
+    "speak": "Leonhard Euler spotted the rule in 1750, and wrote about it to his friend Christian Goldbach.",
+    "draw": [
+     "eul"
+    ]
+   },
+   {
+    "hide": [
+     "pyr",
+     "pdots",
+     "sum_p",
+     "ball",
+     "eul"
+    ]
+   },
+   {
+    "draw": [
+     "frame"
+    ],
+    "speak": "But drill a hole through a solid, like this picture frame,"
+   },
+   {
+    "draw": [
+     "zero"
+    ],
+    "speak": "and the answer drops to zero."
+   },
+   {
+    "draw": [
+     "topo"
+    ],
+    "speak": "So the number keeps track of holes, and that idea grew into a whole field of maths: topology."
+   }
+  ]
+ }
+}

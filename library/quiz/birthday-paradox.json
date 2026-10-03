@@ -1,0 +1,1430 @@
+{
+ "request": "The birthday paradox as a two-voice dialogue: let me guess the chance on a percent line. #interactive #short",
+ "subtitle": "Twenty-three people in a room: guess the chance that two share a birthday, then hear two friends work out why it is a coin flip.",
+ "spec": {
+  "title": "Do two of 23 people share a birthday?",
+  "elements": [
+   {
+    "id": "cake",
+    "type": "icon",
+    "of": "birthday cake",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 250,
+    "y": 575
+   },
+   {
+    "id": "n23",
+    "type": "text",
+    "text": "23 people",
+    "x": 560,
+    "y": 575,
+    "font_size": 64
+   },
+   {
+    "id": "chance",
+    "type": "scale",
+    "min": 0,
+    "max": 100,
+    "unit": "%",
+    "value": 50.7,
+    "ticks": 4,
+    "x": 150,
+    "y": 400,
+    "width": 700
+   },
+   {
+    "id": "pairs",
+    "type": "text",
+    "text": "253 pairs",
+    "x": 660,
+    "y": 310,
+    "font_size": 60,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "each",
+    "type": "text",
+    "text": "each: 1 in 365",
+    "x": 660,
+    "y": 235,
+    "font_size": 36,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "seventy",
+    "type": "text",
+    "text": "70 people: 99.9%",
+    "x": 500,
+    "y": 290,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "guess6",
+    "type": "text",
+    "text": "6%?",
+    "x": 192,
+    "y": 480,
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "d0",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 250,
+    "y": 358,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d1",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 228,
+    "y": 355,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d2",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 208,
+    "y": 346,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d3",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 192,
+    "y": 333,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d4",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 179,
+    "y": 315,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d5",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 172,
+    "y": 294,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d6",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 170,
+    "y": 273,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d7",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 175,
+    "y": 251,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d8",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 185,
+    "y": 232,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d9",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 200,
+    "y": 216,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d10",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 218,
+    "y": 205,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d11",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 239,
+    "y": 199,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d12",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 261,
+    "y": 199,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d13",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 282,
+    "y": 205,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d14",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 300,
+    "y": 216,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d15",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 315,
+    "y": 232,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d16",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 325,
+    "y": 251,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d17",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 330,
+    "y": 273,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d18",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 328,
+    "y": 294,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d19",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 321,
+    "y": 315,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d20",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 308,
+    "y": 333,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d21",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 292,
+    "y": 346,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "d22",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 6,
+    "x": 272,
+    "y": 355,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#2f2b26"
+    }
+   },
+   {
+    "id": "ln0_5",
+    "type": "path",
+    "points": [
+     [
+      250,
+      358
+     ],
+     [
+      172,
+      294
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln0_11",
+    "type": "path",
+    "points": [
+     [
+      250,
+      358
+     ],
+     [
+      239,
+      199
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln1_6",
+    "type": "path",
+    "points": [
+     [
+      228,
+      355
+     ],
+     [
+      170,
+      273
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln1_12",
+    "type": "path",
+    "points": [
+     [
+      228,
+      355
+     ],
+     [
+      261,
+      199
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln2_7",
+    "type": "path",
+    "points": [
+     [
+      208,
+      346
+     ],
+     [
+      175,
+      251
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln2_13",
+    "type": "path",
+    "points": [
+     [
+      208,
+      346
+     ],
+     [
+      282,
+      205
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln3_8",
+    "type": "path",
+    "points": [
+     [
+      192,
+      333
+     ],
+     [
+      185,
+      232
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln3_14",
+    "type": "path",
+    "points": [
+     [
+      192,
+      333
+     ],
+     [
+      300,
+      216
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln4_9",
+    "type": "path",
+    "points": [
+     [
+      179,
+      315
+     ],
+     [
+      200,
+      216
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln4_15",
+    "type": "path",
+    "points": [
+     [
+      179,
+      315
+     ],
+     [
+      315,
+      232
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln5_10",
+    "type": "path",
+    "points": [
+     [
+      172,
+      294
+     ],
+     [
+      218,
+      205
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln5_16",
+    "type": "path",
+    "points": [
+     [
+      172,
+      294
+     ],
+     [
+      325,
+      251
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln6_11",
+    "type": "path",
+    "points": [
+     [
+      170,
+      273
+     ],
+     [
+      239,
+      199
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln6_17",
+    "type": "path",
+    "points": [
+     [
+      170,
+      273
+     ],
+     [
+      330,
+      273
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln7_12",
+    "type": "path",
+    "points": [
+     [
+      175,
+      251
+     ],
+     [
+      261,
+      199
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln7_18",
+    "type": "path",
+    "points": [
+     [
+      175,
+      251
+     ],
+     [
+      328,
+      294
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln8_13",
+    "type": "path",
+    "points": [
+     [
+      185,
+      232
+     ],
+     [
+      282,
+      205
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln8_19",
+    "type": "path",
+    "points": [
+     [
+      185,
+      232
+     ],
+     [
+      321,
+      315
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln9_14",
+    "type": "path",
+    "points": [
+     [
+      200,
+      216
+     ],
+     [
+      300,
+      216
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln9_20",
+    "type": "path",
+    "points": [
+     [
+      200,
+      216
+     ],
+     [
+      308,
+      333
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln10_15",
+    "type": "path",
+    "points": [
+     [
+      218,
+      205
+     ],
+     [
+      315,
+      232
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln10_21",
+    "type": "path",
+    "points": [
+     [
+      218,
+      205
+     ],
+     [
+      292,
+      346
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln11_16",
+    "type": "path",
+    "points": [
+     [
+      239,
+      199
+     ],
+     [
+      325,
+      251
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln11_22",
+    "type": "path",
+    "points": [
+     [
+      239,
+      199
+     ],
+     [
+      272,
+      355
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln12_17",
+    "type": "path",
+    "points": [
+     [
+      261,
+      199
+     ],
+     [
+      330,
+      273
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln12_0",
+    "type": "path",
+    "points": [
+     [
+      261,
+      199
+     ],
+     [
+      250,
+      358
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln13_18",
+    "type": "path",
+    "points": [
+     [
+      282,
+      205
+     ],
+     [
+      328,
+      294
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln13_1",
+    "type": "path",
+    "points": [
+     [
+      282,
+      205
+     ],
+     [
+      228,
+      355
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln14_19",
+    "type": "path",
+    "points": [
+     [
+      300,
+      216
+     ],
+     [
+      321,
+      315
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln14_2",
+    "type": "path",
+    "points": [
+     [
+      300,
+      216
+     ],
+     [
+      208,
+      346
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln15_20",
+    "type": "path",
+    "points": [
+     [
+      315,
+      232
+     ],
+     [
+      308,
+      333
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln15_3",
+    "type": "path",
+    "points": [
+     [
+      315,
+      232
+     ],
+     [
+      192,
+      333
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln16_21",
+    "type": "path",
+    "points": [
+     [
+      325,
+      251
+     ],
+     [
+      292,
+      346
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln16_4",
+    "type": "path",
+    "points": [
+     [
+      325,
+      251
+     ],
+     [
+      179,
+      315
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln17_22",
+    "type": "path",
+    "points": [
+     [
+      330,
+      273
+     ],
+     [
+      272,
+      355
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln17_5",
+    "type": "path",
+    "points": [
+     [
+      330,
+      273
+     ],
+     [
+      172,
+      294
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln18_0",
+    "type": "path",
+    "points": [
+     [
+      328,
+      294
+     ],
+     [
+      250,
+      358
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln18_6",
+    "type": "path",
+    "points": [
+     [
+      328,
+      294
+     ],
+     [
+      170,
+      273
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln19_1",
+    "type": "path",
+    "points": [
+     [
+      321,
+      315
+     ],
+     [
+      228,
+      355
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln19_7",
+    "type": "path",
+    "points": [
+     [
+      321,
+      315
+     ],
+     [
+      175,
+      251
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln20_2",
+    "type": "path",
+    "points": [
+     [
+      308,
+      333
+     ],
+     [
+      208,
+      346
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln20_8",
+    "type": "path",
+    "points": [
+     [
+      308,
+      333
+     ],
+     [
+      185,
+      232
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln21_3",
+    "type": "path",
+    "points": [
+     [
+      292,
+      346
+     ],
+     [
+      192,
+      333
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln21_9",
+    "type": "path",
+    "points": [
+     [
+      292,
+      346
+     ],
+     [
+      200,
+      216
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln22_4",
+    "type": "path",
+    "points": [
+     [
+      272,
+      355
+     ],
+     [
+      179,
+      315
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "ln22_10",
+    "type": "path",
+    "points": [
+     [
+      272,
+      355
+     ],
+     [
+      218,
+      205
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 1.5,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "crowd",
+    "type": "group",
+    "members": [
+     "d0",
+     "d1",
+     "d2",
+     "d3",
+     "d4",
+     "d5",
+     "d6",
+     "d7",
+     "d8",
+     "d9",
+     "d10",
+     "d11",
+     "d12",
+     "d13",
+     "d14",
+     "d15",
+     "d16",
+     "d17",
+     "d18",
+     "d19",
+     "d20",
+     "d21",
+     "d22"
+    ]
+   },
+   {
+    "id": "links",
+    "type": "group",
+    "members": [
+     "ln0_5",
+     "ln0_11",
+     "ln1_6",
+     "ln1_12",
+     "ln2_7",
+     "ln2_13",
+     "ln3_8",
+     "ln3_14",
+     "ln4_9",
+     "ln4_15",
+     "ln5_10",
+     "ln5_16",
+     "ln6_11",
+     "ln6_17",
+     "ln7_12",
+     "ln7_18",
+     "ln8_13",
+     "ln8_19",
+     "ln9_14",
+     "ln9_20",
+     "ln10_15",
+     "ln10_21",
+     "ln11_16",
+     "ln11_22",
+     "ln12_17",
+     "ln12_0",
+     "ln13_18",
+     "ln13_1",
+     "ln14_19",
+     "ln14_2",
+     "ln15_20",
+     "ln15_3",
+     "ln16_21",
+     "ln16_4",
+     "ln17_22",
+     "ln17_5",
+     "ln18_0",
+     "ln18_6",
+     "ln19_1",
+     "ln19_7",
+     "ln20_2",
+     "ln20_8",
+     "ln21_3",
+     "ln21_9",
+     "ln22_4",
+     "ln22_10"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Two of 23 share a birthday?"
+    }
+   },
+   {
+    "draw": [
+     "cake",
+     "n23"
+    ],
+    "voice": "a",
+    "speak": "Twenty-three people in a room. What is the chance that two of them share a birthday?"
+   },
+   {
+    "draw": [
+     "chance",
+     "guess6"
+    ],
+    "voice": "b",
+    "speak": "Twenty-three out of three hundred and sixty-five days? That sounds tiny. Maybe six percent?"
+   },
+   {
+    "ask": {
+     "question": "In a room of 23 people, what is the chance that two share a birthday? Click on the line.",
+     "on": "chance",
+     "store": "p",
+     "default": "6",
+     "right": "Close: you said {p}, and it is {p.true}.",
+     "wrong": "You said {p}. It is {p.true}: better than a coin flip."
+    }
+   },
+   {
+    "erase": [
+     "guess6"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "chance"
+     ]
+    },
+    "voice": "b",
+    "speak": "Half? With only twenty-three people? That can't be right."
+   },
+   {
+    "draw": [
+     "crowd",
+     "pairs"
+    ],
+    "voice": "a",
+    "speak": "The trick is that it's not just your birthday against everyone else's. Every person is compared with every other person."
+   },
+   {
+    "draw": [
+     "links"
+    ],
+    "parallel": true,
+    "speak": "Twenty-three people make two hundred and fifty-three pairs, and each pair is a fresh chance of a match."
+   },
+   {
+    "highlight": {
+     "target": [
+      "n23"
+     ],
+     "effect": "underline"
+    },
+    "voice": "b",
+    "speak": "So it's not twenty-three tries. It's two hundred and fifty-three."
+   },
+   {
+    "draw": [
+     "each"
+    ],
+    "voice": "a",
+    "speak": "Right. Each pair matches only once in three hundred and sixty-five, but with that many tries, missing every single time gets unlikely.",
+    "cue": 0.4
+   },
+   {
+    "erase": [
+     "pairs",
+     "each",
+     "crowd",
+     "links"
+    ]
+   },
+   {
+    "draw": [
+     "seventy"
+    ],
+    "voice": "b",
+    "speak": "And a bigger room? Say, seventy people?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "seventy"
+     ]
+    },
+    "voice": "a",
+    "speak": "Then a shared birthday is all but certain: ninety-nine point nine percent."
+   },
+   {
+    "highlight": {
+     "target": [
+      "seventy"
+     ]
+    },
+    "voice": "b",
+    "speak": "Next office party, I'm taking bets."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

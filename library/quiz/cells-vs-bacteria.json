@@ -1,0 +1,200 @@
+{
+ "request": "Are there more bacteria in your body than human cells? A multiple-choice quiz, then the old and new counts as bars. #interactive #short",
+ "subtitle": "Do bacteria outnumber your own cells ten to one? Guess, then watch the famous ratio shrink and learn why one trip to the toilet can tip it.",
+ "spec": {
+  "title": "Are there more bacteria in your body than human cells?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Human cells",
+    "Bacteria"
+   ],
+   "values": [
+    [
+     10,
+     100
+    ],
+    [
+     30,
+     38
+    ]
+   ],
+   "stage": 0,
+   "value_labels": true,
+   "ylim": [
+    0,
+    110
+   ],
+   "y_label": "Trillions"
+  },
+  "text": {
+   "font_size": 34
+  },
+  "sources": [
+   {
+    "id": "sender",
+    "title": "Revised estimates for the number of human and bacteria cells in the body",
+    "authors": "R. Sender, S. Fuchs, R. Milo",
+    "year": 2016,
+    "doi": "10.1371/journal.pbio.1002533",
+    "finding": "about 3.8e13 bacteria and 3.0e13 human cells (ratio about 1.3:1); red blood cells are about 84 % of human cells; bacteria weigh about 0.2 kg; each defecation may flip the ratio"
+   },
+   {
+    "id": "luckey",
+    "title": "Introduction to intestinal microecology",
+    "authors": "T. D. Luckey",
+    "year": 1972,
+    "finding": "the rough estimate of 10^14 bacteria behind the 10:1 claim"
+   }
+  ],
+  "elements": [
+   {
+    "id": "oldbar",
+    "type": "path",
+    "points": [
+     [
+      624,
+      100
+     ],
+     [
+      624,
+      598
+     ],
+     [
+      844,
+      598
+     ],
+     [
+      844,
+      100
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "dash": true,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "old",
+    "type": "text",
+    "text": "the old 10 : 1",
+    "x": 340,
+    "y": 570,
+    "font_size": 44,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "new",
+    "type": "text",
+    "text": "2016: about 1 : 1",
+    "x": 340,
+    "y": 450,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "sender"
+    ]
+   },
+   {
+    "id": "loo",
+    "type": "text",
+    "text": "one trip to the toilet",
+    "x": 340,
+    "y": 380,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "More bacteria than human cells?"
+    }
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "Are there more bacteria living in your body than human cells?"
+   },
+   {
+    "quiz": {
+     "question": "How do the bacteria in your body compare with your own cells?",
+     "choices": [
+      "Ten bacteria per cell",
+      "About one each",
+      "Far fewer bacteria"
+     ],
+     "correct": 2,
+     "right": "About one each: roughly thirty-eight trillion bacteria to thirty trillion human cells.",
+     "wrong": "The famous answer is out of date."
+    }
+   },
+   {
+    "draw": [
+     "bar_1",
+     "bar_2",
+     "old"
+    ],
+    "speak": "For decades, textbooks said bacteria outnumber us ten to one."
+   },
+   {
+    "draw": [
+     "oldbar"
+    ],
+    "speak": "But that began as a rough guess in 1972, and was copied for forty years."
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 2.5,
+    "speak": "In 2016, scientists at the Weizmann Institute counted again, and the gap shrank to nearly even."
+   },
+   {
+    "draw": [
+     "new"
+    ],
+    "speak": "Ron Sender, Shai Fuchs and Ron Milo found about thirty-eight trillion bacteria"
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1"
+     ]
+    },
+    "speak": "to thirty trillion human cells."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "bar_1"
+     }
+    },
+    "speak": "Most of your own cells turn out to be red blood cells: tiny, and very many."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    },
+    "speak": "And the bacteria, mostly in the colon, weigh only about two hundred grams in all."
+   },
+   {
+    "draw": [
+     "loo"
+    ],
+    "cue": 0.55,
+    "speak": "In fact the two are so close that, as the authors noted, one trip to the toilet can tip the balance back toward you."
+   }
+  ]
+ }
+}
