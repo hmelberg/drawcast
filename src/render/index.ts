@@ -169,7 +169,7 @@ export function cardsPlanFor(g: CardsGeometry | null): { cards: string[]; offset
   // What follows a card (a compare value, a label attached to it) stands where its card does (page frame 2026-10-04).
   for (const [c, fs] of Object.entries(g.followers ?? {})) for (const f of fs) offsets[f] ??= offsets[c];
   const gotos = g.mode === "decide" ? (g.gotos ?? []).filter((l): l is string => l !== undefined) : [];
-  return { cards: g.cards, offsets, shows: g.valueIds ?? [], ...(g.mode === "fill" ? { hides: [...g.cards] } : {}), ...(gotos.length > 0 ? { gotos } : {}) };
+  return { cards: g.cards, offsets, shows: [...(g.valueIds ?? []), ...(g.arrows ?? [])], ...(g.mode === "fill" ? { hides: [...g.cards] } : {}), ...(gotos.length > 0 ? { gotos } : {}) };
 }
 
 /**
