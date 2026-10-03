@@ -40,3 +40,10 @@ describe("course up next", () => {
     expect(courseNext("spanish/1", null)).toEqual([]);
   });
 });
+
+describe("course up next titles", () => {
+  test("each lecture by its own title from course.md, else the course's", () => {
+    const course = { name: "spanish", title: "Spanish", lectures: 3, owner: "o" };
+    expect(courseNext("spanish/1", course, ["Hola", "Numbers"]).map((c) => c.title)).toEqual(["Numbers", "Spanish — lecture 3"]);
+  });
+});

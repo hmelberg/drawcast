@@ -24,7 +24,8 @@ import {
   type PublishFile,
   type RepoRef,
 } from "../publish/github";
-import { formatPublished, parsePlaylistText } from "../playlist/playlist";
+import { formatPublished, parsePlaylistText, readTags } from "../playlist/playlist";
+import { tagGroupOf } from "../llm/tags";
 import { parseCourse, removeCourseOption, setCourseOption, setLectureStatus, type Course } from "./document";
 import { coursePage, courseReadme, lectureHref, repoIndexPage, repoReadme, type Door, type PageLink } from "./page";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
@@ -131,6 +132,20 @@ export function courseRegistration(
     title: course.title,
     lectures: lectureCastKeys(course, repo, coursesDir),
   };
+}
+
+/**
+ * A course's topic tags for the registry (front page, 2026-10-03): the
+ * header's tag line also carries the brief (`#for=nurses #basic`), so only
+ * the words that are no brief tag count — `#economics #health_economics` →
+ * ["economics", "health economics"]. Undefined when there are none.
+ */
+export function courseTopicTags(course: Pick<Course, "tags">): string[] | undefined {
+  const words = (course.tags ?? [])
+    .map((t) => t.replace(/^#/, ""))
+    .filter((w) => !w.includes("=") && tagGroupOf(w) === null)
+    .map((w) => w.replace(/_/g, " "));
+  return readTags(words);
 }
 
 /**

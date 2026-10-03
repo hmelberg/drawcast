@@ -165,7 +165,10 @@ export function singlePlaylist(spec: Spec): Playlist {
 /** `tags: [a, b]` or `tags: a, b` → lower-case, trimmed, deduplicated; at most eight. */
 export function readTags(raw: unknown): string[] | undefined {
   const list = Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(",") : [];
-  const out = [...new Set(list.filter((t): t is string => typeof t === "string").map((t) => t.trim().toLowerCase()).filter(Boolean))].slice(0, 8);
+  // The registry's rule (drawcast-anvil parsers.TAG_RE): letters, digits,
+  // spaces and hyphens, at most 30 — anything else is dropped here, since one
+  // bad tag would make the registry refuse the whole registration.
+  const out = [...new Set(list.filter((t): t is string => typeof t === "string").map((t) => t.trim().toLowerCase()).filter((t) => /^[\p{L}\p{N} -]{1,30}$/u.test(t)))].slice(0, 8);
   return out.length ? out : undefined;
 }
 

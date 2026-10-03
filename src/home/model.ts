@@ -212,15 +212,21 @@ export function popularItems(ranks: RankEntry[], items: CatalogueItem[]): Catalo
 /**
  * A course's "Up next" (delivery 3): watching lecture N of a course, the
  * lectures after it come first, in order (`course/N+1` …), before anything
- * else. The registry knows the course's title and lecture count, not each
- * lecture's own title, so a card reads "Lecture 4 of 6".
+ * else. Each is called by its own title when the course.md beside the
+ * lecture gave one (`titles`, published lectures in order), else
+ * "<course> — lecture 4"; the quiet line says "Lecture 4 of 6".
  */
-export function courseNext(watchName: string | undefined, course: Pick<CatalogueItem, "name" | "title" | "lectures" | "owner"> | null): HomeCard[] {
+export function courseNext(
+  watchName: string | undefined,
+  course: Pick<CatalogueItem, "name" | "title" | "lectures" | "owner"> | null,
+  titles: readonly string[] = [],
+): HomeCard[] {
   const m = /^([^/]+)\/(\d+)$/.exec(watchName ?? "");
   if (!m || !course || course.name !== m[1]) return [];
   const out: HomeCard[] = [];
   for (let k = Number(m[2]) + 1; k <= course.lectures; k++) {
-    out.push({ name: `${course.name}/${k}`, title: `${course.title || course.name} — lecture ${k}`, owner: course.owner, meta: `Lecture ${k} of ${course.lectures}`, private: false, tags: [] });
+    const own = titles[k - 1]?.trim();
+    out.push({ name: `${course.name}/${k}`, title: own || `${course.title || course.name} — lecture ${k}`, owner: course.owner, meta: `Lecture ${k} of ${course.lectures}`, private: false, tags: [] });
   }
   return out;
 }

@@ -36,7 +36,7 @@ function saveTheatre(on: boolean): void {
  * Wraps the viewer's `#app` in the watch layout. `name` is the drawcast's
  * name when it was opened by one (#name), which is what "Up next" relates to.
  */
-export function mountWatch(app: HTMLElement, opts: { name?: string } = {}): void {
+export function mountWatch(app: HTMLElement, opts: { name?: string; lectureTitles?: Promise<string[]> } = {}): void {
   const body = document.body;
   body.classList.add("watch-body");
   body.classList.toggle("watch-theatre", readTheatre());
@@ -94,8 +94,15 @@ export function mountWatch(app: HTMLElement, opts: { name?: string } = {}): void
   if (courseName) {
     void fetchCatalogue(DEFAULT_ENROLL_API, { kind: "course", names: [courseName] }).then((answer) => {
       if (answer === "error") return;
-      lectures = courseNext(opts.name, answer.items.find((i) => i.name === courseName) ?? null);
+      const course = answer.items.find((i) => i.name === courseName) ?? null;
+      lectures = courseNext(opts.name, course);
       if (lectures.length) show();
+      // The lectures' own titles, when the course.md beside this one has them.
+      void opts.lectureTitles?.then((titles) => {
+        if (!titles.length || !lectures.length) return;
+        lectures = courseNext(opts.name, course, titles);
+        show();
+      });
     });
   }
 }

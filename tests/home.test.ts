@@ -156,7 +156,7 @@ describe("Up next (the watch page)", () => {
 describe("the watch page wiring", () => {
   const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8");
   test("the viewer mounts it on demand, never for a page carrying its own cast", () => {
-    expect(viewer).toContain('if (req.embedded === undefined) void import("./home/watch").then((m) => m.mountWatch(app, { name: req.watchName })).catch(() => undefined);');
+    expect(viewer).toContain('if (req.embedded === undefined) void import("./home/watch").then((m) => m.mountWatch(app, { name: req.watchName, lectureTitles })).catch(() => undefined);');
   });
   test("a name link tells it which drawcast it is", () => {
     expect(viewer).toContain("await runViewer({ ...req, watchName: name });");

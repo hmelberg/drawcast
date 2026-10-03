@@ -60,7 +60,7 @@ import { openCoursePanel } from "./ui/course";
 import { parseCourse, referencedLectureIds } from "./course/document";
 import { fileSafe, openShare, payListedFields, type ShareGroup } from "./ui/share";
 import { castPageHtml } from "./standalone/page";
-import { castFacts } from "./standalone/transcript";
+import { castFacts, type CastFormat } from "./standalone/transcript";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
 import { openEmbedDialog, openInsertData, openInsertPortrait, unembeddedImages } from "./ui/insert";
@@ -5203,12 +5203,16 @@ async function publishDrawcast({
   countViews,
   private: makePrivate,
   confirmPublic,
+  format: formatChoice,
 }: {
   bake: boolean;
   embedImages: boolean;
   slug?: string;
   allowComments?: boolean;
   countViews?: boolean;
+  /** Share's Format choice: "auto" removes the document's `format:` line, a
+   *  format writes it — into the document itself, so it is kept. */
+  format?: CastFormat | "auto";
   /** Share's Private checkbox (registry delivery 2, task 9). Private
    *  publishes the cast file locked (task 10) — see privateCastLock. */
   private?: boolean;
@@ -5280,6 +5284,18 @@ async function publishDrawcast({
         return;
       }
       lock = got;
+    }
+    // The Format choice belongs to the document (its `format:` line), not
+    // only to this copy: written before the copy is made, so both carry it.
+    if (formatChoice !== undefined) {
+      const wanted = formatChoice === "auto" ? undefined : formatChoice;
+      if (doc.playlist.meta.format !== wanted) {
+        const meta = { ...doc.playlist.meta };
+        if (wanted) meta.format = wanted;
+        else delete meta.format;
+        doc.playlist = { ...doc.playlist, meta };
+        applyPlaylist(doc.playlist);
+      }
     }
     setStatus("Publishing to GitHub…");
     const text = await publishTextFor(ac.signal, bake, embedImages, allowComments, countViews !== false);

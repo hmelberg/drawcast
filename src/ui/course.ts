@@ -8,7 +8,7 @@ import { posterForPlaylistText } from "../export/snapshot";
 import { type Course, type CourseLecture, formatCourse, parseCourse, removeCourseOption, setCourseOption, setCourseTag } from "../course/document";
 import { briefTagInText, clearBriefTag, COURSE_BRIEF_CONTROLS, courseBriefFrom, courseBriefValue, forTag, type BriefDefaults, type BriefGroup } from "../llm/brief-controls";
 import { generateCoursePlan } from "../course/plan";
-import { applyCourseFolder, applyCourseName, applyJoinDoor, commitPublish, courseDoorName, courseKeyFor, courseRegistration, preparePublish, type PublishArgs } from "../course/publish";
+import { applyCourseFolder, applyCourseName, applyJoinDoor, commitPublish, courseDoorName, courseKeyFor, courseRegistration, courseTopicTags, preparePublish, type PublishArgs } from "../course/publish";
 import type { Door, DoorlessReason } from "../course/page";
 import { matchLibrary, restoredStatus } from "../course/reconcile";
 import { reviseCourse } from "../course/revise";
@@ -1444,9 +1444,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // the commit already landed either way, and this records it.
       if (claim) await verifyClaim(DEFAULT_ENROLL_API, accountToken, repoStr, bounded);
       const regInput = prepared.registration!;
+      const topicTags = courseTopicTags(parseCourse(prepared.updated));
       const regItem = await registerItem(
         DEFAULT_ENROLL_API,
-        { key: accountToken || undefined, kind: regInput.kind, target: regInput.target, title: regInput.title, page: regInput.page, lectures: regInput.lectures },
+        { key: accountToken || undefined, kind: regInput.kind, target: regInput.target, title: regInput.title, page: regInput.page, lectures: regInput.lectures, ...(topicTags ? { tags: topicTags } : {}) },
         bounded,
       );
       nameSuffix += registryNote(regItem);
