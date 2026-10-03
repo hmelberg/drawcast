@@ -436,16 +436,17 @@ export function boundaryParams(plan: Plan, n: number): Record<string, unknown> {
 }
 
 /**
- * The poster (the frame shown before Play): the finished drawing — unless an
- * ask's answer is drawn on the figure (a tree to fill or pick, a formula to
- * fill, a guess on a part, cards to place). Then the finished drawing would
- * give the answers away (the best branch, the 7 years, the right tile in
- * its box), so the poster is the boundary before the first such ask, with
- * the best and prune marks of every tree decision still to be asked about
- * left out (fix wave 2026-10-03).
+ * The poster (the frame shown before Play, and the published link picture):
+ * the finished drawing — unless the cast asks anything. Then the finished
+ * drawing would give the answers away (the best branch, the 7 years, the
+ * right tile in its box, a quiz's stamps and revealed numbers), so the
+ * poster is the boundary before the first question of any kind — quiz or
+ * ask (fix wave 2026-10-03 for answers on the figure; every question since
+ * 2026-10-04, after quiz posters showed their answers) — with the best and
+ * prune marks of every tree decision still to be asked about left out.
  */
 export function posterOf(plan: Plan): { at: number; hide: string[] } {
-  const first = plan.steps.findIndex((s) => s.kind === "ask" && (s.tree !== undefined || s.formula !== undefined || s.cards !== undefined || (s.on !== undefined && s.on.length > 0)));
+  const first = plan.steps.findIndex((s) => s.kind === "quiz" || s.kind === "ask");
   if (first < 0) return { at: plan.steps.length, hide: [] };
   const nodes = new Set<string>();
   for (const s of plan.steps.slice(first)) {

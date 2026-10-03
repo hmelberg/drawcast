@@ -200,6 +200,16 @@ describe("the poster keeps the answers back (fix wave item 6)", async () => {
     expect(p.at).toBe(2);
     expect(p.hide.sort()).toEqual(["best_start_a", "prune_start_b"]);
   });
+  test("any question keeps its answer back: a quiz, a typed ask (2026-10-04)", () => {
+    const q = planCommands(
+      [{ draw: ["icon"] }, { quiz: { question: "True or myth?", choices: ["True", "Myth"], correct: 2, right: "Myth." } }, { draw: ["stamp"] }],
+      ["icon", "stamp"],
+      {},
+    );
+    expect(posterOf(q).at).toBe(1);
+    const t = planCommands([{ draw: ["moon"] }, { speak: "How many?" }, { ask: { question: "How many walked on it?", answer: "12" } }, { draw: ["n"] }], ["moon", "n"], {});
+    expect(posterOf(t).at).toBe(2);
+  });
   test("a formula ask and a guess ask count too", () => {
     const f = planCommands([{ draw: ["area"] }, { ask: { question: "Fill", on: "area", others: ["d"] } }], ["area", "area_blank_1"], { formulaFor: (id) => (id === "area" ? { blanks: 1 } : null) });
     expect(posterOf(f).at).toBe(1);
