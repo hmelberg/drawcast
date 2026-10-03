@@ -35,7 +35,7 @@ import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, flattenDrawables, leafDrawables, Z_TOP, type Drawable, type Pt } from "./model";
 import { isScratchPart, scratchCards } from "../spec/scratch";
-import { authoredCards } from "../spec/cards";
+import { authoredCards, cardsGeometryIn } from "../spec/cards";
 import { domainPlot, frameToCanvas, headingFloorY, linearScale, setHeadingFloor, worldBounds, type DataFrame } from "./canvas";
 import { figureSplit } from "./figure-split";
 import { fitSceneLayout, GROW_REGION, GROW_REGION_BARE, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
@@ -578,7 +578,7 @@ export function layoutSpec(
   {
     const scene = spec.template ? scenes[spec.template] : undefined;
     const dy = settlePage(spec, drawables, { measure, groups, namedAnchors, pieces, world: !!world, templateBoxed: !!fit || (hasTemplate && (native || box !== null)), interactive: !!scene && (!!scene.manifest.widget || (scene.manifest.interactions?.length ?? 0) > 0) });
-    if (dy !== 0) fit = { s: 1, dx: 0, dy, box: contentBox({ heading: headingFloorY() !== null }), settle: dy };
+    if (dy !== 0) fit = { s: 1, dx: 0, dy, box: contentBox({ heading: true }), settle: dy };
   }
   // `{data: [x, y]}` on a template page means the template's own axes — and
   // a template that draws none reports no frame, so the data would silently
@@ -932,16 +932,25 @@ function settlePage(
   drawables: Drawable[],
   ctx: { measure: MeasureFn; groups: Record<string, string[]>; namedAnchors: Record<string, Record<string, Pt>>; pieces: Record<string, PieceGeometry>; world: boolean; templateBoxed: boolean; interactive: boolean },
 ): number {
-  if (settleBlocker(spec, ctx) !== null) return 0;
+  if (settleBlocker(spec, { ...ctx, heading: headingFloorY() !== null }) !== null) return 0;
   const pinned = pinnedIds(spec.elements, ctx.groups);
   const stays = (id: string): boolean => /^card_\d+_/.test(id) || [...pinned].some((p) => id === p || id.startsWith(`${p}_`));
   const moving = drawables.filter((d) => !stays(d.id));
   const ids = [...new Set(moving.map((d) => d.id))];
-  const union = unionBoxes(ids.map((id) => unionBBoxForId(moving, id, ctx.measure)));
+  // A cards element's run is wider than its first layout: the cards go to
+  // their slots, bins and true places (spec/cards.ts geometry), which no
+  // drawable shows yet.
+  const cardRuns = authoredCards(spec).flatMap((c) => {
+    const g = cardsGeometryIn(spec, c.id);
+    if (!g) return [];
+    const at = (p: Pt): BBox => ({ x: p[0] - g.w / 2, y: p[1] - g.h / 2, w: g.w, h: g.h });
+    return [...g.home, ...g.slots, ...g.truth].map(at).concat(g.binBoxes.map((b) => ({ x: b.c[0] - b.w / 2, y: b.c[1] - b.h / 2, w: b.w, h: b.h })));
+  });
+  const union = unionBoxes([...ids.map((id) => unionBBoxForId(moving, id, ctx.measure)), ...cardRuns]);
   if (!union) return 0;
   const still = [...new Set(drawables.filter((d) => stays(d.id) && !/^card_\d+_/.test(d.id)).map((d) => d.id))];
   const pinnedBoxes = still.map((id) => unionBBoxForId(drawables, id, ctx.measure)).filter((b): b is BBox => b !== null);
-  const area = contentBox({ heading: headingFloorY() !== null });
+  const area = contentBox({ heading: true });
   const dy = settleOffset(union, area, { valign: pageVAlign(spec), pinned: pinnedBoxes });
   if (dy === 0) return 0;
   shiftAll(moving, dy);

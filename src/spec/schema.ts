@@ -1355,7 +1355,7 @@ export const specSchema = {
       type: "object",
       properties: { valign: { type: "string", enum: ["center", "top", "none"] } },
       additionalProperties: false,
-      description: 'How the figure sits on the page. valign: "center" (default: an off-centre figure is moved up or down so the space above and below it is even; the heading stays), "top", or "none" (as laid out).',
+      description: 'valign: "center" (default) evens the space above and below the figure; "top"; "none".',
     },
     end_page: { type: "boolean", description: "Machine-written; never write it." },
     zoom_from: {

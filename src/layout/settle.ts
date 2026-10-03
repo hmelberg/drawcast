@@ -29,11 +29,14 @@ import type { Drawable, Pt } from "./model";
 import type { Spec } from "../spec/types";
 import type { CardsGeometry } from "../spec/cards";
 import { shiftDrawables } from "./place";
+import { authoredScales } from "../spec/scale";
 
-/** Gaps more uneven than this (logical units) are settled; less is noise. */
+/** Gaps more uneven than this (logical units) are settled; less is noise.
+ *  It is also the "already fills the page" rule: a figure within 60 of the
+ *  content area's height (≥ 88 % of it) has no gaps that uneven. A separate
+ *  85 % cut was tried and left three quiz pages with their cards touching
+ *  the heading (gaps above / below 2 / 69, −13 / 77) as they were. */
 export const SETTLE_SLACK = 60;
-/** A figure at least this share of the content area's height already fills it. */
-export const SETTLE_FULL = 0.85;
 /** What the figure keeps between itself and something pinned to the page. */
 const PINNED_GAP = 10;
 
@@ -46,9 +49,8 @@ export function pageVAlign(spec: Pick<Spec, "page">): VAlign {
 
 /**
  * How far to move `union` (y-up) inside `area` so the gaps above and below
- * are even — 0 when they already nearly are (within SETTLE_SLACK), when the
- * figure fills SETTLE_FULL of the area's height or more, or when it is taller
- * than the area. "top" lifts (or lowers) the figure's top to the area's top
+ * are even — 0 when they already nearly are (within SETTLE_SLACK) or when
+ * the figure is taller than the area. "top" lifts (or lowers) the figure's top to the area's top
  * instead. `pinned`: boxes that stay where they are (a note pinned to a
  * corner); the move stops PINNED_GAP short of any that share the figure's
  * columns. Whole units.
@@ -61,7 +63,7 @@ export function settleOffset(union: BBox, area: BBox, opts: { valign?: VAlign; p
   let dy: number;
   if (valign === "top") dy = above;
   else {
-    if (union.h >= SETTLE_FULL * area.h || Math.abs(below - above) <= SETTLE_SLACK) return 0;
+    if (Math.abs(below - above) <= SETTLE_SLACK) return 0;
     dy = (above - below) / 2;
   }
   // Something pinned in the figure's columns is a floor (or a ceiling) the
@@ -86,10 +88,17 @@ const MOVING_VERBS = ["animate", "move", "arrange", "flip", "morph", "copy", "gh
  */
 export function settleBlocker(
   spec: Spec,
-  facts: { templateBoxed: boolean; world: boolean; interactive: boolean },
+  facts: { heading: boolean; templateBoxed: boolean; world: boolean; interactive: boolean },
 ): string | null {
   if (pageVAlign(spec) === "none") return "page.valign none";
+  // The figure is settled UNDER the heading. A page with none — heading:
+  // false, no title, an author who drew in the strip — was composed on the
+  // whole canvas by hand, and keeps it.
+  if (!facts.heading) return "no heading";
   if (spec.book !== undefined) return "a book page";
+  // Nothing plays, so nothing is a page yet: a template's preview, a figure
+  // laid out on its own (the default heading draws only with commands too).
+  if ((spec.commands ?? []).length === 0) return "no commands";
   if (facts.templateBoxed) return "the template is placed in its box";
   if (facts.world) return "the template's world is larger than the page";
   if (facts.interactive) return "an interactive template";
@@ -98,15 +107,21 @@ export function settleBlocker(
     if (el.type === "inset") return "insets";
     if (el.type === "code" && el.show !== "none") return "a code pane";
   }
-  for (const cmd of spec.commands ?? []) {
+  const commands = spec.commands ?? [];
+  // The verbs first: they are what every tween frame of an animated cast
+  // hits, and they need no stringifying.
+  for (const cmd of commands) {
     const verb = MOVING_VERBS.find((v) => (cmd as Record<string, unknown>)[v] !== undefined);
     if (verb) return `a ${verb} command`;
-    // A guess on a scale reads the scale's line from the spec (guess/handles.ts).
-    if (cmd.ask && (cmd.ask as { guess?: unknown }).guess !== undefined) return "a guess";
+  }
+  const scales = new Set(authoredScales(spec).map((sc) => sc.id));
+  for (const cmd of commands) {
+    // A guess on a scale reads the scale's line from the spec, not the
+    // layout (guess/handles.ts scaleHandle): it would miss the moved line.
+    if (([] as unknown[]).concat(cmd.ask?.on ?? []).some((id) => typeof id === "string" && scales.has(id))) return "a guess on a scale";
     // Canvas units the plan does not map (`{canvas: [x, y]}`), and a camera
     // aimed at numbers rather than at a part.
-    const text = JSON.stringify(cmd);
-    if (text.includes('"canvas":')) return "canvas coordinates in a command";
+    if (JSON.stringify(cmd).includes('"canvas":')) return "canvas coordinates in a command";
     if (cmd.camera && /"(x|y|w|h|box)":/.test(JSON.stringify(cmd.camera))) return "a camera at canvas coordinates";
   }
   return null;

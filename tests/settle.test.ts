@@ -11,7 +11,7 @@ import { expandSpec } from "../src/spec/expand";
 import { validateSpec } from "../src/spec/schema";
 import { formulaHooksFor } from "../src/render/index";
 import { planCommands } from "../src/render/plan";
-import { cardsGeometryIn } from "../src/spec/cards";
+import { authoredCards, cardsGeometryIn } from "../src/spec/cards";
 import { parseScript, printScript } from "../src/spec/script";
 import type { BBox } from "../src/layout/geometry";
 import type { Spec } from "../src/spec/types";
@@ -36,8 +36,10 @@ describe("the settle offset", () => {
   it("leaves nearly even gaps, a full figure and one taller than the area alone", () => {
     // Uneven by exactly the slack: noise.
     expect(settleOffset({ x: 0, y: 160 + 100 + SETTLE_SLACK, w: 10, h: 200 }, area)).toBe(0);
-    // 86 % of the height, though all of the slack is below.
-    expect(settleOffset({ x: 0, y: area.y + area.h - 426, w: 10, h: 426 }, area)).toBe(0);
+    // 91 % of the height, all of the slack below: too little to be uneven.
+    expect(settleOffset({ x: 0, y: area.y + area.h - 450, w: 10, h: 450 }, area)).toBe(0);
+    // 86 %, cards touching the heading: moved.
+    expect(settleOffset({ x: 0, y: area.y + area.h - 426, w: 10, h: 426 }, area)).toBe(-34);
     expect(settleOffset({ x: 0, y: 100, w: 10, h: 600 }, area)).toBe(0);
   });
 
@@ -105,8 +107,10 @@ describe("a settled page", () => {
     expect(Math.abs(below - above)).toBeLessThanOrEqual(1);
   });
 
-  it("page.valign none and a moving cast stay as laid out", () => {
+  it("page.valign none, a page with no heading, no commands and a moving cast stay as laid out", () => {
     expect(layoutSpec(topHeavy({ page: { valign: "none" } })).fit).toBeUndefined();
+    expect(layoutSpec(topHeavy({ heading: false })).fit).toBeUndefined();
+    expect(layoutSpec({ ...topHeavy(), commands: [] }).fit).toBeUndefined();
     const moving = topHeavy();
     moving.commands = [...(moving.commands ?? []), { move: { target: "note", by: [10, 0] } }];
     expect(layoutSpec(moving).fit).toBeUndefined();
@@ -167,5 +171,28 @@ describe("page.valign", () => {
     expect(spec.page).toEqual({ valign: "top" });
     expect(printScript(spec)).toContain("page:");
     expect(parseScript(printScript(spec)).page).toEqual({ valign: "top" });
+  });
+});
+
+describe("what counts as the figure's run", () => {
+  const example = (title: string): Spec => {
+    const all = JSON.parse(readFileSync(new URL("../src/examples.json", import.meta.url), "utf8")) as { spec?: Spec }[];
+    return expandSpec(all.find((e) => e.spec?.title === title)!.spec!);
+  };
+
+  it("cards count where they will go, not only where they start", () => {
+    // Inventions on a timeline: the cards start under the line and are
+    // answered above it, in rising rows.
+    const spec = example("Inventions on a timeline");
+    const l = layoutSpec(spec);
+    const dy = l.fit?.settle ?? 0;
+    const g = formulaHooksFor(spec, elementBBoxes(l), (x) => elementBBoxes(x), dy).cardsOn(authoredCards(spec)[0].id)!;
+    const ys = [...[...g.home, ...g.truth].flatMap((p) => [p[1] - g.h / 2, p[1] + g.h / 2]), ...[...elementBBoxes(l)].filter(([id]) => !id.startsWith("card_")).flatMap(([, b]) => [b.y, b.y + b.h])];
+    const below = Math.min(...ys) - area.y, above = area.y + area.h - Math.max(...ys);
+    expect(Math.abs(below - above)).toBeLessThanOrEqual(SETTLE_SLACK);
+  });
+
+  it("a guess on a scale leaves the page as laid out", () => {
+    expect(layoutSpec(example("Neurons in a brain")).fit).toBeUndefined();
   });
 });
