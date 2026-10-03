@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { AFFIRM } from "../src/render/affirm";
 import { Player } from "../src/render/player";
 import { planCommands } from "../src/render/plan";
 import { SpeechManager } from "../src/render/speech";
@@ -27,12 +28,33 @@ function makePlayer(quiz: object, speech: RecordingSpeech) {
 }
 
 describe("the quiz action", () => {
-  test("correct answer: the question, then just \"Correct.\" — the viewer knows why (Hans 2026-09-27)", async () => {
+  test("correct answer: the question, then one short affirmation, not `right` — the viewer knows why (Hans 2026-09-27, 2026-10-04)", async () => {
     const speech = new RecordingSpeech();
     const player = makePlayer(ASK, speech);
     player.quizGate = async () => 1; // 0-based: "two"
     await player.play();
-    expect(speech.spoken).toEqual(["Which?", "Correct."]);
+    expect(speech.spoken[0]).toBe("Which?");
+    expect(speech.spoken).toHaveLength(2);
+    expect([...AFFIRM.en.plain, ...AFFIRM.en.warm]).toContain(speech.spoken[1]);
+    expect(player.state).toBe("done");
+  });
+
+  test("affirm: \"plain\" keeps the one word; false says nothing", async () => {
+    for (const [affirm, said] of [["plain", ["Which?", "Correct."]], [false, ["Which?"]]] as const) {
+      const speech = new RecordingSpeech();
+      const player = makePlayer(ASK, speech);
+      player.affirmer.configure({ affirm });
+      player.quizGate = async () => 1;
+      await player.play();
+      expect(speech.spoken).toEqual(said);
+    }
+  });
+
+  test("a movie still reads `right` (it answered for the viewer)", async () => {
+    const speech = new RecordingSpeech();
+    const player = makePlayer(ASK, speech);
+    await player.play();
+    expect(speech.spoken).toEqual(["Which?", "Yes, two."]);
     expect(player.state).toBe("done");
   });
 
@@ -90,6 +112,7 @@ describe("the quiz action", () => {
       [],
     );
     const player = new Player(plan, new Map(), speech, null, { mode: "narrated" });
+    player.affirmer.configure({ affirm: "plain" });
     const answers = [1, 0]; // correct, then correct
     player.quizGate = async () => answers.shift() ?? null;
     await player.play();
