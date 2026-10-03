@@ -13,6 +13,7 @@
 // exit path: finish, skip, abort.
 
 import type { RenderHandle } from "../render";
+import { CURSOR } from "./cursors";
 import { elementBBoxes } from "../layout/layout";
 import { leafDrawables } from "../layout/model";
 import { makeBrowserMeasure } from "../render/svg-backend";
@@ -147,11 +148,12 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       // cs-connectgate is the ONE modifier this gate wears on itself (unlike
       // dragGateFor's cs-draggate, everything else about it — touch-action:
       // none, the position/z-index every figgate shares — comes from
-      // .cs-figgate's own defaults): it is what keeps the crosshair here
-      // while every other figgate now shows the hand or a grab instead.
+      // .cs-figgate's own defaults). It draws, so it shows the pencil
+      // (ui/cursors.ts), set on the gate itself over the CSS hand.
       // Every actually-connect-specific rule still lives under its own
       // cs-connect-* class.
       const gate = h("div", { class: "cs-figgate cs-connectgate" }, ink, bar);
+      gate.style.cursor = CURSOR.pen;
 
       // Every point drawn in the overlay goes through clientPointFor — the
       // star positions (already logical) and, for the live rubber band, a

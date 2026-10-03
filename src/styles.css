@@ -1651,7 +1651,11 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   padding: 0.35rem 0.8rem;
   cursor: pointer;
 }
-.cs-cardgate-pill:hover { border-color: var(--ink); }
+.cs-cardgate-pill { transition: translate 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease; }
+/* A press-me lift: up a hair, a soft pencil shadow under it. `translate`
+   (not transform) so a pill that is placed by its transform keeps its place. */
+.cs-cardgate-pill:hover:not(:disabled) { border-color: var(--ink); translate: 0 -1px; box-shadow: 0 2px 0 rgba(61, 56, 51, 0.16); }
+@media (prefers-reduced-motion: reduce) { .cs-cardgate-pill { transition: none; } }
 /* Watch (ui/watch.ts): someone else's pointer on the choices, someone else typing. */
 .cs-cardgate-watch .cs-cardgate-pill.is-hover { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, var(--surface)); }
 .cs-cardgate-watch .cs-cardgate-pill:disabled { opacity: 1; }
@@ -1697,8 +1701,36 @@ dialog h3 { font-family: var(--sketch-font); font-weight: 400; margin: 0 0 0.8re
   touch-action: none;
 }
 /* ---------- guess on the figure (ui/guess-gate.ts) ---------- */
-.cs-guessgate { cursor: crosshair; }
+/* The guess gate sets its own cursor as the pointer moves (ui/cursors.ts:
+   the hand over a number line or a crowd, grab/grabbing on a bar, a slice or
+   a curve, a pencil on a line to draw); the plain arrow off the parts. */
+.cs-guessgate { cursor: default; }
+/* A number line's faded marker under the pointer, with the value it would
+   pick; a bar's faint grip on its top edge (ui/guess-hover.ts). */
+.cs-guess-ghost { position: absolute; pointer-events: none; overflow: visible; opacity: 0.4; }
+.cs-guess-ghost text { font-family: var(--sketch-font); }
+.cs-guess-grip {
+  position: absolute;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: color-mix(in srgb, #2f6b8f 22%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, #2f6b8f 45%, transparent);
+}
+/* Three small ridges in the middle: "take hold here". */
+.cs-guess-grip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 14px;
+  height: 4px;
+  transform: translateX(-50%);
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, #2f6b8f 60%, transparent) 0 2px, transparent 2px 6px);
+}
 .cs-cardsgate { cursor: grab; }
+.cs-cardsgate.dragging { cursor: grabbing; }
 /* The card the keyboard is on (ui/cards-gate.ts). */
 .cs-card-focus { position: absolute; border: 2px dashed #3f6fb5; border-radius: 6px; pointer-events: none; }
 .cs-card-value { transform: translate(-50%, 6px); cursor: default; }
@@ -1768,7 +1800,6 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
 }
 .cs-formula-key:active { background: rgba(63, 111, 181, 0.12); }
 /* A budget's running total, under the hint. */
-.cs-guessgate.dragging { cursor: grabbing; }
 .cs-guess-value,
 .cs-guess-field {
   position: absolute;
@@ -2019,7 +2050,7 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
 .cs-guess-answer[hidden] { display: none; }
 .cs-guessgate.answered { pointer-events: none; }
 /* .cs-figgate sets no cursor of its own any more — what shows through this
-   overlay (the hand, the connect question's crosshair, a widget's grab/
+   overlay (the hand, the connect question's pencil, a widget's grab/
    grabbing) is decided together, in cascade order, down by cs-cardable. */
 .cs-figgate-hint {
   position: absolute;
@@ -2331,14 +2362,15 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
    throughout this family, so a tie is decided by whichever is declared
    last, and everything from here down is placed for exactly that. */
 .cs-stage.cs-cardable .cs-figgate { cursor: pointer; }
-/* The connect question alone keeps the crosshair — press-and-drag between
-   stars wants a cursor that says "aim here", not "click me". Lower
+/* The connect question draws: press-and-drag between stars shows the pencil
+   (ui/cursors.ts CURSOR.pen, set on the gate itself; this rule is the hand
+   underneath it, for a browser without image cursors). Lower
    specificity than the rule above (two classes, not three), so this only
    actually wins because a connect gate never has cs-cardable true at the
    same time (nothing ever sets it there) — not because of this ordering.
    It is placed here anyway, after cardable-through-gate, so the file reads
    in the same "later wins" order it would need if that ever changed. */
-.cs-figgate.cs-connectgate { cursor: crosshair; }
+.cs-figgate.cs-connectgate { cursor: pointer; }
 /* Hovering what a live widget lets the viewer drag (a supply_demand curve,
    a price line): the open hand before any press — after cardable, so a
    curve that also carries a card still says "you can take this". */
