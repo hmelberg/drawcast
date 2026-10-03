@@ -108,6 +108,7 @@ import { createServer } from "vite";
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { iconCacheDir, iconFetcher, nodeFetch, routePage } from "./icon-fetch.mjs";
 import { homedir, hostname } from "node:os";
 import {
   DOC_EXT_RE,
@@ -1561,9 +1562,10 @@ const commands = {
       // Icons are keywords (round 6): resolve them as the app does before it
       // plays (offline cache, then Iconify), on a copy, so the lint sees the
       // artwork and "no icon for X" names only a keyword that has none.
-      const { resolveIcons } = await load("/src/render/icon.ts");
+      // Iconify through the scripts' disk cache and retry (icon-fetch.mjs).
+      const { resolveIcons, defaultDeps } = await load("/src/render/icon.ts");
       const withIcons = structuredClone(spec);
-      await resolveIcons(withIcons).catch(() => {});
+      await resolveIcons(withIcons, { ...defaultDeps(), fetch: nodeFetch(iconFetcher({ dir: iconCacheDir(ROOT) })) }).catch(() => {});
       const ex = expandSpec(withIcons);
       const laid = layoutSpec(ex, heuristicMeasure);
       // The layout's own warnings too (a label moved off other ink, …): the
@@ -1600,6 +1602,8 @@ const commands = {
       // to a row, each about twice as wide — for judging fine text.
       const W = large ? 760 : 1000;
       const page = await b.newPage({ viewport: { width: W, height: 900 } });
+      // Icons through the scripts' disk cache and retry: parallel runs drew blank on Iconify's 429.
+      await routePage(page, iconFetcher({ dir: iconCacheDir(ROOT) }));
       const errors = [];
       page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
       const url = `${URL_BASE}/frames.html?cast=${devPath(file)}&beats=all&v=${Date.now()}`;
