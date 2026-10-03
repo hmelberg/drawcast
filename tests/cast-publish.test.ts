@@ -5,8 +5,14 @@
 // courses.json, deliberately: parseManifest rebuilds {courses} and drops every
 // other key, so anything stored beside it would be erased by the next course
 // publish (design §5).
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, beforeAll, afterAll } from "vitest";
+import { setPublishesCast } from "../src/cast-file";
 import { buildCastPlan, emptyCastIndex, parseCastIndex, upsertCast } from "../src/publish/cast";
+
+// The .yaml generation of publishing: these pin slugs, doors, links and locks,
+// which are the same either way; the .cast names are tests/cast-files.test.ts's.
+beforeAll(() => setPublishesCast(false));
+afterAll(() => setPublishesCast(true));
 
 const repo = { owner: "hmelberg", repo: "kurs" };
 const base = {

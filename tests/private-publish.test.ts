@@ -3,10 +3,16 @@
 // narration outside the envelope. The lock runs over every lecture file of
 // the plan BEFORE the one commit; any failure means nothing is committed.
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { setPublishesCast } from "../src/cast-file";
 import { commitPublish, preparePublish, type PublishArgs } from "../src/course/publish";
 import { publishCast } from "../src/publish/cast";
 import { LOCK_HEADER, lockText } from "../src/crypto/lecture-lock";
+
+// The .yaml generation of publishing: these pin slugs, doors, links and locks,
+// which are the same either way; the .cast names are tests/cast-files.test.ts's.
+beforeAll(() => setPublishesCast(false));
+afterAll(() => setPublishesCast(true));
 
 const TEXT = `# Causal Inference
 enroll: https://drawcast.anvil.app

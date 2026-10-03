@@ -11,9 +11,15 @@
 // behaviour tests.
 
 import { readFileSync } from "node:fs";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, beforeAll, afterAll } from "vitest";
+import { setPublishesCast } from "../src/cast-file";
 import { privateRequest, type ShareDoc } from "../src/ui/share";
 import type { Settings } from "../src/store";
+
+// The .yaml generation of publishing: these pin slugs, doors, links and locks,
+// which are the same either way; the .cast names are tests/cast-files.test.ts's.
+beforeAll(() => setPublishesCast(false));
+afterAll(() => setPublishesCast(true));
 
 const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8");
 

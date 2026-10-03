@@ -2,7 +2,8 @@
 // Pure halves here; Task 3 appends the source guards for the DOM wiring.
 import { readFileSync } from "node:fs";
 import { prettyCopies } from "../src/ui/share";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, beforeAll, afterAll } from "vitest";
+import { setPublishesCast } from "../src/cast-file";
 import { parseCourse } from "../src/course/document";
 import { applyJoinDoor, courseRegistration } from "../src/course/publish";
 import { DEFAULT_ENROLL_API } from "../src/learn";
@@ -257,6 +258,11 @@ describe("the Join-door checkbox and the claim are wired (source guards — no j
 // drawcast.app/#<name> — and NEVER to `slug:`, the folder every published
 // link and the Anvil course key hang off.
 import { applyCourseFolder, applyCourseName } from "../src/course/publish";
+
+// The .yaml generation of publishing: these pin slugs, doors, links and locks,
+// which are the same either way; the .cast names are tests/cast-files.test.ts's.
+beforeAll(() => setPublishesCast(false));
+afterAll(() => setPublishesCast(true));
 
 describe("applyCourseName", () => {
   const PUBLISHED = "# Micro I\nslug: micro-i\n---\n## Supply\nWhy?\n";

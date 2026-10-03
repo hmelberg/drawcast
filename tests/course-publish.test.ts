@@ -1,8 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { setPublishesCast } from "../src/cast-file";
 import { parseCourse } from "../src/course/document";
 import { buildPublishPlan, commitPublish, preparePublish, publishCourse, type PlanArgs } from "../src/course/publish";
 import { emptyManifest, upsertCourse } from "../src/publish/github";
 import { hasDoor } from "./helpers/course-door";
+
+// The .yaml generation of publishing: these pin slugs, doors, links and locks,
+// which are the same either way; the .cast names are tests/cast-files.test.ts's.
+beforeAll(() => setPublishesCast(false));
+afterAll(() => setPublishesCast(true));
 
 const TEXT = `# Causal Inference
 ---

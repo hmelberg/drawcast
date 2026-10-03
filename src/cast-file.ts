@@ -15,11 +15,11 @@ export const stripDocExt = (path: string): string => path.replace(DOC_EXT_RE, ""
  * accepts .cast keys, `.yaml`. The server checks every cast key against its
  * extension list (drawcast-anvil parsers.py CAST_RE) — learner events,
  * names, registration and server publishing would all be refused for a
- * .cast key it does not know. Flip to true once drawcast-anvil's
- * `cast-files` branch is deployed. A setter, not a constant, so tests can
+ * .cast key it does not know — which it does since 2026-10-03
+ * (drawcast-anvil 6307f7c, deployed). A setter, not a constant, so tests can
  * hold both generations.
  */
-let publishCast = false;
+let publishCast = true;
 export const publishesCast = (): boolean => publishCast;
 export function setPublishesCast(on: boolean): void {
   publishCast = on;

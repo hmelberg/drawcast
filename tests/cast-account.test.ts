@@ -1,7 +1,8 @@
 import { mkdtempSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { setPublishesCast } from "../src/cast-file";
 import {
   boundedFetch,
   checkName,
@@ -38,6 +39,11 @@ import { parseCourse } from "../src/course/document";
 import * as courseDoc from "../src/course/document";
 import { registryNote } from "../src/registry";
 import { claimNote } from "../src/names";
+
+// The .yaml generation of publishing: these pin slugs, doors, links and locks,
+// which are the same either way; the .cast names are tests/cast-files.test.ts's.
+beforeAll(() => setPublishesCast(false));
+afterAll(() => setPublishesCast(true));
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
 

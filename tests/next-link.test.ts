@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeAll, afterAll } from "vitest";
+import { setPublishesCast } from "../src/cast-file";
 import { buildPublishPlan } from "../src/course/publish";
 import { formatPlaylist, isSingle, parsePlaylistText } from "../src/playlist/playlist";
 import { parseCourse } from "../src/course/document";
+
+// The .yaml generation of publishing: these pin slugs, doors, links and locks,
+// which are the same either way; the .cast names are tests/cast-files.test.ts's.
+beforeAll(() => setPublishesCast(false));
+afterAll(() => setPublishesCast(true));
 
 // Hans 2026-09-02: "when a lecture ends on Next it should also have a link
 // to the next lecture so we can just click it and go". The link lives in the

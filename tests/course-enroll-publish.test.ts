@@ -1,10 +1,16 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, beforeAll, afterAll } from "vitest";
+import { setPublishesCast } from "../src/cast-file";
 import { parseCourse } from "../src/course/document";
 import type { Door } from "../src/course/page";
 import { buildPublishPlan, courseKeyFor, courseNameFor, lectureCastKeys } from "../src/course/publish";
 import { emptyManifest } from "../src/publish/github";
 import { parsePlaylistText } from "../src/playlist/playlist";
 import { hasDoor } from "./helpers/course-door";
+
+// The .yaml generation of publishing: these pin slugs, doors, links and locks,
+// which are the same either way; the .cast names are tests/cast-files.test.ts's.
+beforeAll(() => setPublishesCast(false));
+afterAll(() => setPublishesCast(true));
 
 const REPO = { owner: "hmelberg", repo: "dcast" };
 const YAML = "title: One\nelements: []\ncommands: []\n";

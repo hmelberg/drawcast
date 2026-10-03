@@ -197,17 +197,21 @@ describe("publishing under the switch (src/cast-file.ts publishesCast)", async (
     try {
       return f();
     } finally {
-      setPublishesCast(false);
+      setPublishesCast(true);
     }
   };
 
-  test("off (the default until the server is deployed): .yaml, as before", () => {
+  test("on by default (the server takes .cast keys since 2026-10-03)", () => {
+    expect(publishExt()).toBe(".cast");
+  });
+
+  test("off: .yaml, as before", () => withSwitch(false, () => {
     expect(publishExt()).toBe(".yaml");
     const plan = buildCastPlan(castArgs);
     expect(plan.files.some((f) => f.path === "casts/difference-in-differences.yaml")).toBe(true);
     expect(plan.castUrl.endsWith(".yaml")).toBe(true);
     expect(publishName("01-a.yaml")).toBe("01-a.yaml");
-  });
+  }));
 
   test("on: a cast is published as .cast — file, link, index entry, registration and private target agree", () => {
     withSwitch(true, () => {
