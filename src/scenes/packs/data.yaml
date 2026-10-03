@@ -636,19 +636,50 @@ layout: |
 
   const b = params.box;
   const boxed = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0;
-  const area = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : { x0: 150, y0: 60, x1: 850, y1: 640 };
+  // Default: the page's content area (src/layout/page.ts — x 60…940, y 160…660,
+  // clear of the caption band). guess/handles.ts pieGeometry mirrors all of this.
+  const area = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : { x0: 60, y0: 160, x1: 940, y1: 660 };
   const title = str(params.title, "");
   if (title) area.y1 = Math.min(area.y1, 650);
-  // Room for a label on each side: the radius leaves 150 units left and right.
-  const r0 = Math.max(40, Math.min((area.x1 - area.x0) / 2 - 150, (area.y1 - area.y0) / 2 - 40));
+  const showPct = params.percent !== false;
   const cx0 = (area.x0 + area.x1) / 2, cy0 = (area.y0 + area.y1) / 2;
+  // The radius grows with the room (W4): as large as the box allows with
+  // every slice's name still inside it, at every stage (so an animated pie
+  // does not breathe), capped at 270. Names are 24 units; they shrink (to
+  // the old 20) only when that buys the pie more than a tenth of its radius.
+  const LABEL_OFF = 26, R_CAP = 270;
+  const nameOf = (i) => (labels[i] !== undefined ? labels[i] : "Slice " + (i + 1));
+  const pctOf = (sh) => Math.round(sh * 100) + "%";
+  const labelText = (i, sh) => (showPct ? nameOf(i) + "  " + pctOf(sh) : nameOf(i));
+  const radiusFor = (size) => {
+    const hw = (area.x1 - area.x0) / 2 - 4, hh = (area.y1 - area.y0) / 2 - 4, lh = size * 1.25 / 2;
+    let r = Math.min(R_CAP, hw, hh - 4);
+    for (let k = 0; k < K; k++) {
+      const row = [];
+      for (let i = 0; i < n; i++) row.push(at(k, i));
+      const tot = row.reduce((a, v) => a + v, 0);
+      let a0 = 0;
+      for (let i = 0; i < n; i++) {
+        const sh = tot > 0 ? row[i] / tot : 1 / Math.max(1, n);
+        const mid = a0 + sh * Math.PI;
+        a0 += sh * 2 * Math.PI;
+        const w = kit.textWidth(labelText(i, sh), size);
+        const sn = Math.abs(Math.sin(mid)), cs = Math.abs(Math.cos(mid));
+        if (cs > 1e-6) r = Math.min(r, (hh - lh) / cs - LABEL_OFF);
+        if (sn > 1e-6) r = Math.min(r, (hw - w) / sn - LABEL_OFF);
+      }
+    }
+    return Math.max(40, r);
+  };
+  let labelSize = 24, r0 = radiusFor(24);
+  const rSmall = radiusFor(20);
+  if (r0 < rSmall * 0.9) { const r22 = radiusFor(22); if (r22 >= rSmall * 0.9) { labelSize = 22; r0 = r22; } else { labelSize = 20; r0 = rSmall; } }
   // A guess's beside reveal (spec 2026-10-03-round6 §3) sets beside_pie
   // [x, y, r] at run time, never an author: the slices stand there, beside
   // the viewer's own pie; the title keeps its place.
   const bp = params.beside_pie;
   const besidePie = Array.isArray(bp) && bp.length === 3 && bp.every((v) => typeof v === "number" && Number.isFinite(v)) && bp[2] > 0;
   const cx = besidePie ? bp[0] : cx0, cy = besidePie ? bp[1] : cy0, r = besidePie ? bp[2] : r0;
-  const showPct = params.percent !== false;
   // Clockwise from 12 o'clock, y-up: angle a (radians from the top) → point.
   const P = (a, rr) => [cx + rr * Math.sin(a), cy + rr * Math.cos(a)];
 
@@ -672,18 +703,17 @@ layout: |
       children.push(kit.stroke(id + "__o", wedge, { closed: true, color, strokeWidth: 2.5, ms: MS.stroke }));
     }
     const mid = a0 + sweep / 2;
-    const lp = P(mid, r + 26);
+    const lp = P(mid, r + LABEL_OFF);
     const right = Math.sin(mid) >= 0;
     // Thin neighbours put their names on top of each other: keep each name
     // a line clear of the last one on its side, in the direction the
     // clockwise walk is heading there (down the right, up the left).
     const last = right ? lastRight : lastLeft;
-    if (last !== null) lp[1] = right ? Math.min(lp[1], last - 32) : Math.max(lp[1], last + 32);
+    const gapY = labelSize * 1.25 + 2;
+    if (last !== null) lp[1] = right ? Math.min(lp[1], last - gapY) : Math.max(lp[1], last + gapY);
     if (right) lastRight = lp[1]; else lastLeft = lp[1];
     topLabel = Math.max(topLabel, lp[1]);
-    const pct = Math.round(shares[i] * 100) + "%";
-    const name = labels[i] !== undefined ? labels[i] : "Slice " + (i + 1);
-    children.push(kit.text(id + "__l", lp, showPct ? name + "  " + pct : name, { fontSize: 20, anchor: right ? "start" : "end" }));
+    children.push(kit.text(id + "__l", lp, labelText(i, shares[i]), { fontSize: labelSize, anchor: right ? "start" : "end" }));
     push(kit.group(id, children));
     anchors[id] = P(mid, r * 0.6);
     a0 = a1;
