@@ -32,7 +32,7 @@ git, never publish, never stop the dev server (it runs on port 5201).
 - 8–12 spoken lines (count `speak` + quiz/ask `right` lines). Connected narration: each line
   follows from the last ("So…", "But…", "And…"), never a list of facts. Short sentences for the ear.
 - After a quiz/ask: at most one narrated line on the same point; a `wrong` hint never repeats the
-  answer (usually just "{g} of {g.total} on the first try." for cards).
+  answer (for a check-each sort "{g} of {g.total} on the first try."; for place/compare/rank `{g}` already reads "2 of 3", so write "{g} close." or use {g.within}).
 - FILL THE SCREEN. One main figure, drawn LARGE — use the page (1000×750, y up). Big icons
   (size 250–350 for a lone picture), `text.font_size` 32–36 at top level for scales, cards and
   bar charts, big labels (40–60) for the key word or number. Keep ink above y≈170: the bottom
