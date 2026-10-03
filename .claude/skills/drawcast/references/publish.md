@@ -12,9 +12,8 @@ public repo the user chooses; after that it is revised like anything published.
    dev-casts/publish/<slug>` writes the one-cast-file folder that is its workdir. Run `check` and
    `frames` once more before publishing if it changed since you last looked.
    A cast or lecture file is `.cast` (script) or `.yaml`; every command reads both. New files
-   are `.yaml` until `.cast` publishing is on (`DRAWCAST_PUBLISH_CAST=1`, only once the
-   drawcast server takes .cast); then they are `.cast`, and a push or `lecture-build` turns a
-   `.yaml` into `.cast` and removes the old file, here and on GitHub.
+   are `.cast`, and a push or `lecture-build` turns a `.yaml` into `.cast` and removes the old
+   file, here and on GitHub.
 1. **Which account and repo.** `gh api user --jq .login` names the account gh is signed in
    as; say it, and ask which repo (an existing public one, or a new one) and folder. If gh
    is not signed in, ask the user to run `! gh auth login`.

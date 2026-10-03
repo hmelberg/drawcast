@@ -96,12 +96,12 @@
 // under dev-casts/ (gitignored). The dev server:
 //   npm run dev -- --port 5199 --strictPort      (DRAWCAST_URL overrides http://localhost:5199)
 //
-// What it WRITES follows the app's switch (src/cast-file.ts publishesCast):
-// `.yaml` by default. DRAWCAST_PUBLISH_CAST=1 turns it on for one run — pack,
-// publish-target and lecture-build then name new files `.cast` (script), and
+// What it WRITES follows the app's switch (src/cast-file.ts publishesCast),
+// on since 2026-10-03 (the drawcast server takes .cast keys): pack,
+// publish-target and lecture-build name new files `.cast` (script), and
 // lecture-build/push turn a recorded `x.yaml` into `x.cast`, removing the old
-// file (in the workdir, and in the same commit on GitHub). Only once the
-// drawcast server accepts .cast keys.
+// file (in the workdir, and in the same commit on GitHub). DRAWCAST_PUBLISH_CAST=1
+// forces it on; the switch's own default decides otherwise.
 
 import { createServer } from "vite";
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
