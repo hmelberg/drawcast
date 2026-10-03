@@ -9,7 +9,7 @@ import { fetchCatalogue } from "../catalogue";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { h } from "../ui/dom";
 import featuredJson from "./featured.json";
-import { cardFromCatalogue, parseFeatured, upNext } from "./model";
+import { cardFromCatalogue, parseFeatured, tagRows, upNext } from "./model";
 import { card, topBar } from "./ui";
 
 const THEATRE_KEY = "drawcast:watch-theatre";
@@ -39,7 +39,8 @@ export function mountWatch(app: HTMLElement, opts: { name?: string } = {}): void
   body.classList.add("watch-body");
   body.classList.toggle("watch-theatre", readTheatre());
 
-  const { root: top } = topBar();
+  const featured = parseFeatured(featuredJson);
+  const { root: top } = topBar("", undefined, { topics: tagRows(featured).map((r) => r.tag) });
   const list = h("div", { class: "watch-list" });
   const aside = h("aside", { class: "watch-next", "aria-label": "Up next" }, h("h2", {}, "Up next"), list);
   const main = h("div", { class: "watch-main" });
@@ -68,7 +69,6 @@ export function mountWatch(app: HTMLElement, opts: { name?: string } = {}): void
   if (meta) meta.append(theatre);
   else main.append(theatre);
 
-  const featured = parseFeatured(featuredJson);
   const show = (newest: Parameters<typeof upNext>[2]): void => {
     list.replaceChildren(...upNext(opts.name, featured, newest).map((c) => card(c, { compact: true })));
   };

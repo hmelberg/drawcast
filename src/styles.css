@@ -3385,6 +3385,35 @@ input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; b
   .home-brand { font-size: 1.4rem; }
 }
 
+/* The ☰ menu (home/ui.ts buildMenu): a sidebar sliding in over the page,
+   like YouTube's guide. */
+.home-top-left { display: flex; align-items: center; gap: 0.5rem; }
+.home-menu-btn {
+  width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; color: var(--ink);
+  font-size: 1.3rem; line-height: 1; cursor: pointer; flex: none;
+}
+.home-menu-btn:hover, .home-menu-btn:focus-visible { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.home-menu-shell { position: fixed; inset: 0; z-index: 50; }
+.home-menu-shell[hidden] { display: none; }
+.home-menu-backdrop { position: absolute; inset: 0; background: color-mix(in srgb, #000 35%, transparent); }
+.home-menu {
+  position: absolute; top: 0; left: 0; bottom: 0; width: min(280px, 85vw); overflow-y: auto;
+  background: var(--paper); box-shadow: 4px 0 24px color-mix(in srgb, #000 20%, transparent);
+  padding: 0.6rem 0.6rem 2rem; box-sizing: border-box; animation: home-menu-in 0.18s ease-out;
+}
+@keyframes home-menu-in { from { transform: translateX(-100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .home-menu { animation: none; } }
+.home-menu-head { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.4rem 0.6rem; }
+.home-menu-group { border-top: 1px solid var(--line); padding: 0.5rem 0; }
+.home-menu-head + .home-menu-group { border-top: 0; }
+.home-menu-title { padding: 0.3rem 0.8rem; font-size: var(--text-sm); color: var(--muted); font-weight: 600; }
+.home-menu-link {
+  display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 0.5rem 0.8rem; border: 0; border-radius: 10px;
+  background: transparent; color: var(--ink); text-decoration: none; font: inherit; font-size: var(--text); cursor: pointer;
+}
+.home-menu-link:hover, .home-menu-link:focus-visible { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.home-menu-link.current { background: color-mix(in srgb, var(--ink) 10%, transparent); font-weight: 600; }
+
 .home-card-text { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
 
 /* The watch page (src/home/watch.ts): the viewer inside the site's frame —
