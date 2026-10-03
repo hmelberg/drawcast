@@ -1093,6 +1093,7 @@ export class Player {
       el.setOpacity?.(this.baseOpacity(id, scene) * this.stageAlpha(id));
       el.setPoints?.(scene.shapes[id] ?? {});
       el.setText?.(scene.texts[id] ?? {});
+      if (this.landing.has(id)) continue; // a reveal stamp mid-landing finishes itself
       if (visible.has(id) || !this.planTimeIds.has(id) || this.besideShown(id)) el.finish();
       else el.hide();
     }
@@ -1902,6 +1903,7 @@ export class Player {
     }
     // The feedback is spoken AS the figure moves to the truth, not after it:
     // waiting for the glide and then the voice left a gap after answering.
+    this.stampIn(step, signal);
     const spoken = this.speakLines(line, extra, step, signal);
     if (step.revealStyle === "morph") {
       if (!(await this.revealGuess(setup, guess, paint, owner, signal))) return;
@@ -2159,6 +2161,7 @@ export class Player {
       live && answered && judged
         ? this.feedbackAfter(step, bandOf({ ok, within: score.within, count: score.count }), { long: isLong({ items: score.count }), parts: formula ? [step.formula!] : g.cards, ...(formula ? {} : { shift }) }, signal)
         : [];
+    this.stampIn(step, signal);
     const spoken = this.speakLines(line, extra, step, signal);
     // Beside (the default, spec 2026-10-03-round6 §3): an answer stays where
     // the viewer left it, ✓/✗ on each card and the truth in ink beside. A
@@ -2424,10 +2427,12 @@ export class Player {
         // Myth. The wall is…", Hans 2026-10-04; render/affirm.ts).
         const nod = live && picked && step.quiet ? this.affirmer.say(this.sourceLang, step, { streak: this.streak(), score: Number(this.vars.get("score") ?? 0), total: this.outcomes.size, last: Math.max(...this.ordinalOf.keys()) === index }) : null;
         const said = nod && step.right ? `${nod} ${step.right}` : (nod ?? step.right);
+        this.stampIn(step, signal);
         await this.glowWhile(live ? [{ ids: answerOpt.members, color: ANSWER_OK_COLOR }] : [], signal, () => this.speakLines(said, extra, step, signal));
       } else {
         if (picked && step.wrong) await this.speakLine(step.wrong, step, signal);
         if (signal.aborted) return;
+        this.stampIn(step, signal);
         if (step.reveal) await this.glowWhile(live ? [{ ids: answerOpt.members }] : [], signal, () => this.speakLines(step.right ?? answerOpt.label, extra, step, signal));
         else if (extra.length > 0) await this.speakLines(null, extra, step, signal);
       }
@@ -2439,6 +2444,7 @@ export class Player {
     } else {
       // An opinion or a branch: its line is spoken whatever was chosen.
       const line = step.right ?? step.wrong;
+      this.stampIn(step, signal);
       if (line) await this.glowWhile(live && picked ? [{ ids: picked.members }] : [], signal, () => this.speakLines(line, [], step, signal));
       if (signal.aborted) return;
     }
@@ -2556,6 +2562,7 @@ export class Player {
     // (the plan takes the boxes away), each wrong answer struck through above.
     const line = ok ? step.right : (step.wrong ?? step.right);
     const extra = live && answered ? this.feedbackAfter(step, bandOf({ ok, within, count: blanks.length }), { long: isLong({ parts: blanks.length }), parts: [id] }, signal) : [];
+    this.stampIn(step, signal);
     const spoken = this.speakLines(line, extra, step, signal);
     this.setFills(id, blanks.map((b) => b.tex));
     this.applyKey(after);
@@ -2820,6 +2827,7 @@ export class Player {
       live && answered
         ? this.feedbackAfter(step, bandOf({ ok, within: score.within + (pickRight ? 1 : 0), count: counted }), { long: isLong({ parts: counted }), parts: blanks.map((b) => b.part) }, signal)
         : [];
+    this.stampIn(step, signal);
     const spoken = this.speakLines(line, extra, step, signal);
     const order = blanks.map((b, i) => ({ b, i })).sort((a, z) => z.b.depth - a.b.depth);
     const beside = step.revealStyle !== "morph";
@@ -3472,6 +3480,23 @@ export class Player {
     this.captionEl.classList.toggle("cs-caption-dark", text !== "" && !!this.captionOnDark && !!scene && this.captionOnDark(scene.visible));
   }
 
+  /** Reveal stamps landing now: applyScene leaves them to their animation. */
+  private landing = new Set<string>();
+
+  /** A question's reveal stamp lands (spec/reveal-stamps.ts) — called at the
+   *  reveal moment, as its line starts, and not awaited: the line runs on. */
+  private stampIn(step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): void {
+    const id = step.stamp;
+    const el = id === undefined || this.landing.has(id) ? undefined : this.elements.get(id);
+    if (!el || id === undefined) return;
+    el.setProgress(0);
+    this.landing.add(id);
+    void this.animateRange(el, 0, 1, el.durationMs, signal).finally(() => {
+      this.landing.delete(id);
+      if (!signal.aborted) el.finish();
+    });
+  }
+
   private els(ids: string[]): RenderedElement[] {
     return ids.map((id) => this.elements.get(id)).filter((el): el is RenderedElement => el !== undefined);
   }
@@ -3812,6 +3837,8 @@ export class Player {
         this.feedbackCtl = ctl;
         const fb = anySignal(signal, ctl.signal);
         const lines: string[] = [];
+        /** The line the reveal stamp lands with: the reveal, not a wrong hint before it. */
+        let stampAt = 0;
         if (chosen === step.correct) {
           // A live viewer who got it right already knows why: hearing the
           // explanation again is just repetition (Hans 2026-09-27: "maybe
@@ -3830,6 +3857,7 @@ export class Player {
           // `wrong` is a hint BEFORE the reveal; one that just repeats the
           // reveal would say the same sentence twice (Hans 2026-09-25).
           if (step.wrong && step.wrong.trim() !== reveal.trim()) lines.push(step.wrong);
+          stampAt = lines.length;
           lines.push(reveal);
         } else if (!liveQuiz) {
           // A movie or a gate-less player reveals the answer; a live viewer
@@ -3838,11 +3866,13 @@ export class Player {
         }
         // The feedback band's line: a live viewer who answered, right or wrong.
         if (liveQuiz && chosen !== null) lines.push(...this.feedbackAfter(step, chosen === step.correct ? "perfect" : "none", {}, signal));
+        if (lines.length === 0) this.stampIn(step, signal);
         if (lines.length > 0) {
           if (liveQuiz) this.feedbackHook?.(true);
           try {
-            for (const line of lines) {
+            for (const [k, line] of lines.entries()) {
               if (fb.aborted) break;
+              if (k === stampAt) this.stampIn(step, signal);
               await this.speakLine(line, step, fb);
             }
           } finally {
@@ -3989,6 +4019,7 @@ export class Player {
           live && typed !== null
             ? this.feedbackAfter(step, isRight(typed) ? "perfect" : "none", { long: step.widget === "drag" && isLong({ parts: sparkleIds.length }), parts: sparkleIds, sparkle: !greenNow }, signal)
             : [];
+        this.stampIn(step, signal);
         if (isRight(typed)) {
           await this.glowWhile(groups, signal, () => this.speakLines(step.right, extra, step, signal));
         } else if (step.reveal) {

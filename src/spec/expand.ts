@@ -1,5 +1,6 @@
 // The sugar a spec may carry that expands into ordinary elements and
-// commands before layout: `card` beats (spec/card.ts), derivations (math `steps`, spec/derive.ts), a note_sheet's
+// commands before layout: a question's reveal stamp (spec/reveal-stamps.ts),
+// on-canvas quiz buttons (spec/answer-buttons.ts), `card` beats (spec/card.ts), derivations (math `steps`, spec/derive.ts), a note_sheet's
 // `sound: true` (spec/sound.ts), then walked groups (spec/walk.ts). One entry point, so every consumer — render, the
 // compile-time lint, revise, the frames harness — expands the same way.
 
@@ -12,6 +13,7 @@ import { expandScales } from "./scale";
 import { withIconData } from "./icon-data";
 import { expandAnswerButtons } from "./answer-buttons";
 import { expandSequences } from "./sequence";
+import { expandRevealStamps, linkStampsToButtons } from "./reveal-stamps";
 import { expandCards as expandCardSets, shuffleOrder, type CardItem } from "./cards";
 import { formulaBlanks, hasBlanks } from "../formula/blanks";
 import { expandEquationPreset } from "../scenes/equation_plot/presets";
@@ -85,5 +87,5 @@ export function expandSpec(spec: Spec): Spec {
   // Icons named by keyword take their data from `assets:` or the offline
   // cache FIRST (spec/icon-data.ts): a card's height depends on whether its
   // icon is there, and that is decided when the cards expand.
-  return markBarGuess(expandWalks(expandSound(expandDerivations(expandDefaultHeading(expandCards(expandScratch(expandCardSets(expandFormulaTiles(expandScales(expandEquationPreset(withIconData(expandAnswerButtons(expandSequences(spec))))))))))))));
+  return markBarGuess(expandWalks(expandSound(expandDerivations(expandDefaultHeading(expandCards(expandScratch(expandCardSets(expandFormulaTiles(expandScales(expandEquationPreset(withIconData(linkStampsToButtons(expandAnswerButtons(expandRevealStamps(expandSequences(spec))))))))))))))));
 }

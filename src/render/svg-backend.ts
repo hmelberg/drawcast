@@ -501,6 +501,11 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
       if (adv !== null && Math.abs(adv - CHAR_W) > 0.001) t.setAttribute("letter-spacing", ((CHAR_W - adv) * d.fontSize).toFixed(3));
     }
     if (d.weight === "bold") t.setAttribute("font-weight", "bold");
+    // A reveal stamp's slant (y up, counter-clockwise → SVG's negative angle).
+    if (d.tilt) {
+      t.setAttribute("transform", `rotate(${(-d.tilt).toFixed(2)} ${x} ${toSvgY(d.pos[1])})`);
+      t.dataset.tilt = "1"; // nudgeTextsIntoCanvas leaves a turned text alone
+    }
     t.setAttribute("text-anchor", d.anchor === "middle" ? "middle" : d.anchor);
     t.setAttribute("dominant-baseline", "central");
     if (d.style.opacity < 1) t.setAttribute("opacity", String(d.style.opacity));
@@ -662,7 +667,43 @@ export function imageRevealFrame(reveal: ImageReveal, baseOpacity: number, t: nu
   }
 }
 
+/**
+ * A reveal stamp landing (spec/reveal-stamps.ts): the leaf fades in as it
+ * settles from STAMP_FROM× to its own size about the stamp's centre. The
+ * scale rides on the leaf's CHILD nodes, in front of their own transform (a
+ * text's slant), so the pose transform on the leaf's `<g>` is never touched;
+ * at t = 1 each child is back to exactly what drawLeaf built.
+ */
+const STAMP_FROM = 1.15;
+function stampLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" }>): LeafHandle {
+  const c: Pt =
+    leaf.kind === "text" || leaf.kind === "image"
+      ? leaf.pos
+      : (() => {
+          const pts = "pts" in leaf ? (leaf.pts as Pt[]) : [];
+          if (pts.length === 0) return [0, 0] as Pt;
+          const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+          return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2] as Pt;
+        })();
+  const cx = c[0], cy = toSvgY(c[1]);
+  const apply = (t: number) => {
+    const u = Math.min(1, Math.max(0, t));
+    g.style.opacity = u >= 1 ? "" : Math.min(1, u * 1.6).toFixed(3);
+    const s = 1 + (STAMP_FROM - 1) * (1 - u) ** 3;
+    for (const kid of Array.from(g.children)) {
+      const own = kid as SVGElement;
+      if (own.dataset.stampOwn === undefined) own.dataset.stampOwn = own.getAttribute("transform") ?? "";
+      const base = own.dataset.stampOwn;
+      const t2 = s === 1 ? base : `translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${s.toFixed(4)}) translate(${(-cx).toFixed(1)} ${(-cy).toFixed(1)}) ${base}`.trim();
+      if (t2 === "") own.removeAttribute("transform");
+      else own.setAttribute("transform", t2);
+    }
+  };
+  return { durationMs: leaf.drawOpts.duration, prepare: () => apply(0), setProgress: apply };
+}
+
 function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" }>): LeafHandle {
+  if (leaf.drawOpts.mode === "stamp") return stampLeafHandle(g, leaf);
   if (leaf.kind === "image") {
     // A photo has no pen to follow, so it reveals by effect (ImageReveal in
     // layout/model.ts): the pure frame math lives in imageRevealFrame.
@@ -1049,9 +1090,12 @@ class SvgElementHandle implements RenderedElement {
     this.fadeGroups = entries.map(({ fadeNode }) => fadeNode);
     this.cumulative = [];
     let acc = 0;
+    // A reveal stamp's frame and words land as one (spec/reveal-stamps.ts),
+    // not one after the other as a sketch's leaves are drawn.
+    const together = entries.length > 0 && entries.every(({ leaf }) => leaf.drawOpts.mode === "stamp");
     for (const l of this.leaves) {
-      this.cumulative.push(acc);
-      acc += l.durationMs;
+      this.cumulative.push(together ? 0 : acc);
+      acc = together ? Math.max(acc, l.durationMs) : acc + l.durationMs;
     }
     this.durationMs = acc;
     this.leaves.forEach((l) => l.prepare());
@@ -1189,6 +1233,8 @@ function nudgeTextsIntoCanvas(svg: SVGSVGElement, world?: BBox): void {
   const top = world ? toSvgY(world.y + world.h) : 0;
   const bottom = world ? toSvgY(world.y) : CANVAS.h;
   for (const t of Array.from(svg.querySelectorAll("text"))) {
+    // A reveal stamp's turned words (drawLeaf's tilt) are placed inside the content area already.
+    if ((t as SVGTextElement).dataset.tilt) continue;
     try {
       // Our backend never sets transforms on text otherwise, so recomputing
       // from a clean slate keeps repeated calls (e.g. after fonts load) idempotent.

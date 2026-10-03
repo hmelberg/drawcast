@@ -707,7 +707,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-04 (layout-w12, the sequence element): the schema's sequence item
 // branch, strip, show_upcoming, recap and one sentence on items (+1364), and one paragraph
 // in freehand rule 3 (+553). -> 400811.
-const BASELINE_SYSTEM_CHARS = 400811;
+// Merged layout-w11 2026-10-04: +1706 (reveal stamps). -> 402517.
+const BASELINE_SYSTEM_CHARS = 402517;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -815,7 +816,8 @@ const BASELINE_SYSTEM_CHARS = 400811;
 // Merged layout-w1 2026-10-04: +164 (heading field). -> 115244.
 // Re-pinned UP 2026-10-04 (layout-w12, the sequence element): item branch, strip,
 // show_upcoming, recap, a sentence on items. +1364. -> 116608.
-const BASELINE_SCHEMA_CHARS = 116608;
+// Merged layout-w11 2026-10-04: +1463 (reveal stamps). -> 118071.
+const BASELINE_SCHEMA_CHARS = 118071;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

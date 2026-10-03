@@ -137,8 +137,24 @@ const SHARED_DEFS = {
     },
     additionalProperties: false,
   },
+  // A question's reveal stamp (spec/reveal-stamps.ts): words, or words with hatches; and its pin.
+  reveal: {
+    anyOf: [
+      { type: "boolean" },
+      { type: "string" },
+      {
+        type: "object",
+        properties: { text: { type: "string" }, at: { $ref: "#/$defs/reveal_at" }, color: { type: "string" }, size: { type: "number" }, style: { type: "string", enum: ["stamp", "label"] }, keep: { type: "boolean" } },
+        additionalProperties: false,
+      },
+    ],
+  },
+  reveal_at: { anyOf: [{ type: "string" }, { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false }] },
 };
 
+/** A reveal stamp's pin, and the machine-written link from a question to its stamp (spec/reveal-stamps.ts). */
+const REVEAL_AT = { allOf: [{ $ref: "#/$defs/reveal_at" }], description: "Where the reveal stamp goes: an element id (beside it) or {x, y}." };
+const REVEAL_LINK = { type: "string", description: "Machine-written; never write it." };
 /** Feedback flavour (spec 2026-10-03-looks-feedback-account §4.1), on the cast or one question. */
 const feedbackSchema = (description: string) => ({ allOf: [{ $ref: "#/$defs/feedback" }], description });
 const CAST_FEEDBACK = `Questions' feedback: after the right/wrong line the player adds ONE short line for how well the viewer did. plain (default, nothing added), warm or dry; or {style, perfect, good, poor, none} with YOUR OWN lines per band (all right; two thirds; some; none) — a sentence or a list, in the cast's language, about its topic ("Good thing you're not a pharmacist."). {vars} work. An ask or quiz may set its own.`;
@@ -702,6 +718,7 @@ const elementSchema = {
     },
     style: styleSchema,
     draw: drawSchema,
+    reveal_stamp: { type: "object", description: "Machine-written; never write it." },
   },
   required: ["id", "type"],
   additionalProperties: false,
@@ -851,6 +868,12 @@ const commandSchema = {
         buttons_layout: { type: "string", enum: ["row", "column"] },
         say_question: { type: "boolean", description: "on_canvas: true speaks and shows the question." },
         keep_buttons: { type: "boolean", description: "on_canvas: true keeps the buttons after the answer." },
+        reveal: {
+          allOf: [{ $ref: "#/$defs/reveal" }],
+          description: 'A stamp ("MYTH", "46 hours!") drawn beside the figure WITH the right line — no draw after the quiz. true = the right choice\'s words. {text, at, color, size, style: stamp|label, keep}. It goes when its figure is hidden.',
+        },
+        reveal_at: REVEAL_AT,
+        reveal_stamp: REVEAL_LINK,
       },
       required: ["question", "choices", "correct"],
       additionalProperties: false,
@@ -959,7 +982,12 @@ const commandSchema = {
           description: "One sentence stating the answer and the reason — spoken on a correct answer and as the reveal; no praise words.",
         },
         wrong: { type: "string", description: "Spoken on a wrong attempt. One sentence. Check mode only." },
-        reveal: { type: "boolean", description: "Check mode: speak the correct answer after a final wrong attempt (default true)." },
+        reveal: {
+          allOf: [{ $ref: "#/$defs/reveal" }],
+          description: "Check mode: speak the correct answer after a final wrong attempt (default true). A string/object: a stamp beside the figure WITH the reveal line (as quiz.reveal).",
+        },
+        reveal_at: REVEAL_AT,
+        reveal_stamp: REVEAL_LINK,
         retry: { type: "boolean", description: "Check mode: clear the field and ask again after a wrong attempt (default false). App only." },
         store: { type: "string", description: "Save the typed reply under this snake_case name; use {name} in later speak lines." },
         default: { type: "string", description: "Stand-in the movie types and skip/silent use. REQUIRED with store." },
@@ -1741,6 +1769,22 @@ export function isBlankSpec(spec: Spec): boolean {
   return !spec.template && (spec.elements?.length ?? 0) === 0 && (spec.commands?.length ?? 0) === 0;
 }
 
+/** A question's reveal stamp (spec/reveal-stamps.ts): short words, a pin that names something drawn. */
+function revealStampErrors(i: number, verb: "quiz" | "ask", reveal: unknown, at: unknown, ids: Set<string> | null): string[] {
+  const errors: string[] = [];
+  const stamp = typeof reveal === "string" || (reveal !== null && typeof reveal === "object") || (verb === "quiz" && reveal === true);
+  if (at !== undefined && !stamp) errors.push(`commands[${i}]: ${verb}.reveal_at needs a reveal stamp (reveal: "<words>"${verb === "quiz" ? " or true" : ""})`);
+  if (!stamp) return errors;
+  const r = reveal as { text?: unknown; at?: unknown };
+  const text = typeof reveal === "string" ? reveal : typeof reveal === "object" ? r.text : undefined;
+  if (typeof text === "string" && (text.trim() === "" || text.length > 30)) errors.push(`commands[${i}]: ${verb}.reveal is a stamp — a word or three (30 characters at most)`);
+  if (verb === "ask" && typeof reveal === "object" && typeof text !== "string") errors.push(`commands[${i}]: ask.reveal as an object needs text`);
+  for (const pin of [at, typeof reveal === "object" ? r.at : undefined]) {
+    if (typeof pin === "string" && ids && !ids.has(pin)) errors.push(`commands[${i}]: ${verb}.reveal at "${pin}" is not an element id`);
+  }
+  return errors;
+}
+
 function semanticErrors(spec: Spec): string[] {
   const errors: string[] = [];
 
@@ -1977,6 +2021,7 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && isReservedVar(a.store)) {
         errors.push(`commands[${i}]: quiz.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
       }
+      errors.push(...revealStampErrors(i, "quiz", a.reveal, a.reveal_at, spec.template ? null : new Set((spec.elements ?? []).map((e) => e.id))));
       const canvasOnly = (["id", "buttons", "buttons_at", "buttons_layout", "say_question", "keep_buttons"] as const).filter((k) => a[k] !== undefined);
       if (a.on_canvas !== true && canvasOnly.length > 0) {
         errors.push(`commands[${i}]: quiz.${canvasOnly.join(", ")} only apply with on_canvas: true`);
@@ -1998,6 +2043,8 @@ function semanticErrors(spec: Spec): string[] {
       if (typeof a.question !== "string" || a.question.trim().length === 0) {
         errors.push(`commands[${i}]: ask.question must be a non-empty string`);
       }
+      if (a.reveal !== undefined && typeof a.reveal !== "boolean") errors.push(...revealStampErrors(i, "ask", a.reveal, a.reveal_at, spec.template ? null : new Set((spec.elements ?? []).map((e) => e.id))));
+      else if (a.reveal_at !== undefined) errors.push(...revealStampErrors(i, "ask", a.reveal, a.reveal_at, null));
       // A guess on the figure (spec 2026-10-01-guess-and-reveal): the truth is
       // the figure's own number, so no answer; right/wrong are its feedback.
       const isTree = a.blanks !== undefined || a.pick !== undefined;

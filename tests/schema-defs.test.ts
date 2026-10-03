@@ -14,7 +14,8 @@ describe("the schema's shared shapes", () => {
   test("the repeated shapes are defined once", () => {
     const s = apiSchema() as { $defs?: Record<string, unknown> };
     // feedback (round 5, 2026-10-03): the cast's, an ask's and a quiz's share one shape.
-    expect(Object.keys(s.$defs ?? {}).sort()).toEqual(["end_ref", "feedback", "ghost", "point_ref"]);
+    // reveal, reveal_at (reveal stamps, 2026-10-04): a quiz's and an ask's share one shape.
+    expect(Object.keys(s.$defs ?? {}).sort()).toEqual(["end_ref", "feedback", "ghost", "point_ref", "reveal", "reveal_at"]);
     // The bodies are gone from the call sites: each of the 8 point_ref call
     // sites, 5 ghost call sites and 2 $ref-wrapped end_ref sites (at/center —
     // the other 2 end_ref sites read .properties directly, per the trap) now
