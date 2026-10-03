@@ -44,8 +44,14 @@ export function iconAlternatives(or: unknown): string[] | undefined {
   return alts.length > 0 ? alts : undefined;
 }
 
-/** An `icon` / `match_icon` value (a keyword or {of, set, or}) as an ask, or null when unusable. */
+/** An `icon` / `match_icon` value as an ask, or null when unusable: a keyword,
+ *  a list of keywords tried in order (["guinea pig", "hamster"] — the first is
+ *  the thing, the rest its fallbacks), or {of, set, or}. */
 export function iconAsk(icon: unknown): IconAsk | null {
+  if (Array.isArray(icon)) {
+    const [of, ...or] = icon.filter((k): k is string => typeof k === "string" && k.trim() !== "");
+    return of === undefined ? null : { of, ...(or.length > 0 ? { or } : {}) };
+  }
   const req = typeof icon === "string" ? { of: icon } : (icon as { of?: unknown; set?: unknown; or?: unknown } | null | undefined);
   if (!req || typeof req !== "object" || typeof req.of !== "string" || req.of.trim() === "") return null;
   const or = iconAlternatives(req.or);

@@ -122,9 +122,9 @@ export interface CardItemSpec {
   match?: string;
   blank?: number;
   /** An icon on the card — a keyword or {of, set}, resolved like a node's. */
-  icon?: string | { of: string; set?: string; or?: string[] };
+  icon?: string | string[] | { of: string; set?: string; or?: string[] };
   /** match: an icon on the partner card. */
-  match_icon?: string | { of: string; set?: string; or?: string[] };
+  match_icon?: string | string[] | { of: string; set?: string; or?: string[] };
   /** Machine-written by resolveIcons (render/icon.ts): the rings and their credit. */
   icon_strokes?: string;
   credit?: string;
@@ -304,7 +304,7 @@ export interface SpecElement {
   radius?: number;
   /** node rect: a soft shadow — the same box offset (3, 4) down-right, ink at 12 %, behind it. */
   shadow?: boolean;
-  /** node rect: an icon drawn inside the box above the text — a keyword ("shark") or {of, set}, resolved like an icon element (render/icon.ts). */
+  /** node rect: an icon drawn inside the box above the text — a keyword ("shark") or {of, set}, resolved like an icon element (render/icon.ts). The schema also takes a list of keywords tried in order; read it through iconAsk (spec/icon-data.ts). */
   icon?: string | { of: string; set?: string; or?: string[] };
   /** node rect: the resolved icon's rings (spec/trace.ts encodeIcon; machine-written, never edited). */
   icon_strokes?: string;

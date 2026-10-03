@@ -92,6 +92,8 @@ interface PartReport {
   commandIssues: string[];
   /** Exceptions thrown while stepping the whole timeline boundary by boundary. */
   playbackErrors: string[];
+  /** Icons that resolved to nothing and so draw BLANK: one line each, with how to give fallbacks. */
+  iconIssues: string[];
   frames: FrameReport[];
   /** Timing, as the player would run it (lint/pacing-report.ts): the totals
    *  line, then one line per idle stretch, silent ink or overlong beat —
@@ -212,7 +214,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
   // resolved, as render() draws it — an unresolved icon draws nothing, and
   // its `at` would read as ignored.
   const withIcons = structuredClone(spec);
-  await resolveIcons(withIcons).catch(() => {});
+  const icons = await resolveIcons(withIcons).catch((err: unknown) => [{ id: "icons", ok: false, of: "", error: String(err) }]);
   const expanded = expandSpec(withIcons);
   const report: PartReport = {
     title: spec.title ?? "(untitled)",
@@ -221,6 +223,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
     planWarnings: [],
     commandIssues: lintCommands(expanded).map((i) => `[${i.severity}] ${i.rule}: ${i.message}`),
     playbackErrors: [],
+    iconIssues: icons.filter((r) => !r.ok).map((r) => `${r.id}: no icon for "${r.of ?? "?"}" — draws BLANK (${r.error ?? "not found"}); give fallbacks: "icon": ["${r.of ?? "…"}", "…"] (an icon element: "or": […]) or draw it by hand`),
     frames: [],
     pacing: { lines: [], totalMs: 0, spokenLines: 0, lengthBand: "", problems: [] },
   };
@@ -432,6 +435,7 @@ async function show(cast: Cast): Promise<CastReport> {
       ["plan", part.planWarnings],
       ["commands", part.commandIssues],
       ["playback", part.playbackErrors],
+      ["icons", part.iconIssues],
     ] as const) {
       if (lines.length > 0) section.append(h("pre", { class: "bad" }, `${label}: ${lines.join("\n")}`));
     }
