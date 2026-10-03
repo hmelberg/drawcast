@@ -1,0 +1,327 @@
+# Do the numbers measure what matters?
+prompt: "Whose values should count — patients who have adapted, or the public imagining the state? Why do different methods and questionnaires give different QALYs for the same patient? Where do QALYs miss things (mental health, children, carers), and what are the alternatives such as DALYs and WELLBYs?"
+
+## Whose values?
+vars: {"qs":2,"dq":1.5}
+use: qaly_profiles
+with:
+    x_label: Years
+    y_label: Quality weight q
+    x_max: 7.6
+    lines: straight
+    profiles:
+      - {id: std, label: Standard care, color: '#2f6b8f', fill: true, waypoints: [{t: 0, u: 0.5}, {t: 4, u: 0.5}], death_at: 4}
+      - {id: new, label: New treatment, color: '#b5482e', waypoints: [{t: 0, u: 0.7}, {t: 5, u: 0.7}], death_at: 5}
+    shade_between:
+      a: new
+      b: std
+      gain_label: ''
+      loss_label: ''
+
+    text tk5 "0.5" #2f6b8f at.data [-0.35,0.5] font_size 24 hidden true
+    text tk7 "0.7" #b5482e at.data [-0.35,0.7] font_size 24 hidden true
+    text tk6 "0.6" #8a5fa8 at.data [-0.35,0.6] font_size 24 hidden true
+    text t_std "{qs:1} QALYs" #2f6b8f at.data [2,0.25] font_size 30 hidden true
+    text t_new "3.5 QALYs" #b5482e at.data [2.5,0.84] font_size 30 hidden true
+    text t_dq "ΔQ = {dq:1}" at.data [6.4,0.84] font_size 34 hidden true
+    arrow up #8a5fa8 from.data [1.2,0.5] to.data [1.2,0.62] hidden true
+    label l_up "patients" right #8a5fa8 attach_to up hidden true
+    label l_pub "public" below #2f6b8f attach_to tk5 font_size 22 hidden true
+    scratch icer work ["ICER = ΔC / ΔQ",{"tex":"30{,}000 / 1.5 = 20{,}000"},{"tex":"30{,}000 / 1.1 \\approx 27{,}000"}] x 835 y 330 font_size 24 hidden true
+
+    card title "Whose values?"
+
+We have asked whether every QALY should count the same; now the harder question: do the numbers themselves measure what matters?
+    draw axes full_health_line tick_one tick_zero
+
+Take our 60-year-old: standard care, four years at a weight of 0.5 — two QALYs.
+    draw curve_std label_std tk5 fill_std t_std
+
+With the new treatment, five years at 0.7 — three and a half QALYs, a gain of 1.5.
+    draw curve_new label_new tk7 t_new gain_regions t_dq
+
+    pause 0.4
+
+But who said the untreated state is worth 0.5?
+    highlight tk5 effect circle
+
+In the value sets NICE prefers, members of the general public did — people imagining the state, not living in it.
+    draw l_pub
+
+Patients who live with a condition tend to rate it higher than the public imagines it.
+    draw up l_up
+
+Part of that is adaptation: people adjust their goals, find new routines, and cope better than outsiders expect.
+    highlight up
+
+Suppose patients put the untreated state at 0.6 — an illustrative number.
+    animate profiles.0.waypoints.0.u 0.6 profiles.0.waypoints.1.u 0.6 duration 2.5 ghost ["curve_std"]
+
+    erase up l_up
+
+    draw tk6
+
+Standard care is now worth 2.4 QALYs, and the gain shrinks from 1.5 to 1.1.
+    animate qs 2.4 dq 1.1 duration 2
+
+The same 30,000 now buys fewer QALYs: the ICER rises from 20,000 to about 27,000 per QALY.
+    draw icer_box icer_line_1 icer_line_2 icer_line_3
+
+The case for the public: they pay for the health service, and any of them could become the patient.
+    highlight curve_std_ghost l_pub
+
+    erase icer
+
+The case for patients: they know the state, and the public may imagine it far worse than it is.
+    highlight curve_std tk6
+
+And adaptation cuts both ways: counting it means less value in treating people who have learned to cope.
+    point at.data [2,0.65] gesture underline
+
+So the same patient's gain depends on whose judgement sets the weight.
+    highlight t_dq effect circle
+
+    quiz "A value set is built from patients who live with a condition, not from the public. For a treatment that cures it, the QALY gain is likely to…"
+        right: It shrinks: patients rate their own state higher, so there is less distance left to full health.
+        wrong: Patients tend to rate their own state higher — how much is left to gain?
+        * Grow
+        + Shrink
+        * Stay the same
+
+## Same state, three methods
+    pieces scale #8f887c x 330 y 375 width 56 height 450 n 1 rows 10 of grid hidden true
+    text t_full "Full health" x 440 y 600 font_size 34 hidden true
+    text t_dead "Dead" x 415 y 150 font_size 34 hidden true
+    text n1 "1" #8f887c x 280 y 600 font_size 24 hidden true
+    text n5 "0.5" #8f887c x 272 y 375 font_size 24 hidden true
+    text n0 "0" #8f887c x 280 y 150 font_size 24 hidden true
+    arrow m_vas #8a5fa8 from.x 545 from.y 250 to.x 362 to.y 330 hidden true
+    arrow m_tto #2f6b8f from.x 545 from.y 375 to.x 362 to.y 375 hidden true
+    arrow m_sg #b5482e from.x 545 from.y 500 to.x 362 to.y 420 hidden true
+    text l_vas "VAS" #8a5fa8 x 590 y 250 font_size 34 hidden true
+    text l_tto "TTO" #2f6b8f x 590 y 375 font_size 34 hidden true
+    text l_sg "SG" #b5482e x 590 y 500 font_size 34 hidden true
+    text v_vas "0.4" #8a5fa8 x 670 y 250 font_size 34 hidden true
+    text v_tto "0.5 ours" #2f6b8f x 705 y 375 font_size 34 hidden true
+    text v_sg "0.6" #b5482e x 670 y 500 font_size 34 hidden true
+    text r_sg "risk aversion" #b5482e x 880 y 500 font_size 34 hidden true
+    text r_tto "discounting" #2f6b8f x 880 y 375 font_size 34 hidden true
+    text r_vas "no sacrifice" #8a5fa8 x 880 y 250 font_size 34 hidden true
+    group reasons members ["r_sg","r_tto","r_vas"] walk replace hidden true
+
+    card title "Same state, three methods"
+
+Now that we have seen whose values count, take one group of people and ask about the same state three ways.
+    draw scale t_full t_dead n1 n5 n0
+
+On a visual analogue scale, they simply mark the state on a line from dead to full health, like a thermometer.
+    draw m_vas l_vas
+
+In a time trade-off, they give up years of life to live the rest in full health.
+    draw m_tto l_tto
+
+In a standard gamble, they accept a risk of death for a chance at full health.
+    draw m_sg l_sg
+
+For the same state, the numbers usually fall in the same order: the gamble highest, the trade-off next, the scale lowest.
+    point at.ref m_sg gesture underline
+
+Our 0.5 is a trade-off value; the scale might say 0.4, the gamble 0.6 — illustrative numbers.
+    draw v_tto v_vas v_sg
+
+    pause 0.4
+
+The gamble comes out high because most people dislike risk: facing a chance of death, they cling to the state they know.
+    draw r_sg
+
+The trade-off has its own pull: distant years feel worth less, so people give more of them up, which pulls the weight down.
+    draw r_tto
+
+The scale asks for no sacrifice at all: it records a feeling about the state, not a choice.
+    draw r_vas
+
+    erase r_vas
+
+None of the three is simply right; each builds its own assumption about risk and time into the weight.
+    path brace #3d3833 points [[250,330],[234,330],[234,420],[250,420]]
+    text l_brace "same state" x 140 y 375 font_size 34
+
+Payers answer by fixing one method in advance — NICE uses EQ-5D values from time trade-off — so every drug is measured with the same ruler.
+    mark nice around l_tto v_tto kind box
+    text l_nice "NICE" #2f6b8f x 865 y 375 font_size 34
+
+So a weight is not a fact about the state; it is the state seen through a method.
+    highlight brace l_brace
+
+    quiz "A state is valued at 0.8 by standard gamble. Valued by time trade-off, the same people would most likely give it…"
+        right: A lower weight: the gamble's number is pushed up by dislike of risk, and the trade-off usually lands below it.
+        wrong: Think about what dislike of risk does to the gamble's number.
+        * A higher weight
+        + A lower weight
+        * The same weight
+
+## What the questionnaire sees
+    box d1 "Mobility" in eq hidden true
+    box d2 "Self-care" in eq hidden true
+    box d3 "Activities" in eq hidden true
+    box d4 "Pain" in eq hidden true
+    box d5 "Anxiety, depression" in eq hidden true
+    box bolt "Bolt-on" dashed #8a5fa8 in eq hidden true
+    column eq gap 18 fit.h 415 fit.w 360 fit.x 290 fit.y 170 hidden true
+    group five members ["d1","d2","d3","d4","d5"] hidden true
+    mark frame around d1 d2 d3 d4 d5 kind box hidden true
+    text t_eq "EQ-5D" x 465 y 640 font_size 34 hidden true
+    box o1 "Hearing" dashed #b5482e in outside hidden true
+    box o2 "Vision" dashed #b5482e in outside hidden true
+    box o3 "Some mental illness" dashed #b5482e in outside hidden true
+    column outside gap 30 fit.h 290 fit.w 255 fit.x 15 fit.y 240 hidden true
+    scratch sf work ["SF-6D ≠ EQ-5D","floor above 0","worst states: higher","mild states: lower"] x 800 y 400 font_size 30 hidden true
+
+    card title "What the questionnaire sees"
+
+Now that we have seen methods move the weight, look at the questionnaire that feeds it.
+    draw t_eq
+
+The EQ-5D asks about five things: mobility, self-care, usual activities, pain, and anxiety or depression.
+    draw d1 d2 d3 d4 d5
+
+Whatever it does not ask about, it cannot see.
+    draw frame
+
+Hearing loss and poor vision barely register, and in some mental illnesses the five questions miss much of what changes.
+    draw o1 o2 o3
+
+A different questionnaire, the SF-6D, gives different values for the same patients.
+    draw sf_box sf_line_1
+
+Its values cannot fall below zero, and compared with the EQ-5D it tends to rate the worst states higher and mild states lower.
+    draw sf_line_2 sf_line_3 sf_line_4
+
+So a trial's QALY gain can depend on which form the patients filled in.
+    highlight sf_line_1
+
+    erase sf
+
+Children are harder still: a young child cannot fill in the form, and adults must imagine a child's state to value it.
+    population child colors.child #8a5fa8 x 770 y 500 width 70 height 90 count 1 states.child 1 legend false
+    label l_child "Child ?" right attach_to child
+
+Carers sit outside the frame altogether: the spouse who loses sleep and work appears nowhere in the patient's QALYs.
+    population carer colors.carer #2f6b8f x 770 y 270 width 70 height 110 count 1 states.carer 1 legend false
+    label l_carer "Carer" right attach_to carer
+
+NICE allows carers' health effects to be added when they are relevant, but analyses often leave them out.
+    arrow carer_in dashed #2f6b8f from.anchor left from.ref carer to.anchor right to.ref d4
+    label l_in "NICE: if relevant" below #2f6b8f attach_to carer_in
+
+Yet the narrowness is also the strength: five short questions, answered by anyone, in any trial, comparable across diseases.
+    highlight five
+
+Bolt-on questions, for hearing, vision or sleep, are one repair under study.
+    draw bolt
+
+A QALY sees health through its questionnaire's window; whatever falls outside counts for nothing.
+    focus frame five t_eq bolt
+
+    quiz "A hearing-aid programme shows almost no QALY gain on the EQ-5D, though users say their lives are much better. What is the most likely reason?"
+        right: The EQ-5D has no question about hearing, so a real improvement there barely moves its score.
+        wrong: Look at what the five questions ask about.
+        * Hearing aids do not work
+        + The EQ-5D does not ask about hearing
+        * The discount rate is too high
+
+## The rivals
+use: data_table
+with:
+    columns:
+      - Measure
+      - Counts
+      - Plus
+      - Minus
+    rows:
+      - [QALY, health gained, comparable, health only]
+      - [DALY, health lost, one yardstick, 'health, not choice']
+      - [WELLBY, life satisfaction, beyond health, adaptation counts]
+      - [ICECAP, capabilities, freedom, hard to trade]
+    font_size: 30
+    box:
+      x: 30
+      'y': 300
+      w: 940
+      h: 300
+
+    scratch daly work ["DALY = YLL + YLD","0 = full health","1 = death"] x 790 y 250 font_size 28 hidden true
+
+    card title "The rivals"
+
+Now that we have seen what the QALY can and cannot see, here are its rivals, side by side.
+    draw header
+
+The QALY counts health gained, weighted by preferences — comparable across any disease, but health only.
+    draw row_1
+
+The DALY, the disability-adjusted life year, turns it around: it counts health lost, years of life lost plus years lived with disability.
+    draw row_2
+
+Its disability weights run the other way, 0 for full health and 1 for death, and they underpin the Global Burden of Disease studies.
+    draw daly_box daly_line_1 daly_line_2 daly_line_3
+
+Its strength is one yardstick for every country; its weakness is that the weights judge health, not what people would give up for it.
+    blocking false
+
+    highlight row_2 part "one yardstick" duration 2.5
+
+    highlight row_2 part "health, not choice" duration 3
+
+    erase daly
+
+The WELLBY counts life satisfaction: one point on a 0 to 10 scale, for one person, for one year.
+    draw row_3
+
+It reaches beyond health, so a housing policy and a drug can be compared; Britain's Treasury has guidance for using it.
+    highlight row_3 part "beyond health"
+
+But it counts adaptation in full — the very issue we began with.
+    highlight row_3 part "adaptation counts"
+
+Capability measures such as ICECAP-O, for older people, ask what a person is able to do and be: attachment, security, role, enjoyment, control.
+    draw row_4
+
+They value freedom rather than function, but there is no settled way yet to weigh them against years of life.
+    blocking false
+
+    highlight row_4 part freedom duration 2.5
+
+    highlight row_4 part "hard to trade" duration 3
+
+Each rival repairs one blind spot and opens another.
+    focus row_1 row_2 row_3 row_4
+
+    fade header row_1 row_2 row_3 row_4 to 0.3
+
+So a cost per QALY is not a fact about a drug: it carries a choice of whose values, which method, and which questionnaire.
+    text c1 "Whose values?" #b5482e x 190 y 230 font_size 34
+    text c2 "Which method?" #b5482e x 470 y 230 font_size 34
+    text c3 "Which questionnaire?" #b5482e x 775 y 230 font_size 34
+
+Its strength is that those choices are written down, so they can be checked, changed and argued over in the open.
+    mark ring around c1 c2 c3 kind box
+
+Read any ICER with those three questions, and you can see what the number measures — and what it leaves out.
+    highlight c1 c2 c3
+
+    quiz "Two analyses of the same drug report 18,000 and 35,000 per QALY. Before calling one of them wrong, what should you check first?"
+        right: The three choices behind the weights: whose values, which method, which questionnaire can each move an ICER that far.
+        wrong: Think back over what moved our example's ICER in this lecture.
+        + Whose values, which method, which questionnaire
+        * Which has the larger sample
+        * Which was published later
+
+## Where next
+end_page: true
+
+    text end_prev_kicker "Previous" x 500 y 545 font_size 24 style.opacity 0.6
+    link end_prev href lecture:4 title "Is a QALY a QALY, whoever gets it?" size 320 x 500 y 395
+
+    link end_again href lecture:5 title "Watch again" form text open here x 500 y 160
+    text end_count "5 of 5" x 500 y 95 font_size 22 style.opacity 0.6

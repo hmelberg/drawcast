@@ -1,0 +1,290 @@
+# What theory holds the QALY up?
+prompt: "Why is the standard gamble tied to expected utility theory? Which assumptions must hold for QALYs to represent preferences — utility independence, constant proportional trade-off, risk neutrality over life years? Is the QALY meant to measure welfare, or health as a social goal (welfarism versus extra-welfarism)?"
+
+## The gamble as a ruler
+level: advanced
+use: decision_tree
+with:
+    rollback: true
+    unit: Utility
+    decimals: 1
+    table: false
+    root:
+      id: choice
+      type: decision
+      label: Choose
+      children: [{label: Certain, node: {id: sure, type: terminal, label: State q, payoff: 0.7}}, {label: Gamble, node: {id: gamble, type: chance, label: Gamble, children: [{label: Win, probability: 0.3, node: {id: full, type: terminal, label: Full health, payoff: 1}}, {label: Lose, node: {id: dead, type: terminal, label: Death, payoff: 0}}]}}]
+sources:
+    - id: vnm
+      title: Theory of Games and Economic Behavior
+      authors: von Neumann & Morgenstern
+      year: 1944
+      finding: axioms under which choices maximise expected utility
+
+    scratch eu work [{"tex":"EU = p \\cdot 1 + (1-p) \\cdot 0"},{"tex":"= p"}] x 780 y 570 font_size 26 hidden true
+
+    card title "The gamble as a ruler"
+
+    hide best pruned value_choice
+
+What theory lets us read a QALY weight as a person's utility — what is holding that number up?
+    draw node_choice label_choice
+
+The easy answer: a weight is just a score for how good a state feels.
+    draw edge_choice_sure branchlabel_choice_sure edge_choice_gamble branchlabel_choice_gamble parallel true
+
+Expected utility theory makes a much stronger claim, and the standard gamble shows it.
+    highlight node_choice
+
+One branch is certain: live out your life in the treated state.
+    draw node_sure label_sure
+
+The other is a gamble: full health with probability p, immediate death otherwise.
+    draw node_gamble label_gamble edge_gamble_full branchlabel_gamble_full node_full label_full payoff_full edge_gamble_dead branchlabel_gamble_dead node_dead label_dead payoff_dead
+
+We raise p until the person cannot choose between them — say, at p = 0.7.
+    animate root.children.1.node.children.0.probability 0.7 duration 4
+
+Why should that indifference point be the weight?
+
+    pause 1.8
+
+Von Neumann and Morgenstern showed that if choices obey a few axioms, a gamble is worth the probability-weighted average of its outco (@draw eu_box eu_line_1 ends@)mes' utilities.
+
+Full health is fixed at 1 and death at 0, so the gamble is worth p times 1 plus one minus p times 0 — exactly p.
+    draw eu_line_2 value_gamble
+
+Indifference means the certain state is worth the same: q = 0.7.
+    draw payoff_sure
+
+    erase eu
+
+Pause and drag p: the gamble's value follows it one for one.
+    explore
+
+The catch is that many people overweight a sure thing, and then p is no longer their utility.
+    highlight edge_choice_sure node_sure label_sure
+
+So the weight is a utility exactly as far as the person chooses by expected utility.
+    highlight value_gamble payoff_sure
+
+## Adding up rectangles
+level: advanced
+use: qaly_profiles
+with:
+    x_label: Years t
+    y_label: Quality q
+    x_max: 10.5
+    lines: straight
+    shade_between: null
+    profiles:
+      - {id: treated, label: Treated, color: '#2f6b8f', fill: true, waypoints: [{t: 0, u: 0.7}, {t: 10, u: 0.7}], death_at: 5}
+      - {id: full, label: Full health, color: '#b5482e', fill: true, waypoints: [{t: 0, u: 1}, {t: 10, u: 1}], death_at: 3.5}
+sources:
+    - id: psw
+      title: Utility functions for life years and health status
+      authors: Pliskin, Shepard & Weinstein
+      year: 1980
+      finding: conditions under which QALYs represent preferences
+
+    text area5 "3.5 QALYs" #2f6b8f at.data [2.5,0.2] font_size 30 hidden true
+    text area10 "7 QALYs" #2f6b8f at.data [8.5,0.2] font_size 30 hidden true
+    arrow gap5 #8f887c from.data [5,0.85] to.data [3.5,0.85] hidden true
+    label gap5_l "1.5 y = 30%" above attach_to gap5 hidden true
+    arrow gap10 #8f887c from.data [10,0.85] to.data [7,0.85] hidden true
+    label gap10_l "3 y = 30%" above attach_to gap10 hidden true
+    scratch form work [{"tex":"U(q,t) = V(q)\\cdot f(t)"},{"tex":"f(t) = t \\;\\Rightarrow\\; U = V(q)\\cdot t"}] x 300 y 330 font_size 28 hidden true
+
+    card title "Adding up rectangles"
+
+Now that one weight is a utility, can we simply multiply it by years and add?
+    draw axes full_health_line
+
+Pliskin, Shepard and Weinstein asked exactly that in 1980, and answered with conditions on preferences.
+    highlight axes
+
+Take the treated patient: five years at q = 0.7 — an area of 3.5 QALYs.
+    draw curve_treated label_treated fill_treated area5
+
+The QALY model says this is as good as 3.5 years in full health: equal areas, equal value.
+    draw curve_full label_full fill_full
+
+First condition, mutual utility independence: how you rank lengths of life does not depend on the health state, and how you rank states does not depend on the length.
+    blocking false
+
+    point at.data [5,0] gesture tap
+
+    pause 1.2
+
+    point at.data [0,0.7] gesture tap
+
+    pause 4
+
+Second, constant proportional trade-off: suppose the patient would give up 1.5 of the 5 years — 30 per cent — to be in full health.
+    draw gap5 gap5_l
+
+Now make it ten years at 0.7. How many would they give up?
+    keep curve_treated curve_full
+
+    pause 1.8
+
+Constant proportional trade-off says 30 per cent again: three years, leaving seven in full health.
+    animate profiles.0.death_at 10 profiles.1.death_at 7 duration 3
+
+    erase area5
+
+The share traded is fixed whatever the duration — that is what makes q a constant multiplier.
+    draw area10 gap10 gap10_l
+
+For some states people will bear a few years but not many, and then the share is not constant.
+    highlight gap10_l
+
+    erase curve_treated_ghost curve_full_ghost gap5 gap5_l gap10 gap10_l
+
+Together these two give utility as a quality weight times some function of years;
+    draw form_box form_line_1
+
+a third condition makes that function the years themselves.
+    draw form_line_2
+
+So adding up rectangles is not arithmetic: it is an assumption about how people trade time for quality.
+    highlight form_line_2
+
+## Risk neutral about years
+level: advanced
+use: decision_tree
+with:
+    rollback: true
+    unit: QALYs
+    decimals: 1
+    table: false
+    root:
+      id: choice
+      type: decision
+      label: q = 0.7
+      children: [{label: Sure, node: {id: sure, type: terminal, label: 5 years, payoff: 3.5}}, {label: Coin flip, node: {id: flip, type: chance, label: Flip, children: [{label: Heads, probability: 0.5, node: {id: ten, type: terminal, label: 10 years, payoff: 7}}, {label: Tails, node: {id: dead, type: terminal, label: Death, payoff: 0}}]}}]
+sources:
+    - id: bwj97
+      title: Characterizing QALYs by risk neutrality
+      authors: Bleichrodt, Wakker & Johannesson
+      year: 1997
+      finding: for chronic states, risk neutrality in life years plus the zero condition implies the QALY model
+
+    scratch bwj work ["BWJ 1997",{"tex":"\\text{risk neutral} \\Rightarrow \\text{QALY}"}] x 790 y 580 font_size 26 hidden true
+
+    card title "Risk neutral about years"
+
+    hide best pruned value_choice
+
+The third condition is the strongest: risk neutrality over life years.
+    draw node_choice label_choice
+
+Here is the test, all in the treated state, q = 0.7: five years for sure.
+    draw edge_choice_sure branchlabel_choice_sure node_sure label_sure
+
+Or a coin flip: ten years with probability one half, immediate death otherwise.
+    draw edge_choice_flip branchlabel_choice_flip node_flip label_flip edge_flip_ten branchlabel_flip_ten node_ten label_ten edge_flip_dead branchlabel_flip_dead node_dead label_dead
+
+The QALY model scores the sure branch at 3.5 QALYs.
+    draw payoff_sure
+
+And the flip? Half of 7 plus half of 0 is 3.5 — exactly the same.
+    draw payoff_ten payoff_dead value_flip
+
+So the QALY model says you should not care which you get. Would you really flip that coin?
+    highlight payoff_sure value_flip
+
+    pause 1.8
+
+Most people would not: studies usually find people risk averse about the length of their life.
+    highlight edge_choice_sure node_sure label_sure
+
+For them a QALY is not their utility — it rates the gamble as highly as the sure five years they prefer.
+    point at.ref value_flip gesture underline
+
+Bleichrodt, Wakker and Johannesson showed in 1997 how much hangs on this one condition.
+    draw bwj_box bwj_line_1
+
+For chronic states, risk neutrality over life years — plus the zero condition, that zero years are worth the same in every health state — is enough on its own; the other conditions follow.
+    draw bwj_line_2
+
+Pause and drag the flip's probability: its value moves, the sure branch stays at 3.5, and they meet only at one half.
+    explore
+
+    erase bwj
+
+So the QALY as a utility stands or falls with one testable attitude to risk — and few people quite hold it.
+    highlight branchlabel_flip_ten branchlabel_flip_dead
+
+## Welfare or health?
+level: advanced
+
+    text head_w "Welfarism" #b5482e x 460 y 600 font_size 40 hidden true
+    text head_x "Extra-welfarism" #2f6b8f x 775 y 600 font_size 40 hidden true
+    path rule #8f887c points [[50,560],[950,560]] hidden true
+    path divider dashed #8f887c points [[615,630],[615,265]] hidden true
+    text row_counts "Counts" #8f887c x 170 y 500 font_size 30 hidden true
+    text row_measure "Tool" #8f887c x 170 y 400 font_size 30 hidden true
+    text row_needs "Needs" #8f887c x 170 y 300 font_size 30 hidden true
+    text w_counts "Own utility" #b5482e x 460 y 500 font_size 36 hidden true
+    text x_counts "Health" #2f6b8f x 775 y 500 font_size 36 hidden true
+    text w_measure "CBA · WTP" #b5482e x 460 y 400 font_size 36 hidden true
+    text x_measure "CEA · QALY" #2f6b8f x 775 y 400 font_size 36 hidden true
+    text w_needs "EU conditions" #b5482e x 460 y 300 font_size 36 hidden true
+    text x_needs "Agreed measure" #2f6b8f x 775 y 300 font_size 36 hidden true
+    group rowlabels members ["row_counts","row_measure","row_needs"] hidden true
+    scratch ex work [{"tex":"\\frac{\\Delta C}{\\Delta Q} = \\frac{30{,}000}{1.5} = 20{,}000 \\text{ vs } \\lambda"}] x 615 y 205 font_size 28 hidden true
+
+    card title "Welfare or health?"
+
+Now that the utility foundation looks thin, ask what the QALY is for.
+    draw rule divider rowlabels
+
+Two answers split health economics. The first, welfarism: what counts is each person's own utility, as they judge it.
+    draw head_w w_counts
+
+Its natural tool is cost–benefit analysis, with benefits valued by willingness to pay.
+    draw w_measure
+
+For a welfarist, the conditions of this lecture are essential: a QALY that is not a utility does not measure welfare.
+    draw w_needs
+
+The second answer is extra-welfarism, a term associated with Anthony Culyer, drawing on Amartya Sen.
+    draw head_x
+
+Here health itself is the social goal a decision-maker pursues, and the QALY measures health — not anyone's whole welfare.
+    draw x_counts x_measure
+
+Does the QALY then still need risk neutrality and the rest?
+    highlight w_needs
+
+    pause 1.8
+
+Much less: it must be a good, agreed measure of health, not a perfect model of each person's choices.
+    draw x_needs
+
+Our example reads cleanly this way: 1.5 QALYs gained for 30,000 more — 20,000 per QALY, set against the payer's threshold λ.
+    draw ex_box ex_line_1
+
+The price is that the value judgements come into the open: the decision-maker, not the individual, chooses what counts.
+    highlight x_counts
+
+    erase ex
+
+So the QALY rests on one of two things: expected utility theory, if it is to be a utility, or a social choice to maximise health, if it is not.
+    highlight row_needs w_needs x_needs effect underline
+
+Now you can see what an argument about QALYs is often really about — which of those two foundations the speaker stands on.
+    highlight head_w head_x effect underline
+
+## Where next
+end_page: true
+
+Next: Is a QALY a QALY, whoever gets it?
+    text end_prev_kicker "Previous" x 265 y 545 font_size 24 style.opacity 0.6
+    link end_prev href lecture:2 title "How is a QALY calculated?" size 320 x 265 y 395
+    text end_next_kicker "Next" x 735 y 545 font_size 24 style.opacity 0.6
+    link end_next href lecture:4 title "Is a QALY a QALY, whoever gets it?" size 320 x 735 y 395
+
+    link end_again href lecture:3 title "Watch again" form text open here x 500 y 160
+    text end_count "3 of 5" x 500 y 95 font_size 22 style.opacity 0.6

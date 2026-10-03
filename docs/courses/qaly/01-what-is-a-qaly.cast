@@ -1,0 +1,296 @@
+# What is a QALY?
+prompt: "Why would anyone want one number that combines length and quality of life? What do 1, 0 and a weight below 0 mean — and how do 4 years at 0.5 become 2 QALYs? Where did the idea come from?"
+
+## Longer or better?
+level: basic
+
+    text h0 "Treatment" #8f887c x 200 y 610 font_size 40 hidden true
+    text h1 "Longer" #8f887c x 510 y 610 font_size 40 hidden true
+    text h2 "Better" #8f887c x 790 y 610 font_size 40 hidden true
+    text c1_0 "Cancer drug" x 200 y 505 font_size 40 hidden true
+    text c1_1 "+ months" x 510 y 505 font_size 40 hidden true
+    text c1_2 "—" x 790 y 505 font_size 40 hidden true
+    text c2_0 "New hip" x 200 y 415 font_size 40 hidden true
+    text c2_1 "—" x 510 y 415 font_size 40 hidden true
+    text c2_2 "less pain" x 790 y 415 font_size 40 hidden true
+    text c3_0 "New treatment" x 200 y 325 font_size 40 hidden true
+    text c3_1 "+ 1 year" x 510 y 325 font_size 40 hidden true
+    text c3_2 "better days" x 790 y 325 font_size 40 hidden true
+    path rule #8f887c points [[60,565],[940,565]] hidden true
+    group tbl members ["h0","h1","h2","c1_0","c1_1","c1_2","c2_0","c2_1","c2_2","c3_0","c3_1","c3_2","rule"] hidden true
+
+    card title "Longer or better?"
+
+How do you compare a treatment that makes life longer with one that makes life better?
+    draw h0 h1 h2 rule parallel true
+
+Every health service faces that question, because it has one budget and many treatments asking for it.
+    text budget "One budget" #8a5fa8 x 500 y 240 font_size 32
+
+Take a cancer drug that gives patients extra months of life.
+    draw c1_0 c1_1 c1_2
+
+    erase budget
+
+And a hip replacement, which adds no years, but takes away pain and brings back walking.
+    draw c2_0 c2_1 c2_2
+
+    pause 0.4
+
+The natural first answer is to count the years of life each one adds.
+    focus h1 c1_1 c2_1
+
+By that count the hip replacement is worth nothing, which no one waiting for a new hip would accept.
+    highlight c2_1 effect circle
+
+Count pain or mobility instead, and the cancer drug's extra time vanishes from view.
+    focus h2 c1_2 c2_2
+
+Most treatments do some of both, like the new treatment in our running example for a 60-year-old with a chronic disease.
+    draw c3_0 c3_1 c3_2
+
+What we need is one currency that counts length and quality of life at once.
+    highlight c3_1 c3_2
+
+That currency is the quality-adjusted life year: the QALY.
+    mark box_all around tbl kind box
+    text qaly_word "QALY" #b5482e x 500 y 225 font_size 52
+
+    pause 0.5
+
+Agencies such as NICE in England use it to decide which treatments public money pays for.
+    highlight qaly_word effect underline
+
+So the QALY exists to put very different treatments on one scale.
+    highlight box_all
+
+## The quality scale
+level: basic
+domain: {"x":[0,1],"y":[-0.9,1.12]}
+
+    path scale points [[0.4,-0.68],[0.4,1.05]] data true hidden true
+    polygon band_alive #87a878 points [[0.37,0],[0.43000000000000005,0],[0.43000000000000005,1],[0.37,1]] data true style.fill #87a878 hidden true
+    polygon band_worse #c96567 points [[0.37,-0.68],[0.43000000000000005,-0.68],[0.43000000000000005,0],[0.37,0]] data true style.fill #c96567 hidden true
+    dot p_full #3d3833 at.x 0.4 at.y 1 hidden true
+    text l_full "Full health" right p_full gap 40 #3d3833 font_size 32 hidden true
+    text n_full "1" left p_full gap 40 #3d3833 font_size 32 hidden true
+    dot p_dead #3d3833 at.x 0.4 at.y 0 hidden true
+    text l_dead "Dead" right p_dead gap 40 #3d3833 font_size 32 hidden true
+    text n_dead "0" left p_dead gap 40 #3d3833 font_size 32 hidden true
+    text l_alive "ill or limited" #5f7f52 at.data [0.6000000000000001,0.25] font_size 30 hidden true
+    dot p_std #b5482e at.x 0.4 at.y 0.5 hidden true
+    text l_std "Standard care" right p_std gap 40 #b5482e font_size 32 hidden true
+    text n_std "0.5" left p_std gap 40 #b5482e font_size 32 hidden true
+    dot p_new #2f6b8f at.x 0.4 at.y 0.7 hidden true
+    text l_new "New treatment" right p_new gap 40 #2f6b8f font_size 32 hidden true
+    text n_new "0.7" left p_new gap 40 #2f6b8f font_size 32 hidden true
+    arrow hop #2f6b8f from.data [0.23,0.51] to.data [0.23,0.69] hidden true
+    label l_hop "+0.2" left #2f6b8f attach_to hop hidden true
+    text l_worse "worse than dead" #a04a4c at.data [0.6000000000000001,-0.28] font_size 30 hidden true
+    dot p_worst #a04a4c at.x 0.4 at.y -0.59 hidden true
+    text l_worst "Worst EQ-5D state" right p_worst gap 40 #a04a4c font_size 32 hidden true
+    text n_worst "−0.59" left p_worst gap 40 #a04a4c font_size 32 hidden true
+
+    card title "The quality scale"
+
+Now that we want one currency, we need a scale for how good a year of life is.
+    draw scale
+
+Call it q, the quality weight of a health state; economists also call it a utility.
+    text cue "q = quality weight" #8a5fa8 at.data [0.82,0.5] font_size 34
+
+At one end, q equals 1: a year in full health.
+    draw p_full n_full l_full
+
+At the other, q equals 0: dead.
+    draw p_dead n_dead l_dead
+
+    erase cue
+
+Everything in between is a year lived with some illness or limitation.
+    draw band_alive l_alive
+
+Our patient on standard care sits at 0.5, so one year like that counts as half a year of full health.
+    draw p_std n_std l_std
+
+On the new treatment, q rises to 0.7.
+    draw p_new n_new l_new hop l_hop
+
+    pause 0.4
+
+The scale does not stop at zero.
+    point at.ref p_dead gesture underline
+
+When people are asked, many rate the worst states, such as extreme pain with no ability to move or wash, as worse than being dead, so those get a weight below 0.
+    draw band_worse l_worse
+
+In the first UK value set for the EQ-5D questionnaire, the worst state scored about minus 0.59.
+    draw p_worst n_worst l_worst
+
+Where numbers like 0.5 and 0.7 come from is the next lecture's question; here, take them as given.
+    highlight n_std n_new
+
+So q is an exchange rate: it says how many years of full health one year in that state is worth.
+    highlight p_std n_std effect circle
+
+## Area under the line
+level: basic
+use: qaly_profiles
+with:
+    x_label: Time t (years)
+    y_label: Quality q
+    x_max: 7
+    lines: straight
+    profiles:
+      - {id: std, label: Standard care, color: '#b5482e', fill: true, waypoints: [{t: 0, u: 0.5}, {t: 4, u: 0.5}], death_at: 4}
+      - {id: new, label: New treatment, color: '#2f6b8f', fill: true, waypoints: [{t: 0, u: 0.7}, {t: 5, u: 0.7}], death_at: 5}
+    shade_between:
+      a: new
+      b: std
+      gain_label: ''
+      loss_label: ''
+
+    text t_std "2.0 QALYs" #b5482e at.data [3,0.25] font_size 36 hidden true
+    text t_new "3.5 QALYs" #2f6b8f at.data [2,0.3] font_size 36 hidden true
+    polygon healthy2 dashed #8f887c points [[0,0],[2,0],[2,1],[0,1]] data true hidden true
+    text tk4 "4" #b5482e at.data [4,-0.06] font_size 30 hidden true
+    text tk5 "5" #2f6b8f at.data [5,-0.06] font_size 30 hidden true
+    text tq5 "0.5" #b5482e at.data [-0.3,0.5] font_size 30 hidden true
+    text tq7 "0.7" #2f6b8f at.data [-0.3,0.7] font_size 30 hidden true
+    text t_dq "ΔQ = 1.5" #4f7a43 at.data [1.6,0.6] font_size 30 hidden true
+    scratch calc work [{"tex":"4 \\times 0.5 = 2.0"},{"tex":"5 \\times 0.7 = 3.5"},{"tex":"3.5 - 2.0 = 1.5"}] x 855 y 330 font_size 28 hidden true
+
+    card title "Area under the line"
+
+Now that each year has a weight, we can add up a whole stretch of life.
+    draw axes full_health_line
+
+Time t runs along the bottom, in years, and the weight q runs up the side.
+    highlight axes
+
+On standard care, our patient lives four years at q equals 0.5.
+    draw curve_std label_std tk4 tq5
+
+The QALYs are the area under that line: 4 times 0.5, which is 2.0 QALYs.
+    draw fill_std t_std calc_box calc_line_1
+
+So four years at half quality count the same as two years in full health.
+    draw healthy2
+
+    erase healthy2 t_std
+
+    fade curve_std fill_std label_std to 0.3
+
+Now the new treatment, for the same patient with the same disease.
+    draw curve_new label_new tk5 tq7
+
+Five years at q equals 0.7: 5 times 0.7, which is 3.5 QALYs.
+    draw fill_new t_new calc_line_2
+
+    pause 0.4
+
+    fade fill_new t_new to 0.15
+
+    fade curve_std label_std to 1
+
+Part of the gain is the extra year; part is that every year is better.
+    draw gain_regions
+
+The difference, which we call delta Q, is 1.5 QALYs.
+    draw t_dq calc_line_3
+
+Counting years alone would have said one year gained, blind to the better quality.
+    point at.data [4.5,0.04] gesture underline
+
+    erase calc
+
+Real quality lines are rarely flat, but the rule is the same: add up q times t, the area under the line.
+    highlight curve_new
+
+So a QALY is simply area: how long, times how well.
+    fade fill_new t_new to 1
+
+## Where the idea came from
+level: basic
+text: {"font_size":31}
+use: timeline
+with:
+    milestones:
+      - {label: '1968', sublabel: Klarman}
+      - {label: '1970', sublabel: Fanshel & Bush}
+      - {label: '1976', sublabel: the name, emphasize: true}
+      - {label: '1985', sublabel: Williams}
+      - {label: '1999', sublabel: NICE}
+sources:
+    - id: klarman
+      title: Cost effectiveness analysis applied to the treatment of chronic renal disease
+      authors: Klarman, Francis & Rosenthal
+      year: 1968
+    - id: fanshel
+      title: A health-status index and its application to health-services outcomes
+      authors: Fanshel & Bush
+      year: 1970
+    - id: zs
+      title: Where now for saving lives?
+      authors: Zeckhauser & Shepard
+      year: 1976
+    - id: williams
+      title: Economics of coronary artery bypass grafting
+      authors: Williams
+      year: 1985
+
+    card title "Where the idea came from"
+
+Now that we can compute a QALY, where did the idea come from?
+    draw line
+
+In 1968, Herbert Klarman and colleagues compared kidney dialysis with transplants, and counted a year with a working transplant as worth more than a year on dialysis.
+    draw dot_0 label_0
+
+That was the core move: adjust years of life for their quality.
+    highlight label_0
+
+In 1970, Fanshel and Bush built a health status index to put such weights on one scale.
+    draw dot_1 label_1
+
+In 1976, Richard Zeckhauser and Donald Shepard gave the idea its name: the quality-adjusted life year.
+    draw dot_2 label_2
+
+In 1985, Alan Williams at York used QALYs to weigh heart bypass surgery against other uses of the same money.
+    draw dot_3 label_3
+
+In 1999, England set up NICE, which came to judge new treatments by their cost per QALY.
+    draw dot_4 label_4
+
+Today health technology assessment agencies in many countries do the same.
+    point at.ref dot_4 gesture circle
+
+Back to our 60-year-old: 2.0 QALYs on standard care, 3.5 on the new treatment.
+    text readout "2.0 → 3.5 QALYs" #2f6b8f x 500 y 240 font_size 40
+
+Because length and quality now share one unit, that gain can stand beside a cancer drug or a new hip.
+    highlight readout
+
+That is what the QALY gives us: one yardstick for very different kinds of health.
+    highlight dot_2 label_2 effect circle
+
+Whether the yardstick is fair, and whether it measures what matters, is what the rest of this course argues about.
+    highlight line
+
+    quiz "A treatment adds no years, but lifts q from 0.5 to 0.7 over the patient's 4 remaining years. How many QALYs does it gain?"
+        right: 0.8: it adds 0.2 in each of 4 years, 4 times 0.2, even though not a single year is added.
+        wrong: The gain in each year is the change in q; now count how many years get it.
+        * 0
+        * 0.2
+        + 0.8
+        * 2.8
+
+## Where next
+end_page: true
+
+Next: How is a QALY calculated?
+    text end_next_kicker "Next" x 500 y 545 font_size 24 style.opacity 0.6
+    link end_next href lecture:2 title "How is a QALY calculated?" size 320 x 500 y 395
+
+    link end_again href lecture:1 title "Watch again" form text open here x 500 y 160
+    text end_count "1 of 5" x 500 y 95 font_size 22 style.opacity 0.6

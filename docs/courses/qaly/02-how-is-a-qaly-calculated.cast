@@ -1,0 +1,331 @@
+# How is a QALY calculated?
+prompt: "Where does a weight like 0.7 come from — a questionnaire such as the EQ-5D and a value set from the public? How do time trade-off and standard gamble turn preferences into numbers? How do we get from QALYs over time, with discounting, to incremental QALYs and a cost per QALY?"
+
+## From ticks to a weight
+text: {"font_size":30}
+sources:
+    - id: dolan
+      title: Modeling valuations for EuroQol health states
+      authors: Dolan P
+      year: 1997
+      finding: UK EQ-5D-3L value set; worst state (33333) = −0.594
+
+    text eq5d "EQ-5D-5L" x 125 y 652 font_size 32 hidden true
+    pieces grid x 420 y 470 width 360 height 320 n 5 rows 5 of grid hidden true
+    text rl1 "Mobility" x 125 y 598 hidden true
+    text rl2 "Self-care" x 125 y 534 hidden true
+    text rl3 "Usual activities" x 125 y 470 hidden true
+    text rl4 "Pain" x 125 y 406 hidden true
+    text rl5 "Anxiety" x 125 y 342 hidden true
+    text h1 "1" x 276 y 652 hidden true
+    text h2 "2" x 348 y 652 hidden true
+    text h3 "3" x 420 y 652 hidden true
+    text h4 "4" x 492 y 652 hidden true
+    text h5 "5" x 564 y 652 hidden true
+    path t1 #2f6b8f points [[332,598],[343,584],[365,614]] style.stroke_width 4 hidden true
+    path t2 #2f6b8f points [[260,534],[271,520],[293,550]] style.stroke_width 4 hidden true
+    path t3 #2f6b8f points [[260,470],[271,456],[293,486]] style.stroke_width 4 hidden true
+    path t4 #2f6b8f points [[404,406],[415,392],[437,422]] style.stroke_width 4 hidden true
+    path t5 #2f6b8f points [[260,342],[271,328],[293,358]] style.stroke_width 4 hidden true
+    text code "2 1 1 3 1" below grid gap 30 #2f6b8f font_size 44 hidden true
+    label states "1 of 3,125 states" below attach_to code hidden true
+    box vs "Value set" x 690 y 460 width 170 height 80 font_size 30 hidden true
+    label vs_sub "public survey" below #8f887c attach_to vs hidden true
+    arrow a1 from.x 590 from.y 275 to.ref vs hidden true
+    path scale points [[900,600],[900,200]] hidden true
+    path tk1 points [[885,600],[915,600]] hidden true
+    path tk0 points [[885,370],[915,370]] hidden true
+    label l1 "1  Full health" left attach_to tk1 hidden true
+    label l0 "0  Dead" left attach_to tk0 hidden true
+    shape q07 #2f6b8f shape circle x 900 y 531 radius 9 style.fill #2f6b8f hidden true
+    label lq07 "0.7" right #2f6b8f attach_to q07 hidden true
+    arrow a2 vs -> q07 hidden true
+
+    card title "From ticks to a weight"
+
+Last time, four years at q = 0.5 became 2 QALYs — but where does a weight like 0.5, or 0.7, actually come from?
+    draw scale tk1 tk0 l1 l0
+
+It starts with a short questionnaire, and the most widely used one is the EQ-5D.
+    draw eq5d
+
+It asks about five dimensions of health: mobility, self-care, usual activities, pain or discomfort, and anxiety or depression.
+    draw rl1 rl2 rl3 rl4 rl5
+
+In the EQ-5D-5L version, each dimension has five levels, from no problems to extreme problems.
+    draw grid h1 h2 h3 h4 h5
+
+Our patient on the new treatment ticks one box per row — say, slight problems walking, moderate pain, and none on the rest.
+    draw t1 t2 t3 t4 t5
+
+The ticks become a five-digit code, here 2 1 1 3 1: one of 3,125 possible health states.
+    draw code states
+
+    camera center.ref code zoom 1.8
+
+    camera reset true
+
+The code alone is not a weight: nobody has yet said how bad moderate pain is compared with trouble walking.
+    highlight t1 t4 effect circle
+
+That is the job of a value set: a scoring formula estimated from a survey of the general public.
+    draw vs vs_sub
+
+Members of the public value a sample of states, usually with the time trade-off, and a statistical model fills in the rest.
+    highlight vs_sub
+
+Feed in 21131, and the value set returns a weight — here, for illustration, 0.7.
+    draw a1 a2 q07 lq07
+
+The scale runs below zero too: in the 1997 UK value set for the older three-level version, the worst state scored minus 0.594.
+    shape worst #b5482e shape circle x 900 y 233 radius 9 style.fill #b5482e
+    label lworst "−0.594" left #b5482e attach_to worst cites ["dolan"]
+    text luk "UK 1997, worst" #b5482e x 800 y 195 font_size 22
+
+So a weight joins two things: the patient describes the state, and the public says what it is worth.
+    highlight t1 t2 t3 t4 t5 vs
+
+    quiz "The same patient's EQ-5D answers are scored in two countries and get different weights. Why?"
+        right: Different value sets: each country's public values the same states differently.
+        wrong: The ticks are identical — what else goes into the weight?
+        + Different value sets
+        * Different questionnaires
+        * The patient changed
+
+## Time trade-off
+use: qaly_profiles
+with:
+    x_label: Years
+    y_label: Quality of life, q
+    x_max: 11
+    lines: straight
+    profiles:
+      - {id: state, label: 'Life A: the state', color: '#2f6b8f', waypoints: [{t: 0, u: 0.7}, {t: 10.1, u: 0.7}], death_at: 10.1}
+      - {id: healthy, label: 'Life B: full health', color: '#b5482e', waypoints: [{t: 0, u: 1}, {t: 10, u: 1}], death_at: 10}
+    shade_between:
+      a: healthy
+      b: state
+      gain_label: Quality gained
+      loss_label: Years given up
+
+    scratch sc work [{"tex":"q = 7 \\div 10 = 0.7"},{"tex":"0.3 \\times 7 = 0.7 \\times 3 = 2.1"}] x 330 y 300 hidden true
+    text wtd "Worse than dead: q < 0" #8f887c at.data [3.5,0.15] hidden true
+    text y10 "10" at.data [10,-0.06] hidden true
+
+    card title "Time trade-off"
+
+Now that we know the public values the states, how do you ask a person what a state is worth?
+    draw axes tick_one tick_zero
+
+The time trade-off offers a choice between two lives.
+    draw full_health_line
+
+Life A: ten years in the health state, then death.
+    draw curve_state label_state y10
+
+Life B: years in full health, then death — and at first, the same ten years.
+    draw curve_healthy label_healthy
+
+With equal years, everyone picks full health.
+    highlight curve_healthy
+
+So shorten Life B, a year at a time, until the person can no longer choose between them.
+    animate profiles.1.death_at 7 duration 4 ghost ["curve_healthy"]
+
+Say that happens at seven years.
+    text y7 "7" #b5482e at.data [7,-0.06]
+
+Then ten years in the state are worth seven healthy years.
+    highlight curve_state curve_healthy
+
+    erase curve_healthy_ghost
+
+The weight is the ratio: q = 7 ÷ 10 = 0.7.
+    draw sc_box sc_line_1
+
+On the figure, the two lives now enclose equal areas: the quality gained in the first seven years balances the three years given up.
+    draw gain_regions label_gain loss_regions label_loss sc_line_2
+
+    erase sc
+
+That is the QALY idea run backwards: indifference means equal QALYs.
+    highlight gain_regions loss_regions
+
+For a state some find worse than dead, the question is reframed — a spell in the state followed by full health, against dying now — and the weight comes out below zero.
+    draw wtd
+
+So a time trade-off weight is the share of your years you would keep in full health, instead of living them all in the state.
+    highlight curve_healthy
+
+    quiz "Someone would give up 2 of 10 years to be free of a state. What is its weight?"
+        right: 0.8: they keep 8 healthy years in place of 10 in the state, and 8 ÷ 10 = 0.8.
+        wrong: The weight is the share of years kept, not given up.
+        * 0.2
+        + 0.8
+        * 2.0
+
+## Standard gamble
+use: decision_tree
+with:
+    rollback: true
+    unit: q
+    box:
+      x: 40
+      'y': 170
+      w: 920
+      h: 470
+    decimals: 2
+    root:
+      id: choice
+      type: decision
+      label: Choose
+      children: [{label: Gamble, node: {id: gamble, type: chance, label: Treatment, children: [{label: Full health, probability: 1, node: {id: healthy, type: terminal, label: Healthy, payoff: 1}}, {label: Dead, node: {id: dead, type: terminal, label: Dead, payoff: 0}}]}}, {label: Certain, node: {id: state, type: terminal, label: The state, payoff: 0.7}}]
+
+    scratch sc work [{"tex":"0.7 \\times 1 + 0.3 \\times 0 = 0.7"}] x 780 y 290 hidden true
+
+    card title "Standard gamble"
+
+The time trade-off pays in years; the standard gamble pays in risk.
+    draw node_choice label_choice
+
+The choice: live on in the health state for certain,
+    draw edge_choice_state branchlabel_choice_state node_state label_state
+
+or take a treatment that restores full health with probability p, and kills you with probability 1 − p.
+    draw edge_choice_gamble branchlabel_choice_gamble node_gamble label_gamble edge_gamble_healthy branchlabel_gamble_healthy node_healthy label_healthy payoff_healthy edge_gamble_dead branchlabel_gamble_dead node_dead label_dead payoff_dead
+
+If p is 1, the gamble is a free cure, and everyone takes it.
+    draw value_gamble best_choice_gamble
+
+    erase best_choice_gamble
+
+    hide prune_choice_state
+
+Lower p step by step, and at some point the person can no longer choose.
+    animate root.children.0.node.children.0.probability 0.8 duration 3
+
+Say that point is p = 0.7.
+    animate root.children.0.node.children.0.probability 0.7 duration 2
+
+The gamble is then worth 0.7 × 1 + 0.3 × 0, which is 0.7.
+    draw sc_box sc_line_1
+
+So the certain state is worth 0.7 too: the weight is read straight off the probability.
+    draw payoff_state
+
+    erase sc
+
+Pause and drag p: the gamble's value follows it, and where it matches the certain state is the weight.
+    explore
+
+Both methods put the state on the same scale, with full health at 1 and death at 0.
+    highlight payoff_healthy payoff_dead
+
+In practice, the same person usually gives a higher weight in the gamble than in the time trade-off — we come back to why.
+    point at.ref payoff_state gesture underline
+
+So the standard gamble weighs a state by how much risk of death you would accept to escape it.
+    highlight branchlabel_gamble_dead
+
+    quiz "Someone accepts at most a 5% risk of death to be cured of a state. What is its weight?"
+        right: 0.95: indifference comes at a 95% chance of full health, so the state is worth 0.95.
+        wrong: p is the chance of full health, not of death.
+        * 0.05
+        + 0.95
+        * 0.5
+
+## Over time, to a cost per QALY
+vars: {"ts":2,"tn":3.5}
+use: bar_chart
+with:
+    labels:
+      - '1'
+      - '2'
+      - '3'
+      - '4'
+      - '5'
+    x_label: Year
+    y_label: QALYs in the year
+    ylim:
+      - 0
+      - 0.8
+    stage: 0
+    box:
+      x: 90
+      'y': 170
+      w: 590
+      h: 450
+    series:
+      - {name: Standard care, values: [[0.5, 0.5, 0.5, 0.5, 0], [0.5, 0.5, 0.5, 0.5, 0], [0.5, 0.483, 0.467, 0.451, 0]]}
+      - {name: New treatment, values: [[0, 0, 0, 0, 0], [0.7, 0.7, 0.7, 0.7, 0.7], [0.7, 0.676, 0.653, 0.631, 0.61]]}
+
+    text rs "Standard: {ts:2}" #b5482e x 845 y 560 font_size 30 hidden true
+    text rn "New: {tn:2}" #2f6b8f x 845 y 510 font_size 30 hidden true
+    scratch scA work [{"tex":"\\frac{q}{(1+r)^{t-1}}"},{"tex":"r = 3.5\\%"}] x 840 y 330 hidden true
+    scratch scB work [{"tex":"\\Delta Q = 3.27 - 1.90 = 1.37"},{"tex":"\\Delta C = 30{,}000"},{"tex":"ICER = \\frac{30{,}000}{1.37} \\approx 21{,}900"},{"tex":"21{,}900 < \\lambda = 30{,}000"}] x 830 y 300 font_size 22 hidden true
+
+    card title "Over time, to a cost per QALY"
+
+Now that each year has a weight, we can add up our running example over time.
+    draw axes
+
+Standard care: four years at 0.5, one bar per year, for 2.0 QALYs.
+    draw bar_1 bar_2 bar_3 bar_4 bar_5 legend rs
+
+The new treatment: five years at 0.7, for 3.5 QALYs.
+    animate stage 1 duration 2
+
+    draw rn
+
+But a healthy year far in the future usually counts for less than one today, so future QALYs are discounted.
+    highlight bar_5
+
+Each year is divided by (1 + r) to the power of how far away it is; NICE in England uses r = 3.5% for both costs and QALYs.
+    draw scA_box scA_line_1 scA_line_2
+
+Watch the bars shrink: year one stays whole, and year five keeps 87% of its weight.
+    animate stage 2 ts 1.9 tn 3.27 duration 3
+
+Summed, standard care falls to 1.90 QALYs, and the new treatment to 3.27.
+    highlight rs rn
+
+    erase scA
+
+The gain ΔQ shrinks from 1.5 to 1.37 QALYs.
+    draw scB_box scB_line_1
+
+The extra cost, ΔC = 30,000, is paid up front here, so it is not discounted.
+    draw scB_line_2
+
+The ICER is ΔC ÷ ΔQ: 30,000 ÷ 1.37, about 21,900 per QALY, up from 20,000.
+    draw scB_line_3
+
+A payer with a threshold λ of 30,000 per QALY would still say yes.
+    draw scB_line_4
+
+So a cost per QALY is a chain: ticks on a form, the public's trade-offs, weights times years, and a discount rate.
+    highlight bar_1 bar_2 bar_3 bar_4 bar_5
+
+    erase scB_box scB_line_1 scB_line_2 scB_line_3 scB_line_4
+
+Every link is a choice someone made, and changing any one of them moves the ICER.
+    highlight rs rn
+
+    quiz "If the new treatment's extra benefit came 20 years from now instead of within five, what would discounting do to its ICER?"
+        right: It raises it more: QALYs twenty years away are divided by a much bigger (1 + r) to the power t, so ΔQ shrinks while the cost paid now does not.
+        wrong: A later year is divided by a bigger (1 + r) to the power t.
+        + Raise it more
+        * Lower it
+        * Leave it unchanged
+
+## Where next
+end_page: true
+
+Next: What theory holds the QALY up?
+    text end_prev_kicker "Previous" x 265 y 545 font_size 24 style.opacity 0.6
+    link end_prev href lecture:1 title "What is a QALY?" size 320 x 265 y 395
+    text end_next_kicker "Next" x 735 y 545 font_size 24 style.opacity 0.6
+    link end_next href lecture:3 title "What theory holds the QALY up?" size 320 x 735 y 395
+
+    link end_again href lecture:2 title "Watch again" form text open here x 500 y 160
+    text end_count "2 of 5" x 500 y 95 font_size 22 style.opacity 0.6

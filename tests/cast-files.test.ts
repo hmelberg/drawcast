@@ -21,7 +21,7 @@ const norm = (p: Playlist) => ({ meta: p.meta, entries: p.entries.map((e) => (e.
 const AUDIO: AudioTrack = { lang: "en", lines: { abc123: { mp3: "SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4", ms: 1200, voice: "en-GB-a" } } };
 
 const QALY = "docs/courses/qaly";
-const lectures = readdirSync(QALY).filter((f) => f.endsWith(".yaml")).map((f) => [f, readFileSync(`${QALY}/${f}`, "utf8")] as const);
+const lectures = readdirSync(QALY).filter((f) => f.endsWith(".cast")).map((f) => [f, readFileSync(`${QALY}/${f}`, "utf8")] as const);
 
 describe("a published .cast", () => {
   test("is a script, and carries the audio after it", () => {
@@ -52,16 +52,11 @@ describe("a published .cast", () => {
     expect(back.entries.length).toBe(p.entries.length);
   });
 
-  test.each(lectures)("the QALY lecture %s survives YAML → .cast → playlist, with audio", (_name, yaml) => {
-    const p = parsePlaylistText(yaml);
-    const text = formatPublished(p, AUDIO, "script");
-    const back = parsePlaylistText(text);
-    expect(back.warnings).toEqual(p.warnings);
-    expect(same(norm(back), norm(p))).toBe(true);
-    expect(back.audio).toEqual(AUDIO);
-    // …and far fewer lines than the YAML it replaces (812 → 297 for lecture 1;
-    // the characters shrink less, since a skill-built lecture places by x/y).
-    expect(formatPublished(p, null, "script").split("\n").length).toBeLessThan(yaml.split("\n").length * 0.5);
+  test.each(lectures)("the QALY lecture %s (converted from YAML 2026-10-03) reads cleanly and reprints byte for byte", (_name, text) => {
+    const p = parsePlaylistText(text);
+    expect(p.warnings).toEqual([]);
+    expect(p.entries.filter((e) => e.kind === "item").length).toBeGreaterThan(1);
+    expect(formatPublished(p, p.audio ?? null, "script")).toBe(text);
   });
 
   test("every bundled example survives as a published .cast", () => {

@@ -7,7 +7,7 @@ the previous and next lecture).
 
 - `course.md` — the course document (the course panel's format), with each
   lecture's status line and file.
-- `NN-*.yaml` — the built lectures (no recorded narration yet).
+- `NN-*.cast` — the built lectures, as script (no recorded narration yet; `.yaml` until 2026-10-03).
 - `lecture-NN/` — the working files: `storyboard.json` (the narration) and
   `part-N.json` (each part's spec), for revising with `scripts/cast.mjs`.
 
