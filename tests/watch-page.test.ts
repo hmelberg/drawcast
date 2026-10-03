@@ -58,3 +58,9 @@ describe("watch address", () => {
     expect(xml).not.toContain("/w/p");
   });
 });
+
+import { watchDescription } from "../netlify/lib/watch-page.mts";
+test("the description reads as a sentence", () => {
+  expect(watchDescription({ title: "x", owner: "hmelberg", tags: ["mathematics"] })).toBe("A drawcast by hmelberg: a drawn explanation you can watch and play with. About mathematics.");
+  expect(watchDescription({ title: "x", kind: "course", lectures: 5 })).toBe("A drawcast course in 5 lectures: drawn explanations you can watch and play with.");
+});

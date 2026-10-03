@@ -46,10 +46,12 @@ function esc(s: string): string {
 
 /** One line for search results and link cards, from what the registry has. */
 export function watchDescription(meta: WatchMeta): string {
-  const what = meta.kind === "course" ? `A drawcast course${meta.lectures && meta.lectures > 1 ? ` in ${meta.lectures} lectures` : ""}` : "A drawcast — a drawn explanation you can watch and play with";
   const by = meta.owner ? ` by ${meta.owner}` : "";
+  const what = meta.kind === "course"
+    ? `A drawcast course${by}${meta.lectures && meta.lectures > 1 ? ` in ${meta.lectures} lectures` : ""}: drawn explanations you can watch and play with.`
+    : `A drawcast${by}: a drawn explanation you can watch and play with.`;
   const about = meta.tags?.length ? ` About ${meta.tags.slice(0, 4).join(", ")}.` : "";
-  return `${what}${by}.${about}`;
+  return `${what}${about}`;
 }
 
 /**
