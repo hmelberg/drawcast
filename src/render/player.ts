@@ -1742,7 +1742,10 @@ export class Player {
       // A market handle carries its own truth (the curve at the animate's end).
       if (animIndex < 0 || setup.handles.some((h) => h.kind === "market")) return setup.handles;
       const later = this.guessSetupAt(step.on, step.from, this.planned(animIndex), true);
-      return later && later.handles.length === setup.handles.length ? setup.handles.map((h, k) => ({ ...h, truth: later.handles[k].truth })) : setup.handles;
+      // A sorted bar chart's bar may change places in that animate: the marks end where it ends.
+      return later && later.handles.length === setup.handles.length
+        ? setup.handles.map((h, k) => ({ ...h, truth: later.handles[k].truth, ...(later.handles[k].cx !== undefined ? { cx: later.handles[k].cx } : {}) }))
+        : setup.handles;
     })();
     // What the question shows: everything the plan reveals at this step (the
     // guessed parts), painted from the guess instead of the truth.
@@ -4198,8 +4201,13 @@ export class Player {
         const besideCarry = carry !== null && carry.step.revealStyle !== "morph";
         const carryMarks = (e: number): GuessMarks | null => {
           if (!carry) return null;
-          if (!besideCarry || carry.truthHandles.some((h) => h.kind === "market")) return guessMarks(carry.truthHandles, carry.guess, e, besideCarry ? { beside: true } : {});
-          return besideMarks(carry.truthHandles, carry.guess, carry.truthHandles.map(() => e));
+          // A bar that changes places (a sorted chart) carries its marks along with it.
+          const hs = carry.truthHandles.map((h, k) => {
+            const from = carry.setup.handles[k]?.cx;
+            return from !== undefined && h.cx !== undefined && from !== h.cx ? { ...h, cx: from + (h.cx - from) * e } : h;
+          });
+          if (!besideCarry || hs.some((h) => h.kind === "market")) return guessMarks(hs, carry.guess, e, besideCarry ? { beside: true } : {});
+          return besideMarks(hs, carry.guess, hs.map(() => e));
         };
         if (carry && besideCarry) Object.assign(held, carry.setup.pin);
         if (carry && !besideCarry) {

@@ -149,3 +149,48 @@ describe("guessing a sorted chart", () => {
     expect(height(painted, 3)).toBeLessThan(height(layout, 3) / 5);
   });
 });
+
+describe("a prediction on a sorted chart", () => {
+  test("its marks travel with the bar to the place it ends in", async () => {
+    globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
+      setTimeout(() => cb(performance.now()), 5) as unknown as number) as typeof requestAnimationFrame;
+    const { Player } = await import("../src/render/player");
+    const { planCommands } = await import("../src/render/plan");
+    const { SpeechManager } = await import("../src/render/speech");
+    const { formatterFor } = await import("../src/guess/handles");
+    class Quiet extends SpeechManager {
+      override get available(): boolean { return false; }
+      override speak(): Promise<void> { return Promise.resolve(); }
+      override cancel(): void {}
+    }
+    // English: third (cx 300) at stage 0, first (cx 100) at stage 1.
+    const handle = (stage: number) => ({
+      part: "bar_3", shows: ["bar_3"], kind: "height" as const, truth: [stage >= 1 ? 1500 : 380], min: 0, max: 1600, step: 10, label: "English",
+      format: formatterFor(10), unit: "", paths: ["values.0.2"], dx: 2, cx: stage >= 1 ? 100 : 300, halfW: 40, toLogical: (p: [number, number]) => [p[0], p[1] / 4] as [number, number],
+    });
+    const plan = planCommands(
+      [
+        { ask: { question: "How many?", on: "bar_3", predict: true, tolerance: 0.1 } },
+        { animate: { stage: 1 }, duration: 0.2 },
+      ] as never,
+      ["axes", "bar_1", "bar_2", "bar_3"],
+      { animateBase: { stage: 0, values: STAGES }, guessParts: (on) => ({ parts: Array.isArray(on) ? on : [on], shows: ["bar_3"] }) },
+    );
+    const player = new Player(plan, new Map(), new Quiet(), null, { mode: "narrated" });
+    player.reprojector = { frame: () => {}, commit: () => new Map(), committed: () => null };
+    player.guess = {
+      setup: (_on, _from, params) => ({ handles: [handle(Number(params["stage"] ?? 0))], pin: {}, warnings: [] }),
+      patch: (_s, values) => ({ params: { "values.0.2": values[0][0] } }),
+    };
+    const marks: { owner: string; m: { lines: { pts: [number, number][] }[] } | null }[] = [];
+    (player as unknown as { effects: unknown }).effects = new Proxy({}, { get: (_t, k) => (k === "setGuessMarks" ? (owner: string, m: never) => void marks.push({ owner, m }) : () => {}) });
+    player.askGate = async () => "1000";
+    await player.play();
+    const mine = marks.filter((x) => x.owner === "guess_0" && x.m && x.m.lines.length > 0);
+    const xs = (m: (typeof mine)[number]) => m.m!.lines.flatMap((l) => l.pts.map((p) => p[0]));
+    // At the end every mark stands on the bar's new place (cx 100 ± its half width) …
+    expect(Math.max(...xs(mine[mine.length - 1]))).toBeLessThanOrEqual(100 + 40 + 1);
+    // … and on the way it passed between the two.
+    expect(mine.some((m) => { const c = Math.min(...xs(m)); return c > 100 - 40 + 5 && c < 300 - 40 - 5; })).toBe(true);
+  });
+});
