@@ -12,7 +12,7 @@ describe("resolveIcons", () => {
   test("permissive hit: rings embedded, credit set, size kept", async () => {
     const spec = { elements: [{ id: "f", type: "icon", of: "factory", size: 80, x: 1, y: 1 }], commands: [] };
     const r = await resolveIcons(spec as never, deps({ [iconSearchUrl("factory", DEFAULT_PREFIXES)]: { icons: ["lucide:factory"] }, [iconSvgUrl("lucide", "factory")]: SVG }));
-    expect(r).toEqual([{ id: "f", ok: true }]);
+    expect(r).toMatchObject([{ id: "f", ok: true }]);
     const el = spec.elements[0] as { strokes?: string; credit?: string; set?: string };
     expect(iconRingsOf(el.strokes!)!.length).toBe(1);
     expect(el.credit).toBe("factory from lucide · ISC");
