@@ -160,45 +160,74 @@ const FIG_H = 630;
 const FIG_Y = 10;
 const FPS = 30;
 const PAPER = "#f5f1e6";
-import { C64_FONT_URLS } from "../render/figure-style";
+import { C64_FONT_URLS, PATRICK_HAND_URLS } from "../render/figure-style";
 import { placeholdLinkedPictures } from "./linked-pictures";
 
 const INK = "#3d3833";
 
+/** The `latin` face's woff2 URL out of Google Fonts' css2 answer: the one
+ *  whose unicode-range covers basic Latin (U+0000-00FF). The answer lists
+ *  vietnamese and latin-ext first, and taking the FIRST url embedded a face
+ *  with no a–z at all — every poster fell back to Comic Sans (2026-10-04). */
+export function latinFaceUrl(css: string): string | null {
+  for (const block of css.split("@font-face").slice(1)) {
+    const url = /url\((https:[^)]+\.woff2)\)/.exec(block)?.[1];
+    if (url && /unicode-range:[^;]*U\+0000-00FF/i.test(block)) return url;
+  }
+  // No ranges at all (one face for everything): its only url.
+  return /unicode-range/i.test(css) ? null : (/url\((https:[^)]+\.woff2)\)/.exec(css)?.[1] ?? null);
+}
+
 /** The sketch font as an inline data URI so SVG-as-image frames keep it
- *  (images loaded from SVG cannot fetch external resources). */
+ *  (images loaded from SVG cannot fetch external resources). The app's own
+ *  copy first (PATRICK_HAND_URLS — the file the layout measured with), else
+ *  Google's latin face. "" when neither answers: the caller decides whether
+ *  a fallback font will do (a poster says no — snapshot.ts posterPng). A
+ *  failure is not remembered, so the next call tries again. */
 let fontStylePromise: Promise<string> | null = null;
 export function sketchFontStyle(): Promise<string> {
   fontStylePromise ??= (async () => {
-    try {
-      const css = await (await fetch("https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap")).text();
-      const m = /url\((https:[^)]+\.woff2)\)/.exec(css);
-      if (!m) return "";
-      const buf = new Uint8Array(await (await fetch(m[1])).arrayBuffer());
-      const b64 = (bytes: Uint8Array): string => {
-        let bin = "";
-        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-        return btoa(bin);
-      };
-      let c64 = "";
-      // The C64 face too, so a screen in a movie is set in it: the first of
-      // its URLs that answers (the app's own copy, else the published one).
-      for (const u of C64_FONT_URLS) {
+    const b64 = (bytes: Uint8Array): string => {
+      let bin = "";
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return btoa(bin);
+    };
+    /** The first URL that answers, as base64 — "" when none does. */
+    const firstOf = async (urls: readonly string[]): Promise<string> => {
+      for (const u of urls) {
         try {
           const r = await fetch(u);
-          if (!r.ok) continue;
-          c64 = `@font-face{font-family:'C64 Pro Mono';src:url(data:font/woff2;base64,${b64(new Uint8Array(await r.arrayBuffer()))}) format('woff2');}`;
-          break;
+          // A dev server answers a missing file with its index.html, as a 200.
+          if (!r.ok || /text\/html/i.test(r.headers.get("content-type") ?? "")) continue;
+          return b64(new Uint8Array(await r.arrayBuffer()));
         } catch {
           /* try the next */
         }
       }
-      return `<style>@font-face{font-family:'Patrick Hand';src:url(data:font/woff2;base64,${b64(buf)}) format('woff2');}${c64}</style>`;
-    } catch {
-      return ""; // degrade to the fallback font rather than failing the export
+      return "";
+    };
+    let hand = await firstOf(PATRICK_HAND_URLS);
+    let handFormat = "truetype";
+    if (!hand) {
+      try {
+        const url = latinFaceUrl(await (await fetch("https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap")).text());
+        hand = url ? await firstOf([url]) : "";
+        handFormat = "woff2";
+      } catch {
+        hand = "";
+      }
     }
+    if (!hand) return "";
+    // The C64 face too, so a screen in a movie is set in it.
+    const c64 = await firstOf(C64_FONT_URLS);
+    const c64Face = c64 ? `@font-face{font-family:'C64 Pro Mono';src:url(data:font/woff2;base64,${c64}) format('woff2');}` : "";
+    return `<style>@font-face{font-family:'Patrick Hand';src:url(data:font/${handFormat === "truetype" ? "ttf" : "woff2"};base64,${hand}) format('${handFormat}');}${c64Face}</style>`;
   })();
-  return fontStylePromise;
+  const p = fontStylePromise;
+  void p.then((s) => {
+    if (!s && fontStylePromise === p) fontStylePromise = null;
+  });
+  return p;
 }
 
 function sleep(ms: number): Promise<void> {
