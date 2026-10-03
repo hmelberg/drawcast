@@ -1796,11 +1796,14 @@ function iconPictureDrawable(
 }
 
 function nodeText(id: string, pos: Pt, text: string, fontSize: number, drawOpts: ReturnType<typeof resolveDrawOpts>): TextDrawable {
+  // A "\n" is a line break (a card's two lines, spec/cards.ts): rows centred on pos.
+  const lines = text.includes("\n") ? text.split("\n") : undefined;
   return {
     id: `${id}_text`,
     kind: "text",
     pos,
-    text,
+    text: lines ? lines.join(" ") : text,
+    ...(lines ? { lines } : {}),
     fontSize,
     anchor: "middle",
     z: Z_TEXT,
