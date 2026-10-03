@@ -14,17 +14,15 @@ import { fetchCatalogue, type CatalogueFilterKind, type CatalogueItem } from "./
 import { DEFAULT_ENROLL_API } from "./learn";
 import { h } from "./ui/dom";
 import featuredJson from "./home/featured.json";
+import { note, section, topBar } from "./home/ui";
 import {
   cardFromCatalogue,
   cardFromFeatured,
-  FORMAT_BADGE,
   FORMAT_CHIPS,
-  homeHref,
   matchesSearch,
   mergeCards,
   parseFeatured,
   tagRows,
-  thumbUrl,
   type HomeCard,
   type HomeFormat,
 } from "./home/model";
@@ -48,53 +46,16 @@ function catalogue(kind: CatalogueFilterKind, q = "", page = 0): Promise<Catalog
   return p;
 }
 
-function card(c: HomeCard): HTMLElement {
-  const img = h("img", { src: thumbUrl(c.name), alt: "", loading: "lazy", decoding: "async" });
-  img.addEventListener("error", () => img.remove());
-  const badges: HTMLElement[] = [];
-  if (c.format) badges.push(h("span", { class: `home-badge home-badge-${c.format}` }, FORMAT_BADGE[c.format]));
-  if (c.private) badges.push(h("span", { class: "home-badge home-badge-private" }, "Private"));
-  const meta = [c.owner, c.meta].filter(Boolean).join(" · ");
-  return h(
-    "a",
-    { class: "home-card", href: homeHref(c.name) },
-    h("div", { class: "home-thumb" }, img),
-    h("div", { class: "home-card-title" }, c.title),
-    ...(meta ? [h("div", { class: "home-card-meta" }, meta)] : []),
-    ...(badges.length ? [h("div", { class: "home-badges" }, ...badges)] : []),
-  );
-}
-
-function section(title: string, cards: HomeCard[], more?: HTMLElement): HTMLElement | null {
-  if (cards.length === 0) return null;
-  return h(
-    "section",
-    { class: "home-section" },
-    h("div", { class: "home-section-head" }, h("h2", {}, title), ...(more ? [more] : [])),
-    h("div", { class: "home-grid" }, ...cards.map(card)),
-  );
-}
-
-function note(text: string, kind = ""): HTMLElement {
-  return h("p", { class: `home-note ${kind}`.trim() }, text);
-}
-
 export function runHome(): void {
   document.body.classList.add("home-body");
   const params = new URLSearchParams(location.search);
   let q = params.get("q") ?? "";
   let chip = (FORMAT_CHIPS.some((c) => c.id === params.get("f")) ? params.get("f") : "") as "" | HomeFormat;
 
-  const qInput = h("input", { type: "search", class: "home-q", placeholder: "Search drawcasts", "aria-label": "Search drawcasts" }) as HTMLInputElement;
-  qInput.value = q;
-  const form = h("form", { class: "home-search", role: "search" }, qInput, h("button", { type: "submit", class: "home-search-btn" }, "Search"));
-  const top = h(
-    "header",
-    { class: "home-top" },
-    h("a", { class: "home-brand", href: "./" }, h("img", { src: "./mark.svg", alt: "" }), "drawcast"),
-    form,
-    h("a", { class: "home-create", href: "#create", title: "Make a drawcast: the editor" }, "＋ Create"),
-  );
+  const { root: top } = topBar(q, (value) => {
+    q = value;
+    void render();
+  });
   const chipButtons = FORMAT_CHIPS.map((c) => {
     const b = h("button", { type: "button", class: "home-chip", "aria-pressed": String(c.id === chip) }, c.label) as HTMLButtonElement;
     b.addEventListener("click", () => {
@@ -117,11 +78,6 @@ export function runHome(): void {
   );
   document.body.append(top, chips, main, foot);
 
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    q = qInput.value.trim();
-    void render();
-  });
 
   let token = 0;
   async function render(): Promise<void> {

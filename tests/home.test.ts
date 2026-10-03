@@ -15,6 +15,7 @@ import {
   parseFeatured,
   tagRows,
   thumbUrl,
+  upNext,
   type FeaturedEntry,
 } from "../src/home/model";
 
@@ -129,5 +130,44 @@ describe("routing", () => {
   test("the front page never loads the editor", () => {
     expect(home).not.toMatch(/from "\.\/main"|import\("\.\/main"\)/);
     expect(home).toContain('href: "#create"');
+  });
+});
+
+describe("Up next (the watch page)", () => {
+  const e = (name: string, format: FeaturedEntry["format"], tags: string[]): FeaturedEntry => ({ name, title: name, format, tags });
+  const featured = [e("a", "drawcast", ["physics"]), e("b", "quiz", ["health"]), e("c", "drawcast", ["health", "statistics"]), e("d", "drawcast", ["health"]), e("me", "drawcast", ["health", "statistics"])];
+  test("shared topic tags first, then the same format, ties in curated order; never the one being watched", () => {
+    expect(upNext("me", featured, []).map((c) => c.name)).toEqual(["c", "d", "b", "a"]);
+  });
+  test("a lecture (name/3) relates through its course's name", () => {
+    expect(upNext("me/3", featured, []).map((c) => c.name)[0]).toBe("c");
+  });
+  test("an uncurated drawcast gets the curated list in order, then the newest, without duplicates or itself", () => {
+    const newest = [cardFromCatalogue(item({ name: "x" }), new Map()), cardFromCatalogue(item({ name: "a" }), new Map()), cardFromCatalogue(item({ name: "zz" }), new Map())];
+    expect(upNext("zz", featured, newest).map((c) => c.name)).toEqual(["a", "b", "c", "d", "me", "x"]);
+    expect(upNext(undefined, featured, [], 2)).toHaveLength(2);
+  });
+});
+
+describe("the watch page wiring", () => {
+  const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8");
+  test("the viewer mounts it on demand, never for a page carrying its own cast", () => {
+    expect(viewer).toContain('if (req.embedded === undefined) void import("./home/watch").then((m) => m.mountWatch(app, { name: req.watchName })).catch(() => undefined);');
+  });
+  test("a name link tells it which drawcast it is", () => {
+    expect(viewer).toContain("await runViewer({ ...req, watchName: name });");
+  });
+});
+
+describe("the curated library's code is trusted by its bytes", () => {
+  const trust = JSON.parse(readFileSync(new URL("../src/home/trusted-code.json", import.meta.url), "utf8")) as { keys: string[] };
+  const viewer = readFileSync(new URL("../src/viewer.ts", import.meta.url), "utf8");
+  test("the list holds code-trust keys only (content fingerprints, never a source or a name)", () => {
+    expect(trust.keys.length).toBeGreaterThan(0);
+    for (const k of trust.keys) expect(k).toMatch(/^[ct]:[0-9a-f]{32}$/);
+  });
+  test("the viewer trusts them for this page only, before the gate asks", () => {
+    expect(viewer).toContain("trustKeys(libraryTrust.keys, { persist: false });");
+    expect(viewer.indexOf("trustKeys(libraryTrust.keys")).toBeLessThan(viewer.indexOf("const codeAllowed = await gateSpecs("));
   });
 });

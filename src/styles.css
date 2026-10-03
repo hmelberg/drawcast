@@ -3385,6 +3385,59 @@ input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; b
   .home-brand { font-size: 1.4rem; }
 }
 
+.home-card-text { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+
+/* The watch page (src/home/watch.ts): the viewer inside the site's frame —
+   top bar above, "Up next" beside the player, theatre mode. The stage height
+   is recomputed from the main column (not the window) so the play bar stays
+   above the fold; it overrides the viewer's own --viewer-stage-h rules. */
+body.viewer-body.watch-body {
+  display: block;
+  --watch-col: min(1100px, calc(100vw - 32px - 380px - 24px));
+  --viewer-stage-h: min(calc((var(--watch-col) - 1.2rem - 3px) * 0.75), calc(100dvh - 13rem));
+}
+.watch-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start;
+  max-width: 1520px; margin: 0 auto; padding: 0 16px 2rem; box-sizing: border-box;
+}
+.watch-main { min-width: 0; }
+.watch-body .home-top { max-width: 1520px; }
+.watch-body .viewer-wrap { width: 100%; padding-top: 0.6rem; }
+.watch-next h2 { font: 1.3rem var(--sketch-font); margin: 0.6rem 0 0.6rem; }
+.watch-list { display: flex; flex-direction: column; gap: 0.8rem; }
+.home-card-compact { flex-direction: row; gap: 0.6rem; align-items: flex-start; }
+.home-card-compact .home-thumb { flex: 0 0 168px; }
+.home-card-compact .home-card-title { font-size: var(--text-sm); margin-top: 0; }
+.home-card-compact .home-card-meta { font-size: var(--text-xs); }
+.watch-theatre-btn {
+  margin-left: 0.6rem; padding: 0.2rem 0.7rem; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--surface); color: var(--muted); font-size: var(--text-sm); cursor: pointer;
+}
+.watch-theatre-btn:hover { color: var(--ink); border-color: var(--steel); }
+/* Theatre, and every narrow window: one column, the player full width,
+   "Up next" below it as a grid. */
+body.viewer-body.watch-body.watch-theatre {
+  --watch-col: min(1480px, calc(100vw - 32px));
+  --viewer-stage-h: min(calc((var(--watch-col) - 1.2rem - 3px) * 0.75), calc(100dvh - 11rem));
+}
+.watch-theatre .watch-layout { grid-template-columns: minmax(0, 1fr); }
+.watch-theatre .watch-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+@media (max-width: 1000px) {
+  body.viewer-body.watch-body, body.viewer-body.watch-body.watch-theatre {
+    --watch-col: calc(100vw - 32px);
+    --viewer-stage-h: min(calc((var(--watch-col) - 1.2rem - 3px) * 0.75), calc(100dvh - 11rem));
+  }
+  .watch-layout { grid-template-columns: minmax(0, 1fr); }
+  .watch-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .watch-theatre-btn { display: none; }
+}
+@media (max-width: 700px) and (orientation: portrait) {
+  body.viewer-body.watch-body, body.viewer-body.watch-body.watch-theatre {
+    --viewer-stage-h: min(calc((var(--watch-col) - 1.2rem - 3px) * 4.1 / 4), calc(100dvh - 12rem));
+  }
+  .home-card-compact .home-thumb { flex-basis: 140px; }
+}
+
 /* The Share box (spec 2026-10-02-share-design §6). Colours come from the
    dialog variables, so the dark theme follows. */
 .share-card { display: flex; flex-direction: column; gap: 0.25rem; margin: 0 0 0.8rem; }
