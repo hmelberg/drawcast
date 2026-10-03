@@ -47,7 +47,8 @@ import { resolveIcons } from "./icon";
 import { loadSettings } from "../store";
 import { fontStack, makeBrowserMeasure, rendererFor, type RenderStyle } from "./svg-backend";
 import { registerCastTemplates } from "../scenes/cast-templates";
-import { ensureEnginesForSpecs, ensureMathFont } from "../scenes/engines";
+import { isC64Screen } from "../layout/c64-screen";
+import { enginesForSpec, enginesLoaded, ensureEnginesForSpecs, ensureMathFont } from "../scenes/engines";
 import { applyTextStyle, effectiveTextStyle, scaledMeasure, type TextOverride, withTextStyle } from "../layout/text-style";
 import { resolveInsets } from "./inset";
 
@@ -353,6 +354,21 @@ export function planOptionsFor(
 }
 
 let fontsReady: Promise<void> | null = null;
+let c64FontReady: Promise<void> | null = null;
+/** The C64 face, only for a figure with a C64 screen on it (2026-10-03: it
+ *  was fetched for every figure). Same 900 ms bound as the hand below. */
+function ensureC64Font(): Promise<void> {
+  if (c64FontReady) return c64FontReady;
+  c64FontReady = (async () => {
+    if (typeof document === "undefined" || !("fonts" in document)) return;
+    try {
+      await Promise.race([document.fonts.load("16px 'C64 Pro Mono'"), new Promise((r) => setTimeout(r, 900))]);
+    } catch {
+      /* measurement falls back gracefully */
+    }
+  })();
+  return c64FontReady;
+}
 function ensureFonts(): Promise<void> {
   if (fontsReady) return fontsReady;
   fontsReady = (async () => {
@@ -366,10 +382,7 @@ function ensureFonts(): Promise<void> {
       if (!declared && typeof FontFace !== "undefined") {
         document.fonts.add(new FontFace("Patrick Hand", PATRICK_HAND_URLS.map((u) => `url(${u}) format('truetype')`).join(", ")));
       }
-      await Promise.race([
-        Promise.all([document.fonts.load("26px 'Patrick Hand'"), document.fonts.load("16px 'C64 Pro Mono'")]),
-        new Promise((r) => setTimeout(r, 900)),
-      ]);
+      await Promise.race([document.fonts.load("26px 'Patrick Hand'"), new Promise((r) => setTimeout(r, 900))]);
     } catch {
       /* measurement falls back gracefully */
     }
@@ -386,7 +399,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // reads the registry (template-on-demand): never shadows a built-in.
   registerCastTemplates(spec);
   ensureFigureStyles();
-  await ensureFonts();
+  await Promise.all([ensureFonts(), (spec.elements ?? []).some(isC64Screen) ? ensureC64Font() : undefined]);
   // Whatever the spec needs to be laid out at all: a template's engines, and
   // the mathjax engine a `math` element (or a TeX label) draws with. Layout is
   // synchronous, so an engine that is not here by now is an element that does
@@ -451,9 +464,16 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   // and glyphs are decided in layout, not stamped after it like text). A
   // chunk that fails to fetch degrades to the font the engine has (tier2
   // warns per formula), never to a blank figure.
-  await ensureMathFont(textStyle.mathFont).catch((err) => {
-    console.warn(`math font load failed: ${(err as Error).message}`);
-  });
+  // Only for a figure that draws math (2026-10-03): unconditionally, every
+  // figure fetched MathJax and the Fira glyphs (~1 MB) before its first
+  // stroke. Asked of the EXPANDED spec — a card or scratch line can bring a
+  // formula with it — and of the engine cache, which ensureEnginesForSpecs
+  // above filled for a template that declared mathjax.
+  if (enginesLoaded(["mathjax"]) || enginesForSpec(spec).includes("mathjax")) {
+    await ensureMathFont(textStyle.mathFont).catch((err) => {
+      console.warn(`math font load failed: ${(err as Error).message}`);
+    });
+  }
   spec = withTextStyle(spec, textStyle);
   figure.style.setProperty("--cs-text-scale", String(textStyle.scale));
   figure.style.setProperty("--sketch-font", fontStack(textStyle.family));

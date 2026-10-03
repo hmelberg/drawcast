@@ -32,7 +32,7 @@ import { courseKeyOf, runInfo, sendEvents } from "./learn";
 import type { JoinOutcome, JoinRequest, LearnEvent, SendOutcome } from "./learn";
 import { sweepOutbox } from "./outbox";
 import type { HandInState } from "./playlist/session";
-import { anvilHashFor, nameInHash, resolveName, type Resolved } from "./names";
+import { anvilHashFor, lookupNamed, nameInHash, type Resolved } from "./names";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist as mountSession, playlistSpeakLines } from "./playlist/session";
 import { isBook, mountBookPlaylist } from "./book/shell";
@@ -401,17 +401,15 @@ export function showUnplayable(): void {
  * keeps the name — replaceState would not fire hashchange, but there is
  * nothing to gain from rewriting it either.
  */
-export async function runNamed(hash: string): Promise<void> {
+export async function runNamed(hash: string, early?: Promise<Resolved | null>): Promise<void> {
   const name = nameInHash(hash);
   // Same centering runViewer gets, before we know whether we'll ever reach it.
   document.body.classList.add("viewer-body");
   const status = h("p", { class: "viewer-status" }, "Looking up the name…");
   document.body.append(status);
+  // entry.ts usually started the lookup already, before this chunk loaded.
   const resolved = name
-    ? await resolveName(DEFAULT_ENROLL_API, name, fetch, {
-        src: name.includes("/") ? "lecture" : "name",
-        ref: typeof document !== "undefined" ? document.referrer : "",
-      })
+    ? await (early ?? lookupNamed(hash, DEFAULT_ENROLL_API, fetch, typeof document !== "undefined" ? document.referrer : ""))
     : null;
   if (!name || !resolved) {
     status.textContent = `No drawcast called "${name ?? hash}".`;

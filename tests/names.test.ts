@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { anvilHashFor, checkNote, checkPaidName, driveTarget, ghHashFor, isNameHash, nameInHash, normalizeName, registerName, resolveName, NAME_ENDPOINTS, NAME_RE, RESERVED_PREFIXES, type CheckState } from "../src/names";
+import { anvilHashFor, checkNote, checkPaidName, driveTarget, ghHashFor, isNameHash, lookupNamed, nameInHash, normalizeName, registerName, resolveName, NAME_ENDPOINTS, NAME_RE, RESERVED_PREFIXES, type CheckState } from "../src/names";
 
 function fetchReturning(status: number, body: unknown): typeof fetch {
   return vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
@@ -343,5 +343,24 @@ describe("paidInHash — Stripe's return lands here", () => {
   test("a paid marker is not a name hash, so entry.ts routes it to the editor", async () => {
     const { isNameHash } = await import("../src/names");
     expect(isNameHash("#paid=micro-i")).toBe(false);
+  });
+});
+
+describe("lookupNamed", () => {
+  test("a hash with no name is null without a fetch", async () => {
+    let calls = 0;
+    const f = (async () => { calls++; return new Response("{}"); }) as typeof fetch;
+    expect(await lookupNamed("#gh=o/r/p.cast", "https://x.anvil.app", f)).toBeNull();
+    expect(calls).toBe(0);
+  });
+  test("asks with src=lecture for a lecture, carries the referrer, and returns the target", async () => {
+    const urls: string[] = [];
+    const f = (async (u: string) => {
+      urls.push(String(u));
+      return new Response(JSON.stringify({ kind: "cast", target: "o/r/p.cast" }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const r = await lookupNamed("#spanish/2&speed=1.5", "https://x.anvil.app", f, "https://example.org/a");
+    expect(r).toEqual({ kind: "cast", target: "o/r/p.cast", page: null });
+    expect(urls[0]).toContain("n=spanish%2F2&src=lecture&ref=https%3A%2F%2Fexample.org%2Fa");
   });
 });
