@@ -12,6 +12,7 @@
 import { redeemFromAddress } from "./account";
 import { DEFAULT_ENROLL_API } from "./learn";
 import { isNameHash, lookupNamed } from "./names";
+import { startGhFetch } from "./links/early-fetch";
 import { bootRoute, onViewOrigin } from "./security/view-origin";
 
 async function boot(): Promise<void> {
@@ -65,11 +66,13 @@ async function boot(): Promise<void> {
     doneBooting();
     runPaste();
   } else if (!remix && /[#&](gdoc|gh|gdrive|anvil|cast)[=-]/.test(hash)) {
+    // A GitHub cast's download starts now, while the viewer downloads.
+    const early = startGhFetch(hash);
     const { parseViewerHash, runViewer, showUnplayable } = await import("./viewer");
     doneBooting();
     const req = parseViewerHash(hash);
     // A refused hash is a message, never a silent blank page.
-    if (req) await runViewer(req);
+    if (req) await runViewer(req.gh && early ? { ...req, early } : req);
     else showUnplayable();
   } else if (!remix && isNameHash(hash)) {
     // Ask the registry now, while the viewer downloads — not after it.

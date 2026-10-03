@@ -33,6 +33,7 @@ import type { JoinOutcome, JoinRequest, LearnEvent, SendOutcome } from "./learn"
 import { sweepOutbox } from "./outbox";
 import type { HandInState } from "./playlist/session";
 import { anvilHashFor, lookupNamed, nameInHash, type Resolved } from "./names";
+import type { EarlyFetch } from "./links/early-fetch";
 import { parsePlaylistText, itemsOf } from "./playlist/playlist";
 import { mountPlaylist as mountSession, playlistSpeakLines } from "./playlist/session";
 import { isBook, mountBookPlaylist } from "./book/shell";
@@ -89,6 +90,8 @@ export interface ViewerRequest {
    * GitHub cast's; the text is still this one, never re-fetched.
    */
   embedded?: string;
+  /** The cast's download, started by entry.ts before this module loaded (links/early-fetch.ts). */
+  early?: EarlyFetch;
   style: RenderStyle;
   mode: "narrated" | "silent" | "instant";
   speed: number;
@@ -178,11 +181,6 @@ function decodePath(raw: string): string | null {
   }
 }
 
-/**
- * Accepts #gdoc=<id> / #gdoc-<id>, #gdrive=<id> / #gdrive-<id>,
- * #gh=<owner>/<repo>/<path> / #gh-…, and #anvil=<slug>/<file> / #anvil-…,
- * with optional &style= &mode= &speed= &advance=.
- */
 /** The playback options a link may carry (&style= &mode= &speed= &advance= &join) — every source reads the same ones. */
 export function viewerOptions(params: URLSearchParams): Pick<ViewerRequest, "style" | "mode" | "speed" | "advance" | "join"> {
   const mode = params.get("mode");
@@ -205,6 +203,11 @@ export function ghRefFrom(raw: string | null | undefined): GhRef | null {
   return { owner: m[1], repo: m[2], path: m[3] };
 }
 
+/**
+ * Accepts #gdoc=<id> / #gdoc-<id>, #gdrive=<id> / #gdrive-<id>,
+ * #gh=<owner>/<repo>/<path> / #gh-…, and #anvil=<slug>/<file> / #anvil-…,
+ * with optional &style= &mode= &speed= &advance=.
+ */
 export function parseViewerHash(hash: string): ViewerRequest | null {
   const gh = GH_RE.exec(hash);
   const doc = /[#&]gdoc[=-]([A-Za-z0-9_-]{10,})/.exec(hash);
@@ -299,8 +302,11 @@ async function setViewerLinkBase(gh: GhRef | undefined, text: string): Promise<v
   setLinkBase(withCourse(file, gh.path.slice(dir.length), course));
 }
 
-async function fetchGhText(gh: GhRef): Promise<string> {
-  const res = await fetch(rawUrlFor(gh));
+async function fetchGhText(gh: GhRef, early?: EarlyFetch): Promise<string> {
+  // entry.ts may have started this very request before the viewer loaded —
+  // used only when it named the same file; a failed early try just retries.
+  const url = rawUrlFor(gh);
+  const res = early && early.url === url ? await early.res.catch(() => fetch(url)) : await fetch(url);
   if (res.ok) return await res.text();
   throw new Error(
     res.status === 404
@@ -787,7 +793,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
           audioNote = `Recorded narration unavailable (${why}); narration falls back to a synthesised voice.`;
         })
       : req.gh
-        ? await fetchGhText(req.gh)
+        ? await fetchGhText(req.gh, req.early)
         : req.driveId
           ? await fetchGdriveText(req.driveId)
           : inline

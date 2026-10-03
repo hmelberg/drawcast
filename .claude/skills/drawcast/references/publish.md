@@ -26,11 +26,12 @@ public repo the user chooses; after that it is revised like anything published.
    repo is someone else's: then plain `push` opens a PR from a fork).
    A public push also commits each cast's link-card picture (`<file>.png`, drawn the way
    the app draws it); to give an older published repo its pictures, `pull` it and `push` again.
-   A public single cast also gets its own page, `<file>.html` beside it: the cast inside the
-   page, the player from drawcast.app — the fastest link to it (no name lookup, no second
-   fetch), at `https://<owner>.github.io/<repo>/<dir>/<file>.html`. Its file name is the
-   cast's slug, so the name chosen at publish-target is the page's name too. A private
-   push removes the page (it would carry the cast unlocked).
+   A public single cast also gets its own page, `<file>.html` beside it: a small door that
+   plays the `.cast` next to it (so an edit to the `.cast` shows at once), with the player
+   from drawcast.app and the spoken lines as a Transcript for search engines — the fastest
+   link to it (no name lookup), at `https://<owner>.github.io/<repo>/<dir>/<file>.html`.
+   Its file name is the cast's slug, so the name chosen at publish-target is the page's name
+   too. Views and comments are the cast's. A private push removes the page.
 4. Report the player link (`drawcast.app/#gh=…`), for a single cast its own page, and, for a course, the course page (Pages
    can take a minute the first time). Narration is the browser's voice until the course is
    published with narration from the app. Later revisions: references/revise.md from its step 2 (unpack), on the same workdir — no new pull.
