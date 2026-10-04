@@ -442,6 +442,9 @@ function pieRadius(params: Record<string, unknown>, area: { x0: number; y0: numb
     }
     return Math.max(40, r);
   };
+  // An authored label_size (W28) is the names' size: the pie makes room for it.
+  const ls = params["label_size"];
+  if (isNum(ls)) return radiusFor(Math.max(18, Math.min(40, ls)));
   const r24 = radiusFor(24), r20 = radiusFor(20);
   if (r24 >= r20 * 0.9) return r24;
   const r22 = radiusFor(22);

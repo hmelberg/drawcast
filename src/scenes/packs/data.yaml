@@ -60,6 +60,11 @@ params:
     value_labels:
       type: boolean
       description: "Write each bar's value above it (default false)."
+    label_size:
+      type: number
+      minimum: 18
+      maximum: 40
+      description: "The chart's labels' size — category names, values, y ticks, legend — instead of the engine's (about 20–24); they still shrink a little where neighbours would collide. For a chart beside large cards."
     sort:
       enum: [none, desc, asc]
       description: "none (default) — the bars in label order; desc / asc — largest first / smallest first by the value at the stage shown, so an animate between stages slides the bars to their new places as they grow (ties keep label order). One series only. Ids stay with the category: bar_3 is the third LABEL wherever it stands."
@@ -304,12 +309,14 @@ layout: |
   // The chart as the page's figure (no box, or a box most of the content
   // area: W25, "chart text reads tiny next to large cards") starts two sizes up.
   const MAIN = !boxed || (b.w >= 700 && b.h >= 380) ? 2 : 0;
+  // label_size (W28): the author's size for the labels, ticks and values (18–40).
+  const LS = typeof params.label_size === "number" && Number.isFinite(params.label_size) ? Math.max(18, Math.min(40, params.label_size)) : 0;
   const yLab0 = str(params.y_label, "");
   if (yLab0 && params.value_labels === true && !ylim && series.length === 1 && !stacked && n > 0 && yMax > 0) {
     const cap = kit.axisLabel("axes__y_label", "y", plot, yLab0, { fontSize: 22 });
     const cw = kit.textWidth(yLab0, 22), ch = 22 * 1.25;
     const cx0 = cap.anchor === "start" ? cap.pos[0] : cap.anchor === "end" ? cap.pos[0] - cw : cap.pos[0] - cw / 2;
-    const VMAX = 20 + MAIN; // a value label at its largest size
+    const VMAX = LS || 20 + MAIN; // a value label at its largest size
     const room = cap.pos[1] - ch / 2 - 4 - (VMAX * 0.75 + 6 + VMAX * 0.625) - plot.y0;
     const H = plot.y1 - plot.y0, sw = (plot.x1 - plot.x0) / n;
     if (room > H * 0.5 && room < H) {
@@ -352,10 +359,10 @@ layout: |
   // Base sizes a viewer can read on a full page; each shrinks only when its
   // neighbours would collide at the width there is, never below the size the
   // chart used before (17 for categories, 13 past 12 bars, 15 for values).
-  const TICK_SIZE = 20 + MAIN, TICK_MIN = 15;
-  const CAT_SIZE = 21 + MAIN, CAT_WRAP_MIN = 18, CAT_MIN = n > 12 ? 13 : 17;
-  const VALUE_SIZE = 20 + MAIN, VALUE_MIN = 15;
-  const LEGEND_SIZE = 20 + MAIN;
+  const TICK_SIZE = LS || 20 + MAIN, TICK_MIN = 15;
+  const CAT_SIZE = LS || 21 + MAIN, CAT_WRAP_MIN = 18, CAT_MIN = n > 12 ? 13 : 17;
+  const VALUE_SIZE = LS || 20 + MAIN, VALUE_MIN = 15;
+  const LEGEND_SIZE = LS || 20 + MAIN;
   // Round tick values: the smallest step of 1, 2, 2.5 or 5 × 10ⁿ that puts at
   // most `most` ticks on [lo, hi] with neighbours at least `minGap` apart
   // (`per`: logical units per data unit).
@@ -652,6 +659,11 @@ params:
     percent:
       type: boolean
       description: "Write each slice's percent after its name (default true)."
+    label_size:
+      type: number
+      minimum: 18
+      maximum: 40
+      description: "The chart's labels' size — the slices' names and percents — instead of the engine's (about 20–24); they still shrink a little where neighbours would collide. For a chart beside large cards."
     start_angle:
       type: number
       description: "Where the first slice starts, in degrees clockwise from 12 o'clock (default 0; 90 starts at 3 o'clock)."
@@ -746,9 +758,11 @@ layout: |
     }
     return Math.max(40, r);
   };
-  let labelSize = 24, r0 = radiusFor(24);
+  // label_size (W28): the author's size for the names; the pie makes room for it.
+  const LS = typeof params.label_size === "number" && Number.isFinite(params.label_size) ? Math.max(18, Math.min(40, params.label_size)) : 0;
+  let labelSize = LS || 24, r0 = radiusFor(labelSize);
   const rSmall = radiusFor(20);
-  if (r0 < rSmall * 0.9) { const r22 = radiusFor(22); if (r22 >= rSmall * 0.9) { labelSize = 22; r0 = r22; } else { labelSize = 20; r0 = rSmall; } }
+  if (!LS && r0 < rSmall * 0.9) { const r22 = radiusFor(22); if (r22 >= rSmall * 0.9) { labelSize = 22; r0 = r22; } else { labelSize = 20; r0 = rSmall; } }
   // A guess's beside reveal (spec 2026-10-03-round6 §3) sets beside_pie
   // [x, y, r] at run time, never an author: the slices stand there, beside
   // the viewer's own pie; the title keeps its place.
@@ -1043,6 +1057,11 @@ params:
     y_ticks:
       type: boolean
       description: "Round numbers up the y axis (0, 2, 4, 6, 8 — four to six of them) instead of only its two ends, so a drawn guess can be read against the scale (default true). false: the two ends only."
+    label_size:
+      type: number
+      minimum: 18
+      maximum: 40
+      description: "The chart's labels' size — the lines' names, x and y ticks, categories — instead of the engine's (about 20–22); they still shrink a little where neighbours would collide. For a chart beside large cards."
     smooth:
       type: boolean
       description: "Catmull–Rom smoothing through the points (default false; keep off for step-like data)."
@@ -1364,7 +1383,9 @@ layout: |
   // The chart as the page's figure: its tick numbers start two sizes up (W25),
   // as bar_chart; the end labels keep 21 (they meet the x caption at 23).
   const MAIN = !boxed || (b.w >= 700 && b.h >= 380) ? 2 : 0;
-  const END_SIZE = 21; // the end label's font size (W4: 19 → 21, readable on a full page)
+  // label_size (W28): the author's size for the names, ticks and categories (18–40).
+  const LS = typeof params.label_size === "number" && Number.isFinite(params.label_size) ? Math.max(18, Math.min(40, params.label_size)) : 0;
+  const END_SIZE = LS || 21; // the end label's font size (W4: 19 → 21, readable on a full page)
   const END_GAP = 12; // gap between the last point and its name
   const CANVAS_EDGE = 4; // CANVAS_EDGE_MARGIN (src/layout/axes.ts) — the margin the app's own axis captions keep
   let endLabelW = 0;
@@ -1474,7 +1495,7 @@ layout: |
   const nullCol = (s, i) => at(s, k0, i) === null || (t > 0 && at(s, k1, i) === null);
   const slopeBlank = (s) => s.token || nullCol(s, 0) || nullCol(s, 1);
   const slopeText = (s, i) => (s.name ? s.name + " " : "") + fmtY(slopeValue(s, i));
-  const SLOPE_LABEL_SIZE = 20;
+  const SLOPE_LABEL_SIZE = LS || 20;
   const SLOPE_LABEL_GAP = 10;
   let padCols = 0;
   if (slope) {
@@ -1491,7 +1512,7 @@ layout: |
   const xL = plot.x0 + padCols, xR = plot.x1 - padCols;
 
   // ---- Readable sizes and round ticks (spec 2026-10-04-page-frame, W4) ----
-  const TICK_SIZE = 20 + MAIN, TICK_MIN = 15;
+  const TICK_SIZE = LS || 20 + MAIN, TICK_MIN = 15;
   // Round tick values: the smallest step of `mults` × 10ⁿ that puts at most
   // `most` ticks on [lo, hi] with neighbours at least `minGap` apart (`per`:
   // logical units per data unit).
@@ -1544,8 +1565,8 @@ layout: |
     // the left column, x[1] under the right, in the same row category
     // labels use elsewhere.
     const colText = (i) => (xCat ? (xCat[i] !== undefined ? xCat[i] : String(i + 1)) : fmtX(xs[i] !== undefined ? xs[i] : i + 1));
-    axesChildren.push(kit.text("axes__col0", [xL, plot.y0 - 20], colText(0), { fontSize: 20 }));
-    axesChildren.push(kit.text("axes__col1", [xR, plot.y0 - 20], colText(1), { fontSize: 20 }));
+    axesChildren.push(kit.text("axes__col0", [xL, plot.y0 - 20], colText(0), { fontSize: LS || 20 }));
+    axesChildren.push(kit.text("axes__col1", [xR, plot.y0 - 20], colText(1), { fontSize: LS || 20 }));
   } else if (xCat) {
     // One size for the row: 20, shrinking to fit a slot down to the old 17
     // (13 past 12 categories); past that, every k-th category keeps its
@@ -1553,7 +1574,7 @@ layout: |
     // into one unreadable row.
     const slot = (plot.x1 - plot.x0) / Math.max(1, n) - 6;
     const floor = n > 12 ? 13 : 17;
-    let size = fitSize(xCat, slot, 20, floor);
+    let size = fitSize(xCat, slot, LS || 20, floor);
     let every = 1;
     if (size === null || (n > 12 && size < 17)) {
       const widest = Math.max(...xCat.map((s) => kit.textWidth(s, 17)));
