@@ -147,3 +147,18 @@ and a short line in the compiler prompt.
   the label's height (`label_room`); a ring/box highlight encloses the target's own labels.
 - Not done: binscatter's plot (same y 130, an example draws on it); annotation circles round
   attached labels; a faded ghost of template parts on `animate` / `keep`.
+
+## Round 3, workstream 1 — quick wins (built 2026-10-04, branch r3-quick)
+- **Scale markers** (W27/W28): `markers: [{value, label?, color?}]` on a `scale` → `<id>_marker_<n>`
+  (`_tick`, `_words`, `_lead`): a taller tick, the words in rows above the answer's band (clear of
+  the tick numbers under the line, each other and the caption); the leader is left out where it
+  would cross the answer's number. They come with the line (render drawnAfter) unless the cast
+  draws one itself, and go with it (ownedBy). (`marks` was taken: text punctuation.)
+- **Heading** (W28): `headingFont` 26–40 (was 26–36); underline ≈ 693.
+- **Sequence item `cites`** (W28): copied onto `<id>_k` and `<id>_k_label`; validated against sources.
+- **Pie `start_angle`** (W28): degrees clockwise from 12 o'clock; names placed in a clockwise-from-12
+  walk; a guess on the pie honours it (handle `pie.start`).
+- **Chart `label_size`** (W27/W28): bar_chart, line_chart, pie_chart, 18–40; collision shrink kept;
+  defaults unchanged.
+- **Erased estimate** (W27): coVisible sends a scale's answer marker and markers with its erased line.
+- **Binscatter** (W25 not-done): plot from y 205; the example's marks moved to data units.
