@@ -7,6 +7,9 @@ import { planCommands } from "../src/render/plan";
 import { expandSpec } from "../src/spec/expand";
 import { scaleGeometry, scaleMarkerElements, type ScaleElementLike } from "../src/spec/scale";
 import { validateSpec } from "../src/spec/schema";
+import { layoutAsSeen } from "../src/lint/at-scale";
+import { heuristicMeasure } from "../src/layout/measure";
+import { lintCommands } from "../src/lint/lint";
 import { parseScript, printScript } from "../src/spec/script";
 import type { Spec, SpecElement } from "../src/spec/types";
 
@@ -105,5 +108,24 @@ describe("scale markers", () => {
     const spec = { title: "Folds", elements: [folds as never], commands: [{ draw: "folds" }] } as Spec;
     const back = parseScript(printScript(spec));
     expect((back.elements![0] as unknown as ScaleElementLike).markers).toEqual(folds.markers);
+  });
+
+  test("close markers clear each other and the caption as check judges them (r3 demo cast)", () => {
+    // dev-casts/r3-demo/1-markers-heading.json: alone on the page (tick size
+    // 26), a caption over the middle, 13 and 14 a few units apart.
+    const spec = expandSpec({
+      title: "How many times can you fold paper?",
+      elements: [{ ...folds, y: 420, label: "folds of one sheet" } as never],
+      commands: [{ card: { title: "How many times can you fold paper?" } }, { draw: ["folds"], speak: "People long said seven." }],
+    } as Spec);
+    const l = layoutAsSeen(spec, heuristicMeasure);
+    const issues = [...l.issues, ...lintCommands(spec)].map((i) => i.message);
+    expect(issues.filter((m) => /folds_(caption|marker)/.test(m))).toEqual([]);
+    // The caption stands over the markers' words, so no leader runs past it.
+    const y = (id: string) => (spec.elements ?? []).find((e) => e.id === id)!.y as number;
+    for (const n of [1, 2, 3]) expect(y("folds_caption")).toBeGreaterThan(y(`folds_marker_${n}_words`));
+    // 14's leader would pass 13's words: it is left out; 7's runs clear.
+    const ids = (spec.elements ?? []).map((e) => e.id);
+    expect(ids).toContain("folds_marker_1_lead");
   });
 });
