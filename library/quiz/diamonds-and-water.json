@@ -6,7 +6,7 @@
   "template": "bar_chart",
   "params": {
    "labels": [
-    "1st",
+    "1st glass",
     "2nd",
     "3rd",
     "4th",
@@ -25,15 +25,8 @@
     0,
     110
    ],
-   "y_label": "Worth of one more glass",
-   "x_label": "Glasses of water in a day",
-   "bar_colors": "same",
-   "box": {
-    "x": 140,
-    "y": 230,
-    "w": 780,
-    "h": 400
-   }
+   "y_label": "Worth to you",
+   "bar_colors": "same"
   },
   "sources": [
    {
@@ -97,26 +90,27 @@
     "type": "path",
     "points": [
      [
-      140,
-      266.3636363636364
+      -0.5,
+      10
      ],
      [
-      920,
-      266.3636363636364
+      5.5,
+      10
      ]
     ],
     "style": {
      "color": "#2f6b8f",
      "dash": true,
      "stroke_width": 3
-    }
+    },
+    "data": true
    },
    {
     "id": "price_l",
-    "type": "text",
+    "type": "label",
+    "attach_to": "price",
+    "side": "above-right",
     "text": "price of a glass",
-    "x": 800,
-    "y": 306.3636363636364,
     "font_size": 32,
     "style": {
      "color": "#2f6b8f"
@@ -126,23 +120,30 @@
     "id": "stop",
     "type": "text",
     "text": "stop here",
-    "x": 660,
-    "y": 380,
     "font_size": 38,
     "style": {
      "color": "#b5482e"
+    },
+    "at": {
+     "ref": "stop_a",
+     "side": "above",
+     "gap": 6
     }
    },
    {
     "id": "stop_a",
     "type": "arrow",
     "from": {
-     "x": 660,
-     "y": 350
+     "data": [
+      3.5,
+      32
+     ]
     },
     "to": {
-     "x": 660,
-     "y": 274.3636363636364
+     "data": [
+      3.5,
+      11.5
+     ]
     },
     "style": {
      "color": "#b5482e"
@@ -174,19 +175,20 @@
     "type": "path",
     "points": [
      [
-      140,
-      560
+      -0.5,
+      92
      ],
      [
-      760,
-      560
+      4.3,
+      92
      ]
     ],
     "style": {
      "color": "#8f887c",
      "dash": true,
      "stroke_width": 2
-    }
+    },
+    "data": true
    },
    {
     "id": "gem2_l",
@@ -331,6 +333,7 @@
   },
   "assets": {
    "icon.gem-stone.twemoji": "ics1:twemoji:gem-stone:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#bdddf4\" d=\"M13 3H7l-7 9h10z\"/><path fill=\"#5dadec\" d=\"m36 12l-7-9h-6l3 9z\"/><path fill=\"#4289c1\" d=\"M26 12h10L18 33z\"/><path fill=\"#8ccaf7\" d=\"M10 12H0l18 21zm3-9l-3 9h16l-3-9z\"/><path fill=\"#5dadec\" d=\"m18 33l-8-21h16z\"/></svg>"
-  }
+  },
+  "affirm": "playful"
  }
 }
