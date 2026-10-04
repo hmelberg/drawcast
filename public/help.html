@@ -256,6 +256,7 @@ Show how a rent ceiling creates a shortage #norwegian #calm</code></pre>
             <tr><td><code>generic_axes_diagram</code></td><td>Single- or multi-curve plot on generic axes — production functions, dose-response, growth/decay — as qualitative shapes or an exact expression, with optional shaded regions.</td></tr>
             <tr><td><code>markov_model</code></td><td>State-transition (Markov) diagram: 2–6 states as circles, transition arrows with probability labels, self-loops, absorbing states detected automatically.</td></tr>
             <tr><td><code>cost_effectiveness_plane</code></td><td>Incremental cost vs incremental effect plane with quadrant guide captions, up to 6 intervention points, and an optional willingness-to-pay threshold line.</td></tr>
+            <tr><td><code>size_compare</code></td><td>Two to four things drawn to the same scale — planets as discs, countries as squares of their area, lengths as bars, animals as icons — with the ratio written once and, if you like, a row of copies showing how many fit. <em>Size comparisons</em> pack.</td></tr>
           </tbody>
         </table>
         <p>
@@ -265,14 +266,30 @@ Show how a rent ceiling creates a shortage #norwegian #calm</code></pre>
           Newick string), <strong>Economics</strong> (consumer choice, PPF, cost curves, payoff
           matrices, AD-AS), <strong>Evidence &amp; epidemiology</strong> (survival curves, forest
           plots, causal DAGs, epidemic compartments) and <strong>Math &amp; logic</strong> (Venn
-          diagrams, the unit circle, truth tables, argument maps, handwritten equations). All six are
-          on by default. Two more ship in the box but start off: <strong>Games</strong> (chess
+          diagrams, the unit circle, truth tables, argument maps, handwritten equations), and more
+          besides — Data charts &amp; tables, Size comparisons, Anatomy, Space and others. They are on
+          by default. Two more ship in the box but start off: <strong>Games</strong> (chess
           positions and replayed lines) and <strong>Maps</strong> (hand-sketched country outlines) —
           switch either on the same way. Toggle any pack under <strong>✦ Templates → Packs</strong>,
           which also takes it out of what the AI is offered. Marking a pack as <em>Default domain</em>
           matters only once the library outgrows the point where every template still gets a full
           entry — then its templates keep theirs.
         </p>
+        <p>
+          <code>size_compare</code> picks the drawn size from the numbers: <code>measure</code> says
+          what the value is (<code>diameter</code>, <code>length</code>, <code>area</code>,
+          <code>volume</code>, <code>mass</code>), <code>layout</code> how they stand
+          (<code>beside</code>, <code>row</code>, <code>inside</code>, <code>overlay</code>), and
+          <code>count_fit</code> fills a row with copies of the small one:
+        </p>
+        <pre><code>{ "template": "size_compare",
+  "params": { "items": [ { "name": "Sun", "value": 1392700, "unit": "km" },
+                         { "name": "Earth", "value": 12742, "unit": "km" } ],
+              "measure": "diameter", "layout": "inside", "count_fit": true },
+  "commands": [
+    { "draw": ["sun_shape", "sun_label"], "speak": "The Sun, drawn to scale." },
+    { "draw": ["earth_shape", "earth_label"], "speak": "And the Earth, to the same scale." },
+    { "draw": ["fit_row", "fit_label"], "speak": "A hundred and nine Earths would fit across it." } ] }</code></pre>
         <p>
           Anything the templates do not cover is drawn from primitives instead — axes, curves, points,
           arrows, labels, regions. You are never limited to this list; templates just make the common
@@ -955,6 +972,15 @@ commands: [ … ]</code></pre>
           The <strong>⚠</strong> chip above the preview appears when the layout has problems and lists
           them when clicked. Most are fixed by shortening a label, or by giving the element more room
           in the spec. When the chip is absent, the layout checked out clean.
+        </p>
+
+        <h3>The figure looks small, or there are two headings</h3>
+        <p>
+          A figure alone on the page grows by itself; one that does not (a hand-placed group, an icon
+          with a fixed <code>size</code>) can be given more room — cards <code>size</code>, a template's
+          <code>box</code>, or a larger <code>width</code>. Two headings mean the title is drawn twice:
+          leave the template's own <code>title</code> parameter unset, or set
+          <code>heading: false</code>. See <a href="#page">The page</a>.
         </p>
 
         <h3>The drawing ran ahead of the narration</h3>
