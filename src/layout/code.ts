@@ -586,14 +586,6 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
   // Stacked panes share the height: the code pane (or its window) is fixed
   // and the output gets what remains. Side by side, each pane has it all.
   const outBudget = showOut ? Math.max(0, maxH - 2 * PAD - (stacked ? codeContentH + paneGap : 0)) : 0;
-  // Figures matter more than a wall of print() text: stdout gets at most
-  // half the budget when a figure is present, all of it when there is none.
-  const stdoutBudget = rawFigures.length > 0 ? outBudget / 2 : outBudget;
-  let truncated = false;
-  let outRows: { text: string; color?: string }[] = [];
-  let outStack: { blocks: TextBlock[]; height: number } = { blocks: [], height: 0 };
-  const figHeights: number[] = [];
-  const figWidths: number[] = [];
   // Tables' height estimate (a header + capped rows), so the panel sizes to
   // include them; the real grid is drawn in the output children below with
   // the same row metric.
@@ -602,6 +594,18 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
     ? rawTables.map((t) => (1 + Math.min(t.rows.length, TABLE_MAX_ROWS) + ((t.truncated ?? 0) > 0 ? 1 : 0)) * tableRowH)
     : [];
   const tablesH = tableHeights.reduce((a, b) => a + b + fontSize * LINE_GAP, 0);
+  // The tables sit under the printed lines and are never trimmed for them, so
+  // they claim their height first: a long command log ahead of a `tabulate`
+  // used to take the whole budget and push the table out under the pane.
+  const afterTables = Math.max(0, outBudget - (tablesH > 0 ? tablesH + fontSize * LINE_GAP : 0));
+  // Figures matter more than a wall of print() text: stdout gets at most
+  // half the budget when a figure is present, all of it when there is none.
+  const stdoutBudget = rawFigures.length > 0 ? afterTables / 2 : afterTables;
+  let truncated = false;
+  let outRows: { text: string; color?: string }[] = [];
+  let outStack: { blocks: TextBlock[]; height: number } = { blocks: [], height: 0 };
+  const figHeights: number[] = [];
+  const figWidths: number[] = [];
 
   if (showOut) {
     // A windowed panel reads like a terminal: the newest rows stay, the
@@ -619,7 +623,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       // replace one another, not a stack meant to coexist.
       const slotAvail = Math.max(
         0,
-        outBudget - outStack.height - (outStack.height > 0 ? fontSize * LINE_GAP : 0),
+        afterTables - outStack.height - (outStack.height > 0 ? fontSize * LINE_GAP : 0),
       );
       rawFigures.forEach((f) => {
         const naturalH = f.w > 0 ? figW * (f.h / f.w) : figW * 0.75;
@@ -631,7 +635,7 @@ export function codeDrawables(el: SpecElement, ctx: CodeCtx): Drawable[] {
       // Figures share whatever is left after stdout, top to bottom; each is
       // scaled down (preserving aspect, so its width shrinks too) to fit the
       // space actually left for it — a figure never renders taller than that.
-      let remaining = Math.max(0, outBudget - outStack.height - (outStack.height > 0 ? fontSize * LINE_GAP : 0));
+      let remaining = Math.max(0, afterTables - outStack.height - (outStack.height > 0 ? fontSize * LINE_GAP : 0));
       rawFigures.forEach((f, i) => {
         const naturalH = f.w > 0 ? figW * (f.h / f.w) : figW * 0.75;
         const gapBefore = i > 0 || outStack.height > 0 ? fontSize * LINE_GAP : 0;
