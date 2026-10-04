@@ -134,17 +134,6 @@
     ]
    },
    {
-    "id": "same",
-    "type": "text",
-    "text": "together!",
-    "x": 500,
-    "y": 480,
-    "font_size": 56,
-    "style": {
-     "color": "#b5482e"
-    }
-   },
-   {
     "id": "gal",
     "type": "text",
     "text": "Galileo was right",
@@ -236,7 +225,8 @@
      ],
      "correct": 3,
      "right": "They land together. With no air to hold the feather back, gravity speeds both up at exactly the same rate.",
-     "wrong": "Ask what slows a feather down on Earth."
+     "wrong": "Ask what slows a feather down on Earth.",
+     "reveal": "Together!"
     }
    },
    {
@@ -265,11 +255,6 @@
      "easing": "ease-in"
     },
     "speak": "Side by side, they hit the dust together."
-   },
-   {
-    "draw": [
-     "same"
-    ]
    },
    {
     "erase": [
@@ -336,6 +321,7 @@
     ],
     "speak": "And it was a falcon's feather, a nod to their lunar module, which was called Falcon."
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }
