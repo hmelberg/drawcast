@@ -1,13 +1,13 @@
-A: Say I hand you a hundred dollars, but you must offer part of it to a stranger. How much would you give?
-A: If they accept, you each keep your share. If they refuse, you both get nothing.
+(a) Say I hand you a hundred dollars, but you must offer part of it to a stranger. How much would you give?
+(a) If they accept, you each keep your share. If they refuse, you both get nothing.
 [ASK] How many of the 100 dollars would you offer the stranger? Click on the line.
   [right] You offered {o}. In experiments, the typical offer is about forty.
-B: Wait. Why not offer one dollar? One dollar beats nothing.
-A: That's what the textbook says: a purely selfish stranger takes the dollar.
-A: But real strangers don't. Offers under twenty dollars are turned down about half the time.
-B: They'd rather walk away with nothing than take an insult?
-A: Many would.
-A: Werner Güth and his colleagues first showed it in Germany in 1982, and it has been repeated around the world.
-A: So offers cluster around forty to fifty: people offer what they expect to be accepted.
-B: So my fairness is really fear of being turned down?
-A: Partly. When the stranger cannot refuse at all, offers drop to about thirty, but most people still give something.
+(b) Wait. Why not offer one dollar? One dollar beats nothing.
+(a) That's what the textbook says: a purely selfish stranger takes the dollar.
+(a) But real strangers don't. Offers under twenty dollars are turned down about half the time.
+(b) They'd rather walk away with nothing than take an insult?
+(a) Many would.
+(a) Werner Güth and his colleagues first showed it in Germany in 1982, and it has been repeated around the world.
+(a) So offers cluster around forty to fifty: people offer what they expect to be accepted.
+(b) So my fairness is really fear of being turned down?
+(a) Partly. When the stranger cannot refuse at all, offers drop to about thirty, but most people still give something.
