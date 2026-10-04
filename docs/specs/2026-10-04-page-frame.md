@@ -122,3 +122,4 @@ and a short line in the compiler prompt.
 - Not done: relaxing spacing inside laid-out groups; settling casts with moves/morphs (their
   boundary layouts carry poses, so a per-layout dy would jitter — it would need the base dy pinned
   across relayouts); bundled examples blocked that way and off-centre by 30–150: about 16.
+- **W27 Found while re-preparing quizzes (2026-10-04)** — chart/pie labels (~20) look small beside large cards: scale chart text with the page's card size or offer `label_size`; cards with company never grow (by design) and authors guessed sizes — consider growing against the free area of the content box; `check` doesn't treat the estimate slider (`estimate_1`) as erased after `erase`; a number line can't take extra markers (author hand-placed "old limit: 7" and "2011: 13"); idle opening beats in sequence casts (the first item could draw with the opening line).
