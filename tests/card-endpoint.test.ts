@@ -239,6 +239,9 @@ describe("/card/ pictures", () => {
       expect(res.status, p).toBe(302);
       expect(res.headers.get("access-control-allow-origin"), p).toBe("*");
       expect(res.headers.get("location"), p).toBe("https://drawcast.app/share-card.png");
+      // A miss may be a timed-out lookup: never kept by the CDN, a minute in the browser.
+      expect(res.headers.get("cache-control"), p).toBe("public, max-age=60");
+      expect(res.headers.get("netlify-cdn-cache-control"), p).toBe("no-store");
     }
   });
 });

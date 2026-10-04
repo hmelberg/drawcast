@@ -188,7 +188,12 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
       /* the generic picture below */
     }
     // Public picture: the share box fetches it from other origins (previews).
-    const generic = redirect(genericImage, "public, max-age=600");
+    // Short-lived and never kept by the CDN (2026-10-04): a lookup that timed
+    // out — a deploy empties the card cache and the front page then asks for
+    // a hundred pictures at once — must not leave the logo standing in for a
+    // poster for ten minutes; the next request tries again.
+    const generic = redirect(genericImage, "public, max-age=60");
+    generic.headers.set("netlify-cdn-cache-control", "no-store");
     generic.headers.set("access-control-allow-origin", "*");
     return generic;
   }
