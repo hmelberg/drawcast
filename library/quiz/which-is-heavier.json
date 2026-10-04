@@ -97,8 +97,7 @@
      "rom",
      "air",
      "cloud"
-    ],
-    "size": 1
+    ]
    },
    {
     "id": "air_t",
