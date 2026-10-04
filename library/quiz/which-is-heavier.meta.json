@@ -9,8 +9,8 @@
  ],
  "level": "standard",
  "lang": "en",
- "score": 5,
+ "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "Compare cards (compare: ' ' to suppress the duplicate sub-title), then the cards and their value labels hidden and each pair drawn as a big tipping balance, one at a time. hide on the cards group does not hide the value labels heavy_v_N: list them."
+ "notes": "Republish 2026-10-04: blank compare title workaround dropped (engine shows none under a heading), hand x/y/width dropped, size 1.25 (auto does not grow: the later balances share the page); bottom values touch the caption band; stale heavy_title hide removed; balance labels spaced; affirm playful."
 }

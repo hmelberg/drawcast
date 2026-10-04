@@ -1,7 +1,7 @@
 Which came first? Three pairs, and in each one, history plays a trick on you.
 [ASK] Which came first? In each pair, tap the one that is older.
   [right] The fax, Oxford and the pyramid all came first.
-  [wrong] {c} of {c.total} on the first try.
+  [wrong] {c.within} of {c.total} on the first try.
 First: the fax is older than the telephone.
 Alexander Bain patented a way to send pictures by telegraph in 1843, thirty-three years before Bell's phone.
 His design used two swinging pendulums, kept in step, to scan a picture line by line.
