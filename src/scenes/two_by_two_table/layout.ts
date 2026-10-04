@@ -15,6 +15,7 @@ import {
 import type { LabelRequest } from "../../layout/labels";
 import type { SceneLayout } from "../types";
 import { kit } from "../kit";
+import { TEXT_MIN } from "../../layout/readable";
 
 export interface TwoByTwoParams {
   /** Caption for the row axis, e.g. "Test result". */
@@ -86,7 +87,7 @@ export function layoutTwoByTwoTable(params: TwoByTwoParams): SceneLayout {
       const mainY = note ? center[1] + 16 : center[1];
       children.push(kit.text(`cell_${r}_${c}__val`, [center[0], mainY], params.cells[r][c], { fontSize: 32 }));
       if (note) {
-        children.push(kit.text(`cell_${r}_${c}__note`, [center[0], center[1] - 24], note, { fontSize: 16, color: COLORS.guide }));
+        children.push(kit.text(`cell_${r}_${c}__note`, [center[0], center[1] - 24], note, { fontSize: TEXT_MIN, color: COLORS.guide })); // W30: was 16
       }
       push({ id: `cell_${r}_${c}`, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: defaultDrawOpts(), children });
       anchors[`cell_${r}_${c}`] = center;

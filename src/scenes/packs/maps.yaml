@@ -5,7 +5,7 @@ description: "Hand-sketched world maps: country outlines, highlights and labeled
 template: world_map
 title: World map (country outlines)
 version: 1
-kit: 2
+kit: 15
 status: ready
 engines: [geo]
 description: >-
@@ -337,7 +337,7 @@ layout: |
     // (centering the projection on the selection's own centroid longitude)
     // shifts coordinates enough that 18 alone wasn't always enough margin
     // either. 16 still sits safely above the font-floor (14) for legibility.
-    labels.push(kit.label(labelId, pos, "above", text, { color: C.accent, fontSize: 16 }));
+    labels.push(kit.label(labelId, pos, "above", text, { color: C.accent, fontSize: kit.TEXT_MIN }));
     order.push(labelId);
   });
 

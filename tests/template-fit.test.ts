@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { fitSceneLayout, floorTextSizes, resolveTemplateBox, FIT_PAD } from "../src/layout/template-fit";
+import { fitSceneLayout, fittedTextSize, floorTextSizes, resolveTemplateBox, FIT_PAD } from "../src/layout/template-fit";
+import { TEXT_MIN } from "../src/layout/readable";
 import { fitRegion } from "../src/layout/regions";
 import { heuristicMeasure } from "../src/layout/measure";
 import { FONT_FLOOR } from "../src/lint/lint";
@@ -87,15 +88,32 @@ describe("fitSceneLayout", () => {
     expect(sc.curveSamples!.curve).toEqual([m([100, 100]), m([500, 300])]);
   });
 
-  test("text shrinks with the figure but never below FONT_FLOOR; labels likewise", () => {
+  test("text shrinks with the figure but holds at the readable minimum (W30); smaller text keeps its own size", () => {
     const sc = scene();
     const { s } = fitSceneLayout(sc, { x: 520, y: 95, w: 360, h: 560 }, heuristicMeasure)!;
     expect(s).toBeLessThan(1);
     const t = sc.drawables[1] as TextDrawable;
-    expect(t.fontSize).toBeCloseTo(Math.max(FONT_FLOOR, 30 * s), 6);
-    // 17 * s would be below the floor for this box; the label holds at the floor
+    // Drawn at 30, it scales with the figure but never under TEXT_MIN.
+    expect(t.fontSize).toBeCloseTo(Math.max(TEXT_MIN, 30 * s), 6);
+    // A label drawn at 17 — under TEXT_MIN already — is not shrunk further.
     expect(17 * s).toBeLessThan(FONT_FLOOR);
+    expect(sc.labels[0].fontSize).toBe(17);
+  });
+
+  test("with the lint's floor (a template that squeezes itself), text shrinks down to FONT_FLOOR as before", () => {
+    const sc = scene();
+    const { s } = fitSceneLayout(sc, { x: 520, y: 95, w: 360, h: 560 }, heuristicMeasure, FONT_FLOOR)!;
+    const t = sc.drawables[1] as TextDrawable;
+    expect(t.fontSize).toBeCloseTo(Math.max(FONT_FLOOR, 30 * s), 6);
     expect(sc.labels[0].fontSize).toBe(FONT_FLOOR);
+  });
+
+  test("fittedTextSize: scaled, then floored at min(own size, floor), never under FONT_FLOOR", () => {
+    expect(fittedTextSize(22, 0.9)).toBeCloseTo(19.8, 6);
+    expect(fittedTextSize(22, 0.7)).toBe(TEXT_MIN);
+    expect(fittedTextSize(16, 0.7)).toBe(16);
+    expect(fittedTextSize(10, 0.5)).toBe(FONT_FLOOR);
+    expect(fittedTextSize(22, 0.5, FONT_FLOOR)).toBe(FONT_FLOOR);
   });
 
   test("a box larger than the figure scales UP — a fit is a fit", () => {

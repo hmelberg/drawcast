@@ -184,7 +184,7 @@ layout: |
 template: tornado_diagram
 title: Tornado diagram
 version: 1
-kit: 4
+kit: 15
 status: ready
 description: >-
   A tornado diagram for one-way sensitivity analysis: horizontal bars, one
@@ -265,24 +265,37 @@ layout: |
   for (const b of bars) { xMin = Math.min(xMin, b.low); xMax = Math.max(xMax, b.high); }
   const pad = Math.max(1, (xMax - xMin) * 0.1);
   xMin -= pad; xMax += pad;
-  const plot = { x0: 260, y0: 120, x1: 900 };
-  const X = (v) => plot.x0 + ((v - xMin) / (xMax - xMin)) * (plot.x1 - plot.x0);
   const rowY = (i) => 580 - i * Math.min(72, 440 / Math.max(1, bars.length - 1));
   const H = 17;
+  // The axis just under the last bar (it stood at y 120 under any number of
+  // bars, so five bars left a third of the page empty and the figure too
+  // short to be grown into the content area — W30).
+  const plot = { x0: 260, y0: Math.min(rowY(bars.length - 1) - H - 46, 480), x1: 900 };
+  const X = (v) => plot.x0 + ((v - xMin) / (xMax - xMin)) * (plot.x1 - plot.x0);
+  // W30: names at kit.TEXT_LABEL (were 17), values and the base case at
+  // kit.TEXT_MIN and 20 (were 15 and 17). A name too wide for the margin left
+  // of its bar steps down to kit.TEXT_MIN, then is cut with an ellipsis.
+  const NAME = kit.TEXT_LABEL, VAL = kit.TEXT_MIN;
+  const nameFit = (t, avail) => {
+    for (let fs = NAME; fs >= kit.TEXT_MIN; fs--) if (kit.textWidth(t, fs) <= avail) return { t, fs };
+    let cut = t;
+    while (cut.length > 3 && kit.textWidth(cut + "…", kit.TEXT_MIN) > avail) cut = cut.slice(0, -1);
+    return { t: cut === t ? t : cut.trimEnd() + "…", fs: kit.TEXT_MIN };
+  };
 
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   push(kit.group("axes", [
     kit.stroke("axes__x", [[plot.x0 - 6, plot.y0], [plot.x1 + kit.AXIS_OVERHANG, plot.y0]], { arrowhead: "end", strokeWidth: 4, ms: MS.axis }),
-    kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: 21 }),
+    kit.axisLabel("axes__x_label", "x", plot, xLab, { fontSize: kit.TEXT_LABEL }),
   ]));
   anchors.axes = [plot.x0, plot.y0];
 
   const topY = rowY(0) + H + 26;
   push(kit.group("base_line", [
     kit.stroke("base__l", [[X(base), plot.y0], [X(base), topY]], { color: C.ink, dash: true, strokeWidth: 2.5, ms: MS.guides }),
-    kit.text("base__t", [X(base), topY + 18], "Base case", { fontSize: 17, color: C.ink }),
+    kit.text("base__t", [X(base), topY + 20], "Base case", { fontSize: 20, color: C.ink }),
   ]));
   anchors.base_line = [X(base), (plot.y0 + topY) / 2];
 
@@ -295,12 +308,15 @@ layout: |
       kit.stroke(id + "__box", [[X(b.low), y - H], [X(b.high), y - H], [X(b.high), y + H], [X(b.low), y + H]], { closed: true, strokeWidth: 2.5, ms: MS.stroke }),
     ];
     if (showValues) {
-      children.push(kit.text(id + "__vl", [X(b.low) - 8, y], String(b.low), { fontSize: 15, anchor: "end", color: C.guide }));
-      children.push(kit.text(id + "__vh", [X(b.high) + 8, y], String(b.high), { fontSize: 15, anchor: "start", color: C.guide }));
+      children.push(kit.text(id + "__vl", [X(b.low) - 8, y], String(b.low), { fontSize: VAL, anchor: "end", color: C.guide }));
+      children.push(kit.text(id + "__vh", [X(b.high) + 8, y], String(b.high), { fontSize: VAL, anchor: "start", color: C.guide }));
     }
     push(kit.group(id, children));
     anchors[id] = [X((b.low + b.high) / 2), y];
-    push(kit.text("bar_label_" + i, [showValues ? X(b.low) - 52 : X(b.low) - 10, y], b.label, { fontSize: 17, anchor: "end" }));
+    // Clear of the low value's own width (it was a fixed 52, which a longer number ran into).
+    const nameRight = X(b.low) - 10 - (showValues ? kit.textWidth(String(b.low), VAL) + 10 : 0);
+    const nm = nameFit(b.label, nameRight - 12);
+    push(kit.text("bar_label_" + i, [nameRight, y], nm.t, { fontSize: nm.fs, anchor: "end" }));
     anchors["bar_label_" + i] = [plot.x0 - 100, y];
   });
 

@@ -281,7 +281,7 @@ layout: |
 template: sampling_dist
 title: Sampling distribution (CLT)
 version: 1
-kit: 11
+kit: 15
 status: ready
 description: >-
   The central limit theorem as two stacked panels: any population
@@ -374,9 +374,9 @@ layout: |
     // the point: the squeeze below is real, not a rescaled axis.
     ...[0, 5, 10].flatMap((t, i) => [
       kit.stroke("axes__tt" + i, [[X(t), TOP.y0 - 5], [X(t), TOP.y0 + 5]], { strokeWidth: 2, ms: 60 }),
-      kit.text("axes__ttl" + i, [X(t), TOP.y0 - 22], String(t), { fontSize: 16, color: C.guide }),
+      kit.text("axes__ttl" + i, [X(t), TOP.y0 - 22], String(t), { fontSize: kit.TEXT_MIN, color: C.guide }), // W30: was 16
       kit.stroke("axes__bt" + i, [[X(t), BOT.y0 - 5], [X(t), BOT.y0 + 5]], { strokeWidth: 2, ms: 60 }),
-      kit.text("axes__btl" + i, [X(t), BOT.y0 - 22], String(t), { fontSize: 16, color: C.guide }),
+      kit.text("axes__btl" + i, [X(t), BOT.y0 - 22], String(t), { fontSize: kit.TEXT_MIN, color: C.guide }),
     ]),
   ]));
   anchors.axes = [X(0), TOP.y0];
@@ -413,9 +413,19 @@ layout: |
   const bY = BOT.y0 + 12;
   push(kit.stroke("se_bracket", [[X(mu - se), bY + 8], [X(mu - se), bY], [X(mu + se), bY], [X(mu + se), bY + 8]], { color: C.demand, strokeWidth: 2.5, ms: MS.guides }));
   anchors.se_bracket = [X(mu), bY];
-  push(kit.text("se_label", [X(mu + se) + 10, bY + 4], seTxt, { fontSize: 18, anchor: "start", color: C.demand }));
+  // Beside the bracket's right end — unless the sampling curve comes down
+  // through the number there (a large n: a narrow curve), then just past the
+  // point where the curve has dropped under it (W30: the number reads at
+  // kit.TEXT_MIN at the size it is drawn — kit.textFit() in a box).
+  const seFs = kit.TEXT_MIN * kit.textFit(), seW = kit.textWidth(seTxt, seFs);
+  const seBottom = bY + 4 - seFs * 0.625 - 3;
+  const curveY = (px) => BOT.y0 + g(((px - 130) / 750) * 10) * BOT.h;
+  const clearAt = (x0) => { for (let px = x0; px <= x0 + seW; px += 3) if (curveY(px) > seBottom) return false; return true; };
+  let seX = X(mu + se) + 10;
+  while (!clearAt(seX) && seX + seW < X(10) + 20) seX += 3;
+  push(kit.text("se_label", [seX, bY + 4], seTxt, { fontSize: seFs, anchor: "start", color: C.demand }));
   attached["se_bracket"] = [...(attached["se_bracket"] ?? []), "se_label"];
-  anchors.se_label = [X(mu + se) + 10, bY + 4];
+  anchors.se_label = [seX, bY + 4];
 
   if (showNormal) {
     push(kit.stroke("normal_overlay", curvePts(g, BOT.y0, BOT.h).filter((_, i) => i % 2 === 0), { color: C.accent, dash: true, strokeWidth: 3, ms: MS.guides }));

@@ -117,6 +117,8 @@ export interface LintIssue {
     | "slow-start"
     /** advisory only (lint/fill.ts): a small figure on an empty page — check and frames print it, layoutSpec never reports it */
     | "fill"
+    /** advisory only (lint/template-text.ts): template text drawn under TEXT_MIN — check and frames print it */
+    | "small-text"
     /** authoring only: a figure of many strokes exposes no named, outlined part the identify drill or a click ask could use */
     | "drillable-parts"
     | "talky-stretch"

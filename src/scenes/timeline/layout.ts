@@ -30,6 +30,7 @@ import { decodePhoto } from "../../spec/trace";
 import { segmentIntersectsBox, type BBox } from "../../layout/geometry";
 import type { SceneCard, SceneLayout, TweenSpace } from "../types";
 import { kit } from "../kit";
+import { TEXT_MIN } from "../../layout/readable";
 import { PRESENT, fromAxis, formatDate, parseDate, ticks as axisTicks, toAxis, type Scale } from "./dates";
 
 export interface MilestoneSpec {
@@ -104,13 +105,16 @@ const LANE_PAD = 14;
 const MX = 18;
 /** A label this many units clear of its nearest (more important) neighbour is fully opaque. */
 const FADE_PX = 26;
-const ERA_H = [32, 25, 21];
+// W30: era bands tall enough for their names at TEXT_MIN (were 32/25/21 with 18/16/14 names).
+const ERA_H = [32, 26, 25];
+const ERA_FS = [20, TEXT_MIN, TEXT_MIN];
 const ERA_GAP = 3;
 const FS_LABEL = 25;
 const FS_EMPH = 27;
-const FS_DATE = 17;
-const FS_SUB = 18;
-const FS_TICK = 16;
+// W30: dates, subtitles, ticks and the axis ends at TEXT_MIN (dates were 17, ticks 16, ends 17).
+const FS_DATE = TEXT_MIN;
+const FS_SUB = TEXT_MIN;
+const FS_TICK = TEXT_MIN;
 const THUMB_H = 58;
 /** Line pitch inside a label block: the text box (1.25 em) plus the lint's clearance. */
 const LH = (fs: number): number => fs * 1.25 + 3;
@@ -558,13 +562,13 @@ function layoutDated(P: TimelineParams): SceneLayout {
   const axisKids: Drawable[] = [kit.stroke("axis__line", [[AX0 - 22, A], [AX1 + 26, A]], { arrowhead: "end", strokeWidth: 2.6, ms: SKETCH_MS.axis })];
   const reserved: [number, number][] = [];
   if (P.start_label) {
-    const w = width(P.start_label, 17);
-    axisKids.push(text("axis__start", [AX0 - 22, A - 21], P.start_label, 17, COLORS.guide, "start"));
+    const w = width(P.start_label, FS_TICK);
+    axisKids.push(text("axis__start", [AX0 - 22, A - 21], P.start_label, FS_TICK, COLORS.guide, "start"));
     reserved.push([AX0 - 22, AX0 - 22 + w]);
   }
   if (P.end_label) {
-    const w = width(P.end_label, 17);
-    axisKids.push(text("axis__end", [AX1 + 26, A - 21], P.end_label, 17, COLORS.guide, "end"));
+    const w = width(P.end_label, FS_TICK);
+    axisKids.push(text("axis__end", [AX1 + 26, A - 21], P.end_label, FS_TICK, COLORS.guide, "end"));
     reserved.push([AX1 + 26 - w, AX1 + 26]);
   }
   const cands = axisTicks(scale, v0, v1, present)
@@ -608,7 +612,7 @@ function layoutDated(P: TimelineParams): SceneLayout {
     if (xb - xa >= 1.5) {
       kids.push(kit.area(`${era.id}__band`, kit.rect(xa, y0, xb - xa, h), era.color, { opacity: 0.5, ms: 500 }));
       kids.push(kit.stroke(`${era.id}__edge`, kit.rect(xa, y0, xb - xa, h), { closed: true, color: era.color, strokeWidth: 1.3, ms: 400, opacity: 0.9 }));
-      const fs = era.level === 0 ? 18 : era.level === 1 ? 16 : 14;
+      const fs = ERA_FS[Math.min(era.level, ERA_FS.length - 1)];
       const fitted = fitText(era.label, fs, xb - xa - 10);
       if (fitted) kids.push(text(`${era.id}__label`, [(xa + xb) / 2, y0 + h / 2], fitted, fs, COLORS.ink, "middle"));
       anchors[era.id] = [(xa + xb) / 2, y0 + h / 2];

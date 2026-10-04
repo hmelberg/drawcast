@@ -612,7 +612,7 @@ template: sir_compartments
 interaction: "In model mode: scrub R0, beta, a stay or the share vaccinated; drag the intervention band along the days, or the cursor to read a day; the curves recompute."
 title: Epidemic compartment model (SIR / SEIR)
 version: 2
-kit: 11
+kit: 15
 status: ready
 description: >-
   A compartmental epidemic model (SIR, SEIR, SIS, SIRS): boxes for each
@@ -946,7 +946,7 @@ layout: |
     const DEFAULT_FULL = { s: "Susceptible", e: "Exposed", i: "Infectious", r: "Recovered" };
     const codes = kind === "seir" ? ["S", "E", "I", "R"] : kind === "sis" ? ["S", "I"] : ["S", "I", "R"];
     const names = Array.isArray(params.labels) ? params.labels.map(String) : [];
-    const BW = codes.length === 4 ? 112 : 124, BH = 80, CY = 600;
+    const BW = codes.length === 4 ? 132 : 136, BH = 80, CY = 600; // W30: wider (were 112/124) so the names read at ≥ kit.TEXT_MIN
     const fx0 = 70 + BW / 2, fx1 = (codes.length === 4 ? 735 : codes.length === 2 ? 470 : 640) - BW / 2;
     const cx = codes.map((_, i) => (codes.length === 1 ? fx0 : fx0 + (i * (fx1 - fx0)) / (codes.length - 1)));
     codes.forEach((code, i) => {
@@ -955,7 +955,7 @@ layout: |
       push(kit.stroke("box_" + slug, kit.rect(c[0] - BW / 2, c[1] - BH / 2, BW, BH), { closed: true, shapeHint: { type: "rect", x: c[0] - BW / 2, y: c[1] - BH / 2, w: BW, h: BH }, color: C.ink, strokeWidth: 4, ms: MS.node }), c);
       push(kit.text("box_code_" + slug, [c[0], c[1] + 14], code, { fontSize: 30 }), [c[0], c[1] + 14]);
       const nm = typeof names[i] === "string" && names[i].trim() !== "" ? names[i] : DEFAULT_FULL[slug];
-      push(kit.text("box_name_" + slug, [c[0], c[1] - 23], nm, { fontSize: Math.min(18, Math.floor((BW - 12) / Math.max(1, nm.length) / 0.55)), color: C.guide }), [c[0], c[1] - 23]);
+      push(kit.text("box_name_" + slug, [c[0], c[1] - 23], nm, { fontSize: Math.max(kit.TEXT_MIN, Math.min(20, Math.floor((BW - 12) / Math.max(1, nm.length) / 0.55))), color: C.guide }), [c[0], c[1] - 23]);
       attached["box_" + slug] = ["box_code_" + slug, "box_name_" + slug];
       drawnWith["box_" + slug] = ["box_code_" + slug, "box_name_" + slug];
     });
@@ -1869,7 +1869,7 @@ widget: |
 template: distribution_curve
 title: Probability distribution curve
 version: 2
-kit: 2
+kit: 15
 status: ready
 accepts_data: true
 description: >-
@@ -2065,7 +2065,7 @@ layout: |
       const text = sd + sdLabel;
       push(kit.group("sd_tick_" + i, [
         kit.stroke("sd_tick_" + i + "__mark", [[xpx, plot.y0 - 9], [xpx, plot.y0 + 9]], { color: C.guide, strokeWidth: 2.5, ms: MS.stroke }),
-        kit.text("sd_tick_" + i + "__text", [xpx, plot.y0 - 26], text, { fontSize: 16, color: C.guide }),
+        kit.text("sd_tick_" + i + "__text", [xpx, plot.y0 - 26], text, { fontSize: kit.TEXT_MIN, color: C.guide }), // W30: was 16
       ]));
       anchors["sd_tick_" + i] = [xpx, plot.y0];
     });

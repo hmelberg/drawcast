@@ -5,7 +5,7 @@ description: Figures the viewer can work while paused — a Morse key, the Tower
 template: morse_key
 title: Morse code key
 version: 1
-kit: 10
+kit: 15
 status: ready
 description: >-
   A telegraph key with a dot pad, a dash pad, a gap pad that ends a letter,
@@ -56,7 +56,7 @@ layout: |
   push(kit.pad("key_dash", [430, 150], "−", { r: 42 }));
   push(kit.pad("key_gap", [580, 150], "gap", { w: 100, h: 64 }));
   push(kit.pad("key_send", [730, 150], "send", { w: 100, h: 64 }));
-  push(kit.text("hint", [500, 215], "space: short = dot, long = dash · enter: end letter · enter again: send", { fontSize: 15, color: C.guide }));
+  push(kit.text("hint", [500, 215], "space: short = dot, long = dash · enter: end letter · enter again: send", { fontSize: kit.TEXT_MIN, color: C.guide }));
   push(kit.text("signal", [500, 260], params.signal ?? "", { fontSize: 44, color: C.demand }));
   push(kit.text("decoded", [500, 330], params.decoded ?? "", { fontSize: 34 }));
   if (params.chart !== false) {
@@ -390,7 +390,7 @@ widget: |
 template: xylophone
 title: Xylophone
 version: 1
-kit: 10
+kit: 15
 status: ready
 description: >-
   A xylophone: eight tuned bars from C4 to C5, long and low on the left,
@@ -436,7 +436,7 @@ layout: |
   // under it had to be hidden by hand in every example (2026-09-25).
   if (typeof params.title === "string" && params.title.trim() !== "") push(kit.text("title", [500, 700], params.title, { fontSize: 30 }));
   push(kit.text("played", [500, 630], params.played ?? "", { fontSize: 34, color: C.demand }));
-  push(kit.text("hint", [500, 582], "keys 1 to 8 play the bars · enter delivers the tune", { fontSize: 16, color: C.guide }));
+  push(kit.text("hint", [500, 582], "keys 1 to 8 play the bars · enter delivers the tune", { fontSize: kit.TEXT_MIN, color: C.guide }));
   const BASE = 170;
   NOTES.forEach((note, i) => {
     // The falling height IS the lesson: a long bar rings low, a short one
@@ -494,7 +494,7 @@ widget: |
 template: bubble_sort
 title: Bubble sort
 version: 1
-kit: 10
+kit: 15
 status: ready
 description: >-
   A row of bars, each as tall as its value and labelled with it, that the
@@ -543,7 +543,7 @@ layout: |
   const push = (d) => { drawables.push(d); order.push(d.id); };
   if (typeof params.title === "string" && params.title.trim() !== "") push(kit.text("title", [500, 700], params.title, { fontSize: 30 }));
   push(kit.text("counter", [500, 645], "swaps: " + (Number.isInteger(params.swaps) ? params.swaps : 0), { fontSize: 22, color: C.guide }));
-  push(kit.text("hint", [500, 600], "drag a bar onto a NEIGHBOUR — or click both — to swap them", { fontSize: 16, color: C.guide }));
+  push(kit.text("hint", [500, 600], "drag a bar onto a NEIGHBOUR — or click both — to swap them", { fontSize: kit.TEXT_MIN, color: C.guide }));
   const BASE = 150, PITCH = 820 / n, W = Math.min(120, PITCH - 22);
   values.forEach((v, i) => {
     const h = 70 + 330 * (Math.abs(v) / top), x = 90 + PITCH * (i + 0.5);

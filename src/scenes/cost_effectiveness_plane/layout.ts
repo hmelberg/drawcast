@@ -17,6 +17,7 @@ import {
 import type { LabelRequest, Side } from "../../layout/labels";
 import type { SceneLayout } from "../types";
 import { kit } from "../kit";
+import { TEXT_MIN } from "../../layout/readable";
 
 export interface CEPoint {
   label: string;
@@ -135,11 +136,11 @@ export function layoutCostEffectivenessPlane(params: CEParams): SceneLayout {
   anchors["y_axis"] = [CX, CY];
 
   if (params.quadrant_labels !== false) {
-    const inset = 14;
-    push(kit.text("q_ne", [CX + HALF_W - inset, CY + HALF_H - 22], "More costly, more effective", { fontSize: 16, color: COLORS.guide, anchor: "end" }));
-    push(kit.text("q_nw", [CX - HALF_W + inset, CY + HALF_H - 22], "More costly, less effective", { fontSize: 16, color: COLORS.guide }));
-    push(kit.text("q_se", [CX + HALF_W - inset, CY - HALF_H + 16], "Less costly, more effective", { fontSize: 16, color: COLORS.guide, anchor: "end" }));
-    push(kit.text("q_sw", [CX - HALF_W + inset, CY - HALF_H + 16], "Less costly, less effective", { fontSize: 16, color: COLORS.guide }));
+    const inset = 14; // W30: the quadrant names at TEXT_MIN (were 16)
+    push(kit.text("q_ne", [CX + HALF_W - inset, CY + HALF_H - 22], "More costly, more effective", { fontSize: TEXT_MIN, color: COLORS.guide, anchor: "end" }));
+    push(kit.text("q_nw", [CX - HALF_W + inset, CY + HALF_H - 22], "More costly, less effective", { fontSize: TEXT_MIN, color: COLORS.guide }));
+    push(kit.text("q_se", [CX + HALF_W - inset, CY - HALF_H + 16], "Less costly, more effective", { fontSize: TEXT_MIN, color: COLORS.guide, anchor: "end" }));
+    push(kit.text("q_sw", [CX - HALF_W + inset, CY - HALF_H + 16], "Less costly, less effective", { fontSize: TEXT_MIN, color: COLORS.guide }));
   }
 
   const threshold = params.wtp_threshold;

@@ -146,7 +146,7 @@ layout: |
 template: did_trends
 title: Difference-in-differences trends
 version: 2
-kit: 4
+kit: 15
 status: ready
 accepts_data: true
 description: >-
@@ -282,7 +282,7 @@ layout: |
     const fPts = sample(cf, treatAt, 10);
     push(kit.group("counterfactual", [
       kit.stroke("cf__l", fPts, { color: C.guide, dash: true, strokeWidth: 3, ms: MS.curve }),
-      kit.text("cf__t", [fPts[fPts.length - 1][0] + 12, fPts[fPts.length - 1][1] - (effect > 0 ? 24 : -24)], "Counterfactual", { fontSize: 16, anchor: "start", color: C.guide }),
+      kit.text("cf__t", [fPts[fPts.length - 1][0] + 12, fPts[fPts.length - 1][1] - (effect > 0 ? 24 : -24)], "Counterfactual", { fontSize: kit.TEXT_MIN, anchor: "start", color: C.guide }), // W30: was 16
     ]));
     anchors.counterfactual = fPts[Math.floor(fPts.length / 2)];
     const xa = 9.5;
@@ -640,17 +640,17 @@ layout: |
   }
   push(kit.stroke("equality", [[X(0), Y(0)], [X(1), Y(1)]], { color: C.guide, dash: true, strokeWidth: 3, ms: MS.curve }));
   anchors.equality = [X(0.5), Y(0.5)];
-  label("label_equality", [X(0.4), Y(0.4)], "above", "Perfect equality", C.guide, 17);
+  label("label_equality", [X(0.4), Y(0.4)], "above", "Perfect equality", C.guide, 20); // W30: curve names 20 (were 17)
 
   push(kit.stroke("lorenz", pts1, { color: C.demand, strokeWidth: 4.5, ms: MS.curve }));
   anchors.lorenz = [X(0.6), Y(L1(0.6))];
-  label("label_lorenz", [X(0.66), Y(L1(0.66))], "below", gini2 !== null ? name1 : "Lorenz curve", C.demand, 17);
+  label("label_lorenz", [X(0.66), Y(L1(0.66))], "below", gini2 !== null ? name1 : "Lorenz curve", C.demand, 20);
 
   if (gini2 !== null) {
     const L2 = curveFor(gini2);
     push(kit.stroke("lorenz2", curvePts(L2), { color: C.accent, dash: true, strokeWidth: 4, ms: MS.curve }));
     anchors.lorenz2 = [X(0.6), Y(L2(0.6))];
-    label("label_lorenz2", [X(0.78), Y(L2(0.78))], "below", name2, C.accent, 17);
+    label("label_lorenz2", [X(0.78), Y(L2(0.78))], "below", name2, C.accent, 20);
   }
 
   push(kit.text("gini_caption", [X(0.8), Y(0.14)], "Gini = " + kit.num(gini, 2), { fontSize: 21 }));
