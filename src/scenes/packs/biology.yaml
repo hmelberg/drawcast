@@ -380,8 +380,8 @@ layout: |
 ---
 template: pathway
 title: Signaling / metabolic pathway
-version: 1
-kit: 2
+version: 2
+kit: 5
 status: ready
 description: >-
   A signaling or metabolic pathway diagram parsed from a kit.parseEdgeList
@@ -414,7 +414,7 @@ params:
       type: string
 element_ids:
   node_<slug>: a node's shape (ellipse/rect/circle; absent for "process" nodes, which have no shape)
-  node_label_<slug>: the node's name label
+  node_label_<slug>: the node's name, inside its shape (above a metabolite's small circle when longer than four letters); drawn with its node
   edge_<i>: the i-th parsed edge's connector (arrow, bar, or dashed arrow)
   title: figure title, when set
 examples:
@@ -447,15 +447,40 @@ layout: |
   Object.keys(typesIn).forEach(addNode);
   if (nodeNames.length === 0) addNode("Node 1");
 
-  const X0 = 110, Y0 = 140, W = 780, H = 470;
+  // Clear of the caption band (y < 160, page.ts).
+  const X0 = 110, Y0 = 200, W = 780, H = 420;
   const positions = kit.layoutNodes(nodeNames, parsed.map((e) => ({ from: e.from, to: e.to })), { style: "layered", x: X0, y: Y0, w: W, h: H });
 
   const drawables = [], labels = [], anchors = {}, order = [];
+  const attached = {};
   const push = (d) => { drawables.push(d); order.push(d.id); };
   const label = (id, anchor, side, text, color, fontSize) => {
     labels.push(kit.label(id, anchor, side, text, { color, fontSize }));
     order.push(id);
   };
+
+  // The name inside its shape, readable (W25: a pathway used for anything
+  // but proteins read as blank ellipses with tiny names beside them): 24,
+  // down to 18 for a long name, the shape grown round it. Nodes in one layer
+  // closer than two shapes cap the width. A metabolite's small circle keeps
+  // a name longer than four letters above it instead.
+  const FONT = 24, FONT_MIN = 18;
+  const xs = nodeNames.map((n) => positions[n]).filter(Boolean);
+  const nearest = (c) => xs.reduce((m, o) => (o === c || Math.abs(o[1] - c[1]) > 40 ? m : Math.min(m, Math.abs(o[0] - c[0]))), Infinity);
+  const size = {};
+  nodeNames.forEach((name) => {
+    const c = positions[name];
+    if (!c) return;
+    const room = Math.min(300, nearest(c) - 24);
+    let f = FONT;
+    while (f > FONT_MIN && kit.textWidth(name, f) + 36 > room) f -= 1;
+    const tw = kit.textWidth(name, f);
+    const type = typeOf(name);
+    size[name] = type === "protein" ? { f, shape: { ellipse: [Math.max(64, Math.min(room / 2, tw / 2 + 26)), 32] } }
+      : type === "gene" ? { f, shape: { rect: [Math.max(104, Math.min(room, tw + 32)), 48] } }
+      : type === "metabolite" ? { f, shape: { ellipse: [30, 30] }, outside: name.length > 4 }
+      : { f, shape: 3 };
+  });
 
   nodeNames.forEach((name) => {
     const c = positions[name];
@@ -463,30 +488,28 @@ layout: |
     const slug = slugify(name);
     const type = typeOf(name);
     const color = TYPE_COLOR[type];
-    let halfH = 0;
+    const sz = size[name];
     if (type === "protein") {
-      push(kit.group("node_" + slug, [kit.stroke("node_" + slug + "__shape", kit.ellipse(c, 64, 30), { closed: true, color, strokeWidth: 3, ms: MS.node })]));
-      halfH = 30;
+      const [rx, ry] = sz.shape.ellipse;
+      push(kit.group("node_" + slug, [kit.stroke("node_" + slug + "__shape", kit.ellipse(c, rx, ry), { closed: true, color, strokeWidth: 3, ms: MS.node })]));
     } else if (type === "gene") {
-      const w2 = 104, h2 = 46;
+      const [w2, h2] = sz.shape.rect;
       const rectPts = [[c[0] - w2 / 2, c[1] - h2 / 2], [c[0] + w2 / 2, c[1] - h2 / 2], [c[0] + w2 / 2, c[1] + h2 / 2], [c[0] - w2 / 2, c[1] + h2 / 2]];
       push(kit.group("node_" + slug, [kit.stroke("node_" + slug + "__shape", rectPts, { closed: true, color, strokeWidth: 3, ms: MS.node })]));
-      halfH = h2 / 2;
     } else if (type === "metabolite") {
       push(kit.group("node_" + slug, [kit.stroke("node_" + slug + "__shape", kit.ellipse(c, 30, 30), { closed: true, color, strokeWidth: 3, ms: MS.node })]));
-      halfH = 30;
     }
     anchors["node_" + slug] = c;
-    const fontSize = name.length > 12 ? 16 : 19;
-    label("node_label_" + slug, [c[0], c[1] + halfH + 8], "above", name, color, fontSize);
+    if (sz.outside) label("node_label_" + slug, [c[0], c[1] + 38], "above", name, color, sz.f);
+    else push(kit.text("node_label_" + slug, c, name, { fontSize: sz.f, color }));
+    // Its name comes with it (layout.ts template followers).
+    if (type !== "process") attached["node_" + slug] = ["node_label_" + slug];
   });
 
   function edgeColor(effect) { return effect === "inhibits" ? C.regionLoss : effect === "converts" ? C.guide : C.ink; }
-  // Per-node-type boundary shapes for edgeArrow's trim (matches each type's
-  // drawn shape above) — a "process" node has no shape, so it only gets a
-  // small breathing gap, same magnitude as a shape trim's own gap.
-  const SHAPE_BY_TYPE = { protein: { ellipse: [64, 30] }, gene: { rect: [104, 46] }, metabolite: { ellipse: [30, 30] }, process: 3 };
-  function shapeFor(name) { return SHAPE_BY_TYPE[typeOf(name)]; }
+  // Each end trimmed to its own drawn shape; a "process" node (no shape) gets
+  // a small breathing gap.
+  function shapeFor(name) { return size[name] ? size[name].shape : 3; }
   parsed.forEach((e, i) => {
     const from = positions[e.from], to = positions[e.to];
     if (!from || !to) return;
@@ -506,10 +529,10 @@ layout: |
   });
 
   if (typeof params.title === "string" && params.title.trim() !== "") {
-    push(kit.text("title", [500, 80], params.title, { fontSize: 28 }));
+    push(kit.text("title", [500, 690], params.title, { fontSize: 28 }));
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, order, attached };
 ---
 template: punnett_square
 title: Punnett square
