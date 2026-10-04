@@ -17,6 +17,10 @@
     [
      30,
      38
+    ],
+    [
+     30,
+     27
     ]
    ],
    "stage": 0,
@@ -25,7 +29,13 @@
     0,
     110
    ],
-   "y_label": "Trillions"
+   "y_label": "Trillions",
+   "box": {
+    "x": 90,
+    "y": 200,
+    "w": 560,
+    "h": 440
+   }
   },
   "text": {
    "font_size": 34
@@ -52,7 +62,7 @@
     "id": "old",
     "type": "text",
     "text": "the old 10 : 1",
-    "x": 420,
+    "x": 800,
     "y": 600,
     "font_size": 40,
     "style": {
@@ -62,10 +72,10 @@
    {
     "id": "new",
     "type": "text",
-    "text": "2016: about 1 : 1",
-    "x": 420,
-    "y": 510,
-    "font_size": 44,
+    "text": "2016: 1 : 1",
+    "x": 800,
+    "y": 520,
+    "font_size": 40,
     "style": {
      "color": "#b5482e"
     },
@@ -76,9 +86,9 @@
    {
     "id": "loo",
     "type": "text",
-    "text": "one trip to the toilet",
-    "x": 420,
-    "y": 425,
+    "text": "one toilet trip",
+    "x": 800,
+    "y": 300,
     "font_size": 36,
     "style": {
      "color": "#2f6b8f"
@@ -91,6 +101,51 @@
      "old"
     ],
     "kind": "strike"
+   },
+   {
+    "id": "rbc",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      -0.45,
+      25
+     ],
+     [
+      0.45,
+      25
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "stroke_width": 3,
+     "dash": true
+    }
+   },
+   {
+    "id": "rbc_l",
+    "type": "text",
+    "text": "red cells",
+    "font_size": 28,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      0,
+      21.5
+     ]
+    }
+   },
+   {
+    "id": "toilet",
+    "type": "icon",
+    "of": "toilet",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 110,
+    "x": 800,
+    "y": 400
    }
   ],
   "commands": [
@@ -114,7 +169,7 @@
       "Far fewer bacteria"
      ],
      "correct": 2,
-     "right": "About one each: roughly thirty-eight trillion bacteria to thirty trillion human cells.",
+     "right": "About one each.",
      "wrong": "The famous answer is out of date."
     }
    },
@@ -136,7 +191,8 @@
    },
    {
     "animate": {
-     "stage": 1
+     "stage": 1,
+     "ylim.1": 45
     },
     "duration": 2.5,
     "speak": "In 2016, scientists at the Weizmann Institute counted again, and the gap shrank to nearly even."
@@ -157,11 +213,10 @@
     "speak": "to thirty trillion human cells."
    },
    {
-    "point": {
-     "at": {
-      "ref": "bar_1"
-     }
-    },
+    "draw": [
+     "rbc",
+     "rbc_l"
+    ],
     "speak": "Most of your own cells turn out to be red blood cells: tiny, and very many."
    },
    {
@@ -174,10 +229,18 @@
    },
    {
     "draw": [
-     "loo"
+     "loo",
+     "toilet"
     ],
-    "cue": 0.55,
+    "cue": 0.4,
     "speak": "In fact the two are so close that, as the authors noted, one trip to the toilet can tip the balance back toward you."
+   },
+   {
+    "animate": {
+     "stage": 2
+    },
+    "duration": 2,
+    "speak": "Flush, and for a little while, you are mostly you again."
    }
   ],
   "affirm": "playful"

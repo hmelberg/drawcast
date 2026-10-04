@@ -153,11 +153,15 @@
     "id": "mu",
     "type": "text",
     "text": "marginal utility",
-    "x": 470,
-    "y": 470,
-    "font_size": 42,
+    "font_size": 44,
     "style": {
      "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      3,
+      68
+     ]
     }
    },
    {
@@ -166,8 +170,8 @@
     "of": "gem stone",
     "set": "twemoji",
     "icon_look": "picture",
-    "size": 130,
-    "x": 830,
+    "size": 170,
+    "x": 840,
     "y": 560
    },
    {
@@ -211,16 +215,19 @@
    {
     "draw": [
      "water",
-     "cheap"
+     "cheap",
+     "gem",
+     "dear"
     ],
     "voice": "a",
     "speak": "In 1776 Adam Smith posed a puzzle. Nothing is more useful than water, yet it buys almost nothing."
    },
    {
-    "draw": [
-     "gem",
-     "dear"
-    ],
+    "highlight": {
+     "target": [
+      "gem"
+     ]
+    },
     "voice": "b",
     "speak": "And diamonds are no use at all, but cost a fortune. Is that a puzzle? Diamonds are pretty."
    },
@@ -229,11 +236,11 @@
      "question": "Why is water cheap and diamonds dear?",
      "choices": [
       "Diamonds are more useful",
-      "There is so much water that one more glass is worth little",
-      "Diamond prices are set by law"
+      "Water is plentiful",
+      "Prices set by law"
      ],
      "correct": 2,
-     "right": "Price follows the last glass, not the first: we have so much water that one more is worth very little."
+     "right": "Water is plentiful, so one more glass is worth very little."
     }
    },
    {

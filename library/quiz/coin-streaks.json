@@ -19,8 +19,8 @@
     "type": "node",
     "shape": "circle",
     "text": "H",
-    "width": 136,
-    "font_size": 56,
+    "width": 135,
+    "font_size": 62,
     "style": {
      "color": "#2f6b8f"
     }
@@ -30,8 +30,8 @@
     "type": "node",
     "shape": "circle",
     "text": "H",
-    "width": 136,
-    "font_size": 56,
+    "width": 135,
+    "font_size": 62,
     "style": {
      "color": "#2f6b8f"
     }
@@ -41,8 +41,8 @@
     "type": "node",
     "shape": "circle",
     "text": "H",
-    "width": 136,
-    "font_size": 56,
+    "width": 135,
+    "font_size": 62,
     "style": {
      "color": "#2f6b8f"
     }
@@ -52,8 +52,8 @@
     "type": "node",
     "shape": "circle",
     "text": "H",
-    "width": 136,
-    "font_size": 56,
+    "width": 135,
+    "font_size": 62,
     "style": {
      "color": "#2f6b8f"
     }
@@ -63,8 +63,8 @@
     "type": "node",
     "shape": "circle",
     "text": "H",
-    "width": 136,
-    "font_size": 56,
+    "width": 135,
+    "font_size": 62,
     "style": {
      "color": "#2f6b8f"
     }
@@ -74,8 +74,8 @@
     "type": "node",
     "shape": "circle",
     "text": "?",
-    "width": 136,
-    "font_size": 56,
+    "width": 135,
+    "font_size": 62,
     "style": {
      "color": "#b5482e"
     }
@@ -92,7 +92,7 @@
      "next"
     ],
     "layout": "row",
-    "gap": 24
+    "gap": 16
    },
    {
     "id": "odds",
@@ -112,9 +112,9 @@
     "id": "big",
     "type": "text",
     "text": "26",
-    "x": 500,
-    "y": 460,
-    "font_size": 160,
+    "x": 260,
+    "y": 480,
+    "font_size": 140,
     "style": {
      "color": "#222222"
     },
@@ -126,9 +126,9 @@
     "id": "bets",
     "type": "text",
     "text": "bets on red",
-    "x": 800,
-    "y": 470,
-    "font_size": 48,
+    "x": 300,
+    "y": 285,
+    "font_size": 46,
     "style": {
      "color": "#b5482e"
     }
@@ -137,15 +137,15 @@
     "id": "big_l",
     "type": "text",
     "text": "blacks in a row",
-    "x": 500,
-    "y": 310,
+    "x": 620,
+    "y": 480,
     "font_size": 52
    },
    {
     "id": "where",
     "type": "text",
     "text": "Monte Carlo, 1913",
-    "x": 500,
+    "x": 640,
     "y": 610,
     "font_size": 44,
     "style": {
@@ -158,10 +158,416 @@
     "text": "the Monte Carlo fallacy",
     "x": 500,
     "y": 205,
-    "font_size": 44,
+    "font_size": 42,
     "style": {
      "color": "#b5482e"
     }
+   },
+   {
+    "id": "wheel",
+    "type": "icon",
+    "of": "roulette",
+    "or": [
+     "slot machine"
+    ],
+    "icon_look": "picture",
+    "size": 110,
+    "x": 330,
+    "y": 610
+   },
+   {
+    "id": "bk0",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 110,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk1",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 141,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk2",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 172,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk3",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 203,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk4",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 234,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk5",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 265,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk6",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 296,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk7",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 327,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk8",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 358,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk9",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 389,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk10",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 420,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk11",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 451,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk12",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 482,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk13",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 513,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk14",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 544,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk15",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 575,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk16",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 606,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk17",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 637,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk18",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 668,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk19",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 699,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk20",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 730,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk21",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 761,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk22",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 792,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk23",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 823,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk24",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 854,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "bk25",
+    "type": "shape",
+    "shape": "circle",
+    "radius": 10,
+    "x": 885,
+    "y": 375,
+    "style": {
+     "color": "#222222",
+     "fill": "#222222"
+    }
+   },
+   {
+    "id": "blacks",
+    "type": "group",
+    "members": [
+     "bk0",
+     "bk1",
+     "bk2",
+     "bk3",
+     "bk4",
+     "bk5",
+     "bk6",
+     "bk7",
+     "bk8",
+     "bk9",
+     "bk10",
+     "bk11",
+     "bk12",
+     "bk13",
+     "bk14",
+     "bk15",
+     "bk16",
+     "bk17",
+     "bk18",
+     "bk19",
+     "bk20",
+     "bk21",
+     "bk22",
+     "bk23",
+     "bk24",
+     "bk25"
+    ]
+   },
+   {
+    "id": "bag0",
+    "type": "icon",
+    "of": "money bag",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 540,
+    "y": 285
+   },
+   {
+    "id": "bag1",
+    "type": "icon",
+    "of": "money bag",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 630,
+    "y": 285
+   },
+   {
+    "id": "bag2",
+    "type": "icon",
+    "of": "money bag",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 720,
+    "y": 285
+   },
+   {
+    "id": "bag3",
+    "type": "icon",
+    "of": "money bag",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 810,
+    "y": 285
+   },
+   {
+    "id": "bags",
+    "type": "group",
+    "members": [
+     "bag0",
+     "bag1",
+     "bag2",
+     "bag3"
+    ]
    }
   ],
   "commands": [
@@ -239,6 +645,7 @@
    },
    {
     "draw": [
+     "wheel",
      "where"
     ],
     "speak": "Tell that to a casino.",
@@ -247,7 +654,8 @@
    {
     "draw": [
      "big",
-     "big_l"
+     "big_l",
+     "blacks"
     ],
     "cue": 0.3,
     "speak": "Funny you should say that. In Monte Carlo, in August 1913, a roulette ball landed on black twenty-six times in a row.",
@@ -255,7 +663,8 @@
    },
    {
     "draw": [
-     "bets"
+     "bets",
+     "bags"
     ],
     "speak": "Gamblers piled their money on red, sure it was due. They lost millions.",
     "voice": "a"

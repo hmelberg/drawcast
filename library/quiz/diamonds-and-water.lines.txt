@@ -1,7 +1,7 @@
 (a) In 1776 Adam Smith posed a puzzle. Nothing is more useful than water, yet it buys almost nothing.
 (b) And diamonds are no use at all, but cost a fortune. Is that a puzzle? Diamonds are pretty.
-[QUIZ] Why is water cheap and diamonds dear?  choices=["Diamonds are more useful","There is so much water that one more glass is worth little","Diamond prices are set by law"]
-  [right] Price follows the last glass, not the first: we have so much water that one more is worth very little.
+[QUIZ] Why is water cheap and diamonds dear?  choices=["Diamonds are more useful","Water is plentiful","Prices set by law"]
+  [right] Water is plentiful, so one more glass is worth very little.
 (b) Hang on. What do you mean, the last glass?
 (a) Picture your glasses of water in a day. The first one keeps you alive.
 (a) The next ones go on tea, on washing, on the plants. Each is worth a little less than the one before.
