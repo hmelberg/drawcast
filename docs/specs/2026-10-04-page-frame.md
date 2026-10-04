@@ -122,3 +122,25 @@ and a short line in the compiler prompt.
 - Not done: relaxing spacing inside laid-out groups; settling casts with moves/morphs (their
   boundary layouts carry poses, so a per-layout dy would jitter — it would need the base dy pinned
   across relayouts); bundled examples blocked that way and off-centre by 30–150: about 16.
+
+## W25 — interaction polish and template faults (built 2026-10-04, branch layout-pa)
+- **Ask headline** (ui/gate-dock.ts): stands OVER the drawing in the heading strip (y 655–750), its
+  font fitted there (22 → 13 px; the how line goes to the dock before the question drops under 17);
+  above the drawing only when the stage has height for both; a hidden caption takes no height; at the
+  least size an overrun lowers the drawing by just that. A 460 px player keeps its full figure.
+- **Pills**: a crowd's count pill hangs under the people and the legend (countPillPoint); a bar's
+  value pill stays between the y-axis and the plot's right end (ui/bar-pill.ts).
+- **scale-marker lint**: anything on screen at a scale guess in the band its marker number takes.
+- **Template labels come with their element**: a template's `attached` list and `label_<id>` are
+  drawnAfter (layout.ts); number_line's ticks come with its line; pathway names inside their shapes.
+- **Readable templates**: forest_plot (26/22, compact rows, axis ≥ 240), causal_dag (26–20, ellipse
+  round its name), event_study / did_trends / rd_plot / ceac plots from y 205; ceac `currency`,
+  `thousands`, `x_min`, `x_label`, a free `x_max`, and a template warnings channel
+  (`SceneLayout.warnings`) for a threshold off the axis; bar_chart/line_chart ticks two sizes up when
+  the chart is the page's figure.
+- **Engine**: `shape: "person"` on a shape; quiz/poll button icons resolve (resolveIcons/iconSlots
+  see the command looks); log-scale tick thinning measures as the lint does, and the marker's number
+  stays on the page; at-ref elements follow their card into a select/sort box, whose rows open by
+  the label's height (`label_room`); a ring/box highlight encloses the target's own labels.
+- Not done: binscatter's plot (same y 130, an example draws on it); annotation circles round
+  attached labels; a faded ghost of template parts on `animate` / `keep`.
