@@ -16,6 +16,8 @@ import { h } from "./ui/dom";
 import featuredJson from "./home/featured.json";
 import { note, section, topBar } from "./home/ui";
 import { fetchRanks } from "./home/rank";
+import { clearHistory, fetchMyList, MY_LISTS, parseMyList, readHistory, type MyList } from "./home/my-lists";
+import { getToken, setToken, signInUrl } from "./account";
 import {
   cardFromCatalogue,
   cardFromFeatured,
@@ -69,6 +71,8 @@ export function runHome(): void {
   const params = new URLSearchParams(location.search);
   let q = params.get("q") ?? "";
   let chip = (FORMAT_CHIPS.some((c) => c.id === params.get("f")) ? params.get("f") : "") as "" | HomeFormat;
+  // ?list=saved|liked|history (save round, 2026-10-04): the viewer's own list instead of the rows.
+  let list: MyList | null = parseMyList(params.get("list"));
 
   const { root: top } = topBar(
     q,
@@ -79,9 +83,10 @@ export function runHome(): void {
     { topics: tagRows(featured).map((r) => r.tag) },
   );
   const chipButtons = FORMAT_CHIPS.map((c) => {
-    const b = h("button", { type: "button", class: "home-chip", "aria-pressed": String(c.id === chip) }, c.label) as HTMLButtonElement;
+    const b = h("button", { type: "button", class: "home-chip", "aria-pressed": String(!list && c.id === chip) }, c.label) as HTMLButtonElement;
     b.addEventListener("click", () => {
       chip = c.id;
+      list = null;
       for (const [i, x] of chipButtons.entries()) x.setAttribute("aria-pressed", String(FORMAT_CHIPS[i].id === chip));
       void render();
     });
@@ -106,6 +111,9 @@ export function runHome(): void {
     const my = ++token;
     // The address keeps what is shown, so a reload or a shared link reopens it.
     const next = new URLSearchParams();
+    // A search leaves the list for the front page's own views (a chip does, on its click).
+    if (q) list = null;
+    if (list) next.set("list", list);
     if (q) next.set("q", q);
     if (chip) next.set("f", chip);
     history.replaceState(null, "", `${location.pathname}${next.toString() ? `?${next}` : ""}`);
@@ -120,7 +128,35 @@ export function runHome(): void {
   const featuredCards = (): HomeCard[] => featured.map(cardFromFeatured);
   const fromCatalogue = (items: CatalogueItem[] | "error"): HomeCard[] => (items === "error" ? [] : items.map((i) => cardFromCatalogue(i, featuredByName)));
 
+  async function listView(which: MyList): Promise<(HTMLElement | null)[]> {
+    const meta = MY_LISTS.find((l) => l.id === which)!;
+    if (which === "history") {
+      const names = readHistory().map((e) => e.name);
+      if (!names.length) return [h("h2", { class: "home-list-title" }, meta.label), note(meta.empty)];
+      const items = await catalogue("", "", { names });
+      // In the order watched; anything unlisted since is simply not there.
+      const order = new Map(names.map((n, i) => [n, i]));
+      const cards = fromCatalogue(items).sort((a, b) => (order.get(a.name) ?? 99) - (order.get(b.name) ?? 99));
+      const clear = h("button", { type: "button", class: "home-more" }, "Clear history") as HTMLButtonElement;
+      clear.addEventListener("click", () => {
+        clearHistory();
+        void render();
+      });
+      return [section(meta.label, cards, clear) ?? note(meta.empty), items === "error" ? note("The catalogue can't be reached right now.", "error") : null];
+    }
+    const key = getToken();
+    if (!key) return [h("h2", { class: "home-list-title" }, meta.label), note("Sign in to see your list."), h("a", { class: "home-create", href: signInUrl(location.href) }, "Sign in")];
+    const items = await fetchMyList(which, key);
+    if (items === "signin") {
+      setToken("");
+      return [h("h2", { class: "home-list-title" }, meta.label), note("Your session has ended — sign in again."), h("a", { class: "home-create", href: signInUrl(location.href) }, "Sign in")];
+    }
+    if (items === "error") return [h("h2", { class: "home-list-title" }, meta.label), note("Your list can't be reached right now.", "error")];
+    return [section(meta.label, fromCatalogue(items)) ?? h("div", {}, h("h2", { class: "home-list-title" }, meta.label), note(meta.empty))];
+  }
+
   async function view(): Promise<(HTMLElement | null)[]> {
+    if (list) return listView(list);
     const format = chip && chip !== "course" ? chip : undefined;
     if (q) {
       const items = await catalogue(chip === "course" ? "course" : format ? "cast" : "", q, format ? { format } : {});

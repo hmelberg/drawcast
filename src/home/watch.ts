@@ -11,6 +11,7 @@ import { h } from "../ui/dom";
 import featuredJson from "./featured.json";
 import { cardFromCatalogue, courseNext, mergeCards, parseFeatured, tagRows, upNext, type HomeCard } from "./model";
 import { reactionControls } from "./react";
+import { recordWatch } from "./my-lists";
 import { card, topBar } from "./ui";
 import { playerMenuSlot } from "../ui/menu-slot";
 
@@ -74,6 +75,8 @@ export function mountWatch(app: HTMLElement, opts: { name?: string; lectureTitle
   // 👍 / 👎 for a named drawcast (a listed one: the buttons stay hidden for
   // anything else), under the player and in its "⋯" menu.
   const reactions = opts.name ? reactionControls(opts.name) : null;
+  // History (save round, 2026-10-04): this browser's own list of what was opened by name.
+  if (opts.name) recordWatch(opts.name);
   if (reactions) playerMenuSlot().replaceChildren(reactions.menuRow);
   const extras = [...(reactions ? [reactions.pill] : []), theatre];
   if (meta) meta.append(...extras);

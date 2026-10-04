@@ -6,6 +6,7 @@ import { getToken, setToken, signInUrl, signOut } from "../account";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { h } from "../ui/dom";
 import { FORMAT_BADGE, FORMAT_CHIPS, homeHref, thumbUrl, type HomeCard } from "./model";
+import { MY_LISTS } from "./my-lists";
 
 export function card(c: HomeCard, opts: { compact?: boolean } = {}): HTMLElement {
   const img = h("img", { src: thumbUrl(c.name), alt: "", loading: "lazy", decoding: "async" });
@@ -40,8 +41,8 @@ export function note(text: string, kind = ""): HTMLElement {
 
 /**
  * The ☰ menu's sidebar (YouTube's guide): every place the site has, in one
- * column that slides in over the page. Only what works today — Liked,
- * History and Subscriptions come with the accounts round. Built once per page.
+ * column that slides in over the page. Only what works today: Saved, Liked
+ * and History (2026-10-04); Subscriptions are still to come. Built once per page.
  */
 function buildMenu(topics: string[]): { open: () => void } {
   const link = (href: string, text: string, current = false): HTMLElement =>
@@ -68,7 +69,14 @@ function buildMenu(topics: string[]): { open: () => void } {
     group("", link("./", "Home", onHome), link("#browse", "Explore everything")),
     group("Formats", ...FORMAT_CHIPS.filter((c) => c.id).map((c) => link(`./?f=${c.id}`, c.label))),
     ...(topics.length ? [group("Topics", ...topics.map((t) => link(`./?q=${encodeURIComponent(t)}`, t[0].toUpperCase() + t.slice(1))))] : []),
-    group("You", link("#create", "＋ Create a drawcast"), account, link("./help.html", "Help")),
+    // Saved and Liked live with the account; History in this browser (home/my-lists.ts).
+    group(
+      "You",
+      ...MY_LISTS.filter((l) => signedIn || l.id === "history").map((l) => link(`./?list=${l.id}`, l.label, new URLSearchParams(location.search).get("list") === l.id)),
+      link("#create", "＋ Create a drawcast"),
+      account,
+      link("./help.html", "Help"),
+    ),
   );
   const backdrop = h("div", { class: "home-menu-backdrop" });
   const shell = h("div", { class: "home-menu-shell", hidden: "" }, backdrop, panel);

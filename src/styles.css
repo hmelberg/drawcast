@@ -3459,6 +3459,9 @@ input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; b
 .home-section-head h2 { font: 1.45rem var(--sketch-font); margin: 0 0 0.6rem; }
 .home-more { font-size: var(--text-sm); color: var(--steel); text-decoration: none; white-space: nowrap; }
 .home-more:hover { text-decoration: underline; }
+button.home-more { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }
+/* A list page's title when the list is empty (save round, 2026-10-04): as a row's. */
+.home-list-title { font: 1.45rem var(--sketch-font); margin: 0 0 0.6rem; }
 .home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1.1rem 0.9rem; }
 .home-card { display: flex; flex-direction: column; gap: 0.25rem; color: var(--ink); text-decoration: none; min-width: 0; }
 .home-thumb {
@@ -3549,7 +3552,8 @@ body.viewer-body.watch-body {
 .react-pill { display: inline-flex; margin-left: 0.6rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); overflow: hidden; }
 .react-pill[hidden], .react-menu-row[hidden] { display: none; }
 .react-btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.7rem; border: 0; background: none; color: var(--muted); font-size: var(--text-sm); cursor: pointer; }
-.react-pill .react-up { border-right: 1px solid var(--line); }
+.react-pill .react-up, .react-pill .react-down { border-right: 1px solid var(--line); }
+.react-save[aria-pressed="true"] { color: #b5482e; }
 .react-btn:hover { color: var(--ink); background: var(--paper); }
 .react-btn[aria-pressed="true"] { color: var(--ink); background: var(--paper); font-weight: 600; }
 /* Open thumbs, filled while pressed (2026-10-04: no emoji, so no yellow). */

@@ -93,7 +93,7 @@ export function catalogueQueryString(query: CatalogueQuery): string {
  *  `lectures`/`private`/`page` default sensibly when absent, and a missing
  *  `updated` becomes "" (no date shown) — the server has already counted
  *  that row in its 50, so dropping it would silently shorten the page. */
-function parseCatalogueItem(raw: unknown): CatalogueItem | null {
+export function parseCatalogueItem(raw: unknown): CatalogueItem | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (r.kind !== "course" && r.kind !== "cast") return null;
