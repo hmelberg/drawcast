@@ -15779,27 +15779,27 @@
           "points": [
             [
               471,
-              375.6
+              413.0
             ],
             [
               541.2,
-              389.8
+              425.0
             ],
             [
               611.3,
-              415.6
+              446.9
             ],
             [
               681.5,
-              451.6
+              477.4
             ],
             [
               751.7,
-              473.4
+              495.8
             ],
             [
               821.9,
-              488.6
+              508.7
             ]
           ],
           "style": {
@@ -79122,7 +79122,7 @@
           "type": "text",
           "text": "OECD avg ≈ $5k",
           "x": 558,
-          "y": 310,
+          "y": 296,
           "font_size": 36,
           "style": {
             "color": "#8f887c"
@@ -82374,6 +82374,2044 @@
         },
         {
           "speak": "So to find a mammal, ask how it feeds its young, not where it swims or flies."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Which of these foods and animals were first domesticated in the Andes? A tap-all quiz with icons. #interactive",
+    "spec": {
+      "title": "Gifts of the Andes",
+      "elements": [
+        {
+          "id": "andes",
+          "type": "cards",
+          "select": "From the Andes",
+          "items": [
+            {
+              "text": "Potato",
+              "in": true,
+              "icon": "potato"
+            },
+            {
+              "text": "Llama",
+              "in": true,
+              "icon": "llama"
+            },
+            {
+              "text": "Guinea pig",
+              "in": true,
+              "icon": [
+                "guinea pig",
+                "hamster"
+              ]
+            },
+            {
+              "text": "Horse",
+              "in": false,
+              "icon": "horse"
+            },
+            {
+              "text": "Chicken",
+              "in": false,
+              "icon": "chicken"
+            },
+            {
+              "text": "Rice",
+              "in": false,
+              "icon": [
+                "sheaf of rice",
+                "cooked rice"
+              ]
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Gifts of the Andes"
+          }
+        },
+        {
+          "draw": [
+            "andes"
+          ],
+          "speak": "This is about which foods and animals were first tamed high in the Andes, the mountains of western South America."
+        },
+        {
+          "speak": "Farmers there domesticated plants and animals thousands of years before Europeans arrived, and some of them now feed the whole world."
+        },
+        {
+          "ask": {
+            "question": "Which of these were first domesticated in the Andes? Tap every one.",
+            "on": "andes",
+            "store": "a",
+            "right": "All {a.total} right.",
+            "wrong": "{a} of {a.total} on the first try."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "andes_1"
+            ]
+          },
+          "speak": "The potato was first grown near Lake Titicaca, in today's Peru and Bolivia, some eight thousand years ago."
+        },
+        {
+          "speak": "Andean farmers bred thousands of kinds of it, and from there it spread to Europe and the rest of the world."
+        },
+        {
+          "highlight": {
+            "target": [
+              "andes_2",
+              "andes_3"
+            ]
+          },
+          "speak": "In the same mountains, people tamed the llama to carry loads, and the guinea pig to eat."
+        },
+        {
+          "highlight": {
+            "target": [
+              "andes_4",
+              "andes_5",
+              "andes_6"
+            ]
+          },
+          "speak": "The others came from far away: the horse from the grasslands of Central Asia, the chicken from Southeast Asia, and rice from China."
+        },
+        {
+          "speak": "Horses in fact reached the Americas only with the Spanish, in the fifteen hundreds."
+        },
+        {
+          "speak": "So the next time you eat a potato, remember the farmers of the Andes who first grew it."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How many Earths fit inside the Sun?",
+    "packs": [
+      "compare"
+    ],
+    "spec": {
+      "title": "How many Earths fit inside the Sun?",
+      "template": "size_compare",
+      "params": {
+        "measure": "volume",
+        "layout": "inside",
+        "count_fit": true,
+        "ratio_text": "{ratio} Earths",
+        "fit_text": "{n} across",
+        "items": [
+          {
+            "name": "Sun",
+            "value": 1412000000000000000,
+            "value_text": "1,391,400 km across",
+            "color": "#f2c14e"
+          },
+          {
+            "name": "Earth",
+            "value": 1083000000000,
+            "value_text": "12,742 km across",
+            "color": "#2f6b8f"
+          }
+        ]
+      },
+      "sources": [
+        {
+          "id": "sunfact",
+          "title": "Sun Fact Sheet",
+          "authors": "NASA Space Science Data Coordinated Archive",
+          "year": 2024,
+          "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/sunfact.html",
+          "finding": "volumetric mean radius 695,700 km; volume 1,412,000 × 10¹² km³; volume 1,304,000 times Earth's"
+        },
+        {
+          "id": "earthfact",
+          "title": "Earth Fact Sheet",
+          "authors": "NASA Space Science Data Coordinated Archive",
+          "year": 2024,
+          "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html",
+          "finding": "volumetric mean radius 6,371 km; volume 108.321 × 10¹⁰ km³"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How many Earths fit inside the Sun?"
+          }
+        },
+        {
+          "draw": [
+            "sun_shape",
+            "sun_label"
+          ],
+          "speak": "How many Earths would fit inside the Sun? Here is the Sun, a ball of hot gas almost one and a half million kilometres across."
+        },
+        {
+          "draw": [
+            "earth_shape",
+            "earth_label"
+          ],
+          "speak": "And here is the Earth, drawn to the same scale: that small dot near its edge."
+        },
+        {
+          "quiz": {
+            "question": "How many Earths would fit inside the Sun?",
+            "choices": [
+              "About 100",
+              "About 10,000",
+              "About 1.3 million"
+            ],
+            "correct": 3,
+            "right": "About 1.3 million: the Sun has 1.3 million times the Earth's volume.",
+            "wrong": "Think in three directions, not one."
+          }
+        },
+        {
+          "draw": [
+            "fit_row",
+            "fit_label"
+          ],
+          "speak": "Start with one direction. Lay Earths side by side across the middle of the Sun, and a hundred and nine of them reach from edge to edge."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fit_row"
+            ]
+          },
+          "speak": "But the Sun is a ball, so it is a hundred and nine Earths deep and a hundred and nine Earths tall as well."
+        },
+        {
+          "draw": [
+            "ratio"
+          ],
+          "speak": "A hundred and nine, times a hundred and nine, times a hundred and nine: that comes to about one point three million Earths."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ratio"
+            ]
+          },
+          "speak": "That is why a small difference in width becomes a huge difference in volume: it is multiplied three times over."
+        },
+        {
+          "camera": {
+            "center": {
+              "ref": "earth_shape"
+            },
+            "zoom": 8
+          },
+          "speak": "Zoom in on that dot, and there is the whole Earth: a speck against the Sun's glowing surface."
+        },
+        {
+          "camera": {
+            "reset": true
+          },
+          "speak": "And the Sun is only an ordinary, middle-sized star. More than a million of our planets would fit inside it."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How big is Greenland really, next to Africa?",
+    "packs": [
+      "compare"
+    ],
+    "spec": {
+      "title": "How big is Greenland really, next to Africa?",
+      "template": "size_compare",
+      "params": {
+        "measure": "area",
+        "layout": "inside",
+        "items": [
+          {
+            "name": "Africa",
+            "value": 30.37,
+            "unit": "million km²",
+            "color": "#d0865f"
+          },
+          {
+            "name": "Greenland",
+            "value": 2.166,
+            "unit": "million km²",
+            "color": "#2f6b8f"
+          },
+          {
+            "name": "DR Congo",
+            "value": 2.345,
+            "unit": "million km²",
+            "color": "#87a878"
+          }
+        ]
+      },
+      "sources": [
+        {
+          "id": "factbook",
+          "title": "The World Factbook: Greenland; Democratic Republic of the Congo",
+          "authors": "Central Intelligence Agency",
+          "year": 2025,
+          "url": "https://www.cia.gov/the-world-factbook/",
+          "finding": "Greenland 2,166,086 km²; Democratic Republic of the Congo 2,344,858 km²"
+        },
+        {
+          "id": "africa",
+          "title": "Africa",
+          "authors": "Encyclopaedia Britannica",
+          "year": 2025,
+          "url": "https://www.britannica.com/place/Africa",
+          "finding": "Africa covers about 30,370,000 km², a fifth of the world's land"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How big is Greenland really?"
+          }
+        },
+        {
+          "draw": [
+            "africa_shape",
+            "africa_label"
+          ],
+          "speak": "How big is Greenland really, next to Africa? Here is Africa, drawn as one square of its true area: about thirty million square kilometres."
+        },
+        {
+          "draw": [
+            "greenland_shape"
+          ],
+          "speak": "On most wall maps Greenland looks almost as big. Drawn to the same scale, it is this small square in the corner."
+        },
+        {
+          "draw": [
+            "greenland_label",
+            "dr_congo_shape"
+          ],
+          "speak": "Next to it is one African country, the Democratic Republic of the Congo."
+        },
+        {
+          "ask": {
+            "question": "Which is bigger: Greenland or the DR Congo? Tap it.",
+            "choose": [
+              "greenland_shape",
+              "dr_congo_shape"
+            ],
+            "answer": "dr_congo_shape",
+            "right": "The Congo, just: 2.3 million square kilometres against Greenland's 2.2.",
+            "wrong": "Look closely at the two small squares, side by side."
+          }
+        },
+        {
+          "draw": [
+            "dr_congo_label"
+          ],
+          "speak": "So Greenland is smaller than a single African country."
+        },
+        {
+          "draw": [
+            "ratio"
+          ],
+          "speak": "And Africa is fourteen times the size of Greenland."
+        },
+        {
+          "highlight": {
+            "target": [
+              "greenland_shape"
+            ]
+          },
+          "speak": "The culprit is the map. Most wall maps use the Mercator projection, drawn in 1569 for sailors."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "greenland_shape"
+            },
+            "gesture": "circle"
+          },
+          "speak": "It keeps compass directions true, but to do that it stretches the land more and more toward the poles."
+        },
+        {
+          "highlight": {
+            "target": [
+              "africa_shape"
+            ]
+          },
+          "speak": "Africa sits on the equator, where the map hardly stretches at all, so it is drawn far too small next to Greenland."
+        },
+        {
+          "highlight": {
+            "target": [
+              "ratio"
+            ]
+          },
+          "speak": "So next time you see a world map, look twice at the top and the bottom: the far north is never as big as it looks."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How many Earths fit between the Earth and the Moon?",
+    "packs": [
+      "compare"
+    ],
+    "spec": {
+      "title": "How many Earths fit between the Earth and the Moon?",
+      "template": "size_compare",
+      "params": {
+        "measure": "diameter",
+        "layout": "row",
+        "gap": {
+          "value": 384400,
+          "label": "384,400 km"
+        },
+        "count_fit": true,
+        "fit_text": "{n} more Earths",
+        "ratio_text": "",
+        "items": [
+          {
+            "name": "Earth",
+            "value": 12742,
+            "unit": "km",
+            "color": "#2f6b8f"
+          },
+          {
+            "name": "Moon",
+            "value": 3475,
+            "unit": "km",
+            "color": "#8f887c"
+          }
+        ]
+      },
+      "sources": [
+        {
+          "id": "moonfact",
+          "title": "Moon Fact Sheet",
+          "authors": "NASA Space Science Data Coordinated Archive",
+          "year": 2024,
+          "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html",
+          "finding": "mean Earth–Moon distance (semi-major axis) 384,400 km; apogee 405,500 km; volumetric mean radius of the Moon 1,737.4 km"
+        },
+        {
+          "id": "earthfact",
+          "title": "Earth Fact Sheet",
+          "authors": "NASA Space Science Data Coordinated Archive",
+          "year": 2024,
+          "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html",
+          "finding": "volumetric mean radius 6,371 km"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How far away is the Moon?"
+          }
+        },
+        {
+          "draw": [
+            "earth_shape",
+            "earth_label",
+            "moon_shape",
+            "moon_label"
+          ],
+          "speak": "How many Earths would fit between the Earth and the Moon? Here are the two, drawn to scale, sizes and distance both."
+        },
+        {
+          "draw": [
+            "gap_line"
+          ],
+          "speak": "On average, the Moon's centre is three hundred and eighty-four thousand kilometres from ours."
+        },
+        {
+          "quiz": {
+            "question": "How many Earths, lined up side by side, would fill that gap?",
+            "choices": [
+              "About 3",
+              "About 30",
+              "About 300"
+            ],
+            "correct": 2,
+            "right": "About thirty: twenty-nine more Earths fill the gap, and with our own that makes thirty.",
+            "wrong": "Look at how small the Earth is against the gap."
+          }
+        },
+        {
+          "draw": [
+            "fit_row",
+            "fit_label"
+          ],
+          "speak": "Here they are, one beside the next: twenty-nine more Earths fit in the empty space between us and the Moon."
+        },
+        {
+          "highlight": {
+            "target": [
+              "earth_shape"
+            ]
+          },
+          "speak": "Most pictures in books squeeze the two close together, because the true gap would not fit on the page."
+        },
+        {
+          "highlight": {
+            "target": [
+              "moon_shape"
+            ]
+          },
+          "speak": "The Moon itself is about a quarter as wide as the Earth: some three and a half thousand kilometres."
+        },
+        {
+          "point": {
+            "at": {
+              "ref": "gap_line"
+            },
+            "gesture": "underline"
+          },
+          "speak": "Light crosses the gap in just over a second; the Apollo astronauts took about three days."
+        },
+        {
+          "highlight": {
+            "target": [
+              "fit_row"
+            ]
+          },
+          "speak": "And the gap changes: at its farthest the Moon is about four hundred and six thousand kilometres away, room for two more Earths."
+        },
+        {
+          "highlight": {
+            "target": [
+              "moon_shape"
+            ]
+          },
+          "speak": "So the next time you see the Moon, picture thirty Earths in a row between you and it."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Which languages have the most speakers? Native speakers first, then everyone who speaks them: the bars re-sort and English jumps to first. #interactive #short (bar_chart sort, W14)",
+    "spec": {
+      "title": "Which languages have the most speakers?",
+      "template": "bar_chart",
+      "params": {
+        "labels": [
+          "Mandarin",
+          "Spanish",
+          "English",
+          "Hindi"
+        ],
+        "values": [
+          [
+            990,
+            484,
+            390,
+            345
+          ],
+          [
+            1184,
+            558,
+            1528,
+            609
+          ]
+        ],
+        "stage": 0,
+        "sort": "desc",
+        "value_labels": true,
+        "y_label": "Speakers (millions)"
+      },
+      "sources": [
+        {
+          "id": "eth",
+          "title": "Ethnologue 200: the world's most spoken languages (2025)",
+          "authors": "Eberhard, Simons & Fennig (SIL International)",
+          "year": 2025,
+          "finding": "first-language / total speakers, millions: English 390 / 1,528; Mandarin 990 / 1,184; Hindi 345 / 609; Spanish 484 / 558"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Which languages have the most speakers?"
+          }
+        },
+        {
+          "draw": [
+            "axes"
+          ],
+          "speak": "Which languages have the most speakers? That depends on who you count, so let's count twice."
+        },
+        {
+          "draw": [
+            "bar_1",
+            "bar_2",
+            "bar_3",
+            "bar_4"
+          ],
+          "speak": "First, native speakers only: people who grew up with the language. Mandarin leads by far, with almost a billion, then Spanish, English and Hindi."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_3"
+            ]
+          },
+          "speak": "Keep an eye on English, in third place with about three hundred and ninety million."
+        },
+        {
+          "ask": {
+            "question": "Now count everyone who speaks English, as a first or a second language. How many millions? Drag its bar.",
+            "on": "bar_3",
+            "predict": true,
+            "store": "e",
+            "default": "600",
+            "relative": true,
+            "tolerance": 0.2,
+            "right": "Close: you said {e} million; it is about {e.true} million.",
+            "wrong": "You said {e} million. It is about {e.true} million, four times its native speakers."
+          }
+        },
+        {
+          "animate": {
+            "stage": 1
+          },
+          "duration": 2.5,
+          "speak": "Add the second-language speakers and the order changes. English jumps to first place, with about one and a half billion."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_3"
+            ]
+          },
+          "speak": "Only one English speaker in four learned it at home. The rest learned it for school, work and the internet."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_1"
+            ]
+          },
+          "speak": "Mandarin barely moves, because most people who speak it grew up speaking it."
+        },
+        {
+          "highlight": {
+            "target": [
+              "bar_4"
+            ]
+          },
+          "speak": "Hindi nearly doubles and passes Spanish, which is spoken mostly as a first language too."
+        },
+        {
+          "speak": "So the biggest language at home is Mandarin, but the one most people share is English."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Four animals: which ones sleep standing up? A yes/no on each, with pictures. #interactive #short",
+    "spec": {
+      "title": "Which animals sleep standing up?",
+      "elements": [
+        {
+          "id": "sleepers",
+          "type": "sequence",
+          "items": [
+            {
+              "icon": "horse",
+              "label": "Horse",
+              "mark": {
+                "text": "Yes",
+                "color": "#3f7d4e"
+              }
+            },
+            {
+              "icon": [
+                "cow",
+                "cow face"
+              ],
+              "label": "Cow",
+              "mark": {
+                "text": "No",
+                "color": "#b5482e"
+              }
+            },
+            {
+              "icon": "flamingo",
+              "label": "Flamingo",
+              "mark": {
+                "text": "Yes",
+                "color": "#3f7d4e"
+              }
+            },
+            {
+              "icon": "giraffe",
+              "label": "Giraffe",
+              "mark": {
+                "text": "Yes",
+                "color": "#3f7d4e"
+              }
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Asleep on their feet?"
+          }
+        },
+        {
+          "speak": "This is about which animals can sleep standing up."
+        },
+        {
+          "draw": [
+            "sleepers_1"
+          ],
+          "speak": "First the horse, which spends most of its day on its feet."
+        },
+        {
+          "quiz": {
+            "question": "Can a horse sleep standing up?",
+            "choices": [
+              "Yes",
+              "No"
+            ],
+            "correct": 1,
+            "on_canvas": true,
+            "right": "Yes. Tendons called the stay apparatus lock a horse's legs, so it can doze on its feet without falling."
+          }
+        },
+        {
+          "draw": [
+            "sleepers_2"
+          ],
+          "speak": "Next, the cow, another big grazer that stands for much of the day."
+        },
+        {
+          "quiz": {
+            "question": "Does a cow sleep standing up?",
+            "choices": [
+              "Yes",
+              "No"
+            ],
+            "correct": 2,
+            "on_canvas": true,
+            "right": "No. A cow may doze while standing, but it lies down to sleep, and spends ten hours or more a day lying down."
+          }
+        },
+        {
+          "draw": [
+            "sleepers_3"
+          ],
+          "speak": "Then the flamingo, a bird famous for standing on one leg."
+        },
+        {
+          "quiz": {
+            "question": "Does a flamingo sleep standing up?",
+            "choices": [
+              "Yes",
+              "No"
+            ],
+            "correct": 1,
+            "on_canvas": true,
+            "right": "Yes. Flamingos often sleep standing, many on a single leg, which their body holds with almost no effort."
+          }
+        },
+        {
+          "draw": [
+            "sleepers_4"
+          ],
+          "speak": "And last, the giraffe, whose long legs make lying down a slow business."
+        },
+        {
+          "quiz": {
+            "question": "Does a giraffe sleep standing up?",
+            "choices": [
+              "Yes",
+              "No"
+            ],
+            "correct": 1,
+            "on_canvas": true,
+            "right": "Yes. A giraffe often naps on its feet, and lies down with its neck curled back only for short spells."
+          }
+        },
+        {
+          "draw": [
+            "sleepers_strip"
+          ],
+          "speak": "You got {score} of {score_total}."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sleepers_2"
+            ],
+            "effect": "circle"
+          },
+          "speak": "Of the four, only the cow does its sleeping lying down."
+        },
+        {
+          "highlight": {
+            "target": [
+              "sleepers_1",
+              "sleepers_4"
+            ],
+            "effect": "circle"
+          },
+          "speak": "Even the horse and the giraffe, though, lie down, a few minutes at a time, for their deepest sleep."
+        }
+      ]
+    }
+  },
+  {
+    "request": "True or myth? Three things about the Moon, answered on buttons on the figure, with a stamp at each reveal. #interactive #short",
+    "spec": {
+      "title": "True or myth? Three things about the Moon",
+      "sources": [
+        {
+          "id": "farside",
+          "title": "The 'Dark Side' of the Moon",
+          "authors": "NASA Science",
+          "year": 2024,
+          "url": "https://science.nasa.gov/moon/far-side/",
+          "finding": "the far side gets as much sunlight as the near side; it is only hidden from Earth because the Moon is tidally locked"
+        },
+        {
+          "id": "llr",
+          "title": "Lunar Laser Ranging",
+          "authors": "NASA",
+          "year": 2024,
+          "url": "https://science.nasa.gov/moon/",
+          "finding": "laser ranging to the Apollo retroreflectors shows the Moon receding by about 3.8 cm a year"
+        },
+        {
+          "id": "moonfact",
+          "title": "Moon Fact Sheet",
+          "authors": "NASA Space Science Data Coordinated Archive",
+          "year": 2024,
+          "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html",
+          "finding": "surface gravity 1.62 m/s², 0.165 of Earth's"
+        }
+      ],
+      "elements": [
+        {
+          "id": "dark",
+          "type": "icon",
+          "of": "new moon",
+          "icon_look": "picture",
+          "size": 320,
+          "cites": [
+            "farside"
+          ],
+          "at": {
+            "ref": "dark_l",
+            "side": "above",
+            "gap": 24
+          }
+        },
+        {
+          "id": "dark_l",
+          "type": "text",
+          "text": "A dark side?",
+          "font_size": 44,
+          "x": 400,
+          "y": 235
+        },
+        {
+          "id": "away",
+          "type": "icon",
+          "of": "full moon",
+          "icon_look": "picture",
+          "size": 320,
+          "cites": [
+            "llr"
+          ],
+          "at": {
+            "ref": "away_l",
+            "side": "above",
+            "gap": 24
+          }
+        },
+        {
+          "id": "away_l",
+          "type": "text",
+          "text": "Drifting away?",
+          "font_size": 44,
+          "x": 400,
+          "y": 235
+        },
+        {
+          "id": "light",
+          "type": "icon",
+          "of": "astronaut",
+          "icon_look": "picture",
+          "size": 320,
+          "cites": [
+            "moonfact"
+          ],
+          "at": {
+            "ref": "light_l",
+            "side": "above",
+            "gap": 24
+          }
+        },
+        {
+          "id": "light_l",
+          "type": "text",
+          "text": "A sixth of your weight?",
+          "font_size": 44,
+          "x": 400,
+          "y": 235
+        },
+        {
+          "id": "r_dark",
+          "type": "icon",
+          "of": "new moon",
+          "icon_look": "picture",
+          "size": 150,
+          "at": {
+            "ref": "r_away",
+            "side": "left",
+            "gap": 50
+          }
+        },
+        {
+          "id": "r_away",
+          "type": "icon",
+          "of": "full moon",
+          "icon_look": "picture",
+          "size": 150,
+          "at": {
+            "ref": "recap_l",
+            "side": "above",
+            "gap": 24
+          }
+        },
+        {
+          "id": "r_light",
+          "type": "icon",
+          "of": "astronaut",
+          "icon_look": "picture",
+          "size": 150,
+          "at": {
+            "ref": "r_away",
+            "side": "right",
+            "gap": 50
+          }
+        },
+        {
+          "id": "recap_l",
+          "type": "text",
+          "text": "Three claims",
+          "font_size": 40,
+          "x": 500,
+          "y": 300
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "True or myth? Three things about the Moon"
+          }
+        },
+        {
+          "draw": [
+            "dark"
+          ],
+          "speak": "This is about three things people say about our Moon, and whether each one is true."
+        },
+        {
+          "draw": [
+            "dark_l"
+          ],
+          "speak": "The first: it has a dark side the Sun never reaches. True, or myth?"
+        },
+        {
+          "quiz": {
+            "question": "The Moon has a side that is always dark. True or myth?",
+            "choices": [
+              "True",
+              "Myth"
+            ],
+            "correct": 2,
+            "on_canvas": true,
+            "reveal": true,
+            "right": "Myth. The far side gets just as much sunlight; we never see it only because the same face of the Moon always turns towards us."
+          }
+        },
+        {
+          "hide": [
+            "dark",
+            "dark_l"
+          ]
+        },
+        {
+          "draw": [
+            "away"
+          ],
+          "speak": "The second is about how far away the Moon is."
+        },
+        {
+          "draw": [
+            "away_l"
+          ],
+          "speak": "It is said to be slowly drifting away from the Earth. True, or myth?"
+        },
+        {
+          "quiz": {
+            "question": "The Moon is slowly drifting away from us. True or myth?",
+            "choices": [
+              "True",
+              "Myth"
+            ],
+            "correct": 1,
+            "on_canvas": true,
+            "reveal": "3.8 cm a year",
+            "right": "True. Lasers bounced off mirrors the Apollo crews left behind show it moving about three point eight centimetres further away each year."
+          }
+        },
+        {
+          "hide": [
+            "away",
+            "away_l"
+          ]
+        },
+        {
+          "draw": [
+            "light"
+          ],
+          "speak": "The third is about you, if you went there."
+        },
+        {
+          "draw": [
+            "light_l"
+          ],
+          "speak": "There, it is said, you would weigh a sixth as much. True, or myth?"
+        },
+        {
+          "quiz": {
+            "question": "On the Moon you would weigh about a sixth as much. True or myth?",
+            "choices": [
+              "True",
+              "Myth"
+            ],
+            "correct": 1,
+            "on_canvas": true,
+            "reveal": true,
+            "right": "True. The Moon's gravity is about a sixth of the Earth's, so a seventy-kilogram person would weigh what twelve kilograms weigh here."
+          }
+        },
+        {
+          "hide": [
+            "light",
+            "light_l"
+          ]
+        },
+        {
+          "draw": [
+            "recap_l",
+            "r_dark",
+            "r_away",
+            "r_light"
+          ],
+          "parallel": true,
+          "speak": "Those were the three, and you got {score} of {score_total}."
+        },
+        {
+          "highlight": {
+            "target": [
+              "r_away",
+              "r_light"
+            ],
+            "effect": "circle"
+          },
+          "speak": "So the Moon has no dark side, but it really is leaving us, slowly, and on it you would feel light enough to bound along."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Which one is not a mammal? Whale, bat, dolphin, platypus, shark: tap the odd one out. #interactive #short (odd one out, W13)",
+    "spec": {
+      "title": "Which one is not a mammal?",
+      "elements": [
+        {
+          "id": "zoo",
+          "type": "cards",
+          "items": [
+            {
+              "text": "Whale",
+              "icon": "whale"
+            },
+            {
+              "text": "Bat",
+              "icon": "bat"
+            },
+            {
+              "text": "Dolphin",
+              "icon": "dolphin"
+            },
+            {
+              "text": "Platypus",
+              "icon": [
+                "platypus",
+                "egg"
+              ]
+            },
+            {
+              "text": "Shark",
+              "icon": "shark",
+              "odd": true
+            }
+          ],
+          "rule": "All four are mammals; the shark is a fish."
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "Which one is not a mammal?"
+          }
+        },
+        {
+          "draw": [
+            "zoo"
+          ],
+          "speak": "Five animals, and one of them does not belong with the others."
+        },
+        {
+          "speak": "Where an animal lives does not decide it: a mammal breathes air, grows hair, and feeds its young on milk."
+        },
+        {
+          "ask": {
+            "question": "Which one is not a mammal? Tap it.",
+            "on": "zoo",
+            "right": "The shark: it is a fish, breathing through gills, with no hair and no milk.",
+            "wrong": "Ask how each one feeds its young."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "zoo_1",
+              "zoo_3"
+            ]
+          },
+          "speak": "Whales and dolphins live in the sea, yet they breathe air and nurse their calves."
+        },
+        {
+          "highlight": {
+            "target": [
+              "zoo_2"
+            ]
+          },
+          "speak": "And the bat flies, but it suckles its pups like any mammal."
+        },
+        {
+          "highlight": {
+            "target": [
+              "zoo_4"
+            ]
+          },
+          "speak": "The trap is the platypus. It lays eggs, like a bird, and yet it is a mammal: it has fur, and the mother makes milk."
+        },
+        {
+          "speak": "Only five living mammals lay eggs: the platypus and four kinds of echidna."
+        },
+        {
+          "highlight": {
+            "target": [
+              "zoo_rule"
+            ]
+          },
+          "speak": "So to find a mammal, ask how it feeds its young, not how it is born, where it swims, or whether it flies."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Where is your liver? Tap it on the body. #interactive #short (spot it on the picture, W13)",
+    "packs": [
+      "anatomy"
+    ],
+    "spec": {
+      "title": "Where is your liver?",
+      "template": "anatomy",
+      "params": {
+        "systems": [
+          "viscera"
+        ],
+        "detail": 2,
+        "focus": [
+          "thorax",
+          "abdomen",
+          "urinary"
+        ],
+        "labels": "none",
+        "box": {
+          "x": 40,
+          "y": 150,
+          "w": 920,
+          "h": 520
+        }
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "Where is your liver?"
+          }
+        },
+        {
+          "draw": [
+            "frame",
+            "body_outline"
+          ],
+          "speak": "Where is your liver? Most people point too low. Here is a body facing you, the way a doctor sees a patient."
+        },
+        {
+          "draw": [
+            "trachea",
+            "lung_right",
+            "lung_left",
+            "heart"
+          ],
+          "speak": "The chest first: two lungs, and the heart between them. The body faces you, so its right side is on your left."
+        },
+        {
+          "draw": [
+            "liver",
+            "gallbladder",
+            "stomach",
+            "spleen",
+            "pancreas",
+            "kidney_right",
+            "kidney_left",
+            "small_intestine",
+            "large_intestine",
+            "bladder"
+          ],
+          "speak": "Below them lie the organs of the belly, none of them named yet."
+        },
+        {
+          "ask": {
+            "question": "Where is the liver? Tap it.",
+            "spot": "liver",
+            "on": "anatomy",
+            "right": "There: the big wedge under the right ribs, which is on your left as the body faces you.",
+            "wrong": "Look higher, and on the body's right."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "liver"
+            ]
+          },
+          "speak": "It is the heaviest organ inside you, about one and a half kilos, tucked almost entirely behind the lower ribs."
+        },
+        {
+          "highlight": {
+            "target": [
+              "small_intestine"
+            ]
+          },
+          "speak": "Most people point here, above the navel. That is small intestine."
+        },
+        {
+          "highlight": {
+            "target": [
+              "lung_right"
+            ]
+          },
+          "speak": "Only the thin dome of the diaphragm separates the liver from the right lung, so each deep breath pushes it down a little."
+        },
+        {
+          "speak": "So your liver sits high on your right side, under your ribs."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How many bones does an adult have? Let me estimate it on a slider first. #interactive #short (estimate slider, W15)",
+    "spec": {
+      "title": "How many bones does an adult have?",
+      "sources": [
+        {
+          "id": "healthline",
+          "title": "How Many Bones Are Babies Born With?",
+          "authors": "Healthline",
+          "year": 2023,
+          "url": "https://healthline.com/health/how-many-bones-does-a-baby-have",
+          "finding": "babies are born with about 270–300 bones; adults have 206"
+        },
+        {
+          "id": "gray",
+          "title": "Gray's Anatomy: The Anatomical Basis of Clinical Practice",
+          "authors": "Standring (ed.)",
+          "year": 2020,
+          "finding": "the adult skeleton has 206 bones; each hand 27, each foot 26"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How many bones does an adult have?"
+          }
+        },
+        {
+          "speak": "Your skeleton holds you up, guards your brain and heart, and even makes your blood. But how many pieces is it made of?"
+        },
+        {
+          "ask": {
+            "question": "How many bones does an adult human have? Drag the slider to your estimate.",
+            "estimate": {
+              "min": 0,
+              "max": 500,
+              "value": 206,
+              "unit": "bones"
+            },
+            "store": "g",
+            "default": "150",
+            "tolerance": 0.06,
+            "right": "Close: you said {g}, and an adult has {g.true}.",
+            "wrong": "You said {g}. An adult has {g.true}, so you were {g.off} away."
+          }
+        },
+        {
+          "erase": [
+            "estimate_1",
+            "estimate_1_answer"
+          ]
+        },
+        {
+          "draw": [
+            "hands"
+          ],
+          "speak": "More than half of them are in your hands and feet: twenty-seven in each hand,"
+        },
+        {
+          "draw": [
+            "feet"
+          ],
+          "speak": "and twenty-six in each foot."
+        },
+        {
+          "draw": [
+            "baby"
+          ],
+          "speak": "A newborn baby has more: about two hundred and seventy to three hundred, many still partly cartilage."
+        },
+        {
+          "draw": [
+            "adult"
+          ],
+          "speak": "As a child grows, many of them fuse: the plates of the skull join, and five small bones at the base of the spine become one."
+        },
+        {
+          "highlight": {
+            "target": [
+              "adult"
+            ]
+          },
+          "speak": "So you once had more bones than you have today, and you lost none of them: they grew together."
+        }
+      ],
+      "elements": [
+        {
+          "id": "hands",
+          "type": "text",
+          "text": "each hand: 27",
+          "x": 500,
+          "y": 540,
+          "font_size": 36
+        },
+        {
+          "id": "feet",
+          "type": "text",
+          "text": "each foot: 26",
+          "x": 500,
+          "y": 470,
+          "font_size": 36
+        },
+        {
+          "id": "baby",
+          "type": "text",
+          "text": "newborn: about 300",
+          "x": 500,
+          "y": 360,
+          "font_size": 36,
+          "cites": [
+            "healthline"
+          ]
+        },
+        {
+          "id": "adult",
+          "type": "text",
+          "text": "adult: 206",
+          "x": 500,
+          "y": 290,
+          "font_size": 36,
+          "cites": [
+            "gray"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "request": "Put these in order: the Big Bang, the first stars, the Sun, the Earth, the first life. #interactive #short (steps in order, W15)",
+    "spec": {
+      "title": "In what order did these happen?",
+      "elements": [
+        {
+          "id": "cosmos",
+          "type": "cards",
+          "steps": true,
+          "items": [
+            "Big Bang",
+            "First stars",
+            "Sun forms",
+            "Earth forms",
+            "First life"
+          ],
+          "ends": [
+            "first",
+            "last"
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "id": "planck",
+          "title": "Planck 2018 results. VI. Cosmological parameters",
+          "authors": "Planck Collaboration",
+          "year": 2020,
+          "finding": "age of the universe 13.787 ± 0.020 billion years"
+        },
+        {
+          "id": "nasa_stars",
+          "title": "What Were the First Stars Like?",
+          "authors": "NASA Science (Webb)",
+          "year": 2024,
+          "url": "https://science.nasa.gov/mission/webb/science-overview/science-explainers/what-were-the-first-stars-like/",
+          "finding": "the first stars formed within the first few hundred million years; simulations put them at 100–250 million years after the Big Bang"
+        },
+        {
+          "id": "sun",
+          "title": "How old is the Sun?",
+          "authors": "Stanford Solar Center",
+          "url": "https://solar-center.stanford.edu/FAQ/Qage.html",
+          "finding": "the Sun is about 4.6 billion years old"
+        },
+        {
+          "id": "usgs",
+          "title": "Age of the Earth",
+          "authors": "Dalrymple, G. B. (USGS)",
+          "year": 1997,
+          "finding": "the Earth is 4.54 ± 0.05 billion years old"
+        },
+        {
+          "id": "life",
+          "title": "Evidence of Archean life: stromatolites and microfossils",
+          "authors": "Schopf et al., Precambrian Research",
+          "year": 2007,
+          "finding": "stromatolites of the Dresser Formation, Western Australia, about 3.48 billion years old"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "In what order did these happen?"
+          }
+        },
+        {
+          "draw": [
+            "cosmos"
+          ],
+          "speak": "Here are five moments from the story of everything, from the birth of the universe to the first living cells, shuffled."
+        },
+        {
+          "ask": {
+            "question": "In what order did these happen? Drag the earliest to the first place.",
+            "on": "cosmos",
+            "store": "k",
+            "right": "{k} in place. The Big Bang, the first stars, our Sun, our Earth, then life.",
+            "wrong": "You got {k}. The universe came first, the stars long before the Sun, and the Earth just after it."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "cosmos_1"
+            ]
+          },
+          "speak": "It starts with the Big Bang, about thirteen point eight billion years ago."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cosmos_2"
+            ]
+          },
+          "speak": "Within a hundred to two hundred million years, gas clouds collapsed and the first stars lit up."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cosmos_3"
+            ]
+          },
+          "speak": "Our Sun is a latecomer: it formed about four point six billion years ago, from gas that older stars had enriched."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cosmos_4"
+            ]
+          },
+          "speak": "The Earth grew from the leftover disc around it, about four and a half billion years ago."
+        },
+        {
+          "highlight": {
+            "target": [
+              "cosmos_5"
+            ]
+          },
+          "speak": "And life came quickly after that: fossil mats of microbes are at least three and a half billion years old."
+        },
+        {
+          "speak": "So for about two thirds of the universe's history, there was no Earth at all."
+        }
+      ]
+    }
+  },
+  {
+    "request": "Three quick questions about planet Earth, each followed by a bet on how sure you are, closing on how well calibrated your bets were. #interactive #short (confidence bet, W16)",
+    "spec": {
+      "title": "How sure are you about planet Earth?",
+      "sources": [
+        {
+          "id": "nasa",
+          "title": "Speed of light and the Sun–Earth distance (sunlight takes about 8 minutes 20 seconds)",
+          "authors": "NASA",
+          "url": "https://science.nasa.gov/sun/facts/",
+          "finding": "Sunlight reaches Earth in about 8 minutes 20 seconds"
+        },
+        {
+          "id": "geo",
+          "title": "Largest desert in the world",
+          "authors": "Geology.com",
+          "url": "https://geology.com/records/largest-desert.shtml",
+          "finding": "Antarctic Desert about 14 million km²; Sahara about 9.2 million km²"
+        },
+        {
+          "id": "usgs",
+          "title": "How much water is there on Earth?",
+          "authors": "USGS Water Science School",
+          "url": "https://www.usgs.gov/special-topics/water-science-school/science/how-much-water-there-earth",
+          "finding": "About 71 percent of Earth's surface is water-covered"
+        }
+      ],
+      "elements": [
+        {
+          "id": "sun",
+          "type": "node",
+          "shape": "circle",
+          "x": 230,
+          "y": 470,
+          "width": 150,
+          "height": 150,
+          "text": "Sun",
+          "style": {
+            "fill": "#f4c84a",
+            "color": "#9a6b00"
+          },
+          "cites": "nasa"
+        },
+        {
+          "id": "earth",
+          "type": "node",
+          "shape": "circle",
+          "x": 770,
+          "y": 470,
+          "width": 60,
+          "height": 60,
+          "style": {
+            "fill": "#6fa8dc",
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "earth_l",
+          "type": "text",
+          "text": "Earth",
+          "x": 770,
+          "y": 405,
+          "font_size": 24
+        },
+        {
+          "id": "ray",
+          "type": "arrow",
+          "from": {
+            "x": 320,
+            "y": 470
+          },
+          "to": {
+            "x": 730,
+            "y": 470
+          },
+          "style": {
+            "color": "#c9a227",
+            "stroke_width": 4
+          }
+        },
+        {
+          "id": "ray_l",
+          "type": "text",
+          "text": "150 million km",
+          "x": 525,
+          "y": 505,
+          "font_size": 24
+        },
+        {
+          "id": "rain",
+          "type": "text",
+          "text": "A desert: under 250 mm of rain or snow a year",
+          "x": 500,
+          "y": 470,
+          "font_size": 34,
+          "cites": "geo"
+        },
+        {
+          "id": "globe",
+          "type": "node",
+          "shape": "circle",
+          "x": 500,
+          "y": 450,
+          "width": 220,
+          "height": 220,
+          "style": {
+            "fill": "#6fa8dc",
+            "color": "#2f6b8f"
+          },
+          "cites": "usgs"
+        },
+        {
+          "id": "globe_l",
+          "type": "text",
+          "text": "Earth's surface",
+          "x": 500,
+          "y": 310,
+          "font_size": 24
+        }
+      ],
+      "feedback": {
+        "style": "warm",
+        "perfect": "Three of three, and you knew it.",
+        "good": "Good going.",
+        "poor": "Tricky ones, these.",
+        "none": "Earth keeps its secrets today."
+      },
+      "commands": [
+        {
+          "card": {
+            "title": "How sure are you about planet Earth?"
+          }
+        },
+        {
+          "draw": [
+            "sun",
+            "earth",
+            "earth_l"
+          ],
+          "speak": "Three questions about our planet, and after each answer one more: how sure were you? Being right counts, and so does knowing when you are."
+        },
+        {
+          "draw": [
+            "ray",
+            "ray_l"
+          ],
+          "speak": "Sunlight crosses a hundred and fifty million kilometres to reach us. How long does the trip take?"
+        },
+        {
+          "quiz": {
+            "question": "How long does sunlight take to reach Earth?",
+            "choices": [
+              "8 seconds",
+              "8 minutes",
+              "8 hours"
+            ],
+            "correct": 2,
+            "on_canvas": true,
+            "confidence": true,
+            "right": "About eight minutes and twenty seconds, so the Sun you see is the Sun of eight minutes ago."
+          }
+        },
+        {
+          "erase": [
+            "sun",
+            "earth",
+            "earth_l",
+            "ray",
+            "ray_l"
+          ]
+        },
+        {
+          "draw": [
+            "rain"
+          ],
+          "speak": "Next, deserts. A desert is any place where very little rain or snow falls, hot or cold."
+        },
+        {
+          "quiz": {
+            "question": "Which is the largest desert on Earth?",
+            "choices": [
+              "The Sahara",
+              "Antarctica",
+              "The Gobi"
+            ],
+            "correct": 2,
+            "confidence": true,
+            "wrong": "Think cold, not hot.",
+            "right": "Antarctica, about fourteen million square kilometres; the Sahara is about nine."
+          }
+        },
+        {
+          "erase": [
+            "rain"
+          ]
+        },
+        {
+          "draw": [
+            "globe",
+            "globe_l"
+          ],
+          "speak": "Last one. How much of Earth's surface lies under water?"
+        },
+        {
+          "quiz": {
+            "question": "How much of Earth's surface is water?",
+            "choices": [
+              "About half",
+              "About 71%",
+              "About 90%"
+            ],
+            "correct": 2,
+            "on_canvas": true,
+            "confidence": true,
+            "right": "About seventy-one percent, almost all of it ocean.",
+            "buttons_at": {
+              "x": 760,
+              "y": 450
+            },
+            "buttons_layout": "column"
+          }
+        },
+        {
+          "speak": "You got {score} of {score_total}, and your bets were {calib}: a calibration score of {calib.score} out of a hundred."
+        },
+        {
+          "speak": "Feeling sure when you are right, and unsure when you might not be, is a skill of its own."
+        }
+      ]
+    }
+  },
+  {
+    "request": "The ultimatum game: how much would you offer a stranger? Answer, then see what players in a study chose. #interactive #short (poll and compare, W16)",
+    "spec": {
+      "title": "How much would you offer a stranger?",
+      "sources": [
+        {
+          "id": "guth",
+          "title": "An experimental analysis of ultimatum bargaining",
+          "authors": "Güth, Schmittberger & Schwarze",
+          "year": 1982,
+          "doi": "10.1016/0167-2681(82)90011-7",
+          "finding": "The first ultimatum game experiment: many proposers offered an even split"
+        },
+        {
+          "id": "azar",
+          "title": "Beliefs and social behavior in a multi-period ultimatum game",
+          "authors": "Azar, Lahav & Voslinsky",
+          "year": 2015,
+          "doi": "10.3389/fnbeh.2015.00029",
+          "finding": "170 offers: 75 gave 41–50% of the pie, 45 gave 31–40%, 17 gave 21–30%, 23 gave 20% or less, 10 more than half"
+        },
+        {
+          "id": "oost",
+          "title": "Cultural differences in ultimatum game experiments: evidence from a meta-analysis",
+          "authors": "Oosterbeek, Sloof & van de Kuilen",
+          "year": 2004,
+          "doi": "10.1023/B:EXEC.0000026978.14316.74",
+          "finding": "37 papers, 75 results: proposers offer 40% of the pie on average; 16% of offers are rejected"
+        }
+      ],
+      "elements": [
+        {
+          "id": "you",
+          "type": "node",
+          "shape": "person",
+          "x": 170,
+          "y": 510,
+          "width": 90,
+          "height": 140,
+          "style": {
+            "color": "#2f6b8f"
+          }
+        },
+        {
+          "id": "them",
+          "type": "node",
+          "shape": "person",
+          "x": 530,
+          "y": 510,
+          "width": 90,
+          "height": 140,
+          "style": {
+            "color": "#8a5fa8"
+          }
+        },
+        {
+          "id": "you_l",
+          "type": "text",
+          "text": "You",
+          "x": 170,
+          "y": 410,
+          "font_size": 30
+        },
+        {
+          "id": "them_l",
+          "type": "text",
+          "text": "A stranger",
+          "x": 530,
+          "y": 410,
+          "font_size": 30
+        },
+        {
+          "id": "pot",
+          "type": "text",
+          "text": "100 kr",
+          "x": 350,
+          "y": 520,
+          "font_size": 48,
+          "cites": "guth"
+        },
+        {
+          "id": "rule",
+          "type": "text",
+          "text": "They say no: nobody gets a krone",
+          "x": 350,
+          "y": 340,
+          "font_size": 30
+        },
+        {
+          "id": "meta",
+          "type": "text",
+          "text": "37 studies: 40% offered on average",
+          "x": 350,
+          "y": 265,
+          "font_size": 28,
+          "cites": "oost"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How much would you offer a stranger?"
+          }
+        },
+        {
+          "draw": [
+            "you",
+            "you_l",
+            "them",
+            "them_l",
+            "pot"
+          ],
+          "speak": "You get a hundred kroner to share with a stranger, and you decide how much they get."
+        },
+        {
+          "draw": [
+            "rule"
+          ],
+          "speak": "There is one catch: if the stranger says no, neither of you gets anything. This is the ultimatum game, first played by Güth and colleagues in 1982."
+        },
+        {
+          "ask": {
+            "question": "How many of the 100 kroner do you offer the stranger?",
+            "poll": {
+              "choices": [
+                {
+                  "text": "41 to 50",
+                  "share": 0.44
+                },
+                {
+                  "text": "31 to 40",
+                  "share": 0.26
+                },
+                {
+                  "text": "21 to 30",
+                  "share": 0.1
+                },
+                {
+                  "text": "20 or less",
+                  "share": 0.14
+                }
+              ],
+              "source": "azar"
+            },
+            "judge": false,
+            "store": "p",
+            "right": "You and {p.share} of the players in one study chose {p}."
+          }
+        },
+        {
+          "highlight": {
+            "target": [
+              "poll_1_btn_1"
+            ]
+          },
+          "speak": "The most common choice was {p.most}, close to an even split, even though a stranger who takes one krone is better off than one who says no."
+        },
+        {
+          "highlight": {
+            "target": [
+              "poll_1_btn_4"
+            ]
+          },
+          "speak": "Only about one player in seven offered twenty kroner or less, and the lower the offer, the more often it is refused."
+        },
+        {
+          "draw": [
+            "meta"
+          ],
+          "speak": "Across thirty-seven studies, proposers offered about forty percent on average, and about one offer in six was turned down."
+        },
+        {
+          "highlight": {
+            "target": [
+              "rule"
+            ]
+          },
+          "speak": "So a low offer is risky: people will give up money to punish a split they find unfair, and most proposers seem to know it."
+        }
+      ]
+    }
+  },
+  {
+    "request": "How many people die on the world's roads each year? Guess, get a clue, guess again, then see the truth. #interactive #short (before/after revise guess, W16)",
+    "spec": {
+      "title": "How many people die on the world's roads each year?",
+      "sources": [
+        {
+          "id": "who",
+          "title": "Global status report on road safety 2023",
+          "authors": "World Health Organization",
+          "year": 2023,
+          "url": "https://www.who.int/publications/i/item/9789240086517",
+          "finding": "About 1.19 million road traffic deaths a year (2021), 5% fewer than in 2010; the leading killer of people aged 5–29"
+        }
+      ],
+      "elements": [
+        {
+          "id": "roads",
+          "type": "scale",
+          "min": 0,
+          "max": 3000000,
+          "value": 1190000,
+          "label": "Road deaths a year",
+          "cites": "who",
+          "ticks": 3,
+          "y": 300
+        },
+        {
+          "id": "clock",
+          "type": "text",
+          "text": "One road death about every 26 seconds",
+          "x": 500,
+          "y": 580,
+          "font_size": 34,
+          "cites": "who"
+        },
+        {
+          "id": "sum",
+          "type": "text",
+          "text": "31.5 million seconds ÷ 26 ≈ 1.2 million",
+          "x": 500,
+          "y": 500,
+          "font_size": 30
+        },
+        {
+          "id": "trend",
+          "type": "text",
+          "text": "5% fewer than in 2010",
+          "x": 500,
+          "y": 200,
+          "font_size": 28,
+          "cites": "who"
+        }
+      ],
+      "commands": [
+        {
+          "card": {
+            "title": "How many people die on the world's roads each year?"
+          }
+        },
+        {
+          "draw": [
+            "roads"
+          ],
+          "speak": "Car crashes rarely make the news unless they are big ones. So how many people die on the world's roads in a year?"
+        },
+        {
+          "ask": {
+            "question": "How many people die on the world's roads each year? Click the line.",
+            "on": "roads",
+            "reveal": false,
+            "store": "g1",
+            "default": "400000",
+            "right": "Hold on to that: {g1}."
+          }
+        },
+        {
+          "draw": [
+            "clock"
+          ],
+          "speak": "Here is a clue. Somewhere in the world, someone dies on a road about every twenty-six seconds, day and night."
+        },
+        {
+          "ask": {
+            "question": "With that clue, how many a year? Guess again.",
+            "on": "roads",
+            "revise": "g1",
+            "store": "g2",
+            "default": "1100000",
+            "relative": true,
+            "tolerance": 0.2,
+            "right": "From {g1} to {g2}: close. The World Health Organization counts about {g2.true}.",
+            "wrong": "From {g1} to {g2}. The World Health Organization counts about {g2.true}."
+          }
+        },
+        {
+          "draw": [
+            "sum"
+          ],
+          "speak": "There are about thirty-one million seconds in a year, so one death every twenty-six seconds comes to about one point two million."
+        },
+        {
+          "highlight": {
+            "target": [
+              "clock"
+            ]
+          },
+          "speak": "Road crashes are the leading killer of children and young people aged five to twenty-nine, and nine in ten of the deaths are in low and middle income countries."
+        },
+        {
+          "draw": [
+            "trend"
+          ],
+          "speak": "The number has fallen a little since 2010, by about five percent, while the world's cars kept multiplying."
         }
       ]
     }

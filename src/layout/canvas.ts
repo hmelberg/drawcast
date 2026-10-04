@@ -76,14 +76,34 @@ export function frameToCanvas(f: DataFrame): (p: [number, number]) => [number, n
  * without one — set once per layout (layout.ts, beside setHeadingBox). The
  * heading is the page's title, not part of any plot: Hans 2026-09-26, on a
  * demand curve and a y-axis name level with the heading, "the headline
- * becomes part of the plot almost". A plot keeps its top this far below the
- * underline, which leaves the y-axis name (drawn just above the plot) a
- * clear strip of paper under the heading.
+ * becomes part of the plot almost"; again 2026-10-04, "the y axis on
+ * figures comes a bit too close to the title". A plot keeps its top far
+ * enough below the underline that its y arrow's tip ends HEADING_GAP under
+ * it (was 50 from the plot's top, so the tip came within 28). The y caption
+ * still rises above the tip — level with the heading's strip, though never
+ * into the heading's own box (axes.ts) — because a deeper drop moved hand-
+ * placed text off its curves in six bundled examples. `scale` is the cast's
+ * text scale: the gap grows with the text.
  */
 let headingFloor: number | null = null;
-const HEADING_CLEAR = 50;
-export function setHeadingFloor(y: number | null): void {
+let headingScale = 1;
+/** Underline → the top of any figure's ink, at text scale 1 (page frame
+ *  spec 2026-10-04; layout/page.ts CONTENT_TOP keeps the same gap for a
+ *  fitted figure under the lowest underline). */
+export const HEADING_GAP = 40;
+/** How far a y arrow runs past the plot's top (axes.ts AXIS_OVERHANG). */
+const Y_ARROW = 22;
+export function setHeadingFloor(y: number | null, scale = 1): void {
   headingFloor = y;
+  headingScale = scale;
+}
+/** The text scale the heading floor was set with. */
+export function headingTextScale(): number {
+  return headingScale;
+}
+/** This page's heading underline, or null with no heading (setHeadingFloor). */
+export function headingFloorY(): number | null {
+  return headingFloor;
 }
 
 /**
@@ -113,7 +133,7 @@ export function plotArea(): PlotArea {
     x0: PLOT_MARGIN.left,
     y0: PLOT_MARGIN.bottom,
     x1: CANVAS.w - PLOT_MARGIN.right,
-    y1: headingFloor === null ? top : Math.min(top, headingFloor - HEADING_CLEAR),
+    y1: headingFloor === null ? top : Math.min(top, headingFloor - HEADING_GAP * headingScale - Y_ARROW),
   };
 }
 

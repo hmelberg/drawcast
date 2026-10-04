@@ -575,3 +575,37 @@ describe("check: each — review fixes (round 7)", () => {
     expect(decodeArrangement(z, o.result()!)!.first).toEqual([-1, 0, -1, -1]);
   });
 });
+
+describe("place: the value it lands on, while dragging and after (Hans 2026-10-04)", () => {
+  const timeline = { id: "time", type: "scale" as const, min: -3000, max: 2000, x: 100, y: 420, width: 800 };
+  const when: CardsElementLike = { id: "when", type: "cards", along: "time", items: [{ text: "Great Pyramid", value: -2560 }, { text: "Cleopatra dies", value: -30 }, { text: "Moon landing", value: 1969 }] };
+  const pg = cardsGeometry(when, () => timeline);
+  const sg = pg.scale!;
+  test("the finish button says Done", async () => {
+    const o = await open(pg);
+    expect(o.answer().textContent).toBe("Done ▸");
+    o.answer().click();
+    await o.done;
+  });
+  test("over the line: a readout in the scale's words, a pin and a tick at the snapped value; let go: the value on its pin", async () => {
+    const o = await open(pg);
+    const start = pg.home[0];
+    fire(o.gate, "pointerdown", at(start));
+    const over: [number, number] = [sg.xAt(-1903), sg.y + 60];
+    fire(o.gate, "pointermove", at(over));
+    const pill = o.stage.find("cs-card-value")!;
+    expect(pill.hidden).toBe(false);
+    // Snapped as the drop snaps (50-year steps on a 5000-year line).
+    expect(pill.textContent).toBe("1900 BC");
+    const live = last(o)!;
+    const x = sg.xAt(-1900);
+    expect(live.lines.some((l) => l.pts.every((p) => Math.abs(p[0] - x) < 0.01) && l.pts.some((p) => p[1] < sg.y))).toBe(true);
+    fire(o.gate, "pointerup", at(over));
+    expect(pill.hidden).toBe(true);
+    await wait(250);
+    expect(last(o)!.texts.map((t) => t.text)).toContain("1900 BC");
+    o.answer().click();
+    await o.done;
+    expect(decodeArrangement(pg, o.result()!)!.values![0]).toBe(-1900);
+  });
+});

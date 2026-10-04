@@ -6,6 +6,8 @@
 import { guessGateFor } from "./guess-gate";
 import { cardsGateFor } from "./cards-gate";
 import { chooseGateFor } from "./choose-gate";
+import { spotGateFor } from "./spot-gate";
+import { confidenceGateFor } from "./confidence-gate";
 import type { ChooseOption } from "../render/plan";
 import { treeGateFor } from "./tree-gate";
 import { formulaGateFor } from "./formula-gate";
@@ -156,6 +158,8 @@ interface QuizGateStep {
   choices: string[];
   correct: number;
   required: boolean;
+  /** A confidence bet follows (W16): the pick shows no verdict yet, and the card makes way for the bet's buttons. */
+  confidence?: unknown;
 }
 
 /** How long the answered card (with its right/wrong colors) stays on screen
@@ -199,6 +203,14 @@ export function quizGateFor(stage: HTMLElement, skipFeedback: () => void = () =>
           e.stopPropagation();
           if (settled) return;
           settled = true;
+          if (step.confidence) {
+            // The bet comes first (W16): the pick is marked, the card goes, the buttons on the figure ask how sure.
+            pill.classList.add("chosen");
+            for (const p of pills) p.disabled = true;
+            window.setTimeout(remove, 350);
+            resolve(i);
+            return;
+          }
           pill.classList.add(i === step.correct ? "right" : "wrong");
           pills[step.correct].classList.add("right");
           for (const p of pills) p.disabled = true;
@@ -263,6 +275,10 @@ export interface AskGateStep {
   choose?: ChooseOption[];
   /** Choose: false = an opinion (no ✓/✗ on the tapped thing). */
   judge?: false;
+  /** Choose: no headline and no hint — on-canvas quiz buttons (spec/answer-buttons.ts). */
+  quiet?: true;
+  /** Spot it (ui/spot-gate.ts): the place to tap and its box. */
+  spot?: { id: string; box: import("../layout/geometry").BBox };
 }
 
 /**
@@ -732,12 +748,38 @@ export function askGateFor(stage: HTMLElement): (signal: AbortSignal, step: AskG
 }
 
 /**
- * Whether the control bar may fade out. A gate holds it visible: on a phone
- * the only gesture that brings a hidden bar back is a tap on the figure, and
- * during a click-the-figure question that same tap submits an answer.
+ * Whether the control bar may fade out: only while the cast plays, and never
+ * while the viewer is holding it (pointer over it, keyboard focus in it, one
+ * of its menus open). A question, an explore or a widget waiting on the
+ * viewer does NOT hold it (Hans 2026-10-04): the run is still "playing", the
+ * viewer's turn is on the figure, and the bar there was only in the way. A
+ * phone brings it back with a tap anywhere but on the question itself (or on
+ * the strip the bar lives in), so it is never out of reach.
  */
-export function shouldIdle(s: { playing: boolean; gateOpen: boolean }): boolean {
-  return s.playing && !s.gateOpen;
+export function barMayHide(s: { playing: boolean; held: boolean }): boolean {
+  return s.playing && !s.held;
+}
+
+/** How much of the stage, from its bottom edge up, brings the bar back
+ *  under a mouse. The rest of the figure is the drawing's: moving there to
+ *  point at something, or to answer a question, leaves the bar alone. */
+export const BAR_ZONE_FRACTION = 0.2;
+
+type Box = { left: number; top: number; right: number; bottom: number };
+
+/**
+ * True when a mouse at (x, y) is in the bar's own region: the bottom
+ * BAR_ZONE_FRACTION of the stage, the bar itself, and the strip between the
+ * two when the bar sits right under the stage (a few pixels of margin that
+ * would otherwise blink the bar out on the way down to it).
+ */
+export function inBarZone(x: number, y: number, stage: Box, bar: Box | null): boolean {
+  const inside = (b: Box): boolean => x >= b.left && x <= b.right && y >= b.top && y <= b.bottom;
+  if (bar && bar.bottom > bar.top && inside(bar)) return true;
+  const top = stage.bottom - (stage.bottom - stage.top) * BAR_ZONE_FRACTION;
+  const adjoining = bar !== null && bar.bottom > bar.top && bar.top >= stage.bottom - 1 && bar.top - stage.bottom <= 40;
+  const bottom = adjoining ? Math.max(stage.bottom, bar.bottom) : stage.bottom;
+  return x >= stage.left && x <= stage.right && y >= top && y <= bottom;
 }
 
 /** The step a click or hover at clientX = `x` on the seek bar lands on —
@@ -1135,62 +1177,97 @@ export function attachPlayerControls(
   });
   layout(foldQuery.matches);
 
-  // YouTube-like idle behavior: while playing, the controls fade out fully
-  // after a moment of pointer inactivity (cursor hidden too) and return on any
-  // movement; when paused/done they are always visible. Listeners live on the
-  // per-render .cs-figure so re-renders never stack them up.
+  // YouTube-like, but only from the bar's own region (Hans 2026-10-04):
+  // while playing, the bar fades out after a moment and a MOUSE brings it
+  // back only in the bottom part of the stage or over the bar itself
+  // (inBarZone) — moving over the drawing, to point or to answer a question,
+  // leaves it hidden. It stays while held (barMayHide: hovered, keyboard
+  // focus in it, a menu of it open). A question, explore or widget waiting
+  // on the viewer keeps the run "playing", so it never reveals the bar; a
+  // pause the viewer makes does (onState below), as do the start and the
+  // end. A touch tap brings it back as before, except a tap on the stage
+  // while a question is up — that tap is the answer. `cs-idle` on the
+  // figure is the bar's hidden state (the book's fullscreen footer and the
+  // corner list read it too); `cs-still` hides the cursor over the drawing
+  // after the same stillness, apart from the bar now that moving no longer
+  // brings the bar back. Listeners live on the per-render .cs-figure and bar
+  // so re-renders never stack them up.
   const figure = stage.parentElement ?? stageHost;
-  const IDLE_MS = 2800;
-  let idleTimer: number | null = null;
+  const IDLE_MS = 2800; // the cursor's stillness, and the bar's first fade after Play
+  const BAR_LINGER_MS = 2000; // the bar after the pointer stops in its region
+  let hideTimer: number | null = null;
+  let stillTimer: number | null = null;
   let playing = false;
   const setIdle = (idle: boolean) => figure.classList.toggle("cs-idle", idle);
-  // gateIsOpen reads the stage rather than a threaded flag: the six gate
-  // factories (clickGate, quizGateFor, askGateFor, figureGateFor,
-  // pianoGateFor, chessGateFor) already mark their overlay's presence in the
-  // DOM, and on a phone that overlay is the only thing standing between a
-  // hidden bar and the tap that would answer the question — asking it here
-  // is cheaper than plumbing a flag through every factory.
-  //
-  // A gate can open (or close) between one schedule call and the next with
-  // no scheduleIdle call in between — nothing re-evaluates the *already
-  // armed* timeout, so its callback re-checks shouldIdle itself rather than
-  // trusting the state it was armed under.
-  const scheduleIdle = (ms = IDLE_MS) => {
-    if (idleTimer !== null) window.clearTimeout(idleTimer);
-    if (!shouldIdle({ playing, gateOpen: gateIsOpen(stage) })) return;
-    idleTimer = window.setTimeout(() => {
-      if (shouldIdle({ playing, gateOpen: gateIsOpen(stage) })) setIdle(true);
+  const held = (): boolean =>
+    bar.matches(":hover") ||
+    bar.querySelector(":focus-visible") !== null ||
+    bar.querySelector(".menu-panel:not([hidden]), .cs-menu:not([hidden])") !== null;
+  // The armed timeout re-checks for itself: a hold can begin or end with no
+  // event here (a menu closed by a click elsewhere), so a held bar just
+  // looks again a moment later rather than trusting the state it was armed in.
+  const scheduleHide = (ms = BAR_LINGER_MS) => {
+    if (hideTimer !== null) window.clearTimeout(hideTimer);
+    hideTimer = null;
+    if (!playing) return;
+    hideTimer = window.setTimeout(() => {
+      hideTimer = null;
+      if (!playing) return;
+      if (barMayHide({ playing, held: held() })) setIdle(true);
+      else scheduleHide();
     }, ms);
   };
-  const activity = () => {
+  const showBar = () => {
     setIdle(false);
-    if (idleTimer !== null) window.clearTimeout(idleTimer);
-    idleTimer = null;
-    if (playing) scheduleIdle();
+    scheduleHide();
   };
-  figure.addEventListener("pointermove", activity);
-  figure.addEventListener("pointerdown", activity);
-  figure.addEventListener("pointerleave", () => {
-    if (playing) scheduleIdle(600);
+  // The cursor hides over a playing drawing that nothing is asking about —
+  // never while a gate waits for a pick.
+  const scheduleStill = () => {
+    figure.classList.remove("cs-still");
+    if (stillTimer !== null) window.clearTimeout(stillTimer);
+    stillTimer = null;
+    if (!playing) return;
+    stillTimer = window.setTimeout(() => {
+      stillTimer = null;
+      if (playing && !gateIsOpen(stage)) figure.classList.add("cs-still");
+    }, IDLE_MS);
+  };
+  const box = (el: Element): Box => el.getBoundingClientRect();
+  const mouseAt = (e: PointerEvent) => {
+    scheduleStill();
+    if (inBarZone(e.clientX, e.clientY, box(stage), bar.isConnected ? box(bar) : null)) showBar();
+  };
+  figure.addEventListener("pointermove", (e) => {
+    if (e.pointerType !== "touch") mouseAt(e);
   });
-  // A gate opening or closing is not itself a pointer event — five of the
-  // six factories answer on "click" (which a bar-revealing pointerdown
-  // precedes in the same gesture, so those self-heal), but the piano gate
-  // answers on "pointerdown" and stops it from bubbling to figure, and the
-  // quiz card removes itself on a timeout (CARD_LINGER_MS) with no gesture
-  // at all. Rather than special-case those, watch stage itself: every gate,
-  // the piano key guide, and info cards all mount as its direct children, so
-  // observing stage's own childList (not its subtree, which is where the
-  // SVG repaints on every frame during normal playback) catches every
-  // open/close uniformly and re-runs activity() — which un-hides a bar that
-  // had already faded and, via scheduleIdle, leaves it alone while a gate
-  // still stands. No teardown call: like the figure listeners above, this
-  // observer is scoped to this render's own stage, and dies with it.
-  const gateWatch = new MutationObserver(activity);
+  figure.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "touch") return mouseAt(e);
+    scheduleStill();
+    // A tap that answers — on a question's card, its buttons, the figure it
+    // asks about — is the viewer's turn, not a call for the bar.
+    if (gateIsOpen(stage) && e.target instanceof Node && stage.contains(e.target)) return;
+    showBar();
+  });
+  figure.addEventListener("pointerleave", () => {
+    if (playing && !figure.classList.contains("cs-idle")) scheduleHide(600);
+  });
+  // The bar itself, wherever a layout put it (a book moves it to its footer):
+  // over it or in it by keyboard holds it; leaving lets it go.
+  bar.addEventListener("pointerenter", showBar);
+  bar.addEventListener("pointerleave", () => scheduleHide());
+  bar.addEventListener("focusin", showBar);
+  bar.addEventListener("focusout", () => scheduleHide());
+  // A gate opening or closing is not a pointer event: the cursor must come
+  // back for a question that opens under a still mouse. Only stage's own
+  // children (every gate mounts there), not its subtree, which repaints on
+  // every frame. The bar is left alone: a question does not call for it.
+  const gateWatch = new MutationObserver(scheduleStill);
   gateWatch.observe(stage, { childList: true });
 
   hd.timeline.inputGate = clickGate(stage);
   hd.timeline.quizGate = quizGateFor(stage, () => hd.timeline.skipFeedback());
+  hd.timeline.confidenceGate = confidenceGateFor(stage, hd);
   // The answered card lives exactly as long as the explanation it offers to skip.
   hd.timeline.feedbackHook = (active) => {
     const answered = stage.querySelector(".cs-cardgate.cs-cardgate-answered");
@@ -1217,6 +1294,7 @@ export function attachPlayerControls(
   const treeGate = treeGateFor(stage, hd);
   const formulaGate = formulaGateFor(stage, hd);
   const chooseGate = chooseGateFor(stage, hd);
+  const spotGate = spotGateFor(stage, hd);
   attachTestMe(stage, hd);
   // A template-bound ask is worked on the figure itself, so its gate needs the
   // host. Without one (the template carries no widget body — lint calls that an
@@ -1236,6 +1314,8 @@ export function attachPlayerControls(
       ? guessGate(signal, step)
       : step.widgetTemplate && widgetHost
       ? widgetGate(signal, step)
+      : step.spot !== undefined
+      ? spotGate(signal, step)
       : step.widget === "click"
       ? figureGate(signal, step)
       : step.widget === "drag"
@@ -1463,8 +1543,16 @@ export function attachPlayerControls(
       stage.classList.toggle("is-playing", s === "playing");
       stage.classList.toggle("is-paused", s === "paused");
       playing = s === "playing";
-      if (playing) scheduleIdle(); // hide even without any mouse movement
-      else activity(); // paused/done: controls stay visible
+      if (playing) {
+        scheduleHide(IDLE_MS); // hide even without any mouse movement
+      } else {
+        // Paused by the viewer, before the start, at the end: the bar is
+        // how to go on, so it stays.
+        if (hideTimer !== null) window.clearTimeout(hideTimer);
+        hideTimer = null;
+        setIdle(false);
+      }
+      scheduleStill();
       opts.onPlayingChange?.(s === "playing");
       playBtn.replaceChildren(icon(s === "playing" ? "pause" : "play"));
       bigPlay.replaceChildren(icon(s === "done" ? "replay" : "play"));

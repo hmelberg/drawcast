@@ -44,8 +44,14 @@ export function iconAlternatives(or: unknown): string[] | undefined {
   return alts.length > 0 ? alts : undefined;
 }
 
-/** An `icon` / `match_icon` value (a keyword or {of, set, or}) as an ask, or null when unusable. */
+/** An `icon` / `match_icon` value as an ask, or null when unusable: a keyword,
+ *  a list of keywords tried in order (["guinea pig", "hamster"] — the first is
+ *  the thing, the rest its fallbacks), or {of, set, or}. */
 export function iconAsk(icon: unknown): IconAsk | null {
+  if (Array.isArray(icon)) {
+    const [of, ...or] = icon.filter((k): k is string => typeof k === "string" && k.trim() !== "");
+    return of === undefined ? null : { of, ...(or.length > 0 ? { or } : {}) };
+  }
   const req = typeof icon === "string" ? { of: icon } : (icon as { of?: unknown; set?: unknown; or?: unknown } | null | undefined);
   if (!req || typeof req !== "object" || typeof req.of !== "string" || req.of.trim() === "") return null;
   const or = iconAlternatives(req.or);
@@ -225,7 +231,7 @@ interface IconSlot {
  *  partners), a bar chart's `icons` (round 7 §6). `create`: a bar icon's
  *  data host (params.icon_data[i]) is made when missing — for the writers;
  *  readers get a throwaway host. */
-export function iconSlots(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "template" | "params">>, opts: { create?: boolean } = {}): IconSlot[] {
+export function iconSlots(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "template" | "params" | "commands">>, opts: { create?: boolean } = {}): IconSlot[] {
   const out: IconSlot[] = [];
   for (const el of spec.elements ?? []) {
     if (!el || typeof el !== "object") continue;
@@ -245,6 +251,27 @@ export function iconSlots(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "tem
         const m = iconAsk(item.match_icon);
         if (m) out.push({ ask: m, look, host: item, data: "match_icon_strokes", credit: "match_credit" });
       }
+    } else if ((el.type as string) === "sequence" && Array.isArray(el.items)) {
+      // A sequence's pictures (spec/sequence.ts): each item hosts its own data, shown as a picture.
+      for (const it of el.items) {
+        if (typeof it !== "object" || it === null) continue;
+        const item = it as unknown as Record<string, unknown>;
+        const a = iconAsk(item.icon);
+        if (a) out.push({ ask: a, look: "picture", host: item, data: "icon_strokes", credit: "credit" });
+      }
+    }
+  }
+  // On-canvas answer buttons (spec/answer-buttons.ts) and a poll's buttons
+  // (spec/poll.ts) ask for icons in their commands: each look hosts its own
+  // data, which the button's node then carries (W25: check said "no icon"
+  // for every one — the expansion made nodes the resolver never saw).
+  for (const c of spec.commands ?? []) {
+    const looks = [...(Array.isArray(c?.quiz?.buttons) ? c.quiz.buttons : []), ...(Array.isArray(c?.ask?.poll?.choices) ? c.ask.poll.choices : [])];
+    for (const it of looks) {
+      if (typeof it !== "object" || it === null) continue;
+      const item = it as unknown as Record<string, unknown>;
+      const a = iconAsk(item.icon);
+      if (a) out.push({ ask: a, look: "picture", host: item, data: "icon_strokes", credit: "credit" });
     }
   }
   const p = spec.params as Record<string, unknown> | undefined;
@@ -259,6 +286,15 @@ export function iconSlots(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "tem
       const host = typeof hosts[i] === "object" && hosts[i] !== null ? (hosts[i] as Record<string, unknown>) : {};
       out.push({ ask, look, host, data: "strokes", credit: "credit" });
     });
+  }
+  // size_compare's icon items (scenes/packs/compare.yaml): each item hosts its own data.
+  if (spec.template === "size_compare" && p && Array.isArray(p.items)) {
+    for (const it of p.items) {
+      if (typeof it !== "object" || it === null) continue;
+      const item = it as Record<string, unknown>;
+      const ask = item.shape === "icon" ? iconAsk(item.icon) : null;
+      if (ask) out.push({ ask, look: "picture", host: item, data: "icon_strokes", credit: "credit" });
+    }
   }
   return out;
 }

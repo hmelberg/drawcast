@@ -66,6 +66,15 @@ export function positions(g: CardsGeometry, a: Arrangement): Pt[] {
   return g.home.slice();
 }
 
+/** place: the value a card let go at `p` takes — over the line (anywhere
+ *  above its numbers), the snapped value under it; elsewhere null (back to the row). */
+export function placeValueAt(g: CardsGeometry, p: Pt): number | null {
+  const sg = g.scale;
+  if (!sg) return null;
+  const onLine = p[0] >= sg.x0 - 20 && p[0] <= sg.x1 + 20 && p[1] >= sg.y - 30;
+  return onLine ? sg.valueAtX(p[0]) : null;
+}
+
 /** The arrangement after card `card` is let go at `p` (logical). */
 export function drop(g: CardsGeometry, a: Arrangement, card: number, p: Pt): Arrangement {
   if (g.mode === "rank") {
@@ -108,11 +117,8 @@ export function drop(g: CardsGeometry, a: Arrangement, card: number, p: Pt): Arr
     return { ...a, boxes };
   }
   if (g.mode === "place" && g.scale) {
-    const sg = g.scale;
     const values = (a.values ?? g.cards.map(() => null)).slice();
-    // Over the line (anywhere above its numbers): placed at the value under it; elsewhere back to the row.
-    const onLine = p[0] >= sg.x0 - 20 && p[0] <= sg.x1 + 20 && p[1] >= sg.y - 30;
-    values[card] = onLine ? sg.valueAtX(p[0]) : null;
+    values[card] = placeValueAt(g, p);
     return { ...a, values };
   }
   if (g.mode === "match") {
@@ -507,6 +513,41 @@ export function placePins(g: CardsGeometry, pos: Pt[]): GuessMarkLine[] {
   const sg = g.scale;
   if (!sg) return [];
   return pos.flatMap(([x, y]) => (y > sg.y ? [{ pts: [[x, y - g.h / 2], [x, sg.y]] as Pt[] }] : []));
+}
+
+/** place: how far above the line a placed value's label stands (on its pin, under the card). */
+export const PLACE_LABEL_UP = 20;
+
+/**
+ * place, while the viewer answers (Hans 2026-10-04: "the year indicators
+ * precise"): a pin from each placed card down to its point, the value it
+ * holds written beside the pin in the scale's own format ("2550 BC"); and,
+ * for the card being dragged over the line, a pin and a tick across the line
+ * at the value it would land on — `drag.value`, snapped as the drop snaps
+ * (sg.valueAtX), null when it is off the line.
+ */
+export function placeMarks(g: CardsGeometry, values: readonly (number | null)[], drag?: { card: number; at: Pt; value: number | null }): GuessMarks {
+  const sg = g.scale;
+  const lines: GuessMarkLine[] = [];
+  const texts: GuessMarkText[] = [];
+  if (!sg) return { color: GUESS_COLOR, lines, texts };
+  const pos = positions(g, { order: [], boxes: [], values: values.slice() });
+  g.cards.forEach((_, i) => {
+    const v = values[i];
+    if (drag?.card === i || v === null || v === undefined) return;
+    const [x, y] = pos[i];
+    if (y <= sg.y) return;
+    lines.push({ pts: [[x, y - g.h / 2], [x, sg.y]] });
+    texts.push({ at: [x + 5, sg.y + PLACE_LABEL_UP], text: sg.format(v), anchor: "start", size: 15 });
+  });
+  if (drag && drag.value !== null) {
+    const x = sg.xAt(drag.value);
+    const bottom = drag.at[1] - g.h / 2;
+    if (bottom > sg.y) lines.push({ pts: [[x, bottom], [x, sg.y]], width: 2 });
+    // A tick across the line at the value: exactly where it lands.
+    lines.push({ pts: [[x, sg.y - 10], [x, sg.y + 10]], width: 3 });
+  }
+  return { color: GUESS_COLOR, lines, texts };
 }
 
 /** A formula blank's wrong answer (a tile, or what was typed): its text

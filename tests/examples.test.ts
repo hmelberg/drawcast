@@ -22,6 +22,7 @@ import { planCommands } from "../src/render/plan";
 import { formulaHooksFor, guessPartsFor, planOptionsFor } from "../src/render/index";
 import { resolveInsetsSync } from "../src/render/inset";
 import { lintCommands } from "../src/lint/lint";
+import { layoutAsSeen } from "../src/lint/at-scale";
 import { cardTargets } from "../src/ui/card-model";
 import { linkKindOf } from "../src/ui/link-model";
 import { parsePlaylistText, itemsOf } from "../src/playlist/playlist";
@@ -190,7 +191,7 @@ describe("bundled examples stay exemplary", () => {
     expect(validateSpec(stripPictures(spec)).ok).toBe(true);
     const layout = layoutSpec(spec);
     const bboxes = elementBBoxes(layout);
-    const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l));
+    const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l), layout.fit?.settle ?? 0);
     const plan = planCommands(spec.commands, layout.order, {
       book: spec.book !== undefined, // as render() passes it (a book's text verbs)
       bboxOf: (id) => bboxes.get(id) ?? null,
@@ -205,7 +206,7 @@ describe("bundled examples stay exemplary", () => {
         const offsets: Record<string, [number, number]> = {};
         g.cards.forEach((c, i) => (offsets[c] = [g.truth[i][0] - g.home[i][0], g.truth[i][1] - g.home[i][1]]));
         const hides = g.mode === "fill" ? g.cards.filter((_, i) => g.truthBin[i] >= 0) : [];
-        return { cards: g.cards, offsets, shows: g.valueIds ?? [], ...(hides.length > 0 ? { hides } : {}) };
+        return { cards: g.cards, offsets, shows: [...(g.valueIds ?? []), ...(g.arrows ?? [])], ...(hides.length > 0 ? { hides } : {}) };
       },
       formulaFor: (id) => {
         const rt = formulas.formula(id);
@@ -254,8 +255,19 @@ describe("bundled examples stay exemplary", () => {
   // Stricter than the compiler's own repair gate (which only repairs errors):
   // these are the figures the app shows off and the model imitates, so a
   // cosmetic warning — a label sitting on a stroke, say — is a defect here.
-  test.each(cases)("%s — lays out with no lint issue at all, not even a warning", (_req, spec) => {
-    const l = layoutSpec(spec);
+  // Judged at the cast's text scale (text.font_size), as the player draws it
+  // (lint/at-scale.ts, 2026-10-04). Examples this found colliding when it was
+  // added — a scale-1 lint had passed them — are held to the scale-1 gate
+  // until revised; the list only shrinks, and an entry leaves it the day it
+  // lints clean at scale.
+  const PENDING_AT_SCALE = new Set<string>([
+    // text.font_size 36: axis labels and country labels collide (the card title no longer runs off the top).
+    "How much do rich countries spend on health, and does spending more buy longer lives? #interactive",
+  ]);
+  test.each(cases)("%s — lays out with no lint issue at all, not even a warning", (req, spec) => {
+    const pending = PENDING_AT_SCALE.has(req);
+    if (pending) expect(layoutAsSeen(spec).issues, "lints clean at scale now: take it off PENDING_AT_SCALE").not.toEqual([]);
+    const l = pending ? layoutSpec(spec) : layoutAsSeen(spec);
     expect(l.issues.map((i) => `[${i.severity}] ${i.message}`)).toEqual([]);
     // Layout WARNINGS too (a code mark that no drawn line carries, an unknown
     // attach_to…): tests/molecule3d.test.ts checked them and this gate did not,

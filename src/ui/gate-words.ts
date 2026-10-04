@@ -22,9 +22,12 @@ export function gateLangOf(hd: RenderHandle | null | undefined): GateLang {
 }
 
 export interface GateWords {
+  /** The finish button where the viewer submits a TYPED answer (a formula's boxes, a tree's blanks). */
   answer: string;
   skip: string;
-  /** A select's Answer under check: each (round 7 §3.2), and connect's. */
+  /** The finish button where the viewer is done with a manipulation — cards
+   *  placed, ranked, sorted, matched; bars dragged; a constellation drawn
+   *  (Hans 2026-10-04: "Done" over "Answer" there). */
   done: string;
   /** The reorder's row of the viewer's own order (round 7 §4). */
   yours: string;
@@ -39,14 +42,16 @@ export interface GateWords {
     angle: string;
     count: string;
     point: string;
+    /** An estimate slider (spec/slider.ts). */
+    slider: string;
     market: string;
     bars: string;
     edges: string;
   };
   /** "{hint} — let go to answer" */
   letGo(hint: string): string;
-  /** "{hint}, then Answer" */
-  thenAnswer(hint: string): string;
+  /** "{hint}, then Done" */
+  thenDone(hint: string): string;
   /** A budget's account bar, when the cast gives it no account_label. */
   account: string;
   /** A budget not yet balanced: what is left or over. */
@@ -75,12 +80,13 @@ const EN: GateWords = {
     angle: "Drag the slice's edge",
     count: "Drag across the people",
     point: "Click where you think it is",
+    slider: "Drag the slider to your estimate",
     market: "Drag the middle to move it, an end to turn it",
     bars: "Drag each bar to your guess",
     edges: "Drag the edges between the slices",
   },
   letGo: (hint) => `${hint} — let go to answer`,
-  thenAnswer: (hint) => `${hint}, then Answer`,
+  thenDone: (hint) => `${hint}, then Done`,
   account: "Left",
   budgetLeft: (n) => `Balance the budget: ${n} left`,
   budgetOver: (n) => `Balance the budget: ${n} over`,
@@ -121,12 +127,13 @@ const NB: GateWords = {
     angle: "Dra kanten på kakestykket",
     count: "Dra over personene",
     point: "Klikk der du tror det er",
+    slider: "Dra glidebryteren til ditt anslag",
     market: "Dra midten for å flytte, en ende for å vri",
     bars: "Dra hver søyle dit du tror",
     edges: "Dra kantene mellom kakestykkene",
   },
   letGo: (hint) => `${hint} – slipp for å svare`,
-  thenAnswer: (hint) => `${hint}, og trykk Svar`,
+  thenDone: (hint) => `${hint}, og trykk Ferdig`,
   account: "Igjen",
   budgetLeft: (n) => `Fordel budsjettet: ${n} igjen`,
   budgetOver: (n) => `Fordel budsjettet: ${n} for mye`,

@@ -171,7 +171,9 @@ export function parseDirection(head: string, rest: string, line: number, warn: (
     if (around >= 0 && AROUND_FIELD[type] !== undefined) {
       const ids: string[] = [];
       let k = around + 1;
-      while (rest2[k] !== undefined && isBareId(rest2[k]) && !ELEMENT_KEYS.has(rest2[k])) ids.push(rest2[k++]);
+      // The run stops at any word the line owns: a field, `hidden` (the
+      // printer's declared-not-drawn mark), a flag, a placement word.
+      while (rest2[k] !== undefined && isBareId(rest2[k]) && !ELEMENT_KEYS.has(rest2[k]) && rest2[k] !== "hidden" && FLAGS[rest2[k]] === undefined && !SIDE_WORDS.has(rest2[k]) && !PLACE_WORDS.has(rest2[k])) ids.push(rest2[k++]);
       el[AROUND_FIELD[type]] = ids;
       rest2 = [...rest2.slice(0, around), ...rest2.slice(k)];
     }

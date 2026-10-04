@@ -15,8 +15,11 @@ import type { LayoutResult } from "../layout/layout";
 import { domainMapping, elementBBoxes, inverseDomainMapping } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
-import { leafDrawables } from "../layout/model";
+import { leafDrawables, type Drawable } from "../layout/model";
+import { assignStates, orderOf, populationCounts, slotSequence } from "../layout/population";
 import type { MeasureFn } from "../layout/measure";
+import { heuristicMeasure } from "../layout/measure";
+import { contentBox } from "../layout/page";
 import { readParam } from "../render/params";
 import type { Spec, SpecElement } from "../spec/types";
 import { guessParts } from "./parts";
@@ -67,6 +70,9 @@ export interface GuessHandle {
   /** Pointer → domain (template frame), and back. */
   toDomain?: (p: Pt) => Pt;
   toLogical?: (p: Pt) => Pt;
+  /** height: the plot's left (the y-axis) and right x (logical) — the value
+   *  pill keeps inside them (ui/bar-pill.ts). */
+  plotX?: [number, number];
   /** height: the bar's centre x and half width (logical), and its domain x. */
   cx?: number;
   halfW?: number;
@@ -78,8 +84,17 @@ export interface GuessHandle {
   /** curve on an unstaged series: the series' values path ("values",
    *  "series.1.values") — the draw-in paints its prefix through it. */
   rowPath?: string;
+  /** count: the people as drawn (logical centres, slot order) and their
+   *  height; `seq` is the order the guessed state takes them in when that
+   *  order follows the place (rows: reading order; cluster: outward from
+   *  its seed) — then a press marks up to the person under it. Null: an
+   *  order that scatters (spread, random) — a sweep across counts instead. */
+  people?: { centres: Pt[]; h: number; seq: number[] | null; box: BBox };
   /** count: the crowd's box (logical); angle: the pie's centre and radius. */
   box?: BBox;
+  /** count: the lowest y of what is drawn — the people and their legend
+   *  (logical); the value pill hangs under it (countPillPoint). */
+  under?: number;
   centre?: Pt;
   radius?: number;
   /** angle: the pie's centre and radius in the template's own units (before
@@ -180,16 +195,22 @@ export function guessSetup(
       else {
         h.toLogical = toLogical;
         if (toLogical) {
-          // Bar i sits at domain x = i (the frame runs -0.5 … n-0.5); its
-          // width is the slot less the gap (bar_chart's own default 0.35).
+          // Bar i sits at domain x = its slot (the frame runs -0.5 … n-0.5) —
+          // i itself, or its rank when the chart is sorted; its width is the
+          // slot less the gap (bar_chart's own default 0.35).
           const gap = typeof params["gap"] === "number" ? Math.max(0, Math.min(0.8, params["gap"] as number)) : 0.35;
-          const a = toLogical([h.dx!, 0]);
-          const b = toLogical([h.dx! + 1, 0]);
+          const at = barSlot(params, h.dx!);
+          const a = toLogical([at, 0]);
+          const b = toLogical([at + 1, 0]);
           h.cx = a[0];
+          if (frame) h.plotX = [toLogical([frame.x[0], 0])[0], toLogical([frame.x[1], 0])[0]];
           h.halfW = (Math.abs(b[0] - a[0]) * (1 - gap)) / 2;
         }
         handles.push(h);
         if (frame) pin = { ...pin, ylim: [frame.y[0], frame.y[1]] };
+        // A sorted chart ranks by the true numbers while it is guessed, so the
+        // bar being dragged keeps its place (and gives nothing away by moving).
+        if (sortDir(params) !== 0 && Array.isArray(params["values"]) && !("sort_values" in pin)) pin = { ...pin, sort_values: params["values"] };
       }
       continue;
     }
@@ -217,7 +238,7 @@ export function guessSetup(
       else handles.push(h);
       continue;
     }
-    const pop = populationHandle(spec, part, boxes);
+    const pop = populationHandle(spec, part, boxes, layout.drawables);
     if (pop) {
       if (typeof pop === "string") warnings.push(pop);
       else handles.push(pop);
@@ -231,6 +252,41 @@ export function guessSetup(
     warnings.push(`guess: "${part}" is not a guessable part of this figure (a bar, a line, a pie slice, a population state or a scale)`);
   }
   return { handles, pin, warnings };
+}
+
+const sortDir = (params: Record<string, unknown>): number =>
+  Array.isArray(params["series"]) ? 0 : params["sort"] === "desc" ? -1 : params["sort"] === "asc" ? 1 : 0;
+
+/**
+ * Where bar_chart (scenes/packs/data.yaml) puts category `i` (0-based): its
+ * slot, i itself unless the chart is sorted — then its rank by value at each
+ * integer stage, interpolated at a fractional one. The same arithmetic as the
+ * template (`sort`, `sort_values`); keep the two in step.
+ */
+export function barSlot(params: Record<string, unknown>, i: number): number {
+  const dir = sortDir(params);
+  if (dir === 0) return i;
+  const raw = Array.isArray(params["sort_values"]) ? params["sort_values"] : params["values"];
+  if (!Array.isArray(raw) || raw.length === 0) return i;
+  const stages = (Array.isArray(raw[0]) ? raw : [raw]) as unknown[][];
+  if (!stages.every(Array.isArray)) return i;
+  const labels = Array.isArray(params["labels"]) ? params["labels"].length : 0;
+  const n = Math.min(40, Math.max(labels, ...stages.map((st) => st.length)));
+  if (n <= 1 || i >= n) return i;
+  const K = Math.min(200, stages.length);
+  const stage = clamp(isNum(params["stage"]) ? params["stage"] : 0, 0, K - 1);
+  const k0 = Math.floor(stage);
+  const k1 = Math.min(K - 1, k0 + 1);
+  const t = stage - k0;
+  const rank = (k: number): number => {
+    const st = stages[k];
+    const v = (j: number): number => (isNum(st[j]) ? st[j] : 0);
+    let r = 0;
+    for (let j = 0; j < n; j++) if (j !== i && (dir * (v(j) - v(i)) < 0 || (v(j) === v(i) && j < i))) r++;
+    return r;
+  };
+  const a = rank(k0);
+  return a + (rank(k1) - a) * t;
 }
 
 function barHandle(
@@ -288,8 +344,21 @@ function lineHandle(
   const xsAll: number[] = Array.isArray(params["x"]) && (params["x"] as unknown[]).every(isNum) ? (params["x"] as number[]).slice(0, n) : Array.from({ length: n }, (_, j) => (Array.isArray(params["x"]) ? j : j + 1));
   let fromIndex = from !== undefined ? xsAll.findIndex((x) => x >= from) : Math.ceil(n / 2);
   if (fromIndex < 1) fromIndex = Math.max(1, Math.ceil(n / 2));
+  // A staged series (rows of values, one per stage) usually holds the rest
+  // of the line only in a LATER row — the animate after the question is the
+  // reveal. The viewer draws every point a row from this stage on has; each
+  // one's number is this stage's, else the first later row's.
+  const later: (number | null)[][] = [];
+  if (Array.isArray(src["values"]) && Array.isArray((src["values"] as unknown[])[0])) {
+    const rows = src["values"] as unknown[];
+    for (let r = clamp(Math.round(stage), 0, rows.length - 1) + 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (Array.isArray(row)) later.push(row.map((v) => (isNum(v) ? v : null)));
+    }
+  }
+  const at = (j: number): number | null => cur.row[j] ?? later.find((row) => row[j] !== null && row[j] !== undefined)?.[j] ?? null;
   const idx: number[] = [];
-  for (let j = fromIndex; j < n; j++) if (cur.row[j] !== null) idx.push(j);
+  for (let j = fromIndex; j < n; j++) if (at(j) !== null) idx.push(j);
   if (idx.length === 0) return `guess: "${part}" — nothing left to draw after from`;
   const given: { x: number; v: number }[] = [];
   for (let j = 0; j < fromIndex; j++) if (cur.row[j] !== null) given.push({ x: xsAll[j], v: cur.row[j]! });
@@ -300,7 +369,7 @@ function lineHandle(
     part,
     shows: [part],
     kind: "curve",
-    truth: idx.map((j) => cur.row[j]!),
+    truth: idx.map((j) => at(j)!),
     min,
     max,
     step,
@@ -317,17 +386,66 @@ function lineHandle(
 }
 
 /** Where pie_chart (scenes/packs/data.yaml) draws its circle — the same
- *  arithmetic as the template, then the page's fit. Keep the two in step. */
+ *  arithmetic as the template, then the page's fit. Keep the two in step:
+ *  the content area by default, a radius as large as the box allows with
+ *  every slice's name inside it at every stage (capped at 270), names at
+ *  24 units unless 22 or 20 buys more than a tenth of the radius. */
 export function pieGeometry(params: Record<string, unknown>, fit?: LayoutResult["fit"]): { centre: Pt; radius: number } {
   const b = params["box"] as { x?: unknown; y?: unknown; w?: unknown; h?: unknown } | undefined;
   const boxed = b && [b.x, b.y, b.w, b.h].every(isNum) && (b.w as number) > 0 && (b.h as number) > 0;
+  const content = contentBox();
   const area = boxed
     ? { x0: b!.x as number, y0: b!.y as number, x1: (b!.x as number) + (b!.w as number), y1: (b!.y as number) + (b!.h as number) }
-    : { x0: 150, y0: 60, x1: 850, y1: 640 };
+    : { x0: content.x, y0: content.y, x1: content.x + content.w, y1: content.y + content.h };
   if (typeof params["title"] === "string" && params["title"].trim() !== "") area.y1 = Math.min(area.y1, 650);
-  const r = Math.max(40, Math.min((area.x1 - area.x0) / 2 - 150, (area.y1 - area.y0) / 2 - 40));
+  const r = pieRadius(params, area);
   const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
   return { centre: [((area.x0 + area.x1) / 2) * s + dx, ((area.y0 + area.y1) / 2) * s + dy], radius: r * s };
+}
+
+function pieRadius(params: Record<string, unknown>, area: { x0: number; y0: number; x1: number; y1: number }): number {
+  const raw = params["values"];
+  const isRow = (a: unknown): a is number[] => Array.isArray(a) && a.every((v) => typeof v === "number" && Number.isFinite(v));
+  const stages: number[][] | null = !Array.isArray(raw) || raw.length === 0 ? null : Array.isArray(raw[0]) ? (raw.every(isRow) ? (raw as number[][]).slice(0, 50) : null) : isRow(raw) ? [raw] : null;
+  const labels = (Array.isArray(params["labels"]) ? (params["labels"] as unknown[]) : []).map(String).slice(0, 8);
+  let n = labels.length;
+  if (stages) for (const st of stages) n = Math.max(n, st.length);
+  n = Math.min(8, n);
+  const K = stages ? stages.length : 1;
+  const at = (k: number, i: number): number => {
+    if (!stages) return 1;
+    const st = stages[Math.min(k, stages.length - 1)];
+    return typeof st[i] === "number" ? Math.max(0, st[i]) : 0;
+  };
+  const showPct = params["percent"] !== false;
+  const text = (i: number, sh: number) => {
+    const name = labels[i] !== undefined ? labels[i] : `Slice ${i + 1}`;
+    return showPct ? `${name}  ${Math.round(sh * 100)}%` : name;
+  };
+  const LABEL_OFF = 26, R_CAP = 270;
+  const radiusFor = (size: number): number => {
+    const hw = (area.x1 - area.x0) / 2 - 4, hh = (area.y1 - area.y0) / 2 - 4, lh = (size * 1.25) / 2;
+    let r = Math.min(R_CAP, hw, hh - 4);
+    for (let k = 0; k < K; k++) {
+      const row = Array.from({ length: n }, (_, i) => at(k, i));
+      const tot = row.reduce((a, v) => a + v, 0);
+      let a0 = 0;
+      for (let i = 0; i < n; i++) {
+        const sh = tot > 0 ? row[i] / tot : 1 / Math.max(1, n);
+        const mid = a0 + sh * Math.PI;
+        a0 += sh * 2 * Math.PI;
+        const w = heuristicMeasure(text(i, sh), size).w;
+        const sn = Math.abs(Math.sin(mid)), cs = Math.abs(Math.cos(mid));
+        if (cs > 1e-6) r = Math.min(r, (hh - lh) / cs - LABEL_OFF);
+        if (sn > 1e-6) r = Math.min(r, (hw - w) / sn - LABEL_OFF);
+      }
+    }
+    return Math.max(40, r);
+  };
+  const r24 = radiusFor(24), r20 = radiusFor(20);
+  if (r24 >= r20 * 0.9) return r24;
+  const r22 = radiusFor(22);
+  return r22 >= r20 * 0.9 ? r22 : r20;
 }
 
 /** The pie as laid out (logical): a slice's wedge starts at the centre and
@@ -496,7 +614,30 @@ function unionBox(a: BBox, b: BBox): BBox {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>): GuessHandle | string | null {
+/**
+ * The people of population `el` as the layout drew them: each person's centre
+ * and height, read back from its body outline (layout/population.ts bodyPts:
+ * its first and last points sit ±0.07 h either side of the centre, 0.115 h
+ * above it), in slot order. Null when the people are not found.
+ */
+function drawnPeople(el: SpecElement, drawables: Drawable[]): { centres: Pt[]; h: number } | null {
+  const re = new RegExp(`^${el.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}__p(\\d+)_b$`);
+  const centres: Pt[] = [];
+  let h = 0;
+  for (const d of leafDrawables(drawables)) {
+    const m = re.exec(d.id);
+    if (!m || !("pts" in d) || d.pts.length < 17) continue;
+    const a = d.pts[0], b = d.pts[16];
+    const hh = (a[0] - b[0]) / 0.14;
+    if (!(hh > 0)) continue;
+    centres[Number(m[1]) - 1] = [(a[0] + b[0]) / 2, a[1] - 0.115 * hh];
+    h = Math.max(h, hh);
+  }
+  if (centres.length === 0 || centres.some((c) => c === undefined)) return null;
+  return { centres, h };
+}
+
+function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>, drawables: Drawable[] = []): GuessHandle | string | null {
   for (const el of spec.elements ?? []) {
     if (el.type !== "population" || !part.startsWith(`${el.id}_`)) continue;
     const want = part.slice(el.id.length + 1).toLowerCase();
@@ -517,6 +658,31 @@ function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>): G
       if (b) box = box ? unionBox(box, b) : b;
     }
     const ids = [el.id, ...keys.map((k) => `${el.id}_${k}`)];
+    // The people as drawn: a sweep is measured across THEM (the element's
+    // box also holds its legend), and an order that follows the place lets a
+    // press mark up to the person under it.
+    const drawn = drawnPeople(el, drawables);
+    let people: GuessHandle["people"];
+    if (drawn) {
+      const counts = populationCounts(el).states;
+      const si = counts.findIndex((c) => c.name === state);
+      const order = orderOf(el, state);
+      let seq: number[] | null = null;
+      if (si > 0 && (order === "rows" || order === "cluster")) {
+        const seed = typeof el.seed === "number" && Number.isFinite(el.seed) ? Math.round(el.seed) : 1;
+        // The states written before it keep their people; it takes the rest in its own order.
+        const owner = assignStates(drawn.centres, counts.slice(0, si), el);
+        seq = slotSequence(drawn.centres, order, seed * 1009 + si * 7919).filter((k) => owner[k] === 0);
+      }
+      const xs = drawn.centres.map((c) => c[0]), ys = drawn.centres.map((c) => c[1]);
+      const hw = drawn.h * 0.3, hh = drawn.h * 0.5;
+      const own = { x: Math.min(...xs) - hw, y: Math.min(...ys) - hh, w: Math.max(...xs) - Math.min(...xs) + 2 * hw, h: Math.max(...ys) - Math.min(...ys) + 2 * hh };
+      people = { ...drawn, seq, box: own };
+      if (!box) box = own;
+    }
+    // The lowest of the people and their legend: the pill hangs under both.
+    const drawnBoxes = [people?.box, boxes.get(`${el.id}_legend`), ...keys.map((k) => boxes.get(`${el.id}_${k}`))].filter((b): b is BBox => b !== undefined);
+    const under = drawnBoxes.length > 0 ? Math.min(...drawnBoxes.map((b) => b.y)) : box ? box.y : null;
     return {
       part,
       shows: ids.filter((id) => boxes.has(id) || id === el.id),
@@ -530,9 +696,29 @@ function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>): G
       unit: "",
       ...(varName ? { paths: [`vars.${varName}`] } : { population: { id: el.id, state } }),
       ...(box ? { box } : {}),
+      ...(people ? { people } : {}),
+      ...(under !== null ? { under } : {}),
     };
   }
   return null;
+}
+
+/** count: the person a pointer at `p` is nearest (slot index), or -1 left of them all. */
+export function personAt(h: GuessHandle, p: Pt): number {
+  const pp = h.people;
+  if (!pp || pp.centres.length === 0) return -1;
+  const minX = Math.min(...pp.centres.map((c) => c[0]));
+  if (p[0] < minX - pp.h * 0.45) return -1;
+  let best = 0;
+  let bestD = Infinity;
+  pp.centres.forEach((c, k) => {
+    const d = Math.hypot(c[0] - p[0], c[1] - p[1]);
+    if (d < bestD) {
+      bestD = d;
+      best = k;
+    }
+  });
+  return best;
 }
 
 function scaleHandle(spec: Spec, part: string): GuessHandle | null {
@@ -540,10 +726,12 @@ function scaleHandle(spec: Spec, part: string): GuessHandle | null {
   const sc = authoredScales(spec).find((s) => s.id === part);
   if (!sc || typeof sc.value !== "number") return null;
   const g = scaleGeometry(sc);
-  const step = g.kind === "log" ? 0 : niceStep(g.max - g.min);
+  // A slider's arrow keys fine-tune (a tenth of the line's step; Shift: ten of them).
+  const step = g.kind === "log" ? 0 : sc.slider === true ? niceStep(g.max - g.min) / 10 : niceStep(g.max - g.min);
   return {
     part: `${sc.id}_answer`,
-    shows: [`${sc.id}_answer`],
+    // A slider (spec/slider.ts): the ask draws its track too.
+    shows: sc.slider === true ? [sc.id, `${sc.id}_answer`] : [`${sc.id}_answer`],
     kind: "point",
     truth: [g.value],
     min: g.min,
@@ -602,11 +790,18 @@ export function valueAt(h: GuessHandle, p: Pt, current: number[], prev?: Pt | nu
       };
       // Every point whose x the stroke crossed since the last sample, at the
       // stroke's height there; and the nearest point to where it is now.
+      let crossed = false;
       for (let j = 0; j < h.xs.length; j++) {
         const x = h.xs[j];
-        if (x >= lo && x <= hi && hi > lo) set(j, b[1] + ((x - b[0]) / (a[0] - b[0])) * (a[1] - b[1]));
+        if (x >= lo && x <= hi && hi > lo) {
+          set(j, b[1] + ((x - b[0]) / (a[0] - b[0])) * (a[1] - b[1]));
+          crossed = true;
+        }
       }
-      set(nearestIndex(h.xs, a[0]), a[1]);
+      // Past either end of the line a stroke that crossed the end point has
+      // set it where it crossed: the pointer running on must not drag it.
+      const first = Math.min(...h.xs), last = Math.max(...h.xs);
+      if (!crossed || (a[0] >= first && a[0] <= last)) set(nearestIndex(h.xs, a[0]), a[1]);
       return out;
     }
     case "angle": {
@@ -637,8 +832,14 @@ export function valueAt(h: GuessHandle, p: Pt, current: number[], prev?: Pt | nu
       return out;
     }
     case "count": {
-      if (!h.box) return current;
-      const f = clamp((p[0] - h.box.x) / (h.box.w || 1), 0, 1);
+      if (h.people?.seq) {
+        // Up to the person under the pointer, in the order the state takes them.
+        const k = personAt(h, p);
+        return [k < 0 ? 0 : Math.min(h.max, h.people.seq.indexOf(k) + 1)];
+      }
+      const b = h.people?.box ?? h.box;
+      if (!b) return current;
+      const f = clamp((p[0] - b.x) / (b.w || 1), 0, 1);
       return [Math.round(f * h.max)];
     }
     case "point": {
@@ -700,6 +901,36 @@ export function nearestDivider(values: number[], f: number): number {
     }
   }
   return best;
+}
+
+/**
+ * Where a new stroke on a sketched line starts from (logical), so a press
+ * anywhere to the right of the given line draws a joined line: the nearest
+ * point already drawn to the left of the press (`touched`), else the given
+ * line's last point. A redraw over drawn points starts from its left
+ * neighbour, so nothing to the left is wiped. Null: not a sketched line.
+ */
+export function strokeStart(h: GuessHandle, values: number[], touched: ReadonlySet<number>, p: Pt): Pt | null {
+  if (h.kind !== "curve" || !h.toDomain || !h.toLogical || !h.xs) return null;
+  const x = h.toDomain(p)[0];
+  let best = -1;
+  for (const j of touched) if (h.xs[j] < x && (best < 0 || h.xs[j] > h.xs[best])) best = j;
+  if (best >= 0) return h.toLogical([h.xs[best], values[best]]);
+  const end = h.given && h.given.length > 0 ? h.given[h.given.length - 1] : null;
+  return end && end.x < x ? h.toLogical([end.x, end.v]) : null;
+}
+
+/** The entries of a sketched line a stroke from `prev` to `p` set (as valueAt does). */
+export function strokeEntries(h: GuessHandle, p: Pt, prev?: Pt | null): number[] {
+  if (h.kind !== "curve" || !h.toDomain || !h.xs) return [];
+  const a = h.toDomain(p);
+  const b = prev ? h.toDomain(prev) : a;
+  const lo = Math.min(a[0], b[0]), hi = Math.max(a[0], b[0]);
+  const out = new Set<number>([nearestIndex(h.xs, a[0])]);
+  h.xs.forEach((x, j) => {
+    if (x >= lo && x <= hi && hi > lo) out.add(j);
+  });
+  return [...out];
 }
 
 function nearestIndex(xs: number[], x: number): number {
@@ -838,9 +1069,16 @@ export function pointFor(h: GuessHandle, values: number[], j = 0): Pt | null {
       const a = f * 2 * Math.PI;
       return [h.centre[0] + h.radius * Math.sin(a), h.centre[1] + h.radius * Math.cos(a)];
     }
-    case "count":
+    case "count": {
       // Under the people (and their legend): over them it hides the faces it counts.
-      return h.box ? [h.box.x + (values[0] / (h.max || 1)) * h.box.w, h.box.y - 125] : null;
+      if (!h.box) return null;
+      // Level with the last person marked, when the marks follow the place.
+      const seq = h.people?.seq;
+      const n = Math.round(values[0]);
+      const b = h.people?.box ?? h.box;
+      const x = seq && n > 0 && seq[n - 1] !== undefined ? h.people!.centres[seq[n - 1]][0] : b.x + (values[0] / (h.max || 1)) * b.w;
+      return [x, h.box.y - 125];
+    }
     case "point":
       return h.scale ? [scaleGeometry(h.scale).xAt(values[0]), scaleGeometry(h.scale).y + 18] : null;
     case "market": {
@@ -854,6 +1092,18 @@ export function pointFor(h: GuessHandle, values: number[], j = 0): Pt | null {
       return at ? h.toLogical(at) : null;
     }
   }
+}
+
+/**
+ * count: where the value pill hangs (logical) — its TOP edge, under the
+ * people and their legend (W25: lifted from 125 under the box it sat on the
+ * legend, or on the last row, wherever the drawing was small), level with the
+ * last person marked when the marks follow the place.
+ */
+export function countPillPoint(h: GuessHandle, values: number[]): Pt | null {
+  const p = pointFor(h, values);
+  if (!p || h.kind !== "count") return p;
+  return [p[0], h.under ?? h.box?.y ?? p[1]];
 }
 
 /** A pie handle's divider `j` at `values`, as a clockwise fraction from 12 o'clock. */

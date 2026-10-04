@@ -10,7 +10,7 @@
     "shape": "rect",
     "text": "J",
     "x": 140,
-    "y": 525,
+    "y": 540,
     "width": 210,
     "height": 210,
     "font_size": 140
@@ -21,7 +21,7 @@
     "shape": "rect",
     "text": "Q",
     "x": 380,
-    "y": 525,
+    "y": 540,
     "width": 210,
     "height": 210,
     "font_size": 140
@@ -32,7 +32,7 @@
     "shape": "rect",
     "text": "X",
     "x": 620,
-    "y": 525,
+    "y": 540,
     "width": 210,
     "height": 210,
     "font_size": 140
@@ -43,7 +43,7 @@
     "shape": "rect",
     "text": "Z",
     "x": 860,
-    "y": 525,
+    "y": 540,
     "width": 210,
     "height": 210,
     "font_size": 140
@@ -53,7 +53,7 @@
     "type": "text",
     "text": "New Jersey",
     "x": 140,
-    "y": 375,
+    "y": 395,
     "font_size": 34,
     "style": {
      "color": "#2f6b8f"
@@ -64,7 +64,7 @@
     "type": "text",
     "text": "Arizona",
     "x": 860,
-    "y": 375,
+    "y": 395,
     "font_size": 34,
     "style": {
      "color": "#2f6b8f"
@@ -75,7 +75,7 @@
     "type": "text",
     "text": "Texas",
     "x": 620,
-    "y": 375,
+    "y": 395,
     "font_size": 34,
     "style": {
      "color": "#2f6b8f"
@@ -86,7 +86,7 @@
     "type": "text",
     "text": "New Mexico",
     "x": 620,
-    "y": 325,
+    "y": 335,
     "font_size": 34,
     "style": {
      "color": "#2f6b8f"
@@ -97,7 +97,7 @@
     "type": "text",
     "text": "none!",
     "x": 380,
-    "y": 375,
+    "y": 395,
     "font_size": 40,
     "style": {
      "color": "#b5482e"
@@ -108,7 +108,7 @@
     "type": "text",
     "text": "Albuquerque",
     "x": 430,
-    "y": 250,
+    "y": 225,
     "font_size": 48,
     "style": {
      "color": "#8f887c"
@@ -119,7 +119,7 @@
     "type": "text",
     "text": "Quebec",
     "x": 500,
-    "y": 250,
+    "y": 225,
     "font_size": 48,
     "style": {
      "color": "#8f887c"
@@ -130,7 +130,7 @@
     "type": "text",
     "text": "2 Qs",
     "x": 720,
-    "y": 250,
+    "y": 225,
     "font_size": 48,
     "style": {
      "color": "#b5482e"
@@ -164,15 +164,15 @@
     "speak": "All four are rare letters in English. But only one is missing completely."
    },
    {
-    "quiz": {
-     "question": "Which letter appears in no US state name?",
-     "choices": [
-      "J",
-      "Q",
-      "X",
-      "Z"
+    "ask": {
+     "question": "Which letter appears in no US state name? Tap it.",
+     "choose": [
+      "t_J",
+      "t_Q",
+      "t_X",
+      "t_Z"
      ],
-     "correct": 2,
+     "answer": "t_Q",
      "right": "Q. Not one of the fifty states has a Q in its name.",
      "wrong": "Try spelling the states with the most unusual names."
     }
@@ -234,6 +234,7 @@
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }

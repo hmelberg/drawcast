@@ -43,7 +43,8 @@
     "width": 700,
     "cites": [
      "gallivan"
-    ]
+    ],
+    "unit": "folds"
    },
    {
     "id": "old",
@@ -102,11 +103,29 @@
     "id": "t13",
     "type": "text",
     "text": "2011: 13",
-    "x": 805,
-    "y": 545,
+    "x": 740,
+    "y": 548,
     "font_size": 34,
     "style": {
      "color": "#8f887c"
+    }
+   },
+   {
+    "id": "mark13",
+    "type": "path",
+    "points": [
+     [
+      605,
+      482
+     ],
+     [
+      605,
+      528
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 4
     }
    },
    {
@@ -357,6 +376,7 @@
    },
    {
     "draw": [
+     "mark13",
      "t13"
     ],
     "speak": "Nine years later, students from Saint Mark's School taped toilet paper down a corridor at MIT and managed thirteen.",
@@ -421,6 +441,7 @@
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }

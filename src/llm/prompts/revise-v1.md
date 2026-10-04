@@ -66,7 +66,8 @@ How to read it, in full:
   the list is CLOSED — a spoken line may perfectly well begin "Kort sagt:",
   and only this list keeps that from being read as a setting: `lang:`,
   `voice:` (male/female), `level:`, `record:`, `feedback:` (plain, warm,
-  dry or {json}), `canvas:`, `domain:`,
+  dry or {json}), `affirm:` (plain, false or [json]), `heading:` (text or
+  false), `page:`, `canvas:`, `domain:`,
   `vars: {json}`, `text: {json}`, `zoom_from:`, `book: {json}` (a book's
   layout — keep it as it is), `use: <template>` (the
   spec's `template`), `with: {json}` (its `params`; or `with:` alone and the

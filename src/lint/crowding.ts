@@ -26,6 +26,7 @@
 import { lintableLeaves, type LintIssue } from "./lint";
 import { SUB_SUFFIXES, type Drawable, type TextDrawable } from "../layout/model";
 import type { Command, Spec } from "../spec/types";
+import { DEFAULT_HEADING } from "../spec/card";
 
 /** More of the cast's own text items than this on one page state is crowding. */
 export const CROWDING_MAX_TEXTS = 14;
@@ -123,14 +124,16 @@ export function crowdingStates(drawables: Drawable[], commands: Command[] | unde
 
 /** The ids the crowding lint counts for `spec`: its own elements (and their sub-drawables), code panes excluded. */
 export function castOwnIds(spec: Spec, minted: Record<string, string[]> = {}): (id: string) => boolean {
-  const own = new Set((spec.elements ?? []).filter((e) => e.type !== "code").map((e) => e.id));
+  // Not the default heading (spec/card.ts): it is the page's frame, which
+  // every titled page has — counting it would make the cap one text lower.
+  const own = new Set((spec.elements ?? []).filter((e) => e.type !== "code" && !e.id.startsWith(`${DEFAULT_HEADING}_`)).map((e) => e.id));
   // What an element of the cast mints under ids of its own (a population's
   // sets and legend) is the cast's too.
   for (const e of spec.elements ?? []) if (e.type === "population") for (const k of minted[e.id] ?? []) own.add(k);
   return (id) => own.has(id) || SUB_SUFFIXES.some((s) => id.endsWith(`_${s}`) && own.has(id.slice(0, -(s.length + 1))));
 }
 
-/** Top-level id → the population or deck it belongs to (its sets and legend, or its cards and boxes, are one figure). */
+/** Top-level id → the population, deck or number line it belongs to (its sets and legend, its cards and boxes, its tick numbers are one figure). */
 export function populationFigures(spec: Spec, minted: Record<string, string[]> = {}): (id: string) => string | undefined {
   const of = new Map<string, string>();
   for (const e of spec.elements ?? []) if (e.type === "population") for (const k of minted[e.id] ?? []) of.set(k, e.id);
@@ -139,7 +142,12 @@ export function populationFigures(spec: Spec, minted: Record<string, string[]> =
   // expanded spec keeps the flag on the cards' group.)
   const decks = (spec.elements ?? []).filter((e) => (e.type === "cards" || e.type === "group") && (e as { deck?: unknown }).deck === true).map((e) => e.id);
   const deckOf = (id: string) => decks.find((d) => id === d || new RegExp(`^${d.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}_(\\d+|bin_\\d+)(_|$)`).test(id));
-  return (id) => of.get(id) ?? deckOf(id);
+  // A number line's tick numbers and its unit are its axis — one figure, as a
+  // chart template's axis numbers are (spec/scale.ts; the expanded scale is
+  // the group that carries min and max).
+  const scales = (spec.elements ?? []).filter((e) => e.type === "group" && typeof e.min === "number" && typeof e.max === "number" && (e.members ?? []).includes(`${e.id}_line`)).map((e) => e.id);
+  const scaleOf = (id: string) => scales.find((sc) => id.startsWith(`${sc}_`) && /^_(tick_\d+_num|unit)$/.test(id.slice(sc.length)));
+  return (id) => of.get(id) ?? deckOf(id) ?? scaleOf(id);
 }
 
 /**

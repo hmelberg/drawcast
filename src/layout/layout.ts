@@ -14,6 +14,7 @@ import { effectiveTextStyle } from "./text-style";
 import { setMathTextStyle } from "./math";
 import { setMathFont, setMathHand } from "../scenes/engines";
 import type { Spec } from "../spec/types";
+import { lintScaleMarkerRoom } from "../lint/scale-marker-room";
 import { coVisible, idsOf, lintAskStage, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
 import { layoutElements, noIconWarning, type PieceGeometry } from "./tier2";
 import { iconAsk, isIconData } from "../spec/icon-data";
@@ -21,7 +22,8 @@ import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
 import { setFigureLocale } from "../scenes/kit";
 import { setHeadingBox } from "./axes";
-import { HEADING_Y } from "../spec/card";
+import { contentBox, FIT_BAND, GUTTER, HEADING_Y, MARGIN, PAGE_H, PAGE_W } from "./page";
+import { pageVAlign, pinnedIds, settleBlocker, settleOffset, shiftAll } from "./settle";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
 import { annotationDrawables, DEFAULT_FIT, padFor } from "./annotate";
@@ -34,10 +36,10 @@ import type { LayoutOverrides } from "./posed";
 import { heuristicMeasure, type MeasureFn } from "./measure";
 import { drawablesForId, flattenDrawables, leafDrawables, Z_TOP, type Drawable, type Pt } from "./model";
 import { isScratchPart, scratchCards } from "../spec/scratch";
-import { authoredCards } from "../spec/cards";
-import { domainPlot, frameToCanvas, linearScale, setHeadingFloor, worldBounds, type DataFrame } from "./canvas";
+import { authoredCards, cardsGeometryIn } from "../spec/cards";
+import { domainPlot, frameToCanvas, headingFloorY, linearScale, setHeadingFloor, worldBounds, type DataFrame } from "./canvas";
 import { figureSplit } from "./figure-split";
-import { fitSceneLayout, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
+import { fitSceneLayout, GROW_REGION, GROW_REGION_BARE, growSceneLayout, resolveTemplateBox, type TemplateFit } from "./template-fit";
 import type { SceneLayout } from "../scenes/types";
 import { FIT_NAMES, isFitName } from "./regions";
 import { expandBoxAnimate, readParam, withOverrides } from "../render/params";
@@ -179,6 +181,8 @@ export function layoutSpec(
   let attached: Record<string, string[]> = {};
   let drawnWith: Record<string, string[]> = {};
   let drawnAfter: Record<string, string[]> = {};
+  /** A template element's own labels, drawn right after it (W25). */
+  const templateFollowers: Record<string, string[]> = {};
   let fitGroups: Record<string, string[]> = {};
   let namedAnchors: Record<string, Record<string, Pt>> = {};
   let pictures: NonNullable<LayoutResult["pictures"]> = {};
@@ -206,9 +210,13 @@ export function layoutSpec(
     if (title) {
       const font = typeof title.font_size === "number" ? title.font_size : 36;
       const w = measure(title.text as string, font).w;
-      const underline = HEADING_Y - font * 0.82;
-      setHeadingBox({ x: 500 - w / 2, y: underline, w, h: 750 - underline });
-      setHeadingFloor(underline);
+      // The underline as drawn (its points are placed for the heading's
+      // drawn size, spec/card.ts headingElements), else estimated.
+      const line = (spec.elements ?? []).find((e) => e.id === title.id.replace(/_title$/, "_line"));
+      const ys = Array.isArray(line?.points) ? (line.points as unknown[]).flatMap((p) => (Array.isArray(p) && typeof p[1] === "number" ? [p[1] as number] : [])) : [];
+      const underline = ys.length > 0 ? Math.min(...ys) : HEADING_Y - font * 0.82;
+      setHeadingBox({ x: PAGE_W / 2 - w / 2, y: underline, w, h: PAGE_H - underline });
+      setHeadingFloor(underline, effectiveTextStyle(spec).scale);
     } else {
       setHeadingBox(null);
       setHeadingFloor(null);
@@ -227,7 +235,7 @@ export function layoutSpec(
         // brings it in, so it is neither grown nor — under a box — kept.
         world = box ? null : worldBounds(sceneLayout.world);
         if (box && !native) fit = fitSceneLayout(sceneLayout, box, measure) ?? undefined;
-        else if (!box && !native && !world && mayGrow(spec, scene.manifest)) fit = growSceneLayout(sceneLayout, measure) ?? undefined;
+        else if (!box && !native && !world && mayGrow(spec, scene.manifest)) fit = growSceneLayout(sceneLayout, measure, headingFloorY() === null ? GROW_REGION_BARE : GROW_REGION) ?? undefined;
         if (fit && fit.s < FIT_SCALE_FLOOR) {
           const where = isFitName(rawBox) ? `"${rawBox}"` : JSON.stringify(fit.box);
           issues.push({
@@ -279,6 +287,19 @@ export function layoutSpec(
         if (sceneLayout.groups) groups = { ...sceneLayout.groups };
         if (sceneLayout.attached) attached = { ...sceneLayout.attached };
         if (sceneLayout.drawnWith) drawnWith = { ...sceneLayout.drawnWith };
+        if (sceneLayout.warnings) warnings.push(...sceneLayout.warnings.map((w) => `template "${spec.template}": ${w}`));
+        // A template element's own label comes with it (W25): drawing pt_0 or
+        // vline_0 brings pt_0_label / label_vline_0 right after it, as a
+        // measure brings label_<id> — not left for the final draw. Its own
+        // follower list (attached) and the label_<id> naming both count; a
+        // label the cast draws itself is drawn where the cast says (plan.ts).
+        {
+          const inOrder = new Set(sceneLayout.order);
+          for (const id of sceneLayout.order) {
+            const own = [...(sceneLayout.attached?.[id] ?? []), ...(inOrder.has(`label_${id}`) ? [`label_${id}`] : [])].filter((l) => l !== id && inOrder.has(l));
+            if (own.length > 0) templateFollowers[id] = [...new Set(own)];
+          }
+        }
         drawables.push(...sceneLayout.drawables);
         // A bar's icon keyword with no artwork (round 7 §6): named, as a node's
         // is — also when NONE of the keywords resolved (withIconData then makes
@@ -314,6 +335,7 @@ export function layoutSpec(
     }
   }
 
+  drawnAfter = { ...templateFollowers };
   if (spec.elements && spec.elements.length > 0) {
     // `drawables` here is the template's output — an at.ref may name a template id.
     // The figure writes numbers the way the voice reads them: 8,7 in a
@@ -334,7 +356,8 @@ export function layoutSpec(
     namedAnchors = tier2.namedAnchors;
     pictures = tier2.pictures;
     measures = tier2.measures;
-    drawnAfter = tier2.drawnAfter;
+    drawnAfter = { ...templateFollowers };
+    for (const [id, ls] of Object.entries(tier2.drawnAfter)) drawnAfter[id] = [...new Set([...(drawnAfter[id] ?? []), ...ls])];
     for (const el of spec.elements) {
       // A show:none code element draws nothing (it only feeds params), so it
       // must not become a command-addressable id or an implicit final draw.
@@ -539,6 +562,8 @@ export function layoutSpec(
   // A question whose cards or options sit over the figure (spec round 6 §6).
   const cardIds = new Set(authoredCards(spec).map((c) => c.id));
   layoutIssues.push(...lintAskStage(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], (id) => cardIds.has(id), composed));
+  // A guessed scale's marker and number need their band over the line clear (W25).
+  layoutIssues.push(...lintScaleMarkerRoom(spec, drawables, measure, (id) => pieceGroups[id] ?? groups[id]));
   const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;
   if (!codeEl || atDraw === null) {
     issues.push(...layoutIssues);
@@ -566,6 +591,15 @@ export function layoutSpec(
     });
   }
   const frame = pageFrame(spec.domain, templateFrame);
+  // Vertical settling (settle.ts): the figure, heading aside, moved as one
+  // piece so the content area's gaps above and below it are even. Last, so
+  // the lint above judged the layout as built, and everything a reader takes
+  // from this result — ink, anchors, pieces, the data mapping — agrees.
+  {
+    const scene = spec.template ? scenes[spec.template] : undefined;
+    const dy = settlePage(spec, drawables, { measure, groups, namedAnchors, pieces, world: !!world, templateBoxed: !!fit || (hasTemplate && (native || box !== null)), interactive: !!scene && (!!scene.manifest.widget || (scene.manifest.interactions?.length ?? 0) > 0) });
+    if (dy !== 0) fit = { s: 1, dx: 0, dy, box: contentBox({ heading: true }), settle: dy };
+  }
   // `{data: [x, y]}` on a template page means the template's own axes — and
   // a template that draws none reports no frame, so the data would silently
   // read a 0–100 domain. Say so (unless the params still wait on a script:
@@ -836,7 +870,12 @@ const isFrame = (d: Spec["domain"] | DataFrame | undefined): d is DataFrame => !
  * `{data: [x, y]}` form. Nothing given: logical in, logical out.
  */
 export function domainMapping(domain: Spec["domain"] | DataFrame | undefined, fit?: TemplateFit): { toLogical: (p: Pt) => Pt; deltaToLogical: (d: Pt) => Pt } {
-  if (!domain) return { toLogical: (p) => p, deltaToLogical: (d) => d };
+  // No domain: canvas units — moved only by the page's settling (settle.ts),
+  // never by a template's own fit.
+  if (!domain) {
+    const t = fit?.settle ?? 0;
+    return { toLogical: t === 0 ? (p) => p : ([x, y]) => [x, y + t], deltaToLogical: (d) => d };
+  }
   const f: DataFrame = isFrame(domain) ? domain : { x: domain.x ?? [0, 100], y: domain.y ?? [0, 100], box: domainPlot(domain) };
   const s = fit?.s ?? 1, dx = fit?.dx ?? 0, dy = fit?.dy ?? 0;
   const post = ([x, y]: Pt): Pt => [x * s + dx, y * s + dy];
@@ -902,6 +941,49 @@ function headingIntrusions(drawables: Drawable[], measure: MeasureFn, commands?:
 }
 
 /**
+ * Settle the page (settle.ts) IN PLACE and say by how much: 0 when it may
+ * not be settled or need not be. The figure is every top-level drawable but
+ * the card headings and what is pinned to the page; it is measured whole —
+ * all it ever draws, as the layout holds everything the run will show — and
+ * moved whole, its anchors and pieces with it.
+ */
+function settlePage(
+  spec: Spec,
+  drawables: Drawable[],
+  ctx: { measure: MeasureFn; groups: Record<string, string[]>; namedAnchors: Record<string, Record<string, Pt>>; pieces: Record<string, PieceGeometry>; world: boolean; templateBoxed: boolean; interactive: boolean },
+): number {
+  if (settleBlocker(spec, { ...ctx, heading: headingFloorY() !== null }) !== null) return 0;
+  const pinned = pinnedIds(spec.elements, ctx.groups);
+  const stays = (id: string): boolean => /^card_\d+_/.test(id) || [...pinned].some((p) => id === p || id.startsWith(`${p}_`));
+  const moving = drawables.filter((d) => !stays(d.id));
+  const ids = [...new Set(moving.map((d) => d.id))];
+  // A cards element's run is wider than its first layout: the cards go to
+  // their slots, bins and true places (spec/cards.ts geometry), which no
+  // drawable shows yet.
+  const cardRuns = authoredCards(spec).flatMap((c) => {
+    const g = cardsGeometryIn(spec, c.id);
+    if (!g) return [];
+    const at = (p: Pt): BBox => ({ x: p[0] - g.w / 2, y: p[1] - g.h / 2, w: g.w, h: g.h });
+    return [...g.home, ...g.slots, ...g.truth].map(at).concat(g.binBoxes.map((b) => ({ x: b.c[0] - b.w / 2, y: b.c[1] - b.h / 2, w: b.w, h: b.h })));
+  });
+  const union = unionBoxes([...ids.map((id) => unionBBoxForId(moving, id, ctx.measure)), ...cardRuns]);
+  if (!union) return 0;
+  const still = [...new Set(drawables.filter((d) => stays(d.id) && !/^card_\d+_/.test(d.id)).map((d) => d.id))];
+  const pinnedBoxes = still.map((id) => unionBBoxForId(drawables, id, ctx.measure)).filter((b): b is BBox => b !== null);
+  const area = contentBox({ heading: true });
+  const dy = settleOffset(union, area, { valign: pageVAlign(spec), pinned: pinnedBoxes });
+  if (dy === 0) return 0;
+  shiftAll(moving, dy);
+  for (const [id, rec] of Object.entries(ctx.namedAnchors)) if (!stays(id)) for (const k of Object.keys(rec)) rec[k] = [rec[k][0], rec[k][1] + dy];
+  for (const [id, g] of Object.entries(ctx.pieces)) {
+    if (stays(id)) continue;
+    g.apex = [g.apex[0], g.apex[1] + dy];
+    g.centroid = [g.centroid[0], g.centroid[1] + dy];
+  }
+  return dy;
+}
+
+/**
  * The chart's box on a page that also holds a drawing of the thing it
  * measures (`domain.box: "auto"`): everything beside the drawing's own
  * horizontal extent. A fixed half ("left"/"right") made every such chart a
@@ -941,7 +1023,7 @@ function autoChartBox(spec: Spec, measure: MeasureFn): { x: number; y: number; w
     add(e.x - half, e.x + half);
   }
   if (!Number.isFinite(lo)) return "full";
-  const GUTTER = 40, MARGIN = 60, BAND_Y = 95, BAND_H = 560, W = 1000;
+  const BAND_Y = FIT_BAND.y, BAND_H = FIT_BAND.h, W = PAGE_W;
   // The chart goes on the side with more room.
   return lo - MARGIN > W - MARGIN - hi
     ? { x: MARGIN, y: BAND_Y, w: Math.max(200, lo - GUTTER - MARGIN), h: BAND_H }

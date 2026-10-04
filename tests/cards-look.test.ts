@@ -198,18 +198,19 @@ describe("resolving, crediting and hoisting card icons", () => {
     const r = await resolveIcons(
       spec,
       deps({
-        [iconSearchUrl("cards-pill", DEFAULT_PREFIXES)]: { icons: ["lucide:pill"] },
-        [iconSearchUrl("cards-drop", DEFAULT_PREFIXES)]: { icons: ["lucide:droplet"] },
-        [iconSvgUrl("lucide", "pill")]: SVG,
-        [iconSvgUrl("lucide", "droplet")]: SVG,
+        // Named for the keyword: a match that names another thing is never drawn.
+        [iconSearchUrl("cards-pill", DEFAULT_PREFIXES)]: { icons: ["lucide:cards-pill"] },
+        [iconSearchUrl("cards-drop", DEFAULT_PREFIXES)]: { icons: ["lucide:cards-drop"] },
+        [iconSvgUrl("lucide", "cards-pill")]: SVG,
+        [iconSvgUrl("lucide", "cards-drop")]: SVG,
       }),
     );
-    expect(r).toEqual([{ id: "t_1", ok: true }, { id: "t_m_1", ok: true }]);
+    expect(r).toMatchObject([{ id: "t_1", ok: true }, { id: "t_m_1", ok: true }]);
     const it = (spec.elements![0].items as unknown as Record<string, string>[])[0];
     expect(iconRingsOf(it.icon_strokes)!.length).toBe(1);
-    expect(it.credit).toBe("pill from lucide · ISC");
+    expect(it.credit).toBe("cards-pill from lucide · ISC");
     expect(iconRingsOf(it.match_icon_strokes)!.length).toBe(1);
-    expect(it.match_credit).toBe("droplet from lucide · ISC");
+    expect(it.match_credit).toBe("cards-drop from lucide · ISC");
   });
 
   test("an unresolvable card icon is reported and leaves no strokes", async () => {
@@ -220,13 +221,14 @@ describe("resolving, crediting and hoisting card icons", () => {
   });
 
   test("render's order: a card icon is resolved BEFORE the cards expand, so the card and its geometry are 96 high", async () => {
-    const authored = { elements: [{ ...match, items: [{ text: "A", match: "B", icon: "cards-order-pill", match_icon: "cards-order-drop" }, { text: "C", match: "D" }] }], commands: [{ draw: ["t"] }] } as unknown as Spec;
+    // size 1: alone on the page the cards would grow (page frame 2026-10-04); here the icon's 96 is the point.
+    const authored = { elements: [{ ...match, size: 1, items: [{ text: "A", match: "B", icon: "cards-order-pill", match_icon: "cards-order-drop" }, { text: "C", match: "D" }] }], commands: [{ draw: ["t"] }] } as unknown as Spec;
     const before = JSON.stringify(authored);
     const icons = deps({
-      [iconSearchUrl("cards-order-pill", DEFAULT_PREFIXES)]: { icons: ["lucide:pill"] },
-      [iconSearchUrl("cards-order-drop", DEFAULT_PREFIXES)]: { icons: ["lucide:droplet"] },
-      [iconSvgUrl("lucide", "pill")]: SVG,
-      [iconSvgUrl("lucide", "droplet")]: SVG,
+      [iconSearchUrl("cards-order-pill", DEFAULT_PREFIXES)]: { icons: ["lucide:cards-order-pill"] },
+      [iconSearchUrl("cards-order-drop", DEFAULT_PREFIXES)]: { icons: ["lucide:cards-order-drop"] },
+      [iconSvgUrl("lucide", "cards-order-pill")]: SVG,
+      [iconSvgUrl("lucide", "cards-order-drop")]: SVG,
     });
     const none = async () => undefined;
     const spec = await expandedRenderSpec(authored, {
@@ -381,10 +383,11 @@ describe("the fullest icon layouts stay on the canvas", () => {
   test.each(cases)("%s — with an icon on every card", (_n, spec) => {
     expect(checkCards(withIcons(spec))).toEqual([]);
   });
-  test("they shrink only as far as they must: 72+ for an even sort of 8 and 6 pairs, never under a plain card", () => {
+  // Page frame 2026-10-04: over the caption band (y 160), not the canvas floor — 72 became 60.
+  test("they shrink only as far as they must: 60+ for an even sort of 8 and 6 pairs, never under a plain card", () => {
     const h = (spec: Spec) => cardsGeometry(withIcons(spec).elements![0] as unknown as CardsElementLike).h;
-    expect(h(cases[0][1])).toBeGreaterThanOrEqual(72);
-    expect(h(cases[2][1])).toBeGreaterThanOrEqual(72);
+    expect(h(cases[0][1])).toBeGreaterThanOrEqual(60);
+    expect(h(cases[2][1])).toBeGreaterThanOrEqual(60);
     for (const [, spec] of cases) expect(h(spec)).toBeGreaterThanOrEqual(56);
   });
   test("a layout with room keeps the full icon height", () => {

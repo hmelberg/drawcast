@@ -99,7 +99,8 @@ layout: |
   const span = Math.max(1, hi - lo) * 1.25;
   const mid = (hi + lo) / 2;
 
-  const plot = { x0: 120, y0: 130, x1: 910, y1: 620 };
+  // The x-axis and its name stand clear of the caption band (y < 160, page.ts).
+  const plot = { x0: 120, y0: 205, x1: 910, y1: 620 };
   const X = (t) => plot.x0 + ((t + nPre + 0.5) / (nPre + nPost)) * (plot.x1 - plot.x0);
   const Y = (v) => (plot.y0 + plot.y1) / 2 + ((v - mid) / span) * (plot.y1 - plot.y0);
 
@@ -120,7 +121,7 @@ layout: |
 
   push(kit.group("treat_line", [
     kit.stroke("treat__v", [[vlineX, plot.y0], [vlineX, plot.y1]], { color: C.shifted, dash: true, strokeWidth: 2.5, ms: MS.guides }),
-    kit.text("treat__t", [vlineX + 8, plot.y1 - 12], "Treatment", { fontSize: 17, anchor: "start", color: C.shifted }),
+    kit.text("treat__t", [vlineX + 8, plot.y1 - 12], "Treatment", { fontSize: 20, anchor: "start", color: C.shifted }),
   ]));
   anchors.treat_line = [vlineX, (plot.y0 + plot.y1) / 2];
 
@@ -228,7 +229,8 @@ layout: |
   }
   const span = (yMax - yMin) * 1.35;
   const mid = (yMax + yMin) / 2;
-  const plot = { x0: 120, y0: 130, x1: 850, y1: 620 };
+  // The x-axis and its name stand clear of the caption band (y < 160, page.ts).
+  const plot = { x0: 120, y0: 205, x1: 850, y1: 620 };
   const X = (x) => plot.x0 + (x / 10.4) * (plot.x1 - plot.x0);
   const Y = (v) => (plot.y0 + plot.y1) / 2 + ((v - mid) / span) * (plot.y1 - plot.y0);
   const sample = (fn, a, b) => {
@@ -250,7 +252,7 @@ layout: |
 
   push(kit.group("treat_line", [
     kit.stroke("treatv__l", [[X(treatAt), plot.y0], [X(treatAt), plot.y1]], { color: C.shifted, dash: true, strokeWidth: 2.5, ms: MS.guides }),
-    kit.text("treatv__t", [X(treatAt) + 8, plot.y1 - 12], "Policy", { fontSize: 17, anchor: "start", color: C.shifted }),
+    kit.text("treatv__t", [X(treatAt) + 8, plot.y1 - 12], "Policy", { fontSize: 20, anchor: "start", color: C.shifted }),
   ]));
   anchors.treat_line = [X(treatAt), (plot.y0 + plot.y1) / 2];
 
@@ -365,7 +367,8 @@ layout: |
   for (let x = -10; x <= 10; x += 0.5) { yMin = Math.min(yMin, f(x) - noise); yMax = Math.max(yMax, f(x) + noise); }
   const span = (yMax - yMin) * 1.3;
   const mid = (yMax + yMin) / 2;
-  const plot = { x0: 120, y0: 130, x1: 900, y1: 620 };
+  // The x-axis and its name stand clear of the caption band (y < 160, page.ts).
+  const plot = { x0: 120, y0: 205, x1: 900, y1: 620 };
   const X = (x) => plot.x0 + ((x + 10) / 20.5) * (plot.x1 - plot.x0);
   const Y = (v) => (plot.y0 + plot.y1) / 2 + ((v - mid) / span) * (plot.y1 - plot.y0);
 
@@ -405,7 +408,7 @@ layout: |
 
   push(kit.group("cutoff_line", [
     kit.stroke("cutoff__l", [[X(0), plot.y0], [X(0), plot.y1]], { color: C.shifted, dash: true, strokeWidth: 2.5, ms: MS.guides }),
-    kit.text("cutoff__t", [X(0) + 8, plot.y1 - 12], cutLab, { fontSize: 17, anchor: "start", color: C.shifted }),
+    kit.text("cutoff__t", [X(0) + 8, plot.y1 - 12], cutLab, { fontSize: 20, anchor: "start", color: C.shifted }),
   ]));
   anchors.cutoff_line = [X(0), (plot.y0 + plot.y1) / 2];
 

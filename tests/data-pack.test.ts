@@ -499,8 +499,9 @@ describe("line_chart", () => {
     const l = line({ x: [0, 1, 2], values: [1, 2, 3, 4, 5] });
     const pts = stroke(l, "line_1__l")!.pts;
     expect(pts[2][1]).toBeCloseTo(Y(3, 3), 6);
-    const y1 = flattenDrawables(l.drawables).find((d) => d.id === "axes__y1") as TextDrawable;
-    expect(y1.text).toBe("3.2");
+    // The round y ticks (W4) stop at 3 — a scale calibrated to 5 would reach 5.
+    const yt = flattenDrawables(l.drawables).filter((d) => /^axes__yt\d+$/.test(d.id)) as TextDrawable[];
+    expect(yt.map((d) => d.text)).toEqual(["0", "1", "2", "3"]);
   });
 
   // Fix round 1: an xlim/ylim narrower than the data used to put points
@@ -526,10 +527,13 @@ describe("line_chart", () => {
   // still shown bare even when its other end needs decimals.
   test("sub-unit y and integer x each get their own axis-label precision", () => {
     const l = line({ x: [0, 50], values: [0.05, 0.2415] });
-    const y0 = flattenDrawables(l.drawables).find((d) => d.id === "axes__y0") as TextDrawable;
-    const y1 = flattenDrawables(l.drawables).find((d) => d.id === "axes__y1") as TextDrawable;
-    expect(y1.text).toBe("0.26");
-    expect(y0.text).toBe("0");
+    // Round y ticks (W4): the step's own precision, zero bare.
+    const yt = flattenDrawables(l.drawables).filter((d) => /^axes__yt\d+$/.test(d.id)) as TextDrawable[];
+    expect(yt.map((d) => d.text)).toEqual(["0", "0.05", "0.10", "0.15", "0.20", "0.25"]);
+    // y_ticks: false keeps the two ends, each at its own precision.
+    const ends = line({ x: [0, 50], values: [0.05, 0.2415], y_ticks: false });
+    expect((flattenDrawables(ends.drawables).find((d) => d.id === "axes__y1") as TextDrawable).text).toBe("0.26");
+    expect((flattenDrawables(ends.drawables).find((d) => d.id === "axes__y0") as TextDrawable).text).toBe("0");
     const x0 = flattenDrawables(l.drawables).find((d) => d.id === "axes__x0") as TextDrawable;
     const x1 = flattenDrawables(l.drawables).find((d) => d.id === "axes__x1") as TextDrawable;
     expect(x0.text).toBe("0");
@@ -677,6 +681,8 @@ describe("line race", () => {
       const l = line({ ...grow, x_window: 5, stage });
       return (flattenDrawables(l.drawables).find((d) => d.id === "line_1__l") as StrokeDrawable).pts;
     };
+    // The plot's right edge gives way to the end label's width (Finding C1).
+    const plot = { ...plotArea(), x1: line({ ...grow, x_window: 5, stage: 9 }).frame!.box.x1 };
     // Stage 9: indices 0..9 revealed, window [4, 9] — six points, spanning the
     // full plot width. Indices 0..3 have left the frame entirely.
     const early = ptsAt(9);
@@ -1804,7 +1810,7 @@ describe("heatmap", () => {
     const tall = at(500);
     expect(tall.issues).toEqual([]);
     expect(namesOf(tall)).toHaveLength(12);
-    expect(namesOf(tall)[0].fontSize).toBe(18);
+    expect(namesOf(tall)[0].fontSize).toBe(21); // W4: the full size is 21 (was 18)
 
     // The band the old constant overlapped in: names must SHRINK, stay at or
     // above the lint's floor, and still not collide (which `issues` proves).

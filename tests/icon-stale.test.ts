@@ -46,7 +46,7 @@ describe("stale icon strokes", () => {
     // Edited: the old strokes are replaced.
     node.icon = { of: "stale-dolphin", set: "twemoji" };
     const r = await resolveIcons(spec as never, deps(routes));
-    expect(r).toEqual([{ id: "n", ok: true }]);
+    expect(r).toMatchObject([{ id: "n", ok: true }]);
     expect(node.icon_strokes).not.toBe(first);
     expect(node.icon_key).toBe("stale-dolphin@twemoji");
     expect(node.credit).toBe("stale-dolphin from twemoji · CC BY 4.0");
@@ -63,14 +63,14 @@ describe("stale icon strokes", () => {
   test("an older spec (strokes, no key) is trusted as it is", async () => {
     const node = { id: "n", type: "node", shape: "rect", text: "X", icon: "anything", icon_look: "drawn", icon_strokes: "ic1:[[[0,0],[1,0],[1,1]]]" } as Record<string, unknown>;
     const d = deps({});
-    expect(await resolveIcons({ elements: [node], commands: [] } as never, d)).toEqual([{ id: "n", ok: true }]);
+    expect(await resolveIcons({ elements: [node], commands: [] } as never, d)).toMatchObject([{ id: "n", ok: true }]);
     expect(d.asked).toEqual([]);
   });
 
   test("older rings asked for as a picture: the artwork is looked up, and the rings kept when it cannot be had", async () => {
     const node = { id: "n", type: "node", shape: "rect", text: "X", icon: "anything-old", icon_strokes: "ic1:[[[0,0],[1,0],[1,1]]]" } as Record<string, unknown>;
     const d = deps({});
-    expect(await resolveIcons({ elements: [node], commands: [] } as never, d)).toEqual([{ id: "n", ok: true }]);
+    expect(await resolveIcons({ elements: [node], commands: [] } as never, d)).toMatchObject([{ id: "n", ok: true }]);
     expect(d.asked.length).toBeGreaterThan(0);
     expect(node.icon_strokes).toBe("ic1:[[[0,0],[1,0],[1,1]]]");
   });
@@ -93,7 +93,7 @@ describe("stale icon strokes", () => {
     expect(el.icon_key).toBe("stale-cow@tabler");
     const first = el.strokes;
     el.of = "stale-pig";
-    expect(await resolveIcons(spec as never, deps(routes))).toEqual([{ id: "i", ok: true }]);
+    expect(await resolveIcons(spec as never, deps(routes))).toMatchObject([{ id: "i", ok: true }]);
     expect(el.strokes).not.toBe(first);
     expect(el.icon_key).toBe("stale-pig@tabler");
     expect(iconRingsOf(el.strokes as string)).not.toBeNull();
@@ -130,7 +130,7 @@ describe("stale icon strokes", () => {
 test("an older document whose `set` the resolver once filled: a new `of` is still searched afresh", async () => {
   const el = { id: "i", type: "icon", of: "stale-pig", set: "ph", icon_key: "stale-cow@ph", strokes: "ic1:[[[0,0],[1,0],[1,1]]]", x: 1, y: 1 } as Record<string, unknown>;
   const d = deps(routes);
-  expect(await resolveIcons({ elements: [el], commands: [] } as never, d)).toEqual([{ id: "i", ok: true }]);
+  expect(await resolveIcons({ elements: [el], commands: [] } as never, d)).toMatchObject([{ id: "i", ok: true }]);
   // The search found tabler's pig (not ph's, nor a fetch pinned to the old key's set).
   expect(el.icon_key).toBe("stale-pig@tabler");
   expect(el.strokes).not.toBe("ic1:[[[0,0],[1,0],[1,1]]]");

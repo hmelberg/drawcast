@@ -97,7 +97,9 @@
       .back:hover { color: var(--rust); }
       footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.88rem; }
       @media (max-width: 860px) {
-        .wrap { flex-direction: column; gap: 1.2rem; }
+        /* stretch, not flex-start: a flex-start column sizes main to its widest
+           pre or table, and the whole page scrolls sideways on a phone. */
+        .wrap { flex-direction: column; gap: 1.2rem; align-items: stretch; padding-left: 1rem; padding-right: 1rem; }
         nav { position: static; width: 100%; columns: 2; }
       }
     </style>
@@ -114,6 +116,13 @@
         <a href="#instructions">Instructions &amp; references</a>
         <a href="#spec">The spec format</a>
         <a href="#commands">Command reference</a>
+        <a href="#page">The page</a>
+        <a href="#cards">Cards</a>
+        <a href="#scales">Number lines</a>
+        <a href="#charts">Charts</a>
+        <a href="#questions">Questions</a>
+        <a href="#icons">Icons</a>
+        <a href="#cast">The .cast script</a>
         <a href="#playlists">Multi-part drawcasts</a>
         <a href="#controls">Player controls</a>
         <a href="#share">Sharing a drawcast</a>
@@ -249,6 +258,7 @@ Show how a rent ceiling creates a shortage #norwegian #calm</code></pre>
             <tr><td><code>generic_axes_diagram</code></td><td>Single- or multi-curve plot on generic axes — production functions, dose-response, growth/decay — as qualitative shapes or an exact expression, with optional shaded regions.</td></tr>
             <tr><td><code>markov_model</code></td><td>State-transition (Markov) diagram: 2–6 states as circles, transition arrows with probability labels, self-loops, absorbing states detected automatically.</td></tr>
             <tr><td><code>cost_effectiveness_plane</code></td><td>Incremental cost vs incremental effect plane with quadrant guide captions, up to 6 intervention points, and an optional willingness-to-pay threshold line.</td></tr>
+            <tr><td><code>size_compare</code></td><td>Two to four things drawn to the same scale — planets as discs, countries as squares of their area, lengths as bars, animals as icons — with the ratio written once and, if you like, a row of copies showing how many fit. <em>Size comparisons</em> pack.</td></tr>
           </tbody>
         </table>
         <p>
@@ -258,14 +268,30 @@ Show how a rent ceiling creates a shortage #norwegian #calm</code></pre>
           Newick string), <strong>Economics</strong> (consumer choice, PPF, cost curves, payoff
           matrices, AD-AS), <strong>Evidence &amp; epidemiology</strong> (survival curves, forest
           plots, causal DAGs, epidemic compartments) and <strong>Math &amp; logic</strong> (Venn
-          diagrams, the unit circle, truth tables, argument maps, handwritten equations). All six are
-          on by default. Two more ship in the box but start off: <strong>Games</strong> (chess
+          diagrams, the unit circle, truth tables, argument maps, handwritten equations), and more
+          besides — Data charts &amp; tables, Size comparisons, Anatomy, Space and others. They are on
+          by default. Two more ship in the box but start off: <strong>Games</strong> (chess
           positions and replayed lines) and <strong>Maps</strong> (hand-sketched country outlines) —
           switch either on the same way. Toggle any pack under <strong>✦ Templates → Packs</strong>,
           which also takes it out of what the AI is offered. Marking a pack as <em>Default domain</em>
           matters only once the library outgrows the point where every template still gets a full
           entry — then its templates keep theirs.
         </p>
+        <p>
+          <code>size_compare</code> picks the drawn size from the numbers: <code>measure</code> says
+          what the value is (<code>diameter</code>, <code>length</code>, <code>area</code>,
+          <code>volume</code>, <code>mass</code>), <code>layout</code> how they stand
+          (<code>beside</code>, <code>row</code>, <code>inside</code>, <code>overlay</code>), and
+          <code>count_fit</code> fills a row with copies of the small one:
+        </p>
+        <pre><code>{ "template": "size_compare",
+  "params": { "items": [ { "name": "Sun", "value": 1392700, "unit": "km" },
+                         { "name": "Earth", "value": 12742, "unit": "km" } ],
+              "measure": "diameter", "layout": "inside", "count_fit": true },
+  "commands": [
+    { "draw": ["sun_shape", "sun_label"], "speak": "The Sun, drawn to scale." },
+    { "draw": ["earth_shape", "earth_label"], "speak": "And the Earth, to the same scale." },
+    { "draw": ["fit_row", "fit_label"], "speak": "A hundred and nine Earths would fit across it." } ] }</code></pre>
         <p>
           Anything the templates do not cover is drawn from primitives instead — axes, curves, points,
           arrows, labels, regions. You are never limited to this list; templates just make the common
@@ -309,8 +335,10 @@ Show how a rent ceiling creates a shortage #norwegian #calm</code></pre>
 
         <h2 id="spec">The spec format</h2>
         <p>
-          A drawcast is a small document — YAML by default, JSON if you prefer — with a list of
-          commands. You can read and edit it directly; the preview re-renders on
+          A drawcast is a small document with a list of commands. The editor shows it as a
+          <a href="#cast"><code>.cast</code> script</a>, and that is what Publish writes. YAML and JSON
+          are read too, and <strong>⬇ Download</strong> can save a single drawcast in any of the
+          three. They all hold the same fields, so the YAML below and a script say the same thing. You can read and edit the text directly; the preview re-renders on
           <strong>Re-render</strong>.
         </p>
         <pre><code>title: Demand increase
@@ -330,7 +358,10 @@ commands:
         <table>
           <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
           <tbody>
-            <tr><td><code>title</code></td><td>Short title, drawn above the figure.</td></tr>
+            <tr><td><code>title</code></td><td>Short title. It is also the page's heading unless you say otherwise (see <a href="#page">The page</a>).</td></tr>
+            <tr><td><code>heading</code></td><td><code>false</code> for no heading, or other words for the heading than the title.</td></tr>
+            <tr><td><code>page</code></td><td><code>{ valign: top }</code> or <code>none</code> stops the figure being centred vertically.</td></tr>
+            <tr><td><code>affirm</code></td><td>What a viewer hears after a right answer (see <a href="#replies">Replies</a>).</td></tr>
             <tr><td><code>template</code></td><td>Which template computes the geometry.</td></tr>
             <tr><td><code>params</code></td><td>That template's parameters.</td></tr>
             <tr><td><code>elements</code></td><td>Hand-placed pieces when no template fits: axes, curve, point, arrow, label, region, node, edge, annotation, path, text, shape.</td></tr>
@@ -360,8 +391,8 @@ commands:
             <tr><td><code>clear: {}</code></td><td>Hides everything visible. <code>clear: { keep: [ax, curve] }</code> spares what you list — list <em>everything</em> that should stay.</td></tr>
             <tr><td><code>pause: 0.5</code></td><td>Silence, in seconds. A beat after a reveal is worth more than it looks.</td></tr>
             <tr><td><code>wait: click</code></td><td>Stops until the viewer clicks. Auto-resolves in video export.</td></tr>
-            <tr><td><code>quiz</code></td><td>A multiple-choice question card (skippable unless <code>required: true</code>). Several in a row make a test. In a video the card hovers over the options and picks the right one by itself.</td></tr>
-            <tr><td><code>ask</code></td><td>A typed-answer question. With <code>answer</code> it is checked (optional <code>retry</code>/<code>reveal</code>); with <code>store</code> + <code>default</code> the reply is saved and later narration can say it back with <code>{name}</code>. In a video the card types its answer by itself.</td></tr>
+            <tr><td><code>quiz</code></td><td>A multiple-choice question card (skippable unless <code>required: true</code>). Several in a row make a test. In a video the card hovers over the options and picks the right one by itself. <code>on_canvas</code>, <code>reveal</code> and <code>confidence</code> are in <a href="#questions">Questions</a>.</td></tr>
+            <tr><td><code>ask</code></td><td>A typed-answer question. With <code>answer</code> it is checked (optional <code>retry</code>/<code>reveal</code>); with <code>store</code> + <code>default</code> the reply is saved and later narration can say it back with <code>{name}</code>. In a video the card types its answer by itself. Guessing on the figure, ordering, spotting, estimating and polls are in <a href="#questions">Questions</a>.</td></tr>
             <tr><td><code>label</code> / gotos</td><td><code>label</code> names a position; <code>right_goto</code>/<code>wrong_goto</code> on quiz and ask jump there on a viewer's answer — a wrong answer can replay the explanation and ask again. <code>if</code> jumps on a stored answer (<code>{"if": {"var": "age", "gt": 20, "goto": "…"}}</code>). Videos always play straight through.</td></tr>
             <tr><td><code>explore</code></td><td>Holds the lesson for the viewer: with a <code>pane: controls</code> script the drawn knobs are live and the tray stays shut — press ▶ or click the figure to continue; otherwise the ⊕ tray opens. On a script with <code>controls</code> the beat first plays a demo of the knobs — a short walk of its own, or the sweep <code>play: {"values": {…}}</code> plans — and hands the panel over afterwards; <code>play: false</code> drops the demo. A video keeps that demo and the beat's narration, and skips only the waiting; a beat with no controls script is still skipped whole. The ⊕ also pulses after any personalized animation. An <code>explore</code> naming a script with <code>controls</code> opens those controls.</td></tr>
             <tr><td><code>run</code></td><td>Plays a <code>controls</code> script through a series of values without handing the lesson over: <code>{"run": {"code": "sim", "values": {"rate": {"from": 1, "to": 9, "steps": 5}}, "every": 1.2}}</code>. A value may hold (<code>rate: 4</code>), step through a list (<code>[1, 4, 9]</code>), or sweep a range; <code>every</code> is seconds per step and <code>loop</code> repeats the series. Controls the sweep does not name stay at their defaults, and a shorter list holds its last value. The paired <code>speak</code> plays over the sweep — in the app and in the movie alike — and the script stays where the sweep left it: a knob afterwards continues from there, and only a scrub back past the run restores the author's script.</td></tr>
@@ -379,6 +410,375 @@ commands:
         </table>
         <p class="muted">
           Seeking is a control, not a command: drag the progress bar to jump to any point.
+        </p>
+
+        <h2 id="page">The page</h2>
+        <p>
+          Every page has the same frame: a heading strip along the top, the content area in the
+          middle, and a band at the bottom kept clear for the captions. The engine composes the page
+          inside that frame, so you describe <em>what</em> is on it and leave the placing to it.
+        </p>
+        <h3>A heading by default</h3>
+        <p>
+          A page with no <code>card</code> command draws its <code>title</code> as the heading —
+          quickly, unnarrated, with the first ink. Say <code>heading</code> to change that:
+        </p>
+        <pre><code>{ "title": "Why is the sky blue?", "heading": "Rayleigh scattering", … }   // other words
+{ "title": "Why is the sky blue?", "heading": false, … }                   // no heading</code></pre>
+        <p>
+          A <code>card</code> command still works when you want the heading spoken or the slower
+          centre card. Leave a template's own <code>title</code> parameter unset, or you get two headings.
+        </p>
+        <h3>The figure fills the page</h3>
+        <p>
+          A figure that is alone on the page grows into the content area — cards, number lines, pie
+          charts, size comparisons and templates that lay out in a box. With company it keeps its
+          share. Text a viewer must read (card words, tick numbers, chart labels and values) starts at
+          a readable size, wraps onto a second line before it shrinks, and shrinks only to avoid a
+          collision. If a figure still ends up small on an empty page, the check says so.
+        </p>
+        <h3>Centred between the heading and the captions</h3>
+        <p>
+          When the figure sits clearly off-centre in the content area, it is moved as one piece so
+          the space above and below is even. Pages whose figure moves, morphs or animates are left as
+          laid out. The hatch:
+        </p>
+        <pre><code>"page": { "valign": "top" }    // center (default) · top · none</code></pre>
+        <div class="note">
+          <strong>What you no longer do by hand:</strong> add a <code>card</code> just to get a
+          heading, nudge coordinates to centre a figure, bump <code>font_size</code> so labels can be
+          read, size cards, or keep things clear of the captions. When you do want control, the
+          hatches are <code>heading</code>, <code>page</code>, cards <code>size</code>, number-line
+          <code>ticks</code>/<code>tick_format</code>, a template's <code>box</code>, an element's
+          <code>x</code>/<code>y</code>/<code>width</code>, and the top-level
+          <code>text.font_size</code>.
+        </div>
+
+        <h2 id="cards">Cards</h2>
+        <p>
+          A <code>cards</code> element is a set of paper cards the viewer orders, sorts or places.
+          They size themselves: <code>size: "auto"</code> (the default) grows them, up to 1.6×, when
+          they are alone on the page; a number from <code>0.6</code> to <code>2</code> sets the size
+          yourself. Card words wrap onto two lines before they get smaller.
+        </p>
+        <pre><code>{ "id": "kill", "type": "cards", "size": 1.3, "ends": ["most", "least"],
+  "items": ["Heart disease", "Stroke", "Chronic lung disease"] }</code></pre>
+        <p>
+          A label attached to a card, and a compare card's value, travel with the card when it
+          slides; hiding the set hides them too. Card and guess questions finish with
+          <strong>Done</strong>.
+        </p>
+        <h3>Place on a line</h3>
+        <p>
+          Give the cards <code>along</code> (a number line's id) and each item a <code>value</code>.
+          While a card is dragged over the line, a pin shows the exact value it would land on. After
+          Done, each card glides to its true place and leaves a faded ghost at yours, so the two can
+          be compared while the explanation runs.
+        </p>
+        <pre><code>{ "id": "years", "type": "scale", "min": 1800, "max": 2000, "label": "Invented" },
+{ "id": "inv", "type": "cards", "along": "years",
+  "items": [ { "text": "Telephone", "value": 1876 }, { "text": "Aeroplane", "value": 1903 },
+             { "text": "Internet", "value": 1983 } ] }
+
+{ "draw": ["years", "inv"], "speak": "Three inventions, and two centuries to put them on." },
+{ "ask": { "question": "Drag each invention to the year it was made, then press Done.",
+           "on": "inv", "store": "p", "right": "{p.within} of {p.total} close." } }</code></pre>
+
+        <h2 id="scales">Number lines</h2>
+        <p>
+          A <code>scale</code> element is a number line to guess on. The engine places it on the page;
+          its ticks are large enough to read and thin out when crowded.
+        </p>
+        <ul>
+          <li><strong>Big numbers in words.</strong> Ticks read “43 million”, “1 billion” — up to quintillion, then 10ⁿ — and the voice says them the same way. On a <code>log: true</code> line that spans powers of ten, this is what keeps it readable.</li>
+          <li><strong>BC years.</strong> A year line that reaches back past year 0 writes “3000 BC” and “AD 500”. <code>era: "BCE"</code> writes BCE and CE instead; <code>era: "none"</code> keeps the minus sign.</li>
+          <li><strong><code>tick_format</code></strong>: <code>words</code> (default), <code>numerals</code>, or <code>power</code> (10ⁿ).</li>
+          <li><strong>The unit</strong> is written once, on the line, not on every tick.</li>
+          <li>While the viewer guesses, a ghost marker shows the value under the pointer.</li>
+        </ul>
+        <pre><code>{ "id": "s", "type": "scale", "min": 1000000, "max": 100000000000, "log": true,
+  "value": 8100000000, "unit": "people", "label": "People alive today" }
+
+{ "id": "s", "type": "scale", "min": -3000, "max": 2000, "value": -2560, "era": "BCE",
+  "label": "The Great Pyramid is built" }
+
+{ "id": "s", "type": "scale", "min": 1, "max": 1000000000000, "log": true,
+  "tick_format": "power", "label": "Stars in a galaxy" }</code></pre>
+
+        <h2 id="charts">Charts</h2>
+        <p>
+          The data charts (<code>bar_chart</code>, <code>line_chart</code>, <code>pie_chart</code> and
+          friends) draw names, values and ticks at a readable size; long category names go onto two
+          lines. Bar and line charts get round numbers up the y axis by default —
+          <code>y_ticks: false</code> leaves it bare — and a long line chart gets more year ticks. A
+          pie on its own grows into the content area.
+        </p>
+        <p>
+          <code>sort: "desc"</code> (or <code>"asc"</code>) keeps the bars in order of their value at
+          the stage shown, so an <code>animate</code> between stages slides each bar to its new rank.
+          <code>bar_3</code> stays the third label's bar wherever it stands.
+        </p>
+        <pre><code>{ "template": "bar_chart",
+  "params": { "labels": ["Mandarin", "Spanish", "English", "Hindi"],
+              "values": [[940, 485, 390, 345], [1180, 560, 1530, 610]],
+              "stage": 0, "sort": "desc" },
+  "commands": [
+    { "draw": ["axes", "bar_1", "bar_2", "bar_3", "bar_4"], "parallel": true,
+      "speak": "Native speakers first: Mandarin leads." },
+    { "animate": { "stage": 1 }, "duration": 2.5,
+      "speak": "Now count everyone who speaks it, and English jumps to first." } ] }</code></pre>
+
+        <h2 id="questions">Questions</h2>
+        <p>
+          Two commands ask the viewer something: <code>quiz</code> (pick one of a few choices) and
+          <code>ask</code> (everything else — typing, guessing on the figure, ordering, tapping). Each
+          form below is one or two fields on one of them. In a video, every question answers itself.
+        </p>
+
+        <h3>Buttons on the figure</h3>
+        <p>
+          <code>on_canvas: true</code> draws a quiz's choices as buttons beside the figure — no card
+          pops up, and the question is not said again, so say it in the line before. Made for
+          True/Myth and yes/no runs over a picture. Optional: <code>buttons</code> (each choice's
+          <code>text</code> and <code>icon</code>), <code>buttons_at</code> (their centre),
+          <code>buttons_layout</code> (<code>row</code> or <code>column</code>),
+          <code>say_question: true</code>, <code>keep_buttons: true</code>, and <code>id</code> (the
+          buttons are <code>&lt;id&gt;_btn_1</code>, …).
+        </p>
+        <pre><code>{ "draw": ["moon"], "speak": "The Moon is drifting away from us. True, or myth?" },
+{ "quiz": { "question": "The Moon is drifting away from us.", "choices": ["True", "Myth"],
+            "correct": 1, "on_canvas": true, "buttons_layout": "column",
+            "reveal": "3.8 cm a year",
+            "right": "True: it moves about 3.8 centimetres further away each year." } }</code></pre>
+
+        <h3>Reveal stamps</h3>
+        <p>
+          <code>reveal</code> on a quiz or an ask stamps the verdict beside the figure as the
+          <code>right</code> line is spoken: <code>true</code> stamps the right choice's words
+          (“MYTH”), a string stamps those words. The long form is
+          <code>{ "text", "at", "color", "size", "style": "stamp" | "label", "keep" }</code>, where
+          <code>at</code> is an element id or <code>{x, y}</code>. The stamp goes when its figure is
+          hidden — so never draw a verdict yourself after the question.
+        </p>
+        <pre><code>"reveal": { "text": "3.8 cm a year", "at": "moon", "style": "stamp" }</code></pre>
+
+        <h3>A run of pictures</h3>
+        <p>
+          A <code>sequence</code> shows things one at a time: the current one large in the middle,
+          the finished ones waiting small in a strip. Items are <code>{icon, label}</code>,
+          <code>{text, label}</code> or the id of something you drew; a <code>mark</code> (a word, or
+          <code>{text, color}</code>) appears under each in the strip once done. Draw
+          <code>&lt;id&gt;_1</code>, <code>&lt;id&gt;_2</code>, … in turn, and
+          <code>&lt;id&gt;_strip</code> to bring the row back as a recap. Also <code>strip</code>
+          (top, bottom, none), <code>show_upcoming: "dots"</code> and <code>recap: false</code>.
+        </p>
+        <pre><code>{ "id": "sleepers", "type": "sequence", "items": [
+    { "icon": "horse", "label": "Horse", "mark": { "text": "Yes", "color": "#3f7d4e" } },
+    { "icon": ["cow", "cow face"], "label": "Cow", "mark": { "text": "No", "color": "#b5482e" } } ] }
+
+{ "draw": ["sleepers_1"], "speak": "First the horse." },
+{ "quiz": { "question": "Can a horse sleep standing up?", "choices": ["Yes", "No"],
+            "correct": 1, "on_canvas": true, "right": "Yes: its legs lock, so it dozes on its feet." } },
+…
+{ "draw": ["sleepers_strip"], "speak": "You got {score} of {score_total}." }</code></pre>
+
+        <h3>Odd one out</h3>
+        <p>
+          Cards with one item marked <code>odd: true</code> and a <code>rule</code> saying what the
+          others share. The viewer taps one; the odd one is ringed and the rule is written under the
+          cards. Three to six cards. Over things already drawn, use <code>choose</code> +
+          <code>answer</code> + <code>rule</code> on the ask instead.
+        </p>
+        <pre><code>{ "id": "zoo", "type": "cards", "rule": "All four are mammals; the shark is a fish.",
+  "items": [ { "text": "Whale", "icon": "whale" }, { "text": "Bat", "icon": "bat" },
+             { "text": "Dolphin", "icon": "dolphin" }, { "text": "Shark", "icon": "shark", "odd": true } ] }
+
+{ "ask": { "question": "Which one is not a mammal? Tap it.", "on": "zoo",
+           "right": "The shark: a fish, with gills and no milk." } }</code></pre>
+
+        <h3>Spot it</h3>
+        <p>
+          The viewer taps a place on a picture and is judged on its outline, which is drawn at the
+          reveal. <code>spot</code> is a region of an image, a template part (an organ,
+          <code>country_norway</code>) or any drawn id. Draw the place first, without naming it.
+        </p>
+        <pre><code>{ "ask": { "question": "Where is the liver? Tap it.", "spot": "liver", "on": "anatomy",
+           "right": "There: under the right ribs.", "wrong": "Look higher, and on the body's right." } }</code></pre>
+
+        <h3>Estimate</h3>
+        <p>
+          A lone number with no figure to guess on: a big counter over a slider, scored by how close
+          the guess is. The ask draws it itself (erase it later as <code>estimate_1</code>). It takes
+          <code>unit</code>, <code>log</code>, <code>label</code>, <code>tick_format</code> and
+          <code>era</code> like a number line.
+        </p>
+        <pre><code>{ "ask": { "question": "How many bones does an adult have? Drag the slider to your estimate.",
+           "estimate": { "min": 0, "max": 500, "value": 206, "unit": "bones" },
+           "store": "g", "default": "150",
+           "right": "Close: you said {g}, it is {g.true}.", "wrong": "You said {g}; it is {g.true}, {g.off} away." } }</code></pre>
+
+        <h3>Put the steps in order</h3>
+        <p>
+          Cards with <code>steps: true</code> get numbered slots, first to last; once they stand in
+          the true order, arrows draw in between them. List the items in their true order — they are
+          shuffled on screen.
+        </p>
+        <pre><code>{ "id": "cosmos", "type": "cards", "steps": true, "ends": ["first", "last"],
+  "items": ["Big Bang", "First stars", "Sun forms", "Earth forms", "First life"] }
+
+{ "ask": { "question": "In what order did these happen? Drag the earliest to the first place.",
+           "on": "cosmos", "store": "k", "right": "{k} in place.", "wrong": "You got {k}." } }</code></pre>
+
+        <h3>How sure are you?</h3>
+        <p>
+          <code>confidence: true</code> on a quiz (or on an ask with <code>choose</code> and
+          <code>answer</code>) adds a bet after the pick — 50/50, Fairly sure, Certain. Over a run of
+          questions, <code>{calib}</code> says how well calibrated the viewer was (“a bit
+          overconfident”) and <code>{calib.score}</code> gives it out of 100.
+        </p>
+        <pre><code>{ "quiz": { "question": "How long does sunlight take to reach Earth?",
+            "choices": ["8 seconds", "8 minutes", "8 hours"], "correct": 2,
+            "confidence": true, "right": "About eight minutes and twenty seconds." } },
+{ "speak": "You were {calib}: {calib.score} of 100." }</code></pre>
+
+        <h3>Poll and compare</h3>
+        <p>
+          An opinion with no right answer, compared with what the people in a real study chose.
+          Give 2–4 <code>choices</code> with each one's <code>share</code> (a fraction) and the study
+          in <code>sources</code>; <code>{p.share}</code> is the share who chose as the viewer did,
+          <code>{p.most}</code> the commonest choice. On a number line instead:
+          <code>"poll": { "on": "&lt;scale id&gt;", "others": [{ "value": 40, "share": 0.3 }, …] }</code>.
+        </p>
+        <pre><code>{ "ask": { "question": "How many of the 100 kroner do you offer the stranger?",
+           "poll": { "choices": [ { "text": "41 to 50", "share": 0.44 }, { "text": "31 to 40", "share": 0.26 },
+                                  { "text": "21 to 30", "share": 0.1 }, { "text": "20 or less", "share": 0.14 } ],
+                     "source": "azar" },
+           "judge": false, "store": "p", "right": "You and {p.share} of players chose {p}." } }</code></pre>
+
+        <h3>Before and after</h3>
+        <p>
+          A first guess kept back (<code>reveal: false</code>), some new evidence, then a second guess
+          with <code>revise</code> naming the first. The viewer starts from their first guess and
+          sees both against the truth; <code>{g2.moved}</code> is how far they moved.
+        </p>
+        <pre><code>{ "ask": { "question": "How many people die on the world's roads each year? Click the line.",
+           "on": "roads", "reveal": false, "store": "g1", "default": "400000" } },
+{ "draw": ["clock"], "speak": "A clue: someone dies on a road about every twenty-six seconds." },
+{ "ask": { "question": "With that clue, how many a year? Guess again.", "on": "roads",
+           "revise": "g1", "store": "g2", "default": "1100000", "relative": true, "tolerance": 0.2 } }</code></pre>
+
+        <h3 id="replies">Replies</h3>
+        <p>
+          A viewer who answers right hears a short reply that varies — “Spot on.”, “Two in a row.” —
+          in the drawcast's language, never the same one twice running, with a streak line now and
+          then and, in a cast whose <code>feedback</code> is warm or dry, the odd joke. The
+          <code>right</code> line is kept for whoever got it wrong, and for videos. The cast-level
+          <code>affirm</code> changes the replies:
+        </p>
+        <table>
+          <thead><tr><th>Value</th><th>The viewer hears</th></tr></thead>
+          <tbody>
+            <tr><td><em>(left out)</em></td><td>The varied replies.</td></tr>
+            <tr><td><code>"playful"</code></td><td>Now and then a dry joke (“Suspiciously good.”) — for a light cast.</td></tr>
+            <tr><td><code>"plain"</code></td><td>Just “Correct.”</td></tr>
+            <tr><td><code>["Nailed it.", "Yes!"]</code></td><td>Your own phrases.</td></tr>
+            <tr><td><code>false</code></td><td>Nothing.</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">
+          The poster — the picture shown before Play and on a published link's card — is taken just
+          before the first question, so a quiz's picture never gives its answers away.
+        </p>
+
+        <h2 id="icons">Icons</h2>
+        <p>
+          An <code>icon</code> stamps a named thing; you write only the keyword and the app fetches
+          the artwork. For something rare, give fallbacks — the thing first, plainer stand-ins after,
+          tried in order. On a card, a node or a sequence item, <code>icon</code> takes a list; on an
+          icon element, <code>or</code> sits beside <code>of</code>. When nothing matches, the check
+          warns instead of drawing a blank or a wrong stand-in.
+        </p>
+        <pre><code>{ "id": "pig", "type": "icon", "of": "guinea pig", "or": ["hamster", "mouse"], "size": 200 }
+
+{ "text": "Quinoa", "icon": ["quinoa", "grain", "wheat"] }</code></pre>
+
+        <h2 id="cast">The .cast script</h2>
+        <p>
+          A <code>.cast</code> file is the same drawcast written the way a script is: what the voice
+          says at the left margin, and the stage directions indented under it. It is what the editor
+          shows and what Publish writes; everything a JSON spec can say, a script can say too.
+        </p>
+        <table>
+          <thead><tr><th>Line</th><th>Means</th></tr></thead>
+          <tbody>
+            <tr><td><code># Title</code></td><td>The drawcast's title (and so its heading). With <code>## Part</code> pages under it, the playlist's name instead.</td></tr>
+            <tr><td><code>## Part title</code></td><td>Starts a new page (part) of a multi-part drawcast.</td></tr>
+            <tr><td><code>key: value</code></td><td>A setting, at the left margin (the list is below).</td></tr>
+            <tr><td>Plain text at the margin</td><td>A spoken line. <code>A:</code> / <code>B:</code> in front of it gives a dialogue its two voices.</td></tr>
+            <tr><td>An indented line</td><td>A stage direction — a command (<code>draw sun</code>, <code>pause 0.4</code>) or an element (<code>icon sun of sun size 300</code>). The first direction under a spoken line happens while it is said; an element declared there is drawn there. <code>hidden true</code> declares it without drawing it.</td></tr>
+            <tr><td>Deeper indent</td><td>Belongs to the line above: a question's <code>right:</code> and <code>wrong:</code>, its choices (<code>* wrong</code>, <code>+ right</code>), a set of cards' items.</td></tr>
+            <tr><td><code>(@highlight sun@)</code></td><td>An action inside a spoken line, timed at that word.</td></tr>
+            <tr><td><code>@name</code></td><td>A label to jump to (<code>wrong_goto</code>, <code>if</code>).</td></tr>
+            <tr><td><code>// …</code></td><td>A comment.</td></tr>
+            <tr><td><code>```yaml</code> … <code>```</code></td><td>The escape hatch: a YAML list is added as elements, a mapping merged into the page. <code>```python sim</code> is a code element named <code>sim</code>.</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Values are a bare word, a number, <code>true</code>/<code>false</code>, a
+          <code>"quoted string"</code>, or inline JSON (<code>[…]</code>, <code>{…}</code>). A dotted
+          name reaches inside an object: <code>estimate.max 500</code>. Positions read as words:
+          <code>below brain gap 20</code>.
+        </p>
+        <h3>Settings</h3>
+        <table>
+          <thead><tr><th>Where</th><th>Keys</th></tr></thead>
+          <tbody>
+            <tr><td>Each page</td><td><code>lang</code> <code>voice</code> <code>level</code> <code>heading</code> <code>page</code> <code>affirm</code> <code>feedback</code> <code>record</code> <code>sources</code> <code>use</code> (the template) <code>with</code> (its params, as a YAML block under it) <code>domain</code> <code>vars</code> <code>text</code> <code>canvas</code> <code>zoom_from</code> <code>book</code> <code>adjust</code> <code>details</code> <code>more</code> <code>end_page</code> <code>chapter</code></td></tr>
+            <tr><td>The document (before the first page)</td><td><code>subtitle</code> <code>advance</code> <code>gap</code> <code>transitions</code> <code>next</code> <code>prompt</code> <code>tags</code> <code>format</code> <code>poster</code> <code>comments</code> <code>views</code> <code>enroll</code></td></tr>
+          </tbody>
+        </table>
+        <h3>A complete quiz</h3>
+        <p>
+          No <code>card</code> is needed — the title is the heading. The first quiz answers on buttons
+          beside the brain and stamps its verdict; the estimate draws its own slider; the last quiz
+          asks for a bet.
+        </p>
+        <pre><code># True or myth? Your body
+affirm: playful
+tags: ["biology", "quiz"]
+
+    icon brain of brain size 300 hidden true
+    text brain_l "Ten percent?" below brain gap 20 hidden true
+
+Three things people say about the human body, and whether each one is true.
+    draw brain
+
+The first: we only use ten percent of our brains. True, or myth?
+    draw brain_l
+
+    quiz "We use only ten percent of our brains." on_canvas true reveal true
+        right: Myth. Scans show activity all over the brain, even during sleep.
+        * True
+        + Myth
+
+    hide brain brain_l
+
+Next, your skeleton, which holds you up and guards your heart.
+
+    ask "How many bones does an adult have? Drag the slider to your estimate." estimate.min 0 estimate.max 500 estimate.value 206 estimate.unit bones store g default "150"
+        right: Close: you said {g}, and it is {g.true}.
+        wrong: You said {g}; it is {g.true}, {g.off} away.
+
+    quiz "Which organ is the largest?" confidence true
+        right: The skin: about two square metres of it.
+        * The liver
+        + The skin
+        * The brain
+
+You got {score} of {score_total}, and you were {calib}.</code></pre>
+        <p class="muted">
+          Working in the repository? <code>node scripts/cast.mjs check my.cast</code> validates a script
+          and runs the same layout checks the app does.
         </p>
 
         <h2 id="playlists">Multi-part drawcasts</h2>
@@ -574,6 +974,15 @@ commands: [ … ]</code></pre>
           The <strong>⚠</strong> chip above the preview appears when the layout has problems and lists
           them when clicked. Most are fixed by shortening a label, or by giving the element more room
           in the spec. When the chip is absent, the layout checked out clean.
+        </p>
+
+        <h3>The figure looks small, or there are two headings</h3>
+        <p>
+          A figure alone on the page grows by itself; one that does not (a hand-placed group, an icon
+          with a fixed <code>size</code>) can be given more room — cards <code>size</code>, a template's
+          <code>box</code>, or a larger <code>width</code>. Two headings mean the title is drawn twice:
+          leave the template's own <code>title</code> parameter unset, or set
+          <code>heading: false</code>. See <a href="#page">The page</a>.
         </p>
 
         <h3>The drawing ran ahead of the narration</h3>

@@ -116,7 +116,7 @@ describe("the TeX", () => {
       if (!spec?.elements) continue;
       const vars = varValues(spec.vars);
       for (const el of spec.elements) {
-        const texs = el.type === "math" ? [el.tex, ...(el.steps ?? []).map((s) => (typeof s === "string" ? s : s.tex))] : [];
+        const texs = el.type === "math" ? [el.tex, ...(Array.isArray(el.steps) ? el.steps : []).map((s) => (typeof s === "string" ? s : s.tex))] : [];
         for (const tex of texs) {
           if (typeof tex !== "string") continue;
           n++;

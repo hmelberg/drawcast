@@ -12,5 +12,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "line_chart staged: prefix to 1950 drawn first (lint warns the guessed line is pre-drawn, but stage 0 shows only the known part), ask from 1950, then animate stage 1; UN forecast series cannot be dashed; milestone points placed in data units."
+ "notes": "Republished 2026-10-04: x ticks back (dropped x_ticks: false), no global text scale (y label ran off), milestone labels placed apart. Staged line_chart: prefix to 1950 drawn first (lint still warns the guessed line is pre-drawn; stage 0 shows only the known part), ask from 1950, then animate stage 1. Review round: line 2 'nearly one billion' (was 'about'), dots at 3 bn 1960, 4 bn 1974, 7 bn 2011, a 'fewer died young' cue instead of the whole-curve highlight, forecast series named 'UN' so it fits."
 }

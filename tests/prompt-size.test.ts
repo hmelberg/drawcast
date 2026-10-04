@@ -691,7 +691,28 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-03 (icon fallbacks): `or` on icons, node/card/bar icon values, and the icon
 // rule's sentence on it; the schema's +400, carried into the prompt. +578. -> 395336.
 // Re-pinned UP 2026-10-03 (live shift): ask.readout on a market guess. +173. -> 395509.
-const BASELINE_SYSTEM_CHARS = 395509;
+// Re-pinned UP 2026-10-04 (page frame W3): scale tick_format and era. +261. -> 395770.
+// Re-pinned UP 2026-10-04 (icon fallback lists): node/card icons take a keyword list; the icon
+// rule says how to give fallbacks and that a weak match draws nothing; the schema's +213. +517. -> 396026.
+// Both together (merged 2026-10-04): +261 +517. -> 396287.
+// Re-pinned UP 2026-10-04 (on-canvas quiz buttons): quiz on_canvas and its hatches in the schema, one
+// sentence in the quiz bullet. +1357. -> 396866.
+// Merged 2026-10-04: 396287 + 1357 -> 397644.
+// Re-pinned UP 2026-10-04 (size_compare, the compare pack on by default): one catalog index line. +238. -> 395747.
+// Merged 2026-10-04: 397644 + 238 -> 397882.
+// Merged layout-w2 2026-10-04: +212 (cards size/title schema). -> 398094.
+// Merged layout-w17 2026-10-04: +545 (affirm). -> 398639.
+// Re-pinned UP 2026-10-04 (affirm "playful" in the schema): +91. -> 398730.
+// Merged layout-w1 2026-10-04: +164 (heading field). -> 398894.
+// Re-pinned UP 2026-10-04 (layout-w12, the sequence element): the schema's sequence item
+// branch, strip, show_upcoming, recap and one sentence on items (+1364), and one paragraph
+// in freehand rule 3 (+553). -> 400811.
+// Merged layout-w11 2026-10-04: +1706 (reveal stamps). -> 402517.
+// Merged layout-w18 2026-10-04: +235 (page.valign). -> 402752.
+// Merged layout-w13 2026-10-04: +1606 (odd one out, spot it). -> 404358.
+// Merged layout-w15 2026-10-04: +1187 (estimate, steps). -> 405545.
+// Merged layout-w16 2026-10-04: +1733 (confidence, poll). -> 407278.
+const BASELINE_SYSTEM_CHARS = 407278;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -787,7 +808,24 @@ const BASELINE_SYSTEM_CHARS = 395509;
 // Re-pinned UP 2026-10-02 (round 7 Task 13, guidance): the cards and select clauses. +153. -> 112173.
 // Re-pinned UP 2026-10-03 (icon fallbacks): `or` on the icon element and node/card icon values. +400. -> 112573.
 // Re-pinned UP 2026-10-03 (live shift): ask.readout on a market guess. +173. -> 112746.
-const BASELINE_SCHEMA_CHARS = 112746;
+// Re-pinned UP 2026-10-04 (page frame W3): scale tick_format and era. +261. -> 113007.
+// Re-pinned UP 2026-10-04 (icon fallback lists): a node's and a card's icon (and match_icon) take a list. +213. -> 112959.
+// Both together (merged 2026-10-04): +261 +213. -> 113220.
+// Re-pinned UP 2026-10-04 (on-canvas quiz buttons): quiz on_canvas, id, buttons, buttons_at,
+// buttons_layout, say_question, keep_buttons; ask.say_question. +1145. -> 113891.
+// Merged 2026-10-04: 113220 + 1145 -> 114365.
+// Merged layout-w2 2026-10-04: +212 (cards size/title schema). -> 114577.
+// Merged layout-w17 2026-10-04: +412 (affirm). -> 114989.
+// Re-pinned UP 2026-10-04 (affirm "playful"): +91. -> 115080.
+// Merged layout-w1 2026-10-04: +164 (heading field). -> 115244.
+// Re-pinned UP 2026-10-04 (layout-w12, the sequence element): item branch, strip,
+// show_upcoming, recap, a sentence on items. +1364. -> 116608.
+// Merged layout-w11 2026-10-04: +1463 (reveal stamps). -> 118071.
+// Merged layout-w18 2026-10-04: +235 (page.valign). -> 118306.
+// Merged layout-w13 2026-10-04: +858 (odd one out, spot it). -> 119164.
+// Merged layout-w15 2026-10-04: +713 (estimate, steps). -> 119877.
+// Merged layout-w16 2026-10-04: +1087 (confidence, poll). -> 120964.
+const BASELINE_SCHEMA_CHARS = 120964;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

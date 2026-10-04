@@ -5,12 +5,12 @@
 import { castLang } from "./quiz-words";
 import { guessParts, guessSetup, patchFor } from "../guess/handles";
 import { marketParts } from "../guess/parts";
-import { cardsGeometryIn, type CardsGeometry } from "../spec/cards";
+import { authoredCards, cardsGeometryIn, type CardsGeometry } from "../spec/cards";
 import { authoredScales } from "../spec/scale";
 import { formulaBlanks, hasBlanks } from "../formula/blanks";
 import type { BBox } from "../layout/geometry";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
-import { domainMapping, elementBBoxes, layoutSpec, type LayoutResult } from "../layout/layout";
+import { domainMapping, elementBBoxes, elementRings, layoutSpec, type LayoutResult } from "../layout/layout";
 import type { MeasureFn } from "../layout/measure";
 import { drawablesForId, leafDrawables, type Pt } from "../layout/model";
 import type { LintIssue } from "../lint/lint";
@@ -25,6 +25,7 @@ import { withMinted, type MintedSpec } from "./minted";
 import { dependentsMap, sourceIds } from "../spec/deps";
 import { scratchCards } from "../spec/scratch";
 import { boxAnchor } from "../layout/anchors";
+import { settleCardsGeometry } from "../layout/settle";
 import { isEmptyOverrides, overridesKey, type LayoutOverrides } from "../layout/posed";
 import type { LabelPin } from "../layout/labels";
 import { Player, type CodePatch, type FormulaRuntime, type PlaybackMode, type PlayerCallbacks } from "./player";
@@ -166,8 +167,10 @@ export function cardsPlanFor(g: CardsGeometry | null): { cards: string[]; offset
   if (!g) return null;
   const offsets: Record<string, Pt> = {};
   g.cards.forEach((c, i) => (offsets[c] = [g.truth[i][0] - g.home[i][0], g.truth[i][1] - g.home[i][1]]));
+  // What follows a card (a compare value, a label attached to it) stands where its card does (page frame 2026-10-04).
+  for (const [c, fs] of Object.entries(g.followers ?? {})) for (const f of fs) offsets[f] ??= offsets[c];
   const gotos = g.mode === "decide" ? (g.gotos ?? []).filter((l): l is string => l !== undefined) : [];
-  return { cards: g.cards, offsets, shows: g.valueIds ?? [], ...(g.mode === "fill" ? { hides: [...g.cards] } : {}), ...(gotos.length > 0 ? { gotos } : {}) };
+  return { cards: g.cards, offsets, shows: [...(g.valueIds ?? []), ...(g.arrows ?? [])], ...(g.mode === "fill" ? { hides: [...g.cards] } : {}), ...(gotos.length > 0 ? { gotos } : {}) };
 }
 
 /**
@@ -183,6 +186,7 @@ export function formulaHooksFor(
   spec: Spec,
   bboxes: Map<string, BBox>,
   boxesIn: (layout: LayoutResult) => Map<string, BBox>,
+  settle = 0,
 ): { cardsOn: (id: string) => CardsGeometry | null; formula: (id: string) => FormulaRuntime | null } {
   const texOf = (id: string): string | null => {
     const el = (spec.elements ?? []).find((e) => e.id === id);
@@ -199,7 +203,10 @@ export function formulaHooksFor(
     return b ? [b.x + b.w / 2, b.y + b.h / 2] : null;
   };
   return {
-    cardsOn: (id) => (texOf(id) !== null ? cardsGeometryIn(spec, `${id}_tiles`, blanksOf, homesOf) : cardsGeometryIn(spec, id)),
+    // A cards element's geometry is the spec's: on a settled page
+    // (layout/settle.ts) it moves with the ink. A formula's tiles are read
+    // off the layout's boxes, which already moved.
+    cardsOn: (id) => (texOf(id) !== null ? cardsGeometryIn(spec, `${id}_tiles`, blanksOf, homesOf) : settleCardsGeometry(cardsGeometryIn(spec, id), settle)),
     formula: (id) => {
       const tex = texOf(id);
       if (tex === null) return null;
@@ -261,6 +268,16 @@ export function planOptionsFor(
   for (const sc of authoredScales(spec)) {
     const marker = [`${sc.id}_answer_pin`, `${sc.id}_answer_num`].filter((x) => layout.order.includes(x));
     if (marker.length > 0) owned.set(`${sc.id}_line`, marker);
+  }
+  // A compare card's value (outside the group, so drawing the cards gives
+  // nothing away) belongs to its card: erased or hidden with it — the group
+  // too — and moved with it.
+  for (const cs of authoredCards(spec)) {
+    if (cs.compare === undefined && !Array.isArray(cs.pairs)) continue;
+    (cs.items ?? []).forEach((_, i) => {
+      const v = `${cs.id}_v_${i + 1}`;
+      if (layout.order.includes(v)) owned.set(`${cs.id}_${i + 1}`, [...(owned.get(`${cs.id}_${i + 1}`) ?? []), v]);
+    });
   }
   /** The words a drawn thing goes by (choose's {c}): its text, its label, or the text it draws. */
   const textIn = (id: string): string | null => {
@@ -588,12 +605,18 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, trailProgress?: Record<string, number>, pins?: Record<string, LabelPin>): LayoutResult =>
     withMinted(rawLayoutFor(params, cache, elements, overrides, pins), minted, (p, ov) => rawLayoutFor(p, true, undefined, ov), trailProgress);
 
-  const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l, measure));
+  const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l, measure), layout.fit?.settle ?? 0);
 
   const plan = planCommands(spec.commands, layout.order, {
     book: spec.book !== undefined,
+    ...(spec.sources ? { sources: spec.sources } : {}),
     ...(spec.feedback !== undefined ? { feedback: spec.feedback } : {}),
     bboxOf: (id) => bboxes.get(id) ?? null,
+    // A spot ask's point inside the place (spec/spot.ts): read once, on the first ask that wants it.
+    ringsOf: (() => {
+      let rings: Map<string, Pt[][]> | null = null;
+      return (id: string) => (rings ??= elementRings(layout)).get(id) ?? null;
+    })(),
     windows: layout.windows ?? {},
     // The layout's own frame when it has one: it is the RESOLVED domain
     // (`box: "auto"` becomes a rectangle there, and only there).
@@ -653,6 +676,8 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   player.setNarratorGender(spec.voice ?? null);
   // spec.lang, else what the lines read as: a generated Norwegian cast often has no lang.
   player.setSourceLang(castLang(spec));
+  // Its `affirm` and question count: what a right quiz answer hears (render/affirm.ts).
+  player.affirmer.configure(spec);
   player.tones = options.tones ?? liveTones();
   // Where a reward (confetti, a picture) bursts from: the answered part's layout box.
   player.partBox = (id) => bboxes.get(id) ?? null;

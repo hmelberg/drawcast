@@ -6,10 +6,11 @@
 // Per-type requirements are enforced by the semantic checks below and fed back
 // to the LLM in the repair round.
 
+import { estimateErrors, expandEstimates } from "./slider";
 import AjvModule, { type ValidateFunction } from "ajv";
 import { fillIconDataInPlace } from "./icon-data";
 import { ASSET_MAX_BYTES, assetBytes, assetRef, formatAssetSize, isDataAsset, paramAssetRefs, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
-import { BUILTIN_WIDGETS, SIDE_VALUES, type Command, type Spec, type SpecElement, ACTIVITY_IDS, MUSIC_SYMBOLS } from "./types";
+import { BUILTIN_WIDGETS, SIDE_VALUES, type CardItemSpec, type Command, type Spec, type SpecElement, ACTIVITY_IDS, MUSIC_SYMBOLS } from "./types";
 import { isReservedVar } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
 import { UNIVERSAL_ANCHORS } from "../layout/anchors";
@@ -22,14 +23,28 @@ import { parseABC } from "./abc";
 import { DATA_TOKEN_RE, MALFORMED_TOKEN_RE, scanDataTokens } from "../code/tokens";
 import { validateTemplateDoc } from "../scenes/doc";
 import { pictureErrors } from "./places";
+import { spotErrors } from "./spot";
+import { oddErrors } from "./odd-one-out";
 
 // ajv ships CJS; depending on the bundler/runtime the class is the module or its .default.
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
+
+/** A button's resolved icon (render/icon.ts resolveIcons, W25): machine-written beside its keyword — copy VERBATIM if present. */
+const RESOLVED_ICON = { icon_strokes: { type: "string" }, icon_key: { type: "string" }, credit: { type: "string" } } as const;
 
 export const SPEC_VERSION = "1";
 
 /** An icon's fallback keywords (`or`), tried in order when `of` finds nothing. */
 const ICON_OR = { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4 };
+
+/** A node's or a card's `icon`: a keyword, keywords tried in order (["guinea pig", "hamster"]), or {of, set, or}. */
+const ICON_VALUE = {
+  oneOf: [
+    { type: "string" },
+    { type: "array", items: { type: "string" }, minItems: 1, maxItems: 5 },
+    { type: "object", properties: { of: { type: "string" }, set: { type: "string" }, or: ICON_OR }, required: ["of"], additionalProperties: false },
+  ],
+};
 
 const styleSchema = {
   type: "object",
@@ -128,8 +143,24 @@ const SHARED_DEFS = {
     },
     additionalProperties: false,
   },
+  // A question's reveal stamp (spec/reveal-stamps.ts): words, or words with hatches; and its pin.
+  reveal: {
+    anyOf: [
+      { type: "boolean" },
+      { type: "string" },
+      {
+        type: "object",
+        properties: { text: { type: "string" }, at: { $ref: "#/$defs/reveal_at" }, color: { type: "string" }, size: { type: "number" }, style: { type: "string", enum: ["stamp", "label"] }, keep: { type: "boolean" } },
+        additionalProperties: false,
+      },
+    ],
+  },
+  reveal_at: { anyOf: [{ type: "string" }, { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false }] },
 };
 
+/** A reveal stamp's pin, and the machine-written link from a question to its stamp (spec/reveal-stamps.ts). */
+const REVEAL_AT = { allOf: [{ $ref: "#/$defs/reveal_at" }], description: "Where the reveal stamp goes: an element id (beside it) or {x, y}." };
+const REVEAL_LINK = { type: "string", description: "Machine-written; never write it." };
 /** Feedback flavour (spec 2026-10-03-looks-feedback-account §4.1), on the cast or one question. */
 const feedbackSchema = (description: string) => ({ allOf: [{ $ref: "#/$defs/feedback" }], description });
 const CAST_FEEDBACK = `Questions' feedback: after the right/wrong line the player adds ONE short line for how well the viewer did. plain (default, nothing added), warm or dry; or {style, perfect, good, poor, none} with YOUR OWN lines per band (all right; two thirds; some; none) — a sentence or a list, in the cast's language, about its topic ("Good thing you're not a pharmacist."). {vars} work. An ask or quiz may set its own.`;
@@ -173,7 +204,7 @@ const elementSchema = {
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code", "scratch",
         "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
-        "group", "math", "image", "icon", "inset", "music", "population", "link", "scale", "cards",
+        "group", "math", "image", "icon", "inset", "music", "population", "link", "scale", "cards", "sequence",
       ],
     },
     // axes
@@ -257,7 +288,7 @@ const elementSchema = {
       description: "label: preferred side relative to the attached element. The collision solver may move it. measure: left/right of the segment's direction (default: away from the measured element).",
     },
     href: { type: "string", description: "link: the drawcast it opens — ./file.yaml, lecture:N, or a GitHub/Drive/player link the user gave; never invent one." },
-    title: { type: "string", description: "link: its words (default: the target's title)." },
+    title: { oneOf: [{ type: "string" }, { type: "boolean" }], description: "link: its words (default: the target's title). cards (compare): the words over the cards, or true/false (default: none under a heading)." },
     image: { type: "string", description: "link: a picture URL for the card." },
     form: { type: "string", enum: ["card", "text", "values", "symbols", "both"], description: "link: card (default, a thumbnail) or text. math: {var}s as values (default), symbols or both." },
     open: { type: "string", enum: ["auto", "tab", "here", "window"], description: "link: auto (default: a new tab mid-video, this page at the end), tab, here, window (over the video)." },
@@ -345,15 +376,20 @@ const elementSchema = {
     },
     tex: { type: "string", description: "math: LaTeX, drawn as handwriting; {v} writes var v's value, live (an argument needs {{v}}: \\frac{{B}}{…}, ^{{t}}). label: LaTeX instead of text." },
     fills: { type: "array", items: { oneOf: [{ type: "string" }, { type: "null" }] }, description: "internal: the answer shown in each \\blank box of a math element (written by the player)." },
-    size: { type: "number", description: "math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26). link: card width (300)." },
+    size: { oneOf: [{ type: "number" }, { type: "string", enum: ["auto"] }], description: "cards: \"auto\" (default) or a factor 0.6–2. math: font size, the same units as text font_size (default 28, a label's size). Leave it out: every formula on a page shares one size; at most a headline formula may take 34. icon: box size in logical units (default 100). music: one staff space in logical units (default 26). link: card width (300)." },
     symbol: { type: "string", enum: [...MUSIC_SYMBOLS], description: "music: the symbol, drawn from a real music font — notes join their stems exactly. x/y is its centre (a note's head)." },
     stem: { type: "string", enum: ["up", "down"], description: "music: a note's stem direction (default up)." },
     dots: { type: "integer", minimum: 0, maximum: 2, description: "music: dots after a note (each adds half)." },
     time: { type: "string", description: "music: the time signature for symbol time, e.g. \"3/4\"." },
     steps: {
-      type: "array",
-      items: { oneOf: [{ type: "string" }, { type: "object", properties: { tex: { type: "string" }, note: { type: "string" } }, required: ["tex"], additionalProperties: false }] },
-      description: 'math: a DERIVATION — the lines after `tex`, each written by one {"step": id} beat (copied down, morphed glyph by glyph); {"tex", "note"} adds a note beside the line. Lines are <id>_2, <id>_3, …; notes <id>_2_note.',
+      anyOf: [
+        {
+          type: "array",
+          items: { oneOf: [{ type: "string" }, { type: "object", properties: { tex: { type: "string" }, note: { type: "string" } }, required: ["tex"], additionalProperties: false }] },
+        },
+        { type: "boolean" },
+      ],
+      description: 'math: a DERIVATION — the lines after `tex`, each written by one {"step": id} beat (copied down, morphed glyph by glyph); {"tex", "note"} adds a note beside the line. Lines are <id>_2, <id>_3, …; notes <id>_2_note. cards (rank): true — numbered slots joined by arrows.',
     },
     step_gap: { type: "number", description: "math with steps: canvas units between lines (default ≈ 3.2 × size)." },
     note_dx: { type: "number", description: "math with steps: the notes' column, canvas units right of the formula's centre (default 220)." },
@@ -367,10 +403,10 @@ const elementSchema = {
     height: { type: "number", description: "shape rect / node / pieces strips+grid (the rectangle to cut): height in logical units. inset: box height." },
     radius: { type: "number", description: "shape circle / sector / arc / regular polygon / pieces / angle: radius in logical units (angle default 40). point: the dot's radius in canvas units (default 7; e.g. 20 for a ball) — bind it to animate. node rect: corner radius (default 0)." },
     shadow: { type: "boolean", description: "node rect: true = a soft shadow behind the box (for a filled box)." },
-    or: { ...ICON_OR, description: 'icon: keywords tried in order when of finds none ("insulin" → ["syringe"]).' },
+    or: { ...ICON_OR, description: 'icon: keywords tried in order when of finds none ("guinea pig" → ["hamster"]).' },
     icon: {
-      oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" }, or: ICON_OR }, required: ["of"], additionalProperties: false }],
-      description: 'node rect: an icon inside the box, above its text — a keyword ("shark") or {"of", "set", "or"} like an icon element; the box grows to fit.',
+      ...ICON_VALUE,
+      description: 'node rect: an icon inside the box, above its text — a keyword ("shark"), a list tried in order, or {"of", "set", "or"}; the box grows to fit.',
     },
     icon_strokes: { type: "string", description: "node rect: the resolved icon (machine-written; copy VERBATIM if present)." },
     icon_key: { type: "string", description: "node/icon: what the icon was resolved for (machine-written; copy VERBATIM if present)." },
@@ -596,7 +632,7 @@ const elementSchema = {
     value: {
       type: "number",
       description:
-        "scale: the TRUE value — a marker over the line with its number, the part <id>_answer. A scale is a number line to GUESS ON: draw <id> (the line, ticks and numbers), then ask with on: <id> — the viewer clicks where they think the value lies, and the marker slides from their guess to the truth. For a year (min 1700, max 1800), a share (unit \"%\", 0–100), or an amount spanning orders of magnitude (log: true). Placed with x, y (the left end, default 150, 300) and width (default 700); label is a caption under the line.",
+        "scale: the TRUE value — a marker over the line with its number, the part <id>_answer. A scale is a number line to GUESS ON: draw <id> (the line, ticks and numbers), then ask with on: <id> — the viewer clicks where they think the value lies, and the marker slides from their guess to the truth. For a year (min 1700, max 1800), a share (unit \"%\", 0–100), or an amount spanning orders of magnitude (log: true). Placed by the page, or with x, y (the left end) and width; label is a caption over the line.",
     },
     log: { type: "boolean", description: "scale: logarithmic spacing (min > 0) — one tick per power of ten." },
     items: {
@@ -612,12 +648,13 @@ const elementSchema = {
               text: { type: "string" },
               bin: { type: "string" },
               in: { type: "boolean" },
+              odd: { type: "boolean" },
               value: { type: "number" },
               match: { type: "string" },
               blank: { type: "integer", minimum: 1 },
               // Round 5 §3.3: an icon on the card (match_icon: on its partner), as a node's icon; the rest is machine-written.
-              icon: { oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" }, or: ICON_OR }, required: ["of"], additionalProperties: false }] },
-              match_icon: { oneOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" }, or: ICON_OR }, required: ["of"], additionalProperties: false }] },
+              icon: ICON_VALUE,
+              match_icon: ICON_VALUE,
               icon_strokes: { type: "string" },
               credit: { type: "string" },
               match_icon_strokes: { type: "string" },
@@ -628,9 +665,23 @@ const elementSchema = {
             required: ["text"],
             additionalProperties: false,
           },
+          {
+            type: "object",
+            properties: {
+              icon: ICON_VALUE,
+              text: { type: "string" },
+              label: { type: "string" },
+              mark: { oneOf: [{ type: "string" }, { type: "object", properties: { text: { type: "string" }, color: { type: "string" } }, required: ["text"], additionalProperties: false }] },
+              icon_strokes: { type: "string" },
+              credit: { type: "string" },
+              icon_key: { type: "string" },
+            },
+            additionalProperties: false,
+          },
         ],
       },
       description:
+        "sequence: the pictures in turn — {icon, label} (icon a keyword or fallbacks [\"brick\", \"wall\"]), {text, label} for a paper card, or the id of an element you drew; mark: a short verdict word or a colour, shown under it in the strip once done. " +
         "cards: cards the viewer ORDERS or SORTS, asked with an ask on: <id> (rank: they drag the cards and press Answer, and the cards slide into the true order; sort: each card is judged as it is dropped, a wrong one moved to its right box — check: \"end\" waits for Answer). RANK: the items in their TRUE order, first = most/earliest/top (a word or three each: \"USA\", \"Norway\"), with ends naming the two ends. SORT: give bins, and each item {text, bin} (the viewer drags or TAPS a card to send it to a box); deck: true deals up to 30 cards one at a time. TAP ALL THE …: give select (the one box's title) and items {text, in: true} for those that belong; the rest stay out. 2–8 items, up to 30 with deck. The cards are drawn SHUFFLED, so draw <id> before the ask; after it they stand in the true order. Cards are <id>_1 … in true order; sort's boxes <id>_bin_1 …. An item {text, icon: \"shark\"} draws an icon on its card (match_icon: on its partner).",
     },
     bins: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" }, description: "cards: the boxes to sort into (a word or two each); every item's bin is one of them." },
@@ -647,11 +698,20 @@ const elementSchema = {
       description: "cards: DECIDE — the choices (a few words each), each with goto: the label of the section that plays out its consequences. The viewer taps one and the cast goes there; best: true on one makes the decision scored. Movies play every branch in order, so write each to stand on its own (\"If you treat now: …\"). Give then: the label where the branches meet.",
     },
     select: { type: "string", description: "cards: TAP ALL THE … — the title of the one box (\"Mammals\"); items {text, in: true} belong in it, the rest ({text, in: false} or a plain string) stay out. The viewer taps the cards that belong (each judged as tapped), then Done. Not with bins." },
+    rule: { type: "string", description: "cards: ODD ONE OUT — 3–6 items, one {text, odd: true}: the viewer taps the one that does not belong (ask on: <id>); rule says what the others share, written under the cards as the odd one is ringed (\"All four are mammals; the shark is a fish.\")." },
     deck: { type: "boolean", description: "cards (sort): a DECK — one large card at a time in the middle; the viewer taps a box (or presses 1, 2, …), the card flies there and the next comes, with a ✓ or ✗ for each. Up to 30 items: for many quick calls." },
-    check: { type: "string", enum: ["each", "end"], description: "cards (sort, select, deck): each (default) — every card is judged as it is dropped, a wrong one moved to its right box; end — sort freely, then Answer (a test-like question)." },
+    check: { type: "string", enum: ["each", "end"], description: "cards (sort, select, deck): each (default) — every card is judged as it is dropped, a wrong one moved to its right box; end — sort freely, then Done (a test-like question)." },
     then: { type: "string", description: "cards (decide): the label where every branch meets again — a live viewer who chose one branch skips the others and goes on here." },
+    // Written by an on-canvas quiz's expansion (spec/answer-buttons.ts) on its buttons' group: Ajv knows it; the model never writes it.
+    answer_buttons: { type: "object" },
+    strip: { type: "string", enum: ["top", "bottom", "none"], description: "sequence: where done items wait, small — top (default), bottom, none." },
+    show_upcoming: { type: "string", enum: ["dots", "none"], description: "sequence: dots — a placeholder in each slot not reached yet." },
+    recap: { type: "boolean", description: "sequence: false keeps the row at the top when <id>_strip is drawn (default: it comes to the middle, larger)." },
     fill: { type: "string", description: "cards: set by the expansion of a formula ask with others (the tiles of math <id> are cards <id>_tiles) — never write it." },
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
+    tick_format: { type: "string", enum: ["words", "numerals", "power"], description: "scale: words (default: \"43 million\"), numerals, or power (10ⁿ)." },
+    era: { type: "string", enum: ["BC", "BCE", "none"], description: "scale: negative years as BC (default), BCE, or none (minus)." },
+    slider: { type: "boolean", description: "scale: set by an ask's estimate — never write it." },
     states: {
       type: "object",
       additionalProperties: { type: "number" },
@@ -672,6 +732,7 @@ const elementSchema = {
     },
     style: styleSchema,
     draw: drawSchema,
+    reveal_stamp: { type: "object", description: "Machine-written; never write it." },
   },
   required: ["id", "type"],
   additionalProperties: false,
@@ -808,6 +869,26 @@ const commandSchema = {
             "Store the chosen option's TEXT under this simple name (letters, digits, underscores; starts with a letter): later speak lines may use {name}, {name.ok} (true/false) and {name.secs} (seconds the viewer took). Movies and skipped questions store the correct option.",
         },
         feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
+        on_canvas: { type: "boolean", description: "true: the choices are buttons drawn on the figure; the question is not said again (say it in the line before)." },
+        id: { type: "string", description: "on_canvas: buttons are <id>_btn_N." },
+        buttons: {
+          type: "array",
+          minItems: 2,
+          maxItems: 4,
+          items: { type: "object", properties: { text: { type: "string" }, icon: { anyOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }] }, ...RESOLVED_ICON }, additionalProperties: false },
+          description: "on_canvas: each choice's text and icon.",
+        },
+        buttons_at: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false, description: "on_canvas: the buttons' centre." },
+        buttons_layout: { type: "string", enum: ["row", "column"] },
+        say_question: { type: "boolean", description: "on_canvas: true speaks and shows the question." },
+        keep_buttons: { type: "boolean", description: "on_canvas: true keeps the buttons after the answer." },
+        reveal: {
+          allOf: [{ $ref: "#/$defs/reveal" }],
+          description: 'A stamp ("MYTH", "46 hours!") drawn beside the figure WITH the right line — no draw after the quiz. true = the right choice\'s words. {text, at, color, size, style: stamp|label, keep}. It goes when its figure is hidden.',
+        },
+        reveal_at: REVEAL_AT,
+        reveal_stamp: REVEAL_LINK,
+        confidence: { type: "boolean", description: "true: a bet on how sure after the pick; {calib}, {calib.score}." },
       },
       required: ["question", "choices", "correct"],
       additionalProperties: false,
@@ -916,7 +997,12 @@ const commandSchema = {
           description: "One sentence stating the answer and the reason — spoken on a correct answer and as the reveal; no praise words.",
         },
         wrong: { type: "string", description: "Spoken on a wrong attempt. One sentence. Check mode only." },
-        reveal: { type: "boolean", description: "Check mode: speak the correct answer after a final wrong attempt (default true)." },
+        reveal: {
+          allOf: [{ $ref: "#/$defs/reveal" }],
+          description: "Check mode: speak the correct answer after a final wrong attempt (default true). A string/object: a stamp beside the figure WITH the reveal line (as quiz.reveal).",
+        },
+        reveal_at: REVEAL_AT,
+        reveal_stamp: REVEAL_LINK,
         retry: { type: "boolean", description: "Check mode: clear the field and ask again after a wrong attempt (default false). App only." },
         store: { type: "string", description: "Save the typed reply under this snake_case name; use {name} in later speak lines." },
         default: { type: "string", description: "Stand-in the movie types and skip/silent use. REQUIRED with store." },
@@ -966,17 +1052,50 @@ const commandSchema = {
             "CHOOSE ON THE FIGURE: the options are things ALREADY DRAWN — a node, an icon, a group, a template part — and the viewer taps the thing itself (hover rings; Tab/Enter on the keyboard). Better than cards or a quiz whose choices repeat what the figure shows. answer = the right option's id (judged); judge: false = an opinion (store it: {c} is the tapped thing's label, {c.id} its id); {id, goto} options branch like decide cards and meet again at `then`. In movies the laser taps `default`, else the answer, else the first option.",
         },
         then: { type: "string", description: "With `choose` options that goto: the label after the branches where they meet again." },
+        rule: { type: "string", description: "With choose and answer (ODD ONE OUT over drawn things): what the others share — written under them as the odd one is ringed." },
+        reveal_draw: { type: "array", items: { type: "string" }, description: "Set by the odd-one-out expansion — never write it." },
+        spot: { type: "string", description: "SPOT IT ON THE PICTURE: the place the viewer taps — a region of the `on` image, a template part (liver, country_norway) or any drawn id; judged on its outline, the place outlined at the reveal. No answer or widget." },
         reveal_style: { enum: ["beside", "morph", "reorder"], description: "Reveal of a guess, cards, tree or formula: beside (default; the answer stays, the truth is drawn beside it), morph (the answer glides into the truth) or reorder (default for rank cards: they slide into the true order, a faint yours row behind)." },
         reveal_order: { enum: ["all", "each"], description: "all (default), or each: the truth part by part, 0.6 s apart." },
         keep: { type: "boolean", description: "Guess: true keeps yours past the next question and a later animate (it follows the part)." },
         stage: { const: "own", description: "own: the rest of the figure fades while the question stands (cards or options over the figure)." },
+        confidence: { type: "boolean", description: "With choose and answer: a bet, as on quiz." },
+        poll: {
+          type: "object",
+          description: "POLL: an opinion vs a study's answers — choices with shares (0–1), or on a scale with others; source: a sources id.",
+          properties: {
+            choices: { type: "array", minItems: 2, maxItems: 4, items: { type: "object", properties: { text: { type: "string", maxLength: 24 }, share: { type: "number", minimum: 0, maximum: 1 }, icon: { type: "string" }, ...RESOLVED_ICON }, required: ["text", "share"], additionalProperties: false } },
+            on: { type: "string" },
+            others: { type: "array", minItems: 2, maxItems: 12, items: { type: "object", properties: { value: { type: "number" }, share: { type: "number", minimum: 0, maximum: 1 } }, required: ["value", "share"], additionalProperties: false } },
+            source: { type: "string" },
+            live: { type: "boolean", description: "Not built yet." },
+          },
+          additionalProperties: false,
+        },
         blanks: { type: "array", minItems: 1, items: { type: "string" }, description: "Tree: the parts of a decision_tree the viewer fills in — value_<node>, branchlabel_<parent>_<child>, effect_<node>, cost_<node>." },
         pick: { type: "string", description: "Tree: the decision node whose best branch the viewer taps." },
         work: { oneOf: [{ type: "string", enum: ["all"] }, { const: false }], description: "Tree: working lines under wrong blanks (default), \"all\" for every blank, or false for none." },
         check: { type: "string", enum: ["direction", "shape", "size"], description: "Market guess (with `on` a supply or demand curve): what right means — direction, shape (default) or size." },
         others: { type: "array", items: { type: "string" }, description: "Formula (on a math element with \\blank): wrong tiles; the right contents are always tiles." },
+        estimate: {
+          type: "object",
+          properties: {
+            min: { type: "number" },
+            max: { type: "number" },
+            value: { type: "number", description: "The TRUE number." },
+            unit: { type: "string" },
+            log: { type: "boolean" },
+            label: { type: "string" },
+            tick_format: { type: "string", enum: ["words", "numerals", "power"] },
+            era: { type: "string", enum: ["BC", "BCE", "none"] },
+          },
+          required: ["min", "max", "value"],
+          additionalProperties: false,
+          description: "ESTIMATE SLIDER: a big counter over a slider (the ask draws it), scored like a guess on a scale. Never with on.",
+        },
         form: { const: "exact", description: "Formula, typed: \"exact\" compares the written form, not the value." },
         feedback: feedbackSchema("This question's own feedback (as the top-level feedback; wins over it)."),
+        say_question: { type: "boolean", description: "false: the question is neither spoken nor shown." },
         release: { type: "boolean", description: "With `on`: letting go of the drag is the answer (default true). false shows an Answer button, so the viewer can adjust before answering — for a careful estimate. Several parts (on: all, a whole pie) always get the button." },
         relative: { type: "boolean", description: "With `on`: tolerance is a fraction of the true value (within 20 % = tolerance 0.2) — for money and other quantities spanning orders of magnitude." },
         code: {
@@ -1325,6 +1444,13 @@ export const specSchema = {
     "Commands interleave narration (speak) with drawing (draw) for a gradually built, narrated figure.",
   properties: {
     title: { type: "string", description: "Short title of the figure." },
+    heading: { oneOf: [{ type: "string" }, { const: false }], description: "Top heading: omitted, the title (on a page with no card); a string, that text; false, none." },
+    page: {
+      type: "object",
+      properties: { valign: { type: "string", enum: ["center", "top", "none"] } },
+      additionalProperties: false,
+      description: 'valign: "center" (default) evens the space above and below the figure; "top"; "none".',
+    },
     end_page: { type: "boolean", description: "Machine-written; never write it." },
     zoom_from: {
       type: "string",
@@ -1333,6 +1459,15 @@ export const specSchema = {
     },
     level: { type: "string", enum: ["basic", "advanced"], description: "Difficulty of the explanation, when the request states one. Shown as a badge; omit if unspecified." },
     feedback: feedbackSchema(CAST_FEEDBACK),
+    affirm: {
+      oneOf: [
+        { type: "string", enum: ["plain", "playful"] },
+        { type: "array", items: { type: "string" }, minItems: 1, maxItems: 12 },
+        { type: "boolean", enum: [false] },
+      ],
+      description:
+        'What a viewer hears after a RIGHT quiz answer. Omit (default): a short varied affirmation in the cast\'s language ("Spot on.", "Two in a row."). "playful": now and then a dry joke ("Suspiciously good."), for a light cast; "plain": the one word "Correct."; a list of your own short phrases; false: nothing.',
+    },
     record: { type: "boolean", description: "false: keep no local record of the viewer's answers in their browser. Omit (default true)." },
     voice: {
       type: "string",
@@ -1687,6 +1822,22 @@ export function isBlankSpec(spec: Spec): boolean {
   return !spec.template && (spec.elements?.length ?? 0) === 0 && (spec.commands?.length ?? 0) === 0;
 }
 
+/** A question's reveal stamp (spec/reveal-stamps.ts): short words, a pin that names something drawn. */
+function revealStampErrors(i: number, verb: "quiz" | "ask", reveal: unknown, at: unknown, ids: Set<string> | null): string[] {
+  const errors: string[] = [];
+  const stamp = typeof reveal === "string" || (reveal !== null && typeof reveal === "object") || (verb === "quiz" && reveal === true);
+  if (at !== undefined && !stamp) errors.push(`commands[${i}]: ${verb}.reveal_at needs a reveal stamp (reveal: "<words>"${verb === "quiz" ? " or true" : ""})`);
+  if (!stamp) return errors;
+  const r = reveal as { text?: unknown; at?: unknown };
+  const text = typeof reveal === "string" ? reveal : typeof reveal === "object" ? r.text : undefined;
+  if (typeof text === "string" && (text.trim() === "" || text.length > 30)) errors.push(`commands[${i}]: ${verb}.reveal is a stamp — a word or three (30 characters at most)`);
+  if (verb === "ask" && typeof reveal === "object" && typeof text !== "string") errors.push(`commands[${i}]: ask.reveal as an object needs text`);
+  for (const pin of [at, typeof reveal === "object" ? r.at : undefined]) {
+    if (typeof pin === "string" && ids && !ids.has(pin)) errors.push(`commands[${i}]: ${verb}.reveal at "${pin}" is not an element id`);
+  }
+  return errors;
+}
+
 function semanticErrors(spec: Spec): string[] {
   const errors: string[] = [];
 
@@ -1698,6 +1849,7 @@ function semanticErrors(spec: Spec): string[] {
   });
 
   errors.push(...pictureErrors(spec));
+  errors.push(...spotErrors(spec), ...oddErrors(spec));
 
   // A var named like a curve variable or a function could never be read.
   if (spec.vars !== undefined) errors.push(...varNameErrors(spec.vars));
@@ -1920,8 +2072,24 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.store)) {
         errors.push(`commands[${i}]: quiz.store must be a simple name (letters, digits, underscores; starts with a letter)`);
       }
-      if (a.store !== undefined && isReservedVar(a.store)) {
+      if (a.store !== undefined && (isReservedVar(a.store) || a.store.toLowerCase() === "calib")) {
         errors.push(`commands[${i}]: quiz.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
+      }
+      errors.push(...revealStampErrors(i, "quiz", a.reveal, a.reveal_at, spec.template ? null : new Set((spec.elements ?? []).map((e) => e.id))));
+      const canvasOnly = (["id", "buttons", "buttons_at", "buttons_layout", "say_question", "keep_buttons"] as const).filter((k) => a[k] !== undefined);
+      if (a.on_canvas !== true && canvasOnly.length > 0) {
+        errors.push(`commands[${i}]: quiz.${canvasOnly.join(", ")} only apply with on_canvas: true`);
+      }
+      if (a.on_canvas === true) {
+        if (Array.isArray(a.buttons) && Array.isArray(a.choices) && a.buttons.length !== a.choices.length) {
+          errors.push(`commands[${i}]: quiz.buttons must give one entry per choice (${a.choices.length})`);
+        }
+        if (a.id !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.id)) {
+          errors.push(`commands[${i}]: quiz.id must be a simple name (letters, digits, underscores; starts with a letter)`);
+        }
+        if (Array.isArray(a.choices) && a.choices.some((c) => typeof c === "string" && c.length > 24)) {
+          errors.push(`commands[${i}]: quiz on_canvas: choices are buttons on the figure — a word or three each (24 characters at most)`);
+        }
       }
     }
     if (verb === "ask" && cmd.ask) {
@@ -1929,11 +2097,19 @@ function semanticErrors(spec: Spec): string[] {
       if (typeof a.question !== "string" || a.question.trim().length === 0) {
         errors.push(`commands[${i}]: ask.question must be a non-empty string`);
       }
+      if (a.reveal !== undefined && typeof a.reveal !== "boolean") errors.push(...revealStampErrors(i, "ask", a.reveal, a.reveal_at, spec.template ? null : new Set((spec.elements ?? []).map((e) => e.id))));
+      else if (a.reveal_at !== undefined) errors.push(...revealStampErrors(i, "ask", a.reveal, a.reveal_at, null));
       // A guess on the figure (spec 2026-10-01-guess-and-reveal): the truth is
       // the figure's own number, so no answer; right/wrong are its feedback.
       const isTree = a.blanks !== undefined || a.pick !== undefined;
-      const isGuess = a.on !== undefined && !isTree;
+      const isSpot = a.spot !== undefined;
+      const isGuess = a.on !== undefined && !isTree && !isSpot;
       const isChoose = a.choose !== undefined;
+      const isPoll = a.poll !== undefined;
+      if (isPoll) errors.push(...pollErrors(i, a, spec, sourceIds));
+      if (a.confidence !== undefined && (!isChoose || a.answer === undefined || a.judge === false)) {
+        errors.push(`commands[${i}]: ask.confidence bets on a judged answer — it needs choose and answer (or use quiz confidence)`);
+      }
       if (isChoose) {
         const ids: string[] = [];
         const okList = Array.isArray(a.choose) && a.choose.length >= 2;
@@ -1972,10 +2148,10 @@ function semanticErrors(spec: Spec): string[] {
           errors.push(`commands[${i}]: ask.on is a guess on the figure — the truth is the figure's own number, so leave out answer, widget, items and code`);
         }
         if (a.retry !== undefined) errors.push(`commands[${i}]: ask.retry does not apply to a guess (the figure shows the truth after one answer)`);
-      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.readout !== undefined || a.revise !== undefined || a.budget !== undefined || a.account_label !== undefined || (a.judge !== undefined && !isChoose)) {
+      } else if (a.from !== undefined || a.relative !== undefined || a.release !== undefined || a.predict !== undefined || a.readout !== undefined || a.revise !== undefined || a.budget !== undefined || a.account_label !== undefined || (a.judge !== undefined && !isChoose && !isPoll)) {
         errors.push(`commands[${i}]: ask.from, relative, release, predict, readout, revise, budget, account_label and judge only apply to a guess (with on; judge also to choose)`);
       }
-      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && !isChoose && a.on === undefined) {
+      if (a.answer === undefined && a.store === undefined && a.widget !== "drag" && !isGuess && !isTree && !isChoose && !isSpot && !isPoll && a.on === undefined) {
         errors.push(`commands[${i}]: ask needs answer (check mode), store (collect mode), or both`);
       }
       if (a.answer !== undefined && (typeof a.answer !== "string" || a.answer.trim().length === 0)) {
@@ -1984,17 +2160,17 @@ function semanticErrors(spec: Spec): string[] {
       if (a.store !== undefined && !/^[a-z][a-z0-9_]*$/i.test(a.store)) {
         errors.push(`commands[${i}]: ask.store must be a simple name (letters, digits, underscores; starts with a letter)`);
       }
-      if (a.store !== undefined && isReservedVar(a.store)) {
+      if (a.store !== undefined && (isReservedVar(a.store) || a.store.toLowerCase() === "calib")) {
         errors.push(`commands[${i}]: ask.store may not claim the reserved name "${a.store}" — the player maintains it automatically`);
       }
       // A guess or a tree ask is answered on the figure: the movie fills in the truth.
-      if (a.store !== undefined && a.default === undefined && !isGuess && !isTree && !isChoose) {
+      if (a.store !== undefined && a.default === undefined && !isGuess && !isTree && !isChoose && !isPoll) {
         errors.push(`commands[${i}]: ask.default is required with store — the movie types it and skip falls back to it`);
       }
       // The drag widget's answer is implied by its items, so it is check mode without `answer`.
       const isDrag = a.widget === "drag";
       const isConnect = a.widget === "connect";
-      if (!isDrag && !isGuess && !isTree && !isChoose && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
+      if (!isDrag && !isGuess && !isTree && !isChoose && !isSpot && !isPoll && a.answer === undefined && (a.retry !== undefined || a.reveal !== undefined || a.wrong !== undefined || a.right !== undefined || a.right_goto !== undefined || a.wrong_goto !== undefined)) {
         errors.push(`commands[${i}]: ask.retry, reveal, right, wrong and gotos only apply in check mode (with answer)`);
       }
       if (a.widget !== undefined && !isDrag && a.answer === undefined) {
@@ -2017,7 +2193,7 @@ function semanticErrors(spec: Spec): string[] {
         if (isConnect && a.store !== undefined) {
           errors.push(`commands[${i}]: ask.store does not apply to the connect widget`);
         }
-        if (a.items !== undefined || (a.tolerance !== undefined && !isGuess && !isTree)) {
+        if (a.items !== undefined || (a.tolerance !== undefined && !isGuess && !isTree && !isSpot)) {
           const named = a.widget !== undefined ? ` (this one is "${a.widget}")` : "";
           errors.push(`commands[${i}]: ask.items and tolerance only apply to widget "drag"${named}`);
         }
@@ -2083,6 +2259,17 @@ function semanticErrors(spec: Spec): string[] {
       if (id.startsWith(prefix) && /^\d+$/.test(id.slice(prefix.length))) errors.push(`element id "${id}" collides with a numbered piece of "${el.id}" — rename it`);
       if (el.of === "halving" && id === `${el.id}_rest`) errors.push(`element id "${id}" collides with the remainder piece of "${el.id}" — rename it`);
     }
+  }
+
+  // A sequence (spec/sequence.ts) mints "<id>_1 …", "<id>_strip", "<id>_dot_k";
+  // an item named by id must be an element of the page.
+  for (const el of spec.elements ?? []) {
+    if (el.type !== "sequence") continue;
+    for (const it of Array.isArray(el.items) ? el.items : []) {
+      if (typeof it === "string" && !seen.has(it)) errors.push(`element "${el.id}" (sequence): item "${it}" is not an element — give {icon, label} or {text}, or draw it first`);
+    }
+    const minted = new RegExp(`^${el.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}_(\\d+(_label|_mark)?|strip|dot_\\d+)$`);
+    for (const id of seen) if (minted.test(id)) errors.push(`element id "${id}" collides with a part of sequence "${el.id}" — rename it`);
   }
 
   // Data tokens ("{sim.y}") must name a CODE element of this drawcast. A
@@ -2158,6 +2345,21 @@ function elementErrors(el: SpecElement): string[] {
     } else {
       errs.push(`element "${el.id}" (${el.type}): look is a cards element's field (paper, flat, outline) or an image's ("screen") — leave it out`);
     }
+  }
+  // size: a number on cards (0.6–2), math, icon, music and link; "auto" is the cards' default only.
+  const size = (el as { size?: unknown }).size;
+  if (size !== undefined) {
+    if (el.type === "cards") {
+      if (size !== "auto" && !(typeof size === "number" && size >= 0.6 && size <= 2)) errs.push(`element "${el.id}" (cards): size is "auto" or a factor from 0.6 to 2`);
+    } else if (typeof size !== "number") errs.push(`element "${el.id}" (${el.type}): size is a number ("auto" is a cards element's)`);
+  }
+  // title: a link's words, or a compare cards element's (true/false/words).
+  const title = (el as { title?: unknown }).title;
+  if (title !== undefined) {
+    if (el.type === "cards") {
+      if (typeof title !== "boolean" && typeof title !== "string") errs.push(`element "${el.id}" (cards): title is true, false or the words over the cards`);
+      else if (!(el.compare !== undefined || Array.isArray(el.pairs))) errs.push(`element "${el.id}" (cards): title is a compare set's (higher or lower) — leave it out`);
+    } else if (typeof title !== "string") errs.push(`element "${el.id}" (${el.type}): title is text`);
   }
   if (el.walk !== undefined && el.type !== "group") {
     errs.push(`element "${el.id}": walk is a group's field — put the peers in a group and give it walk: true`);
@@ -2286,6 +2488,7 @@ function elementErrors(el: SpecElement): string[] {
       break;
     case "cards": {
       const items = Array.isArray(el.items) ? el.items : [];
+      need(items.every((it) => typeof it === "string" || typeof (it as { text?: unknown }).text === "string"), "every item is its words or {text, …} (label and mark are a sequence's)");
       const opts = (el as { options?: unknown[] }).options;
       if (Array.isArray(opts)) {
         need(opts.length >= 2 && opts.length <= 4, "decide: needs 2–4 options");
@@ -2309,8 +2512,19 @@ function elementErrors(el: SpecElement): string[] {
       if (items.some((it) => typeof it === "object" && it !== null && (it as { match?: unknown }).match !== undefined)) need(items.every((it) => typeof it === "object" && it !== null && typeof (it as { match?: unknown }).match === "string"), "match: every item needs {text, match}");
       if (Array.isArray(el.bins) && el.bins.length > 0) {
         const bins = el.bins;
-        need(items.every((it) => typeof it === "object" && it !== null && typeof it.bin === "string" && bins.includes(it.bin)), "sorting (bins): every item needs {text, bin} with bin one of bins");
+        need(items.every((it) => typeof it === "object" && it !== null && typeof (it as CardItemSpec).bin === "string" && bins.includes((it as CardItemSpec).bin!)), "sorting (bins): every item needs {text, bin} with bin one of bins");
       }
+      break;
+    }
+    case "sequence": {
+      const items = Array.isArray(el.items) ? el.items : [];
+      need(items.length >= 2 && items.length <= 12, "needs 2–12 items");
+      items.forEach((it, i) => {
+        if (typeof it === "string") return;
+        const o = it as { icon?: unknown; text?: unknown; label?: unknown };
+        need((o.icon !== undefined) !== (typeof o.text === "string"), `items[${i}]: give icon (a picture) or text (a card), one of them — or the id of an element you drew`);
+        if (typeof o.label === "string") need(o.label.length <= 40, `items[${i}]: label is a few words`);
+      });
       break;
     }
     case "scale": {
@@ -2365,6 +2579,39 @@ export function validateSpec(spec: unknown): ValidationResult {
   const normalized = normalizeSpec(spec);
   const sErrors = structuralErrors(normalized);
   if (sErrors.length > 0) return { ok: false, errors: sErrors };
-  const errors = semanticErrors(normalized as Spec);
+  // An ask's estimate (spec/slider.ts) is checked as the slider and the guess it expands to.
+  const errors = [...estimateErrors(normalized as Spec), ...semanticErrors(expandEstimates(normalized as Spec))];
   return { ok: errors.length === 0, errors };
+}
+
+/** A poll's own rules (W16, spec/poll.ts): one form, real shares, a scale to stand on, a known study. */
+function pollErrors(i: number, a: NonNullable<Command["ask"]>, spec: Spec, sourceIds: ReadonlySet<string>): string[] {
+  const errors: string[] = [];
+  const p = a.poll;
+  if (!p || typeof p !== "object") return [`commands[${i}]: ask.poll must be an object (choices, or on with others)`];
+  const hasChoices = p.choices !== undefined, hasOn = p.on !== undefined;
+  if (hasChoices === hasOn) errors.push(`commands[${i}]: ask.poll takes choices (buttons) or on (a scale) — exactly one`);
+  if (hasChoices && p.others !== undefined) errors.push(`commands[${i}]: ask.poll.others goes with on (a scale); choices carry their own share`);
+  if (hasOn && (!Array.isArray(p.others) || p.others.length < 2)) errors.push(`commands[${i}]: ask.poll.on needs others — two or more buckets {value, share}`);
+  if (hasChoices && (!Array.isArray(p.choices) || p.choices.length < 2 || p.choices.length > 4)) errors.push(`commands[${i}]: ask.poll.choices must list 2–4 buttons {text, share}`);
+  for (const c of Array.isArray(p.choices) ? p.choices : []) {
+    if (typeof c?.text !== "string" || c.text.trim() === "" || c.text.length > 24) errors.push(`commands[${i}]: ask.poll.choices: each text is a word or three (24 characters at most)`);
+  }
+  const shares = [...(Array.isArray(p.choices) ? p.choices : []), ...(Array.isArray(p.others) ? p.others : [])].map((c) => c?.share);
+  if (shares.some((x) => typeof x !== "number" || !(x >= 0 && x <= 1))) errors.push(`commands[${i}]: ask.poll: every share is a fraction 0–1 (0.38 for 38%)`);
+  else if (shares.reduce((t, x) => t + (x as number), 0) > 1.02) errors.push(`commands[${i}]: ask.poll: the shares add up to more than 1`);
+  if (hasOn) {
+    const el = (spec.elements ?? []).find((e) => e.id === p.on);
+    if (!el || el.type !== "scale") errors.push(`commands[${i}]: ask.poll.on "${String(p.on)}" must be a scale element's id`);
+    if (Array.isArray(p.others) && p.others.some((o) => typeof o?.value !== "number")) errors.push(`commands[${i}]: ask.poll.others: each bucket has a numeric value`);
+  }
+  if (p.source !== undefined && !sourceIds.has(p.source)) errors.push(`commands[${i}]: ask.poll.source "${p.source}" is not in sources`);
+  if (p.live !== undefined && typeof p.live !== "boolean") errors.push(`commands[${i}]: ask.poll.live must be true or false`);
+  if (a.judge === true) errors.push(`commands[${i}]: ask.poll is an opinion — judge: true does not apply`);
+  // Expanded already (spec/poll.ts): its own buttons, or its scale as the guess.
+  const ownChoose = Array.isArray(a.choose) && a.choose.every((o) => typeof o === "string" && /^poll_\d+(?:_\d+)*_btn_\d+$/.test(o));
+  if (a.answer !== undefined || (a.choose !== undefined && !ownChoose) || (a.on !== undefined && a.on !== p.on) || a.widget !== undefined || a.items !== undefined || a.code !== undefined || a.retry !== undefined || a.confidence !== undefined) {
+    errors.push(`commands[${i}]: ask.poll makes its own buttons or guess — leave out answer, choose, on, widget, items, code, retry and confidence`);
+  }
+  return errors;
 }

@@ -33,154 +33,165 @@
     "type": "cards",
     "compare": "Tap the older one",
     "unit": "years ago",
-    "y": 560,
     "items": [
      {
       "text": "Fax machine",
-      "value": 183
+      "value": 183,
+      "icon": "fax machine"
      },
      {
       "text": "Telephone",
-      "value": 150
+      "value": 150,
+      "icon": "telephone"
      },
      {
       "text": "Tenochtitlan",
-      "value": 701
+      "value": 701,
+      "icon": {
+       "of": "hindu temple",
+       "set": "twemoji",
+       "or": [
+        "lake"
+       ]
+      }
      },
      {
       "text": "Oxford lectures",
-      "value": 930
+      "value": 930,
+      "icon": "graduation cap"
      },
      {
       "text": "Last mammoth",
-      "value": 4000
+      "value": 4000,
+      "icon": "mammoth"
      },
      {
       "text": "Great Pyramid",
-      "value": 4580
+      "value": 4580,
+      "icon": [
+       "pyramid",
+       "desert"
+      ]
      }
     ],
     "cites": [
      "bain",
      "oxford",
      "wrangel"
-    ]
+    ],
+    "size": 1
    },
    {
-    "id": "y_fax",
+    "id": "vs1",
     "type": "text",
-    "text": "1843",
-    "x": 105,
-    "y": 560,
-    "font_size": 50,
-    "style": {
-     "color": "#2f6b8f"
-    }
-   },
-   {
-    "id": "y_tel",
-    "type": "text",
-    "text": "1876",
-    "x": 895,
-    "y": 560,
-    "font_size": 50,
+    "text": "vs",
+    "font_size": 30,
     "style": {
      "color": "#8f887c"
+    },
+    "at": {
+     "ref": "pairs_1",
+     "side": "right",
+     "gap": 14
     }
    },
    {
-    "id": "y_ox",
+    "id": "vs3",
     "type": "text",
-    "text": "1096",
-    "x": 895,
-    "y": 460,
-    "font_size": 50,
-    "style": {
-     "color": "#2f6b8f"
-    }
-   },
-   {
-    "id": "y_az",
-    "type": "text",
-    "text": "1325",
-    "x": 105,
-    "y": 460,
-    "font_size": 50,
+    "text": "vs",
+    "font_size": 30,
     "style": {
      "color": "#8f887c"
+    },
+    "at": {
+     "ref": "pairs_3",
+     "side": "right",
+     "gap": 14
     }
    },
    {
-    "id": "y_mam",
+    "id": "vs5",
     "type": "text",
-    "text": "2000 BC",
-    "x": 105,
-    "y": 360,
-    "font_size": 44,
+    "text": "vs",
+    "font_size": 30,
     "style": {
      "color": "#8f887c"
+    },
+    "at": {
+     "ref": "pairs_5",
+     "side": "right",
+     "gap": 14
     }
    },
    {
-    "id": "y_pyr",
+    "id": "c_pend",
+    "type": "text",
+    "text": "2 pendulums",
+    "font_size": 26,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "pairs_1",
+     "side": "left",
+     "gap": 16
+    }
+   },
+   {
+    "id": "c_lake",
+    "type": "text",
+    "text": "on a lake",
+    "font_size": 26,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "pairs_3",
+     "side": "left",
+     "gap": 16
+    }
+   },
+   {
+    "id": "c_bc",
     "type": "text",
     "text": "2560 BC",
-    "x": 895,
-    "y": 360,
-    "font_size": 44,
+    "font_size": 26,
     "style": {
-     "color": "#2f6b8f"
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "pairs_6",
+     "side": "right",
+     "gap": 16
     }
    },
    {
-    "id": "i_fax",
-    "type": "icon",
-    "of": "fax machine",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 105,
-    "x": 380,
-    "y": 232
+    "id": "c_wr",
+    "type": "text",
+    "text": "Wrangel Is.",
+    "font_size": 26,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "pairs_5",
+     "side": "left",
+     "gap": 16
+    }
    },
    {
-    "id": "i_tel",
-    "type": "icon",
-    "of": "telephone",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 105,
-    "x": 620,
-    "y": 232
-   },
-   {
-    "id": "i_az",
-    "type": "icon",
-    "of": "classical building",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 105,
-    "x": 380,
-    "y": 232
-   },
-   {
-    "id": "i_ox",
-    "type": "icon",
-    "of": "graduation cap",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 105,
-    "x": 620,
-    "y": 232
-   },
-   {
-    "id": "i_mam",
-    "type": "icon",
-    "of": "mammoth",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 105,
-    "x": 380,
-    "y": 232
+    "id": "c_1096",
+    "type": "text",
+    "text": "by 1096",
+    "font_size": 26,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "pairs_4",
+     "side": "right",
+     "gap": 16
+    }
    }
   ],
   "commands": [
@@ -191,7 +202,10 @@
    },
    {
     "draw": [
-     "pairs"
+     "pairs",
+     "vs1",
+     "vs3",
+     "vs5"
     ],
     "speak": "Which came first? Three pairs, and in each one, history plays a trick on you."
    },
@@ -201,7 +215,7 @@
      "on": "pairs",
      "store": "c",
      "right": "The fax, Oxford and the pyramid all came first.",
-     "wrong": "{c} of {c.total} on the first try.",
+     "wrong": "{c.within} of {c.total} on the first try.",
      "feedback": {
       "style": "warm",
       "perfect": "A historian's instinct.",
@@ -212,99 +226,74 @@
     }
    },
    {
-    "draw": [
-     "i_fax",
-     "i_tel"
-    ],
-    "parallel": true,
-    "speak": "First: the fax is older than the telephone."
-   },
-   {
-    "draw": [
-     "y_fax",
-     "y_tel"
-    ],
-    "speak": "Alexander Bain patented a way to send pictures by telegraph in 1843, thirty-three years before Bell's phone."
-   },
-   {
-    "erase": [
-     "i_tel"
-    ]
+    "highlight": {
+     "target": [
+      "pairs_1"
+     ]
+    },
+    "speak": "Start with the fax."
    },
    {
     "highlight": {
      "target": [
-      "i_fax",
-      "pairs_1"
+      "pairs_v_1"
      ]
     },
-    "speak": "His design used two swinging pendulums, kept in step, to scan a picture line by line."
-   },
-   {
-    "erase": [
-     "i_fax"
-    ]
+    "speak": "Alexander Bain patented a way to send pictures by telegraph in 1843, thirty-three years before Bell's phone."
    },
    {
     "draw": [
-     "y_ox",
-     "y_az",
-     "i_ox",
-     "i_az"
+     "c_pend"
+    ],
+    "speak": "His design used two swinging pendulums, kept in step, to scan a picture line by line."
+   },
+   {
+    "draw": [
+     "c_1096"
     ],
     "speak": "Next, Oxford was teaching students by 1096, more than two centuries before the Aztecs founded their capital, Tenochtitlan."
    },
    {
-    "highlight": {
-     "target": [
-      "pairs_4",
-      "i_ox"
-     ]
-    },
+    "draw": [
+     "c_lake"
+    ],
     "speak": "So when that city rose from its lake, Oxford had already been teaching for generations."
    },
    {
-    "erase": [
-     "i_ox",
-     "i_az"
-    ]
-   },
-   {
-    "draw": [
-     "i_mam"
-    ],
-    "parallel": true,
+    "highlight": {
+     "target": [
+      "pairs_6"
+     ]
+    },
     "speak": "And the Great Pyramid is older than the last woolly mammoths."
    },
    {
     "draw": [
-     "y_pyr",
-     "y_mam"
+     "c_bc"
     ],
     "speak": "The pyramid was finished around 2560 BC."
    },
    {
-    "highlight": {
-     "target": [
-      "pairs_5",
-      "i_mam"
-     ]
-    },
+    "draw": [
+     "c_wr"
+    ],
     "speak": "A small herd survived on Wrangel Island, in the Arctic Ocean, until about four thousand years ago."
    },
    {
     "highlight": {
      "target": [
-      "i_mam",
-      "y_mam"
-     ],
-     "effect": "circle"
+      "pairs_5",
+      "pairs_v_5",
+      "pairs_6",
+      "pairs_v_6"
+     ]
     },
     "speak": "So when the pyramid was already five centuries old, mammoths still walked the Earth."
    }
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }

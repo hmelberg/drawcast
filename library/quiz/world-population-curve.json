@@ -66,7 +66,7 @@
      ]
     },
     {
-     "name": "UN forecast",
+     "name": "UN",
      "values": [
       [
        null,
@@ -108,7 +108,6 @@
     }
    ],
    "stage": 0,
-   "x_ticks": false,
    "xlim": [
     1800,
     2100
@@ -119,9 +118,6 @@
    ],
    "y_label": "Billions of people",
    "x_label": "Year"
-  },
-  "text": {
-   "font_size": 34
   },
   "sources": [
    {
@@ -166,14 +162,14 @@
     "id": "p1_l",
     "type": "text",
     "text": "1 bn: 1804",
-    "font_size": 34,
+    "font_size": 40,
     "style": {
      "color": "#2f6b8f"
     },
     "at": {
      "ref": "p1",
      "side": "above-right",
-     "gap": 14
+     "gap": 30
     }
    },
    {
@@ -193,14 +189,14 @@
     "id": "p2_l",
     "type": "text",
     "text": "2 bn: 1927",
-    "font_size": 34,
+    "font_size": 40,
     "style": {
      "color": "#2f6b8f"
     },
     "at": {
      "ref": "p2",
-     "side": "above-left",
-     "gap": 14
+     "side": "above",
+     "gap": 18
     }
    },
    {
@@ -220,7 +216,7 @@
     "id": "p8_l",
     "type": "text",
     "text": "8 bn: 2022",
-    "font_size": 34,
+    "font_size": 40,
     "style": {
      "color": "#b5482e"
     },
@@ -228,6 +224,60 @@
      "ref": "p8",
      "side": "left",
      "gap": 14
+    }
+   },
+   {
+    "id": "p3",
+    "type": "point",
+    "at": {
+     "data": [
+      1960,
+      3.0
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "p4",
+    "type": "point",
+    "at": {
+     "data": [
+      1974,
+      4.0
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "p7",
+    "type": "point",
+    "at": {
+     "data": [
+      2011,
+      7.0
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "young",
+    "type": "text",
+    "text": "fewer died young",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      1880,
+      6.0
+     ]
     }
    }
   ],
@@ -247,7 +297,7 @@
     "draw": [
      "line_1"
     ],
-    "speak": "In 1800 there were about one billion of us. By 1950, about two and a half billion."
+    "speak": "In 1800 there were nearly one billion of us. By 1950, about two and a half billion."
    },
    {
     "ask": {
@@ -281,6 +331,9 @@
    },
    {
     "draw": [
+     "p3",
+     "p4",
+     "p7",
      "p8",
      "p8_l"
     ],
@@ -295,12 +348,10 @@
     "speak": "only eleven years after the seventh."
    },
    {
-    "highlight": {
-     "target": [
-      "line_1"
-     ]
-    },
-    "speak": "Not because people had more children, but because far fewer died young."
+    "speak": "Not because people had more children, but because far fewer died young.",
+    "draw": [
+     "young"
+    ]
    },
    {
     "draw": [

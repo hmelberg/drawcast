@@ -36,8 +36,8 @@
     "type": "path",
     "points": [
      [
-      150.0,
-      560.0
+      150,
+      560
      ],
      [
       150.1,
@@ -61,7 +61,7 @@
      ],
      [
       162.5,
-      515.0
+      515
      ],
      [
       169.6,
@@ -140,11 +140,11 @@
       276.9
      ],
      [
-      711.0,
-      283.0
+      711,
+      283
      ],
      [
-      748.0,
+      748,
       291.5
      ],
      [
@@ -156,8 +156,8 @@
       315.2
      ],
      [
-      850.0,
-      330.0
+      850,
+      330
      ]
     ],
     "style": {
@@ -301,8 +301,8 @@
     "id": "t_straight",
     "type": "text",
     "text": "3rd",
-    "x": 430,
-    "y": 510,
+    "x": 380,
+    "y": 535,
     "font_size": 40,
     "style": {
      "color": "#8f887c"
@@ -351,6 +351,17 @@
     "style": {
      "color": "#b5482e"
     }
+   },
+   {
+    "id": "lvl_l",
+    "type": "text",
+    "text": "dips below",
+    "x": 640,
+    "y": 303,
+    "font_size": 24,
+    "style": {
+     "color": "#b5482e"
+    }
    }
   ],
   "commands": [
@@ -370,14 +381,32 @@
     "speak": "Three ramps join the same two points. Which one gets a ball to the bottom first?"
    },
    {
+    "speak": "One is straight, one swoops down in a curve, and one drops steeply, then runs flat.",
+    "blocking": false
+   },
+   {
     "highlight": {
      "target": [
-      "r_straight",
-      "r_curve",
+      "r_straight"
+     ],
+     "duration": 1.5
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "r_curve"
+     ],
+     "duration": 1.9
+    }
+   },
+   {
+    "highlight": {
+     "target": [
       "r_drop"
-     ]
-    },
-    "speak": "One is straight, one swoops down in a curve, and one drops steeply, then runs flat."
+     ],
+     "duration": 2.6
+    }
    },
    {
     "ask": {
@@ -487,7 +516,7 @@
       ],
       [
        12.5,
-       -45.0
+       -45
       ],
       [
        19.6,
@@ -566,11 +595,11 @@
        -283.1
       ],
       [
-       561.0,
-       -277.0
+       561,
+       -277
       ],
       [
-       598.0,
+       598,
        -268.5
       ],
       [
@@ -582,8 +611,8 @@
        -244.8
       ],
       [
-       700.0,
-       -230.0
+       700,
+       -230
       ]
      ],
      "duration": 2.3,
@@ -593,8 +622,10 @@
    },
    {
     "draw": [
-     "t_curve"
-    ]
+     "t_curve",
+     "lvl_l"
+    ],
+    "speak": "It even dips below the finish and climbs the last stretch: the speed it gains early is worth the climb."
    },
    {
     "draw": [
@@ -630,6 +661,7 @@
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }

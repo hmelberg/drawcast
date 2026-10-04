@@ -26,12 +26,16 @@ import type { MeasureFn } from "./measure";
 import type { Drawable, Pt } from "./model";
 import { fitTransform, mapPoints, scaleDrawables } from "./place";
 import { fitRegion, isFitName } from "./regions";
+import { contentBox } from "./page";
 
 export interface TemplateFit {
   s: number;
   dx: number;
   dy: number;
   box: BBox;
+  /** Of `dy`, the page's vertical settling (layout/settle.ts): the part
+   *  that moves canvas coordinates too, not only a template's own. */
+  settle?: number;
 }
 
 /** Padding around the ink union before fitting — room for the labels the
@@ -85,8 +89,12 @@ export function fitSceneLayout(scene: SceneLayout, box: BBox, measure: MeasureFn
   return { s, dx, dy, box };
 }
 
-/** Where a template may grow into: the canvas under the card heading. */
-export const GROW_REGION: BBox = { x: 40, y: 40, w: 920, h: 645 };
+/** Where a template may grow into: the page frame's content area — under
+ *  the heading, clear of the caption band (was x 40–960, y 40–685, into the
+ *  captions, until 2026-10-04). */
+export const GROW_REGION: BBox = Object.freeze(contentBox());
+/** The same on a page with no heading: up into the heading strip. */
+export const GROW_REGION_BARE: BBox = Object.freeze(contentBox({ heading: false }));
 /** A template grows at most this much… */
 export const GROW_MAX = 2.5;
 /** …and only when it would gain at least this much (else it is left as drawn). */
@@ -104,13 +112,13 @@ function capGrownText(ds: Drawable[], s: number): void {
 /**
  * A template that draws small on a canvas it could fill — a Lewis structure
  * at 4 % of it, an equation ladder at 16 % — is enlarged, uniformly, into
- * GROW_REGION (ledger, "templates draw at a fixed small scale", every revision
+ * the content area (ledger, "templates draw at a fixed small scale", every revision
  * round). The figure grows up to 2.5×, its words at most 1.4× (so a label
  * stays a label). Null — and nothing touched — when the gain would be under
  * 1.2×. The caller decides WHETHER a page may grow (no box, no overlays at
  * fixed coordinates, no widget with fixed hit geometry).
  */
-export function growSceneLayout(scene: SceneLayout, measure: MeasureFn): TemplateFit | null {
+export function growSceneLayout(scene: SceneLayout, measure: MeasureFn, region: BBox = GROW_REGION): TemplateFit | null {
   const ids = [...new Set(scene.drawables.map((d) => d.id))];
   const union = unionBoxes(ids.map((id) => unionBBoxForId(scene.drawables, id, measure)));
   if (!union) return null;
@@ -118,11 +126,11 @@ export function growSceneLayout(scene: SceneLayout, measure: MeasureFn): Templat
   // the lint that says so must still see it.
   if (union.x < 0 || union.y < 0 || union.x + union.w > CANVAS.w || union.y + union.h > CANVAS.h) return null;
   const padded: BBox = { x: union.x - FIT_PAD, y: union.y - FIT_PAD, w: union.w + 2 * FIT_PAD, h: union.h + 2 * FIT_PAD };
-  const t = fitTransform(padded, GROW_REGION);
+  const t = fitTransform(padded, region);
   if (t.s < GROW_MIN) return null;
   const s = Math.min(t.s, GROW_MAX);
   // Centred in the region at the capped scale.
-  const cx = GROW_REGION.x + GROW_REGION.w / 2, cy = GROW_REGION.y + GROW_REGION.h / 2;
+  const cx = region.x + region.w / 2, cy = region.y + region.h / 2;
   const ux = padded.x + padded.w / 2, uy = padded.y + padded.h / 2;
   const dx = cx - ux * s, dy = cy - uy * s;
   const map = ([x, y]: Pt): Pt => [x * s + dx, y * s + dy];
@@ -136,5 +144,5 @@ export function growSceneLayout(scene: SceneLayout, measure: MeasureFn): Templat
   if (scene.curveSamples) {
     for (const k of Object.keys(scene.curveSamples)) scene.curveSamples[k] = scene.curveSamples[k].map(map);
   }
-  return { s, dx, dy, box: GROW_REGION };
+  return { s, dx, dy, box: region };
 }

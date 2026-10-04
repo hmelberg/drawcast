@@ -533,7 +533,11 @@ export class CloudSpeech extends SpeechManager {
     // Prefetch may have created the context before any user gesture (autoplay
     // policy leaves it suspended); speak runs inside the play click, so resume.
     if (audioCtx.state === "suspended") void audioCtx.resume();
-    return this.buffer(text, this.effRate(speedMultiplier), audioCtx, opts)
+    // Stopped while its clip is still being synthesized (a question answered
+    // before its reading arrived): done now, not when the fetch lands — the
+    // player waits on this voice before it says right or wrong.
+    const stopped = signal ? new Promise<void>((resolve) => (signal.aborted ? resolve() : signal.addEventListener("abort", () => resolve(), { once: true }))) : null;
+    const said = this.buffer(text, this.effRate(speedMultiplier), audioCtx, opts)
       .then(
         (buffer) =>
           new Promise<void>((resolve) => {
@@ -563,6 +567,7 @@ export class CloudSpeech extends SpeechManager {
           }),
       )
       .catch(() => super.speakOne(text, speedMultiplier, signal, opts)); // cloud hiccup → browser voice
+    return stopped ? Promise.race([said, stopped]) : said;
   }
 
   override cancel(): void {

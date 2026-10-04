@@ -135,11 +135,13 @@ export function registerFor(origin, lib, courseText, castText) {
  * every one of these calls (boundedFetch above) — never their own job,
  * per src/registry.ts's own contract, and the caller's to enforce.
  *
- * Returns the note to show and any free name that came back (null
+ * Returns the note to show, any free name that came back (null
  * otherwise) — recording it on origin.freeName is the caller's job, kept
- * out of here so this stays a pure function.
+ * out of here so this stays a pure function — and whether the registry
+ * answered 429 (`rate`, for `register --wait`). `work` names the workdir
+ * in the rate-limited note's retry command.
  */
-export async function registerNow({ origin, session, verify, reg, registry, names, fetchImpl }) {
+export async function registerNow({ origin, session, verify, reg, registry, names, fetchImpl, work = "<workdir>" }) {
   const { verifyClaim, registerItem, registryNote } = registry;
   const api = session?.api ?? apiUrl();
   const repoStr = `${origin.owner}/${origin.repo}`;
@@ -151,8 +153,8 @@ export async function registerNow({ origin, session, verify, reg, registry, name
     note += claimNote(claimed);
   }
   const out = await registerItem(api, { key: session?.key, ...reg }, fetchImpl);
-  note += registryNote(out, "run: node scripts/cast.mjs login");
-  return { note, name: typeof out === "object" ? out.name : null };
+  note += registryNote(out, "run: node scripts/cast.mjs login", `try \`cast.mjs register ${work}\` in up to an hour`);
+  return { note, name: typeof out === "object" ? out.name : null, rate: out === "rate" };
 }
 
 /**

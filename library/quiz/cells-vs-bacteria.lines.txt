@@ -1,6 +1,6 @@
 Are there more bacteria living in your body than human cells?
-[ASK] How do the bacteria in your body compare with your own cells?  choices=['Ten bacteria per cell', 'About one each', 'Far fewer bacteria']
-  [right] About one each: roughly thirty-eight trillion bacteria to thirty trillion human cells.
+[QUIZ] How do the bacteria in your body compare with your own cells?  choices=["Ten bacteria per cell","About one each","Far fewer bacteria"]
+  [right] About one each.
   [wrong] The famous answer is out of date.
 For decades, textbooks said bacteria outnumber us ten to one.
 But that began as a rough guess in 1972, and was copied for forty years.
@@ -10,3 +10,4 @@ to thirty trillion human cells.
 Most of your own cells turn out to be red blood cells: tiny, and very many.
 And the bacteria, mostly in the colon, weigh only about two hundred grams in all.
 In fact the two are so close that, as the authors noted, one trip to the toilet can tip the balance back toward you.
+Flush, and for a little while, you are mostly you again.

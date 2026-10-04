@@ -12,5 +12,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "line_chart: no y tick values (only the ends) — drawn by hand; free texts near the line are pushed away by the label layout, so the end value is written as '2024: $0.27' rather than beside the point; no log y axis."
+ "notes": "Republished 2026-10-04: dropped the hand-placed y tick numbers (the template has ticks), shorter y label, no global text scale (the series' end label ran off the page); 1975 labels spaced. No log y axis. Review round: '$0.27' at the line's end (point in data units), '−94% since 2008', cues 'giant factories' and '×2 panels → −20% price', all erased when '−99.8% since 1975' appears. Single-series end label cannot be removed (template default name). No spoiler: frames show the state after the ask."
 }

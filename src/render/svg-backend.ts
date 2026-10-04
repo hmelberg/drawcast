@@ -501,6 +501,11 @@ function drawLeaf(rc: RoughSVG | null, d: Exclude<Drawable, { kind: "group" }>):
       if (adv !== null && Math.abs(adv - CHAR_W) > 0.001) t.setAttribute("letter-spacing", ((CHAR_W - adv) * d.fontSize).toFixed(3));
     }
     if (d.weight === "bold") t.setAttribute("font-weight", "bold");
+    // A reveal stamp's slant (y up, counter-clockwise → SVG's negative angle).
+    if (d.tilt) {
+      t.setAttribute("transform", `rotate(${(-d.tilt).toFixed(2)} ${x} ${toSvgY(d.pos[1])})`);
+      t.dataset.tilt = "1"; // nudgeTextsIntoCanvas leaves a turned text alone
+    }
     t.setAttribute("text-anchor", d.anchor === "middle" ? "middle" : d.anchor);
     t.setAttribute("dominant-baseline", "central");
     if (d.style.opacity < 1) t.setAttribute("opacity", String(d.style.opacity));
@@ -662,7 +667,43 @@ export function imageRevealFrame(reveal: ImageReveal, baseOpacity: number, t: nu
   }
 }
 
+/**
+ * A reveal stamp landing (spec/reveal-stamps.ts): the leaf fades in as it
+ * settles from STAMP_FROM× to its own size about the stamp's centre. The
+ * scale rides on the leaf's CHILD nodes, in front of their own transform (a
+ * text's slant), so the pose transform on the leaf's `<g>` is never touched;
+ * at t = 1 each child is back to exactly what drawLeaf built.
+ */
+const STAMP_FROM = 1.15;
+function stampLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" }>): LeafHandle {
+  const c: Pt =
+    leaf.kind === "text" || leaf.kind === "image"
+      ? leaf.pos
+      : (() => {
+          const pts = "pts" in leaf ? (leaf.pts as Pt[]) : [];
+          if (pts.length === 0) return [0, 0] as Pt;
+          const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+          return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2] as Pt;
+        })();
+  const cx = c[0], cy = toSvgY(c[1]);
+  const apply = (t: number) => {
+    const u = Math.min(1, Math.max(0, t));
+    g.style.opacity = u >= 1 ? "" : Math.min(1, u * 1.6).toFixed(3);
+    const s = 1 + (STAMP_FROM - 1) * (1 - u) ** 3;
+    for (const kid of Array.from(g.children)) {
+      const own = kid as SVGElement;
+      if (own.dataset.stampOwn === undefined) own.dataset.stampOwn = own.getAttribute("transform") ?? "";
+      const base = own.dataset.stampOwn;
+      const t2 = s === 1 ? base : `translate(${cx.toFixed(1)} ${cy.toFixed(1)}) scale(${s.toFixed(4)}) translate(${(-cx).toFixed(1)} ${(-cy).toFixed(1)}) ${base}`.trim();
+      if (t2 === "") own.removeAttribute("transform");
+      else own.setAttribute("transform", t2);
+    }
+  };
+  return { durationMs: leaf.drawOpts.duration, prepare: () => apply(0), setProgress: apply };
+}
+
 function makeLeafHandle(g: SVGGElement, leaf: Exclude<Drawable, { kind: "group" }>): LeafHandle {
+  if (leaf.drawOpts.mode === "stamp") return stampLeafHandle(g, leaf);
   if (leaf.kind === "image") {
     // A photo has no pen to follow, so it reveals by effect (ImageReveal in
     // layout/model.ts): the pure frame math lives in imageRevealFrame.
@@ -1049,9 +1090,12 @@ class SvgElementHandle implements RenderedElement {
     this.fadeGroups = entries.map(({ fadeNode }) => fadeNode);
     this.cumulative = [];
     let acc = 0;
+    // A reveal stamp's frame and words land as one (spec/reveal-stamps.ts),
+    // not one after the other as a sketch's leaves are drawn.
+    const together = entries.length > 0 && entries.every(({ leaf }) => leaf.drawOpts.mode === "stamp");
     for (const l of this.leaves) {
-      this.cumulative.push(acc);
-      acc += l.durationMs;
+      this.cumulative.push(together ? 0 : acc);
+      acc = together ? Math.max(acc, l.durationMs) : acc + l.durationMs;
     }
     this.durationMs = acc;
     this.leaves.forEach((l) => l.prepare());
@@ -1112,7 +1156,19 @@ class SvgElementHandle implements RenderedElement {
   /** Pose: see poseTransform. */
   setTransform(dx: number, dy: number, deg: number, pivot: Pt, scale = 1, mirror = false, squash?: Squash): void {
     const t = poseTransform(dx, dy, deg, pivot, scale, mirror, squash);
+    // A picture pivots its reveal on itself (transform-box: fill-box,
+    // makeLeafHandle), and CSS applies that origin to the transform
+    // ATTRIBUTE too: a pose that scales or turns — written about its own
+    // pivot from the SVG origin — would land somewhere else entirely (a
+    // sequence's picture shrinking into its strip slot flew off the page).
+    // While posed, the picture's box is the SVG's; a plain move needs no origin.
+    const turned = deg !== 0 || scale !== 1 || mirror || (squash !== undefined && squash.k < 1);
     for (const g of this.groups) {
+      if (g.style.transformBox === "fill-box" || g.dataset.box !== undefined) {
+        if (g.dataset.box === undefined) g.dataset.box = "1";
+        g.style.transformBox = turned ? "view-box" : "fill-box";
+        g.style.transformOrigin = turned ? "0 0" : "center";
+      }
       if (t === null) g.removeAttribute("transform");
       else g.setAttribute("transform", t);
     }
@@ -1177,6 +1233,8 @@ function nudgeTextsIntoCanvas(svg: SVGSVGElement, world?: BBox): void {
   const top = world ? toSvgY(world.y + world.h) : 0;
   const bottom = world ? toSvgY(world.y) : CANVAS.h;
   for (const t of Array.from(svg.querySelectorAll("text"))) {
+    // A reveal stamp's turned words (drawLeaf's tilt) are placed inside the content area already.
+    if ((t as SVGTextElement).dataset.tilt) continue;
     try {
       // Our backend never sets transforms on text otherwise, so recomputing
       // from a clean slate keeps repeated calls (e.g. after fonts load) idempotent.
@@ -1212,6 +1270,10 @@ export const LASER_COLOR = "#d33827";
  */
 function emphasisClone(g: SVGGElement, color: string): SVGGElement {
   const c = g.cloneNode(true) as SVGGElement;
+  // A see-through stroke (a code pane's marker band, 60 % under the letters)
+  // keeps its see-through in the echo, at an area's 0.4: the opacity it lost
+  // with the attribute below made a pulse paint opaque red bars over the code.
+  const seeThrough = Number(g.getAttribute("opacity") ?? "1") < 1;
   c.removeAttribute("opacity");
   c.style.opacity = "0";
   c.style.pointerEvents = "none";
@@ -1229,6 +1291,7 @@ function emphasisClone(g: SVGGElement, color: string): SVGGElement {
     // solid-fill paths included — keeps the bolder echo it has always had.
     if (p.hasAttribute(EXACT_ATTR)) continue;
     p.setAttribute("stroke", color);
+    if (seeThrough) p.setAttribute("stroke-opacity", "0.4");
     const w = parseFloat(p.getAttribute("stroke-width") ?? "3") || 3;
     p.setAttribute("stroke-width", String(w + 1.5));
   }
@@ -1331,6 +1394,8 @@ function outlineD(leaf: Extract<Drawable, { kind: "stroke" }>): string | null {
 }
 
 let frameMaskSeq = 0;
+/** Window clip ids, document-wide (see clipFor). */
+let clipSeq = 0;
 
 /** A thick round-capped path — band and marker alike — under the ink, posed like its leaf. */
 function penPath(d: string, color: string, width: number, alpha: number, pose: string | null): SVGPathElement {
@@ -2507,7 +2572,11 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean; c
         const key = `${clip.x},${clip.y},${clip.w},${clip.h}`;
         let id = clipIds.get(key);
         if (!id) {
-          id = `cs-clip-${clipIds.size + 1}`;
+          // Unique in the DOCUMENT, not just this mount: `url(#…)` resolves
+          // to the first element with the id, so a second mount's
+          // `cs-clip-1` (the next part of a lecture, a frames sheet) clipped
+          // its window with the first mount's rectangle.
+          id = `cs-clip-${++clipSeq}`;
           const cp = document.createElementNS(SVG_NS, "clipPath");
           cp.setAttribute("id", id);
           cp.setAttribute("clipPathUnits", "userSpaceOnUse");

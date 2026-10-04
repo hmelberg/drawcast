@@ -145,9 +145,13 @@ describe("registryNote", () => {
     expect(registryNote({ item: {}, name: null, owner: "none", proven: false })).toBe("");
     expect(registryNote({ item: {}, name: null, owner: "you", proven: true })).toBe("");
   });
-  test("rate and error read as unreachable", () => {
-    const outcomes: RegistryOutcome[] = ["rate", "error"];
-    for (const out of outcomes) expect(registryNote(out)).toBe(" · not registered (server unreachable)");
+  test("a network failure or a 5xx reads as unreachable", () => {
+    const out: RegistryOutcome = "error";
+    expect(registryNote(out)).toBe(" · not registered (server unreachable)");
+  });
+  test("a 429 reads as rate limited, not unreachable — with the caller's own retry line", () => {
+    expect(registryNote("rate")).toBe(" · not registered (rate limited — try again within the hour)");
+    expect(registryNote("rate", "x", "try `cast.mjs register w` in up to an hour")).toBe(" · not registered (rate limited — try `cast.mjs register w` in up to an hour)");
   });
   test("M5: key (a 401) says to sign in again — the app's wording by default, the caller's own when given", () => {
     expect(registryNote("key")).toBe(" · not registered — sign in again (Settings → Publishing)");

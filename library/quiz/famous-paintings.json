@@ -20,9 +20,6 @@
    {
     "id": "art",
     "type": "cards",
-    "x": 60,
-    "width": 880,
-    "y": 615,
     "items": [
      {
       "text": "Mona Lisa",
@@ -56,15 +53,16 @@
        "set": "twemoji"
       }
      }
-    ]
+    ],
+    "size": 1.25
    },
    {
     "id": "s1911",
     "type": "text",
     "text": "stolen 1911",
-    "x": 500,
-    "y": 640,
-    "font_size": 34,
+    "x": 200,
+    "y": 470,
+    "font_size": 40,
     "style": {
      "color": "#b5482e"
     },
@@ -76,9 +74,9 @@
     "id": "s1913",
     "type": "text",
     "text": "found 1913",
-    "x": 500,
-    "y": 595,
-    "font_size": 34,
+    "x": 800,
+    "y": 470,
+    "font_size": 40,
     "style": {
      "color": "#2f6b8f"
     },
@@ -91,26 +89,26 @@
     "type": "path",
     "points": [
      [
-      410,
-      330
+      356,
+      286
      ],
      [
-      590,
-      330
+      644,
+      286
      ],
      [
-      590,
-      550
+      644,
+      638
      ],
      [
-      410,
-      550
+      356,
+      638
      ]
     ],
     "closed": true,
     "style": {
      "color": "#8a5a2b",
-     "stroke_width": 7
+     "stroke_width": 9
     }
    },
    {
@@ -118,20 +116,20 @@
     "type": "path",
     "points": [
      [
-      428,
-      348
+      385,
+      315
      ],
      [
-      572,
-      348
+      615,
+      315
      ],
      [
-      572,
-      532
+      615,
+      609
      ],
      [
-      428,
-      532
+      385,
+      609
      ]
     ],
     "closed": true,
@@ -144,9 +142,9 @@
     "id": "ml_head",
     "type": "ellipse",
     "x": 500,
-    "y": 465,
-    "rx": 26,
-    "ry": 34,
+    "y": 502,
+    "rx": 42,
+    "ry": 54,
     "style": {
      "color": "#5b4a2e",
      "fill": "#d9b26b",
@@ -159,32 +157,32 @@
     "type": "path",
     "points": [
      [
-      462,
-      380
+      439,
+      366
      ],
      [
-      466,
-      440
+      446,
+      462
      ],
      [
-      478,
-      490
+      465,
+      542
      ],
      [
       500,
-      505
+      566
      ],
      [
-      522,
-      490
+      535,
+      542
      ],
      [
-      534,
-      440
+      554,
+      462
      ],
      [
-      538,
-      380
+      561,
+      366
      ]
     ],
     "smooth": true,
@@ -198,24 +196,24 @@
     "type": "path",
     "points": [
      [
-      440,
-      352
+      404,
+      321
      ],
      [
-      455,
-      395
+      428,
+      390
      ],
      [
       500,
-      420
+      430
      ],
      [
-      545,
-      395
+      572,
+      390
      ],
      [
-      560,
-      352
+      596,
+      321
      ]
     ],
     "smooth": true,
@@ -246,8 +244,8 @@
     "type": "text",
     "text": "most famous",
     "x": 500,
-    "y": 290,
-    "font_size": 36,
+    "y": 232,
+    "font_size": 44,
     "style": {
      "color": "#b5482e"
     }
@@ -318,6 +316,11 @@
     "speak": "But the most famous of them all was not always so famous."
    },
    {
+    "erase": [
+     "art"
+    ]
+   },
+   {
     "draw": [
      "s1911",
      "empty"
@@ -330,7 +333,7 @@
       "s1911"
      ]
     },
-    "speak": "Newspapers around the world printed her face, and crowds queued to stare at the empty wall. Even Pablo Picasso was questioned by the police."
+    "speak": "Newspapers around the world printed her face, and crowds queued to stare at the empty wall."
    },
    {
     "draw": [
@@ -349,6 +352,7 @@
      "famous"
     ]
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }

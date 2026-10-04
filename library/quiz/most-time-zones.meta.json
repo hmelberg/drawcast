@@ -11,5 +11,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": true,
- "notes": "bar_chart category/value labels stay small whatever text.font_size says."
+ "notes": "Republished 2026-10-04 (+review round): dialogue; on-canvas answer buttons (reveal stamp dropped: it collided with the buttons); chart in a box with own flags + names drawn with the axes from the start (template labels blank: their parts cannot be drawn early); own value labels at 44 via {data}; '1 mainland' segment on the France bar; 'sunrise after 10 am' cue (Kashgar winter sunrise ~10:15 Beijing time); 'always day somewhere' under 'islands!'; end glow not circle. Bars all one colour."
 }

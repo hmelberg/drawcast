@@ -6,10 +6,10 @@
   "template": "bar_chart",
   "params": {
    "labels": [
-    "Russia",
-    "USA",
-    "France",
-    "China"
+    "",
+    "",
+    "",
+    ""
    ],
    "values": [
     11,
@@ -17,12 +17,18 @@
     12,
     1
    ],
-   "value_labels": true,
+   "value_labels": false,
    "ylim": [
     0,
     16
    ],
-   "y_label": "Time zones"
+   "y_label": "Time zones",
+   "box": {
+    "x": 130,
+    "y": 280,
+    "w": 740,
+    "h": 350
+   }
   },
   "text": {
    "font_size": 34
@@ -44,33 +50,45 @@
     "of": "desert island",
     "set": "twemoji",
     "icon_look": "picture",
-    "size": 100,
-    "x": 600,
-    "y": 600,
+    "size": 90,
     "cites": [
      "tad"
-    ]
+    ],
+    "at": {
+     "data": [
+      2.55,
+      14.7
+     ]
+    }
    },
    {
     "id": "overseas",
     "type": "text",
     "text": "islands!",
-    "x": 730,
-    "y": 600,
     "font_size": 44,
     "style": {
      "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      3.2,
+      14.7
+     ]
     }
    },
    {
     "id": "beijing",
     "type": "text",
     "text": "Beijing time",
-    "x": 830,
-    "y": 290,
     "font_size": 36,
     "style": {
      "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      3,
+      5.6
+     ]
     }
    },
    {
@@ -79,30 +97,240 @@
     "of": "sunrise",
     "set": "twemoji",
     "icon_look": "picture",
-    "size": 110,
-    "x": 830,
-    "y": 370
+    "size": 90,
+    "at": {
+     "data": [
+      3,
+      8.6
+     ]
+    }
    },
    {
     "id": "daytime",
     "type": "text",
-    "text": "always day",
-    "x": 830,
-    "y": 420,
-    "font_size": 48,
+    "text": "always day somewhere",
+    "font_size": 30,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      3.05,
+      11.0
+     ]
+    }
+   },
+   {
+    "id": "v1",
+    "type": "text",
+    "text": "11",
+    "font_size": 44,
+    "at": {
+     "data": [
+      0,
+      12.2
+     ]
+    },
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "v2",
+    "type": "text",
+    "text": "11",
+    "font_size": 44,
+    "at": {
+     "data": [
+      1,
+      12.2
+     ]
+    },
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "v3",
+    "type": "text",
+    "text": "12",
+    "font_size": 44,
+    "at": {
+     "data": [
+      2,
+      13.2
+     ]
+    },
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "v4",
+    "type": "text",
+    "text": "1",
+    "font_size": 44,
+    "at": {
+     "data": [
+      3,
+      2.2
+     ]
+    },
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "main1",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      1.72,
+      0.5
+     ],
+     [
+      2.28,
+      0.5
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "stroke_width": 10
+    }
+   },
+   {
+    "id": "main1_l",
+    "type": "text",
+    "text": "1 mainland",
+    "font_size": 28,
+    "at": {
+     "data": [
+      2,
+      2.2
+     ]
+    },
     "style": {
      "color": "#b5482e"
     }
    },
    {
-    "id": "daytime2",
+    "id": "fl1",
+    "type": "icon",
+    "of": "flag russia",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "at": {
+     "data": [
+      0,
+      -1.6
+     ]
+    }
+   },
+   {
+    "id": "cn1",
     "type": "text",
-    "text": "somewhere",
-    "x": 830,
-    "y": 355,
-    "font_size": 48,
+    "text": "Russia",
+    "font_size": 30,
+    "at": {
+     "data": [
+      0,
+      -3.6
+     ]
+    }
+   },
+   {
+    "id": "fl2",
+    "type": "icon",
+    "of": "flag united states",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "at": {
+     "data": [
+      1,
+      -1.6
+     ]
+    }
+   },
+   {
+    "id": "cn2",
+    "type": "text",
+    "text": "USA",
+    "font_size": 30,
+    "at": {
+     "data": [
+      1,
+      -3.6
+     ]
+    }
+   },
+   {
+    "id": "fl3",
+    "type": "icon",
+    "of": "flag france",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "at": {
+     "data": [
+      2,
+      -1.6
+     ]
+    }
+   },
+   {
+    "id": "cn3",
+    "type": "text",
+    "text": "France",
+    "font_size": 30,
+    "at": {
+     "data": [
+      2,
+      -3.6
+     ]
+    }
+   },
+   {
+    "id": "fl4",
+    "type": "icon",
+    "of": "flag china",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "at": {
+     "data": [
+      3,
+      -1.6
+     ]
+    }
+   },
+   {
+    "id": "cn4",
+    "type": "text",
+    "text": "China",
+    "font_size": 30,
+    "at": {
+     "data": [
+      3,
+      -3.6
+     ]
+    }
+   },
+   {
+    "id": "sun10",
+    "type": "text",
+    "text": "sunrise after 10 am",
+    "font_size": 30,
     "style": {
      "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      3.15,
+      11.4
+     ]
     }
    }
   ],
@@ -114,18 +342,21 @@
    },
    {
     "draw": [
-     "axes"
+     "axes",
+     "fl1",
+     "fl2",
+     "fl3",
+     "fl4",
+     "cn1",
+     "cn2",
+     "cn3",
+     "cn4"
     ],
     "speak": "Which country on Earth has the most time zones?",
-    "voice": "a"
+    "voice": "a",
+    "parallel": true
    },
    {
-    "point": {
-     "at": {
-      "ref": "axes"
-     },
-     "gesture": "underline"
-    },
     "speak": "Easy. Russia. It's the biggest country there is.",
     "voice": "b"
    },
@@ -140,13 +371,16 @@
      ],
      "correct": 3,
      "right": "France, with twelve, thanks to islands and territories scattered around the globe.",
-     "wrong": "Think of islands, not land."
+     "wrong": "Think of islands, not land.",
+     "on_canvas": true
     }
    },
    {
     "draw": [
      "bar_1",
-     "bar_2"
+     "v1",
+     "bar_2",
+     "v2"
     ],
     "parallel": true,
     "speak": "Russia has eleven. The United States, counting its Pacific islands, also has eleven.",
@@ -154,19 +388,18 @@
    },
    {
     "draw": [
-     "bar_3"
+     "bar_3",
+     "v3"
     ],
     "speak": "France? Mainland France would fit inside Texas!",
     "voice": "b"
    },
    {
-    "highlight": {
-     "target": [
-      "bar_3"
-     ]
-    },
-    "speak": "The mainland has just one clock.",
-    "voice": "a"
+    "draw": [
+     "main1",
+     "main1_l"
+    ],
+    "speak": "The mainland has just one clock."
    },
    {
     "draw": [
@@ -178,7 +411,8 @@
    },
    {
     "draw": [
-     "bar_4"
+     "bar_4",
+     "v4"
     ],
     "speak": "And China? It's almost as wide as the United States.",
     "voice": "b"
@@ -192,7 +426,8 @@
    },
    {
     "draw": [
-     "sunrise"
+     "sunrise",
+     "sun10"
     ],
     "speak": "So in the far west, a winter sunrise comes after ten in the morning.",
     "voice": "a"
@@ -200,15 +435,15 @@
    {
     "erase": [
      "sunrise",
-     "beijing"
+     "beijing",
+     "sun10"
     ]
    },
    {
     "highlight": {
      "target": [
       "bar_3"
-     ],
-     "effect": "circle"
+     ]
     },
     "speak": "So the sun never sets on France?",
     "voice": "b"
@@ -217,10 +452,11 @@
     "speak": "Just about. From Polynesia to the Indian Ocean, it is nearly always daytime somewhere in France.",
     "voice": "a",
     "draw": [
-     "daytime",
-     "daytime2"
-    ]
+     "daytime"
+    ],
+    "cue": 0.35
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }

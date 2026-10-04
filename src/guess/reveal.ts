@@ -19,10 +19,11 @@
 
 import type { Pt } from "../layout/model";
 import { INK } from "../layout/model";
-import { scaleGeometry } from "../spec/scale";
+import { scaleBracketDrop, scaleGeometry, scaleLabelWidth } from "../spec/scale";
 import { GUESS_COLOR } from "./color";
 import { pointFor, type GuessHandle } from "./handles";
 import { ratioText, signed, signedScale, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "./marks";
+import { onSlider, sliderMarks, sliderRevealValue } from "./slider-marks";
 
 /** The colour language. */
 export const YOURS = GUESS_COLOR;
@@ -177,7 +178,8 @@ export function besideValues(handles: GuessHandle[], guess: number[][], prog: nu
       case "curve":
         return g.slice();
       case "point":
-        return h.truth.slice();
+        // A slider's thumb and counter run from yours to the truth (spec/slider.ts).
+        return onSlider(h) ? h.truth.map((v, j) => sliderRevealValue(g[j] ?? v, v, p)) : h.truth.slice();
       default:
         return g.map((v, j) => lerp(v, h.truth[j] ?? v, ease(p)));
     }
@@ -191,7 +193,7 @@ const PIN_DROP = 70;
 export function besideOffsets(handles: GuessHandle[], prog: number[]): Record<string, Pt> {
   const out: Record<string, Pt> = {};
   handles.forEach((h, k) => {
-    if (h.kind !== "point") return;
+    if (h.kind !== "point" || onSlider(h)) return;
     const dy = PIN_DROP * (1 - ease(Math.max(0, Math.min(1, prog[k] ?? 1))));
     if (dy <= 0.01) return;
     for (const id of [h.part, `${h.part}_pin`, `${h.part}_num`]) out[id] = [0, dy];
@@ -347,6 +349,13 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
       }
       case "point": {
         if (!h.scale) break;
+        if (onSlider(h)) {
+          const m = sliderMarks(h, g[0], p, { fade });
+          fills.push(...m.fills);
+          lines.push(...m.lines);
+          texts.push(...m.texts);
+          break;
+        }
         const sg = scaleGeometry(h.scale);
         const x = sg.xAt(g[0]);
         const y = sg.y;
@@ -355,11 +364,15 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
         lines.push(yours({ pts: pin, closed: true, width: 2.5 }));
         const xt = sg.xAt(h.truth[0]);
         // Your number over your pin, when the true pin's own number leaves room for it.
-        if (Math.abs(xt - x) > 70) texts.push({ at: [x, y + 52], text: sg.format(g[0]), anchor: "middle", color: YOURS, size: 22, opacity: fade });
+        // (At the true number's height and size — spec/scale.ts scaleValueElements.)
+        const size = sg.sizes?.answer ?? 28;
+        const mine = sg.format(g[0]);
+        const room = (scaleLabelWidth(mine, size) + scaleLabelWidth(sg.format(h.truth[0]), size)) / 2 + 10;
+        if (Math.abs(xt - x) > room) texts.push({ at: [x, y + 36 + Math.round(size * 0.6)], text: mine, anchor: "middle", color: YOURS, size, opacity: fade });
         if (p > 0 && Math.abs(xt - x) > 4) {
           // The connector: a bracket under the numbers, guess → truth, grown as the pin drops.
           const x1 = lerp(x, xt, ease(p));
-          const by = y - 58;
+          const by = y - scaleBracketDrop(sg);
           lines.push({ pts: [[x, by + 6], [x, by], [x1, by], [x1, by + 6]], color: TRUTH, width: 2.5 });
           if (p >= 1) texts.push({ at: [(x + x1) / 2, by - 16], text: sg.kind === "log" ? ratioText(h.truth[0], g[0]) : signedScale(sg.format, h.truth[0] - g[0]), anchor: "middle", color: TRUTH, gap: true, ...(fade < 1 ? { opacity: fade } : {}) });
         }

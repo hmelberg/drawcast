@@ -12,7 +12,7 @@
 // Deps are injected for the same reason embed.ts's are: a node test proves
 // "never the document" with fake resolvers that scribble on what they get.
 
-import type { Spec } from "../spec/types";
+import type { CardItemSpec, Spec } from "../spec/types";
 import type { RenderStyle } from "./svg-backend";
 import { expandSpec } from "../spec/expand";
 
@@ -63,7 +63,7 @@ export async function resolvedRenderSpec(spec: Spec, deps: RenderResolveDeps): P
 /** True when a cards element names an icon on an item (or its match partner). */
 function hasCardIcons(spec: Spec): boolean {
   return (spec.elements ?? []).some(
-    (el) => el.type === "cards" && Array.isArray(el.items) && el.items.some((it) => typeof it === "object" && it !== null && (it.icon !== undefined || it.match_icon !== undefined)),
+    (el) => el.type === "cards" && Array.isArray(el.items) && el.items.some((it) => typeof it === "object" && it !== null && (it.icon !== undefined || (it as CardItemSpec).match_icon !== undefined)),
   );
 }
 

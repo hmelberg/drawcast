@@ -226,7 +226,7 @@ describe("publishing embeds into the copy, never the document (P §3.4)", () => 
     // (used as-is whenever embedImages is false, or there is nothing to
     // embed) — `doc.publishedAs` is a different field, not a playlist.
     expect(fn.match(/doc\.playlist/g)).toHaveLength(2);
-    for (const onSource of ["formatPlaylist(source", "playlistSpeakLines(source)", "itemsOf(source)", "formatPublished(source"]) {
+    for (const onSource of ["formatPlaylist(source", "playlistBakeLines(source)", "itemsOf(source)", "formatPublished(source"]) {
       expect(fn).toContain(onSource);
     }
   });

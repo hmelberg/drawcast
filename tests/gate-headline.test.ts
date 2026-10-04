@@ -20,6 +20,20 @@ class El {
     contains: (c: string) => this.classList.set.has(c),
   };
   constructor(public tag: string) {}
+  get parentNode(): El | null {
+    return this.parent;
+  }
+  get firstChild(): El | null {
+    return this.children[0] ?? null;
+  }
+  insertBefore(x: El, ref: El | null): El {
+    x.remove();
+    x.parent = this;
+    const i = ref ? this.children.indexOf(ref) : -1;
+    if (i < 0) this.children.push(x);
+    else this.children.splice(i, 0, x);
+    return x;
+  }
   get textContent(): string {
     return this.text + this.children.map((c) => c.textContent).join("");
   }
@@ -30,6 +44,7 @@ class El {
     for (const x of xs) typeof x === "string" ? (this.text += x) : this.appendChild(x);
   }
   appendChild(x: El): El {
+    x.remove();
     x.parent = this;
     this.children.push(x);
     return x;
@@ -106,9 +121,27 @@ describe("the headline", () => {
     const props: Record<string, string> = {};
     stage.style.setProperty = (k: string, v: string) => void (props[k] = v);
     const m = await mount(Q, stage);
+    m.dock.relayout();
     const [head] = m.heads();
+    // Stage 700, drawing 600, dock 38, headline 36: room for all — above it.
     expect(head.style.top).toBe("0px");
     expect(props["--cs-head-h"]).toBe(`${head.offsetHeight + 6}px`);
+    m.dock.dispose();
+  });
+
+  test("no room above (a small player, W25): the headline stands over the drawing; the drawing keeps its size", async () => {
+    const stage = new El("div");
+    stage.classList.add("cs-caption-strip");
+    stage.getBoundingClientRect = () => ({ top: 0, left: 0, width: 800, height: 640 });
+    const props: Record<string, string> = {};
+    stage.style.setProperty = (k: string, v: string) => void (props[k] = v);
+    const m = await mount(Q, stage);
+    m.dock.relayout();
+    const [head] = m.heads();
+    expect(head.style.top).toBe("46px");
+    expect(props["--cs-head-h"]).toBe("0px");
+    // The hidden caption takes nothing: 600 + 38 ≤ 640.
+    expect(props["--cs-dock-shrink"] ?? "0px").toBe("0px");
     m.dock.dispose();
   });
 
@@ -130,6 +163,32 @@ describe("the headline", () => {
     const b = await mount("Which of these foods are fruit? Tap every fruit.", a.stage);
     expect(b.heads()).toHaveLength(1);
     expect(b.heads()[0].textContent).toContain("Which of these foods");
+  });
+});
+
+describe("fitHeadline (W25): the headline over the drawing fits the heading strip", () => {
+  // A fake headline: 1.2 line height, the question in lines of 40 em-chars at 22 px.
+  const measure = (chars: number, width: number) => (f: number, how: boolean) => Math.ceil((chars * f * 0.5) / width) * f * 1.2 + (how ? 18 : 0);
+  test("room for it all: the full size, the how line kept", async () => {
+    const { fitHeadline } = await import("../src/ui/gate-dock");
+    expect(fitHeadline(80, measure(60, 760))).toEqual({ fontPx: 22.4, how: true });
+  });
+  test("a small player: the how line goes to the dock before the question drops under 17 px", async () => {
+    const { fitHeadline, HEAD_STRIP } = await import("../src/ui/gate-dock");
+    const room = 334 * HEAD_STRIP - 6; // the 460 px editor player
+    const fit = fitHeadline(room, measure(76, 430));
+    expect(fit.how).toBe(false);
+    expect(fit.fontPx).toBeGreaterThanOrEqual(13);
+    expect(measure(76, 430)(fit.fontPx, false)).toBeLessThanOrEqual(room);
+  });
+  test("no room at all: the least font, no how line", async () => {
+    const { fitHeadline } = await import("../src/ui/gate-dock");
+    expect(fitHeadline(5, measure(76, 430))).toEqual({ fontPx: 13, how: false });
+  });
+  test("the strip is the page frame's heading strip", async () => {
+    const { HEAD_STRIP } = await import("../src/ui/gate-dock");
+    const { CONTENT_TOP, PAGE_H } = await import("../src/layout/page");
+    expect(HEAD_STRIP).toBeCloseTo((PAGE_H - CONTENT_TOP) / PAGE_H);
   });
 });
 

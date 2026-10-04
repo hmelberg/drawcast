@@ -51,7 +51,7 @@ function injectCss(): void {
 
 export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, opts: SessionOptions): Promise<SessionHandle> {
   injectCss();
-  await loadBookMath();
+  const mathIn = await loadBookMath();
   const items = itemsOf(playlist);
   const settings = bookSettings(playlist);
   const look = settings.look ?? "mixed";
@@ -86,9 +86,18 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
   const page = parent?.classList.contains("player-wrap") === true || parent?.classList.contains("viewer-wrap") === true;
   if (page) parent?.classList.add("bk-mode");
 
-  /** The width a page offers: its <main> (the app) or the window (the
-   *  viewer), less the side padding of what holds the book. */
+  /** The width a page offers: its <main> (the app), the player's column on
+   *  drawcast.app's watch page (home/watch.ts — "Up next" sits beside it, so
+   *  the window's width ran the book over that list), or the window (the
+   *  plain viewer), less the side padding of what holds the book. The watch
+   *  column is a grid track, sized by the grid rather than by the book, so
+   *  measuring it is not circular. */
   const pageWidth = (): number => {
+    const column = row.closest<HTMLElement>(".watch-main");
+    if (column) {
+      const cs = getComputedStyle(column);
+      return column.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    }
     const main = row.closest("main");
     const box = main ?? document.documentElement;
     const cs = getComputedStyle(box);
@@ -289,9 +298,28 @@ export async function mountBookPlaylist(host: HTMLElement, playlist: Playlist, o
   footerWatch?.observe(footer);
   // The control bar appears with the first mount: lay out once it is there.
   requestAnimationFrame(() => layoutNow(false));
+  // The math engine failed to load: the formulas went in as plain TeX. Try
+  // again a few times, and draw them in place once it comes.
+  let mathRetry = 0;
+  let destroyed = false;
+  if (!mathIn) {
+    const waits = [2000, 6000, 15000];
+    const retry = (k: number): void => {
+      mathRetry = window.setTimeout(() => {
+        void loadBookMath().then((ok) => {
+          if (destroyed) return;
+          if (ok) pane.refreshMath();
+          else if (k + 1 < waits.length) retry(k + 1);
+        });
+      }, waits[k]);
+    };
+    retry(0);
+  }
 
   return {
     destroy: () => {
+      destroyed = true;
+      window.clearTimeout(mathRetry);
       session.destroy();
       observer.disconnect();
       fauxWatch.disconnect();

@@ -367,19 +367,30 @@ layout: |
   const denom = (dMax - dMin) || 1;
 
   const PLOT = { x0: 400, x1: 740 };
-  const LABEL_X = 250;
+  const LABEL_X = 380;
   const EST_X = 770;
-  const TOP_ROW_Y = 630;
-  const LOW_ROW_Y = 300;
-  const POOLED_Y = 190;
-  const AXIS_Y = 110;
   const TITLE_Y = 715;
+  // Readable sizes (page frame §4, W25): names 26, numbers 22, axis 22. A
+  // few studies keep rows close (at most 90 apart) so the plot is not a tall
+  // thin figure the page shrinks to fit; eight share 330 as before.
+  const NAME_FONT = 26, NUM_FONT = 22, AXIS_FONT = 22;
+  // The rows, the pooled diamond and the axis fit between 630 and an axis at
+  // 240 (its caption then clears the caption band, y < 160); fewer rows are
+  // centred in that height.
+  const TOP_MAX = 630, AXIS_MIN = 240;
+  const rowsN = studies.length;
+  const pooledGap = pooledIn ? 80 : 0;
+  const room = TOP_MAX - AXIS_MIN - 80 - pooledGap;
+  const rowSpacing = rowsN > 1 ? Math.min(90, room / (rowsN - 1)) : 0;
+  const TOP_ROW_Y = TOP_MAX - Math.max(0, room - (rowsN - 1) * rowSpacing) / 2;
+  const rowY = (i) => TOP_ROW_Y - i * rowSpacing;
+  const LOW_ROW_Y = rowY(rowsN - 1);
+  const POOLED_Y = LOW_ROW_Y - pooledGap;
+  const AXIS_Y = (pooledIn ? POOLED_Y : LOW_ROW_Y) - 80;
+  // A long study name shrinks (to 18) before it would run off the left edge.
+  const nameFont = (t) => Math.max(18, Math.min(NAME_FONT, Math.floor((LABEL_X - 30) / (0.5 * Math.max(1, t.length)))));
 
   const xOf = (v) => PLOT.x0 + ((toDomain(v) - dMin) / denom) * (PLOT.x1 - PLOT.x0);
-
-  const rowsN = studies.length;
-  const rowSpacing = rowsN > 1 ? (TOP_ROW_Y - LOW_ROW_Y) / (rowsN - 1) : 0;
-  const rowY = (i) => TOP_ROW_Y - i * rowSpacing;
 
   const drawables = [], labels = [], anchors = {}, order = [];
   const attached = {};
@@ -396,9 +407,9 @@ layout: |
     push(kit.stroke("ci_" + i, [[loPx, y - 6], [loPx, y + 6], [loPx, y], [hiPx, y], [hiPx, y - 6], [hiPx, y + 6]], { color: C.ink, strokeWidth: 2.5, ms: MS.stroke }));
     push(kit.stroke("study_" + i, kit.polygon([estPx, y], halfSize, 4, Math.PI / 4), { closed: true, color: C.ink, fill: C.ink, strokeWidth: 2, ms: MS.dot }));
     anchors["study_" + i] = [estPx, y];
-    push(kit.text("study_label_" + i, [LABEL_X, y], s.label, { fontSize: 19, anchor: "end" }));
+    push(kit.text("study_label_" + i, [LABEL_X, y], s.label, { fontSize: nameFont(s.label), anchor: "end" }));
     const estText = s.waiting ? PENDING_TEXT : kit.num(s.est, 2) + " [" + kit.num(s.lo, 2) + (kit.num(0.5, 1).includes(",") ? "; " : ", ") + kit.num(s.hi, 2) + "]";
-    push(kit.text("est_label_" + i, [EST_X, y], estText, { fontSize: 17, anchor: "start" }));
+    push(kit.text("est_label_" + i, [EST_X, y], estText, { fontSize: NUM_FONT, anchor: "start" }));
   });
 
   if (pooledIn) {
@@ -408,8 +419,8 @@ layout: |
     anchors.pooled = [estPx, POOLED_Y];
     const estStr = pooledIn.waiting ? PENDING_TEXT : kit.num(pooledIn.est, 2) + " [" + kit.num(pooledIn.lo, 2) + (kit.num(0.5, 1).includes(",") ? "; " : ", ") + kit.num(pooledIn.hi, 2) + "]";
     push(kit.group("pooled_label", [
-      kit.text("pooled_label__name", [LABEL_X, POOLED_Y], "Pooled", { fontSize: 19, anchor: "end", color: C.accent }),
-      kit.text("pooled_label__stats", [EST_X, POOLED_Y], estStr, { fontSize: 17, anchor: "start", color: C.accent }),
+      kit.text("pooled_label__name", [LABEL_X, POOLED_Y], "Pooled", { fontSize: NAME_FONT, anchor: "end", color: C.accent }),
+      kit.text("pooled_label__stats", [EST_X, POOLED_Y], estStr, { fontSize: NUM_FONT, anchor: "start", color: C.accent }),
     ]));
     anchors.pooled_label = [(LABEL_X + EST_X) / 2, POOLED_Y];
     attached["pooled"] = ["pooled_label"];
@@ -420,12 +431,12 @@ layout: |
   const axisChildren = [
     kit.stroke("axis__line", [[PLOT.x0 - 15, AXIS_Y], [PLOT.x1 + 15, AXIS_Y]], { color: C.ink, strokeWidth: 3, ms: MS.axis }),
     kit.stroke("axis__tick_min", [[PLOT.x0, AXIS_Y - 8], [PLOT.x0, AXIS_Y + 8]], { color: C.guide, strokeWidth: 2, ms: MS.stroke }),
-    kit.text("axis__tick_min_label", [PLOT.x0, AXIS_Y - 26], kit.num(minOriginal, 2), { fontSize: 16, color: C.guide }),
+    kit.text("axis__tick_min_label", [PLOT.x0, AXIS_Y - 30], kit.num(minOriginal, 2), { fontSize: AXIS_FONT, color: C.guide }),
     kit.stroke("axis__tick_null", [[nullPx, AXIS_Y - 8], [nullPx, AXIS_Y + 8]], { color: C.guide, strokeWidth: 2, ms: MS.stroke }),
-    kit.text("axis__tick_null_label", [nullPx, AXIS_Y - 26], String(nullVal), { fontSize: 16, color: C.guide }),
+    kit.text("axis__tick_null_label", [nullPx, AXIS_Y - 30], String(nullVal), { fontSize: AXIS_FONT, color: C.guide }),
     kit.stroke("axis__tick_max", [[PLOT.x1, AXIS_Y - 8], [PLOT.x1, AXIS_Y + 8]], { color: C.guide, strokeWidth: 2, ms: MS.stroke }),
-    kit.text("axis__tick_max_label", [PLOT.x1, AXIS_Y - 26], kit.num(maxOriginal, 2), { fontSize: 16, color: C.guide }),
-    kit.text("axis__caption", [(PLOT.x0 + PLOT.x1) / 2, AXIS_Y - 52], measure + (isLog ? " (log scale)" : " (linear scale)"), { fontSize: 17, color: C.guide }),
+    kit.text("axis__tick_max_label", [PLOT.x1, AXIS_Y - 30], kit.num(maxOriginal, 2), { fontSize: AXIS_FONT, color: C.guide }),
+    kit.text("axis__caption", [(PLOT.x0 + PLOT.x1) / 2, AXIS_Y - 62], measure + (isLog ? " (log scale)" : " (linear scale)"), { fontSize: AXIS_FONT, color: C.guide }),
   ];
   push(kit.group("axis", axisChildren));
   anchors.axis = [(PLOT.x0 + PLOT.x1) / 2, AXIS_Y];
@@ -537,14 +548,33 @@ layout: |
   const drawables = [], labels = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
+  // Readable node names (page frame §4, W25): 26 at most, 20 at least; the
+  // ellipse grows round its name. A crowded band (its nodes closer than two
+  // ellipses) and a long name shrink the font first, down to 20.
+  const NODE_FONT = 26, NODE_FONT_MIN = 20, RY = 34;
+  const gapIn = (list, span) => (list.length > 1 ? span / (list.length - 1) : Infinity);
+  const roomOf = (role) => {
+    if (role === "exposure" || role === "outcome") return 2 * (BAND_X_MIN - EXPOSURE_X) - 40;
+    return Math.min(2 * (BAND_X_MIN - EXPOSURE_X) - 40, gapIn(bands[role], BAND_X_MAX - BAND_X_MIN) - 24);
+  };
+  const sizeOf = (n) => {
+    const room = roomOf(normalizedRole(n.role));
+    let f = NODE_FONT;
+    while (f > NODE_FONT_MIN && kit.textWidth(n.name, f) + 40 > room) f -= 1;
+    const rx = Math.max(64, Math.min(room / 2, kit.textWidth(n.name, f) / 2 + 22));
+    return { f, rx };
+  };
+  const sizes = {};
+  nodesIn.forEach((n) => { sizes[n.name] = sizeOf(n); });
+
   nodesIn.forEach((n) => {
     const c = positions[n.name];
     if (!c) return;
     const role = normalizedRole(n.role);
     const color = ROLE_COLOR[role];
     const slug = slugify(n.name);
-    const fontSize = n.name.length > 10 ? 15 : 19;
-    const halo = kit.stroke("node_" + slug + "__halo", kit.ellipse(c, 60, 30), { closed: true, color, strokeWidth: 3, ms: MS.node });
+    const { f: fontSize, rx } = sizes[n.name];
+    const halo = kit.stroke("node_" + slug + "__halo", kit.ellipse(c, rx, RY), { closed: true, color, strokeWidth: 3, ms: MS.node });
     const text = kit.text("node_" + slug + "__text", c, n.name, { fontSize, color });
     push(kit.group("node_" + slug, [halo, text]));
     anchors["node_" + slug] = c;
@@ -566,7 +596,7 @@ layout: |
     const color = backdoor ? C.regionLoss : C.ink;
     const strokeWidth = backdoor ? 4.5 : 3.5;
     const id = "edge_" + i;
-    const { drawables: edgeDrawables } = kit.edgeArrow(id, from, to, { shorten: { ellipse: [60, 30] }, color, strokeWidth, ms: MS.connector });
+    const { drawables: edgeDrawables } = kit.edgeArrow(id, from, to, { shortenStart: { ellipse: [sizes[e.from].rx, RY] }, shortenEnd: { ellipse: [sizes[e.to].rx, RY] }, color, strokeWidth, ms: MS.connector });
     edgeDrawables.forEach(push);
     const mainPts = edgeDrawables[0].pts;
     anchors[id] = [(mainPts[0][0] + mainPts[mainPts.length - 1][0]) / 2, (mainPts[0][1] + mainPts[mainPts.length - 1][1]) / 2];

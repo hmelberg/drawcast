@@ -40,7 +40,15 @@ const FILES = [
   "names.json",
   "variable_metadata.json", // the variable catalogue MicroInterpreter takes
 ];
-const DIRS = ["codelists"]; // opened lazily by URL from metadata_base_url
+const DIRS = [
+  "codelists", // opened lazily by URL from metadata_base_url
+  // The shared runtime ops: m2py imports m2py_runtime.keys lazily at the
+  // first `merge` — without the package a correct merge failed with
+  // ModuleNotFoundError. Only its .py files; never a __pycache__.
+  "m2py_runtime",
+];
+/** What a DIRS folder contributes: plain files, no bytecode caches. */
+const taken = (dir, name) => name !== "__pycache__" && !name.endsWith(".pyc") && statSync(join(dir, name)).isFile();
 
 const args = new Set(process.argv.slice(2));
 const fromArg = process.argv.indexOf("--from");
@@ -92,7 +100,7 @@ for (const f of FILES) {
 for (const d of DIRS) {
   const src = join(SRC, d);
   if (!existsSync(src)) continue;
-  for (const name of readdirSync(src)) {
+  for (const name of readdirSync(src).filter((n) => taken(src, n))) {
     const digest = sha(join(src, name));
     manifest.files[`${d}/${name}`] = digest;
     bytes += statSync(join(src, name)).size;
@@ -101,7 +109,7 @@ for (const d of DIRS) {
       if (!existsSync(dst) || sha(dst) !== digest) problems.push(`stale or missing: ${d}/${name}`);
     }
   }
-  if (!check) cpSync(src, join(DEST, d), { recursive: true });
+  if (!check) cpSync(src, join(DEST, d), { recursive: true, filter: (from) => from === src || taken(dirname(from), from.split(/[\\/]/).pop()) });
 }
 
 if (check) {

@@ -11,5 +11,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "compare cards cannot show icons and their size is fixed (max 240 wide), so the grid cannot be scaled up; values are 'years ago' because compare always rewards the bigger value."
+ "notes": "Review round 2026-10-04: \"vs\" between each pair (text placed at the left card), Tenochtitlan icon twemoji hindu temple (or lake), cards size 1.0 so the bottom row clears the caption band, a short red cue per anecdote (2 pendulums, by 1096, on a lake, 2560 BC, Wrangel Is.), payoff is a glow on the last pair and its values (no circle through labels), line 5 trimmed. Engine gap: compare rows have no gap hatch (a value sits ~12 units above the next card)."
 }

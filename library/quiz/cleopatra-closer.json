@@ -66,7 +66,8 @@
       },
       "value": 1969
      }
-    ]
+    ],
+    "size": 1.15
    },
    {
     "id": "gap1",
@@ -119,28 +120,6 @@
     "style": {
      "color": "#2f6b8f"
     }
-   },
-   {
-    "id": "bc",
-    "type": "text",
-    "text": "BC",
-    "x": 500.0,
-    "y": 370,
-    "font_size": 30,
-    "style": {
-     "color": "#8f887c"
-    }
-   },
-   {
-    "id": "ad",
-    "type": "text",
-    "text": "AD",
-    "x": 660.0,
-    "y": 370,
-    "font_size": 30,
-    "style": {
-     "color": "#8f887c"
-    }
    }
   ],
   "commands": [
@@ -151,9 +130,7 @@
    },
    {
     "draw": [
-     "time",
-     "bc",
-     "ad"
+     "time"
     ],
     "speak": "Did Cleopatra live closer in time to the builders of the Great Pyramid, or to the first Moon landing?"
    },
@@ -170,7 +147,7 @@
      "store": "w",
      "tolerance": 0.06,
      "right": "All {w.total} close.",
-     "wrong": "{w} of {w.total} close."
+     "wrong": "{w.within} of {w.total} close."
     }
    },
    {
@@ -231,6 +208,7 @@
   ],
   "text": {
    "font_size": 32
-  }
+  },
+  "affirm": "playful"
  }
 }

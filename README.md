@@ -27,8 +27,8 @@ Cartesian, y-up, origin bottom-left; the single y-flip lives in `toSvgY`.
   toggles, and an ✎ switch into the editor right on the control bar. The
   chrome fades while playing.
 - **Editor**: create drawcasts with AI (bring your own Anthropic API key) or by
-  hand — load bundled examples, edit the spec directly (**YAML by default**,
-  JSON one toggle away; parsing always accepts both), save to a local library,
+  hand — load bundled examples, edit the spec directly (**a `.cast` script by default**,
+  YAML and JSON one toggle away; parsing always accepts all three), save to a local library,
   download/upload specs, rate results, promote good ones to few-shot
   exemplars, and manage a **prompt library**: copy a bundled compiler prompt,
   edit/rename/delete/share (.md) your own variants, pick the active one, and
@@ -88,6 +88,13 @@ verbs: `highlight` (glow/circle/pulse), `point` (laser pointer), `move`
 (translate with easing/path), `show`/`hide`/`erase`, `clear`, `camera`
 (zoom/pan). The planner precomputes scene state at every step boundary, so
 step-back and seeking are exact.
+
+Questions are `quiz` and `ask`: buttons on the figure, reveal stamps, guesses
+on charts and number lines, ordering and sorting cards, odd one out, spot it,
+estimate sliders, confidence bets and polls. The engine owns the page — a
+heading by default, the figure filling the content area, centred vertically.
+The in-app help (`public/help.html`) documents each with a short example, and
+the `.cast` script format with a complete quiz.
 
 ## Architecture map
 

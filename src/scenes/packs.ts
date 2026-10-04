@@ -124,6 +124,12 @@ export const PACK_DEFS: Record<string, PackDef> = {
     description: "Isometric layer stacks, named blocks on a floor with links between them, and textbook 3D solids with dashed hidden edges and dimension labels — flat drawings that read as depth.",
     load: async () => (await import("./packs/isometric.yaml?raw")).default,
   },
+  compare: {
+    id: "compare",
+    title: "Size comparisons",
+    description: "Things drawn to the same scale — the Earth inside the Sun, Greenland beside Africa, thirty Earths in the gap to the Moon — with the ratio written once and copies that show how many fit.",
+    load: async () => (await import("./packs/compare.yaml?raw")).default,
+  },
   widgets: {
     id: "widgets",
     title: "Widgets",
@@ -158,6 +164,7 @@ export const PACK_TEMPLATES: Record<string, string[]> = {
   data: ["bar_chart", "bar_race", "data_table", "heatmap", "line_chart", "pie_chart", "scatter_plot"],
   space: ["sky_map", "solar_system"],
   isometric: ["geometric_solids", "isometric_blocks", "layer_stack"],
+  compare: ["size_compare"],
   widgets: ["bubble_sort", "logic_gates", "morse_key", "tictactoe", "tower_of_hanoi", "xylophone"],
 };
 

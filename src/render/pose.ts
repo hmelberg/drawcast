@@ -80,3 +80,14 @@ export function poseOf(offset: Pt, turn: Turn | undefined, inverse = false): (x:
 export function poseCentre(box: { x: number; y: number; w: number; h: number }, offset: Pt, turn: Turn | undefined): Pt {
   return poseOf(offset, turn)([box.x + box.w / 2, box.y + box.h / 2]);
 }
+
+/** A layout box as its element stands now: moved by `offset`, and — when
+ *  the pose scales or turns (a sequence's picture shrunk into its strip) —
+ *  the box round its four posed corners. What a highlight's ring goes round. */
+export function posedBox(b: { x: number; y: number; w: number; h: number }, offset: Pt, turn: Turn | undefined): { x: number; y: number; w: number; h: number } {
+  if (isIdentity(turn)) return { x: b.x + offset[0], y: b.y + offset[1], w: b.w, h: b.h };
+  const pose = poseOf(offset, turn);
+  const cs = [pose([b.x, b.y]), pose([b.x + b.w, b.y]), pose([b.x, b.y + b.h]), pose([b.x + b.w, b.y + b.h])];
+  const x0 = Math.min(...cs.map((c) => c[0])), y0 = Math.min(...cs.map((c) => c[1]));
+  return { x: x0, y: y0, w: Math.max(...cs.map((c) => c[0])) - x0, h: Math.max(...cs.map((c) => c[1])) - y0 };
+}

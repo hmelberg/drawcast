@@ -3,7 +3,7 @@
 // the document as each lands so an interrupted run resumes instead of
 // restarting.
 
-import { collectSpeakLines } from "../export/video";
+import { collectSpeakLines, narrationLanguage } from "../export/video";
 import { type GenerateConfig } from "../llm/compile";
 import { generateFromOutline, outlineParts, type PartsRequest, type PartsResult } from "../llm/multi";
 import type { Outline } from "../llm/outline";
@@ -123,13 +123,16 @@ export function estimateMinutes(specs: Spec[]): number {
 }
 
 /** The end page of lecture `index` (0-based): its neighbours as links, or
- *  null for a one-lecture course (nothing to link to). */
-export function endPageFor(course: Course, index: number): Spec | null {
+ *  null for a one-lecture course (nothing to link to). `lang` is the
+ *  lecture's language (narrationLanguage of its parts): the page's own words
+ *  are in it. */
+export function endPageFor(course: Course, index: number, lang?: string | null): Spec | null {
   const total = course.lectures.length;
   if (total <= 1) return null;
   return makeEndPage({
     position: index + 1,
     total,
+    lang,
     ...(index > 0 ? { prev: course.lectures[index - 1].title } : {}),
     ...(index + 1 < total ? { next: course.lectures[index + 1].title } : {}),
   });
@@ -141,7 +144,7 @@ export function lecturePlaylist(course: Course, index: number, result: PartsResu
   // A book lecture (#column / #row, or a book course): every part carries the book's layout.
   stampBook(result.specs, parseTags(lectureTags(course, lecture).join(" ")).book);
   const entries: PlaylistEntry[] = entriesForParts(result.specs, result.chapterOf);
-  const end = endPageFor(course, index);
+  const end = endPageFor(course, index, narrationLanguage(result.specs));
   if (end) entries.push({ kind: "item", spec: end });
   // The founding request travels in the file (B9), for a lecture exactly as
   // for a hand-typed Generate: what the teacher asked this lecture to cover.

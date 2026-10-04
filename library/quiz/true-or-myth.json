@@ -22,205 +22,70 @@
   ],
   "elements": [
    {
-    "id": "gw",
-    "type": "icon",
-    "of": "brick",
-    "icon_look": "picture",
-    "size": 340,
-    "x": 500,
-    "y": 450,
-    "set": "twemoji"
-   },
-   {
-    "id": "gw_l",
-    "type": "text",
-    "text": "Great Wall from space",
-    "font_size": 48,
-    "x": 500,
-    "y": 215
-   },
-   {
-    "id": "fish",
-    "type": "icon",
-    "of": "fish",
-    "icon_look": "picture",
-    "size": 340,
-    "x": 500,
-    "y": 450,
-    "set": "twemoji"
-   },
-   {
-    "id": "fish_l",
-    "type": "text",
-    "text": "3-second memory",
-    "font_size": 48,
-    "x": 500,
-    "y": 215
-   },
-   {
-    "id": "bolt",
-    "type": "icon",
-    "of": "cloud with lightning",
-    "icon_look": "picture",
-    "size": 340,
-    "x": 500,
-    "y": 450,
-    "cites": [
-     "esb"
+    "id": "claims",
+    "type": "sequence",
+    "items": [
+     {
+      "icon": [
+       "great wall of china",
+       "great wall",
+       "castle wall",
+       "brick wall",
+       "brick"
+      ],
+      "label": "Great Wall from space",
+      "mark": {
+       "text": "Myth",
+       "color": "#b5482e"
+      }
+     },
+     {
+      "icon": {
+       "of": "fish",
+       "set": "twemoji"
+      },
+      "label": "3-second memory",
+      "mark": {
+       "text": "Myth",
+       "color": "#b5482e"
+      }
+     },
+     {
+      "icon": {
+       "of": "cloud with lightning",
+       "set": "twemoji"
+      },
+      "label": "Never twice",
+      "mark": {
+       "text": "Myth",
+       "color": "#b5482e"
+      }
+     },
+     {
+      "icon": {
+       "of": "banana",
+       "set": "twemoji"
+      },
+      "label": "Radioactive?",
+      "mark": {
+       "text": "True",
+       "color": "#2f6b8f"
+      }
+     },
+     {
+      "icon": {
+       "of": "octopus",
+       "set": "twemoji"
+      },
+      "label": "Three hearts?",
+      "mark": {
+       "text": "True",
+       "color": "#2f6b8f"
+      }
+     }
     ],
-    "set": "twemoji"
-   },
-   {
-    "id": "bolt_l",
-    "type": "text",
-    "text": "Never twice",
-    "font_size": 48,
-    "x": 500,
-    "y": 215
-   },
-   {
-    "id": "banana",
-    "type": "icon",
-    "of": "banana",
-    "icon_look": "picture",
-    "size": 340,
-    "x": 500,
-    "y": 450,
-    "cites": [
-     "bed"
-    ],
-    "set": "twemoji"
-   },
-   {
-    "id": "banana_l",
-    "type": "text",
-    "text": "Radioactive?",
-    "font_size": 48,
-    "x": 500,
-    "y": 215
-   },
-   {
-    "id": "octo",
-    "type": "icon",
-    "of": "octopus",
-    "icon_look": "picture",
-    "size": 340,
-    "x": 500,
-    "y": 450,
-    "set": "twemoji"
-   },
-   {
-    "id": "octo_l",
-    "type": "text",
-    "text": "Three hearts?",
-    "font_size": 48,
-    "x": 500,
-    "y": 215
-   },
-   {
-    "id": "r_gw",
-    "type": "icon",
-    "of": "brick",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 130,
-    "x": 180,
-    "y": 400
-   },
-   {
-    "id": "r_fish",
-    "type": "icon",
-    "of": "fish",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 130,
-    "x": 340,
-    "y": 400
-   },
-   {
-    "id": "r_bolt",
-    "type": "icon",
-    "of": "cloud with lightning",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 130,
-    "x": 500,
-    "y": 400
-   },
-   {
-    "id": "r_banana",
-    "type": "icon",
-    "of": "banana",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 130,
-    "x": 660,
-    "y": 400
-   },
-   {
-    "id": "r_octo",
-    "type": "icon",
-    "of": "octopus",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 130,
-    "x": 820,
-    "y": 400
-   },
-   {
-    "id": "gw_v",
-    "type": "text",
-    "text": "MYTH",
-    "x": 790,
-    "y": 560,
-    "font_size": 60,
-    "style": {
-     "color": "#b5482e"
-    }
-   },
-   {
-    "id": "fish_v",
-    "type": "text",
-    "text": "MYTH",
-    "x": 790,
-    "y": 560,
-    "font_size": 60,
-    "style": {
-     "color": "#b5482e"
-    }
-   },
-   {
-    "id": "bolt_v",
-    "type": "text",
-    "text": "MYTH",
-    "x": 790,
-    "y": 560,
-    "font_size": 60,
-    "style": {
-     "color": "#b5482e"
-    }
-   },
-   {
-    "id": "banana_v",
-    "type": "text",
-    "text": "TRUE",
-    "x": 790,
-    "y": 560,
-    "font_size": 60,
-    "style": {
-     "color": "#2f6b8f"
-    }
-   },
-   {
-    "id": "octo_v",
-    "type": "text",
-    "text": "TRUE",
-    "x": 790,
-    "y": 560,
-    "font_size": 60,
-    "style": {
-     "color": "#2f6b8f"
-    }
+    "size": 420,
+    "show_upcoming": "dots"
    }
   ],
   "commands": [
@@ -231,28 +96,18 @@
    },
    {
     "draw": [
-     "r_gw",
-     "r_fish",
-     "r_bolt",
-     "r_banana",
-     "r_octo"
+     "claims_dot_1",
+     "claims_dot_2",
+     "claims_dot_3",
+     "claims_dot_4",
+     "claims_dot_5"
     ],
     "parallel": true,
     "speak": "Five things almost everyone has heard. For each one: true, or myth?"
    },
    {
-    "hide": [
-     "r_gw",
-     "r_fish",
-     "r_bolt",
-     "r_banana",
-     "r_octo"
-    ]
-   },
-   {
     "draw": [
-     "gw",
-     "gw_l"
+     "claims_1"
     ],
     "speak": "First: you can see the Great Wall of China from space."
    },
@@ -264,28 +119,21 @@
       "Myth"
      ],
      "correct": 2,
-     "right": "Myth. The wall is long but only about as wide as a road, and China's first astronaut, Yang Liwei, could not see it in 2003."
+     "right": "Myth. The wall is long but only about as wide as a road, and China's first astronaut, Yang Liwei, could not see it in 2003.",
+     "on_canvas": true,
+     "reveal": {
+      "text": "MYTH: too narrow",
+      "at": {
+       "x": 210,
+       "y": 430
+      },
+      "size": 40
+     }
     }
    },
    {
     "draw": [
-     "gw_v"
-    ]
-   },
-   {
-    "pause": 1.5
-   },
-   {
-    "hide": [
-     "gw",
-     "gw_l",
-     "gw_v"
-    ]
-   },
-   {
-    "draw": [
-     "fish",
-     "fish_l"
+     "claims_2"
     ],
     "speak": "Next, the goldfish, said to forget everything in three seconds."
    },
@@ -297,28 +145,21 @@
       "Myth"
      ],
      "correct": 2,
-     "right": "Myth. Goldfish remember for months: they learn when food comes, and which sound means dinner."
+     "right": "Myth. Goldfish remember for months: they learn when food comes, and which sound means dinner.",
+     "on_canvas": true,
+     "reveal": {
+      "text": "MYTH: months",
+      "at": {
+       "x": 210,
+       "y": 430
+      },
+      "size": 40
+     }
     }
    },
    {
     "draw": [
-     "fish_v"
-    ]
-   },
-   {
-    "pause": 1.5
-   },
-   {
-    "hide": [
-     "fish",
-     "fish_l",
-     "fish_v"
-    ]
-   },
-   {
-    "draw": [
-     "bolt",
-     "bolt_l"
+     "claims_3"
     ],
     "speak": "Then the old saying that lightning never strikes the same place twice."
    },
@@ -330,28 +171,21 @@
       "Myth"
      ],
      "correct": 2,
-     "right": "Myth. Tall things get hit again and again: the Empire State Building is struck about twenty-five times a year."
+     "right": "Myth. Tall things get hit again and again: the Empire State Building is struck about twenty-five times a year.",
+     "on_canvas": true,
+     "reveal": {
+      "text": "MYTH: 25×/yr",
+      "at": {
+       "x": 210,
+       "y": 430
+      },
+      "size": 40
+     }
     }
    },
    {
     "draw": [
-     "bolt_v"
-    ]
-   },
-   {
-    "pause": 1.5
-   },
-   {
-    "hide": [
-     "bolt",
-     "bolt_l",
-     "bolt_v"
-    ]
-   },
-   {
-    "draw": [
-     "banana",
-     "banana_l"
+     "claims_4"
     ],
     "speak": "Now the breakfast table: bananas are said to be radioactive."
    },
@@ -363,28 +197,21 @@
       "Myth"
      ],
      "correct": 1,
-     "right": "True. A tiny share of their potassium is radioactive potassium-40, though your body keeps its potassium level steady, so it does no harm."
+     "right": "True. A tiny share of their potassium is radioactive potassium-40, though your body keeps its potassium level steady, so it does no harm.",
+     "on_canvas": true,
+     "reveal": {
+      "text": "TRUE: K-40",
+      "at": {
+       "x": 210,
+       "y": 430
+      },
+      "size": 40
+     }
     }
    },
    {
     "draw": [
-     "banana_v"
-    ]
-   },
-   {
-    "pause": 1.5
-   },
-   {
-    "hide": [
-     "banana",
-     "banana_l",
-     "banana_v"
-    ]
-   },
-   {
-    "draw": [
-     "octo",
-     "octo_l"
+     "claims_5"
     ],
     "speak": "And last, the octopus, said to have three hearts."
    },
@@ -396,40 +223,31 @@
       "Myth"
      ],
      "correct": 1,
-     "right": "True. Two hearts pump blood through the gills, and a third sends it round the body."
+     "right": "True. Two hearts pump blood through the gills, and a third sends it round the body.",
+     "on_canvas": true,
+     "reveal": {
+      "text": "TRUE: 3 hearts",
+      "at": {
+       "x": 210,
+       "y": 430
+      },
+      "size": 40
+     }
     }
    },
    {
     "draw": [
-     "octo_v"
-    ]
-   },
-   {
-    "pause": 1.5
-   },
-   {
-    "hide": [
-     "octo",
-     "octo_l",
-     "octo_v"
-    ]
-   },
-   {
-    "draw": [
-     "r_gw",
-     "r_fish",
-     "r_bolt",
-     "r_banana",
-     "r_octo"
+     "claims_strip"
     ],
-    "parallel": true,
     "speak": "You got {score} of {score_total}."
    },
    {
     "highlight": {
      "target": [
-      "r_banana",
-      "r_octo"
+      "claims_4",
+      "claims_4_mark",
+      "claims_5",
+      "claims_5_mark"
      ],
      "effect": "circle"
     },
@@ -442,6 +260,7 @@
    "good": "A sharp eye for a myth.",
    "poor": "These myths fool almost everyone.",
    "none": "The myths won this round."
-  }
+  },
+  "affirm": "playful"
  }
 }

@@ -5,11 +5,15 @@
 // the pieces the cursor depends on are wired the way the design calls for:
 // .cs-figgate itself carries no cursor any more (every gate now shows what's
 // under the pointer, via cs-cardable or a widget's own grab/grabbing), the
-// connect question alone keeps its crosshair on a class of its own, and the
+// connect question shows a pencil on a class of its own, no crosshair is
+// left anywhere in src (ui/cursors.ts says why), and the
 // click-ask's overlay drives cs-cardable itself since infocard.ts's own
 // toggle always reads a plain figgate as closed to it. The rest is on Hans's
 // smoke checklist (docs/superpowers/plans/2026-09-14-widget-bodies-smoke.md).
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { CURSOR, guessCursor } from "../src/ui/cursors";
 import { describe, expect, test } from "vitest";
 
 const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
@@ -28,8 +32,8 @@ describe("styles.css — the gate's own cursor", () => {
     expect(figgateBlock()).not.toContain("crosshair");
     expect(figgateBlock()).not.toContain("cursor");
   });
-  test("only .cs-figgate.cs-connectgate keeps the crosshair", () => {
-    expect(css).toContain(".cs-figgate.cs-connectgate { cursor: crosshair; }");
+  test(".cs-figgate.cs-connectgate has its own rule (the hand under the gate's pencil)", () => {
+    expect(css).toContain(".cs-figgate.cs-connectgate { cursor: pointer; }");
   });
   test("the hand shows through a click-ask's overlay: cs-cardable reaches the gate too", () => {
     expect(css).toContain(".cs-stage.cs-cardable .cs-figgate { cursor: pointer; }");
@@ -67,18 +71,55 @@ describe("styles.css — the gate's own cursor", () => {
     expect(connectgate).toBeGreaterThan(cardableGate);
   });
   // The idle rule (playback, mouse still) must keep winning regardless of
-  // this round's additions: 3 class selectors (.cs-figure.cs-idle .cs-stage)
+  // this round's additions: 3 class selectors (.cs-figure.cs-still .cs-stage)
   // beats the 2-class stage-level grab/grabbing/cardable rules outright, by
   // specificity alone — no ordering trick required, so this just pins that
   // nobody accidentally raised a new rule's specificity to match it.
-  test(".cs-figure.cs-idle .cs-stage still hides the cursor outright while idle-playing", () => {
-    expect(css).toContain(".cs-figure.cs-idle .cs-stage { cursor: none; }");
+  test(".cs-figure.cs-still .cs-stage still hides the cursor outright while idle-playing", () => {
+    expect(css).toContain(".cs-figure.cs-still .cs-stage { cursor: none; }");
   });
 });
 
-describe("connect-gate.ts — keeps its own crosshair", () => {
+describe("connect-gate.ts — draws with the pencil", () => {
   test("the gate mounts cs-figgate cs-connectgate", () => {
     expect(connectGate).toContain('h("div", { class: "cs-figgate cs-connectgate" }');
+  });
+  test("and sets the pencil cursor on itself", () => {
+    expect(connectGate).toContain("gate.style.cursor = CURSOR.pen;");
+  });
+});
+
+describe("no crosshair (ui/cursors.ts: Hans's standing rule — friendly symbols)", () => {
+  const root = fileURLToPath(new URL("../src", import.meta.url));
+  const files = (dir: string): string[] =>
+    readdirSync(dir).flatMap((f) => {
+      const p = join(dir, f);
+      return statSync(p).isDirectory() ? files(p) : [p];
+    });
+  test("the word appears nowhere in src but the design note that says why not", () => {
+    const hits = files(root)
+      .filter((f) => /\.(ts|css|html|js)$/.test(f))
+      .flatMap((f) =>
+        readFileSync(f, "utf8")
+          .split("\n")
+          .map((line, i) => ({ f, i, line }))
+          .filter(({ line }) => /crosshair/i.test(line)),
+      )
+      .filter(({ f, line }) => !(f.endsWith(join("ui", "cursors.ts")) && line.trimStart().startsWith("//")))
+      .map(({ f, i }) => `${f}:${i + 1}`);
+    expect(hits).toEqual([]);
+  });
+  test("every guess kind has a friendly cursor, hovering and working it", () => {
+    for (const kind of ["height", "curve", "angle", "count", "point", "market"] as const) {
+      for (const state of ["hover", "drag"] as const) expect(guessCursor(kind, state)).not.toMatch(/crosshair/);
+    }
+    expect(guessCursor("point", "hover")).toBe("pointer");
+    expect(guessCursor("height", "hover")).toBe("grab");
+    expect(guessCursor("height", "drag")).toBe("grabbing");
+    expect(guessCursor("curve", "drag")).toBe(CURSOR.pen);
+  });
+  test("the pencil is an inline svg with its tip as the hotspot, falling back to the hand", () => {
+    expect(CURSOR.pen).toMatch(/^url\("data:image\/svg\+xml,[^"]+"\) 3 21, pointer$/);
   });
 });
 

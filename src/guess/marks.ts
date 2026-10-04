@@ -6,9 +6,10 @@
 
 import type { Pt } from "../layout/model";
 import { accountOf, angleOf, budgetBalanced, dockNumber, pointFor, type GuessHandle } from "./handles";
-import { scaleGeometry } from "../spec/scale";
+import { scaleBracketDrop, scaleGeometry } from "../spec/scale";
 import { MARKET_DOMAIN, along, clipToSquare, curveOfGaps, impliedEquilibrium } from "./market";
 import { GUESS_COLOR } from "./color";
+import { onSlider, sliderMarks } from "./slider-marks";
 import { CANVAS } from "../layout/canvas";
 import { AXIS_OVERHANG } from "../layout/axes";
 
@@ -170,6 +171,13 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
       }
       case "point": {
         if (!h.scale) break;
+        if (onSlider(h)) {
+          // An estimate slider (guess/slider-marks.ts): your thumb as a ghost, the gap bracketed.
+          const m = sliderMarks(h, g[0], t, { dashed: true });
+          lines.push(...m.lines);
+          texts.push(...m.texts);
+          break;
+        }
         const sg = scaleGeometry(h.scale);
         const x = sg.xAt(g[0]);
         const y = sg.y;
@@ -177,7 +185,7 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
         const xt = sg.xAt(h.truth[0]);
         if (t > 0 && Math.abs(xt - x) > 4) {
           const x1 = x + (xt - x) * t;
-          const by = y - 58;
+          const by = y - scaleBracketDrop(sg);
           lines.push({ pts: [[x, by + 6], [x, by], [x1, by], [x1, by + 6]] });
           if (t >= 1) texts.push({ at: [(x + x1) / 2, by - 16], text: sg.kind === "log" ? ratioText(h.truth[0], g[0]) : signedScale(sg.format, h.truth[0] - g[0]), anchor: "middle" });
         }

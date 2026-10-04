@@ -1,4 +1,5 @@
 How fast have solar panels become cheaper? Here is the price of one watt of panel, in today's dollars.
+In 2000 a watt cost about six and a half dollars. By 2008 it was still almost five.
 [ASK] What happened next? Draw the line on to 2024.
   [right] Close: you were {g.off} dollars off on average. The price crashed, to about a quarter of a dollar.
   [wrong] You were {g.off} dollars off on average. The price crashed: by 2024 a watt cost about twenty-seven cents.

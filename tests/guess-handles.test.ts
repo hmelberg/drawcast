@@ -4,7 +4,9 @@ import { registerPack } from "../src/scenes/packs";
 import { layoutSpec } from "../src/layout/layout";
 import { expandSpec } from "../src/spec/expand";
 import type { Spec } from "../src/spec/types";
+import { scaleGeometry } from "../src/spec/scale";
 import {
+  countPillPoint,
   decodeGuess,
   defaultGuess,
   encodeGuess,
@@ -158,6 +160,18 @@ describe("population handles", () => {
     expect(valueAt(h, [b.x + b.w / 2, b.y], [0])).toEqual([50]);
     expect(valueAt(h, [b.x + b.w * 2, b.y], [0])).toEqual([100]);
   });
+
+  test("the value pill hangs under the people AND their legend (W25)", () => {
+    const { setup, layout } = setupFor(crowd, "crowd_sick");
+    const h = setup.handles[0];
+    const legendYs = layout.drawables.filter((d) => /^crowd_legend/.test((d as { id?: string }).id ?? "")).length;
+    expect(legendYs).toBeGreaterThan(0);
+    const p = countPillPoint(h, [10])!;
+    // Its top edge under the lowest drawn thing: the legend is under the people.
+    expect(h.under).toBeDefined();
+    expect(p[1]).toBe(h.under);
+    expect(h.under!).toBeLessThan(h.people!.box.y);
+  });
 });
 
 describe("scale handles", () => {
@@ -179,11 +193,13 @@ describe("scale handles", () => {
   test("the pointer's x is the value; the patch moves the marker and its number", () => {
     const { setup, s } = setupFor(mozart, "born");
     const h = setup.handles[0];
-    expect(valueAt(h, [150 + 700 * 0.3, 300], [1750])).toEqual([1730]);
+    // Placed by the page (spec 2026-10-04-page-frame W3): read the line's ends back.
+    const { x0, x1, y } = scaleGeometry(h.scale!);
+    expect(valueAt(h, [x0 + (x1 - x0) * 0.3, y], [1750])).toEqual([1730]);
     const patch = patchFor(s, setup, [[1730]]);
     const text = patch.elements!.find((e) => e.id === "born_answer_num")!;
     expect(text.text).toBe("1730");
-    expect(text.x).toBeCloseTo(150 + 700 * 0.3);
+    expect(text.x).toBeCloseTo(x0 + (x1 - x0) * 0.3);
   });
 });
 

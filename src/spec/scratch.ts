@@ -24,6 +24,7 @@
 // middle of the left edge.
 
 import { heuristicMeasure } from "../layout/measure";
+import { FIT_BAND } from "../layout/page";
 import { formatVar, varValues } from "./vars";
 import type { Spec, SpecElement } from "./types";
 
@@ -134,7 +135,7 @@ export function expandScratch(spec: Spec): Spec {
     const w = Math.max(160, ...lines.map(widthOf)) + 2 * PAD;
     const h = Math.max(1, lines.length) * lineH + 2 * PAD - (lineH - size * 1.2);
     // Where: an explicit centre, or a named corner of the page under the
-    // heading strip (the band figures use: y 95–655).
+    // heading strip (the band figures use, layout/page.ts FIT_BAND).
     const at = el.at as { place?: unknown } | undefined;
     const place = typeof at?.place === "string" && (PLACES as readonly string[]).includes(at.place) ? at.place : null;
     // No place and no x: the middle of the left edge (Hans 2026-09-28) — a
@@ -143,7 +144,7 @@ export function expandScratch(spec: Spec): Spec {
     const cx =
       typeof el.x === "number" ? el.x : side.endsWith("left") ? 60 + w / 2 : side.endsWith("right") ? 940 - w / 2 : 500;
     const cy =
-      typeof el.y === "number" ? el.y : side.startsWith("top") ? 655 - h / 2 : side.startsWith("bottom") ? 95 + h / 2 : 375;
+      typeof el.y === "number" ? el.y : side.startsWith("top") ? FIT_BAND.y + FIT_BAND.h - h / 2 : side.startsWith("bottom") ? FIT_BAND.y + h / 2 : 375;
     const members: string[] = [`${el.id}_box`];
     out.push({
       id: `${el.id}_box`,

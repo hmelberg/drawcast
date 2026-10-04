@@ -46,7 +46,8 @@ export type ElementType =
   | "population"
   | "link"
   | "scale"
-  | "cards";
+  | "cards"
+  | "sequence";
 
 /**
  * Permanent punctuation marks, drawn natively: box the answer, strike the
@@ -118,13 +119,15 @@ export interface CardItemSpec {
   bin?: string;
   /** select: the card belongs in the one box. */
   in?: boolean;
+  /** ODD ONE OUT (spec/odd-one-out.ts): the one card that does not belong. */
+  odd?: boolean;
   value?: number;
   match?: string;
   blank?: number;
   /** An icon on the card — a keyword or {of, set}, resolved like a node's. */
-  icon?: string | { of: string; set?: string; or?: string[] };
+  icon?: string | string[] | { of: string; set?: string; or?: string[] };
   /** match: an icon on the partner card. */
-  match_icon?: string | { of: string; set?: string; or?: string[] };
+  match_icon?: string | string[] | { of: string; set?: string; or?: string[] };
   /** Machine-written by resolveIcons (render/icon.ts): the rings and their credit. */
   icon_strokes?: string;
   credit?: string;
@@ -133,6 +136,18 @@ export interface CardItemSpec {
   /** Machine-written: the key each icon was resolved for ("keyword@set"); an edited icon no longer matches and is resolved again. */
   icon_key?: string;
   match_icon_key?: string;
+}
+
+/** One picture of a sequence (spec/sequence.ts): an icon or a paper card, its name, its verdict in the strip. */
+export interface SequenceItemSpec {
+  icon?: string | string[] | { of: string; set?: string; or?: string[] };
+  text?: string;
+  label?: string;
+  mark?: string | { text: string; color?: string };
+  /** Machine-written icon data and credit (spec/icon-data.ts). */
+  icon_strokes?: string;
+  credit?: string;
+  icon_key?: string;
 }
 
 export interface SpecStyle {
@@ -240,8 +255,9 @@ export interface SpecElement {
   shape?: "decision" | "chance" | "terminal" | "rect" | "circle" | "triangle" | "person";
   // tier-3 raw coordinates (logical units)
   points?: [number, number][];
-  /** math: the lines of a derivation that follow `tex`, written one per `step` beat (spec/derive.ts). */
-  steps?: (string | { tex: string; note?: string })[];
+  /** math: the lines of a derivation that follow `tex`, written one per `step` beat (spec/derive.ts).
+   *  cards (rank): true — PUT THE STEPS IN ORDER, numbered slots joined by arrows (W15). */
+  steps?: (string | { tex: string; note?: string })[] | boolean;
   /** math with steps: canvas units between lines (default ≈ 3.2 × size). */
   step_gap?: number;
   /** math with steps: where the notes' column starts, canvas units right of the formula's centre (default 220). */
@@ -286,7 +302,7 @@ export interface SpecElement {
   tex?: string;
   /** internal: the answer shown in each `\blank` box (written by the player through element patches). */
   fills?: (string | null)[];
-  /** math: font size, the same units as text font_size (default 28); scaled by text.font_size like every text. icon: box size in logical units (default 100). */
+  /** math: font size, the same units as text font_size (default 28); scaled by text.font_size like every text. icon: box size in logical units (default 100). (cards: "auto" or a factor — typed on spec/cards.ts CardsElementLike.) */
   size?: number;
   /** math: colour per term, a TeX snippet → colour; every occurrence, deepest match wins. */
   colors?: Record<string, string>;
@@ -304,7 +320,7 @@ export interface SpecElement {
   radius?: number;
   /** node rect: a soft shadow — the same box offset (3, 4) down-right, ink at 12 %, behind it. */
   shadow?: boolean;
-  /** node rect: an icon drawn inside the box above the text — a keyword ("shark") or {of, set}, resolved like an icon element (render/icon.ts). */
+  /** node rect: an icon drawn inside the box above the text — a keyword ("shark") or {of, set}, resolved like an icon element (render/icon.ts). The schema also takes a list of keywords tried in order; read it through iconAsk (spec/icon-data.ts). */
   icon?: string | { of: string; set?: string; or?: string[] };
   /** node rect: the resolved icon's rings (spec/trace.ts encodeIcon; machine-written, never edited). */
   icon_strokes?: string;
@@ -381,7 +397,7 @@ export interface SpecElement {
   // link (another drawcast, clickable — spec 2026-09-28-drawcast-links)
   /** link: the drawcast it opens — a player, GitHub or Drive link, owner/repo/path.yaml, a path relative to this file (./next.yaml), or lecture:N in a course. */
   href?: string;
-  /** link: what it says (default: the target's own title, else its file name). */
+  /** link: what it says (default: the target's own title, else its file name). (cards: true, false or words — CardsElementLike.) */
   title?: string;
   /** link: the author's own picture for the card (a URL); wins over the target's thumbnail. */
   image?: string;
@@ -452,14 +468,23 @@ export interface SpecElement {
   quote?: string;
   // population (layout/population.ts): people as person pictograms, each in a state
   // cards (spec/cards.ts — sugar: cards to rank or to sort into boxes)
-  /** cards: the cards, in TRUE order (rank) or each with its bin (sort). */
-  items?: (string | CardItemSpec)[];
+  /** cards: the cards, in TRUE order (rank) or each with its bin (sort).
+   *  sequence (spec/sequence.ts): the pictures in turn — an element id, or {icon | text, label, mark}. */
+  items?: (string | CardItemSpec | SequenceItemSpec)[];
+  /** sequence: where the done items wait — a row along the top (default), the bottom, or none. */
+  strip?: "top" | "bottom" | "none";
+  /** sequence: "dots" — a small placeholder in each slot not reached yet. */
+  show_upcoming?: "dots" | "none";
+  /** sequence: false — drawing <id>_strip at the end leaves the row at the top instead of bringing it to the middle. */
+  recap?: boolean;
   /** cards: the boxes to sort into. */
   bins?: string[];
   /** cards: tap all the … — the one box's title (items {text, in}). */
   select?: string;
   /** cards (sort): one large card at a time, up to 30. */
   deck?: boolean;
+  /** cards, ODD ONE OUT (spec/odd-one-out.ts): what the others share, written under the cards at the reveal. */
+  rule?: string;
   /** cards (sort, select, deck): judge each card as it is dropped (default) or all at the end. */
   check?: "each" | "end";
   /** cards (rank): what the two ends mean. */
@@ -486,6 +511,12 @@ export interface SpecElement {
   log?: boolean;
   /** scale: how many tick intervals. */
   ticks?: number;
+  /** scale: how the numbers are written — "words" (default: "4.3 million"), "numerals", "power" (10ⁿ). */
+  tick_format?: "words" | "numerals" | "power";
+  /** scale: years before year 1 — "BC" (default on a timeline into negative years), "BCE", or "none". */
+  era?: "BC" | "BCE" | "none";
+  /** scale: drawn as an estimate slider — a chunky track and a big counter (W15; an ask's `estimate` writes it). */
+  slider?: boolean;
   /** population: how many people (default: the states' sum, else 100). */
   count?: number;
   /** population: people per state, in order; the FIRST is the remainder. Bind a count (`bind: {"states.sick": "i"}`) to animate it. */
@@ -915,8 +946,14 @@ export interface AskArgs {
   right?: string;
   /** Spoken on a wrong attempt (check mode only). */
   wrong?: string;
-  /** Check mode: speak the correct answer after a final wrong attempt (default true). */
-  reveal?: boolean;
+  /** Check mode: speak the correct answer after a final wrong attempt (default true).
+   *  A string or an object instead: a reveal STAMP (spec/reveal-stamps.ts) —
+   *  the short verdict drawn beside the figure as the answer is revealed. */
+  reveal?: boolean | Exclude<RevealArg, boolean>;
+  /** Where the reveal stamp goes: an element id (beside it) or the stamp's centre. */
+  reveal_at?: string | { x: number; y: number };
+  /** Machine-written (spec/reveal-stamps.ts), never authored: the stamp element this question lands. */
+  reveal_stamp?: string;
   /** Check mode: clear the field and ask again after a wrong attempt (default false). */
   retry?: boolean;
   /** Store the typed response under this name; later speak lines may use {name}. */
@@ -992,6 +1029,17 @@ export interface AskArgs {
   choose?: (string | { id: string; goto?: string })[];
   /** Choose with gotos: the label where the branches meet. */
   then?: string;
+  /** ODD ONE OUT (spec/odd-one-out.ts): with choose and answer (the odd one),
+   *  what the others share — written under the options, the odd one ringed,
+   *  as the answer is revealed. */
+  rule?: string;
+  /** Machine-written by the expansion (spec/odd-one-out.ts): the ids drawn
+   *  as the answer is revealed (the ring, the rule). Never authored. */
+  reveal_draw?: string[];
+  /** SPOT IT ON THE PICTURE (spec/spot.ts): the place the viewer taps — a
+   *  region of the `on` image, a template part (liver, country_norway) or
+   *  any drawn element id. Judged on its outline (or box), with tolerance. */
+  spot?: string;
   /** Tree (spec 2026-10-03 §4): the tree parts the viewer fills in —
    *  value_<node>, branchlabel_<parent>_<child>, effect_<node>, cost_<node>. */
   blanks?: string[];
@@ -1003,10 +1051,16 @@ export interface AskArgs {
   check?: "direction" | "shape" | "size";
   /** Formula: wrong tiles; the right contents are always tiles. */
   others?: string[];
+  /** ESTIMATE SLIDER (W15): a big counter on a slider, scored by closeness
+   *  like a scale guess; expands to a slider scale and `on` (spec/slider.ts). */
+  estimate?: { min: number; max: number; value: number; unit?: string; log?: boolean; label?: string; tick_format?: "words" | "numerals" | "power"; era?: "BC" | "BCE" | "none" };
   /** Formula, typed: "exact" compares the written form, not the value. */
   form?: "exact";
   /** Feedback flavour for this question (spec 2026-10-03 §4.1); wins over the cast's. */
   feedback?: FeedbackArg;
+  /** false: the question is neither spoken nor shown over the figure — the
+   *  line before said it (on-canvas quiz buttons, spec/answer-buttons.ts). */
+  say_question?: boolean;
   /** A guess, cards, tree or formula reveal (spec 2026-10-03-round6 §3):
    *  "beside" (default) — the viewer's answer stays where they put it and
    *  the truth is drawn beside or over it; "morph" — the answer glides into
@@ -1028,6 +1082,10 @@ export interface AskArgs {
    *  strength; after the reveal and its lines the figure fades back
    *  (~300 ms). */
   stage?: "own";
+  /** CONFIDENCE BET on a judged choose (an on-canvas quiz carries it here). */
+  confidence?: boolean;
+  /** POLL AND COMPARE (spec/poll.ts): expands into buttons (choices) or a guess on a scale (on). */
+  poll?: PollArg;
 }
 
 /** Feedback flavour (spec 2026-10-03-looks-feedback-account §4.1): a style
@@ -1070,7 +1128,61 @@ export interface QuizArgs {
   store?: string;
   /** Feedback flavour for this question; wins over the cast's. */
   feedback?: FeedbackArg;
+  /** On-canvas answer buttons (spec/answer-buttons.ts): the choices are
+   *  drawn as buttons on the figure — below it and a bit to the side — and
+   *  the viewer taps one; no question card, and the question is not said
+   *  again (the line before said it). It expands into the buttons, an ask
+   *  with `choose` and (unless keep_buttons) a hide. */
+  on_canvas?: boolean;
+  /** on_canvas: the buttons' ids are `<id>_btn_N` (default quiz_<k>, k the
+   *  on-canvas quiz's ordinal). */
+  id?: string;
+  /** on_canvas: each choice's look, by index — its text (default the
+   *  choice) and an icon keyword above it. */
+  buttons?: { text?: string; icon?: string | { of: string; set?: string } }[];
+  /** on_canvas: the centre of the button row/column, overriding the placement. */
+  buttons_at?: { x: number; y: number };
+  /** on_canvas: a row (default when it fits) or a column of buttons. */
+  buttons_layout?: "row" | "column";
+  /** on_canvas: speak the question (and show it over the figure) after all. */
+  say_question?: boolean;
+  /** on_canvas: the buttons stay after the answer (default: they fade). */
+  keep_buttons?: boolean;
+  /** A reveal STAMP (spec/reveal-stamps.ts): a short verdict drawn beside the
+   *  figure as the answer is revealed — true = the correct choice's words. */
+  reveal?: RevealArg;
+  /** Where the reveal stamp goes: an element id (beside it) or the stamp's centre. */
+  reveal_at?: string | { x: number; y: number };
+  /** Machine-written (spec/reveal-stamps.ts), never authored: the stamp element this question lands. */
+  reveal_stamp?: string;
+  /** CONFIDENCE BET (spec/confidence: W16): after the pick, three buttons on
+   *  the figure — 50/50, Fairly sure, Certain — say how sure; scored for
+   *  calibration over the cast ({calib}, {calib.score}). */
+  confidence?: boolean;
 }
+
+/** POLL AND COMPARE (W16, spec/poll.ts): an opinion question, then what a
+ *  study's people answered, beside the viewer's own answer. */
+export interface PollArg {
+  /** Buttons, each with the share of people who chose it (0–1). */
+  choices?: { text: string; share: number; icon?: string | { of: string; set?: string } }[];
+  /** A scale's id: the viewer sets a value on it; `others` is how people answered. */
+  on?: string;
+  /** With on: buckets of people's answers — the value and its share (0–1). */
+  others?: { value: number; share: number }[];
+  /** A `sources` id: the study the shares come from. */
+  source?: string;
+  /** Count this app's own viewers instead (needs a backend: not built; warns). */
+  live?: boolean;
+}
+
+/** A question's reveal stamp (spec/reveal-stamps.ts): its words, or the words
+ *  with a pin, a colour, a text size, the plain-label look, and `keep` (it
+ *  stays when the figure it is beside goes). */
+export type RevealArg =
+  | boolean
+  | string
+  | { text?: string; at?: string | { x: number; y: number }; color?: string; size?: number; style?: "stamp" | "label"; keep?: boolean };
 
 /**
  * A var (design 2026-09-29 live math): a plain number, or the number with
@@ -1097,6 +1209,20 @@ export type VarDef =
 
 export interface Spec {
   title?: string;
+  /**
+   * The page's top heading (page frame spec 2026-10-04): absent, the title is
+   * drawn as the heading on a page with no `card`; a string draws that text
+   * instead; false draws none. spec/card.ts pageHeading has the rule.
+   */
+  heading?: string | false;
+  /**
+   * How the page places its figure (page frame spec 2026-10-04, W18).
+   * `valign`: "center" (default) — the figure, heading aside, is moved up or
+   * down as one piece so the space above and below it is even when it sits
+   * clearly off-centre; "top" — its top at the content area's top; "none" —
+   * where it was laid out. layout/settle.ts has the rule.
+   */
+  page?: { valign?: "center" | "top" | "none" };
   /** Machine-written: a course lecture's generated end page (playlist.ts
    *  makeEndPage) — links to the previous and next lecture. The poster skips it. */
   end_page?: boolean;
@@ -1127,6 +1253,12 @@ export interface Spec {
   lang?: string;
   /** Cast-level feedback flavour (spec 2026-10-03 §4.1): plain (default), warm, dry, or with the author's lines. */
   feedback?: FeedbackArg;
+  /**
+   * What a live viewer hears after a right quiz answer (render/affirm.ts).
+   * Absent: a varied short affirmation in the cast's language. "plain": the
+   * single word ("Correct."); a list: the cast's own phrases; false: nothing.
+   */
+  affirm?: "plain" | "playful" | string[] | false;
   /**
    * Drawn text a template computes for itself, and its replacement. A scene
    * supplies its own captions ("Susceptible" for compartment "S"), so those

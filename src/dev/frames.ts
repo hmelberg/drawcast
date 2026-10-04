@@ -30,9 +30,12 @@
 
 import bundledExamples from "../examples.json";
 import { setTrustPolicy } from "../security/code-trust";
-import { elementBBoxes, layoutSpec } from "../layout/layout";
+import { elementBBoxes } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import { lintCommands } from "../lint/lint";
+import { posedIssues } from "../lint/posed";
+import { layoutAsSeen } from "../lint/at-scale";
+import { figureUnion, fillIssue, fullestFrames, hasHeadingInk } from "../lint/fill";
 import { pacingReport, type PacingProblem } from "../lint/pacing-report";
 import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
@@ -47,6 +50,7 @@ import { pointerPath } from "../render/effects";
 // they carry runs without the viewer prompt (security/code-trust.ts).
 setTrustPolicy("all");
 import { sceneAt, type PlanStep } from "../render/plan";
+import { posedBox } from "../render/pose";
 import { gestureAt, gestureLabel } from "./gesture-beats";
 import { MARK_GLIDE_MS, MARK_IN_MS, markFrameAt } from "../render/marks";
 import type { RenderHandle } from "../render/index";
@@ -77,6 +81,8 @@ interface FrameReport {
    *  it reads base geometry — so they are kept, separately, rather than mixed in
    *  with defects a viewer can see. */
   hiddenIssues: string[];
+  /** Advice, not defects (lint/fill.ts): judged on a page at its fullest. */
+  advisories: string[];
   /** Every element's bounding box at this frame, logical units (y-up). */
   bboxes: Record<string, BBox>;
 }
@@ -90,6 +96,8 @@ interface PartReport {
   commandIssues: string[];
   /** Exceptions thrown while stepping the whole timeline boundary by boundary. */
   playbackErrors: string[];
+  /** Icons that resolved to nothing and so draw BLANK: one line each, with how to give fallbacks. */
+  iconIssues: string[];
   frames: FrameReport[];
   /** Timing, as the player would run it (lint/pacing-report.ts): the totals
    *  line, then one line per idle stretch, silent ink or overlong beat —
@@ -190,6 +198,11 @@ function restingFrames(plan: { steps: { kind: string; text?: string; narration?:
       if (line) out.push({ at: i + 1, changed: `beat “${line.length > 40 ? line.slice(0, 39) + "…" : line}”` });
     });
   }
+  // A quiet question (on-canvas quiz buttons, spec/answer-buttons.ts) speaks
+  // no line, so no beat shows its buttons: a frame of its own.
+  plan.steps.forEach((s, i) => {
+    if (s.kind === "ask" && (s as { quiet?: boolean }).quiet) out.push({ at: i + 1, changed: "question (on-canvas buttons)" });
+  });
   // Dedupe by boundary, keeping the first reason given for it.
   const seen = new Set<number>();
   return out.filter((f) => (seen.has(f.at) ? false : (seen.add(f.at), true))).sort((a, b) => a.at - b.at);
@@ -210,7 +223,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
   // resolved, as render() draws it — an unresolved icon draws nothing, and
   // its `at` would read as ignored.
   const withIcons = structuredClone(spec);
-  await resolveIcons(withIcons).catch(() => {});
+  const icons = await resolveIcons(withIcons).catch((err: unknown) => [{ id: "icons", ok: false, of: "", error: String(err) }]);
   const expanded = expandSpec(withIcons);
   const report: PartReport = {
     title: spec.title ?? "(untitled)",
@@ -219,6 +232,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
     planWarnings: [],
     commandIssues: lintCommands(expanded).map((i) => `[${i.severity}] ${i.rule}: ${i.message}`),
     playbackErrors: [],
+    iconIssues: icons.filter((r) => !r.ok).map((r) => `${r.id}: no icon for "${r.of ?? "?"}" — draws BLANK (${r.error ?? "not found"}); give fallbacks: "icon": ["${r.of ?? "…"}", "…"] (an icon element: "or": […]) or draw it by hand`),
     frames: [],
     pacing: { lines: [], totalMs: 0, spokenLines: 0, lengthBand: "", problems: [] },
   };
@@ -238,6 +252,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       }
     }
     let prevAt = 0;
+    const fillInputs: { boxes: [string, BBox][]; visible: (id: string) => boolean }[] = [];
     for (const frame of frames) {
       const params = hd.plan.states[frame.at - 1]?.params ?? {};
       // A tree's blanks still to be asked are "?" here, as on screen.
@@ -249,7 +264,8 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       // label a template drops at small h (tangent_secant's Δx) was reported
       // at the end frame although it was drawn, correctly, while it existed.
       const posed = Object.keys(params).length > 0;
-      const layout = layoutSpec(at, measure, undefined, undefined, posed ? { skipDrawBeatLint: true } : undefined);
+      // At the cast's text scale, as the player draws it (its drawables carry drawn sizes).
+      const layout = layoutAsSeen(at, measure, undefined, undefined, posed ? { skipDrawBeatLint: true } : undefined);
       const boxes = elementBBoxes(layout, measure);
       // What the viewer can actually see at this boundary. An overlap between
       // an element that is drawn and one that is not (a label erased two beats
@@ -257,8 +273,11 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       // exactly what the app's own lint has no way to know.
       const visible = new Set(hd.plan.states[frame.at - 1]?.visible ?? []);
       const onScreen = (ids: string[]) => ids.length === 0 || ids.every((id) => visible.has(id) || [...visible].some((v) => id.startsWith(`${v}__`)));
-      const seen = layout.issues.filter((i) => onScreen(i.ids));
-      const unseen = layout.issues.filter((i) => !onScreen(i.ids));
+      // …and where it stands: an element moved since it was drawn is judged at its new place.
+      const state = hd.plan.states[frame.at - 1];
+      const issues = state ? posedIssues(layout.drawables, measure, state, layout.issues, layout.world) : layout.issues;
+      const seen = issues.filter((i) => onScreen(i.ids));
+      const unseen = issues.filter((i) => !onScreen(i.ids));
       report.frames.push({
         at: frame.at,
         changed: frame.changed,
@@ -266,9 +285,19 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
         speak: speakBetween(hd.plan.steps as { kind: string; text?: string }[], prevAt, frame.at),
         issues: seen.map((i) => `[${i.severity}] ${i.message}`),
         hiddenIssues: unseen.map((i) => `[${i.severity}] ${i.message} (not on screen at @${frame.at})`),
+        advisories: [],
         bboxes: Object.fromEntries([...boxes.entries()].map(([id, b]) => [id, b])),
       });
+      fillInputs.push({ boxes: [...boxes.entries()], visible: (id) => onScreen([id]) });
       prevAt = frame.at;
+    }
+    // The fill advisory, on each page at its fullest (lint/fill.ts).
+    const unions = fillInputs.map((f) => figureUnion(f.boxes, f.visible));
+    const heading = hasHeadingInk((expanded.elements ?? []).map((e) => e.id));
+    for (const i of fullestFrames(unions.map((u) => (u ? u.w * u.h : 0)))) {
+      const issue = fillIssue(fillInputs[i].boxes, { heading, visible: fillInputs[i].visible });
+      const fr = report.frames[report.frames.length - fillInputs.length + i];
+      if (issue && fr) fr.advisories.push(`[advisory] ${issue.rule}: ${issue.message}`);
     }
   } finally {
     hd.destroy();
@@ -296,8 +325,7 @@ function paintGesture(hd: RenderHandle, at: number, step: PlanStep, canvas: HTML
       const boxList = step.ids.flatMap((id) => {
         const b = step.boxes[id];
         if (!b) return [];
-        const [dx, dy] = before.offsets[id] ?? [0, 0];
-        return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
+        return [posedBox(b, before.offsets[id] ?? [0, 0], before.turns[id])];
       });
       effects.setHighlight(step.ids, step.effect, 1, boxList.length > 0 ? boxList : null, step.color, 10_000, step.part);
       return;
@@ -378,6 +406,7 @@ const css = `
   .cap b { color: #111; }
   .bad { color: #b5482e; }
   .ok { color: #2f6b8f; }
+  .advice { color: #8a5fa8; white-space: pre-wrap; }
   pre { font: 11px/1.4 ui-monospace, monospace; white-space: pre-wrap; margin: 4px 0 0; }
 `;
 const style = document.createElement("style");
@@ -426,6 +455,7 @@ async function show(cast: Cast): Promise<CastReport> {
       ["plan", part.planWarnings],
       ["commands", part.commandIssues],
       ["playback", part.playbackErrors],
+      ["icons", part.iconIssues],
     ] as const) {
       if (lines.length > 0) section.append(h("pre", { class: "bad" }, `${label}: ${lines.join("\n")}`));
     }
@@ -446,6 +476,7 @@ async function show(cast: Cast): Promise<CastReport> {
       cap.append(h("b", {}, `@${frame.at} ${frame.changed}${gesture ? ` (mid-gesture: ${gestureLabel(gesture)})` : ""}`));
       if (frame.issues.length > 0) cap.append(h("div", { class: "bad" }, frame.issues.join("\n")));
       else cap.append(h("span", { class: "ok" }, ` — lint clean (browser metrics)${frame.hiddenIssues.length > 0 ? ` · ${frame.hiddenIssues.length} off-screen` : ""}`));
+      if (frame.advisories?.length) cap.append(h("div", { class: "advice" }, frame.advisories.join("\n")));
       if (frame.speak.length > 0) cap.append(h("div", {}, `“${frame.speak[frame.speak.length - 1]}”`));
       cell.append(cap);
       sheet.append(cell);

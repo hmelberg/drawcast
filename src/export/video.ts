@@ -20,6 +20,9 @@ import type { Spec } from "../spec/types";
 import type { ExportKeepAlive } from "./keepalive";
 import { BufferSpeech, synthesizeAll } from "./tts";
 import { WebAudioTones } from "../render/tones";
+import { calibVars, confidenceLabels, CONFIDENCE_LEVELS, MOVIE_LEVEL, type Bet } from "../guess/confidence";
+import { pollChoiceVars } from "../guess/poll";
+import { gateLang } from "../ui/gate-words";
 
 /** Every distinct narration line in the spec's storyboard, with
  *  speaker/delivery/gender attached, and {var} tokens interpolated with the
@@ -56,6 +59,21 @@ export function collectSpeakLines(spec: Spec, carry?: { vars: Map<string, string
     }
     vars.set(`${AUTO_NAMESPACE}.count`, String(asked));
   };
+  // A confidence bet (W16): the movie answers right at "Fairly sure"; {calib}
+  // reads that from the start (the player's stand-in) and after every bet.
+  const bets: Bet[] = [];
+  const lang = gateLang(spec.lang ?? null);
+  const betCalib = (): void => {
+    for (const [k, v] of Object.entries(calibVars(bets.length > 0 ? bets : [{ p: CONFIDENCE_LEVELS[MOVIE_LEVEL], ok: true }], lang))) vars.set(k, v);
+  };
+  if ((spec.commands ?? []).some((c) => c.quiz?.confidence === true || c.ask?.confidence === true)) betCalib();
+  const betMade = (store: string | undefined): void => {
+    bets.push({ p: CONFIDENCE_LEVELS[MOVIE_LEVEL], ok: true });
+    betCalib();
+    const sure = confidenceLabels(lang)[MOVIE_LEVEL];
+    vars.set(`${AUTO_NAMESPACE}.${asked}.sure`, sure);
+    if (store) vars.set(`${store.toLowerCase()}.sure`, sure);
+  };
   for (const c of spec.commands ?? []) {
     const push = (text: unknown): void => {
       if (typeof text !== "string" || text.trim().length === 0) return;
@@ -89,6 +107,7 @@ export function collectSpeakLines(spec: Spec, carry?: { vars: Map<string, string
       answered++;
       publishScore();
       auto(c.quiz.store, c.quiz.choices[c.quiz.correct - 1], true);
+      if (c.quiz.confidence === true) betMade(c.quiz.store);
       push(c.quiz.right ?? c.quiz.choices[c.quiz.correct - 1]);
     }
     if (c.ask) {
@@ -105,6 +124,17 @@ export function collectSpeakLines(spec: Spec, carry?: { vars: Map<string, string
       // Check mode "types" the answer, collect mode the default — the same
       // string the player's auto path stores.
       auto(c.ask.store, c.ask.answer ?? c.ask.default ?? "", c.ask.answer !== undefined ? true : null);
+      if (c.ask.confidence === true && c.ask.answer !== undefined) betMade(c.ask.store);
+      // A poll's shares (W16): the movie's pick is the default, else the first button.
+      const shares = c.ask.poll?.choices?.map((ch) => ch.share);
+      if (shares && c.ask.store) {
+        const ids = (c.ask.choose ?? []).map((o) => (typeof o === "string" ? o : o.id));
+        const at = Math.max(0, ids.indexOf(c.ask.default ?? ""));
+        for (const [k, v] of Object.entries(pollChoiceVars(c.ask.store, c.ask.poll!.choices!.map((ch) => ch.text), shares, at))) vars.set(k, v);
+        vars.set(c.ask.store.toLowerCase(), c.ask.poll!.choices![at]?.text ?? "");
+      }
+      // An opinion (a poll, a choose or guess with judge: false) speaks its line whatever was chosen.
+      if (c.ask.answer === undefined && (c.ask.poll !== undefined || c.ask.judge === false)) push(c.ask.right ?? c.ask.wrong);
     }
   }
   return [...seen.values()];
@@ -160,45 +190,74 @@ const FIG_H = 630;
 const FIG_Y = 10;
 const FPS = 30;
 const PAPER = "#f5f1e6";
-import { C64_FONT_URLS } from "../render/figure-style";
+import { C64_FONT_URLS, PATRICK_HAND_URLS } from "../render/figure-style";
 import { placeholdLinkedPictures } from "./linked-pictures";
 
 const INK = "#3d3833";
 
+/** The `latin` face's woff2 URL out of Google Fonts' css2 answer: the one
+ *  whose unicode-range covers basic Latin (U+0000-00FF). The answer lists
+ *  vietnamese and latin-ext first, and taking the FIRST url embedded a face
+ *  with no a–z at all — every poster fell back to Comic Sans (2026-10-04). */
+export function latinFaceUrl(css: string): string | null {
+  for (const block of css.split("@font-face").slice(1)) {
+    const url = /url\((https:[^)]+\.woff2)\)/.exec(block)?.[1];
+    if (url && /unicode-range:[^;]*U\+0000-00FF/i.test(block)) return url;
+  }
+  // No ranges at all (one face for everything): its only url.
+  return /unicode-range/i.test(css) ? null : (/url\((https:[^)]+\.woff2)\)/.exec(css)?.[1] ?? null);
+}
+
 /** The sketch font as an inline data URI so SVG-as-image frames keep it
- *  (images loaded from SVG cannot fetch external resources). */
+ *  (images loaded from SVG cannot fetch external resources). The app's own
+ *  copy first (PATRICK_HAND_URLS — the file the layout measured with), else
+ *  Google's latin face. "" when neither answers: the caller decides whether
+ *  a fallback font will do (a poster says no — snapshot.ts posterPng). A
+ *  failure is not remembered, so the next call tries again. */
 let fontStylePromise: Promise<string> | null = null;
 export function sketchFontStyle(): Promise<string> {
   fontStylePromise ??= (async () => {
-    try {
-      const css = await (await fetch("https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap")).text();
-      const m = /url\((https:[^)]+\.woff2)\)/.exec(css);
-      if (!m) return "";
-      const buf = new Uint8Array(await (await fetch(m[1])).arrayBuffer());
-      const b64 = (bytes: Uint8Array): string => {
-        let bin = "";
-        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-        return btoa(bin);
-      };
-      let c64 = "";
-      // The C64 face too, so a screen in a movie is set in it: the first of
-      // its URLs that answers (the app's own copy, else the published one).
-      for (const u of C64_FONT_URLS) {
+    const b64 = (bytes: Uint8Array): string => {
+      let bin = "";
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return btoa(bin);
+    };
+    /** The first URL that answers, as base64 — "" when none does. */
+    const firstOf = async (urls: readonly string[]): Promise<string> => {
+      for (const u of urls) {
         try {
           const r = await fetch(u);
-          if (!r.ok) continue;
-          c64 = `@font-face{font-family:'C64 Pro Mono';src:url(data:font/woff2;base64,${b64(new Uint8Array(await r.arrayBuffer()))}) format('woff2');}`;
-          break;
+          // A dev server answers a missing file with its index.html, as a 200.
+          if (!r.ok || /text\/html/i.test(r.headers.get("content-type") ?? "")) continue;
+          return b64(new Uint8Array(await r.arrayBuffer()));
         } catch {
           /* try the next */
         }
       }
-      return `<style>@font-face{font-family:'Patrick Hand';src:url(data:font/woff2;base64,${b64(buf)}) format('woff2');}${c64}</style>`;
-    } catch {
-      return ""; // degrade to the fallback font rather than failing the export
+      return "";
+    };
+    let hand = await firstOf(PATRICK_HAND_URLS);
+    let handFormat = "truetype";
+    if (!hand) {
+      try {
+        const url = latinFaceUrl(await (await fetch("https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap")).text());
+        hand = url ? await firstOf([url]) : "";
+        handFormat = "woff2";
+      } catch {
+        hand = "";
+      }
     }
+    if (!hand) return "";
+    // The C64 face too, so a screen in a movie is set in it.
+    const c64 = await firstOf(C64_FONT_URLS);
+    const c64Face = c64 ? `@font-face{font-family:'C64 Pro Mono';src:url(data:font/woff2;base64,${c64}) format('woff2');}` : "";
+    return `<style>@font-face{font-family:'Patrick Hand';src:url(data:font/${handFormat === "truetype" ? "ttf" : "woff2"};base64,${hand}) format('${handFormat}');}${c64Face}</style>`;
   })();
-  return fontStylePromise;
+  const p = fontStylePromise;
+  void p.then((s) => {
+    if (!s && fontStylePromise === p) fontStylePromise = null;
+  });
+  return p;
 }
 
 function sleep(ms: number): Promise<void> {

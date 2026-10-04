@@ -16,7 +16,6 @@
    {
     "id": "babies",
     "type": "cards",
-    "y": 610,
     "items": [
      {
       "text": "Kangaroo",
@@ -44,38 +43,65 @@
      },
      {
       "text": "Eel",
-      "match": "Elver"
+      "match": "Elver",
+      "icon": [
+       "eel",
+       "fish"
+      ]
      }
     ],
-    "x": 50,
-    "width": 620
+    "size": 1.05
    },
    {
     "id": "ech",
     "type": "text",
     "text": "echidna's baby",
-    "x": 830,
-    "y": 520,
-    "font_size": 34,
+    "x": 500,
+    "y": 600,
+    "font_size": 44,
     "style": {
      "color": "#b5482e"
     }
    },
    {
     "id": "puggle",
-    "type": "node",
-    "shape": "rect",
+    "type": "text",
     "text": "Puggle",
-    "x": 830,
-    "y": 445,
-    "width": 230,
-    "font_size": 48,
+    "x": 760,
+    "y": 420,
+    "font_size": 84,
     "style": {
      "color": "#b5482e"
     },
     "cites": [
      "am"
     ]
+   },
+   {
+    "id": "ech_big",
+    "type": "icon",
+    "of": "echidna",
+    "or": [
+     "hedgehog",
+     "porcupine"
+    ],
+    "icon_look": "picture",
+    "size": 260,
+    "x": 330,
+    "y": 400
+   },
+   {
+    "id": "ech_baby",
+    "type": "icon",
+    "of": "echidna",
+    "or": [
+     "hedgehog",
+     "porcupine"
+    ],
+    "icon_look": "picture",
+    "size": 90,
+    "x": 560,
+    "y": 330
    }
   ],
   "commands": [
@@ -102,7 +128,7 @@
       "perfect": "Were you raised by a zookeeper?",
       "good": "The nursery is in safe hands.",
       "poor": "Most people only know the joey.",
-      "none": "Even the owlet got away. Never mind."
+      "none": "The baby names got away this time. Never mind."
      }
     }
    },
@@ -143,8 +169,15 @@
     "speak": "And a young eel is an elver, swimming in from the sea after a journey of thousands of kilometres."
    },
    {
+    "erase": [
+     "babies"
+    ]
+   },
+   {
     "draw": [
      "ech",
+     "ech_big",
+     "ech_baby",
      "puggle"
     ],
     "cue": 0.4,
@@ -153,15 +186,16 @@
    {
     "highlight": {
      "target": [
+      "ech_baby",
       "puggle"
-     ],
-     "effect": "box"
+     ]
     },
-    "speak": "Fittingly, the word may have started out as the name of a soft toy."
+    "speak": "A puggle hatches from an egg about the size of a grape: tiny, pink, and with no spines yet."
    }
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }

@@ -28,13 +28,16 @@ import { cueStartMs, lineMs } from "./cue";
 import { MARK_RELEASE_MS, markFrameAt, markReleaseAt } from "./marks";
 import { stripLangMarks } from "./lang-spans";
 import { SpeechManager, type SpeechLike } from "./speech";
-import { correctWord } from "./quiz-words";
+import { Affirmer } from "./affirm";
 import { EMPHASIS_EASE_MS, EMPHASIS_FIRST_PEAK_MS, EMPHASIS_HOLD_AT_MS, EMPHASIS_ONE_SWELL_MS, EMPHASIS_RELEASE_MS, easeInLevel, emphasisLevel, releaseLevel, swellLevel } from "./emphasis";
 import { translateCaption, type SubtitleTrack } from "../spec/subtitles";
 import type { ToneLike } from "./tones";
-import { isIdentity, type Turn } from "./pose";
+import { isIdentity, posedBox, type Turn } from "./pose";
 import { decodeFigures } from "./decode-figures";
 import { smoothstep } from "./sweep";
+import { calibVars, confidenceHow, confidenceLabels, confidenceMarks, CONFIDENCE_LEVELS, MOVIE_LEVEL, type Bet } from "../guess/confidence";
+import { scaleGeometry } from "../spec/scale";
+import { nearestBucket, pollChoiceMarks, pollChoiceVars, pollScaleMarks, pollScaleVars } from "../guess/poll";
 import { deckCardMs, deckFlight } from "../cards/deck";
 import { chunkCaption, pageTimes } from "./caption-chunks";
 import { balancedSplit, budgetOf, defaultGuess, encodeGuess, decodeGuess, pointFor, startValues, type GuessEnd, type GuessHandle, type GuessSetup } from "../guess/handles";
@@ -43,13 +46,14 @@ import { DEFAULT_TOLERANCE, guessText, guessVars, scoreGuess } from "../guess/sc
 import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../feedback/bands";
 import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
-import { besidePositions, cardsBeside, cardsParts } from "../cards/beside";
+import { GHOST_FADE, besidePositions, cardsBeside, cardsParts, placeGlide } from "../cards/beside";
 import { BESIDE_MS, EACH_MS, FADED, WRONG, YOURS, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, mergeRooms, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
 import { gateLang, gateWords } from "../ui/gate-words";
 import type { CardsGeometry } from "../spec/cards";
 import { CORRECTED, counterMarks } from "../cards/counter";
 import { REORDER_MS, VERDICT_MS, reorderAt, reorderLanded, rankVerdicts, yoursRow } from "../cards/reorder";
-import { cardsMarks, cardsTruth, fadedCards, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
+import { cardsMarks, cardsTruth, fadedCards, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightCards, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
+import type { SpeakLine } from "./delivery";
 import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
 import { decodeTreeAnswer, encodeTreeAnswer, pickDiff, scoreBlanks, treeBlanks, treePick, type TreeBlank, type TreePick } from "../tree/blanks";
 import { treeNumberText, type DecisionTreeParams } from "../scenes/decision_tree/layout";
@@ -134,6 +138,8 @@ export const STAGE_DIM = 0.15;
 const STAGE_MS = 300;
 /** A line's given part drawing itself in before the viewer draws on. */
 const GIVEN_DRAW_MS = 2200;
+/** A poll's shares grow onto its buttons (W16). */
+const POLL_GROW_MS = 700;
 /** A revised guess's earlier one: the guess colour, faded. */
 const GUESS_PREV_COLOR = "#9fb6d8";
 
@@ -156,6 +162,9 @@ interface Beside {
   styles?: Record<string, Record<string, unknown>>;
   /** check: each (round 7 §3): the cards corrected for the viewer — drawn at CORRECTED, at FADED once the reveal fades. */
   dim?: string[];
+  /** How far yours fades once the reveal is past (default FADED): a place's
+   *  ghosts stay plainer, to be compared while the explanation plays. */
+  fade?: number;
 }
 
 /** A kept guess (ask `keep: true`, spec 2026-10-03-round6 §5): what its
@@ -409,6 +418,12 @@ export class Player {
    * degrades to a short hold + reveal so a bare Player never deadlocks.
    */
   quizGate: ((signal: AbortSignal, step: Extract<PlanStep, { kind: "quiz" }>) => Promise<number | null>) | null = null;
+  /** A confidence bet's buttons (W16, guess/confidence.ts), wired by the
+   *  controls to the choose gate: resolves the level tapped (0–2) or null
+   *  (skipped). Absent (movies, watch): the laser taps "Fairly sure". */
+  confidenceGate: ((signal: AbortSignal, bet: { boxes: BBox[]; labels: string[]; required: boolean }) => Promise<number | null>) | null = null;
+  /** The bets so far, by step (a re-answer overwrites): {calib}. */
+  private readonly bets = new Map<number, Bet>();
 
   /**
    * Provider for the typed ask verb, set by the controls layer (input card)
@@ -722,8 +737,14 @@ export class Player {
   private readonly liveMarks = new Map<string, symbol>();
   /** The language the cast is written in (spec.lang), for the words the player says itself. */
   private sourceLang: string | null = null;
+  /** What a right quiz answer hears (render/affirm.ts); render/index.ts configures it from the cast. */
+  readonly affirmer = new Affirmer();
   setSourceLang(lang: string | null): void {
     this.sourceLang = lang;
+    // The movie's stand-in {calib} (constructor), in the cast's language.
+    if (this.bets.size === 0 && this.vars.has("calib")) {
+      for (const [k, v] of Object.entries(calibVars([{ p: CONFIDENCE_LEVELS[MOVIE_LEVEL], ok: true }], gateLang(lang)))) this.vars.set(k, v);
+    }
   }
 
   /** Stops the narrated step's voice alone — a question the viewer has already answered or skipped. */
@@ -793,6 +814,11 @@ export class Player {
     plan.steps.forEach((s, i) => {
       if (s.kind === "quiz" || s.kind === "ask") this.ordinalOf.set(i, ++n);
     });
+    // {calib} before (or without) a bet — every bet skipped — reads what a
+    // movie's would: a skip stands in as the movie answers (W16).
+    if (plan.steps.some((s) => (s.kind === "quiz" || s.kind === "ask") && s.confidence)) {
+      for (const [k, v] of Object.entries(calibVars([{ p: CONFIDENCE_LEVELS[MOVIE_LEVEL], ok: true }], gateLang(this.sourceLang)))) this.vars.set(k, v);
+    }
     this.skipQuestions = opts.questions === "skip";
     this.hideAll();
   }
@@ -1052,7 +1078,7 @@ export class Player {
     this.pendingSettle = false;
     for (const [owner, b] of restored) {
       this.guessOwners.add(owner);
-      this.effects?.setGuessMarks?.(owner, b.faded && b.marks ? fadeYours(b.marks, FADED) : b.marks);
+      this.effects?.setGuessMarks?.(owner, b.faded && b.marks ? fadeYours(b.marks, b.fade ?? FADED) : b.marks);
     }
     for (const [owner, r] of kept) {
       this.kept.set(owner, r);
@@ -1087,6 +1113,7 @@ export class Player {
       el.setOpacity?.(this.baseOpacity(id, scene) * this.stageAlpha(id));
       el.setPoints?.(scene.shapes[id] ?? {});
       el.setText?.(scene.texts[id] ?? {});
+      if (this.landing.has(id)) continue; // a reveal stamp mid-landing finishes itself
       if (visible.has(id) || !this.planTimeIds.has(id) || this.besideShown(id)) el.finish();
       else el.hide();
     }
@@ -1550,6 +1577,16 @@ export class Player {
     this.endMarks();
   }
 
+  /** Steps cards' arrows, drawn in one after another (spec/steps.ts); false when aborted. */
+  private async drawStepArrows(ids: string[], signal: AbortSignal): Promise<boolean> {
+    const els = this.els(ids);
+    for (const el of els) el.setProgress(0);
+    const each = 260;
+    await this.progress(each * Math.max(1, els.length), signal, (t) => els.forEach((el, i) => el.setProgress(Math.max(0, Math.min(1, t * els.length - i)))));
+    for (const el of els) el.finish();
+    return !signal.aborted;
+  }
+
   /**
    * A guess on the figure (spec 2026-10-01-guess-and-reveal): the guessed
    * parts are painted at the viewer's guess while the question stands, the
@@ -1740,7 +1777,10 @@ export class Player {
       // A market handle carries its own truth (the curve at the animate's end).
       if (animIndex < 0 || setup.handles.some((h) => h.kind === "market")) return setup.handles;
       const later = this.guessSetupAt(step.on, step.from, this.planned(animIndex), true);
-      return later && later.handles.length === setup.handles.length ? setup.handles.map((h, k) => ({ ...h, truth: later.handles[k].truth })) : setup.handles;
+      // A sorted bar chart's bar may change places in that animate: the marks end where it ends.
+      return later && later.handles.length === setup.handles.length
+        ? setup.handles.map((h, k) => ({ ...h, truth: later.handles[k].truth, ...(later.handles[k].cx !== undefined ? { cx: later.handles[k].cx } : {}) }))
+        : setup.handles;
     })();
     // What the question shows: everything the plan reveals at this step (the
     // guessed parts), painted from the guess instead of the truth.
@@ -1864,6 +1904,17 @@ export class Player {
       for (const [k, v] of Object.entries(guessVars(step.store, truthHandles, guess, score))) this.vars.set(k, v);
       this.setRoundThreeVars(step.store, truthHandles, guess, fits(prev) ? prev : null);
     }
+    // A poll on a scale (W16): the people's answers over the line, theirs in the viewer's colour.
+    if (step.poll?.others && step.poll.others.length > 0 && truthHandles[0]?.scale) {
+      const others = step.poll.others;
+      const g = scaleGeometry(truthHandles[0].scale);
+      const v = guess[0]?.[0] ?? g.middle;
+      if (step.store) for (const [k, val] of Object.entries(pollScaleVars(step.store, others, v, (x) => g.format(x)))) this.vars.set(k, val);
+      const pollOwner = `poll_${index}`;
+      this.guessOwners.add(pollOwner);
+      this.guessMarkParts.set(pollOwner, marked);
+      this.effects?.setGuessMarks?.(pollOwner, pollScaleMarks(g, others, answered ? nearestBucket(others, v) : null, { lang: gateLang(this.sourceLang), ...(step.poll.source ? { source: step.poll.source } : {}) }));
+    }
     if (judged) {
       this.outcomes.set(index, ok);
       this.updateScoreVars(index, ok);
@@ -1893,6 +1944,7 @@ export class Player {
     }
     // The feedback is spoken AS the figure moves to the truth, not after it:
     // waiting for the glide and then the voice left a gap after answering.
+    this.stampIn(step, signal);
     const spoken = this.speakLines(line, extra, step, signal);
     if (step.revealStyle === "morph") {
       if (!(await this.revealGuess(setup, guess, paint, owner, signal))) return;
@@ -1987,7 +2039,11 @@ export class Player {
     this.guessMarkParts.set(owner, formula ? [step.formula!, g.id] : [...g.cards, ...(g.valueIds ?? [])]);
     const start = initialArrangement(g);
     // A deck's dealt card is drawn larger, about where the card is drawn (round 6 §7).
-    const place = (id: string, dx: number, dy: number, scale = 1): void => this.nudge(id, dx, dy, scale, g.home[g.cards.indexOf(id)]);
+    // What follows a card (a compare value, an attached label) moves with it (page frame 2026-10-04).
+    const place = (id: string, dx: number, dy: number, scale = 1): void => {
+      this.nudge(id, dx, dy, scale, g.home[g.cards.indexOf(id)]);
+      for (const f of g.followers?.[id] ?? []) this.nudge(f, dx, dy);
+    };
     const show = (ids: string[]): void => {
       for (const el of this.els(ids)) el.finish();
     };
@@ -2003,13 +2059,14 @@ export class Player {
     // The cards are the question: if the cast did not draw them first, the
     // question shows them (never a compare pair's numbers — those are the answer).
     // (Nor a deck's waiting cards: the deal shows each in turn.)
-    const answerIds = new Set([...(g.valueIds ?? []), ...(g.deal ?? []).slice(1).map((i) => g.cards[i])]);
+    const answerIds = new Set([...(g.valueIds ?? []), ...(g.arrows ?? []), ...(g.deal ?? []).slice(1).map((i) => g.cards[i])]);
     show([...this.elements.keys()].filter((id) => id.startsWith(`${g.id}_`) && !answerIds.has(id)));
     const live = !this.autoAnswers && this.askGate !== null;
     let arrangement: Arrangement = start;
     let answered = false;
     let secs: number | null = null;
     if (live) {
+      this.prefetchCardLines(step, g);
       const from = performance.now();
       const typed = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question), cardsSession: { geometry: g, start, place, show, mark, fade } satisfies CardsSession }));
       this.gateDim.clear();
@@ -2145,6 +2202,7 @@ export class Player {
       live && answered && judged
         ? this.feedbackAfter(step, bandOf({ ok, within: score.within, count: score.count }), { long: isLong({ items: score.count }), parts: formula ? [step.formula!] : g.cards, ...(formula ? {} : { shift }) }, signal)
         : [];
+    this.stampIn(step, signal);
     const spoken = this.speakLines(line, extra, step, signal);
     // Beside (the default, spec 2026-10-03-round6 §3): an answer stays where
     // the viewer left it, ✓/✗ on each card and the truth in ink beside. A
@@ -2155,11 +2213,16 @@ export class Player {
     const quietMovie = !live && g.each === true;
     // Rank slides into the true order by default (round 7 §4); an explicit beside or morph wins.
     const reorder = g.mode === "rank" && (step.revealStyle ?? "reorder") === "reorder";
-    const beside = !checked && !quietMovie && !reorder && step.revealStyle !== "morph" && answered;
+    // Place glides by default (Hans 2026-10-04): each card from where the viewer
+    // put it to its true place, a ghost left where it stood; an explicit beside or morph wins.
+    const glide = g.mode === "place" && answered && !checked && !quietMovie && step.revealStyle === undefined;
+    const beside = !glide && !checked && !quietMovie && !reorder && step.revealStyle !== "morph" && answered;
     // Tiles the viewer put in a box (the answer): kept on screen beside a formula's truth.
     const placedTiles = formula ? g.cards.filter((_, i) => arrangement.boxes.some((b) => b.includes(i))) : [];
     // The cards that move glide from where the viewer left them to the truth.
     const moves = !beside && !reorder && g.cards.some((_, i) => Math.abs(from[i][0] - g.truth[i][0]) > 0.5 || Math.abs(from[i][1] - g.truth[i][1]) > 0.5);
+    // The ghosts stand at once, the moment Done is pressed: the first answer on screen.
+    if (glide) mark(placeGlide(g, arrangement, { tolerance: step.tolerance ?? 0 }));
     if (moves) {
       await this.progress(GUESS_REVEAL_MS, signal, (t) => {
         const e = smoothstep(t);
@@ -2191,6 +2254,8 @@ export class Player {
           });
         });
       }
+      // Steps (spec/steps.ts): the arrows draw in between the cards, now in order.
+      if (g.arrows && !signal.aborted) await this.drawStepArrows(g.arrows, signal);
       // The gate's nudges go (an abort too): the plan puts the cards at the truth.
       for (const id of g.cards) place(id, 0, 0);
       if (signal.aborted) {
@@ -2229,6 +2294,7 @@ export class Player {
       }
       const offsets: Record<string, Pt> = {};
       g.cards.forEach((id, i) => (offsets[id] = [stand[i][0] - g.home[i][0], stand[i][1] - g.home[i][1]]));
+      for (const [id, fs] of Object.entries(g.followers ?? {})) for (const f of fs) offsets[f] ??= offsets[id];
       for (const id of g.cards) place(id, 0, 0);
       this.putBeside(owner, { index, marks: null, faded: false, offsets, ...(placedTiles.length > 0 ? { shown: placedTiles } : {}) });
     }
@@ -2267,6 +2333,11 @@ export class Player {
       mark(landed);
       // Marks only (the cards stand at the plan's truth): a seek forward restores them.
       this.putBeside(owner, { index, marks: landed, faded: false });
+    } else if (glide) {
+      const landed = placeGlide(g, arrangement, { tolerance: step.tolerance ?? 0, landed: true });
+      mark(landed);
+      // Marks only (the cards stand at the plan's truth): they stay through the explanation, and a seek forward restores them.
+      this.putBeside(owner, { index, marks: landed, faded: false, fade: GHOST_FADE });
     } else if (quietMovie) {
       // Nothing marked.
     } else if (answered) mark(cardsMarks(g, arrangement));
@@ -2286,6 +2357,43 @@ export class Player {
       const target = ok ? step.rightGoto : step.wrongGoto;
       if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
     }
+  }
+
+  /**
+   * The right/wrong lines a cards answer can hear, voiced ahead while the
+   * viewer works (Hans 2026-10-04: "it takes a bit long before you respond"):
+   * "{w} of {w.total} close." is only known once the cards are judged, and is
+   * neither baked nor prefetched with the movie's lines — synthesized after
+   * Done, the voice started a network round trip late. Every score the cards
+   * can get is a handful of lines (≤ 8 parts), so each is fetched now; a line
+   * with a var no score sets ({w.off}, {w.secs}) simply misses, as before.
+   */
+  private prefetchCardLines(step: Extract<PlanStep, { kind: "ask" }>, g: CardsGeometry): void {
+    const sp = this.speech as Partial<{ prefetch(lines: SpeakLine[], speed: number): void }>;
+    if (this.mode !== "narrated" || typeof sp.prefetch !== "function") return;
+    if (g.mode === "decide" || (g.mode === "fill" && step.formula !== undefined)) return;
+    const sources = [step.right, step.wrong].filter((l): l is string => typeof l === "string" && l.trim() !== "");
+    if (sources.length === 0) return;
+    const count = rightCards(g, initialArrangement(g)).length;
+    if (count > 8) return;
+    const checked = g.mode === "sort" && g.each === true;
+    const lines = new Map<string, SpeakLine>();
+    const opts = { speaker: step.narrationSpeaker, delivery: step.narrationDelivery, gender: this.narratorGender ?? undefined };
+    for (let within = 0; within <= count; within++) {
+      const vars = new Map(this.vars);
+      if (step.store) {
+        const base = step.store.toLowerCase();
+        vars.set(base, checked ? String(within) : `${within} of ${count}`);
+        vars.set(`${base}.within`, String(within));
+        vars.set(`${base}.count`, String(count));
+        vars.set(`${base}.total`, String(count));
+      }
+      for (const src of sources) {
+        const text = subVars(translateCaption(src, this.spoken), vars);
+        if (!lines.has(text)) lines.set(text, { text, ...opts });
+      }
+    }
+    sp.prefetch([...lines.values()], this.speedVal);
   }
 
   /** The option a movie (or a skipped question) stands in with: `default`, else the answer, else the first. */
@@ -2316,7 +2424,8 @@ export class Player {
     let secs: number | null = null;
     if (live) {
       const from = performance.now();
-      const typed = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question) }));
+      // A bet comes before the verdict: no ✓/✗ on the tapped button yet (W16).
+      const typed = await this.askGate!(signal, Object.assign({}, step, { question: this.line(step.question) }, step.confidence ? { judge: false as const } : {}));
       if (signal.aborted) return;
       secs = (performance.now() - from) / 1000;
       picked = typed === null ? undefined : opts.find((o) => o.id.toLowerCase() === typed.trim().toLowerCase());
@@ -2353,16 +2462,38 @@ export class Player {
       });
     }
 
+    // A poll (W16): what people chose, on the buttons, before its line.
+    if (step.poll?.shares && stands) await this.showPollChoices(index, step, opts, opts.indexOf(stands), signal);
+    if (signal.aborted) return;
+    // A confidence bet (W16): after the pick, before the verdict.
+    const betOwner = step.confidence && judged && (picked !== undefined || !live) ? await this.betOn(index, step.confidence.boxes, ok, live, step.required, signal, stands?.box) : null;
+    if (signal.aborted) return;
     if (judged && answerOpt) {
       const extra = live && picked ? this.feedbackAfter(step, ok ? "perfect" : "none", { parts: answerOpt.members, sparkle: !ok }, signal) : [];
+      // Odd one out (spec/odd-one-out.ts): the ring and the rule arrive with the reveal.
+      let drawing: Promise<void> = Promise.resolve();
+      const revealNow = (): void => {
+        drawing = this.drawRevealIds(step, signal);
+      };
       if (ok) {
-        await this.glowWhile(live ? [{ ids: answerOpt.members, color: ANSWER_OK_COLOR }] : [], signal, () => this.speakLines(step.right, extra, step, signal));
+        revealNow();
+        // An on-canvas quiz (a quiet ask, spec/answer-buttons.ts) keeps its
+        // `right` — the explanation is the point of a True/Myth run — and a
+        // live right answer hears the varied affirmation first ("Spot on.
+        // Myth. The wall is…", Hans 2026-10-04; render/affirm.ts).
+        const nod = live && picked && step.quiet ? this.affirmer.say(this.sourceLang, step, { streak: this.streak(), score: Number(this.vars.get("score") ?? 0), total: this.outcomes.size, last: Math.max(...this.ordinalOf.keys()) === index }) : null;
+        const said = nod && step.right ? `${nod} ${step.right}` : (nod ?? step.right);
+        this.stampIn(step, signal);
+        await this.glowWhile(live ? [{ ids: answerOpt.members, color: ANSWER_OK_COLOR }] : [], signal, () => this.speakLines(said, extra, step, signal));
       } else {
         if (picked && step.wrong) await this.speakLine(step.wrong, step, signal);
         if (signal.aborted) return;
+        revealNow();
+        this.stampIn(step, signal);
         if (step.reveal) await this.glowWhile(live ? [{ ids: answerOpt.members }] : [], signal, () => this.speakLines(step.right ?? answerOpt.label, extra, step, signal));
         else if (extra.length > 0) await this.speakLines(null, extra, step, signal);
       }
+      await drawing;
       if (signal.aborted) return;
       if (live && picked) {
         const target = ok ? step.rightGoto : step.wrongGoto;
@@ -2371,15 +2502,84 @@ export class Player {
     } else {
       // An opinion or a branch: its line is spoken whatever was chosen.
       const line = step.right ?? step.wrong;
+      this.stampIn(step, signal);
       if (line) await this.glowWhile(live && picked ? [{ ids: picked.members }] : [], signal, () => this.speakLines(line, [], step, signal));
       if (signal.aborted) return;
     }
+    this.endBet(betOwner);
     // Live: to the chosen branch; the others are skipped on the way to `then`.
     if (live && picked?.goto !== undefined && this.plan.labels[picked.goto] !== undefined) {
       // Past the label: its boundary is the figure the question left (the planner starts each branch there).
       this.pendingJump = this.plan.labels[picked.goto] + 1;
       this.decideBranch = { labels: opts.map((o) => o.goto).filter((l): l is string => l !== undefined), chosen: picked.goto, ...(step.then !== undefined ? { then: step.then } : {}) };
     }
+  }
+
+  /** Draw an ask's reveal ids (the odd one's ring, the rule) quickly, together. */
+  private async drawRevealIds(step: Extract<PlanStep, { kind: "ask" }>, signal: AbortSignal): Promise<void> {
+    const els = this.els(step.revealDraw ?? []);
+    await Promise.all(els.map((el) => this.animateRange(el, 0, 1, Math.min(Math.max(el.durationMs * 0.5, 350), 900), signal)));
+  }
+
+  /**
+   * A confidence bet (W16, guess/confidence.ts): three buttons on the
+   * figure, the viewer taps how sure they were (or skips); a movie's laser
+   * taps "Fairly sure". The bet is scored with the answer (`ok`) into
+   * {calib}, {calib.score}, {calib.n}, and kept as {<store>.sure} /
+   * {_answers.N.sure}. The buttons stay (the bet filled in) while the
+   * verdict is spoken: the owner to end after it, or null.
+   */
+  private async betOn(index: number, boxes: BBox[], ok: boolean, live: boolean, required: boolean, signal: AbortSignal, answered?: BBox): Promise<string | null> {
+    const lang = gateLang(this.sourceLang);
+    const labels = confidenceLabels(lang);
+    const how = confidenceHow(lang);
+    const owner = `bet_${index}`;
+    this.guessOwners.add(owner);
+    this.effects?.setGuessMarks?.(owner, confidenceMarks(boxes, labels, how, null, answered));
+    let level: number | null;
+    if (live && this.confidenceGate) {
+      level = await this.confidenceGate(signal, { boxes, labels: [...labels], required });
+    } else {
+      level = MOVIE_LEVEL;
+      if (this.effects) await this.tapAt(boxes[level], 1100);
+      else await this.waitScaled(800, signal);
+    }
+    if (signal.aborted) return owner;
+    if (level === null) {
+      this.endBet(owner);
+      return null;
+    }
+    this.effects?.setGuessMarks?.(owner, confidenceMarks(boxes, labels, how, level, answered));
+    this.bets.set(index, { p: CONFIDENCE_LEVELS[level], ok });
+    for (const [k, v] of Object.entries(calibVars([...this.bets.values()], lang))) this.vars.set(k, v);
+    const n = this.ordinalOf.get(index);
+    if (n !== undefined) this.vars.set(`${AUTO_NAMESPACE}.${n}.sure`, labels[level]);
+    const store = (this.plan.steps[index] as { store?: string }).store;
+    if (store) this.vars.set(`${store.toLowerCase()}.sure`, labels[level]);
+    return owner;
+  }
+
+  private endBet(owner: string | null): void {
+    if (owner === null) return;
+    this.effects?.setGuessMarks?.(owner, null);
+    this.guessOwners.delete(owner);
+  }
+
+  /**
+   * A poll's study numbers on its buttons (W16, guess/poll.ts): the shares
+   * grow in from each button's left edge, the viewer's own in their colour;
+   * {store.share}, {store.most} are set first, so the line may read them.
+   * The marks stay with the buttons (they end when the buttons go).
+   */
+  private async showPollChoices(index: number, step: Extract<PlanStep, { kind: "ask" }>, opts: ChooseOption[], picked: number, signal: AbortSignal): Promise<void> {
+    const shares = step.poll?.shares ?? [];
+    if (step.store) for (const [k, v] of Object.entries(pollChoiceVars(step.store, opts.map((o) => o.label), shares, Math.max(0, picked)))) this.vars.set(k, v);
+    const owner = `poll_${index}`;
+    this.guessOwners.add(owner);
+    this.guessMarkParts.set(owner, opts.flatMap((o) => [o.id, ...o.members]));
+    const head = { lang: gateLang(this.sourceLang), ...(step.poll?.source ? { source: step.poll.source } : {}) };
+    const boxes = opts.map((o) => o.box);
+    await this.progress(POLL_GROW_MS, signal, (t) => this.effects?.setGuessMarks?.(owner, pollChoiceMarks(boxes, shares, picked < 0 ? null : picked, head, smoothstep(t))));
   }
 
   /**
@@ -2488,6 +2688,7 @@ export class Player {
     // (the plan takes the boxes away), each wrong answer struck through above.
     const line = ok ? step.right : (step.wrong ?? step.right);
     const extra = live && answered ? this.feedbackAfter(step, bandOf({ ok, within, count: blanks.length }), { long: isLong({ parts: blanks.length }), parts: [id] }, signal) : [];
+    this.stampIn(step, signal);
     const spoken = this.speakLines(line, extra, step, signal);
     this.setFills(id, blanks.map((b) => b.tex));
     this.applyKey(after);
@@ -2752,6 +2953,7 @@ export class Player {
       live && answered
         ? this.feedbackAfter(step, bandOf({ ok, within: score.within + (pickRight ? 1 : 0), count: counted }), { long: isLong({ parts: counted }), parts: blanks.map((b) => b.part) }, signal)
         : [];
+    this.stampIn(step, signal);
     const spoken = this.speakLines(line, extra, step, signal);
     const order = blanks.map((b, i) => ({ b, i })).sort((a, z) => z.b.depth - a.b.depth);
     const beside = step.revealStyle !== "morph";
@@ -3174,7 +3376,7 @@ export class Player {
     for (const [owner, b] of this.besides) {
       if (b.faded || b.index === index) continue;
       b.faded = true;
-      if (b.marks && this.guessOwners.has(owner)) this.effects?.setGuessMarks?.(owner, fadeYours(b.marks, FADED));
+      if (b.marks && this.guessOwners.has(owner)) this.effects?.setGuessMarks?.(owner, fadeYours(b.marks, b.fade ?? FADED));
       // Tiles kept in a formula's boxes are yours too.
       for (const el of this.els(b.shown ?? [])) el.setOpacity?.(FADED);
       // Cards corrected for the viewer are yours too.
@@ -3404,6 +3606,23 @@ export class Player {
     this.captionEl.classList.toggle("cs-caption-dark", text !== "" && !!this.captionOnDark && !!scene && this.captionOnDark(scene.visible));
   }
 
+  /** Reveal stamps landing now: applyScene leaves them to their animation. */
+  private landing = new Set<string>();
+
+  /** A question's reveal stamp lands (spec/reveal-stamps.ts) — called at the
+   *  reveal moment, as its line starts, and not awaited: the line runs on. */
+  private stampIn(step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): void {
+    const id = step.stamp;
+    const el = id === undefined || this.landing.has(id) ? undefined : this.elements.get(id);
+    if (!el || id === undefined) return;
+    el.setProgress(0);
+    this.landing.add(id);
+    void this.animateRange(el, 0, 1, el.durationMs, signal).finally(() => {
+      this.landing.delete(id);
+      if (!signal.aborted) el.finish();
+    });
+  }
+
   private els(ids: string[]): RenderedElement[] {
     return ids.map((id) => this.elements.get(id)).filter((el): el is RenderedElement => el !== undefined);
   }
@@ -3465,8 +3684,10 @@ export class Player {
         const o = Player.chooseDefault(step);
         this.vars.set(step.store.toLowerCase(), o?.label ?? "");
         this.vars.set(`${step.store.toLowerCase()}.id`, o?.id ?? "");
+        if (step.poll?.shares && o) for (const [k, v] of Object.entries(pollChoiceVars(step.store, (step.choose ?? []).map((c) => c.label), step.poll.shares, (step.choose ?? []).indexOf(o)))) this.vars.set(k, v);
       } else if (step.kind === "ask" && step.store) this.vars.set(step.store.toLowerCase(), step.fallback ?? step.answer ?? "");
       if (step.kind === "quiz" && step.store) this.vars.set(step.store.toLowerCase(), step.choices[step.correct]);
+      if (step.kind === "ask") for (const el of this.els(step.revealDraw ?? [])) el.finish();
       return;
     }
     if (step.kind !== "speak" && step.narration !== undefined) {
@@ -3737,6 +3958,9 @@ export class Player {
             ...(quizSecs !== null ? { secs: quizSecs } : {}),
           });
         }
+        // A confidence bet (W16): after the pick, before the verdict.
+        const betOwner = step.confidence && (chosen !== null || !liveQuiz) ? await this.betOn(index, step.confidence.boxes, quizOk, liveQuiz, step.required, signal) : null;
+        if (signal.aborted) return;
         const reveal = step.right ?? step.choices[step.correct];
         // The feedback runs on its own signal, so the viewer can skip it
         // without skipping what comes after.
@@ -3744,6 +3968,8 @@ export class Player {
         this.feedbackCtl = ctl;
         const fb = anySignal(signal, ctl.signal);
         const lines: string[] = [];
+        /** The line the reveal stamp lands with: the reveal, not a wrong hint before it. */
+        let stampAt = 0;
         if (chosen === step.correct) {
           // A live viewer who got it right already knows why: hearing the
           // explanation again is just repetition (Hans 2026-09-27: "maybe
@@ -3751,12 +3977,18 @@ export class Player {
           // for the viewer, who has not.
           // A `right` that reads a live value ("That makes {score}.") is news,
           // not repetition, and is still said.
-          if (liveQuiz) lines.push(step.right && /\{[A-Za-z_][\w.]*\}/.test(step.right) ? step.right : correctWord(this.sourceLang, step.question));
-          else if (step.right) lines.push(step.right);
+          // Not the same "Correct." every time (Hans 2026-10-04): a varied
+          // affirmation, a streak line, now and then a joke (render/affirm.ts).
+          if (liveQuiz) {
+            const said = step.right && /\{[A-Za-z_][\w.]*\}/.test(step.right) ? step.right
+              : this.affirmer.say(this.sourceLang, step, { streak: this.streak(), score: Number(this.vars.get("score") ?? 0), total: this.outcomes.size, last: Math.max(...this.ordinalOf.keys()) === index });
+            if (said) lines.push(said);
+          } else if (step.right) lines.push(step.right);
         } else if (chosen !== null) {
           // `wrong` is a hint BEFORE the reveal; one that just repeats the
           // reveal would say the same sentence twice (Hans 2026-09-25).
           if (step.wrong && step.wrong.trim() !== reveal.trim()) lines.push(step.wrong);
+          stampAt = lines.length;
           lines.push(reveal);
         } else if (!liveQuiz) {
           // A movie or a gate-less player reveals the answer; a live viewer
@@ -3765,11 +3997,13 @@ export class Player {
         }
         // The feedback band's line: a live viewer who answered, right or wrong.
         if (liveQuiz && chosen !== null) lines.push(...this.feedbackAfter(step, chosen === step.correct ? "perfect" : "none", {}, signal));
+        if (lines.length === 0) this.stampIn(step, signal);
         if (lines.length > 0) {
           if (liveQuiz) this.feedbackHook?.(true);
           try {
-            for (const line of lines) {
+            for (const [k, line] of lines.entries()) {
               if (fb.aborted) break;
+              if (k === stampAt) this.stampIn(step, signal);
               await this.speakLine(line, step, fb);
             }
           } finally {
@@ -3778,6 +4012,7 @@ export class Player {
           }
         }
         if (signal.aborted) return;
+        this.endBet(betOwner);
         if (!this.autoAnswers && this.quizGate !== null && chosen !== null) {
           const target = chosen === step.correct ? step.rightGoto : step.wrongGoto;
           if (target !== undefined && this.plan.labels[target] !== undefined) this.pendingJump = this.plan.labels[target];
@@ -3827,7 +4062,9 @@ export class Player {
             if (this.effects && boxes.length > 0) {
               const effects = this.effects;
               for (const b of boxes) {
-                const path = pointerPath({ x: b.x + b.w / 2, y: b.y + b.h / 2, box: b }, "tap");
+                // A spot (spec/spot.ts) is tapped well inside the place, not at its box's centre.
+                const at = boxes.length === 1 && step.answerPoint ? step.answerPoint : ([b.x + b.w / 2, b.y + b.h / 2] as const);
+                const path = pointerPath({ x: at[0], y: at[1], box: b }, "tap");
                 try {
                   await this.progress(boxes.length > 1 ? 900 : 1400, signal, (t) => effects.setPointer(t >= 1 ? null : path(t)));
                 } finally {
@@ -3905,17 +4142,19 @@ export class Player {
               { ids: elementIds.filter((id) => !placed.has(id.toLowerCase())) },
             ];
           }
-        } else if (step.widget === "click" && step.answerBox && live) {
+        } else if (step.widget === "click" && step.answerBox && live && !answer.includes(":")) {
+          // (A spot on a picture region has no element to glow: its gate outlines the place.)
           groups = [{ ids: [answer], ...(isRight(typed) ? { color: ANSWER_OK_COLOR } : {}) }];
         }
         // The feedback band's line: a live viewer who answered, right or wrong.
         // A green group already glowing IS the sparkle; else the sparkle glows the answer.
         const greenNow = groups.some((g) => g.color === ANSWER_OK_COLOR && g.ids.length > 0);
-        const sparkleIds = step.widget === "click" ? [answer] : step.widget === "drag" && step.items ? step.items.filter((i) => i.element).map((i) => i.id) : [];
+        const sparkleIds = step.widget === "click" ? (answer.includes(":") ? [] : [answer]) : step.widget === "drag" && step.items ? step.items.filter((i) => i.element).map((i) => i.id) : [];
         const extra =
           live && typed !== null
             ? this.feedbackAfter(step, isRight(typed) ? "perfect" : "none", { long: step.widget === "drag" && isLong({ parts: sparkleIds.length }), parts: sparkleIds, sparkle: !greenNow }, signal)
             : [];
+        this.stampIn(step, signal);
         if (isRight(typed)) {
           await this.glowWhile(groups, signal, () => this.speakLines(step.right, extra, step, signal));
         } else if (step.reveal) {
@@ -3993,8 +4232,8 @@ export class Player {
         const boxList = step.ids.flatMap((id) => {
           const b = step.boxes[id];
           if (!b) return [];
-          const [dx, dy] = before.offsets[id] ?? [0, 0];
-          return [{ x: b.x + dx, y: b.y + dy, w: b.w, h: b.h }];
+          // As it stands now: moved, and scaled or turned (posedBox).
+          return [posedBox(b, before.offsets[id] ?? [0, 0], before.turns[id])];
         });
         const box = boxList.length > 0 ? boxList : null;
         const paint = (level: number, elapsedMs?: number) => effects.setHighlight(step.ids, step.effect, level, box, step.color, elapsedMs, step.part);
@@ -4180,8 +4419,13 @@ export class Player {
         const besideCarry = carry !== null && carry.step.revealStyle !== "morph";
         const carryMarks = (e: number): GuessMarks | null => {
           if (!carry) return null;
-          if (!besideCarry || carry.truthHandles.some((h) => h.kind === "market")) return guessMarks(carry.truthHandles, carry.guess, e, besideCarry ? { beside: true } : {});
-          return besideMarks(carry.truthHandles, carry.guess, carry.truthHandles.map(() => e));
+          // A bar that changes places (a sorted chart) carries its marks along with it.
+          const hs = carry.truthHandles.map((h, k) => {
+            const from = carry.setup.handles[k]?.cx;
+            return from !== undefined && h.cx !== undefined && from !== h.cx ? { ...h, cx: from + (h.cx - from) * e } : h;
+          });
+          if (!besideCarry || hs.some((h) => h.kind === "market")) return guessMarks(hs, carry.guess, e, besideCarry ? { beside: true } : {});
+          return besideMarks(hs, carry.guess, hs.map(() => e));
         };
         if (carry && besideCarry) Object.assign(held, carry.setup.pin);
         if (carry && !besideCarry) {

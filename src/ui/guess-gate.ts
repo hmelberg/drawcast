@@ -19,12 +19,16 @@
 
 import type { RenderHandle } from "../render";
 import type { GuessSession } from "../render/player";
-import { accountOf, budgetBalanced, budgetReachable, encodeGuess, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, pickHandle, pointFor, valueAt, type GuessHandle } from "../guess/handles";
+import { barPill, type BarPillOut } from "./bar-pill";
+import { accountOf, budgetBalanced, budgetReachable, encodeGuess, hitDistance, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, countPillPoint, personAt, pickHandle, pointFor, strokeEntries, strokeStart, valueAt, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
+import { onSlider } from "../guess/slider-marks";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { mountGateDock, type GateDock } from "./gate-dock";
 import type { AskGateStep } from "./controls";
 import { budgetLine, gateLangOf, gateWords } from "./gate-words";
+import { CURSOR, guessCursor } from "./cursors";
+import { mountGuessHover } from "./guess-hover";
 
 /** True when ←/→ pick an entry of the handle instead of changing it. A
  *  market curve's two gaps are one gesture: its arrows move and turn it. */
@@ -44,6 +48,8 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       const values: number[][] = session.start.map((r) => r.slice());
       let focus = 0;
       let entry = 0;
+      /** A sketched line's points the viewer has drawn (or typed, or nudged). */
+      const touched = handles.map(() => new Set<number>());
       let settled = false;
       // Letting go answers: one part, worked in one gesture.
       // A budget (spec 2026-10-03-looks-feedback-account §5): each bar moves
@@ -55,8 +61,12 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       const accountLabel = session.account && !session.account.isDefault ? session.account.label : null;
       // A market curve is moved AND turned (spec 2026-10-03 §3.2): one gesture
       // is rarely the whole answer, so it waits for Answer unless release: true.
+      // An estimate slider (spec/slider.ts) is adjusted, then Done.
+      const slider = handles.length === 1 && onSlider(handles[0]);
       const onRelease =
-        handles[0].kind === "market"
+        slider
+          ? step.release === true
+          : handles[0].kind === "market"
           ? step.release === true && handles.length === 1
           : step.release !== false && handles.length === 1 && !(handles[0].kind === "angle" && handles[0].truth.length > 1);
       /** A beat between letting go and the reveal: the guess is seen standing. */
@@ -67,11 +77,13 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           ? words.guess.bars
           : handles[0].kind === "angle" && multiEntry(handles[0])
             ? words.guess.edges
-            : words.guess[handles[0].kind];
-      const hintFull = onRelease ? (handles[0].kind === "point" ? hintText : words.letGo(hintText)) : words.thenAnswer(hintText);
+            : slider
+              ? words.guess.slider
+              : words.guess[handles[0].kind];
+      const hintFull = onRelease ? (handles[0].kind === "point" ? hintText : words.letGo(hintText)) : words.thenDone(hintText);
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint", title: hintFull }, hintFull);
       const pill = h("button", { class: "cs-guess-value", type: "button", title: words.typeNumber });
-      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.answer) as HTMLButtonElement;
+      const answer = h("button", { class: "cs-cardgate-pill cs-guess-answer", type: "button" }, words.done) as HTMLButtonElement;
       answer.hidden = onRelease;
       const hintDefault = hint.textContent ?? "";
       /** A budget: the hint says what is left or over; Answer only when balanced. */
@@ -87,7 +99,8 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         hint.setAttribute("title", msg ?? hintDefault);
         answer.disabled = msg !== null;
       };
-      const gate = h("div", { class: "cs-figgate cs-guessgate" }, pill);
+      const gate = h("div", { class: slider ? "cs-figgate cs-guessgate cs-slidergate" : "cs-figgate cs-guessgate" }, pill);
+      const hover = mountGuessHover(stage, gate);
       let dock: GateDock | null = null;
 
       // —— painting: one frame at most per animation frame ——
@@ -106,7 +119,7 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       };
       const placePill = (): void => {
         const g = handles[focus];
-        const p = pointFor(g, values[focus], entry);
+        const p = g.kind === "count" ? countPillPoint(g, values[focus]) : pointFor(g, values[focus], entry);
         const c = p ? clientPointFor(stage, p) : null;
         const v = values[focus][multiEntry(g) ? entry : 0];
         const name = g.entryLabels?.[entry] ?? (g.kind === "curve" ? "" : g.label);
@@ -115,34 +128,42 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         // A market curve has no one number to type: its copy is the answer.
         if (c && g.kind !== "point" && g.kind !== "market") {
           pill.hidden = false;
-          const beside = g.kind === "height" ? besideBar(g, c) : null;
-          pill.classList.toggle("cs-guess-beside", beside !== null);
-          pill.style.left = `${beside ? beside[0] : c[0]}px`;
+          // A sketched line's pill follows the pencil: it must never catch
+          // a press meant to draw (the arrows still change its number).
+          pill.classList.toggle("cs-guess-passive", g.kind === "curve");
+          const bar = g.kind === "height" ? barPillAt(g, c) : null;
+          pill.classList.toggle("cs-guess-beside", bar?.mode === "beside");
+          // A crowd's pill hangs under the people and their legend, never over them.
+          pill.classList.toggle("cs-guess-under", g.kind === "count");
+          pill.style.left = `${bar ? bar.x : c[0]}px`;
           pill.style.top = `${c[1]}px`;
         } else pill.hidden = true;
       };
-      /**
-       * A bar's pill stands above the bar's top — unless there it would reach
-       * past the top of the plot, over the axis and its title (on a phone the
-       * drawing is small and the pill is not, H2): then it stands beside the
-       * bar's top, right of it (left when that runs off the drawing). Returns
-       * the pill's left edge (stage px), or null for above.
-       */
-      const besideBar = (g: GuessHandle, c: [number, number]): [number] | null => {
+      /** A bar's pill: above the bar's top, else beside it — inside the plot (ui/bar-pill.ts). */
+      const barPillAt = (g: GuessHandle, c: [number, number]): BarPillOut | null => {
         if (!g.toLogical || g.cx === undefined || g.halfW === undefined) return null;
         const top = clientPointFor(stage, [g.cx, g.toLogical([0, g.max])[1]]);
         const ph = pill.offsetHeight;
         if (!top || ph === 0) return null;
-        // The pill's own gap from the bar: its CSS lifts it 100 % + 10–30 px.
-        const lift = ph + (stage.classList.contains("cs-docked-narrow") ? 10 : 30);
-        if (c[1] - lift >= top[1]) return null;
         const y = g.toLogical([0, 0])[1];
         const right = clientPointFor(stage, [g.cx + g.halfW, y]);
         const left = clientPointFor(stage, [g.cx - g.halfW, y]);
         if (!right || !left) return null;
-        const pw = pill.offsetWidth;
-        const room = stage.getBoundingClientRect().width;
-        return right[0] + 4 + pw <= room ? [right[0] + 4] : [Math.max(0, left[0] - 4 - pw)];
+        const stageW = stage.getBoundingClientRect().width;
+        const axis = g.plotX ? clientPointFor(stage, [g.plotX[0], y]) : null;
+        const end = g.plotX ? clientPointFor(stage, [g.plotX[1], y]) : null;
+        return barPill({
+          barL: left[0],
+          barR: right[0],
+          barTop: c[1],
+          axisX: axis ? axis[0] : 0,
+          plotR: end ? Math.min(stageW, end[0]) : stageW,
+          plotTop: top[1],
+          pw: pill.offsetWidth,
+          ph,
+          // The pill's own gap from the bar: its CSS lifts it 100 % + 10–30 px.
+          lift: ph + (stage.classList.contains("cs-docked-narrow") ? 10 : 30),
+        });
       };
 
       const finish = (result: string | null): void => {
@@ -157,8 +178,50 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       const onAbort = (): void => finish(null);
 
       // —— pointer ——
-      let dragging: { k: number; prev: [number, number]; grab?: number; anchor?: number } | null = null;
+      // ghost: a touch on a number line — the faded marker follows the
+      // finger and the real one is placed where it lifts (ui/guess-hover.ts).
+      let dragging: { k: number; prev: [number, number]; grab?: number; anchor?: number; ghost?: boolean } | null = null;
       const pick = (p: [number, number]): number | null => pickHandle(handles, values, p);
+      /** The handle the pointer is over (its own hit area), or null. */
+      const over = (p: [number, number]): number | null => {
+        let best: number | null = null;
+        let bestD = Infinity;
+        handles.forEach((g, k) => {
+          const d = hitDistance(g, p, values[k]);
+          if (d < bestD) {
+            bestD = d;
+            best = k;
+          }
+        });
+        return best;
+      };
+      /** The cursor and the hover marks for the pointer at `p` (null: off the figure). */
+      const hoverAt = (p: [number, number] | null): void => {
+        if (dragging) {
+          const g = handles[dragging.k];
+          gate.style.cursor = guessCursor(g.kind, "drag");
+          if (dragging.ghost && p) hover.ghost(g, p);
+          else if (g.kind === "height") hover.grip(g, values[dragging.k]);
+          else if (g.kind === "count" && g.people?.seq && p && personAt(g, p) >= 0) hover.person(g, personAt(g, p));
+          else hover.hide();
+          return;
+        }
+        const k = p ? over(p) : null;
+        if (k === null || !p) {
+          gate.style.cursor = CURSOR.idle;
+          hover.hide();
+          return;
+        }
+        const g = handles[k];
+        gate.style.cursor = guessCursor(g.kind, "hover");
+        if (g.kind === "point") hover.ghost(g, p);
+        else if (g.kind === "height") hover.grip(g, values[k]);
+        else if (g.kind === "count" && g.people?.seq) {
+          const who = personAt(g, p);
+          if (who >= 0) hover.person(g, who);
+          else hover.hide();
+        } else hover.hide();
+      };
       gate.addEventListener("pointerdown", (e) => {
         if (settled || (e.target as Element).closest("button, input")) return;
         e.preventDefault();
@@ -181,30 +244,71 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         }
         // A market turn holds the point grabbed (the copy follows the pointer from there).
         const anchor = g.kind === "market" && grab === 1 ? marketAnchor(g, values[k], p) : undefined;
-        dragging = { k, prev: p, ...(grab !== undefined ? { grab } : {}), ...(anchor !== undefined ? { anchor } : {}) };
+        const ghost = g.kind === "point" && e.pointerType === "touch";
+        dragging = { k, prev: p, ...(grab !== undefined ? { grab } : {}), ...(anchor !== undefined ? { anchor } : {}), ...(ghost ? { ghost } : {}) };
         focus = k;
         if (grab !== undefined && g.kind !== "market") entry = grab;
-        values[k] = valueAt(g, p, values[k], null, grab);
-        balance();
         gate.classList.add("dragging");
-        repaint();
+        if (g.kind === "curve") {
+          // Anywhere right of the given line: the stroke joins on from the
+          // last known point to its left.
+          const start = strokeStart(g, values[k], touched[k], p);
+          values[k] = valueAt(g, p, values[k], start);
+          const set = strokeEntries(g, p, start);
+          for (const j of set) touched[k].add(j);
+          entry = set[0] ?? entry;
+          balance();
+          repaint();
+        } else if (!ghost) {
+          values[k] = valueAt(g, p, values[k], null, grab);
+          balance();
+          repaint();
+        } else placePill();
+        hoverAt(p);
       });
       gate.addEventListener("pointermove", (e) => {
         e.stopPropagation();
-        if (!dragging || settled) return;
+        if (settled) return;
         const p = logicalPoint(stage, e);
-        if (!p) return;
+        if ((e.target as Element).closest("button, input")) hoverAt(null);
+        else if (!dragging || dragging.ghost) hoverAt(p);
+        if (!dragging || !p) return;
+        if (dragging.ghost) {
+          dragging.prev = p;
+          return;
+        }
         const g = handles[dragging.k];
         values[dragging.k] = valueAt(g, p, values[dragging.k], dragging.prev, dragging.grab, dragging.anchor);
+        if (g.kind === "curve") {
+          const set = strokeEntries(g, p, dragging.prev);
+          for (const j of set) touched[dragging.k].add(j);
+          entry = set[0] ?? entry;
+        }
         balance();
         dragging.prev = p;
         repaint();
+        hoverAt(p);
+      });
+      gate.addEventListener("pointerleave", () => {
+        if (!dragging) hoverAt(null);
       });
       const endDrag = (e: PointerEvent): void => {
         e.stopPropagation();
         const was = dragging;
         dragging = null;
         gate.classList.remove("dragging");
+        // A touch on a number line: the marker goes where the finger lifts.
+        if (was?.ghost) {
+          if (e.type !== "pointerup") {
+            hoverAt(null);
+            return;
+          }
+          const p = logicalPoint(stage, e) ?? was.prev;
+          values[was.k] = valueAt(handles[was.k], p, values[was.k], null);
+          balance();
+          repaint();
+        }
+        hoverAt(e.pointerType === "touch" ? null : logicalPoint(stage, e));
         if (was && onRelease && e.type === "pointerup") {
           gate.classList.add("answered");
           window.setTimeout(() => finish(encodeGuess(values)), RELEASE_MS);
@@ -255,7 +359,9 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         if (!up && !down) return;
         e.preventDefault();
         e.stopPropagation();
+        hover.hide();
         values[focus] = nudge(g, values[focus], multiEntry(g) ? entry : 0, up ? 1 : -1, e.shiftKey);
+        if (g.kind === "curve") touched[focus].add(entry);
         balance();
         repaint();
       };
@@ -287,6 +393,7 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
               const row = values[focus].slice();
               row[j] = Math.max(g.min, Math.min(g.max, n));
               values[focus] = row;
+              if (g.kind === "curve") touched[focus].add(j);
               balance();
             }
           }

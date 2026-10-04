@@ -1,0 +1,637 @@
+pack: compare
+title: Size comparisons
+description: Things drawn to the same scale — the Earth inside the Sun, Greenland beside Africa, thirty Earths in the gap to the Moon — with the ratio written once and copies that show how many fit.
+---
+template: size_compare
+title: Size comparison (to scale)
+version: 1
+kit: 14
+status: ready
+description: >-
+  Two to four things drawn TO THE SAME SCALE so their sizes can be compared
+  by eye: planets as discs, countries as squares of their area, lengths as
+  bars, animals or objects as icons — each with its name and value, and the
+  ratio between the biggest and the smallest written once ("109 × as wide",
+  "14 × the area", "1.3 million × the volume"). `measure` says how a value
+  becomes a drawn size: diameter or length linearly, area by its square root,
+  volume or mass by its cube root (same density). `layout`: beside (on one
+  baseline), row (on one centre line), inside (the small ones drawn inside
+  the big one, labels in a column beside it) or overlay (all centred on one
+  point). `count_fit: true` fills a row with copies of one item — across the
+  big one (109 Earths across the Sun), or across a `gap` (30 Earths between
+  the Earth and the Moon). A thing too small to see at that scale is drawn
+  as a dot with a ring and its label, never enlarged; a `camera` beat
+  (`camera: {center: {ref: "<item>_shape"}, zoom: 8}`) zooms to it. Choose this scene
+  for ANY "how big is X next to Y", "as big as", "would fit inside", "how
+  many X fit in Y", "drawn to scale" or "the true size of" request —
+  planets, countries, animals, organs, buildings, storage media.
+params:
+  type: object
+  properties:
+    items:
+      type: array
+      minItems: 2
+      maxItems: 4
+      items:
+        type: object
+        properties:
+          name: { type: string, description: "What it is (\"Earth\"). Its id is the name in lowercase with _ for spaces (earth, dr_congo) unless `id` is given." }
+          value: { type: number, exclusiveMinimum: 0, description: "Its size in the unit of `measure` — all items in the SAME unit." }
+          unit: { type: string, description: "Unit written after the value (\"km\", \"million km²\", \"kg\")." }
+          value_text: { type: string, description: "The value line exactly as written under the name (default: value and unit)." }
+          shape: { enum: [circle, square, bar, icon], description: "circle (default; a shaded disc), square (an area), bar (a length, standing up) or icon (a picture keyword in `icon`)." }
+          icon:
+            oneOf:
+              - { type: string, x-translate: false }
+              - type: object
+                properties:
+                  of: { type: string, x-translate: false }
+                  set: { type: string, x-translate: false }
+                required: [of]
+            description: "With shape icon: the icon KEYWORD (\"whale\", or {of, set}). The icon square is sized by the value."
+          color: { type: string, description: "Fill colour (hex). Default: the series palette in order." }
+          id: { type: string, x-translate: false, description: "Element id prefix, when the name's own is not wanted." }
+          icon_strokes: { type: string, x-translate: false, description: "Machine-written from the icon cache or assets — never write it." }
+          credit: { type: string, description: "The icon's attribution (machine-written; copy VERBATIM if present)." }
+        required: [name, value]
+      description: "The things compared, 2 to 4, in the order they are drawn left to right (default: the Sun and the Earth)."
+    measure:
+      enum: [diameter, length, area, volume, mass]
+      description: "What `value` is, and so how it maps to a drawn size: diameter/length → linear, area → side ∝ √value, volume/mass → ∝ ∛value. Default: area when any item is a square, else diameter."
+    layout:
+      enum: [beside, row, inside, overlay]
+      description: "beside (default): side by side on one baseline. row: on one centre line (planets in a row). inside: the small ones inside the big one, against its lower edge, labels in a column on the right. overlay: every item centred on one point, the small on top."
+    ratio_text:
+      type: string
+      description: "The ratio element's text. Default from the numbers and the measure (\"109 × as wide\"); \"{ratio}\" in it is the number alone (\"{ratio} Earths\"). \"\" draws no ratio."
+    count_fit:
+      type: boolean
+      description: "Fill a row with copies of `fit_item` (element fit_row) and write how many (fit_label): across the gap when `gap` is given, else across the biggest item."
+    fit_item:
+      type: string
+      description: "The name or id of the item copied by count_fit (default: the first item with a gap, else the smallest)."
+    fit_text:
+      type: string
+      description: "fit_label's text; \"{n}\" is the count (default \"{n} × <name>\")."
+    gap:
+      type: object
+      properties:
+        value: { type: number, exclusiveMinimum: 0, description: "Centre-to-centre distance between the first two items, in the same unit as their values (diameter or length measure only)." }
+        label: { type: string, description: "The distance as written over the dimension line (default: the value and the first item's unit)." }
+      required: [value]
+      description: "Space the first two items apart by a real distance (the Earth and the Moon 384,400 km apart), drawn with a dimension line (gap_line, gap_label). Implies the row arrangement."
+    min_size:
+      type: number
+      minimum: 1
+      maximum: 40
+      description: "Below this drawn size (units) an item counts as too small to see: drawn as a dot with a ring around it (default 4)."
+    bleed:
+      oneOf:
+        - { type: boolean }
+        - { type: number, minimum: 1, maximum: 20 }
+      description: "beside/row only: draw everything this many times larger (true = 3) and let the BIGGEST item run off the left edge of the canvas — only its edge shows, and the small ones are big enough to see."
+    show_values:
+      type: boolean
+      description: "Write each item's value under its name (default true)."
+    box:
+      type: object
+      properties:
+        x: { type: number }
+        y: { type: number }
+        w: { type: number }
+        h: { type: number }
+      required: [x, y, w, h]
+      description: "Where the figure goes (lower-left corner, width, height). Default: the page's content area."
+element_ids:
+  <item>_shape: the item drawn to scale (a group) — earth_shape, africa_shape; a choose option ("which is bigger? tap it")
+  <item>_label: its name and value (a ring or a leader line to a tiny one comes with it)
+  ratio: the ratio between the biggest and the smallest, written once ("109 × as wide")
+  fit_row: with count_fit, the row of copies (one group; draw it on its own beat)
+  fit_label: with count_fit, how many fit ("30 × Earth")
+  gap_line: with gap, the dimension line between the first two centres (its gap_label comes with it)
+  gap_label: with gap, the distance written over it
+  shapes: every item's shape (a name for the set)
+  labels: every item's label (a name for the set)
+examples:
+  - request: "How many Earths would fit across the Sun?"
+    params:
+      measure: diameter
+      layout: inside
+      count_fit: true
+      items:
+        - { name: Sun, value: 1391400, unit: km, color: "#f2c14e" }
+        - { name: Earth, value: 12742, unit: km, color: "#2f6b8f" }
+  - request: "How big is Greenland really, compared with Africa?"
+    params:
+      measure: area
+      layout: inside
+      items:
+        - { name: Africa, value: 30.37, unit: "million km²", color: "#d0865f" }
+        - { name: Greenland, value: 2.17, unit: "million km²", color: "#2f6b8f" }
+  - request: "How many Earths fit between the Earth and the Moon?"
+    params:
+      measure: diameter
+      layout: row
+      gap: { value: 384400, label: "384,400 km" }
+      count_fit: true
+      items:
+        - { name: Earth, value: 12742, unit: km, color: "#2f6b8f" }
+        - { name: Moon, value: 3474, unit: km, color: "#8f887c" }
+lint: |
+  const out = [];
+  const items = Array.isArray(params.items) ? params.items.filter((it) => it && Number.isFinite(it.value) && it.value > 0) : [];
+  if (Array.isArray(params.items) && items.length < 2) out.push({ severity: "error", message: "needs at least two items, each with a positive value" });
+  const m = params.measure;
+  if (params.gap && (m === "area" || m === "volume" || m === "mass")) out.push({ severity: "warn", message: "gap is a distance: it only works with measure diameter or length — ignored" });
+  if (params.gap && (params.layout === "inside" || params.layout === "overlay")) out.push({ severity: "warn", message: "gap spaces the first two items along a row — layout " + params.layout + " ignores it" });
+  if (params.bleed && (params.layout === "inside" || params.layout === "overlay")) out.push({ severity: "warn", message: "bleed works with layout beside or row — ignored" });
+  return out;
+layout: |
+  const C = kit.COLORS, MS = kit.SKETCH_MS;
+  const fin = (v) => typeof v === "number" && Number.isFinite(v);
+  // The page frame's content area (src/layout/page.ts contentBox): a template
+  // body cannot import it, so the default is spelled out here.
+  const pb = params.box;
+  const B = pb && fin(pb.x) && fin(pb.y) && fin(pb.w) && fin(pb.h) && pb.w > 0 && pb.h > 0 ? { x: pb.x, y: pb.y, w: pb.w, h: pb.h } : { x: 60, y: 160, w: 880, h: 495 };
+  const NAME_FS = 34, VALUE_FS = 24, RATIO_FS = 50, BIG_NAME_FS = 48, G = 36, BAR_W = 64;
+  const showValues = params.show_values !== false;
+  // Name to value line: their heights (1.25 em each, the lint's measure) and a clear gap.
+  const VGAP = (fs) => 0.625 * (fs + VALUE_FS) + 10;
+  const LABEL_H = 18 + NAME_FS * 0.625 + (showValues ? VGAP(NAME_FS) + VALUE_FS * 0.625 : 0);
+  const minSize = fin(params.min_size) ? Math.max(1, params.min_size) : 4;
+
+  // ---- items ----
+  const given = (Array.isArray(params.items) ? params.items : []).filter((it) => it && typeof it === "object" && fin(it.value) && it.value > 0).slice(0, 4);
+  const src = given.length >= 2 ? given : [
+    { name: "Sun", value: 1391400, unit: "km", color: "#f2c14e" },
+    { name: "Earth", value: 12742, unit: "km", color: C.supply },
+  ];
+  const anySquare = src.some((it) => it.shape === "square");
+  const MEASURES = ["diameter", "length", "area", "volume", "mass"];
+  const measure = MEASURES.includes(params.measure) ? params.measure : anySquare ? "area" : "diameter";
+  const k = measure === "area" ? 2 : measure === "volume" || measure === "mass" ? 3 : 1;
+  const SHAPES = ["circle", "square", "bar", "icon"];
+  const defShape = measure === "area" ? "square" : measure === "length" && src.every((it) => it.shape === undefined) ? "bar" : "circle";
+  const slug = (s) => String(s).toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+
+  // ---- numbers as the voice reads them ----
+  const SCALE_WORDS = kit.say({ en: "million|billion|trillion|quadrillion|quintillion", nb: "millioner|milliarder|billioner|billiarder|trillioner" }).split("|");
+  const sig = (v, d) => Number(v.toPrecision(d));
+  const words = (v) => {
+    const e = Math.min(Math.floor(Math.log10(v) / 3) * 3, 18);
+    const m = v / Math.pow(10, e);
+    return kit.num(m >= 100 ? Math.round(m) : sig(m, 2)) + " " + SCALE_WORDS[e / 3 - 2];
+  };
+  const fmtValue = (v) => (v >= 1e7 ? words(v) : v >= 100 ? kit.num(Math.round(v), 0, true) : kit.num(sig(v, 3)));
+  const fmtRatio = (r) => (r >= 1e6 ? words(r) : r >= 1000 ? kit.num(sig(r, 2), 0, true) : r >= 10 ? kit.num(Math.round(r)) : kit.num(sig(r, 2)));
+
+  const used = new Set(["ratio", "fit", "gap", "shapes", "labels"]);
+  const items = src.map((it, i) => {
+    let id = slug(typeof it.id === "string" && it.id.trim() ? it.id : it.name) || "item_" + (i + 1);
+    if (/^[0-9]/.test(id)) id = "item_" + id;
+    while (used.has(id)) id = id + "_" + (i + 1);
+    used.add(id);
+    const name = typeof it.name === "string" && it.name.trim() ? it.name.trim() : "Item " + (i + 1);
+    const unit = typeof it.unit === "string" ? it.unit.trim() : "";
+    const valueText = typeof it.value_text === "string" ? it.value_text : fmtValue(it.value) + (unit ? " " + unit : "");
+    const color = typeof it.color === "string" && it.color.trim() ? it.color.trim() : C.series[i % C.series.length];
+    const shape = SHAPES.includes(it.shape) ? it.shape : defShape;
+    const lw = Math.max(kit.textWidth(name, NAME_FS), showValues ? kit.textWidth(valueText, VALUE_FS) : 0);
+    return { i, id, name, unit, valueText, color, shape, value: it.value, L: Math.pow(it.value, 1 / k), lw, icon: it.icon_strokes, src: it };
+  });
+  const n = items.length;
+  const big = items.reduce((a, b) => (b.L > a.L ? b : a));
+  const small = items.reduce((a, b) => (b.L < a.L ? b : a));
+  const Lmax = big.L;
+
+  // Drawn size at scale s: [width, height]. A bar keeps its width.
+  const dims = (p, s) => (p.shape === "bar" ? [BAR_W, p.L * s] : [p.L * s, p.L * s]);
+  const slotW = (p, s) => Math.max(dims(p, s)[0], p.lw);
+
+  // ---- arrangement ----
+  let layout = ["beside", "row", "inside", "overlay"].includes(params.layout) ? params.layout : "beside";
+  const gapOk = params.gap && fin(params.gap.value) && params.gap.value > 0 && k === 1 && (layout === "beside" || layout === "row");
+  if (gapOk) layout = "row";
+  const bleedF = (layout === "beside" || layout === "row") && params.bleed ? (params.bleed === true ? 3 : fin(params.bleed) ? Math.min(20, Math.max(1, params.bleed)) : 1) : 1;
+  const bleed = bleedF > 1 && n >= 2;
+
+  const pos = {}; // id -> centre [x, y]
+  let s = 1, col = null, yMid = 0, baseline = 0;
+  const availH = B.h - LABEL_H;
+  const rest = items.filter((p) => p !== big);
+  const restTallest = rest.reduce((m, p) => Math.max(m, p.L), 0);
+  // The ratio needs its own band at the top when the small ones are nearly as tall as the big one.
+  const ratioWanted = params.ratio_text !== "";
+  const ratioBand = ratioWanted && !bleed && (layout === "beside" || layout === "row") && restTallest / Lmax > 0.6 ? RATIO_FS + 24 : 0;
+
+  if (layout === "inside" || layout === "overlay") {
+    const COL = Math.min(360, Math.max(170, B.w * 0.4));
+    col = { x: B.x + B.w - COL + 24, w: COL - 24 };
+    const figW = B.w - COL;
+    const [bw0, bh0] = dims(big, 1);
+    s = Math.min((figW - 16) / (big.shape === "bar" ? 1 : bw0), B.h / bh0);
+    if (big.shape === "bar") s = B.h / big.L;
+    const cx = B.x + figW / 2, cy = B.y + B.h / 2;
+    pos[big.id] = [cx, cy];
+    const [BW, BH] = dims(big, s);
+    if (layout === "overlay") {
+      for (const p of rest) pos[p.id] = [cx, cy];
+    } else {
+      // Inside: the others lie against the big one's inner edge on the side of
+      // the label column — low on its right — so each leader is short.
+      const pad = Math.max(3, Math.min(BW, BH) * 0.02);
+      if (big.shape === "circle") {
+        const R = BW / 2 - pad;
+        let theta = -0.3;
+        rest.forEach((p, j) => {
+          const [w, h] = dims(p, s);
+          const r = Math.hypot(w, h) / 2;
+          const d = Math.max(0, R - r);
+          if (j > 0) theta -= (r + Math.hypot(...dims(rest[j - 1], s)) / 2 + 10) / Math.max(d, 1);
+          pos[p.id] = [cx + d * Math.cos(theta), cy + d * Math.sin(theta)];
+        });
+      } else {
+        let x = cx + BW / 2 - pad;
+        rest.forEach((p) => {
+          const [w, h] = dims(p, s);
+          pos[p.id] = [x - w / 2, cy - BH / 2 + pad + h / 2];
+          x -= w + 8;
+        });
+      }
+    }
+    yMid = cy;
+  } else if (gapOk) {
+    // Two items a real distance apart on one centre line; any others follow.
+    const a = items[0], b = items[1], extra = items.slice(2);
+    const hAvail = availH - ratioBand;
+    for (let it = 0; it < 12; it++) {
+      const padL = Math.max(0, a.lw / 2 - (a.L * s) / 2), padR = Math.max(0, b.lw / 2 - (b.L * s) / 2);
+      const extraW = extra.reduce((m, p) => m + G + slotW(p, s), 0);
+      const span = a.L / 2 + params.gap.value + b.L / 2;
+      const s2 = Math.min((B.w - padL - padR - extraW) / span, hAvail / Lmax);
+      if (Math.abs(s2 - s) < 1e-9) break;
+      s = s2;
+    }
+    const padL = Math.max(0, a.lw / 2 - (a.L * s) / 2);
+    const extraW = extra.reduce((m, p) => m + G + slotW(p, s), 0);
+    const width = (a.L / 2 + params.gap.value + b.L / 2) * s + padL + Math.max(0, b.lw / 2 - (b.L * s) / 2) + extraW;
+    const x0 = B.x + (B.w - width) / 2 + padL + (a.L * s) / 2;
+    yMid = B.y + LABEL_H + hAvail / 2;
+    pos[a.id] = [x0, yMid];
+    pos[b.id] = [x0 + params.gap.value * s, yMid];
+    let x = x0 + params.gap.value * s + Math.max((b.L * s) / 2, b.lw / 2);
+    for (const p of extra) {
+      const w = slotW(p, s);
+      pos[p.id] = [x + G + w / 2, yMid];
+      x += G + w;
+    }
+  } else {
+    // beside / row: slots left to right; a small item's slot is as wide as its label.
+    const hAvail = availH - ratioBand;
+    const pool = bleed ? rest : items;
+    s = hAvail / (bleed ? Math.max(restTallest, 1e-9) : Lmax);
+    const roomW = bleed ? B.w * 0.62 : B.w;
+    for (let it = 0; it < 12; it++) {
+      let fixed = G * (pool.length - 1), flex = 0;
+      for (const p of pool) {
+        if (p.shape === "bar" || p.L * s < p.lw) fixed += slotW(p, s);
+        else flex += p.L;
+      }
+      const s2 = Math.min(flex > 0 ? (roomW - fixed) / flex : Infinity, hAvail / (bleed ? restTallest : Lmax));
+      if (Math.abs(s2 - s) < 1e-9) break;
+      s = s2;
+    }
+    if (bleed) s = Math.min(s, (hAvail / Lmax) * bleedF);
+    baseline = B.y + LABEL_H;
+    yMid = baseline + hAvail / 2;
+    const widths = pool.map((p) => slotW(p, s));
+    const tinyOf0 = (p) => Math.max(...dims(p, s)) < minSize;
+    const total = widths.reduce((a, b) => a + b, 0) + G * (pool.length - 1);
+    let x = bleed ? B.x + B.w - total : B.x + (B.w - total) / 2;
+    pool.forEach((p, j) => {
+      const h = dims(p, s)[1];
+      pos[p.id] = [x + widths[j] / 2, layout === "row" || bleed ? yMid : baseline + Math.max(h / 2, tinyOf0(p) ? 11 : 0)];
+      x += widths[j] + G;
+    });
+    if (bleed) {
+      // The big one's right edge stands a gap left of the first small slot; the rest of it runs off the canvas.
+      const [BW] = dims(big, s);
+      const edge = B.x + B.w - total - G * 1.5;
+      pos[big.id] = [edge - BW / 2, yMid];
+    }
+  }
+
+  // ---- drawables ----
+  const drawables = [], labels = [], anchors = {}, order = [], attached = {}, drawnWith = {};
+  const shapeIds = [], labelIds = [];
+  const push = (d) => { drawables.push(d); order.push(d.id); return d; };
+  const CLIP = { x0: 2, y0: B.y, x1: 998, y1: B.y + B.h };
+  const clipPoly = (pts) => {
+    // Sutherland–Hodgman against the clip rectangle.
+    const edges = [
+      (p) => p[0] >= CLIP.x0, (p) => p[0] <= CLIP.x1, (p) => p[1] >= CLIP.y0, (p) => p[1] <= CLIP.y1,
+    ];
+    const cut = [
+      (a, b) => [CLIP.x0, a[1] + ((b[1] - a[1]) * (CLIP.x0 - a[0])) / (b[0] - a[0])],
+      (a, b) => [CLIP.x1, a[1] + ((b[1] - a[1]) * (CLIP.x1 - a[0])) / (b[0] - a[0])],
+      (a, b) => [a[0] + ((b[0] - a[0]) * (CLIP.y0 - a[1])) / (b[1] - a[1]), CLIP.y0],
+      (a, b) => [a[0] + ((b[0] - a[0]) * (CLIP.y1 - a[1])) / (b[1] - a[1]), CLIP.y1],
+    ];
+    let out = pts;
+    for (let e = 0; e < 4 && out.length > 0; e++) {
+      const inp = out; out = [];
+      for (let i = 0; i < inp.length; i++) {
+        const a = inp[(i + inp.length - 1) % inp.length], b = inp[i];
+        const ia = edges[e](a), ib = edges[e](b);
+        if (ib) { if (!ia) out.push(cut[e](a, b)); out.push(b); }
+        else if (ia) out.push(cut[e](a, b));
+      }
+    }
+    return out;
+  };
+  const inside = (p) => p[0] >= CLIP.x0 - 0.01 && p[0] <= CLIP.x1 + 0.01 && p[1] >= CLIP.y0 - 0.01 && p[1] <= CLIP.y1 + 0.01;
+  /** The runs of a closed ring that lie inside the clip — the outline that shows. */
+  const visibleRuns = (ring) => {
+    const runs = [];
+    let cur = [];
+    const m = ring.length;
+    let start = ring.findIndex((p) => !inside(p));
+    if (start < 0) return [ring.concat([ring[0]])];
+    for (let j = 1; j <= m; j++) {
+      const p = ring[(start + j) % m];
+      if (inside(p)) cur.push(p);
+      else if (cur.length) { runs.push(cur); cur = []; }
+    }
+    if (cur.length) runs.push(cur);
+    return runs.filter((r) => r.length >= 2);
+  };
+
+  const tinyOf = (p) => Math.max(...dims(p, s)) < minSize;
+  const ringFor = (p, c, w, h) => (p.shape === "circle" || p.shape === "icon" ? kit.circle(c, w / 2, 96) : kit.rect(c[0] - w / 2, c[1] - h / 2, w, h));
+
+  const drawShape = (p) => {
+    const id = p.id + "_shape";
+    const c = pos[p.id];
+    let [w, h] = dims(p, s);
+    const tiny = tinyOf(p);
+    const kids = [];
+    if (bleed && p === big) {
+      const ring = ringFor(p, c, w, h);
+      const fillPts = clipPoly(ring);
+      if (fillPts.length >= 3) kids.push(kit.area(id + "__fill", fillPts, p.color, { opacity: 0.55, precise: true }));
+      visibleRuns(p.shape === "circle" ? kit.circle(c, w / 2, 720) : ring).forEach((run, j) => kids.push(kit.stroke(id + "__edge" + j, run, { color: p.color, strokeWidth: 3.5, ms: MS.curve })));
+    } else if (tiny) {
+      const r = Math.max(w / 2, 1.8);
+      kids.push(kit.ball(id + "__dot", c, r, { fill: p.color, color: p.color, strokeWidth: 1 }));
+    } else if (p.shape === "circle") {
+      kids.push(kit.ball(id + "__disc", c, w / 2, { fill: p.color }));
+    } else if (p.shape === "icon") {
+      const ic = p.icon ? kit.icon(id + "__icon", p.icon, c, w) : null;
+      if (ic) kids.push(ic);
+      else kids.push(kit.stroke(id + "__box", kit.rect(c[0] - w / 2, c[1] - h / 2, w, h), { closed: true, color: p.color, dash: true, strokeWidth: 2.5, ms: MS.node }));
+    } else {
+      const pts = kit.rect(c[0] - w / 2, c[1] - h / 2, w, h);
+      kids.push(kit.area(id + "__fill", pts, p.color, { opacity: 0.45 }));
+      kids.push(kit.stroke(id + "__edge", pts, { closed: true, color: p.color, strokeWidth: 3, ms: MS.node, shapeHint: { type: "rect", x: c[0] - w / 2, y: c[1] - h / 2, w, h } }));
+    }
+    push(kit.group(id, kids));
+    shapeIds.push(id);
+    anchors[id] = c;
+    anchors[p.id] = c;
+  };
+  // Biggest first, so a small one drawn inside it sits on top.
+  [big, ...rest].forEach(drawShape);
+
+  // ---- labels ----
+  const labelTexts = (p, at, anchor, nameFs) => {
+    const out = [kit.text(p.id + "_label__name", at, p.name, { fontSize: nameFs, anchor, color: C.ink })];
+    if (showValues) out.push(kit.text(p.id + "_label__value", [at[0], at[1] - VGAP(nameFs)], p.valueText, { fontSize: VALUE_FS, anchor, color: C.guide }));
+    return out;
+  };
+  const callout = (p) => {
+    // A ring round a dot too small to find.
+    const c = pos[p.id];
+    return kit.stroke(p.id + "_label__ring", kit.circle(c, 11, 40), { closed: true, color: C.guide, strokeWidth: 2, ms: MS.dot });
+  };
+  const columnLabels = [];
+  if (col) {
+    // inside / overlay: the big one's name inside it, near its top; the others
+    // in the column, with leaders. Overlaid, the big one's name goes to the
+    // column too when the band above the next one is too thin to hold it.
+    const [BW, BH] = dims(big, s);
+    const c = pos[big.id];
+    const nextH = rest.reduce((m, p) => Math.max(m, dims(p, s)[1]), 0);
+    const nameBlock = BIG_NAME_FS * 1.25 + (showValues ? VGAP(BIG_NAME_FS) : 0) + 20;
+    if (layout === "overlay" && (BH - nextH) / 2 < nameBlock) {
+      columnLabels.push(big);
+    } else {
+      const nameY = big.shape === "circle" ? c[1] + BH * 0.3 : c[1] + BH / 2 - BIG_NAME_FS;
+      const id = big.id + "_label";
+      push(kit.group(id, labelTexts(big, [c[0], nameY], "middle", BIG_NAME_FS)));
+      labelIds.push(id);
+      anchors[id] = [c[0], nameY];
+      attached[big.id + "_shape"] = [id];
+    }
+    columnLabels.push(...rest);
+  } else {
+    const yLab = Math.min(...Object.keys(pos).map((pid) => {
+      const p = items.find((q) => q.id === pid);
+      return bleed && p === big ? Infinity : pos[pid][1] - Math.max(dims(p, s)[1] / 2, tinyOf(p) ? 11 : 0);
+    }));
+    for (const p of items) {
+      const id = p.id + "_label";
+      const kids = [];
+      if (bleed && p === big) {
+        const c = pos[p.id];
+        const edge = c[0] + dims(p, s)[0] / 2;
+        kids.push(...labelTexts(p, [edge - 28, yMid + 10], "end", BIG_NAME_FS));
+      } else {
+        // Beside: under the common baseline (a tiny one's ring sits on it too); in a row: under the lowest.
+        const bottom = layout === "row" || bleed ? yLab : layout === "beside" ? baseline : pos[p.id][1] - dims(p, s)[1] / 2;
+        if (tinyOf(p)) kids.push(callout(p));
+        kids.push(...labelTexts(p, [pos[p.id][0], bottom - 14 - NAME_FS * 0.625], "middle", NAME_FS));
+      }
+      push(kit.group(id, kids));
+      labelIds.push(id);
+      anchors[id] = pos[p.id];
+      attached[p.id + "_shape"] = [id];
+    }
+  }
+
+  // ---- the column (inside / overlay) ----
+  let colY = col ? B.y + B.h - 20 : 0;
+  const ratioRaw = fmtRatio(big.value / small.value);
+  const RT = {
+    diameter: { en: "× as wide", nb: "× så bred" },
+    length: { en: "× as long", nb: "× så lang" },
+    area: { en: "× the area", nb: "× arealet" },
+    volume: { en: "× the volume", nb: "× volumet" },
+    mass: { en: "× as heavy", nb: "× så tung" },
+  };
+  const ratioText = typeof params.ratio_text === "string" ? params.ratio_text.replace(/\{ratio\}/g, ratioRaw) : ratioRaw + " " + kit.say(RT[measure]);
+  const fitTo = (text, fs, w) => Math.max(26, Math.min(fs, Math.floor((fs * w) / Math.max(1, kit.textWidth(text, fs)))));
+  /** The ratio's lines for a room this wide: one line, or two (split at the
+   *  space that balances them) when one would have to shrink below 40. */
+  const ratioSet = (room) => {
+    const one = fitTo(ratioText, RATIO_FS, room);
+    const words = ratioText.split(" ");
+    if (one >= 40 || words.length < 2) return { lines: [ratioText], fs: one };
+    let best = 1, bestW = Infinity;
+    for (let j = 1; j < words.length; j++) {
+      const w = Math.max(kit.textWidth(words.slice(0, j).join(" "), RATIO_FS), kit.textWidth(words.slice(j).join(" "), RATIO_FS));
+      if (w < bestW) { bestW = w; best = j; }
+    }
+    const lines = [words.slice(0, best).join(" "), words.slice(best).join(" ")];
+    return { lines, fs: Math.min(...lines.map((l) => fitTo(l, RATIO_FS, room))) };
+  };
+  const blockH = (r) => r.fs * (1 + 1.3 * (r.lines.length - 1));
+  let ratioAt = null, ratio = null, ratioAnchor = "middle";
+  if (ratioText !== "") {
+    if (col) {
+      ratio = ratioSet(col.w);
+      ratioAt = [col.x, colY - blockH(ratio) / 2];
+      ratioAnchor = "start";
+      colY -= blockH(ratio) + 40;
+    } else if (ratioBand > 0) {
+      ratio = ratioSet(B.w);
+      ratioAt = [B.x + B.w / 2, B.y + B.h - ratio.fs / 2 - 4];
+    } else {
+      // Over the small ones: centred above their slots, in the room the big one leaves.
+      const others = rest.map((p) => p.id);
+      const xs = others.map((pid) => pos[pid][0]);
+      const tops = others.map((pid) => pos[pid][1] + dims(items.find((q) => q.id === pid), s)[1] / 2);
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const top = Math.max(...tops);
+      const room = B.y + B.h - top;
+      // Its width: up to the big one's edge (it may not cross it).
+      const bigC = pos[big.id], bigW = dims(big, s)[0];
+      const left = bigC[0] < cx ? bigC[0] + bigW / 2 + 16 : B.x;
+      const right = bigC[0] < cx ? B.x + B.w : bigC[0] - bigW / 2 - 16;
+      ratio = ratioSet(right - left);
+      const w = Math.max(...ratio.lines.map((l) => kit.textWidth(l, ratio.fs)));
+      const x = Math.min(Math.max(cx, left + w / 2), right - w / 2);
+      const y = Math.min(B.y + B.h - blockH(ratio) / 2 - 4, top + Math.max(40 + blockH(ratio) / 2, room * 0.45));
+      ratioAt = [x, y];
+    }
+  }
+  // ---- gap ----
+  if (gapOk) {
+    const a = items[0], b = items[1];
+    const top = Math.max(pos[a.id][1] + dims(a, s)[1] / 2, pos[b.id][1] + dims(b, s)[1] / 2);
+    const y = top + 30;
+    const x0 = pos[a.id][0], x1 = pos[b.id][0];
+    push(kit.group("gap_line", [
+      kit.stroke("gap_line__l", [[x0, y], [x1, y]], { color: C.guide, strokeWidth: 2.5, arrowhead: "both", ms: MS.guides }),
+      kit.stroke("gap_line__a", [[x0, y - 10], [x0, y + 10]], { color: C.guide, strokeWidth: 2, ms: MS.dot }),
+      kit.stroke("gap_line__b", [[x1, y - 10], [x1, y + 10]], { color: C.guide, strokeWidth: 2, ms: MS.dot }),
+    ]));
+    anchors.gap_line = [(x0 + x1) / 2, y];
+    const gl = typeof params.gap.label === "string" ? params.gap.label : fmtValue(params.gap.value) + (a.unit ? " " + a.unit : "");
+    push(kit.text("gap_label", [(x0 + x1) / 2, y + 12 + NAME_FS / 2], gl, { fontSize: NAME_FS, color: C.ink }));
+    anchors.gap_label = [(x0 + x1) / 2, y + 12 + NAME_FS / 2];
+    attached.gap_line = ["gap_label"];
+    drawnWith.gap_line = ["gap_label"];
+  }
+
+  // ---- how many fit ----
+  let nFit = 0;
+  if (params.count_fit === true) {
+    const want = typeof params.fit_item === "string" ? params.fit_item.trim().toLowerCase() : "";
+    const f = items.find((p) => want && (p.id === slug(want) || p.name.toLowerCase() === want)) || (gapOk ? items[0] : small);
+    const [fw, fh] = dims(f, s);
+    let x0, x1, y;
+    if (gapOk) {
+      const a = items[0], b = items[1];
+      x0 = pos[a.id][0] + dims(a, s)[0] / 2;
+      x1 = pos[b.id][0] - dims(b, s)[0] / 2;
+      y = yMid;
+    } else {
+      const c = pos[big.id], [BW] = dims(big, s);
+      x0 = c[0] - BW / 2;
+      x1 = c[0] + BW / 2;
+      y = c[1];
+    }
+    nFit = fw > 0 ? Math.floor((x1 - x0) / fw + 1e-9) : 0;
+    if (nFit >= 1 && nFit <= 400 && fw >= 1) {
+      // Over a circle, the copies across its middle; centred in the span either way.
+      const start = x0 + (x1 - x0 - nFit * fw) / 2;
+      const each = Math.max(12, Math.min(160, Math.round(2200 / nFit)));
+      const kids = [];
+      for (let j = 0; j < nFit; j++) {
+        const c = [start + fw * (j + 0.5), y];
+        const cid = "fit_row__" + j;
+        if (f.shape === "circle" || f.shape === "icon") kids.push(kit.ball(cid, c, Math.max(fw / 2, 0.8), { fill: f.color, color: f.color, strokeWidth: fw < 6 ? 0.6 : 1.5, opacity: 0.85, roughness: fw < 10 ? 0.2 : 0.8, ms: each }));
+        else kids.push(kit.stroke(cid, kit.rect(c[0] - fw / 2, c[1] - fh / 2, fw, fh), { closed: true, color: f.color, strokeWidth: 1.5, ms: each }));
+      }
+      push(kit.group("fit_row", kids));
+      anchors.fit_row = [(x0 + x1) / 2, y];
+      const ft = typeof params.fit_text === "string" ? params.fit_text.replace(/\{n\}/g, kit.num(nFit, 0, true)) : kit.num(nFit, 0, true) + " × " + f.name;
+      let at;
+      if (col) {
+        at = [col.x, colY - NAME_FS / 2];
+        colY -= NAME_FS + 30;
+        push(kit.text("fit_label", at, ft, { fontSize: NAME_FS + 4, anchor: "start", color: f.color === C.series[5] ? C.ink : f.color }));
+      } else {
+        at = [(x0 + x1) / 2, y - Math.max(fh, 8) / 2 - 14 - NAME_FS / 2];
+        push(kit.text("fit_label", at, ft, { fontSize: NAME_FS + 4, color: C.ink }));
+      }
+      anchors.fit_label = at;
+      attached.fit_row = ["fit_label"];
+    }
+  }
+
+  // ---- the column's item labels (inside / overlay) ----
+  if (col && columnLabels.length) {
+    // Each name level with its own shape where it can be (a short leader),
+    // below what the column already holds, never crowding the one above.
+    const block = NAME_FS * 0.625 + (showValues ? VGAP(NAME_FS) + VALUE_FS * 0.625 : 0);
+    const pitch = block + 26;
+    const rows = columnLabels.map((p) => ({ p, y: Math.min(pos[p.id][1] + (showValues ? VGAP(NAME_FS) / 2 : 0), colY - NAME_FS * 0.625) }));
+    rows.sort((a, b) => b.y - a.y);
+    for (let j = 1; j < rows.length; j++) rows[j].y = Math.min(rows[j].y, rows[j - 1].y - pitch);
+    const lowest = rows[rows.length - 1].y - (block - NAME_FS * 0.625);
+    const lift = Math.max(0, B.y + NAME_FS * 0.625 - lowest);
+    for (const row of rows) {
+      const p = row.p, nameY = row.y + lift;
+      const id = p.id + "_label";
+      const kids = [];
+      const c = pos[p.id];
+      const [w, h] = dims(p, s);
+      const tiny = tinyOf(p);
+      if (tiny) kids.push(callout(p));
+      const from = (() => {
+        if (tiny || p.shape === "circle") {
+          const reach = tiny ? 13 : w / 2 + 4;
+          const a = Math.atan2(nameY - c[1], col.x - c[0]);
+          return [c[0] + reach * Math.cos(a), c[1] + reach * Math.sin(a)];
+        }
+        // A square's edge facing the name: its top or bottom middle when the
+        // name is above or below it (so the leader passes over its neighbours), else its right side.
+        if (nameY > c[1] + h / 2) return [c[0], c[1] + h / 2 + 4];
+        if (nameY < c[1] - h / 2) return [c[0], c[1] - h / 2 - 4];
+        return [c[0] + w / 2 + 4, nameY];
+      })();
+      kids.push(kit.stroke(id + "__leader", [[col.x - 12, nameY], from], { color: C.guide, strokeWidth: 2, arrowhead: "end", ms: MS.arrow }));
+      kids.push(...labelTexts(p, [col.x, nameY], "start", NAME_FS));
+      push(kit.group(id, kids));
+      labelIds.push(id);
+      anchors[id] = [col.x, nameY];
+      attached[p.id + "_shape"] = [id];
+    }
+  }
+
+  if (ratioAt) {
+    // ratioAt is the block's centre; one line is the element itself, two are a group.
+    if (ratio.lines.length === 1) push(kit.text("ratio", ratioAt, ratio.lines[0], { fontSize: ratio.fs, anchor: ratioAnchor, color: C.demand }));
+    else {
+      const y1 = ratioAt[1] + (blockH(ratio) - ratio.fs) / 2;
+      push(kit.group("ratio", ratio.lines.map((l, j) => kit.text("ratio__" + (j + 1), [ratioAt[0], y1 - j * ratio.fs * 1.3], l, { fontSize: ratio.fs, anchor: ratioAnchor, color: C.demand }))));
+    }
+    anchors.ratio = ratioAt;
+  }
+
+  return {
+    drawables, labels, anchors, order, attached, drawnWith,
+    groups: { shapes: shapeIds, labels: labelIds },
+    values: { ratio: big.value / small.value, scale: s, fit: nFit },
+  };

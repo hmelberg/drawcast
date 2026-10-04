@@ -12,5 +12,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "TEMPLATE GAP: a log scale prints every decade's full number, unreadable over 18 decades. Workaround: draw only pos_line + pos_tick_N, hide pos_tick_N_num, add word labels (thousand…sextillion), hide pos_answer_num after the guess. Isometric cube from 27 filled paths."
+ "notes": "Republished 2026-10-04: the scale draws its own word ticks (1000, million … sextillion) — dropped the hidden tick numbers and the hand-drawn names; no global text scale (it crowded the ticks); affirm playful. check still warns that the '1 quadrillion'/'1 quintillion' tick words touch (they read fine in frames). Isometric cube from 27 filled paths. Review round: 'God's number' label and '2010 · 35 CPU-years' cue; the end circle encloses both. The guess frame shows the answer marker only because frames render the state after the ask."
 }

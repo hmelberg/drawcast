@@ -12,5 +12,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "bar_chart staged old (10:1) vs new (~1.3:1); animate ghost does not work on template bars, so the old bar is a hand-placed dashed outline (canvas coords read from frames)."
+ "notes": "2026-10-04 republish + review: old 10 : 1 struck through when 2016 arrives; chart on the left (box), notes on the right; the axis rescales to 45 with the 2016 stage (animate ylim.1); a dashed 'red cells' level inside the human bar; a toilet and a third stage (bacteria 38 → 27) play out the punchline; affirm playful. Changed lines: [right] shortened to 'About one each.'; new last line 'Flush, and for a little while, you are mostly you again.' (Sender et al. 2016: a defecation can flip the ratio). check keeps one static warn (stage-0 value '10' vs the later red-cells label)."
 }

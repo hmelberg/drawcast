@@ -6,6 +6,7 @@
 import { CANVAS } from "../layout/canvas";
 import type { BBox } from "../layout/geometry";
 import type { Pt } from "../layout/model";
+import { spotPoint } from "../layout/spot-geometry";
 import type { CodeWindow } from "../layout/code";
 import { expandBoxAnimate, readParam } from "./params";
 import { tweenValue } from "./tween-space";
@@ -35,6 +36,8 @@ import { SpeechManager } from "./speech";
 import { DEMO_EVERY_S, demoWalk, loopCount, RUN_EVERY_S, runValues } from "./sweep";
 import { parseControls, type ControlSpec, type ControlValue } from "../code/controls";
 import type { PlayArgs } from "../spec/types";
+import { confidenceBoxes } from "../guess/confidence";
+import { pollPlan } from "../guess/poll";
 import { animatableVars } from "../spec/vars";
 
 /**
@@ -82,7 +85,7 @@ export type PlanStep = (
    *  the explore beat's own seeded walk, played just before its gate. */
   | { kind: "run"; code: string; values: Record<string, ControlValue>[]; seconds: number; demo: boolean }
   | { kind: "if"; varName: string; op: "gt" | "lt" | "gte" | "lte" | "eq" | "ne"; value: number | string; target: string }
-  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string; store?: string; feedback?: FeedbackSpec }
+  | { kind: "quiz"; question: string; choices: string[]; correct: number; right?: string; wrong?: string; required: boolean; rightGoto?: string; wrongGoto?: string; store?: string; feedback?: FeedbackSpec; stamp?: string; confidence?: ConfidencePlan }
   | {
       kind: "ask";
       question: string;
@@ -100,6 +103,12 @@ export type PlanStep = (
       /** ask.widget names the spec's template: the widget body answers, the demo performs. */
       widgetTemplate?: true;
       answerBox?: BBox;
+      /** Where the movie's pointer taps inside answerBox (spot: well inside the place); absent — its centre. */
+      answerPoint?: Pt;
+      /** SPOT IT (spec/spot.ts): the place to tap — an element id or `<image>:<region>` — and its box now. */
+      spot?: { id: string; box: BBox };
+      /** ODD ONE OUT (spec/odd-one-out.ts): drawn as the answer is revealed (the ring, the rule). */
+      revealDraw?: string[];
       /** drag widget: the chips, in order; element = a part of the figure (shown and glowed at the end). */
       items?: { id: string; label: string; element: boolean }[];
       tolerance?: number;
@@ -141,16 +150,24 @@ export type PlanStep = (
       choose?: ChooseOption[];
       /** Choose: where the options' branches meet. */
       then?: string;
+      /** say_question: false (on-canvas quiz buttons): neither spoken nor shown over the figure. */
+      quiet?: true;
       /** A reveal (spec 2026-10-03-round6 §3, round 7 §4): as written — absent
        *  means the form's own default (beside; reorder for rank cards). */
       revealStyle?: "beside" | "morph" | "reorder";
       revealOrder?: "each";
       /** A guess's marks outlive their moment and follow the part (spec round 6 §5). */
       keep?: true;
+      /** A reveal stamp (spec/reveal-stamps.ts): the element that lands WITH the reveal line; there once the question ends. */
+      stamp?: string;
       /** stage: "own" (spec round 6 §6): the ids that stay at full strength
        *  while the question stands — the asked parts, their cards, options,
        *  blanks and tiles; everything else on screen fades to STAGE_DIM. */
       stage?: string[];
+      /** CONFIDENCE BET after the pick (W16, guess/confidence.ts). */
+      confidence?: ConfidencePlan;
+      /** POLL AND COMPARE (W16, spec/poll.ts): what people answered. */
+      poll?: PollPlan;
     }
   | { kind: "show"; ids: string[] }
   | { kind: "hide"; ids: string[] }
@@ -436,16 +453,17 @@ export function boundaryParams(plan: Plan, n: number): Record<string, unknown> {
 }
 
 /**
- * The poster (the frame shown before Play): the finished drawing — unless an
- * ask's answer is drawn on the figure (a tree to fill or pick, a formula to
- * fill, a guess on a part, cards to place). Then the finished drawing would
- * give the answers away (the best branch, the 7 years, the right tile in
- * its box), so the poster is the boundary before the first such ask, with
- * the best and prune marks of every tree decision still to be asked about
- * left out (fix wave 2026-10-03).
+ * The poster (the frame shown before Play, and the published link picture):
+ * the finished drawing — unless the cast asks anything. Then the finished
+ * drawing would give the answers away (the best branch, the 7 years, the
+ * right tile in its box, a quiz's stamps and revealed numbers), so the
+ * poster is the boundary before the first question of any kind — quiz or
+ * ask (fix wave 2026-10-03 for answers on the figure; every question since
+ * 2026-10-04, after quiz posters showed their answers) — with the best and
+ * prune marks of every tree decision still to be asked about left out.
  */
 export function posterOf(plan: Plan): { at: number; hide: string[] } {
-  const first = plan.steps.findIndex((s) => s.kind === "ask" && (s.tree !== undefined || s.formula !== undefined || s.cards !== undefined || (s.on !== undefined && s.on.length > 0)));
+  const first = plan.steps.findIndex((s) => s.kind === "quiz" || s.kind === "ask");
   if (first < 0) return { at: plan.steps.length, hide: [] };
   const nodes = new Set<string>();
   for (const s of plan.steps.slice(first)) {
@@ -478,6 +496,18 @@ export interface Plan {
 }
 
 /** One option of a choose ask (spec 2026-10-03-round6 §4). */
+/** A confidence bet's three buttons (W16): their boxes, logical, in level order. */
+export interface ConfidencePlan {
+  boxes: BBox[];
+}
+
+/** A poll's study numbers (W16): per choose option, or buckets on a scale; the study's name. */
+export interface PollPlan {
+  shares?: number[];
+  others?: { value: number; share: number }[];
+  source?: string;
+}
+
 export interface ChooseOption {
   id: string;
   label: string;
@@ -488,6 +518,8 @@ export interface ChooseOption {
 }
 
 export interface PlanOptions {
+  /** The spec's sources: a poll names its study by them (W16). */
+  sources?: readonly { id: string; authors?: string; year?: number; title?: string }[];
   /** A drawn thing's words for {c} (choose): its text, or its label. Null: the id humanised. */
   labelOf?: (id: string) => string | null;
   /** The spec's top-level `feedback` (spec 2026-10-03 §4.1): each question's step carries it resolved with its own. */
@@ -496,6 +528,8 @@ export interface PlanOptions {
   bboxOf?: (id: string) => BBox | null;
   /** A picture you can point into (spec 2026-09-30-picture-regions): its shown rect and view, and its named regions. Null for anything else. */
   pictureOf?: (id: string) => { frame: PictureFrame; regions: Record<string, Rect4> } | null;
+  /** An element's closed outlines (layout's elementRings), for a spot ask's point inside the place. */
+  ringsOf?: (id: string) => Pt[][] | null;
   /** Windowed code panes (layout's `windows`): after every visibility change
    *  the plan scrolls each so its highest visible line is the bottom row,
    *  recorded as per-line offsets in the state — the move verb's own store,
@@ -861,6 +895,14 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     }
     applyScroll();
   };
+  /** A question's reveal stamp (spec/reveal-stamps.ts): there once the
+   *  question ends — the player lands it with the reveal line. */
+  const revealStamp = (id: string | undefined): string | undefined => {
+    if (id === undefined || !known.has(id)) return undefined;
+    mentioned.add(id);
+    makeVisible([id]);
+    return id;
+  };
   /**
    * Marks on picture places (spec §13). Each picture's last mark: a new mark
    * of the same kind (no `lift`) on the picture where it stood then glides
@@ -1046,6 +1088,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     const box = boxOf(id);
     return box ? posedBox(id, box) : null;
   };
+  /** A confidence bet's buttons, placed clear of everything on the page now (W16). */
+  const confidenceHere = (): ConfidencePlan => ({
+    boxes: confidenceBoxes(visible.flatMap((id) => {
+      const b = currentBox(id);
+      return b ? [b] : [];
+    })),
+  });
   /** A box in `id`'s original frame where it stands NOW: shifted, or — turned or scaled — the bounds of its four mapped corners. */
   const posedBox = (id: string, box: BBox): BBox => {
     const offset: Pt = offsets[id] ?? [0, 0];
@@ -1556,6 +1605,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       // intro prepends either way (inside the step, so skipping skips it).
       if (currentNarration === undefined) currentNarration = cmd.quiz.question;
       if (cmd.quiz.intro) currentNarration = `${cmd.quiz.intro} ${currentNarration}`;
+      const stamp = revealStamp(cmd.quiz.reveal_stamp);
       pushStep({
         kind: "quiz",
         question: cmd.quiz.question,
@@ -1568,12 +1618,17 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         ...(cmd.quiz.wrong_goto !== undefined ? { wrongGoto: cmd.quiz.wrong_goto } : {}),
         ...(cmd.quiz.store !== undefined ? { store: cmd.quiz.store } : {}),
         ...feedbackOf(cmd.quiz.feedback),
+        ...(stamp ? { stamp } : {}),
+        ...(cmd.quiz.confidence === true ? { confidence: confidenceHere() } : {}),
       });
     } else if (cmd.ask !== undefined) {
       // The question IS the narration unless the author paired a speak; the
       // intro prepends either way (inside the step, so skipping skips it).
-      if (currentNarration === undefined) currentNarration = cmd.ask.question;
-      if (cmd.ask.intro) currentNarration = `${cmd.ask.intro} ${currentNarration}`;
+      // say_question: false — the line before said it (on-canvas quiz buttons):
+      // only a paired speak or the intro is narrated.
+      const sayQuestion = cmd.ask.say_question !== false;
+      if (currentNarration === undefined && sayQuestion) currentNarration = cmd.ask.question;
+      if (cmd.ask.intro) currentNarration = currentNarration === undefined ? cmd.ask.intro : `${cmd.ask.intro} ${currentNarration}`;
       // The drag widget: each item is an element of the figure (its box; shown
       // when the question ends), a piano note or a chess square. What nothing
       // locates is skipped and said. The answer is all of them.
@@ -1606,7 +1661,8 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       const formula = oneOn !== undefined ? (opts.formulaFor?.(oneOn) ?? null) : null;
       const cardSet = oneOn !== undefined ? (opts.cardsFor?.(oneOn) ?? null) : null;
       if (cardSet) {
-        for (const id of cardSet.cards) {
+        // The cards, and what follows each (a compare value, an attached label: cardsPlanFor).
+        for (const id of new Set([...cardSet.cards, ...Object.keys(cardSet.offsets)])) {
           if (!known.has(id)) continue;
           const o = offsets[id] ?? [0, 0];
           const d = cardSet.offsets[id] ?? [0, 0];
@@ -1664,9 +1720,28 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         mentioned.add(cmd.ask.answer);
         makeVisible([cmd.ask.answer]);
       }
+      const stamp = revealStamp(cmd.ask.reveal_stamp);
+      // Spot it (spec/spot.ts): the place's box now — a picture region through
+      // its owner's pose, else the element's — and a point well inside it.
+      let spot: { id: string; box: BBox; point: Pt } | undefined;
+      if (typeof cmd.ask.spot === "string") {
+        const place = placeNow(cmd.ask.spot, "ask spot", false);
+        const box = place === null ? currentBox(cmd.ask.spot) : place === "skip" ? null : place.box;
+        if (box) {
+          const rings = place === null ? (opts.ringsOf?.(cmd.ask.spot) ?? undefined) : undefined;
+          spot = { id: cmd.ask.spot, box, point: spotPoint({ box, ...(rings ? { rings } : {}) }) };
+        } else warnings.push(`ask spot: "${cmd.ask.spot}" is not on the figure`);
+      }
+      // Odd one out (spec/odd-one-out.ts): the ring and the rule are there once it ends.
+      const revealDraw = (cmd.ask.reveal_draw ?? []).filter((id) => known.has(id));
+      revealDraw.forEach((id) => mentioned.add(id));
+      makeVisible(revealDraw);
+      // Counting this app's own viewers needs a backend (W16): not yet — the study's numbers stand.
+      if (cmd.ask.poll?.live === true) warnings.push("ask.poll.live: counting this app's viewers is not built yet — the study's shares are shown instead");
       pushStep({
         kind: "ask",
         question: cmd.ask.question,
+        ...(stamp ? { stamp } : {}),
         ...(cmd.ask.answer !== undefined ? { answer: cmd.ask.answer } : {}),
         ...(drag ? { answer: drag.answer, items: drag.items, tolerance: cmd.ask.tolerance ?? 0.25, answerBoxes: drag.boxes, ...(drag.boxes[0] ? { answerBox: drag.boxes[0] } : {}) } : {}),
         ...(cmd.ask.right !== undefined ? { right: cmd.ask.right } : {}),
@@ -1701,9 +1776,12 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
         // The movie demo points at the answer: the element's box (click), the
         // constellation group's box (connect — the laser taps the figure), or
         // the key's box (piano — geometry mirrored from the template).
-        ...(cmd.ask.widget === "click" && cmd.ask.answer !== undefined && currentBox(cmd.ask.answer) !== null
+        ...(spot
+          ? { spot: { id: spot.id, box: spot.box }, answerBox: spot.box, answerPoint: spot.point, ...(cmd.ask.tolerance !== undefined ? { tolerance: cmd.ask.tolerance } : {}) }
+          : cmd.ask.widget === "click" && cmd.ask.answer !== undefined && currentBox(cmd.ask.answer) !== null
           ? { answerBox: currentBox(cmd.ask.answer)! }
           : {}),
+        ...(revealDraw.length > 0 ? { revealDraw } : {}),
         ...(cmd.ask.widget === "connect" && cmd.ask.answer !== undefined && currentBox(cmd.ask.answer) !== null
           ? { answerBox: currentBox(cmd.ask.answer)! }
           : {}),
@@ -1714,6 +1792,9 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
           ? { answerBox: chessSquareBox(opts.animateBase?.["flip"] === true, cmd.ask.answer.trim().slice(-2))! }
           : {}),
         ...(Array.isArray(cmd.ask.choose) ? { choose: chooseOptions(cmd.ask.choose), ...(cmd.ask.then !== undefined ? { then: cmd.ask.then } : {}), ...(cmd.ask.judge === false ? { judge: false as const } : {}) } : {}),
+        ...(!sayQuestion ? { quiet: true as const } : {}),
+        ...(cmd.ask.confidence === true && Array.isArray(cmd.ask.choose) && cmd.ask.answer !== undefined ? { confidence: confidenceHere() } : {}),
+        ...(cmd.ask.poll !== undefined ? { poll: pollPlan(cmd.ask.poll, opts.sources) } : {}),
         ...feedbackOf(cmd.ask.feedback),
         ...(cmd.ask.reveal_style !== undefined ? { revealStyle: cmd.ask.reveal_style } : {}),
         ...(cmd.ask.reveal_order === "each" ? { revealOrder: "each" as const } : {}),
@@ -1813,14 +1894,20 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       if (places.length > 0) warnings.push(`highlight: places and ids in one highlight — highlight "${placeNames.join('", "')}" in its own command`);
       const ids = visibleTargets(plain, "highlight");
       if (ids.length === 0) continue;
-      const boxes: Record<string, BBox> = {};
-      for (const id of ids) {
-        const box = bboxOf(id); // layout box; the player adds the live offset
-        if (box) boxes[id] = box;
-      }
       // light / ring are the picture marks' names; on an ordinary id they read as glow / circle.
       const asked = cmd.highlight.effect;
       const effect = asked === "light" ? "glow" : asked === "ring" ? "circle" : asked ?? "glow";
+      // A ring or a box goes round the element AND its own label or value
+      // on screen (W25: a ring round a bar or a card cut through the label
+      // under it). Not with `part`, which narrows the mark to a piece.
+      const enclose = (effect === "circle" || effect === "box") && !part;
+      const boxes: Record<string, BBox> = {};
+      for (const id of ids) {
+        const box = bboxOf(id); // layout box; the player adds the live offset
+        if (!box) continue;
+        const own = enclose ? [...new Set(opts.attachedTo?.(id) ?? [])].filter((f) => visibleSet.has(f) && !ids.includes(f)).map(bboxOf).filter((b): b is BBox => b !== null) : [];
+        boxes[id] = own.length > 0 ? (unionBox([box, ...own]) ?? box) : box;
+      }
       pushStep({
         kind: "highlight",
         ids,

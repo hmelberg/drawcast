@@ -21,7 +21,7 @@
      "loudest",
      "quietest"
     ],
-    "y": 600,
+    "y": 580,
     "items": [
      {
       "text": "Jet take-off",
@@ -38,7 +38,12 @@
       }
      },
      {
-      "text": "Lawnmower"
+      "text": "Lawnmower",
+      "icon": [
+       "lawn mower",
+       "mower",
+       "tractor"
+      ]
      },
      {
       "text": "Conversation",
@@ -57,7 +62,8 @@
     ],
     "cites": [
      "cdc"
-    ]
+    ],
+    "size": 1.3
    },
    {
     "id": "bar1",
@@ -66,7 +72,7 @@
     "x": 180,
     "y": 288.5,
     "width": 90,
-    "height": 217.0,
+    "height": 217,
     "style": {
      "color": "#2f6b8f",
      "fill": "#2f6b8f",
@@ -79,7 +85,7 @@
     "type": "text",
     "text": "140 dB",
     "x": 180,
-    "y": 425.0,
+    "y": 425,
     "font_size": 36,
     "style": {
      "color": "#2f6b8f"
@@ -144,7 +150,7 @@
     "x": 660,
     "y": 226.5,
     "width": 90,
-    "height": 93.0,
+    "height": 93,
     "style": {
      "color": "#2f6b8f",
      "fill": "#2f6b8f",
@@ -157,7 +163,7 @@
     "type": "text",
     "text": "60 dB",
     "x": 660,
-    "y": 301.0,
+    "y": 301,
     "font_size": 36,
     "style": {
      "color": "#2f6b8f"
@@ -215,10 +221,10 @@
     "id": "sq_big",
     "type": "shape",
     "shape": "rect",
-    "x": 640,
-    "y": 310,
-    "width": 250,
-    "height": 250,
+    "x": 560,
+    "y": 305,
+    "width": 230,
+    "height": 230,
     "style": {
      "color": "#b5482e",
      "fill": "#b5482e",
@@ -230,10 +236,10 @@
     "id": "sq_small",
     "type": "shape",
     "shape": "rect",
-    "x": 280,
-    "y": 400,
-    "width": 3,
-    "height": 3,
+    "x": 250,
+    "y": 340,
+    "width": 4,
+    "height": 4,
     "style": {
      "color": "#2f6b8f",
      "fill": "#2f6b8f"
@@ -243,9 +249,9 @@
     "id": "l_big",
     "type": "text",
     "text": "concert",
-    "x": 640,
-    "y": 480,
-    "font_size": 34,
+    "x": 830,
+    "y": 390,
+    "font_size": 40,
     "style": {
      "color": "#b5482e"
     }
@@ -254,8 +260,8 @@
     "id": "l_small",
     "type": "text",
     "text": "chat",
-    "x": 280,
-    "y": 360,
+    "x": 250,
+    "y": 295,
     "font_size": 34,
     "style": {
      "color": "#2f6b8f"
@@ -265,8 +271,8 @@
     "id": "k100k",
     "type": "text",
     "text": "100,000×",
-    "x": 280,
-    "y": 470,
+    "x": 830,
+    "y": 300,
     "font_size": 52,
     "style": {
      "color": "#b5482e"
@@ -275,10 +281,10 @@
    {
     "id": "k2",
     "type": "text",
-    "text": "sounds 2× as loud",
-    "x": 280,
-    "y": 280,
-    "font_size": 34,
+    "text": "≈ 2× as loud",
+    "x": 260,
+    "y": 215,
+    "font_size": 36,
     "style": {
      "color": "#8f887c"
     }
@@ -287,12 +293,33 @@
     "id": "k85",
     "type": "text",
     "text": "85 dB+: hearing risk",
-    "x": 280,
-    "y": 280,
-    "font_size": 36,
+    "x": 250,
+    "y": 215,
+    "font_size": 34,
     "style": {
      "color": "#b5482e"
     }
+   },
+   {
+    "id": "chat_ring",
+    "type": "ellipse",
+    "x": 250,
+    "y": 340,
+    "rx": 16,
+    "ry": 16,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "ear",
+    "type": "icon",
+    "of": "ear",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 60,
+    "x": 110,
+    "y": 215
    }
   ],
   "commands": [
@@ -376,6 +403,7 @@
    {
     "draw": [
      "sq_small",
+     "chat_ring",
      "l_small",
      "sq_big",
      "l_big",
@@ -385,6 +413,7 @@
    },
    {
     "draw": [
+     "ear",
      "k2"
     ],
     "cue": 0.3,
@@ -392,7 +421,8 @@
    },
    {
     "erase": [
-     "k2"
+     "k2",
+     "ear"
     ]
    },
    {
@@ -400,20 +430,20 @@
      "k85"
     ],
     "cue": 0.3,
-    "speak": "Which is why it is easy to forget that long hours above eighty-five decibels can harm your hearing for good."
+    "speak": "So it is easy to forget that long hours above eighty-five decibels can harm your hearing for good."
    },
    {
     "highlight": {
      "target": [
       "sounds_2"
-     ],
-     "effect": "circle"
+     ]
     },
     "speak": "Earplugs at the next concert are not a bad idea."
    }
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }

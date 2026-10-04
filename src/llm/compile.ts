@@ -29,7 +29,7 @@ import { attachSeedCredit, type SeedBlock } from "./seed";
 import { visualRepairMessages, wantsVisualRepair } from "./visual";
 import { LOOK_PROMPT_SOURCE, applySpecEditsLenient, isEditsReply, lookFixPrompt, lookFoundNothing, lookUserContent, type LookImage } from "./look";
 import type { Spec } from "../spec/types";
-import { layoutSpec } from "../layout/layout";
+import { layoutAsSeen } from "../lint/at-scale";
 import { expandSpec } from "../spec/expand";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { lintCrowding } from "../lint/crowding";
@@ -160,6 +160,13 @@ export function apiSchema(opts: { code?: boolean; sound?: boolean; c64?: boolean
   delete props.elements.items.properties.fill;
   // …and the player's: the answer shown in each \blank box.
   delete props.elements.items.properties.fills;
+  // …and an on-canvas quiz's: what its buttons' group tells the layout.
+  delete props.elements.items.properties.answer_buttons;
+  // …and the icon resolver's, on quiz buttons and poll choices (W25).
+  const cmdProps = props.commands.items.properties;
+  for (const looks of [cmdProps.quiz?.properties?.buttons?.items?.properties, cmdProps.ask?.properties?.poll?.properties?.choices?.items?.properties]) {
+    if (looks) for (const k of ["icon_strokes", "icon_key", "credit"]) delete looks[k];
+  }
   const itemObject = (props.elements.items.properties.items?.items?.anyOf as any[] | undefined)?.find((b) => b?.type === "object");
   if (itemObject?.properties) delete itemObject.properties.blank;
   if (opts.code === false) {
@@ -772,7 +779,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         });
         try {
           const expanded = expandSpec(best);
-          const laid = layoutSpec(expanded, measure);
+          const laid = layoutAsSeen(expanded, measure); // at the cast's text scale, as drawn
           lintIssues = [...laid.issues, ...lintCommands(expanded), ...lintCrowding(laid, expanded)];
         } catch (err) {
           lintIssues = [];
@@ -878,7 +885,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   const lintOf = (spec: Spec): LintIssue[] | null => {
     try {
       const expanded = expandSpec(spec);
-      const laid = layoutSpec(expanded, measure);
+      const laid = layoutAsSeen(expanded, measure); // at the cast's text scale, as drawn
       return [...laid.issues, ...lintCommands(expanded), ...lintCrowding(laid, expanded)];
     } catch {
       return null;

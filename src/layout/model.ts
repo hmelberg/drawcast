@@ -31,8 +31,8 @@ export interface ResolvedStyle {
 }
 
 export interface DrawResolved {
-  /** type = a text leaf reveals character by character (code lines); every other leaf treats it as sketch. fade = the leaf's ink comes up as a whole, no pen (a scratch card's paper). */
-  mode: "sketch" | "instant" | "type" | "fade";
+  /** type = a text leaf reveals character by character (code lines); every other leaf treats it as sketch. fade = the leaf's ink comes up as a whole, no pen (a scratch card's paper). stamp = a reveal stamp lands (spec/reveal-stamps.ts): it fades in as it settles from 1.15× to its size. */
+  mode: "sketch" | "instant" | "type" | "fade" | "stamp";
   /** milliseconds */
   duration: number;
 }
@@ -137,6 +137,8 @@ export interface TextDrawable extends BaseDrawable {
   pos: Pt;
   text: string;
   fontSize: number;
+  /** Turned about `pos` by this many degrees, counter-clockwise (y up) — a reveal stamp's slant (spec/reveal-stamps.ts). */
+  tilt?: number;
   anchor: "start" | "middle" | "end";
   /** Typeface: absent = the sketch handwriting font; "mono" = the code font (wins over `family`). */
   font?: "mono" | "c64";

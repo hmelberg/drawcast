@@ -21,9 +21,6 @@
     "finding": "the cube has about 4.3 × 10^19 reachable positions"
    }
   ],
-  "text": {
-   "font_size": 32
-  },
   "elements": [
    {
     "id": "pos",
@@ -32,9 +29,9 @@
     "max": 1e+21,
     "log": true,
     "value": 4.3e+19,
-    "x": 100,
+    "x": 70,
     "y": 240,
-    "width": 800,
+    "width": 860,
     "cites": [
      "kociemba"
     ]
@@ -44,8 +41,8 @@
     "type": "text",
     "text": "43 quintillion",
     "x": 710,
-    "y": 590,
-    "font_size": 52,
+    "y": 605,
+    "font_size": 60,
     "style": {
      "color": "#b5482e"
     },
@@ -58,8 +55,8 @@
     "type": "text",
     "text": "100 × the universe's age",
     "x": 710,
-    "y": 500,
-    "font_size": 34,
+    "y": 520,
+    "font_size": 40,
     "style": {
      "color": "#2f6b8f"
     }
@@ -69,103 +66,13 @@
     "type": "text",
     "text": "≤ 20 moves",
     "x": 710,
-    "y": 400,
-    "font_size": 56,
+    "y": 440,
+    "font_size": 64,
     "style": {
      "color": "#2f6b8f"
     },
     "cites": [
      "cube20"
-    ]
-   },
-   {
-    "id": "n_0",
-    "type": "text",
-    "text": "thousand",
-    "x": 100.0,
-    "y": 205,
-    "font_size": 22,
-    "style": {
-     "color": "#7a7468"
-    }
-   },
-   {
-    "id": "n_1",
-    "type": "text",
-    "text": "million",
-    "x": 233.33333333333334,
-    "y": 205,
-    "font_size": 22,
-    "style": {
-     "color": "#7a7468"
-    }
-   },
-   {
-    "id": "n_2",
-    "type": "text",
-    "text": "billion",
-    "x": 366.6666666666667,
-    "y": 205,
-    "font_size": 22,
-    "style": {
-     "color": "#7a7468"
-    }
-   },
-   {
-    "id": "n_3",
-    "type": "text",
-    "text": "trillion",
-    "x": 500.0,
-    "y": 205,
-    "font_size": 22,
-    "style": {
-     "color": "#7a7468"
-    }
-   },
-   {
-    "id": "n_4",
-    "type": "text",
-    "text": "quadrillion",
-    "x": 633.3333333333334,
-    "y": 205,
-    "font_size": 22,
-    "style": {
-     "color": "#7a7468"
-    }
-   },
-   {
-    "id": "n_5",
-    "type": "text",
-    "text": "quintillion",
-    "x": 766.6666666666666,
-    "y": 205,
-    "font_size": 22,
-    "style": {
-     "color": "#7a7468"
-    }
-   },
-   {
-    "id": "n_6",
-    "type": "text",
-    "text": "sextillion",
-    "x": 900.0,
-    "y": 205,
-    "font_size": 22,
-    "style": {
-     "color": "#7a7468"
-    }
-   },
-   {
-    "id": "names",
-    "type": "group",
-    "members": [
-     "n_0",
-     "n_1",
-     "n_2",
-     "n_3",
-     "n_4",
-     "n_5",
-     "n_6"
     ]
    },
    {
@@ -1010,6 +917,31 @@
      "st_t21",
      "st_t22"
     ]
+   },
+   {
+    "id": "god_l",
+    "type": "text",
+    "text": "God's number",
+    "x": 710,
+    "y": 370,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "cpu",
+    "type": "text",
+    "text": "2010 · 35 CPU-years",
+    "x": 710,
+    "y": 318,
+    "font_size": 32,
+    "style": {
+     "color": "#5e584e"
+    },
+    "cites": [
+     "cube20"
+    ]
    }
   ],
   "commands": [
@@ -1026,54 +958,10 @@
     "speak": "Twist a Rubik's cube a few times, and it's a mess. But how many different messes are there?"
    },
    {
-    "hide": [
-     "pos_tick_1_num",
-     "pos_tick_2_num",
-     "pos_tick_3_num",
-     "pos_tick_4_num",
-     "pos_tick_5_num",
-     "pos_tick_6_num",
-     "pos_tick_7_num",
-     "pos_tick_8_num",
-     "pos_tick_9_num",
-     "pos_tick_10_num",
-     "pos_tick_11_num",
-     "pos_tick_12_num",
-     "pos_tick_13_num",
-     "pos_tick_14_num",
-     "pos_tick_15_num",
-     "pos_tick_16_num",
-     "pos_tick_17_num",
-     "pos_tick_18_num",
-     "pos_tick_19_num"
-    ]
-   },
-   {
     "draw": [
-     "pos_line",
-     "pos_tick_1",
-     "pos_tick_2",
-     "pos_tick_3",
-     "pos_tick_4",
-     "pos_tick_5",
-     "pos_tick_6",
-     "pos_tick_7",
-     "pos_tick_8",
-     "pos_tick_9",
-     "pos_tick_10",
-     "pos_tick_11",
-     "pos_tick_12",
-     "pos_tick_13",
-     "pos_tick_14",
-     "pos_tick_15",
-     "pos_tick_16",
-     "pos_tick_17",
-     "pos_tick_18",
-     "pos_tick_19",
-     "names"
+     "pos"
     ],
-    "speak": "Each step along this line is ten times the one before.",
-    "parallel": true
+    "speak": "Each step along this line is ten times the one before."
    },
    {
     "ask": {
@@ -1110,12 +998,11 @@
     "speak": "And yet every single one can be solved in twenty moves or fewer."
    },
    {
-    "highlight": {
-     "target": [
-      "god"
-     ]
-    },
-    "speak": "That limit is called God's number. A team proved it in 2010, using about thirty-five years of computer time donated by Google."
+    "speak": "That limit is called God's number. A team proved it in 2010, using about thirty-five years of computer time donated by Google.",
+    "draw": [
+     "god_l",
+     "cpu"
+    ]
    },
    {
     "speak": "They did not solve the positions one by one: they grouped them into huge families, and used the cube's symmetry to deal with whole families at once.",
@@ -1129,11 +1016,13 @@
     "speak": "So no mess is ever more than twenty twists from home, even if finding those twenty is the hard part.",
     "highlight": {
      "target": [
-      "god"
+      "god",
+      "god_l"
      ],
      "effect": "circle"
     }
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }

@@ -1175,33 +1175,25 @@
    {
     "id": "grains",
     "type": "scale",
-    "min": 0.001,
+    "min": 0.01,
     "max": 1000,
     "log": true,
     "value": 290,
     "unit": "years",
-    "x": 560,
+    "x": 575,
     "y": 540,
-    "width": 410,
+    "width": 360,
     "cites": [
      "fao"
     ]
    },
    {
-    "id": "grains_l",
-    "type": "text",
-    "text": "years of world harvest",
-    "x": 765,
-    "y": 475,
-    "font_size": 28
-   },
-   {
     "id": "big",
     "type": "text",
     "text": "2⁶³ ≈ 9.2 quintillion",
-    "x": 765,
+    "x": 755,
     "y": 400,
-    "font_size": 40,
+    "font_size": 34,
     "style": {
      "color": "#b5482e"
     }
@@ -1210,9 +1202,9 @@
     "id": "tonnes",
     "type": "text",
     "text": "230 billion tonnes",
-    "x": 765,
+    "x": 755,
     "y": 330,
-    "font_size": 40,
+    "font_size": 36,
     "style": {
      "color": "#b5482e"
     },
@@ -1224,9 +1216,9 @@
     "id": "sack",
     "type": "text",
     "text": "first 20: one sack",
-    "x": 765,
+    "x": 755,
     "y": 250,
-    "font_size": 38,
+    "font_size": 34,
     "style": {
      "color": "#2f6b8f"
     }
@@ -1275,8 +1267,7 @@
     "draw": [
      "lit64",
      "q64",
-     "grains",
-     "grains_l"
+     "grains"
     ],
     "voice": "b",
     "speak": "That sounds modest. A few sacks, tops?"
@@ -1364,6 +1355,7 @@
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }

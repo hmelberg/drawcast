@@ -108,7 +108,8 @@
     "width": 760,
     "cites": [
      "nasa"
-    ]
+    ],
+    "unit": "Earths"
    },
    {
     "id": "mercury",
@@ -902,6 +903,7 @@
     },
     "speak": "So more than half of that gap is just Jupiter and Saturn."
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }

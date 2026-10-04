@@ -221,9 +221,9 @@
     "type": "math",
     "tex": "a^2 + b^2 = \\blank{c^2}",
     "x": 760,
-    "y": 560,
-    "font_size": 48,
-    "size": 34
+    "y": 575,
+    "font_size": 64,
+    "size": 64
    },
    {
     "id": "check",

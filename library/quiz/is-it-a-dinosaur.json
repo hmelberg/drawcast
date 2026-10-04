@@ -24,7 +24,6 @@
     "id": "zoo",
     "type": "cards",
     "select": "Dinosaurs",
-    "y": 640,
     "cites": [
      "nhm"
     ],
@@ -39,7 +38,11 @@
      },
      {
       "text": "Pterodactyl",
-      "in": false
+      "in": false,
+      "icon": {
+       "of": "pterodactylus",
+       "set": "game-icons"
+      }
      },
      {
       "text": "Chicken",
@@ -59,19 +62,26 @@
      },
      {
       "text": "Triceratops",
-      "in": true
+      "in": true,
+      "icon": "triceratops"
      },
      {
       "text": "Plesiosaur",
-      "in": false
+      "in": false,
+      "icon": {
+       "of": "plesiosaurus",
+       "set": "game-icons"
+      }
      },
      {
       "text": "Dimetrodon",
-      "in": false
+      "in": false,
+      "icon": "dimetrodon"
      },
      {
       "text": "Stegosaurus",
-      "in": true
+      "in": true,
+      "icon": "stegosaurus"
      }
     ]
    },
@@ -79,9 +89,9 @@
     "id": "g_ptero",
     "type": "text",
     "text": "Pterodactyl: flying reptile",
-    "x": 500,
-    "y": 240,
-    "font_size": 40,
+    "x": 400,
+    "y": 600,
+    "font_size": 36,
     "style": {
      "color": "#b5482e"
     }
@@ -90,9 +100,9 @@
     "id": "g_ples",
     "type": "text",
     "text": "Plesiosaur: sea reptile",
-    "x": 500,
-    "y": 240,
-    "font_size": 40,
+    "x": 400,
+    "y": 600,
+    "font_size": 36,
     "style": {
      "color": "#b5482e"
     }
@@ -101,9 +111,9 @@
     "id": "g_dime",
     "type": "text",
     "text": "Dimetrodon: kin of mammals",
-    "x": 500,
-    "y": 240,
-    "font_size": 40,
+    "x": 400,
+    "y": 600,
+    "font_size": 36,
     "style": {
      "color": "#b5482e"
     }
@@ -112,9 +122,9 @@
     "id": "g_mam",
     "type": "text",
     "text": "Mammoth: a mammal",
-    "x": 500,
-    "y": 240,
-    "font_size": 40,
+    "x": 400,
+    "y": 600,
+    "font_size": 36,
     "style": {
      "color": "#b5482e"
     }
@@ -269,14 +279,14 @@
     "highlight": {
      "target": [
       "zoo_3"
-     ],
-     "effect": "circle"
+     ]
     },
     "speak": "So the dinosaurs never all died out: about eleven thousand species of them are still flying around us."
    }
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }
