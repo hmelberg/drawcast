@@ -15,7 +15,7 @@ import { SpeechManager } from "../src/render/speech";
 import { CAPTION_TOP, CONTENT_TOP } from "../src/layout/page";
 
 const tom = (): Spec => {
-  const d = JSON.parse(readFileSync(new URL("../library/quiz/true-or-myth.json", import.meta.url), "utf8")) as { spec: Spec };
+  const d = JSON.parse(readFileSync(new URL("./fixtures/quiz/true-or-myth.json", import.meta.url), "utf8")) as { spec: Spec };
   for (const c of d.spec.commands ?? []) if (c.quiz) c.quiz.on_canvas = true;
   return d.spec;
 };
