@@ -596,10 +596,12 @@ layout: |
     const id = "tick_" + vid(v);
     const children = [
       kit.stroke(id + "__mark", [[x, Y - 9], [x, Y + 9]], { color: C.guide, strokeWidth: 2.5, ms: MS.stroke }),
-      kit.text(id + "__num", [x, Y - 32], fmt(v), { fontSize: 18, color: C.guide }),
+      kit.text(id + "__num", [x, Y - 34], fmt(v), { fontSize: 24, color: C.guide }),
     ];
     push(kit.group(id, children));
     anchors[id] = [x, Y];
+    // The ticks are the line's own numbers: drawing the line brings them (W25).
+    attached.line = [...(attached.line ?? []), id];
   }
 
   const points = Array.isArray(params.points) ? params.points.slice(0, 12) : [];
@@ -613,7 +615,7 @@ layout: |
     push(kit.stroke(id, [[x, Y]], opts));
     anchors[id] = [x, Y];
     if (typeof p.label === "string" && p.label.trim() !== "") {
-      label(id + "_label", [x, Y], "above", p.label, C.ink, 20);
+      label(id + "_label", [x, Y], "above", p.label, C.ink, 26);
       attached[id] = [...(attached[id] ?? []), id + "_label"];
     }
   });
@@ -630,7 +632,7 @@ layout: |
     push(kit.group(id, children));
     anchors[id] = [(x0 + x1) / 2, Y];
     if (typeof iv.label === "string" && iv.label.trim() !== "") {
-      label(id + "_label", [(x0 + x1) / 2, Y + 8], "above", iv.label, C.accent, 20);
+      label(id + "_label", [(x0 + x1) / 2, Y + 8], "above", iv.label, C.accent, 26);
       attached[id] = [...(attached[id] ?? []), id + "_label"];
     }
   });
@@ -646,7 +648,7 @@ layout: |
     const mid = hopDrawables[0].pts[Math.floor(hopDrawables[0].pts.length / 2)];
     anchors[id] = mid;
     if (typeof op.label === "string" && op.label.trim() !== "") {
-      label(id + "_label", mid, "above", op.label, C.accent, 20);
+      label(id + "_label", mid, "above", op.label, C.accent, 26);
       attached[id] = [...(attached[id] ?? []), id + "_label"];
     }
   });
