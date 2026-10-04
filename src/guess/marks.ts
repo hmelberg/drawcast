@@ -149,7 +149,8 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
       case "angle": {
         if (!h.centre || h.radius === undefined) break;
         const c = h.centre, r = h.radius;
-        const at = (f: number, rr: number): Pt => [c[0] + rr * Math.sin(f * 2 * Math.PI), c[1] + rr * Math.cos(f * 2 * Math.PI)];
+        const st = h.pie?.start ?? 0;
+        const at = (f: number, rr: number): Pt => [c[0] + rr * Math.sin((f + st) * 2 * Math.PI), c[1] + rr * Math.cos((f + st) * 2 * Math.PI)];
         const n = h.truth.length === 1 ? 1 : h.truth.length - 1;
         for (let j = 0; j < n; j++) {
           const fg = angleOf(h, g, j);

@@ -49,7 +49,8 @@ describe("expandCards", () => {
     expect(title).toMatchObject({ type: "text", text: "Why bridges look different", x: 500, y: HEADING_Y });
     expect((out.elements ?? []).find((e) => e.id === "card_1_line")).toBeDefined();
     const cmds = out.commands ?? [];
-    expect(cmds[0].camera).toMatchObject({ center: { ref: "card_1_title" }, zoom: 1.8 });
+    // (A 40-unit heading (W28) of 27 characters starts at 1.63×: the words fill the view.)
+    expect(cmds[0].camera).toMatchObject({ center: { ref: "card_1_title" }, zoom: 1.63 });
     expect(cmds[1]).toEqual({ draw: ["card_1_title", "card_1_line"], parallel: true });
     expect(cmds[2]).toEqual({ speak: "Bridges.", camera: { reset: true, duration: 0.6 } });
     expect(cmds[3]).toEqual({ draw: ["a"] });
@@ -104,12 +105,24 @@ describe("cardElements / titleFont", () => {
 describe("headingZoom (2026-09-25)", () => {
   test("a short title starts at 1.8×; a long one starts wider so its ends stay in view", async () => {
     const { headingZoom, headingFont } = await import("../src/spec/card");
-    expect(headingZoom("Why bridges look different")).toBe(1.8);
+    expect(headingZoom("Why bridges bend")).toBe(1.8);
     const long = "Why the acceptability curve slopes";
     const z = headingZoom(long);
     expect(z).toBeLessThan(1.8);
     // The estimated width at that zoom fits the 1000-unit view.
     expect(0.54 * headingFont(long) * long.length * z).toBeLessThanOrEqual(920);
     expect(headingZoom("x".repeat(200))).toBe(1);
+  });
+
+  test("the heading is one step larger (W28): up to 40, still under the top edge", async () => {
+    const { headingFont, headingElements } = await import("../src/spec/card");
+    expect(headingFont("Why bridges bend")).toBe(40);
+    expect(headingFont("How many times can you fold paper in half?")).toBeGreaterThan(36);
+    expect(headingFont("x".repeat(200))).toBe(26);
+    const [title, line] = headingElements("Why bridges bend", "card_0");
+    // Centred at 726: half the size above stays within the 750 top.
+    expect((title.y as number) + 40 / 2).toBeLessThanOrEqual(750);
+    // The underline stays above the content area (655).
+    for (const p of line.points as number[][]) expect(p[1]).toBeGreaterThan(655 + 30);
   });
 });

@@ -65,7 +65,7 @@ export interface GuessHandle {
   scale?: ScaleElementLike;
   /** A pie: the slice values' paths (all of them), the asked slice (0-based)
    *  or null for the whole pie, and the true total. */
-  pie?: { paths: string[]; slice: number | null; total: number; shares: number[] };
+  pie?: { paths: string[]; slice: number | null; total: number; shares: number[]; start?: number };
   // —— geometry for the gesture ——
   /** Pointer → domain (template frame), and back. */
   toDomain?: (p: Pt) => Pt;
@@ -429,7 +429,7 @@ function pieRadius(params: Record<string, unknown>, area: { x0: number; y0: numb
     for (let k = 0; k < K; k++) {
       const row = Array.from({ length: n }, (_, i) => at(k, i));
       const tot = row.reduce((a, v) => a + v, 0);
-      let a0 = 0;
+      let a0 = pieStart(params) * 2 * Math.PI;
       for (let i = 0; i < n; i++) {
         const sh = tot > 0 ? row[i] / tot : 1 / Math.max(1, n);
         const mid = a0 + sh * Math.PI;
@@ -442,6 +442,9 @@ function pieRadius(params: Record<string, unknown>, area: { x0: number; y0: numb
     }
     return Math.max(40, r);
   };
+  // An authored label_size (W28) is the names' size: the pie makes room for it.
+  const ls = params["label_size"];
+  if (isNum(ls)) return radiusFor(Math.max(18, Math.min(40, ls)));
   const r24 = radiusFor(24), r20 = radiusFor(20);
   if (r24 >= r20 * 0.9) return r24;
   const r22 = radiusFor(22);
@@ -491,7 +494,7 @@ function pieHandle(params: Record<string, unknown>, slice: number | null, fit: L
     ...(slice === null ? { entryLabels: row.map((_, i) => String(labels[i] ?? ids[i])) } : {}),
     format: formatterFor(1, "%"),
     unit: "%",
-    pie: { paths: row.map((_, i) => `${cur.at}.${i}`), slice, total, shares: row.map((v) => v / total) },
+    pie: { paths: row.map((_, i) => `${cur.at}.${i}`), slice, total, shares: row.map((v) => v / total), ...(pieStart(params) !== 0 ? { start: pieStart(params) } : {}) },
     centre,
     radius: r,
     pieFrame: { ...tpl, ...(bounds ? { bounds } : {}) },
@@ -806,7 +809,7 @@ export function valueAt(h: GuessHandle, p: Pt, current: number[], prev?: Pt | nu
     }
     case "angle": {
       if (!h.centre) return current;
-      const f = clockFraction(h.centre, p) * 100;
+      const f = clockFraction(h.centre, p, h.pie?.start) * 100;
       if (h.truth.length === 1 && h.pie) {
         // One slice: it starts where the slices before it end. They keep
         // their proportions among the rest, so their share P scales with
@@ -939,10 +942,17 @@ function nearestIndex(xs: number[], x: number): number {
   return best;
 }
 
-/** Clockwise from 12 o'clock, 0..1. */
-export function clockFraction(c: Pt, p: Pt): number {
+/** Clockwise from 12 o'clock — or from a pie's `start` (a fraction of a turn: its start_angle) — 0..1. */
+export function clockFraction(c: Pt, p: Pt, start = 0): number {
   const a = Math.atan2(p[0] - c[0], p[1] - c[1]); // y-up: 0 at the top, clockwise positive
-  return (a < 0 ? a + 2 * Math.PI : a) / (2 * Math.PI);
+  const f = (a < 0 ? a + 2 * Math.PI : a) / (2 * Math.PI) - start;
+  return ((f % 1) + 1) % 1;
+}
+
+/** A pie's start_angle as a fraction of a turn (0: 12 o'clock). */
+export function pieStart(params: Record<string, unknown>): number {
+  const d = params["start_angle"];
+  return isNum(d) ? ((((d % 360) + 360) % 360) / 360) : 0;
 }
 
 /** One keyboard step for this handle (shift: ten). */
@@ -1066,7 +1076,7 @@ export function pointFor(h: GuessHandle, values: number[], j = 0): Pt | null {
     case "angle": {
       if (!h.centre || h.radius === undefined) return null;
       const f = angleOf(h, values, j);
-      const a = f * 2 * Math.PI;
+      const a = (f + (h.pie?.start ?? 0)) * 2 * Math.PI;
       return [h.centre[0] + h.radius * Math.sin(a), h.centre[1] + h.radius * Math.cos(a)];
     }
     case "count": {

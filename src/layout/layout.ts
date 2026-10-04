@@ -22,7 +22,7 @@ import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
 import { setFigureLocale } from "../scenes/kit";
 import { setHeadingBox } from "./axes";
-import { contentBox, FIT_BAND, GUTTER, HEADING_Y, MARGIN, PAGE_H, PAGE_W } from "./page";
+import { contentBox, FIT_BAND, GUTTER, HEADING_FONT_MAX, HEADING_Y, MARGIN, PAGE_H, PAGE_W } from "./page";
 import { pageVAlign, pinnedIds, settleBlocker, settleOffset, shiftAll } from "./settle";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
@@ -208,7 +208,7 @@ export function layoutSpec(
   {
     const title = (spec.elements ?? []).find((e) => /^card_\d+_title$/.test(e.id) && e.y === HEADING_Y && typeof e.text === "string");
     if (title) {
-      const font = typeof title.font_size === "number" ? title.font_size : 36;
+      const font = typeof title.font_size === "number" ? title.font_size : HEADING_FONT_MAX;
       const w = measure(title.text as string, font).w;
       // The underline as drawn (its points are placed for the heading's
       // drawn size, spec/card.ts headingElements), else estimated.

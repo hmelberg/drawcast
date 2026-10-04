@@ -233,7 +233,7 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
         const g = handles[k];
         const grab =
           g.kind === "angle" && g.centre && multiEntry(g)
-            ? nearestDivider(values[k], clockFraction(g.centre, p) * 100)
+            ? nearestDivider(values[k], clockFraction(g.centre, p, g.pie?.start) * 100)
             : g.kind === "market"
               ? marketGrab(g, values[k], p)
               : undefined;

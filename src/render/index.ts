@@ -265,9 +265,28 @@ export function planOptionsFor(
   // A scale's answer marker (spec/scale.ts) belongs to its line: it goes
   // when the scale is erased and moves with it.
   const owned = new Map<string, string[]>();
+  const scaleFollowers = new Map<string, string[]>();
+  const namedInCommands = new Set<string>();
+  const collectNamed = (v: unknown): void => {
+    if (Array.isArray(v)) v.forEach(collectNamed);
+    else if (v && typeof v === "object") {
+      for (const [k, x] of Object.entries(v)) {
+        if ((k === "draw" || k === "show") && (typeof x === "string" || Array.isArray(x))) [x].flat().forEach((id) => typeof id === "string" && namedInCommands.add(id));
+        else collectNamed(x);
+      }
+    }
+  };
+  collectNamed(spec.commands ?? []);
   for (const sc of authoredScales(spec)) {
     const marker = [`${sc.id}_answer_pin`, `${sc.id}_answer_num`].filter((x) => layout.order.includes(x));
-    if (marker.length > 0) owned.set(`${sc.id}_line`, marker);
+    // Its extra markers (W27) too — and they come with the line unless the cast draws them itself.
+    const markers = Object.keys(layout.groups).filter((k) => k.startsWith(`${sc.id}_marker_`) && /^\d+$/.test(k.slice(sc.id.length + 8)));
+    const leaves = markers.flatMap((k) => layout.groups[k] ?? []).filter((x) => layout.order.includes(x));
+    if (marker.length > 0 || leaves.length > 0) owned.set(`${sc.id}_line`, [...marker, ...leaves]);
+    // (A draw names leaves once groups are resolved, so the followers are leaves.)
+    const comeAlong = markers.filter((k) => !namedInCommands.has(k) && !(layout.groups[k] ?? []).some((x) => namedInCommands.has(x)));
+    const followers = comeAlong.flatMap((k) => layout.groups[k] ?? []).filter((x) => layout.order.includes(x));
+    if (followers.length > 0) for (const k of [sc.id, `${sc.id}_line`]) scaleFollowers.set(k, followers);
   }
   // A compare card's value (outside the group, so drawing the cards gives
   // nothing away) belongs to its card: erased or hidden with it — the group
@@ -344,7 +363,7 @@ export function planOptionsFor(
     expandId: (id) => layout.pieceGroups[id] ?? null,
     expandGroup: (id) => layout.groups[id] ?? null,
     drawnWith: (id) => (layout.drawnWith?.[id] ?? []).filter((x) => layout.order.includes(x)),
-    drawnAfter: (id) => (layout.drawnAfter?.[id] ?? []).filter((x) => layout.order.includes(x)),
+    drawnAfter: (id) => [...(layout.drawnAfter?.[id] ?? []).filter((x) => layout.order.includes(x)), ...(scaleFollowers.get(id) ?? [])],
     anchorOf: (id, name) => layout.namedAnchors[id]?.[name] ?? null,
     leafPointsOf: (id) => {
       const out: { leafId: string; pts: Pt[]; closed: boolean }[] = [];

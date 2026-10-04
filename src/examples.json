@@ -16308,64 +16308,71 @@
           "type": "path",
           "points": [
             [
-              551,
-              288
+              5.747,
+              2.819
             ],
             [
-              551,
-              512
+              5.747,
+              6.504
             ]
           ],
           "style": {
             "color": "#8a5fa8",
             "stroke_width": 3
-          }
+          },
+          "data": true
         },
         {
           "id": "spread_top",
           "type": "path",
           "points": [
             [
-              541,
-              512
+              5.613,
+              6.504
             ],
             [
-              561,
-              512
+              5.88,
+              6.504
             ]
           ],
           "style": {
             "color": "#8a5fa8",
             "stroke_width": 3
-          }
+          },
+          "data": true
         },
         {
           "id": "spread_bot",
           "type": "path",
           "points": [
             [
-              541,
-              288
+              5.613,
+              2.819
             ],
             [
-              561,
-              288
+              5.88,
+              2.819
             ]
           ],
           "style": {
             "color": "#8a5fa8",
             "stroke_width": 3
-          }
+          },
+          "data": true
         },
         {
           "id": "spread_note",
           "type": "text",
           "text": "2 in 3 people with 12 years",
-          "x": 390,
-          "y": 530,
           "font_size": 20,
           "style": {
             "color": "#8a5fa8"
+          },
+          "at": {
+            "data": [
+              3.6,
+              6.8
+            ]
           }
         },
         {
@@ -16373,19 +16380,20 @@
           "type": "path",
           "points": [
             [
-              120,
-              275
+              0.0,
+              2.605
             ],
             [
-              870,
-              475
+              10.0,
+              5.895
             ]
           ],
           "style": {
             "color": "#d0865f",
             "dash": true,
             "stroke_width": 3
-          }
+          },
+          "data": true
         }
       ],
       "commands": [
@@ -66641,7 +66649,7 @@
           "id": "t_fans",
           "type": "text",
           "text": "Fans pay ${market.price_buyers}",
-          "x": 760,
+          "x": 800,
           "y": 470,
           "font_size": 26,
           "style": {

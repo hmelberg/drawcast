@@ -25,6 +25,7 @@ import { validateTemplateDoc } from "../scenes/doc";
 import { pictureErrors } from "./places";
 import { spotErrors } from "./spot";
 import { oddErrors } from "./odd-one-out";
+import { elementCites } from "./sequence";
 
 // ajv ships CJS; depending on the bundler/runtime the class is the module or its .default.
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
@@ -672,6 +673,7 @@ const elementSchema = {
               text: { type: "string" },
               label: { type: "string" },
               mark: { oneOf: [{ type: "string" }, { type: "object", properties: { text: { type: "string" }, color: { type: "string" } }, required: ["text"], additionalProperties: false }] },
+              cites: { type: "array", items: { type: "string" }, maxItems: 4 },
               icon_strokes: { type: "string" },
               credit: { type: "string" },
               icon_key: { type: "string" },
@@ -681,7 +683,7 @@ const elementSchema = {
         ],
       },
       description:
-        "sequence: the pictures in turn — {icon, label} (icon a keyword or fallbacks [\"brick\", \"wall\"]), {text, label} for a paper card, or the id of an element you drew; mark: a short verdict word or a colour, shown under it in the strip once done. " +
+        "sequence: the pictures in turn — {icon, label} (icon a keyword or fallbacks [\"brick\", \"wall\"]), {text, label} for a paper card, or the id of an element you drew; mark: a short verdict word or a colour, shown under it in the strip once done; cites: source ids, as on any element. " +
         "cards: cards the viewer ORDERS or SORTS, asked with an ask on: <id> (rank: they drag the cards and press Answer, and the cards slide into the true order; sort: each card is judged as it is dropped, a wrong one moved to its right box — check: \"end\" waits for Answer). RANK: the items in their TRUE order, first = most/earliest/top (a word or three each: \"USA\", \"Norway\"), with ends naming the two ends. SORT: give bins, and each item {text, bin} (the viewer drags or TAPS a card to send it to a box); deck: true deals up to 30 cards one at a time. TAP ALL THE …: give select (the one box's title) and items {text, in: true} for those that belong; the rest stay out. 2–8 items, up to 30 with deck. The cards are drawn SHUFFLED, so draw <id> before the ask; after it they stand in the true order. Cards are <id>_1 … in true order; sort's boxes <id>_bin_1 …. An item {text, icon: \"shark\"} draws an icon on its card (match_icon: on its partner).",
     },
     bins: { type: "array", minItems: 2, maxItems: 4, items: { type: "string" }, description: "cards: the boxes to sort into (a word or two each); every item's bin is one of them." },
@@ -711,6 +713,12 @@ const elementSchema = {
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
     tick_format: { type: "string", enum: ["words", "numerals", "power"], description: "scale: words (default: \"43 million\"), numerals, or power (10ⁿ)." },
     era: { type: "string", enum: ["BC", "BCE", "none"], description: "scale: negative years as BC (default), BCE, or none (minus)." },
+    markers: {
+      type: "array",
+      maxItems: 6,
+      items: { type: "object", properties: { value: { type: "number" }, label: { type: "string" }, color: { type: "string" } }, required: ["value"], additionalProperties: false },
+      description: "scale: extra labelled points on the line ({value: 7, label: \"old limit\"}) — the engine places the words; drawn with the line (or draw <id>_marker_<n>).",
+    },
     slider: { type: "boolean", description: "scale: set by an ask's estimate — never write it." },
     states: {
       type: "object",
@@ -1703,6 +1711,8 @@ export function normalizeSpec(spec: unknown): unknown {
     if (!el || typeof el !== "object") continue;
     if (el.link !== undefined) el.link = toList(el.link);
     if (el.cites !== undefined) el.cites = toList(el.cites);
+    // A sequence item's cites (W28) are normalised the same way.
+    if (el.type === "sequence" && Array.isArray(el.items)) for (const it of el.items as unknown[]) if (it && typeof it === "object" && typeof (it as { cites?: unknown }).cites === "string") (it as { cites: string[] | string }).cites = [(it as { cites: string }).cites];
     // A retired runtime is spelled as the one that runs it now (code/languages.ts).
     if (el.type === "code" && el.language !== undefined) el.language = currentLanguage(el.language) as SpecElement["language"];
     // `at: "left"` is the short way to say `at: {place: "left"}`, and the
@@ -1863,7 +1873,7 @@ function semanticErrors(spec: Spec): string[] {
     if (src.doi !== undefined && !/^10\.\d{4,9}\/\S+$/.test(src.doi.replace(/^https?:\/\/(dx\.)?doi\.org\//i, ""))) errors.push(`sources.${src.id}: doi "${src.doi}" is not a DOI (10.xxxx/…)`);
   }
   for (const el of spec.elements ?? []) {
-    for (const c of Array.isArray(el.cites) ? el.cites : typeof el.cites === "string" ? [el.cites] : []) {
+    for (const c of elementCites(el)) {
       if (!sourceIds.has(c)) errors.push(`element "${el.id}" cites "${c}", which is not in sources`);
     }
   }

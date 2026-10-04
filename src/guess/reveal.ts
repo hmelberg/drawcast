@@ -315,6 +315,8 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
         const e = ease(Math.min(1, p / PIE_MOVE));
         const c: Pt = [lerp(pair.from.c[0], pair.yours.c[0], e), lerp(pair.from.c[1], pair.yours.c[1], e)];
         const r = lerp(pair.from.r, pair.yours.r, e);
+        // A turned pie (start_angle) starts its first slice there, not at 12 o'clock.
+        const st = h.pie?.start ?? 0;
         const shares = guessedShares(h, g);
         const bounds: number[] = [];
         let acc = 0;
@@ -326,14 +328,14 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
           const a1 = bounds[asked] ?? a0;
           const wedge: Pt[] = [c];
           const steps = Math.max(2, Math.ceil((a1 - a0) * 72));
-          for (let s = 0; s <= steps; s++) wedge.push(clock(c, r, lerp(a0, a1, s / steps)));
+          for (let s = 0; s <= steps; s++) wedge.push(clock(c, r, st + lerp(a0, a1, s / steps)));
           fills.push(yours({ pts: wedge, fill: YOURS, fillOpacity: 0.45, stroke: false }));
         } else fills.push(yours({ pts: ring(c, r), fill: YOURS, fillOpacity: 0.12, stroke: false }));
         lines.push(yours({ pts: ring(c, r), closed: true, width: 2.5 }));
         // A divider where each slice starts (12 o'clock is the first's).
         let at = 0;
         for (const s of shares) {
-          lines.push(yours({ pts: [c, clock(c, r, at)], width: 2 }));
+          lines.push(yours({ pts: [c, clock(c, r, st + at)], width: 2 }));
           at += s;
         }
         if (asked !== null) {
@@ -341,7 +343,7 @@ export function besideMarks(handles: GuessHandle[], guess: number[][], prog: num
         } else {
           let a0 = 0;
           shares.forEach((s, j) => {
-            if (s >= 0.06) texts.push({ at: clock(c, r * 0.62, a0 + s / 2), text: h.format(g[j] ?? 0), anchor: "middle", color: YOURS, size: 16, opacity: fade });
+            if (s >= 0.06) texts.push({ at: clock(c, r * 0.62, st + a0 + s / 2), text: h.format(g[j] ?? 0), anchor: "middle", color: YOURS, size: 16, opacity: fade });
             a0 += s;
           });
         }

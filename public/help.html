@@ -495,6 +495,7 @@ commands:
           <li><strong><code>tick_format</code></strong>: <code>words</code> (default), <code>numerals</code>, or <code>power</code> (10ⁿ).</li>
           <li><strong>The unit</strong> is written once, on the line, not on every tick.</li>
           <li>While the viewer guesses, a ghost marker shows the value under the pointer.</li>
+          <li><strong><code>markers</code></strong>: other points worth naming — <code>[{"value": 7, "label": "old limit"}]</code>. The engine places their words over the line, clear of each other; they come with the line, or draw <code>&lt;id&gt;_marker_1</code> on its own beat.</li>
         </ul>
         <pre><code>{ "id": "s", "type": "scale", "min": 1000000, "max": 100000000000, "log": true,
   "value": 8100000000, "unit": "people", "label": "People alive today" }
@@ -517,6 +518,11 @@ commands:
           <code>sort: "desc"</code> (or <code>"asc"</code>) keeps the bars in order of their value at
           the stage shown, so an <code>animate</code> between stages slides each bar to its new rank.
           <code>bar_3</code> stays the third label's bar wherever it stands.
+        </p>
+        <p>
+          A pie starts at 12 o'clock; <code>start_angle</code> (degrees clockwise) turns it —
+          <code>90</code> starts the first slice at 3 o'clock. <code>label_size</code> (18–40) on a
+          bar, line or pie chart sets its labels' size — for a chart beside large cards.
         </p>
         <pre><code>{ "template": "bar_chart",
   "params": { "labels": ["Mandarin", "Spanish", "English", "Hindi"],
@@ -571,6 +577,8 @@ commands:
           <code>&lt;id&gt;_1</code>, <code>&lt;id&gt;_2</code>, … in turn, and
           <code>&lt;id&gt;_strip</code> to bring the row back as a recap. Also <code>strip</code>
           (top, bottom, none), <code>show_upcoming: "dots"</code> and <code>recap: false</code>.
+          An item may carry <code>cites</code> (ids from <code>sources</code>): its picture and name
+          then open the study on their info card, as any element's do.
         </p>
         <pre><code>{ "id": "sleepers", "type": "sequence", "items": [
     { "icon": "horse", "label": "Horse", "mark": { "text": "Yes", "color": "#3f7d4e" } },
