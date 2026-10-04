@@ -153,3 +153,21 @@ describe("ids the grammar owns", () => {
     });
   }
 });
+
+describe("settings lists of bare words", () => {
+  const page = "\n\n## P\n\n    text a \"x\"\n";
+  test("`tags: [biology, quiz]` reads like its JSON form", () => {
+    for (const line of ["tags: [biology, quiz]", "tags: [biology,quiz]", 'tags: ["biology", "quiz"]', 'tags: [biology, "two words", 3]']) {
+      const { meta } = parseScriptPages(`# T\n${line}${page}`);
+      expect(meta.tags).toEqual(line.includes("two") ? ["biology", "two words", 3] : ["biology", "quiz"]);
+    }
+  });
+  test("what the writer prints reads back the same", () => {
+    const meta = { title: "T", tags: ["biology", "quiz", "two words"] };
+    const text = printScriptPages(meta, [{ spec: { title: "P", elements: [{ id: "a", type: "text", text: "x" }], commands: [] } as unknown as Spec }]);
+    expect(parseScriptPages(text).meta.tags).toEqual(meta.tags);
+  });
+  test("a malformed list still fails loudly", () => {
+    expect(() => parseScriptPages(`# T\ntags: [a, , b]${page}`)).toThrow();
+  });
+});

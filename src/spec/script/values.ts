@@ -35,8 +35,39 @@ export function parseValue(token: string): unknown {
   if (token === "false") return false;
   if (token === "null") return null;
   if (NUMBER_RE.test(token)) return Number(token);
-  if (token.startsWith("[") || token.startsWith("{")) return JSON.parse(token) as unknown;
+  if (token.startsWith("{")) return JSON.parse(token) as unknown;
+  if (token.startsWith("[")) {
+    try {
+      return JSON.parse(token) as unknown;
+    } catch (err) {
+      // `[biology, quiz]`: a flat list of bare words, as every other script
+      // value may be written. Anything nested still has to be JSON.
+      const items = bareList(token);
+      if (items === null) throw err;
+      return items;
+    }
+  }
   return token;
+}
+
+/** `[a, b, 2]` → ["a", "b", 2]; null when it is not a flat list (nesting, an empty item). */
+function bareList(token: string): unknown[] | null {
+  const m = /^\[([^[\]{}]*)\]$/.exec(token.trim());
+  if (!m) return null;
+  if (m[1].trim() === "") return [];
+  const parts: string[] = [];
+  let cur = "";
+  let quote = false;
+  for (let i = 0; i < m[1].length; i++) {
+    const c = m[1][i];
+    if (quote && c === "\\" && i + 1 < m[1].length) { cur += c + m[1][++i]; continue; }
+    if (c === '"') quote = !quote;
+    if (c === "," && !quote) { parts.push(cur.trim()); cur = ""; continue; }
+    cur += c;
+  }
+  parts.push(cur.trim());
+  if (quote || parts.some((p) => p === "")) return null;
+  return parts.map((p) => parseValue(p));
 }
 
 const BARE_RE = /^[^\s"[{][^\s]*$/;
