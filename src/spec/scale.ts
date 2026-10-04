@@ -307,7 +307,7 @@ const LABEL_GAP = 16;
 /** The marker's number centred over x — but whole on the page (W25: 8.1 billion near a line's right end ran off it); the pin stays at x. */
 function numberX(text: string, x: number, size: number): number {
   const hw = tickWidth(text, size) / 2 + 8;
-  return Math.round(Math.max(hw, Math.min(PAGE_W - hw, x)));
+  return x < hw ? Math.round(hw) : x > PAGE_W - hw ? Math.round(PAGE_W - hw) : x;
 }
 
 export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement[] {
