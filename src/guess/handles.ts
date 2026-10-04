@@ -70,6 +70,9 @@ export interface GuessHandle {
   /** Pointer → domain (template frame), and back. */
   toDomain?: (p: Pt) => Pt;
   toLogical?: (p: Pt) => Pt;
+  /** height: the plot's left (the y-axis) and right x (logical) — the value
+   *  pill keeps inside them (ui/bar-pill.ts). */
+  plotX?: [number, number];
   /** height: the bar's centre x and half width (logical), and its domain x. */
   cx?: number;
   halfW?: number;
@@ -200,6 +203,7 @@ export function guessSetup(
           const a = toLogical([at, 0]);
           const b = toLogical([at + 1, 0]);
           h.cx = a[0];
+          if (frame) h.plotX = [toLogical([frame.x[0], 0])[0], toLogical([frame.x[1], 0])[0]];
           h.halfW = (Math.abs(b[0] - a[0]) * (1 - gap)) / 2;
         }
         handles.push(h);

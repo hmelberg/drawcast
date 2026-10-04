@@ -19,6 +19,7 @@
 
 import type { RenderHandle } from "../render";
 import type { GuessSession } from "../render/player";
+import { barPill, type BarPillOut } from "./bar-pill";
 import { accountOf, budgetBalanced, budgetReachable, encodeGuess, hitDistance, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, countPillPoint, personAt, pickHandle, pointFor, strokeEntries, strokeStart, valueAt, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
 import { onSlider } from "../guess/slider-marks";
@@ -130,36 +131,39 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           // A sketched line's pill follows the pencil: it must never catch
           // a press meant to draw (the arrows still change its number).
           pill.classList.toggle("cs-guess-passive", g.kind === "curve");
-          const beside = g.kind === "height" ? besideBar(g, c) : null;
-          pill.classList.toggle("cs-guess-beside", beside !== null);
+          const bar = g.kind === "height" ? barPillAt(g, c) : null;
+          pill.classList.toggle("cs-guess-beside", bar?.mode === "beside");
           // A crowd's pill hangs under the people and their legend, never over them.
           pill.classList.toggle("cs-guess-under", g.kind === "count");
-          pill.style.left = `${beside ? beside[0] : c[0]}px`;
+          pill.style.left = `${bar ? bar.x : c[0]}px`;
           pill.style.top = `${c[1]}px`;
         } else pill.hidden = true;
       };
-      /**
-       * A bar's pill stands above the bar's top — unless there it would reach
-       * past the top of the plot, over the axis and its title (on a phone the
-       * drawing is small and the pill is not, H2): then it stands beside the
-       * bar's top, right of it (left when that runs off the drawing). Returns
-       * the pill's left edge (stage px), or null for above.
-       */
-      const besideBar = (g: GuessHandle, c: [number, number]): [number] | null => {
+      /** A bar's pill: above the bar's top, else beside it — inside the plot (ui/bar-pill.ts). */
+      const barPillAt = (g: GuessHandle, c: [number, number]): BarPillOut | null => {
         if (!g.toLogical || g.cx === undefined || g.halfW === undefined) return null;
         const top = clientPointFor(stage, [g.cx, g.toLogical([0, g.max])[1]]);
         const ph = pill.offsetHeight;
         if (!top || ph === 0) return null;
-        // The pill's own gap from the bar: its CSS lifts it 100 % + 10–30 px.
-        const lift = ph + (stage.classList.contains("cs-docked-narrow") ? 10 : 30);
-        if (c[1] - lift >= top[1]) return null;
         const y = g.toLogical([0, 0])[1];
         const right = clientPointFor(stage, [g.cx + g.halfW, y]);
         const left = clientPointFor(stage, [g.cx - g.halfW, y]);
         if (!right || !left) return null;
-        const pw = pill.offsetWidth;
-        const room = stage.getBoundingClientRect().width;
-        return right[0] + 4 + pw <= room ? [right[0] + 4] : [Math.max(0, left[0] - 4 - pw)];
+        const stageW = stage.getBoundingClientRect().width;
+        const axis = g.plotX ? clientPointFor(stage, [g.plotX[0], y]) : null;
+        const end = g.plotX ? clientPointFor(stage, [g.plotX[1], y]) : null;
+        return barPill({
+          barL: left[0],
+          barR: right[0],
+          barTop: c[1],
+          axisX: axis ? axis[0] : 0,
+          plotR: end ? Math.min(stageW, end[0]) : stageW,
+          plotTop: top[1],
+          pw: pill.offsetWidth,
+          ph,
+          // The pill's own gap from the bar: its CSS lifts it 100 % + 10–30 px.
+          lift: ph + (stage.classList.contains("cs-docked-narrow") ? 10 : 30),
+        });
       };
 
       const finish = (result: string | null): void => {
