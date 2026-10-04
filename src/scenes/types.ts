@@ -63,6 +63,13 @@ export interface SceneLayout {
   drawnWith?: Record<string, string[]>;
 
   /**
+   * What the template could not honour in its params, said to the author
+   * (layout warnings, as `check` prints them) — a ceac threshold off its
+   * axis, say, which it leaves out rather than draw off the plot (W25).
+   */
+  warnings?: string[];
+
+  /**
    * The numbers the figure stands for, by name — a market's `price`, `dwl`,
    * `revenue` — in the author's units, computed by the same layout call that
    * draws it. Any template may fill it. Because the layout re-runs on every

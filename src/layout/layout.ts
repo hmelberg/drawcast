@@ -287,6 +287,7 @@ export function layoutSpec(
         if (sceneLayout.groups) groups = { ...sceneLayout.groups };
         if (sceneLayout.attached) attached = { ...sceneLayout.attached };
         if (sceneLayout.drawnWith) drawnWith = { ...sceneLayout.drawnWith };
+        if (sceneLayout.warnings) warnings.push(...sceneLayout.warnings.map((w) => `template "${spec.template}": ${w}`));
         // A template element's own label comes with it (W25): drawing pt_0 or
         // vline_0 brings pt_0_label / label_vline_0 right after it, as a
         // measure brings label_<id> — not left for the final draw. Its own
