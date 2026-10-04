@@ -690,7 +690,7 @@ layout: |
 template: periodic_table
 title: The periodic table
 version: 1
-kit: 11
+kit: 15
 status: ready
 engines: [elements]
 interactions: [periodic]
@@ -967,14 +967,17 @@ layout: |
     }));
     for (const c of usedCols) {
       if (c < 1 || c > 18) continue;
-      gridChildren.push(kit.text("grid__c" + c, [X0 + colAt.get(c) * STEPX + CW / 2, YTOP + 22], String(c), {
-        fontSize: Math.max(FLOOR, Math.min(20, CELL * 0.26)), color: C.guide,
+      // The group and period numbers stand outside the cells, where there is
+      // room for kit.TEXT_MIN (W30: they were 14 on the whole table); a cell's
+      // own lines keep the lint's floor — 118 cells across 1000 units.
+      gridChildren.push(kit.text("grid__c" + c, [X0 + colAt.get(c) * STEPX + CW / 2, YTOP + 24], String(c), {
+        fontSize: Math.max(kit.TEXT_MIN, Math.min(20, CELL * 0.26)), color: C.guide,
       }));
     }
     for (const r of usedRows) {
       if (r > 7) continue; // the f-block lanes are not periods of their own
       gridChildren.push(kit.text("grid__r" + r, [X0 - 22, YTOP - rowAt.get(r) * STEPY - CH / 2], String(r), {
-        fontSize: Math.max(FLOOR, Math.min(20, CELL * 0.26)), color: C.guide, anchor: "end",
+        fontSize: Math.max(kit.TEXT_MIN, Math.min(20, CELL * 0.26)), color: C.guide, anchor: "end",
       }));
     }
   }

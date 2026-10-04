@@ -9,7 +9,11 @@
 // readable floor while the geometry shrinks — a 15-unit label at half width
 // is 7 units, 3 px on a phone — which is what a hand does when it draws the
 // same figure small. Labels then take a larger share of the box; the label
-// solver moves them and the overlap lints report what no longer fits.
+// solver moves them and the overlap lints report what no longer fits. The
+// floor is the readable minimum (TEXT_MIN, W30) for text the template drew
+// at or above it, so a box only a little smaller than the canvas no longer
+// takes a 22-unit label to 17; text drawn smaller on purpose keeps the
+// lint's floor.
 //
 // The fit is recomputed on every relayout (animate, sweep). The box is
 // stable; `s` follows that frame's ink union, so a template whose OUTERMOST
@@ -17,6 +21,7 @@
 // pinning the boundary fit into layoutSpec is the fix if a lesson shows it.
 
 import { FONT_FLOOR } from "../lint/lint";
+import { TEXT_MIN } from "./readable";
 import { CANVAS } from "./canvas";
 import type { SceneLayout } from "../scenes/types";
 import { unionBBoxForId, unionBoxes } from "./boxes";
@@ -54,11 +59,19 @@ export function resolveTemplateBox(v: unknown): BBox | null {
   return { x, y, w, h };
 }
 
-/** Clamp every text size, groups included, to the lint's floor. */
-export function floorTextSizes(ds: Drawable[]): void {
+/** A text drawn at `before` and scaled by `s`: never under the lint's floor,
+ *  and never under the readable minimum when it was drawn at least that big. */
+export function fittedTextSize(before: number, s: number, floor: number = TEXT_MIN): number {
+  return Math.max(before * s, Math.min(before, floor), FONT_FLOOR);
+}
+
+/** Clamp every text size, groups included, after a scale by `s` (sizes
+ *  already scaled): the lint's floor, and the readable minimum for text that
+ *  was drawn at or above it (fittedTextSize). */
+export function floorTextSizes(ds: Drawable[], s = 1, floor: number = TEXT_MIN): void {
   for (const d of ds) {
-    if (d.kind === "group") floorTextSizes(d.children);
-    else if (d.kind === "text") d.fontSize = Math.max(d.fontSize, FONT_FLOOR);
+    if (d.kind === "group") floorTextSizes(d.children, s, floor);
+    else if (d.kind === "text") d.fontSize = s > 0 ? fittedTextSize(d.fontSize / s, s, floor) : Math.max(d.fontSize, FONT_FLOOR);
   }
 }
 
@@ -66,7 +79,7 @@ export function floorTextSizes(ds: Drawable[]): void {
  * Fit the scene's ink into `box` IN PLACE and say what transform did it.
  * Null when the scene drew nothing (nothing to fit; the caller leaves it).
  */
-export function fitSceneLayout(scene: SceneLayout, box: BBox, measure: MeasureFn): TemplateFit | null {
+export function fitSceneLayout(scene: SceneLayout, box: BBox, measure: MeasureFn, floor: number = TEXT_MIN): TemplateFit | null {
   const ids = [...new Set(scene.drawables.map((d) => d.id))];
   // The labels count as ink at their preferred spots: they scale with the
   // figure, and a fit blind to them filled the box with shapes alone.
@@ -77,10 +90,10 @@ export function fitSceneLayout(scene: SceneLayout, box: BBox, measure: MeasureFn
   const { s, dx, dy } = fitTransform(padded, box);
   const map = ([x, y]: Pt): Pt => [x * s + dx, y * s + dy];
   scaleDrawables(scene.drawables, s, dx, dy);
-  floorTextSizes(scene.drawables);
+  floorTextSizes(scene.drawables, s, floor);
   for (const l of scene.labels) {
     mapLabelRequest(l, map);
-    l.fontSize = Math.max(l.fontSize * s, FONT_FLOOR);
+    l.fontSize = fittedTextSize(l.fontSize, s, floor);
   }
   mapPoints(scene.anchors, map);
   if (scene.curveSamples) {

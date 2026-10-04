@@ -15,6 +15,7 @@ import { kit } from "../kit";
 import type { SceneLayout } from "../types";
 import { PARAM_COLOR } from "../params-ui/equation";
 import { framePanel, geometry, numbersOf, sampleX, shadeOf, stateAt, ticksIn, travelTo, type Geometry, type MotionParams, type NumberKey, type PanelBox, type PanelKey } from "./model";
+import { TEXT_MIN } from "../../layout/readable";
 
 export type { MotionParams } from "./model";
 
@@ -114,7 +115,7 @@ export function layoutMotionGraphs(P: MotionParams): SceneLayout {
     tk.ticks.forEach((v, i) => {
       const X = tr.sx(v);
       tickKids.push(kit.stroke(`track__m${i}`, [[X, tr.y - 5], [X, tr.y + 5]], { color: COLORS.guide, strokeWidth: 2, instant: true }));
-      tickKids.push({ ...kit.text(`track__t${i}`, [X, tr.y - 20], fmt(v, Math.max(0, -Math.floor(Math.log10(tk.step) + 1e-9))), { fontSize: 17, color: COLORS.guide }) });
+      tickKids.push({ ...kit.text(`track__t${i}`, [X, tr.y - 20], fmt(v, Math.max(0, -Math.floor(Math.log10(tk.step) + 1e-9))), { fontSize: TEXT_MIN, color: COLORS.guide }) }); // W30: was 17
     });
     push(
       {

@@ -20,7 +20,7 @@ import { layoutElements, noIconWarning, type PieceGeometry } from "./tier2";
 import { iconAsk, isIconData } from "../spec/icon-data";
 import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
-import { setFigureLocale } from "../scenes/kit";
+import { setFigureLocale, withTextFit } from "../scenes/kit";
 import { setHeadingBox } from "./axes";
 import { contentBox, FIT_BAND, GUTTER, HEADING_Y, MARGIN, PAGE_H, PAGE_W } from "./page";
 import { pageVAlign, pinnedIds, settleBlocker, settleOffset, shiftAll } from "./settle";
@@ -230,12 +230,28 @@ export function layoutSpec(
       warnings.push(`template "${spec.template}" is a stub — falling through to tier-2 elements`);
     } else {
       try {
-        const sceneLayout = scene.layout(spec.params ?? {});
+        const first = withTextFit(1, () => scene.layout!(spec.params ?? {}));
+        let sceneLayout = first.value;
         // A world larger than the page (scenes/types.ts): the camera is what
         // brings it in, so it is neither grown nor — under a box — kept.
         world = box ? null : worldBounds(sceneLayout.world);
-        if (box && !native) fit = fitSceneLayout(sceneLayout, box, measure) ?? undefined;
-        else if (!box && !native && !world && mayGrow(spec, scene.manifest)) fit = growSceneLayout(sceneLayout, measure, headingFloorY() === null ? GROW_REGION_BARE : GROW_REGION) ?? undefined;
+        if (box && !native) {
+          fit = fitSceneLayout(sceneLayout, box, measure) ?? undefined;
+          // A body that packs its own words asked kit.textFit(): lay it out
+          // again with its text 1/s larger, so the fit draws the words at the
+          // size they were packed at (W30) — not floored up onto neighbours.
+          // Larger words widen the ink a little, so the refit is a little
+          // smaller: again (at most twice more) until the words land at size.
+          let tf = 1;
+          for (let pass = 0; pass < 3 && first.asked && fit && fit.s * tf < 0.995 && tf < 2; pass++) {
+            tf = Math.min(2, 1.02 / fit.s);
+            const again = withTextFit(tf, () => scene.layout!(spec.params ?? {})).value;
+            const refit = fitSceneLayout(again, box, measure);
+            if (!refit) break;
+            sceneLayout = again;
+            fit = refit;
+          }
+        } else if (!box && !native && !world && mayGrow(spec, scene.manifest)) fit = growSceneLayout(sceneLayout, measure, headingFloorY() === null ? GROW_REGION_BARE : GROW_REGION) ?? undefined;
         if (fit && fit.s < FIT_SCALE_FLOOR) {
           const where = isFitName(rawBox) ? `"${rawBox}"` : JSON.stringify(fit.box);
           issues.push({

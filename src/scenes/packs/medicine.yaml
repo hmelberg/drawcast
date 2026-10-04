@@ -460,10 +460,11 @@ layout: |
   Object.assign(anchors, L);
 
   if (wantLabels) {
-    push(kit.text("label_ra", [L.ra[0] - 4, L.ra[1] + 40], "Right atrium", { fontSize: 17, color: C.supply }));
-    push(kit.text("label_rv", [L.rv[0], L.rv[1] - 42], "Right ventricle", { fontSize: 17, color: C.supply }));
-    push(kit.text("label_la", [L.la[0] + 4, L.la[1] + 40], "Left atrium", { fontSize: 17, color: C.demand }));
-    push(kit.text("label_lv", [L.lv[0], L.lv[1] - 42], "Left ventricle", { fontSize: 17, color: C.demand }));
+    // W30: chamber names 19 (were 17).
+    push(kit.text("label_ra", [L.ra[0] - 4, L.ra[1] + 40], "Right atrium", { fontSize: 19, color: C.supply }));
+    push(kit.text("label_rv", [L.rv[0], L.rv[1] - 42], "Right ventricle", { fontSize: 19, color: C.supply }));
+    push(kit.text("label_la", [L.la[0] + 4, L.la[1] + 40], "Left atrium", { fontSize: 19, color: C.demand }));
+    push(kit.text("label_lv", [L.lv[0], L.lv[1] - 42], "Left ventricle", { fontSize: 19, color: C.demand }));
   }
 
   if (showFlow) {
@@ -1108,7 +1109,7 @@ layout: |
 template: pv_loop
 title: Cardiac pressure-volume loop
 version: 1
-kit: 4
+kit: 15
 status: ready
 description: >-
   The cardiac pressure-volume loop: one heartbeat as a closed loop of left-
@@ -1243,10 +1244,11 @@ layout: |
     ]));
     anchors.phase_nums = [XV(midV), YP(Pf(midV)) + 26];
     push(kit.group("legend", [
-      kit.text("legend__1", [145, 600], "1  Filling", { fontSize: 17, anchor: "start", color: C.guide }),
-      kit.text("legend__2", [145, 570], "2  Isovolumetric contraction", { fontSize: 17, anchor: "start", color: C.guide }),
-      kit.text("legend__3", [145, 540], "3  Ejection", { fontSize: 17, anchor: "start", color: C.guide }),
-      kit.text("legend__4", [145, 510], "4  Isovolumetric relaxation", { fontSize: 17, anchor: "start", color: C.guide }),
+      // W30: legend and curve names 19 (were 17/16), ticks kit.TEXT_MIN (were 15).
+      kit.text("legend__1", [145, 600], "1  Filling", { fontSize: 19, anchor: "start", color: C.guide }),
+      kit.text("legend__2", [145, 570], "2  Isovolumetric contraction", { fontSize: 19, anchor: "start", color: C.guide }),
+      kit.text("legend__3", [145, 540], "3  Ejection", { fontSize: 19, anchor: "start", color: C.guide }),
+      kit.text("legend__4", [145, 510], "4  Isovolumetric relaxation", { fontSize: 19, anchor: "start", color: C.guide }),
     ]));
     anchors.legend = [145, 600];
   }
@@ -1256,7 +1258,7 @@ layout: |
     const Vtop = V0 + Ptop / Ees;
     push(kit.group("espvr", [
       kit.stroke("espvr__line", [[XV(V0), YP(0)], [XV(Vtop), YP(Ptop)]], { color: C.accent, dash: true, strokeWidth: 2.5, ms: MS.guides }),
-      kit.text("espvr__t", [240, 150], "ESPVR (contractility)", { fontSize: 16, anchor: "start", color: C.accent }),
+      kit.text("espvr__t", [240, 150], "ESPVR (contractility)", { fontSize: kit.TEXT_MIN, anchor: "start", color: C.accent }),
     ]));
     anchors.espvr = [XV(Vtop), YP(Ptop)];
   }
@@ -1270,7 +1272,7 @@ layout: |
     }
     push(kit.group("edpvr", [
       kit.stroke("edpvr__line", pts, { color: C.shifted, dash: true, strokeWidth: 2.5, ms: MS.guides }),
-      kit.text("edpvr__t", [XV(Vend) + 8, YP(Pf(Vend))], "EDPVR (stiffness)", { fontSize: 16, anchor: "start", color: C.shifted }),
+      kit.text("edpvr__t", [XV(Vend) + 8, YP(Pf(Vend))], "EDPVR (stiffness)", { fontSize: kit.TEXT_MIN, anchor: "start", color: C.shifted }),
     ]));
     anchors.edpvr = [XV(Vend), YP(Pf(Vend))];
   }
@@ -1279,17 +1281,17 @@ layout: |
     const yB = YP(Pes + 24 + 26);
     push(kit.group("sv_arrow", [
       kit.stroke("sv__line", [[XV(ESV), yB], [XV(EDV), yB]], { arrowhead: "both", color: C.accent, strokeWidth: 3, ms: MS.connector }),
-      kit.text("sv__t", [XV((ESV + EDV) / 2), yB + 22], "Stroke volume", { fontSize: 17, color: C.accent }),
+      kit.text("sv__t", [XV((ESV + EDV) / 2), yB + 22], "Stroke volume", { fontSize: 19, color: C.accent }),
     ]));
     anchors.sv_arrow = [XV((ESV + EDV) / 2), yB];
     push(kit.group("tick_edv", [
       kit.stroke("tick_edv__l", [[XV(EDV), plot.y0 - 8], [XV(EDV), plot.y0 + 8]], { strokeWidth: 3, ms: MS.dot }),
-      kit.text("tick_edv__t", [XV(EDV), plot.y0 - 28], "EDV", { fontSize: 15, color: C.guide }),
+      kit.text("tick_edv__t", [XV(EDV), plot.y0 - 28], "EDV", { fontSize: kit.TEXT_MIN, color: C.guide }),
     ]));
     anchors.tick_edv = [XV(EDV), plot.y0];
     push(kit.group("tick_esv", [
       kit.stroke("tick_esv__l", [[XV(ESV), plot.y0 - 8], [XV(ESV), plot.y0 + 8]], { strokeWidth: 3, ms: MS.dot }),
-      kit.text("tick_esv__t", [XV(ESV), plot.y0 - 28], "ESV", { fontSize: 15, color: C.guide }),
+      kit.text("tick_esv__t", [XV(ESV), plot.y0 - 28], "ESV", { fontSize: kit.TEXT_MIN, color: C.guide }),
     ]));
     anchors.tick_esv = [XV(ESV), plot.y0];
   }
@@ -1302,7 +1304,7 @@ layout: |
 template: nephron
 title: Nephron
 version: 1
-kit: 2
+kit: 15
 status: ready
 description: >-
   The nephron, the kidney's working unit, drawn as the classic schematic:
@@ -1424,7 +1426,7 @@ layout: |
 
   // Transport arrows: fixed spots per segment, outward normals away from the tube.
   const SPOTS = {
-    proximal: { pts: [[295, 492], [352, 492], [409, 492]], dir: [0, -1] },
+    proximal: { pts: [[290, 492], [352, 492], [414, 492]], dir: [0, -1] },
     descending: { pts: [[443, 340]], dir: [-1, 0] },
     ascending: { pts: [[508, 340]], dir: [1, 0] },
     distal: { pts: [[565, 495], [625, 495]], dir: [0, -1] },
@@ -1456,27 +1458,28 @@ layout: |
       : kit.stroke("arrow_" + i + "__line", [[sx, sy], tip], { arrowhead: "end", color: C.supply, strokeWidth: 3.5, ms: MS.dot });
     const tx = sx + dx * (34 + 10), ty = sy + dy * (34 + 16);
     const anchorMode = dx < 0 ? "end" : dx > 0 ? "start" : "middle";
-    const text = kit.text("arrow_" + i + "__t", [dx === 0 ? sx : tx, dy === 0 ? sy : ty], t.species, { fontSize: 16, anchor: anchorMode, color: secreted ? C.accent : C.supply });
+    const text = kit.text("arrow_" + i + "__t", [dx === 0 ? sx : tx, dy === 0 ? sy : ty], t.species, { fontSize: kit.TEXT_MIN, anchor: anchorMode, color: secreted ? C.accent : C.supply });
     push(kit.group("arrow_" + i, [arrow, text]));
     anchors["arrow_" + i] = tip;
   });
 
   if (wantLabels) {
     push(kit.group("label_glom", [
-      kit.text("label_glom__1", [195, 652], "Glomerulus", { fontSize: 18 }),
-      kit.text("label_glom__2", [195, 626], "(Bowman's capsule)", { fontSize: 14, color: C.guide }),
+      // W30: names at kit.TEXT_LABEL, the rest at kit.TEXT_MIN (were 18/14/17/16).
+      kit.text("label_glom__1", [170, 659], "Glomerulus", { fontSize: kit.TEXT_LABEL }),
+      kit.text("label_glom__2", [170, 627], "(Bowman's capsule)", { fontSize: kit.TEXT_MIN, color: C.guide }),
     ]));
-    anchors.label_glom = [195, 652];
+    anchors.label_glom = [170, 659];
     attached["glomerulus"] = ["label_glom"];
-    push(kit.text("label_proximal", [345, 604], "Proximal tubule", { fontSize: 17 }));
-    anchors.label_proximal = [345, 604];
-    push(kit.text("label_henle", [480, 108], "Loop of Henle", { fontSize: 17 }));
+    push(kit.text("label_proximal", [380, 602], "Proximal tubule", { fontSize: kit.TEXT_LABEL }));
+    anchors.label_proximal = [380, 602];
+    push(kit.text("label_henle", [480, 108], "Loop of Henle", { fontSize: kit.TEXT_LABEL }));
     anchors.label_henle = [480, 108];
-    push(kit.text("label_distal", [608, 604], "Distal tubule", { fontSize: 17 }));
+    push(kit.text("label_distal", [608, 604], "Distal tubule", { fontSize: kit.TEXT_LABEL }));
     anchors.label_distal = [608, 604];
-    push(kit.text("label_collecting", [740, 390], "Collecting duct", { fontSize: 17, anchor: "start" }));
+    push(kit.text("label_collecting", [740, 390], "Collecting duct", { fontSize: kit.TEXT_LABEL, anchor: "start" }));
     anchors.label_collecting = [740, 390];
-    push(kit.text("label_urine", [740, 110], "Urine", { fontSize: 16, anchor: "start", color: C.shifted }));
+    push(kit.text("label_urine", [740, 110], "Urine", { fontSize: 20, anchor: "start", color: C.shifted }));
     attached["urine_arrow"] = [...(attached["urine_arrow"] ?? []), "label_urine"];
     anchors.label_urine = [740, 110];
   }

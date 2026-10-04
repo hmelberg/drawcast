@@ -14,7 +14,8 @@ import { plotArea } from "../src/layout/canvas";
 import { bboxOfText } from "../src/layout/geometry";
 import { AXIS_OVERHANG } from "../src/layout/axes";
 import { heuristicMeasure } from "../src/layout/measure";
-import { FONT_FLOOR, lintLayoutDetailed } from "../src/lint/lint";
+import { lintLayoutDetailed } from "../src/lint/lint";
+import { TEXT_MIN } from "../src/layout/readable";
 import { softAlpha, contrastAtAlpha, READABLE_FLOOR } from "../src/layout/ink";
 import { COLORS, flattenDrawables, type AreaDrawable, type StrokeDrawable, type TextDrawable } from "../src/layout/model";
 import { contrastOfLuminances, relativeLuminance } from "./contrast";
@@ -1799,7 +1800,7 @@ describe("heatmap", () => {
   // unbounded below. Unlike the value labels, which already drop out under the
   // lint's 14-unit floor, the names never shrank, so a 12-row matrix in a box
   // under roughly 390 units tall overlapped its own names.
-  test("row names shrink with the rows, then drop below the lint's font floor", () => {
+  test("row names shrink with the rows, then drop below the readable floor (W30: TEXT_MIN, was the lint's 14)", () => {
     const rows = Array.from({ length: 12 }, (_, i) => "Group " + (i + 1));
     const values = Array.from({ length: 12 }, (_, i) => [i, 12 - i]);
     const at = (h: number) => map({ rows, cols: ["x", "y"], values, box: { x: 300, y: 100, w: 640, h } });
@@ -1813,12 +1814,14 @@ describe("heatmap", () => {
     expect(namesOf(tall)[0].fontSize).toBe(21); // W4: the full size is 21 (was 18)
 
     // The band the old constant overlapped in: names must SHRINK, stay at or
-    // above the lint's floor, and still not collide (which `issues` proves).
-    const mid = at(360);
+    // above the readable floor, and still not collide (which `issues` proves).
+    const mid = at(420);
     expect(mid.issues).toEqual([]);
     expect(namesOf(mid)).toHaveLength(12);
-    expect(namesOf(mid)[0].fontSize).toBeLessThan(18);
-    expect(namesOf(mid)[0].fontSize).toBeGreaterThanOrEqual(FONT_FLOOR);
+    expect(namesOf(mid)[0].fontSize).toBeLessThan(21);
+    expect(namesOf(mid)[0].fontSize).toBeGreaterThanOrEqual(TEXT_MIN);
+    // Where they used to shrink to 15 (W30): dropped instead.
+    expect(namesOf(at(360))).toEqual([]);
 
     // Shorter still: shrinking further would go under the floor, so the names
     // are dropped outright — the rule the value labels already follow — and

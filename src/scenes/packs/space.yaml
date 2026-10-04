@@ -5,7 +5,7 @@ description: "The solar system: the Sun, planets, dwarf planets and moons drawn 
 template: solar_system
 title: The solar system (planets, dwarf planets, moons)
 version: 1
-kit: 9
+kit: 15
 status: ready
 engines: [space]
 explore: space
@@ -121,7 +121,10 @@ layout: |
   const CX = (F.x0 + F.x1) / 2, CY = (F.y0 + F.y1) / 2;   // 500, 390
   const R_MAX = 290;                                        // the outermost orbit in the top views
   const SUN_CAP = Math.floor((F.y1 - F.y0) / 6);            // 103: the Sun never takes more than a sixth of the frame
-  const LABEL_PX = 19, NOTE_PX = 18;
+  // Names stay at 19 and are not refitted to a box (kit.textFit): the
+  // Jupiter portrait's name fits the 27 units between the disc and Io's ring
+  // only at this size; a box's fit holds them at kit.TEXT_MIN (W30).
+  const LABEL_PX = 19, NOTE_PX = kit.TEXT_MIN, SCALE_PX = kit.TEXT_MIN; // scale bar: was 16
   // The box lint measures around a one-line name (fontSize × the 1.25 line
   // height of layout/labels.ts), and the least a name may step to clear one
   // already written: lint calls two text boxes closer than 2 units an overlap,
@@ -636,7 +639,7 @@ layout: |
         kit.stroke("scale_bar__line", [[ruler.a.x, ruler.a.y], [ruler.z.x, ruler.z.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
         kit.stroke("scale_bar__t0", [[ruler.a.x - 6, ruler.a.y], [ruler.a.x + 6, ruler.a.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
         kit.stroke("scale_bar__t1", [[ruler.z.x - 6, ruler.z.y], [ruler.z.x + 6, ruler.z.y]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
-        kit.text("scale_bar__label", [(ruler.a.x + ruler.z.x) / 2 + 10, (ruler.a.y + ruler.z.y) / 2], ruler.text, { fontSize: 16, color: C.guide, anchor: "start" }),
+        kit.text("scale_bar__label", [(ruler.a.x + ruler.z.x) / 2 + 10, (ruler.a.y + ruler.z.y) / 2], ruler.text, { fontSize: SCALE_PX, color: C.guide, anchor: "start" }),
       ]));
       anchors.scale_bar = [(ruler.a.x + ruler.z.x) / 2, (ruler.a.y + ruler.z.y) / 2];
     }
@@ -656,7 +659,7 @@ layout: |
       kit.stroke("scale_bar__line", [[bx0, by], [bx1, by]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
       kit.stroke("scale_bar__t0", [[bx0, by - 6], [bx0, by + 6]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
       kit.stroke("scale_bar__t1", [[bx1, by - 6], [bx1, by + 6]], { color: C.guide, strokeWidth: 2, ms: MS.guides }),
-      kit.text("scale_bar__label", [(bx0 + bx1) / 2, by - 18], bar.label, { fontSize: 16, color: C.guide }),
+      kit.text("scale_bar__label", [(bx0 + bx1) / 2, by - 18], bar.label, { fontSize: SCALE_PX, color: C.guide }),
     ]));
     anchors.scale_bar = [(bx0 + bx1) / 2, by];
   }
@@ -670,7 +673,7 @@ layout: |
 template: sky_map
 title: The night sky from a place at a time
 version: 1
-kit: 9
+kit: 15
 status: ready
 engines: [space, sky]
 explore: space
@@ -808,7 +811,12 @@ layout: |
   const D = eng.defaults;
   const F = D.frame;                                     // { x0: 60, y0: 80, x1: 940, y1: 700 }
   const MID = [(F.x0 + F.x1) / 2, (F.y0 + F.y1) / 2];    // where a portrait puts its subject
-  const NOTE_PX = 18, LABEL_PX = 19, COMPASS_PX = 20;
+  // Packed at the size they are drawn (W30): in a box the fit shrinks the
+  // chart, and kit.textFit() is how much larger to write so the names land
+  // at kit.TEXT_MIN or more instead of being floored up onto the lines they
+  // were packed against. Pads between names scale with it too.
+  const TF = kit.textFit();
+  const NOTE_PX = kit.TEXT_MIN * TF, LABEL_PX = Math.max(19, kit.TEXT_MIN * TF), COMPASS_PX = Math.max(20, kit.TEXT_MIN * TF);
   const LABEL_H = LABEL_PX * 1.25;
   // Headroom for the OTHER word: a translated copy swaps the words this body
   // measured AFTER it has run (src/layout/text-map.ts) and leaves every box
@@ -1272,7 +1280,7 @@ layout: |
       const bx = boxAt(q.at, w, LABEL_H);
       let hard = (bx.x < 4 || bx.y < 4 || bx.x + bx.w > kit.CANVAS.w - 4 || bx.y + bx.h > kit.CANVAS.h - 4 ? 10000 : 0) + (q.hard === undefined ? 0 : q.hard);
       const room = { x: bx.x - TRANSLATED_ROOM / 2, y: bx.y, w: bx.w + TRANSLATED_ROOM, h: bx.h };
-      for (const t of near) if (boxHit(room, t, 2)) hard += 100;
+      for (const t of near) if (boxHit(room, t, 2 * TF)) hard += 100; // the lint's 2-unit pad, as drawn (W30)
       // The core of the ROOM, not of the box: the headroom a translated copy
       // will need is reserved against the drawn lines exactly as it is against
       // the other names. Measured — "Orion" becoming "Orione" grew the core by
@@ -1281,7 +1289,7 @@ layout: |
       const co = coreOf(room);
       for (let j = 0; j < segs.length; j += 2) if (segHit(segs[j], segs[j + 1], co)) hard += 10;
       let soft = q.ring * RING_COST + (q.soft === undefined ? 0 : q.soft);
-      for (const t of dots) if (boxHit(bx, t, 2)) soft += 1;
+      for (const t of dots) if (boxHit(bx, t, 2 * TF)) soft += 1;
       if (hard < bestHard || (hard === bestHard && soft < bestSoft)) { best = bx; bestHard = hard; bestSoft = soft; }
       if (hard === 0 && soft === 0) break;
     }

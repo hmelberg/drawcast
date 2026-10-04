@@ -682,7 +682,7 @@ layout: |
     const p = [sx(q), sy(v)], id = "min_" + key;
     push(kit.stroke(id, [p], { shapeHint: { type: "circle", c: p, r: 6 }, strokeWidth: 3, fill: CURVES[key].color, color: CURVES[key].color, ms: MS.dot }));
     anchors[id] = p;
-    label("label_" + id, p, side, text, CURVES[key].color, 17);
+    label("label_" + id, p, side, text, CURVES[key].color, 19); // W30: was 17
   });
 
   if (showSet.has("price_line")) {
@@ -1100,10 +1100,11 @@ layout: |
       const to = a.node ? [tx - ux * (R + 4), ty - uy * (R + 4)] : [tx - 10, ty];
       const eid = "edge_" + p;
       // Action label above the branch midpoint, pushed off the line.
-      const mx = (from[0] + to[0]) / 2 - uy * 20, my = (from[1] + to[1]) / 2 + ux * 20 + 4;
+      // W30: the label at 19 (was 17), a little further off the line.
+      const mx = (from[0] + to[0]) / 2 - uy * 22, my = (from[1] + to[1]) / 2 + ux * 22 + 4;
       push(kit.group(eid, [
         kit.stroke(eid + "__l", [from, to], { strokeWidth: 3, ms: MS.connector }),
-        kit.text(eid + "__t", [mx, my], a.label, { fontSize: 17 }),
+        kit.text(eid + "__t", [mx, my], a.label, { fontSize: 19 }),
       ]));
       anchors[eid] = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
       if (doSolve && chosen.has(p)) {

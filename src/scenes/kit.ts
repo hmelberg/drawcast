@@ -40,12 +40,13 @@ import {
   type TextDrawable,
 } from "../layout/model";
 import { FIGURE_GROUND, softAlpha } from "../layout/ink";
+import { TEXT_LABEL, TEXT_MIN } from "../layout/readable";
 import type { LabelRequest } from "../layout/labels";
 import type { Side } from "../spec/types";
 import { barColorsFor } from "./bar-colors";
 import { iconPictureOf, iconRingsOf } from "../spec/icon-data";
 
-export const KIT_VERSION = 14; // v14: icon() — an icon's picture or its traced rings (bar icons, 2026-10-02); v13: barColorsFor() — a bar chart's colours from its labels (2026-10-02); v12: num(v, d, true) groups thousands (2026-09-30); v11: num() and say() — numbers and words in the cast's language (2026-09-25); v10: circle()/rect() point rings, pad() — a tappable labelled shape for widgets, MORSE table (widget bodies); v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
+export const KIT_VERSION = 15; // v15: TEXT_MIN / TEXT_LABEL — readable text sizes (W30, 2026-10-04); v14: icon() — an icon's picture or its traced rings (bar icons, 2026-10-02); v13: barColorsFor() — a bar chart's colours from its labels (2026-10-02); v12: num(v, d, true) groups thousands (2026-09-30); v11: num() and say() — numbers and words in the cast's language (2026-09-25); v10: circle()/rect() point rings, pad() — a tappable labelled shape for widgets, MORSE table (widget bodies); v9: ball() — a shaded 2D disc (space); v8: smoothClosed() + roughness on stroke/area (anatomy); v7: GROUND (the figure's paper); v6: softAlpha() (race crossings); v5: COLORS.series + plotArea() + textWidth() (the data pack)
 
 export interface StrokeOpts {
   closed?: boolean;
@@ -446,6 +447,18 @@ export interface SceneKit {
    * the day the paper moves.
    */
   GROUND: string;
+  /** The least a template draws text a viewer reads — ticks, dates, values, notes (18; layout/readable.ts). Short of room: thin, wrap or truncate rather than go under it. */
+  TEXT_MIN: number;
+  /** The default size for names a viewer must read to follow the figure — categories, node and state names, axis captions (22). */
+  TEXT_LABEL: number;
+  /**
+   * How much larger to draw text so it lands at its own size after the
+   * template box shrinks the figure: 1 on the canvas, 1/s in a box fitted at
+   * s < 1 (capped at 2). A body that packs its own words (positions computed
+   * from the text's width) multiplies its sizes by it; asking is the opt-in —
+   * the layout then lays the body out a second time with the answer.
+   */
+  textFit(): number;
   /**
    * A tappable pad for widgets: a group whose first child is a closed,
    * paper-filled outline (`<id>__shape` — elementRings hit-tests it) and
@@ -624,6 +637,28 @@ function edgeTrimAmount(spec: EdgeTrim, ux: number, uy: number): number {
 /** The cast's language and decimal mark, set by layoutSpec before a
  *  template runs (like the math font); read by kit.num / kit.say. */
 let figureLocale: { lang: string; decimalComma: boolean } = { lang: "en", decimalComma: false };
+
+// Text that holds its size in a template box (W30): the layout lays a
+// template out once, fits it into the box at scale s < 1, and — when the body
+// asked kit.textFit() — lays it out again with textFit = 1/s, so the words it
+// packed itself (sky names, a column of labels) are packed at the size they
+// will be drawn, not grown afterwards by the readable floor onto their
+// neighbours. Module state, like the figure locale; withTextFit restores it.
+let textFitScale = 1;
+let textFitAsked = false;
+/** Run a template body with kit.textFit() answering `scale`; also whether the body asked. */
+export function withTextFit<T>(scale: number, fn: () => T): { value: T; asked: boolean } {
+  const prevScale = textFitScale, prevAsked = textFitAsked;
+  textFitScale = scale;
+  textFitAsked = false;
+  try {
+    const value = fn();
+    return { value, asked: textFitAsked };
+  } finally {
+    textFitScale = prevScale;
+    textFitAsked = prevAsked;
+  }
+}
 export function setFigureLocale(l: { lang: string; decimalComma: boolean }): void {
   figureLocale = { ...l };
 }
@@ -1640,6 +1675,12 @@ export const kit: SceneKit = {
   },
   softAlpha,
   GROUND: FIGURE_GROUND,
+  TEXT_MIN,
+  TEXT_LABEL,
+  textFit() {
+    textFitAsked = true;
+    return textFitScale;
+  },
   barColorsFor: (labels) => barColorsFor(labels),
   num(v, decimals, group) {
     const s = decimals === undefined ? String(v) : v.toFixed(decimals);

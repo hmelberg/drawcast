@@ -147,3 +147,52 @@ and a short line in the compiler prompt.
   the label's height (`label_room`); a ring/box highlight encloses the target's own labels.
 - Not done: binscatter's plot (same y 130, an example draws on it); annotation circles round
   attached labels; a faded ghost of template parts on `animate` / `keep`.
+
+
+## W30 — minimum text size (built 2026-10-04, branch r3-text)
+- **The minimum**: `TEXT_MIN = 18` logical units at text scale 1 for anything a template draws that
+  a viewer reads (ticks, dates, values, notes, matrix cells), `TEXT_LABEL = 22` as the default for
+  names a viewer must read to follow the figure (categories, node and state names, axis captions) —
+  `src/layout/readable.ts`, on the kit as `kit.TEXT_MIN` / `kit.TEXT_LABEL` (kit v15). The lint's
+  `FONT_FLOOR` (14) stays the "unreadable" warning. Short of room a template thins, wraps or
+  truncates before it goes under `TEXT_MIN`.
+- **Template box** (layout/template-fit.ts): a box that shrinks the figure holds text drawn at ≥ 18
+  at 18 (it went to 14); text drawn smaller keeps its own size. A body that packs its own words asks
+  `kit.textFit()` (1, or 1/s in a box fitted at s < 1) and is laid out again with the answer, so its
+  words are packed at the size they are drawn (sky_map). decision_tree's own squeeze keeps the old
+  floor (`fitSceneLayout(…, FONT_FLOOR)`).
+- **Advisory** (`small-text`, lint/template-text.ts): `cast.mjs check` and frames print how many of
+  the template's own texts are drawn under 18 (after the box and `text.font_size`); never a layout
+  issue. tests/readable-text.test.ts holds every bundled template example to it at scale 1 (bar the
+  four below).
+- **Per template** (before → after): tornado_diagram names 17 → 22 (down to 18, then "…"), values
+  15 → 18, "Base case" 17 → 20, x caption 21 → 22, a name clears its low value's width (was a fixed
+  52) and the axis stands under the last bar (the figure now grows into the content area);
+  timeline ticks 16 → 18, dates 17 → 18, axis ends 17 → 18, era names 18/16/14 → 20/18/18 (bands
+  32/25/21 → 32/26/25; ticks were already thinned by width); sky_map names/notes/compass land at
+  ≥ 18 in a box (were 17.6/16.7, 14 at s 0.73); solar_system scale bar 16 → 18 (names held by the
+  box floor, were 16.8); bar_chart floors — categories 17 (13 past 12 bars) → 18 then every k-th
+  bar labelled, values 15 → 18, y ticks 15 → 18 (else none), note 16 → 18; line_chart category
+  floor 17/13 → 18 (every k-th already), tick floor 15 → 18, note 16 → 18; scatter_plot fit equation
+  16 → 18 (and a point name's obstacle measured at its drawn 19, was 16); bar_race names/values floor
+  14 → 18 — lying down, a field too deep for 18-unit rows shows fewer racers; heatmap names and
+  values dropped under 18 (were shrunk to 14), note 16 → 18; distribution_curve SD ticks 16 → 18;
+  sampling_dist ruler 16 → 18, the ± number set clear of a narrow curve; sir_compartments names
+  ≤ 18 fitted → 18–20 in wider boxes (112/124 → 132/136); did_trends "Counterfactual" 16 → 18;
+  lorenz_curve curve names 17 → 20; nephron structure names 17–18 → 22, "(Bowman's capsule)"
+  14 → 18, transport species 16 → 18, "Urine" 16 → 20 (labels moved to fit); pv_loop legend 17 → 19,
+  ESPVR/EDPVR 16 → 18, stroke volume 17 → 19, EDV/ESV 15 → 18; heart_circulation chamber names
+  17 → 19; game_tree branch actions 17 → 19 (a little further off the line); firm_cost_curves minima
+  17 → 19; world_map markers 16 → 18; morse_key / xylophone / bubble_sort hints 15–16 → 18;
+  des_process "+N" 15/17/14 → 18; cost_effectiveness_plane quadrant names 16 → 18;
+  two_by_two_table cell notes 16 → 18; motion_graphs track ticks 17 → 18; periodic_table group and
+  period numbers 14 → 18. anatomy, water_cycle, flower_anatomy, energy_diagram, tangent_secant,
+  screening_timeline, rd_plot, ppf, generic_axes_diagram, ci_dance, violin_anatomy: their examples'
+  boxes took 19–22-unit labels to 16.5–17.9; the box floor now holds 18. pie_chart, forest_plot, causal_dag and the
+  rest were already ≥ 18.
+- **Not done**: decision_tree (names 26 → 16 as a tree grows, numbers 0.85×, column heads 0.75× —
+  14 in a squeezed rollback tree; raising them sent a 6-terminal tree into a world), markov_model
+  (matrix/table floors 14–16; raising them put a 5-state traced model into a world or the captions),
+  des_hta (a dashboard of 14–17 throughout — needs a redesign, not a floor), periodic_table's cell
+  lines (atomic numbers, "57–71" at 14: 118 cells in 1000 units). A chart `label_size` hatch is
+  another workstream's.

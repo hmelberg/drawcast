@@ -163,8 +163,8 @@ describe("shadeColor", () => {
   });
 });
 
-test("KIT_VERSION is 14 and constants ride on the kit", () => {
-  expect(KIT_VERSION).toBe(14);
+test("KIT_VERSION is 15 and constants ride on the kit", () => {
+  expect(KIT_VERSION).toBe(15);
   expect(kit.COLORS.series).toHaveLength(6);
   for (const c of kit.COLORS.series) expect(Object.values(kit.COLORS)).toContain(c);
   expect(Object.isFrozen(kit.COLORS.series)).toBe(true);
@@ -179,6 +179,9 @@ test("KIT_VERSION is 14 and constants ride on the kit", () => {
   expect(kit.softAlpha(kit.COLORS.guide)).toBe(1); // no headroom: it IS the floor
   // v7: the paper itself, so a body computing contrast never copies the hex.
   expect(kit.GROUND).toBe(FIGURE_GROUND);
+  // v15: readable text sizes (W30), one source for every template body.
+  expect(kit.TEXT_MIN).toBe(18);
+  expect(kit.TEXT_LABEL).toBe(22);
 });
 
 // M1 review finding #1: `kit` is one live, shared object handed to every

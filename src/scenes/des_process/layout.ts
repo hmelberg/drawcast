@@ -17,6 +17,7 @@ import type { SceneLayout } from "../types";
 import { drawAxes, niceCeil, roundTicks } from "../plot-axes";
 import { simulate, stationStats, stationTheory, stepPoints, systemStats, tokensAt, trafficRates, waitApprox, type Run, type StationStats, type TokenAt } from "./engine";
 import { readCharts, readModel, type ChartKind, type DesParams, type Model, type ModelNode } from "./model";
+import { TEXT_MIN } from "../../layout/readable";
 
 export type { DesParams } from "./model";
 
@@ -523,7 +524,7 @@ export function layoutDes(P: DesParams): SceneLayout {
           row = Math.floor(k / cols);
         kids.push(tokenAt(`node_${id}__tok${k}`, [g.x0 + 4 + TOKEN_GAP / 2 + col * TOKEN_GAP, g.cy + (row === 0 ? 12 : -12)], tk.priority));
       });
-      if (here.length > cap) kids.push(kit.text(`node_${id}__more`, [g.x1 - 4 - TOKEN_GAP / 2, g.cy - 12], `+${here.length - cap + 1}`, { fontSize: 15 }));
+      if (here.length > cap) kids.push(kit.text(`node_${id}__more`, [g.x1 - 4 - TOKEN_GAP / 2, g.cy - 12], `+${here.length - cap + 1}`, { fontSize: TEXT_MIN })); // W30: was 15
       push(kit.group(`node_${id}`, kids), [g.cx, g.cy]);
       members.push(`node_${id}`);
       push(kit.text(lab, labelAt, n.label, { fontSize: LABEL_FONT }), labelAt);
@@ -554,7 +555,7 @@ export function layoutDes(P: DesParams): SceneLayout {
       for (let k = 0; k < shown; k++) laneKids.push(tokenAt(`queue_${id}__tok${k}`, [lx1 - TOKEN_GAP / 2 - 2 - k * TOKEN_GAP, g.cy], waiting[k].priority));
       if (waiting.length > slots) {
         const more = `+${waiting.length - shown}`;
-        laneKids.push(kit.text(`queue_${id}__more`, [lx1 - TOKEN_GAP / 2 - 2 - (slots - 1) * TOKEN_GAP + 2, g.cy], more, { fontSize: more.length > 3 ? 14 : 17, color: COLORS.demand }));
+        laneKids.push(kit.text(`queue_${id}__more`, [lx1 - TOKEN_GAP / 2 - 2 - (slots - 1) * TOKEN_GAP + 2, g.cy], more, { fontSize: TEXT_MIN, color: COLORS.demand })); // W30: was 17 (14 past three characters)
       }
       push(kit.group(`queue_${id}`, laneKids), [(lx0 + lx1) / 2, g.cy]);
       members.push(`queue_${id}`);

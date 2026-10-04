@@ -608,7 +608,11 @@ function layoutTree(params: DecisionTreeParams & { box?: unknown }, full: boolea
 
   const out = { drawables, labels, anchors, positions, order, attached, groups, drawnWith, scale: 1, textSize: LABEL_FONT, ...(rolled && { values: valuesOf(rolled, rootWrapped.cleanId, table, typeof params.wtp === "number" && Number.isFinite(params.wtp) ? params.wtp : undefined) }) };
   if (squeeze) {
-    const f = fitSceneLayout(out, squeeze, heuristicMeasure);
+    // Squeezed past its least words, the tree shrinks words and all to the
+    // lint's floor (FONT_FLOOR), not the readable one (W30): laid out at the
+    // spacing its words need, it cannot hold them at TEXT_MIN at a smaller
+    // scale without collisions — past that floor it goes to a world (above).
+    const f = fitSceneLayout(out, squeeze, heuristicMeasure, FONT_FLOOR);
     if (f) {
       out.scale = f.s;
       out.textSize = Math.max(LABEL_FONT * f.s, FONT_FLOOR);

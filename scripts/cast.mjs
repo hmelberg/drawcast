@@ -1608,6 +1608,10 @@ const commands = {
       const { elementBBoxes } = await load("/src/layout/layout.ts");
       const fill = fillIssue(elementBBoxes(laid, heuristicMeasure).entries(), { heading: hasHeadingInk(laid.order) });
       if (fill) issues.push({ severity: "advisory", message: fill.message });
+      // Template text under the readable minimum as drawn (W30, src/lint/template-text.ts).
+      const { smallTemplateText } = await load("/src/lint/template-text.ts");
+      const small = smallTemplateText(laid.drawables, ex);
+      if (small) issues.push({ severity: "advisory", message: small.message });
       const speaks = (spec.commands ?? []).filter((c) => typeof c.speak === "string").length;
       console.log(`valid · ${speaks} spoken lines · ${(spec.elements ?? []).length} elements${spec.template ? ` · template ${spec.template}` : ""}`);
       console.log(issues.length ? issues.map((i) => `  [${i.severity}] ${i.message}`).join("\n") : "  lint clean (heuristic metrics — frames gives the browser's)");

@@ -38,10 +38,12 @@ import bundledExamples from "../examples.json";
 import { setTrustPolicy } from "../security/code-trust";
 import { elementBBoxes } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
+import type { Drawable } from "../layout/model";
 import { lintCommands } from "../lint/lint";
 import { posedIssues } from "../lint/posed";
 import { layoutAsSeen } from "../lint/at-scale";
 import { figureUnion, fillIssue, fullestFrames, hasHeadingInk } from "../lint/fill";
+import { smallTemplateText } from "../lint/template-text";
 import { pacingReport, type PacingProblem } from "../lint/pacing-report";
 import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
@@ -231,7 +233,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       }
     }
     let prevAt = 0;
-    const fillInputs: { boxes: [string, BBox][]; visible: (id: string) => boolean }[] = [];
+    const fillInputs: { boxes: [string, BBox][]; visible: (id: string) => boolean; drawables: Drawable[] }[] = [];
     for (const frame of frames) {
       const params = hd.plan.states[frame.at - 1]?.params ?? {};
       // A tree's blanks still to be asked are "?" here, as on screen.
@@ -270,7 +272,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
         advisories: [],
         bboxes: Object.fromEntries([...boxes.entries()].map(([id, b]) => [id, b])),
       });
-      fillInputs.push({ boxes: [...boxes.entries()], visible: (id) => onScreen([id]) });
+      fillInputs.push({ boxes: [...boxes.entries()], visible: (id) => onScreen([id]), drawables: layout.drawables });
       if (!frame.before) prevAt = frame.at;
     }
     // The fill advisory, on each page at its fullest (lint/fill.ts).
@@ -280,6 +282,9 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       const issue = fillIssue(fillInputs[i].boxes, { heading, visible: fillInputs[i].visible });
       const fr = report.frames[report.frames.length - fillInputs.length + i];
       if (issue && fr) fr.advisories.push(`[advisory] ${issue.rule}: ${issue.message}`);
+      // Template text under the readable minimum as drawn (W30).
+      const small = smallTemplateText(fillInputs[i].drawables, expanded, fillInputs[i].visible);
+      if (small && fr) fr.advisories.push(`[advisory] ${small.rule}: ${small.message}`);
     }
   } finally {
     hd.destroy();

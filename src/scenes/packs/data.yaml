@@ -5,7 +5,7 @@ description: Bar charts and tables drawn from data — typed by the author or co
 template: bar_chart
 title: Bar chart
 version: 2
-kit: 14
+kit: 15
 status: ready
 description: >-
   A bar chart from data: categories along the x axis, one bar per category
@@ -350,11 +350,13 @@ layout: |
 
   // ---- Readable sizes (spec 2026-10-04-page-frame §4, W4) ----
   // Base sizes a viewer can read on a full page; each shrinks only when its
-  // neighbours would collide at the width there is, never below the size the
-  // chart used before (17 for categories, 13 past 12 bars, 15 for values).
-  const TICK_SIZE = 20 + MAIN, TICK_MIN = 15;
-  const CAT_SIZE = 21 + MAIN, CAT_WRAP_MIN = 18, CAT_MIN = n > 12 ? 13 : 17;
-  const VALUE_SIZE = 20 + MAIN, VALUE_MIN = 15;
+  // neighbours would collide at the width there is, never below kit.TEXT_MIN
+  // (W30 — the floors were 17 for categories, 13 past 12 bars, 15 for values
+  // and ticks). Categories that do not fit at the floor are labelled every
+  // k-th bar instead; ticks that do not fit are left off.
+  const TICK_SIZE = 20 + MAIN, TICK_MIN = kit.TEXT_MIN;
+  const CAT_SIZE = 21 + MAIN, CAT_WRAP_MIN = kit.TEXT_MIN, CAT_MIN = kit.TEXT_MIN;
+  const VALUE_SIZE = 20 + MAIN, VALUE_MIN = kit.TEXT_MIN;
   const LEGEND_SIZE = 20 + MAIN;
   // Round tick values: the smallest step of 1, 2, 2.5 or 5 × 10ⁿ that puts at
   // most `most` ticks on [lo, hi] with neighbours at least `minGap` apart
@@ -403,8 +405,8 @@ layout: |
   const push = (d) => { drawables.push(d); order.push(d.id); };
 
   // Category labels: one size for the whole row — single lines at 21 down to
-  // 18, then two lines at 21 down to 18, then single lines down to the old
-  // floor. Whatever is left overflows as it always did.
+  // 18, then two lines at 21 down to 18; past that, every k-th bar's label at
+  // 18 (below).
   const catTexts = Array.from({ length: n }, (_, i) => (labels[i] !== undefined ? labels[i] : String(i + 1)));
   const catAvail = slotW - 6;
   let catSize = fitSize(catTexts, catAvail, CAT_SIZE, Math.max(CAT_MIN, CAT_WRAP_MIN));
@@ -424,6 +426,15 @@ layout: |
     // Past the floor single lines overflow: two lines at the floor, if that
     // fits, else the floor as before.
     if (catSize === null && !tryWrap(CAT_MIN, CAT_WRAP_MIN - 1, CAT_MIN)) catSize = CAT_MIN;
+  }
+  // Still too wide at the floor (many bars, long names): one label every
+  // `catEvery` slots, at the floor, rather than smaller type (W30).
+  let catEvery = 1;
+  const catFits = catTexts.every((t, i) => (catLines && catLines[i] ? catLines[i] : [t]).every((l) => kit.textWidth(l, catSize) <= catAvail));
+  if (!catFits && n > 1) {
+    catLines = null;
+    catSize = CAT_MIN;
+    for (catEvery = 2; catEvery < n; catEvery++) if (catTexts.every((t) => kit.textWidth(t, catSize) <= catEvery * slotW - 6)) break;
   }
   // How far a two-line label reaches below the single-line row.
   const catDrop = catLines ? catSize * 1.25 * 0.5 : 0;
@@ -448,7 +459,7 @@ layout: |
   if (yMin < 0) axesChildren.push(kit.stroke("axes__zero", [[plot.x0, base], [plot.x1, base]], { color: C.guide, dash: true, strokeWidth: 2, ms: MS.guides }));
   // Round values up the y axis (W4): a guessed bar is judged against a scale,
   // not only against its neighbours. 4–6 ticks, a line of text apart; the
-  // numbers shrink (to 15) only when the margin left of the axis is narrow.
+  // numbers shrink (to kit.TEXT_MIN) only when the margin left of the axis is narrow.
   if (params.y_ticks !== false && n > 0) {
     const yTicks = niceTicks(yMin, yMax, 6, TICK_SIZE * 1.25 + 8, (plot.y1 - plot.y0) / (yMax - yMin));
     const tdec = decimalsOf(yTicks);
@@ -470,7 +481,7 @@ layout: |
     // Truncated so a long series name cannot run into the legend: the legend
     // sits at plot.x1 - 150 whenever a note can exist (both require
     // series.length > 1), so that is the note's hard right edge.
-    const NOTE_SIZE = 16;
+    const NOTE_SIZE = kit.TEXT_MIN; // W30: was 16
     const noteMaxW = plot.x1 - 150 - plot.x0 - 20;
     let noteText = note;
     if (kit.textWidth(noteText, NOTE_SIZE) > noteMaxW) {
@@ -491,7 +502,7 @@ layout: |
   };
 
   // Value labels: one size for the chart, over every stage (a tween must not
-  // change it) — 20, or as large as fits the bar's width, down to 15.
+  // change it) — 20, or as large as fits the bar's width, down to kit.TEXT_MIN.
   const valueTexts = [];
   if (showValues) {
     for (const s of series) for (const st of s.stages) for (const v of st) if (typeof v === "number") valueTexts.push(fmt(v));
@@ -557,7 +568,7 @@ layout: |
     }
     const cat = kit.text(id + "__l", [xc, plot.y0 - 20 - iconRow - (catLines && catLines[i] ? catDrop : 0)], catTexts[i], { fontSize: catSize });
     if (catLines && catLines[i]) cat.lines = catLines[i];
-    children.push(cat);
+    if (catEvery === 1 || Math.round(slot) % catEvery === 0) children.push(cat);
     push(kit.group(id, children));
     anchors[id] = [xc, (base + reach) / 2];
   }
@@ -950,7 +961,7 @@ layout: |
 template: line_chart
 title: Line chart
 version: 5
-kit: 11
+kit: 15
 status: ready
 description: >-
   A line chart from data: one or more series over a numeric or categorical
@@ -1473,7 +1484,7 @@ layout: |
   const xL = plot.x0 + padCols, xR = plot.x1 - padCols;
 
   // ---- Readable sizes and round ticks (spec 2026-10-04-page-frame, W4) ----
-  const TICK_SIZE = 20 + MAIN, TICK_MIN = 15;
+  const TICK_SIZE = 20 + MAIN, TICK_MIN = kit.TEXT_MIN; // W30: the floor was 15
   // Round tick values: the smallest step of `mults` × 10ⁿ that puts at most
   // `most` ticks on [lo, hi] with neighbours at least `minGap` apart (`per`:
   // logical units per data unit).
@@ -1529,18 +1540,18 @@ layout: |
     axesChildren.push(kit.text("axes__col0", [xL, plot.y0 - 20], colText(0), { fontSize: 20 }));
     axesChildren.push(kit.text("axes__col1", [xR, plot.y0 - 20], colText(1), { fontSize: 20 }));
   } else if (xCat) {
-    // One size for the row: 20, shrinking to fit a slot down to the old 17
-    // (13 past 12 categories); past that, every k-th category keeps its
-    // name at 17 and the others go quiet, rather than all of them shrinking
-    // into one unreadable row.
+    // One size for the row: 20, shrinking to fit a slot down to
+    // kit.TEXT_MIN; past that, every k-th category keeps its name at the
+    // floor and the others go quiet, rather than all of them shrinking into
+    // one unreadable row (W30: the floor was 17, and 13 past 12 categories).
     const slot = (plot.x1 - plot.x0) / Math.max(1, n) - 6;
-    const floor = n > 12 ? 13 : 17;
+    const floor = kit.TEXT_MIN;
     let size = fitSize(xCat, slot, 20, floor);
     let every = 1;
-    if (size === null || (n > 12 && size < 17)) {
-      const widest = Math.max(...xCat.map((s) => kit.textWidth(s, 17)));
+    if (size === null) {
+      const widest = Math.max(...xCat.map((s) => kit.textWidth(s, floor)));
       every = Math.max(1, Math.ceil((widest + 12) / (slot + 6)));
-      size = every > 1 ? 17 : floor;
+      size = floor;
     }
     xCat.forEach((s, i) => { if (i % every === 0) axesChildren.push(kit.text("axes__c" + i, [X(i), plot.y0 - 20], s, { fontSize: size })); });
   } else if (n > 0) {
@@ -1604,8 +1615,8 @@ layout: |
   }
   // Round values up the y axis (W4) — 4–6 of them, a line of text apart —
   // so a drawn guess reads against a scale; y_ticks: false keeps the two
-  // ends (yMin, yMax) as before. The numbers shrink (to 15) only when the
-  // margin left of the axis is narrow.
+  // ends (yMin, yMax) as before. The numbers shrink (to kit.TEXT_MIN) only
+  // when the margin left of the axis is narrow.
   const yTicks = params.y_ticks === false ? [] : niceTicks(yMin, yMax, 6, TICK_SIZE * 1.25 + 8, (plot.y1 - plot.y0) / (yMax - yMin));
   const tdec = decimalsOf(yTicks);
   const group = yTicks.some((v) => Math.abs(v) >= 10000);
@@ -1638,7 +1649,7 @@ layout: |
     // refusal) — truncated only so a long series name cannot run the note
     // past the plot's OWN right edge (plot.x1, which honours an authored
     // box, not the bare canvas edge).
-    const NOTE_SIZE = 16;
+    const NOTE_SIZE = kit.TEXT_MIN; // W30: was 16
     const noteMaxW = plot.x1 - plot.x0 - 8;
     let noteText = note;
     if (kit.textWidth(noteText, NOTE_SIZE) > noteMaxW) {
@@ -2004,7 +2015,7 @@ layout: |
 template: scatter_plot
 title: Scatter plot
 version: 1
-kit: 11
+kit: 15
 status: ready
 description: >-
   A scatter plot from data: one dot per (x, y) pair, optional per-point
@@ -2274,10 +2285,11 @@ layout: |
     if (pos[i]) cloud.push(dot("points__d" + (i + 1), pos[i]));
   }
   if (anyUnnamed) { push(kit.group("points", cloud)); anchors.points = centre; }
+  const POINT_NAME = 19;
   named.forEach(({ i, p, name }) => {
     const id = "point_" + (i + 1);
     push(kit.group(id, p
-      ? [dot(id + "__d", p), kit.text(id + "__t", [p[0] + 10, p[1] + 13], name, { fontSize: 19, anchor: "start", color: C.ink })]
+      ? [dot(id + "__d", p), kit.text(id + "__t", [p[0] + 10, p[1] + 13], name, { fontSize: POINT_NAME, anchor: "start", color: C.ink })]
       : [kit.stroke(id + "__d", [], { closed: true, color, fill: color, strokeWidth: 2, ms: MS.stroke })]));
     anchors[id] = p || centre;
   });
@@ -2342,7 +2354,7 @@ layout: |
     // take the first that clears every dot, the title, the axis captions AND
     // end marks, every named point's label, and the fit segment itself, by 4
     // units; if none does, fall back to the first.
-    const CAP = 16, CAP_DY = 18, CLEAR = 4;
+    const CAP = kit.TEXT_MIN, CAP_DY = 18, CLEAR = 4; // W30: was 16
     const capW = kit.textWidth(eq, CAP);
     // Every text box — the caption's own included — is measured exactly as
     // the lint measures it: kit.textWidth(text, fontSize) x fontSize * 1.25.
@@ -2374,7 +2386,7 @@ layout: |
     for (const d of axesChildren) if (AXES_OBSTACLE_IDS.has(d.id)) obstacles.push(boxAt(d.pos[0], d.pos[1], kit.textWidth(d.text, d.fontSize), d.fontSize * 1.25, d.anchor));
     // Every named point's label, from the same numbers point_i__t is drawn
     // with (fontSize 16, anchor start, pos [p0 + 10, p1 + 12]).
-    for (const { p, name } of named) if (p) obstacles.push(boxAt(p[0] + 10, p[1] + 12, kit.textWidth(name, 16), 16 * 1.25, "start"));
+    for (const { p, name } of named) if (p) obstacles.push(boxAt(p[0] + 10, p[1] + 13, kit.textWidth(name, POINT_NAME), POINT_NAME * 1.25, "start")); // W30: measured at 16, drawn at 19
     const spots = [[1, 1], [1, -1], [0, 1], [0, -1], [1, 1]];
     let capPos = null, capAnchor = "end";
     for (const [side, dir] of spots) {
@@ -2400,7 +2412,7 @@ layout: |
 template: bar_race
 title: Bar chart race
 version: 2
-kit: 11
+kit: 15
 status: ready
 description: >-
   A bar chart race: one horizontal bar per racer, the rows REORDERING as the
@@ -2670,7 +2682,16 @@ layout: |
   // width to live in, where a name beside a row has the whole left margin.
   const vertical = params.orientation === "vertical";
   const FIELD_CAP = vertical ? 12 : 20;
-  const topN = clamp(Math.round(num(params.top_n, 10)), 1, Math.max(1, Math.min(FIELD_CAP, n)));
+  let topN = clamp(Math.round(num(params.top_n, 10)), 1, Math.max(1, Math.min(FIELD_CAP, n)));
+  // Lying down, every row is at least a name at kit.TEXT_MIN tall (its box
+  // plus the lint's pad on each side): a field too deep for that shows fewer
+  // racers rather than smaller names (W30 — the names went down to 14).
+  if (!vertical) {
+    const pa = kit.plotArea();
+    const fieldH = (str(params.title, "") ? Math.max(pa.y0, Math.min(pa.y1, 620)) : pa.y1) - pa.y0;
+    const maxRows = Math.max(2, Math.floor(fieldH / (kit.TEXT_MIN * 1.25 + 4)));
+    while (topN > 1 && topN + (n > topN ? 1 : 0) > maxRows) topN--;
+  }
   // One extra row — the airlock — but only when someone can actually reach
   // it. A racer climbing in slides up out of it while fading in; one falling
   // out slides down into it while fading away, so no bar ever pops. It is the
@@ -2699,9 +2720,10 @@ layout: |
   // W4 (readable sizes): lying down, up to 21 (was 17) by the same 0.55 ×
   // slot rule; standing up, the largest size from 20 at which every name
   // fits its column, down to the old 17 (14 past 8 rows) — then truncation.
+  // W30: never under kit.TEXT_MIN either way (rows were trimmed above).
   const NAME_SIZE = vertical
     ? (() => {
-      const lo = rows > 8 ? 14 : 17;
+      const lo = kit.TEXT_MIN;
       for (let sz = 20; sz > lo; sz--) {
         let ok = true;
         for (let i = 0; i < n && ok; i++) if (kit.textWidth(labels[i] !== undefined ? labels[i] : String(i + 1), sz) > slot - 6) ok = false;
@@ -2709,7 +2731,7 @@ layout: |
       }
       return lo;
     })()
-    : Math.max(14, Math.min(21, Math.floor(slot * 0.55)));
+    : Math.max(kit.TEXT_MIN, Math.min(21, Math.floor(slot * 0.55)));
   const NAME_GAP = 10; // the bars' baseline → the name's right edge
   const CANVAS_EDGE = 4; // CANVAS_EDGE_MARGIN (src/layout/axes.ts)
   const nameOf = (i) => (labels[i] !== undefined ? labels[i] : String(i + 1));
@@ -2866,7 +2888,7 @@ layout: |
     : allNonPositive ? "a race needs values above zero — every number here is zero or less"
     : null;
   const showValues = params.value_labels !== false && hasData && !note;
-  const VALUE_SIZE = Math.max(14, NAME_SIZE - 1);
+  const VALUE_SIZE = Math.max(kit.TEXT_MIN, NAME_SIZE - 1);
   const VALUE_GAP = 8;  // horizontal: the bar's end → the label
   const VALUE_LIFT = Math.round(VALUE_SIZE * 0.75 + 4); // vertical: the column's top → the label's centre
 
@@ -2920,7 +2942,7 @@ layout: |
     // it there: the names live left of plot.x0, and a refusing race draws no
     // value labels at all. Truncated to the plot's width, the convention the
     // pack uses everywhere for text that will not fit.
-    const NOTE_SIZE = 16;
+    const NOTE_SIZE = kit.TEXT_MIN; // W30: was 16
     const notePos = [plot.x0, plot.y1 - 16];
     const noteMaxW = plot.x1 - plot.x0 - 8;
     let noteText = note;
@@ -3176,7 +3198,7 @@ layout: |
 template: heatmap
 title: Heatmap / matrix
 version: 1
-kit: 11
+kit: 15
 status: ready
 description: >-
   A heatmap: a grid of cells whose FILL DENSITY is the number — one row
@@ -3471,10 +3493,10 @@ layout: |
   // own left margin is exactly what that margin is for.
   const leftBound = boxed ? plot.x0 : CANVAS_EDGE;
   const rightBound = boxed ? plot.x1 : kit.CANVAS.w - CANVAS_EDGE;
-  const NOTE_SIZE = 16;
+  const NOTE_SIZE = kit.TEXT_MIN; // W30: was 16
   const NOTE_ROW = note ? NOTE_SIZE * 1.25 + 8 : 0;  // the refusal's own row, above the column names
   const LEG_BAND = 40;                               // the scale strip's band, taken out of a BOX's floor
-  const SIZE_MAX = 21, FONT_FLOOR = 14; // W4: names up to 21 (were 18) when the rows allow              // FONT_FLOOR: the lint's own floor (src/lint/lint.ts)
+  const SIZE_MAX = 21, FONT_FLOOR = kit.TEXT_MIN; // W4: names up to 21 (were 18) when the rows allow; W30: dropped under kit.TEXT_MIN (was the lint's 14)
   // One size for the row names and the column headers — the same furniture read
   // along two axes — but a SIZED one, not a constant. The binding constraint is
   // vertical: two neighbouring row names must clear each other by the lint's own
@@ -3596,10 +3618,10 @@ layout: |
     const s = fmt(v);
     if (s.length > widest.length) widest = s;
   }
-  let VAL_SIZE = clamp(Math.floor(Math.min(21, chh * 0.38)), 14, 21); // W4: up to 21 (was 18)
-  while (VAL_SIZE > 14 && kit.textWidth(widest, VAL_SIZE) > cw - 10) VAL_SIZE--;
-  // 14 is the lint's own font floor, so a number that still does not fit at 14
-  // is not written at all: the wash is the reading in a grid that fine, and a
+  let VAL_SIZE = clamp(Math.floor(Math.min(21, chh * 0.38)), kit.TEXT_MIN, 21); // W4: up to 21 (was 18)
+  while (VAL_SIZE > kit.TEXT_MIN && kit.textWidth(widest, VAL_SIZE) > cw - 10) VAL_SIZE--;
+  // kit.TEXT_MIN is the readable floor (W30; it was the lint's 14), so a
+  // number that still does not fit there is not written at all: the wash is the reading in a grid that fine, and a
   // cropped or overlapping number would be worse than none.
   const showValues = hasData && params.value_labels !== false && widest !== ""
     && kit.textWidth(widest, VAL_SIZE) <= cw - 10 && VAL_SIZE * 1.25 + 4 <= chh;
