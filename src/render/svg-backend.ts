@@ -1220,40 +1220,67 @@ class SvgElementHandle implements RenderedElement {
   }
 }
 
+/** The leaf a node belongs to: its nearest data-leaf-id (a parent walk — the tests' DOM has no closest()). */
+function leafIdOf(node: Element): string {
+  for (let n: Node | null = node; n; n = n.parentNode) {
+    const id = (n as Element).getAttribute?.("data-leaf-id");
+    if (id) return id;
+  }
+  return "";
+}
+
+/** How far a text box must move to sit 3 units inside the edges (svg y-down). Pure, for the tests. */
+export function textNudge(bb: { x: number; y: number; width: number; height: number }, edges: { left: number; right: number; top: number; bottom: number }): [number, number] {
+  let dx = 0;
+  const overRight = bb.x + bb.width - (edges.right - 3);
+  if (overRight > 0) dx = -overRight;
+  else if (bb.x < edges.left + 3) dx = edges.left + 3 - bb.x;
+  let dy = 0;
+  if (bb.y < edges.top + 3) dy = edges.top + 3 - bb.y;
+  else if (bb.y + bb.height > edges.bottom - 3) dy = edges.bottom - 3 - (bb.y + bb.height);
+  return [dx, dy];
+}
+
 /**
  * Last-line defense against text clipping at the canvas border: after render
  * (and again once webfonts finish loading), shift any overflowing <text> back
  * inside the viewBox. Purely visual; layout/lint boxes are unchanged.
+ * Returns the leaves whose text it moved: a tween frame rebuilds every node
+ * (swapGeometry) and re-nudges just those — a heading set close to the top
+ * edge otherwise sprang up and back on every step, morph and re-run
+ * (2026-10-05: the quadratic formula, herd immunity, bacteria vs cells).
+ * `only` limits the pass to those leaves (measuring every text each frame
+ * would cost a layout per text per frame).
  */
-function nudgeTextsIntoCanvas(svg: SVGSVGElement, world?: BBox): void {
+function nudgeTextsIntoCanvas(svg: SVGSVGElement, world?: BBox, only?: ReadonlySet<string>): Set<string> {
   // A template's world (LayoutResult.world) is the edge instead of the page:
   // its ink lies beyond the page on purpose. Logical y-up → svg y-down.
-  const left = world ? world.x : 0;
-  const right = world ? world.x + world.w : CANVAS.w;
-  const top = world ? toSvgY(world.y + world.h) : 0;
-  const bottom = world ? toSvgY(world.y) : CANVAS.h;
+  const edges = {
+    left: world ? world.x : 0,
+    right: world ? world.x + world.w : CANVAS.w,
+    top: world ? toSvgY(world.y + world.h) : 0,
+    bottom: world ? toSvgY(world.y) : CANVAS.h,
+  };
+  const moved = new Set<string>();
   for (const t of Array.from(svg.querySelectorAll("text"))) {
     // A reveal stamp's turned words (drawLeaf's tilt) are placed inside the content area already.
     if ((t as SVGTextElement).dataset.tilt) continue;
+    const leaf = leafIdOf(t);
+    if (only && !only.has(leaf)) continue;
     try {
       // Our backend never sets transforms on text otherwise, so recomputing
       // from a clean slate keeps repeated calls (e.g. after fonts load) idempotent.
       t.removeAttribute("transform");
-      const bb = (t as SVGTextElement).getBBox();
-      let dx = 0;
-      const overRight = bb.x + bb.width - (right - 3);
-      if (overRight > 0) dx = -overRight;
-      else if (bb.x < left + 3) dx = left + 3 - bb.x;
-      let dy = 0;
-      if (bb.y < top + 3) dy = top + 3 - bb.y;
-      else if (bb.y + bb.height > bottom - 3) dy = bottom - 3 - (bb.y + bb.height);
+      const [dx, dy] = textNudge((t as SVGTextElement).getBBox(), edges);
       if (dx !== 0 || dy !== 0) {
         t.setAttribute("transform", `translate(${dx.toFixed(1)} ${dy.toFixed(1)})`);
+        if (leaf) moved.add(leaf);
       }
     } catch {
       // getBBox throws on detached/hidden nodes — nothing to fix then
     }
   }
+  return moved;
 }
 
 // ---- gesture-verb effects: stateless per-frame primitives on an overlay ----
@@ -2678,9 +2705,10 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean; c
 
       container.appendChild(svg);
       let world = layout.world;
-      nudgeTextsIntoCanvas(svg, world);
+      // The leaves whose text the last full pass moved in from the edge (a tween frame re-nudges these).
+      let nudged = nudgeTextsIntoCanvas(svg, world);
       document.fonts?.ready?.then(() => {
-        if (svg.isConnected) nudgeTextsIntoCanvas(svg, world);
+        if (svg.isConnected) nudged = nudgeTextsIntoCanvas(svg, world);
       });
 
       // Handles need the nodes in the DOM (getTotalLength).
@@ -2716,6 +2744,8 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean; c
           // Still no handles and no measurement: the next commit rebinds those.
           leafNodes.clear();
           buildNodes(l, leafNodes, visible, offsets, turns, opacities, shapes, texts);
+          // The fresh nodes have lost the commit's edge nudges: put them back.
+          if (nudged.size > 0) nudgeTextsIntoCanvas(svg, world, nudged);
         },
         remount: (l) => {
           layers[0].replaceChildren();
@@ -2727,7 +2757,7 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean; c
           // The world is the template's; a relayout may report a new one.
           world = l.world;
           rest = restView(world);
-          nudgeTextsIntoCanvas(svg, world);
+          nudged = nudgeTextsIntoCanvas(svg, world);
           const els = new Map<string, RenderedElement>();
           for (const [id, entry] of leafNodes) {
             els.set(
