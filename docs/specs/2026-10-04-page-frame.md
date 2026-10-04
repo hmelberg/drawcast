@@ -177,7 +177,18 @@ share the page, into the part of the content box nobody else uses.
   what is left. Sort/select boxes, place levels and the counter grow with the cards (they are in
   the extent); labels and values that follow a card are offset by its slide as before.
 - **Off**: an explicit `size` (a number — `size: 1` is the hatch for "as authored"), a deck, a
-  formula's tiles, `page.valign` does not matter. Alone on the page keeps the W2 rule (centred).
+  formula's tiles. A page whose only other ink is words (text, labels, annotations) is "alone" and
+  keeps the W2 rule (centred, words under the cards a floor); it now also leaves room for the
+  followers' words. A compare title (no heading) is kept under `CONTENT_TOP` with the cards, out of
+  the strip the ask's headline takes (W25) — at ×1.6 it stood under the headline.
 - **Lint**: no new rule. The overlap and crowding checks judge the grown cards as drawn; since the
   grow keeps clear of company it adds no overlaps. `check` reports the size chosen only through the
   existing geometry (frames show it).
+- **Built 2026-10-04** (branch r3-grow): spec/cards-company.ts (`coVisibleWithCards`, `elementBox`,
+  `followerRoom`, `cardsCompany`), spec/cards.ts `growWithCompany`; tests/cards-company.test.ts.
+  Library quiz casts as published: no change (their sizes are explicit, or the set is alone, or it
+  is already off the frame at size 1). With the guessed sizes removed: baby-animal-names 1.15 (was
+  guessed 1.05), famous-paintings 1.15 (1.25, which needed squeezed icon cards), longest-pregnancy 1.6
+  (1.5), which-is-heavier 1.2 (1), which-came-first 1 (1; the alone rule gave 1.2 and pushed its
+  side words off the page), cleopatra-closer / how-loud-is-loud / most-spoken-languages 1 (off the
+  frame / touching words / a chart over the page). Bundled example "What is more dangerous" (company erased before the cards): 1 → 1.05 with its icons (1.4 without).

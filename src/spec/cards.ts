@@ -30,6 +30,7 @@ import { wrapText } from "../layout/labels";
 import type { MeasureFn } from "../layout/measure";
 import { CAPTION_TOP, CONTENT_TOP, CONTENT_TOP_BARE, HEADING_Y, MARGIN, PAGE_W } from "../layout/page";
 import { pageHeading } from "./card";
+import { cardsCompany, followerRoom } from "./cards-company";
 import { stepsArrowIds, stepsArrows, stepsColumn, stepsColumnSlots, stepsEnds, stepsExtentAdd, stepsRow, stepsSlotElements } from "./steps";
 
 export interface CardItem {
@@ -1120,10 +1121,11 @@ const AUTO_STEP = 0.05;
  * gave `y`; across the content area's width unless they gave `x` or `width`.
  * With company, or when nothing fits, the element stays as it is (size 1).
  */
-export function resolveCardsSize(el: CardsElementLike, spec: Pick<Spec, "elements" | "commands" | "title" | "template">, scaleOf?: (id: string) => ScaleElementLike | undefined): CardsElementLike {
+export function resolveCardsSize(el: CardsElementLike, spec: Pick<Spec, "elements" | "commands" | "title" | "template" | "params" | "vars">, scaleOf?: (id: string) => ScaleElementLike | undefined): CardsElementLike {
   if (el.size !== undefined && el.size !== "auto") return el;
   const mode = cardsMode(el);
-  if (mode === "fill" || isDeck(el) || !cardsAlone(el, spec)) return el;
+  if (mode === "fill" || isDeck(el)) return el;
+  if (!cardsAlone(el, spec)) return growWithCompany(el, spec, scaleOf);
   const heading = pageHasHeading(spec);
   const top = heading || (mode === "compare" && compareTitle(el, heading) !== null) ? CONTENT_TOP : CONTENT_TOP_BARE;
   const wide = isNum(el.x) || isNum(el.width) ? {} : { x: MARGIN, width: PAGE_W - 2 * MARGIN };
@@ -1135,12 +1137,15 @@ export function resolveCardsSize(el: CardsElementLike, spec: Pick<Spec, "element
     floor = Math.max(floor, e.y + (isNum(e.font_size) ? e.font_size : 28) * 0.65 + 12);
   }
   const y0 = isNum(el.y) ? null : defaultY(el);
+  // Labels and words placed against a card go with it: the room they need beside the set (W29).
+  const { pad } = followerRoom(el.id, spec.elements ?? []);
   for (let s = Math.round(AUTO_MAX / AUTO_STEP); s >= Math.round(1 / AUTO_STEP); s--) {
     const k = Math.round(s * AUTO_STEP * 100) / 100;
     const cand: CardsElementLike = { ...el, ...wide, size: k };
     const g = cardsGeometryAt(cand, k, naturalH(cand, k), scaleOf);
     if (g.squeezed || (k > 1 && g.tooLong)) continue;
-    const e = cardsExtent(g, cand);
+    const raw = cardsExtent(g, cand);
+    const e = { left: raw.left - pad.left, right: raw.right + pad.right, top: raw.top + pad.top, bottom: raw.bottom - pad.bottom };
     if (e.left < MARGIN - 0.5 || e.right > PAGE_W - MARGIN + 0.5) continue;
     if (y0 === null) {
       if (e.bottom >= floor && e.top <= top) return cand;
@@ -1150,6 +1155,86 @@ export function resolveCardsSize(el: CardsElementLike, spec: Pick<Spec, "element
     return { ...cand, y: Math.round((y0 + (top + floor) / 2 - (e.top + e.bottom) / 2) * 10) / 10 };
   }
   return { ...el, ...wide };
+}
+
+/** What the grown cards keep between themselves and their company (W29). */
+const COMPANY_GAP = 16;
+
+const boxesMeet = (a: BBox, b: BBox, gap = 0): boolean => a.x < b.x + b.w + gap && b.x < a.x + a.w + gap && a.y < b.y + b.h + gap && b.y < a.y + a.h + gap;
+function overlapArea(a: BBox, b: BBox): number {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+/**
+ * `size: "auto"` for cards that share the page (page frame W29): the largest
+ * size up to ×1.6 whose run extent — with the room the cards' followers need —
+ * stays inside the content area and keeps COMPANY_GAP clear of everything on
+ * screen with the cards (spec/cards-company.ts), covering no more of what it
+ * already touched at size 1. Across the full width when the author gave
+ * neither `x` nor `width`, else (or when that runs into company) the authored
+ * span; vertically the set keeps its centre, slid only as far as the free band
+ * needs. Company the spec cannot place, a set already out of the frame at
+ * size 1, or no size that fits: the element as it was.
+ */
+function growWithCompany(el: CardsElementLike, spec: Pick<Spec, "elements" | "commands" | "title" | "template" | "params" | "vars">, scaleOf?: (id: string) => ScaleElementLike | undefined): CardsElementLike {
+  const mode = cardsMode(el);
+  const own = new Set(mode === "place" && el.along ? [el.along] : []);
+  const company = cardsCompany(el.id, spec, own);
+  if (!company) return el;
+  const heading = pageHasHeading(spec as Spec);
+  // A compare title stands 40 over the cards: here it is kept under the strip, where the ask's headline goes (W25).
+  const titled = mode === "compare" && compareTitle(el, heading) !== null;
+  const top = heading || titled ? CONTENT_TOP : CONTENT_TOP_BARE;
+  const { pad } = company;
+  const boxOf = (g: CardsGeometry, cand: CardsElementLike): BBox => {
+    const e = cardsExtent(g, cand);
+    const up = Math.max(pad.top, titled ? 56 * (g.k ?? 1) : 0);
+    return { x: e.left - pad.left, y: e.bottom - pad.bottom, w: e.right - e.left + pad.left + pad.right, h: e.top - e.bottom + up + pad.bottom };
+  };
+  const inFrame = (b: BBox): boolean => b.x >= MARGIN - 0.5 && b.x + b.w <= PAGE_W - MARGIN + 0.5 && b.y >= CAPTION_TOP - 0.5 && b.y + b.h <= top + 0.5;
+  const g1 = cardsGeometry(el, scaleOf);
+  const e1 = cardsExtent(g1, el);
+  // The cards themselves out of the frame at size 1 (placed so by hand, or a full layout): left as they are.
+  if (!inFrame({ x: e1.left, y: e1.bottom, w: e1.right - e1.left, h: e1.top - e1.bottom })) return el;
+  const base = boxOf(g1, el);
+  // What size 1 already touches may be touched, never more of it; the rest is kept clear.
+  const touched = new Map<string, number>();
+  for (const c of company.boxes) if (boxesMeet(base, c.box)) touched.set(c.id, overlapArea(base, c.box));
+  const clear = (b: BBox): boolean => company.boxes.every((c) => (touched.has(c.id) ? overlapArea(b, c.box) <= touched.get(c.id)! + 1 : !boxesMeet(b, c.box, COMPANY_GAP)));
+  const y0 = isNum(el.y) ? el.y : defaultY(el);
+  const baseMid = base.y + base.h / 2;
+  const spans: Partial<CardsElementLike>[] = isNum(el.x) || isNum(el.width) ? [{}] : [{ x: MARGIN, width: PAGE_W - 2 * MARGIN }, {}];
+  for (let s = Math.round(AUTO_MAX / AUTO_STEP); s > Math.round(1 / AUTO_STEP); s--) {
+    const k = Math.round(s * AUTO_STEP * 100) / 100;
+    for (const span of spans) {
+      let cand: CardsElementLike = { ...el, ...span, size: k, ...(y0 !== null ? { y: y0 } : {}) };
+      let g = cardsGeometryAt(cand, k, naturalH(cand, k), scaleOf);
+      if (g.squeezed || g.tooLong) continue;
+      let b = boxOf(g, cand);
+      if (b.x < MARGIN - 0.5 || b.x + b.w > PAGE_W - MARGIN + 0.5) continue;
+      if (y0 !== null) {
+        // The free band in the set's columns: up to the nearest company box above and below.
+        let lo = CAPTION_TOP, hi = top;
+        for (const c of company.boxes) {
+          if (touched.has(c.id) || c.box.x >= b.x + b.w + COMPANY_GAP || c.box.x + c.box.w <= b.x - COMPANY_GAP) continue;
+          if (c.box.y >= baseMid) hi = Math.min(hi, c.box.y - COMPANY_GAP);
+          else if (c.box.y + c.box.h <= baseMid) lo = Math.max(lo, c.box.y + c.box.h + COMPANY_GAP);
+        }
+        if (b.h > hi - lo + 0.5) continue;
+        const mid = Math.max(lo + b.h / 2, Math.min(hi - b.h / 2, baseMid));
+        const dy = Math.round((mid - (b.y + b.h / 2)) * 10) / 10;
+        if (Math.abs(dy) > 0.05) {
+          cand = { ...cand, y: Math.round((y0 + dy) * 10) / 10 };
+          g = cardsGeometryAt(cand, k, naturalH(cand, k), scaleOf);
+          b = boxOf(g, cand);
+        }
+      }
+      if (inFrame(b) && clear(b)) return cand;
+    }
+  }
+  return el;
 }
 
 /** sort / select (W25): the room a card's own label needs under it, from the cast's labels on it (expandCards stamps it). */
