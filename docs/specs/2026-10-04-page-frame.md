@@ -147,3 +147,37 @@ and a short line in the compiler prompt.
   the label's height (`label_room`); a ring/box highlight encloses the target's own labels.
 - Not done: binscatter's plot (same y 130, an example draws on it); annotation circles round
   attached labels; a faded ghost of template parts on `animate` / `keep`.
+
+## W29 — cards grow with company (design 2026-10-04, round 3)
+Quiz reviews: card layouts with a chart, a number line, pictures or words beside or below them
+still look small, and authors guessed `size` (1.05 … 2). `size: "auto"` now also grows cards that
+share the page, into the part of the content box nobody else uses.
+- **Company** (spec/cards-company.ts): every element on screen at the same time as the cards at
+  some point of the run — a visibility walk over the commands (draw/show/reveal on, erase/hide/clear
+  off, a group's members with it, an element no verb names joins at the end). Not company: the
+  cards' own parts, their followers (a compare value, a label attached to a card, an element placed
+  `at: {ref: <card>}`), the scale a placing set goes on, the heading (`card_<n>_…`, and the strip
+  above `CONTENT_TOP`) and the caption band (below `CAPTION_TOP`), which bound the room anyway.
+- **Boxes from the spec**, as the cards' own geometry is (no layout pass, so the gate, the plan
+  and the lint keep reading one number): text and math by the heuristic measure about their x/y;
+  icon `size`; shape rect/circle/person; ellipse `rx/ry`; path/polygon/line points; arrow `from/to`
+  points or refs; a scale's line with its tick labels and marker; a label or an `at: {ref}` element
+  as its host's box grown by its own size; `at: {place}` (pinned) at its page corner; a template as
+  its box (default the whole content area). Anything else the spec cannot place (no x/y, images,
+  live `vars`, data-unit points) and the cards stay as authored — growth never guesses.
+- **The grow**: from ×1.6 down in 0.05 steps, the first size whose run extent (homes, slots, bins,
+  true places, compare values, a rank's end words, room for followers' labels) stays inside the
+  content box (x 60–940, y 160–655/700) and keeps 16 clear of every company box it did not already
+  touch at size 1 — and covers no more of one it did (words put inside a box, a chart behind the
+  cards). Across the full width when the author gave neither `x` nor `width` and that is free, else
+  the authored span. Vertically the grown set keeps its centre where size 1 had it, slid only as far
+  as the free band (the room between the company boxes above and below, in its columns) needs;
+  an authored `y` is that centre. A set that is already out of the frame at size 1 does not grow.
+- **Settle (W18)** runs after, on the finished layout, unchanged: growth fills first, settle evens
+  what is left. Sort/select boxes, place levels and the counter grow with the cards (they are in
+  the extent); labels and values that follow a card are offset by its slide as before.
+- **Off**: an explicit `size` (a number — `size: 1` is the hatch for "as authored"), a deck, a
+  formula's tiles, `page.valign` does not matter. Alone on the page keeps the W2 rule (centred).
+- **Lint**: no new rule. The overlap and crowding checks judge the grown cards as drawn; since the
+  grow keeps clear of company it adds no overlaps. `check` reports the size chosen only through the
+  existing geometry (frames show it).
