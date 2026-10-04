@@ -29,6 +29,9 @@ import { oddErrors } from "./odd-one-out";
 // ajv ships CJS; depending on the bundler/runtime the class is the module or its .default.
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
 
+/** A button's resolved icon (render/icon.ts resolveIcons, W25): machine-written beside its keyword — copy VERBATIM if present. */
+const RESOLVED_ICON = { icon_strokes: { type: "string" }, icon_key: { type: "string" }, credit: { type: "string" } } as const;
+
 export const SPEC_VERSION = "1";
 
 /** An icon's fallback keywords (`or`), tried in order when `of` finds nothing. */
@@ -872,7 +875,7 @@ const commandSchema = {
           type: "array",
           minItems: 2,
           maxItems: 4,
-          items: { type: "object", properties: { text: { type: "string" }, icon: { anyOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }] } }, additionalProperties: false },
+          items: { type: "object", properties: { text: { type: "string" }, icon: { anyOf: [{ type: "string" }, { type: "object", properties: { of: { type: "string" }, set: { type: "string" } }, required: ["of"], additionalProperties: false }] }, ...RESOLVED_ICON }, additionalProperties: false },
           description: "on_canvas: each choice's text and icon.",
         },
         buttons_at: { type: "object", properties: { x: { type: "number" }, y: { type: "number" } }, required: ["x", "y"], additionalProperties: false, description: "on_canvas: the buttons' centre." },
@@ -1061,7 +1064,7 @@ const commandSchema = {
           type: "object",
           description: "POLL: an opinion vs a study's answers — choices with shares (0–1), or on a scale with others; source: a sources id.",
           properties: {
-            choices: { type: "array", minItems: 2, maxItems: 4, items: { type: "object", properties: { text: { type: "string", maxLength: 24 }, share: { type: "number", minimum: 0, maximum: 1 }, icon: { type: "string" } }, required: ["text", "share"], additionalProperties: false } },
+            choices: { type: "array", minItems: 2, maxItems: 4, items: { type: "object", properties: { text: { type: "string", maxLength: 24 }, share: { type: "number", minimum: 0, maximum: 1 }, icon: { type: "string" }, ...RESOLVED_ICON }, required: ["text", "share"], additionalProperties: false } },
             on: { type: "string" },
             others: { type: "array", minItems: 2, maxItems: 12, items: { type: "object", properties: { value: { type: "number" }, share: { type: "number", minimum: 0, maximum: 1 } }, required: ["value", "share"], additionalProperties: false } },
             source: { type: "string" },

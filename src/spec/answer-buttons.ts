@@ -225,6 +225,10 @@ export function buttonSet(
   byId: Map<string, SpecElement>,
   pin: { at?: { x: number; y: number }; layout?: ButtonsLayout },
   wider = 0,
+  /** Each button's look as written (a quiz's buttons[j], a poll's choices[j]):
+   *  the icon data the resolver filled there (spec/icon-data.ts iconSlots)
+   *  rides onto the button's node, as on any icon node. */
+  hosts: unknown[] = [],
 ): { ids: string[]; elements: SpecElement[] } {
   const n = texts.length;
   const hasIcons = icons.some((i) => i !== undefined);
@@ -249,12 +253,19 @@ export function buttonSet(
       shadow: true,
       style: { fill: CARD_PAPER, color: BUTTON_INK },
       draw: BUTTON_DRAW,
-      ...(icon !== undefined ? { icon } : {}),
+      ...(icon !== undefined ? { icon, ...iconDataOf(hosts[j]) } : {}),
     } as unknown as SpecElement;
   });
   const hint: AnswerButtonsHint = { near, buttons: ids, ...pin };
   elements.push({ id: `${base}_buttons`, type: "group", members: ids, answer_buttons: hint } as unknown as SpecElement);
   return { ids, elements };
+}
+
+/** A button look's resolved icon data and credit, for its node. */
+function iconDataOf(host: unknown): Record<string, unknown> {
+  if (typeof host !== "object" || host === null) return {};
+  const h = host as Record<string, unknown>;
+  return { ...(h.icon_strokes !== undefined ? { icon_strokes: h.icon_strokes } : {}), ...(typeof h.credit === "string" ? { credit: h.credit } : {}) };
 }
 
 /** The keys a quiz command keeps for the buttons; everything else of it goes to the ask. */
@@ -285,7 +296,7 @@ export function expandAnswerButtons(spec: Spec): Spec {
     const looks = q.choices.map((_, j) => q.buttons?.[j] ?? {});
     const texts = q.choices.map((c, j) => (typeof looks[j].text === "string" && looks[j].text!.trim() !== "" ? looks[j].text! : c));
     const pin = { ...(q.buttons_at ? { at: q.buttons_at } : {}), ...(q.buttons_layout ? { layout: q.buttons_layout } : {}) };
-    const set = buttonSet(base, texts, looks.map((l) => l.icon), visibleBefore(out, out.length), byId, pin);
+    const set = buttonSet(base, texts, looks.map((l) => l.icon), visibleBefore(out, out.length), byId, pin, 0, looks);
     added.push(...set.elements);
     for (const el of set.elements) taken.add(el.id);
     const ids = set.ids;

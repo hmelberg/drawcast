@@ -721,6 +721,24 @@ export async function resolveIcons(spec: Spec, deps: IconDeps = defaultDeps(), o
       }
     }
   }
+  // On-canvas answer buttons and a poll's buttons (W25): each look in the
+  // command hosts its icon's data; the expansion carries it onto the button's
+  // node (spec/answer-buttons.ts buttonSet).
+  for (const [ci, c] of (spec.commands ?? []).entries()) {
+    const looks: unknown[] = [...(Array.isArray(c?.quiz?.buttons) ? c.quiz.buttons : []), ...(Array.isArray(c?.ask?.poll?.choices) ? c.ask.poll.choices : [])];
+    for (const [j, it] of looks.entries()) {
+      if (typeof it !== "object" || it === null) continue;
+      const host = it as Record<string, unknown>;
+      const req = iconAsk(host.icon);
+      if (!req) continue;
+      try {
+        const via = await fillOne(spec, host, { data: "icon_strokes", key: "icon_key", credit: "credit" }, req, "picture", deps, opts, jobs);
+        note({ id: `commands[${ci}] button ${j + 1}`, ok: true }, req, via, () => host.icon_strokes);
+      } catch (err) {
+        note({ id: `commands[${ci}] button ${j + 1}`, ok: false, error: (err as Error).message }, req);
+      }
+    }
+  }
   await harmonise(jobs, deps);
   for (const [r, read] of reads) {
     const d = decodeIconSvg(read());

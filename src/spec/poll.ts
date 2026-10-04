@@ -50,7 +50,7 @@ export function expandPolls(spec: Spec): Spec {
       k++;
       let base = `poll_${k}`;
       while (taken.has(`${base}_buttons`)) base = `${base}_${k}`;
-      const set = buttonSet(base, poll.choices.map((c) => c.text), poll.choices.map((c) => c.icon), visibleBefore(out, out.length), byId, {}, POLL_SHARE_ROOM);
+      const set = buttonSet(base, poll.choices.map((c) => c.text), poll.choices.map((c) => c.icon), visibleBefore(out, out.length), byId, {}, POLL_SHARE_ROOM, poll.choices);
       added.push(...set.elements);
       for (const el of set.elements) taken.add(el.id);
       out.push({ draw: set.ids, parallel: true });
