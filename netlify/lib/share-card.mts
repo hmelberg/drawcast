@@ -9,7 +9,7 @@
 // name the registry could have.
 import yaml from "js-yaml";
 import { NAME_LABEL_RE, RESERVED_LABELS } from "./name-host.mts";
-import { readThumb, type ThumbSpec } from "./thumb.mts";
+import { readThumb } from "./thumb.mts";
 
 /** What a card reads from a cast: its text, and (thumbnail round, 2026-10-04) its format and `thumb:` block. */
 export interface CastCardText {
@@ -17,7 +17,8 @@ export interface CastCardText {
   subtitle?: string;
   format?: string;
   tags?: string[];
-  thumb?: ThumbSpec;
+  /** The canonical thumb line (thumb.mts). */
+  thumb?: string;
 }
 
 export type ShareTarget = { kind: "name"; name: string } | { kind: "gh"; owner: string; repo: string; path: string };
@@ -140,7 +141,13 @@ function scriptCardText(text: string): CastCardText {
   const all = text.replace(/\r\n?/g, "\n").split("\n");
   for (let i = 0; i < all.length; i++) {
     const line = all[i];
-    // `thumb:` is a block: its indented lines under it, read as YAML.
+    // `thumb:` is a line (thumb.mts) — or, from the first round, a block of indented lines read as YAML.
+    const thumbLine = /^thumb:\s+(.+)$/.exec(line);
+    if (thumbLine) {
+      const t = readThumb(thumbLine[1].trim().replace(/^'(.*)'$/, "$1").replace(/''/g, "'"));
+      if (t) out.thumb = t;
+      continue;
+    }
     if (/^thumb:\s*$/.test(line)) {
       let j = i + 1;
       while (j < all.length && /^\s+\S/.test(all[j])) j++;

@@ -58,7 +58,7 @@ every working file below is `dev-casts/<slug>…`.
    Language: <the narration's language>
    Length: <number of spoken lines>
    Subtitle: <one sentence, ~100–150 characters: what the viewer gets>
-   Headline: <the front-page picture's strip: a few words, shouted — "It's not the shark">
+   Headline: <the front-page picture's words, shouted — "It's not the shark"> (becomes its `thumb` line)
    ```
 
    The user may set any of them — in words ("for nurses", "keep it short")
@@ -78,14 +78,18 @@ every working file below is `dev-casts/<slug>…`.
    - **Headline:** write two or three in a playful, faintly ironic
      clickbait voice that the cast actually pays off ("It's falling right
      now", "99 % accurate. Probably fine.") and let the user pick; never a
-     promise the cast does not keep. It goes on a tilted paper strip over
-     the poster (style B, the site's default). A figure in the corner is
-     optional: for adults `note`, `stamp` or `bubble` (each with its own
-     `words`), `eyes`, `hand`, `reader`, `skeptic`; for a children's cast
-     (tagged children/kids/school) the cartoons `surprised`, `thinking`,
-     `puzzled`, `aha` — a children's quiz gets `thinking` by itself, an
-     adult cast none. `style: loud` (over-the-top ironic) or `question` only
-     when the user asks.
+     promise the cast does not keep. It becomes the front-page picture's
+     line (`thumb`, plain words in any order, quoted words where a word
+     takes them): words `band "…"` (the tilted yellow strip, default) ·
+     `burst "…"` (comic lettering) · `question "…"` · `none`; figure `eyes`
+     (peeking over the band) or, for children only, `aha` `surprised`
+     `puzzled` `thinking`; marks, any number: `note "…"` `stamp "…"`
+     `star` (or `star "?"`) `bang` `seal` `arrow`. Choose by audience and
+     content: children — `band` + a cartoon (`thinking` for a quiz,
+     `surprised` for a surprising fact, `aha` for an explanation); youths —
+     `band` + `star`, `bang` or `eyes`; adults — `band` + `note` (a
+     surprising fact) or `stamp` (a myth or verdict: "MYTH?", "PLOT
+     TWIST"); advanced — `band` alone or `question`.
    - **Subtitle:** write one yourself: a single sentence in the narration's
      language saying what the viewer gets ("How herd immunity protects
      people who can't be vaccinated"), not "a drawcast about…". It is the
@@ -119,10 +123,10 @@ every working file below is `dev-casts/<slug>…`.
    saw it yourself), and the canvas element that shows its number or claim
    carries `"cites": ["<id>"]`. A drawcast with only textbook facts and
    made-up example numbers has no `sources` — that is fine.
-4. **Write the spec** to `dev-casts/<slug>.json` as `{"request": …, "subtitle": …, "thumb": {"headline": …}, "spec": …}`
-   — the brief's subtitle and headline beside the spec, not inside it
-   (`cast.mjs pack` puts them in the published file's header; `thumb` may
-   also carry `character`, `style`, `question` and a listing `title`). A course needs none per lecture:
+4. **Write the spec** to `dev-casts/<slug>.json` as `{"request": …, "subtitle": …, "thumb": "band \"It's not the shark\" stamp \"MYTH?\"", "spec": …}`
+   — the brief's subtitle and picture line beside the spec, not inside it
+   (`cast.mjs pack` puts them in the published file's header; the line may
+   also carry `title "…"`, a listing title of its own). A course needs none per lecture:
    its card's line is the first paragraph under the title in `course.md`.
 5. **Check it:** `node scripts/cast.mjs check dev-casts/<slug>.json`. Fix
    every INVALID and every `[error]`; warnings are for step 6's eyes — a

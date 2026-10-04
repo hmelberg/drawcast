@@ -26,7 +26,7 @@ import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, s
 import { castFormat, type CastFormat } from "../standalone/transcript";
 import { thumbChoice } from "./thumb-choice";
 import { posterForPlaylistText } from "../export/snapshot";
-import { kidsByTags, type ThumbSpec } from "../../netlify/lib/thumb.mts";
+import { kidsByTags } from "../../netlify/lib/thumb.mts";
 import { playlistSpeakLines } from "../playlist/session";
 import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
@@ -295,7 +295,7 @@ export interface ShareDeps {
     format?: CastFormat | "auto";
     /** The front-page picture (thumbnail round, 2026-10-04): a drawcast
      *  only; written into the document as its `thumb:` block (null removes it). */
-    thumb?: ThumbSpec | null;
+    thumb?: string | null;
     allowSignup?: boolean;
     folder?: string;
     /** The Private checkbox (registry delivery 2, task 9): a private publish

@@ -7,7 +7,7 @@
 // published beside it. Every failure is the generic card, status 200 — a
 // broken preview in someone's feed is worse than a plain one.
 import { cardHtml, cardPathFor, castCardText, courseCardText, GENERIC, GENERIC_SIZE, hashForShare, isPreviewBot, parseSharePath, POSTER_SIZE, sharePathFor, type CastCardText, type ShareTarget } from "../lib/share-card.mts";
-import { kidsByTags, planThumb, type ThumbPlan } from "../lib/thumb.mts";
+import { isPlain, kidsByTags, planThumb, thumbTitle, type ThumbPlan } from "../lib/thumb.mts";
 import { renderThumb } from "../lib/thumb-render.mts";
 
 const ANVIL_BASE = "https://drawcast.anvil.app";
@@ -177,7 +177,7 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
           // here, so the front page and every link preview show the same.
           // Anything that goes wrong serves the poster as published.
           const plan = planThumb(found.text.thumb, { title: found.text.title, format: found.text.format, kids: kidsByTags(found.text.tags) });
-          if (plan.style !== "plain" && deps.draw) {
+          if (!isPlain(plan) && deps.draw) {
             try {
               bytes = deps.draw(plan, new Uint8Array(bytes));
             } catch {
@@ -250,7 +250,7 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
   }
   return html(
     cardHtml({
-      title: found.text.thumb?.title ?? found.text.title ?? "A drawcast",
+      title: thumbTitle(found.text.thumb) ?? found.text.title ?? "A drawcast",
       description: found.text.subtitle,
       url: `${origin}${sharePathFor(t)}`,
       image: own ? `${origin}${cardPathFor(t)}` : genericImage,

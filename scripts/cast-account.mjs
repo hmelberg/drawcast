@@ -465,7 +465,8 @@ export function packedCastText(wrapper, format, lib) {
   const subtitle = typeof wrapper.subtitle === "string" ? wrapper.subtitle.trim() : "";
   // The front-page picture's words and style (thumbnail round, 2026-10-04):
   // a `thumb` object beside the spec goes into the header as its `thumb:` block.
-  const thumb = wrapper.thumb && typeof wrapper.thumb === "object" && !Array.isArray(wrapper.thumb) ? wrapper.thumb : null;
+  // A line (`band "…" stamp "…"`), or the first round's object; the app reads either.
+  const thumb = typeof wrapper.thumb === "string" && wrapper.thumb.trim() ? wrapper.thumb.trim() : wrapper.thumb && typeof wrapper.thumb === "object" && !Array.isArray(wrapper.thumb) ? wrapper.thumb : null;
   if (!subtitle && !thumb) return lib.formatSpec(spec, format);
   const playlist = lib.singlePlaylist(spec);
   if (typeof spec.title === "string" && spec.title.trim()) playlist.meta.title = spec.title;

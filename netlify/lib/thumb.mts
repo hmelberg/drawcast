@@ -1,55 +1,65 @@
 // netlify/lib/thumb.mts
-// The listing picture's styles (thumbnail round, 2026-10-04): the poster a
-// cast publishes, with words and a cartoon character drawn over it. The cast
-// carries only the WORDS and, if its author wants, a style and a character
-// (its header's `thumb:` block); the site draws the picture — here, as one
-// SVG string — so a style change never means republishing a cast.
-// /card/<name>.png renders it (netlify/lib/thumb-render.mts) for the front
-// page and every link preview alike; the publish panel shows the same SVG
-// as its preview. Pure: no fetch, no fonts, no DOM.
+// The listing picture (thumbnail round, 2026-10-04): the poster a cast
+// publishes, with words, a figure and marks drawn over it. The cast carries
+// one line in its header — plain words in any order, quoted words where a
+// layer takes them:
 //
-//   A plain     the poster as published
-//   B strip     a tilted paper strip with the headline (the default)
-//   D loud      deliberately over-the-top ironic clickbait (opt-in only)
-//   E question  the question in big handwriting beside a crop of the figure
+//   thumb: band "It's not the shark" stamp "MYTH?" star
+//   thumb: burst "The Moon is falling" seal arrow surprised
+//   thumb: question eyes
+//
+// and the SITE draws the picture — here, as one SVG string — so a style
+// change never means republishing. /card/<name>.png renders it
+// (thumb-render.mts) for the front page and every link preview alike; the
+// publish panel previews the very same SVG. Pure: no fetch, no fonts, no DOM.
+//
+//   words   band (the tilted yellow strip, the default) · burst (big comic
+//           lettering) · question (the question card) · none
+//   figure  eyes (peeking over the band) · aha surprised puzzled thinking
+//           (cartoon busts, for children's casts) · noface
+//   marks   note "…" · stamp "…" · star "…" (default ?!) · bang (!!) ·
+//           seal (not clickbait) · arrow — any number, combined
+//   title "…"  the listing title, when it should differ from the title card's
 
-export const THUMB_STYLES = ["plain", "strip", "loud", "question"] as const;
-export type ThumbStyle = (typeof THUMB_STYLES)[number];
-/** Cartoon busts for children's casts; ink and flat editorial accents for adults' (Hans 2026-10-04). */
-export const KID_CHARACTERS = ["surprised", "thinking", "puzzled", "aha"] as const;
-export const ADULT_ACCENTS = ["reader", "skeptic", "hand", "eyes", "note", "stamp", "bubble"] as const;
-export const THUMB_CHARACTERS = ["none", ...KID_CHARACTERS, ...ADULT_ACCENTS] as const;
-export type ThumbCharacter = (typeof THUMB_CHARACTERS)[number];
-/** The accents that carry words, and what they say when the author wrote none. */
-export const ACCENT_WORDS: Partial<Record<ThumbCharacter, string>> = { note: "wait, what?", stamp: "PLOT TWIST", bubble: "Hm." };
-export const WORDS_MAX = 24;
-
-/** What a cast's header may say (every field optional; "auto" = the site decides). */
-export interface ThumbSpec {
-  style?: ThumbStyle | "auto";
-  character?: ThumbCharacter | "auto";
-  /** B and D: a few words, shouted. */
-  headline?: string;
-  /** E: the question; a title ending in "?" stands in when absent. */
-  question?: string;
-  /** The listing title, when it should differ from the title card's. */
-  title?: string;
-  /** A note's, stamp's or bubble's own words (default ACCENT_WORDS). */
+export const WORD_STYLES = ["band", "burst", "question", "none"] as const;
+export type WordStyle = (typeof WORD_STYLES)[number];
+export const KID_FIGURES = ["aha", "surprised", "puzzled", "thinking"] as const;
+export const FIGURES = ["eyes", ...KID_FIGURES] as const;
+export type Figure = (typeof FIGURES)[number] | "none";
+export const MARKS = ["note", "stamp", "star", "bang", "seal", "arrow"] as const;
+export type MarkKind = (typeof MARKS)[number];
+export interface Mark {
+  kind: MarkKind;
   words?: string;
 }
-
-/** What is drawn, every choice made. */
-export interface ThumbPlan {
-  style: ThumbStyle;
-  character: ThumbCharacter;
-  headline?: string;
-  question?: string;
-  words?: string;
-}
+/** The marks that carry words, and what they say when the author wrote none. */
+export const MARK_WORDS: Partial<Record<MarkKind, string>> = { note: "wait, what?", stamp: "PLOT TWIST", star: "?!" };
 
 export const HEADLINE_MAX = 60;
 export const QUESTION_MAX = 90;
 export const LISTING_TITLE_MAX = 120;
+export const WORDS_MAX = 24;
+
+/** What a cast's line says, parsed. Absent fields are the site's to decide. */
+export interface ThumbParts {
+  words?: WordStyle;
+  /** band / burst's words (a quoted string after band or burst, or with no keyword). */
+  headline?: string;
+  /** question's words. */
+  question?: string;
+  figure?: Figure;
+  marks: Mark[];
+  title?: string;
+}
+
+/** Every choice made: what is drawn. */
+export interface ThumbPlan {
+  words: WordStyle;
+  headline?: string;
+  question?: string;
+  figure: Figure;
+  marks: Mark[];
+}
 
 const clean = (v: unknown, max: number): string | undefined => {
   if (typeof v !== "string") return undefined;
@@ -57,54 +67,127 @@ const clean = (v: unknown, max: number): string | undefined => {
   return t ? t.slice(0, max) : undefined;
 };
 
-/** A header's `thumb:` value, validated: unknown values are dropped, never thrown. */
-export function readThumb(raw: unknown): ThumbSpec | undefined {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
-  const r = raw as Record<string, unknown>;
-  const out: ThumbSpec = {};
-  if (r.style === "auto" || (THUMB_STYLES as readonly unknown[]).includes(r.style)) out.style = r.style as ThumbSpec["style"];
-  if (r.character === "auto" || (THUMB_CHARACTERS as readonly unknown[]).includes(r.character)) out.character = r.character as ThumbSpec["character"];
-  const headline = clean(r.headline, HEADLINE_MAX);
-  if (headline) out.headline = headline;
-  const question = clean(r.question, QUESTION_MAX);
-  if (question) out.question = question;
-  const title = clean(r.title, LISTING_TITLE_MAX);
-  if (title) out.title = title;
-  const words = clean(r.words, WORDS_MAX);
-  if (words) out.words = words;
-  return Object.keys(out).length ? out : undefined;
+/** The line's tokens: bare words, lower-cased, and "quoted strings" (straight or curly double quotes). */
+function tokens(line: string): { word?: string; text?: string }[] {
+  const out: { word?: string; text?: string }[] = [];
+  const re = /"([^"]*)"|“([^”]*)”|([^\s"“”]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(line))) {
+    if (m[3] !== undefined) out.push({ word: m[3].toLowerCase().replace(/[,+]/g, "") });
+    else out.push({ text: m[1] ?? m[2] ?? "" });
+  }
+  return out.filter((t) => t.text !== undefined || t.word);
 }
 
-/**
- * Every choice made (Hans 2026-10-04): the default is B when the cast has a
- * headline, else A; D is only ever the author's pick; E needs a question (or a
- * title that is one). The character, unless chosen: Thinking deeply on a
- * quiz's strip, Surprised on D, none otherwise — and never on A or E.
- */
-export function planThumb(t: ThumbSpec | undefined, ctx: { title?: string; format?: string; kids?: boolean } = {}): ThumbPlan {
-  const headline = t?.headline;
-  const titleQuestion = ctx.title && /\?\s*$/.test(ctx.title) ? clean(ctx.title, QUESTION_MAX) : undefined;
-  const question = t?.question ?? titleQuestion;
-  let style: ThumbStyle = t?.style && t.style !== "auto" ? t.style : headline ? "strip" : "plain";
-  if ((style === "strip" || style === "loud") && !headline) style = "plain";
-  if (style === "question" && !question) style = "plain";
-  let character: ThumbCharacter = "none";
-  if (style === "strip" || style === "loud") {
-    if (t?.character && t.character !== "auto") character = t.character;
-    // Automatic: a cartoon only for a children's cast (its tags say so);
-    // a grown-up cast gets none on a strip, the skeptic on D.
-    else if (style === "loud") character = ctx.kids ? (ctx.format === "quiz" ? "puzzled" : "surprised") : "skeptic";
-    else character = ctx.kids && ctx.format === "quiz" ? "thinking" : "none";
-    // Peeking eyes hang over the strip's edge: D has no strip.
-    if (style === "loud" && character === "eyes") character = "none";
+/** A cast's line, read. Unknown words are listed (the panel greys them), never thrown. */
+export function parseThumbLine(line: string): { parts: ThumbParts; unknown: string[] } {
+  const parts: ThumbParts = { marks: [] };
+  const unknown: string[] = [];
+  const ts = tokens(line);
+  for (let i = 0; i < ts.length; i++) {
+    const t = ts[i];
+    const next = ts[i + 1]?.text;
+    const take = (max: number): string | undefined => {
+      if (next === undefined) return undefined;
+      i++;
+      return clean(next, max);
+    };
+    if (t.text !== undefined) {
+      // Words with no keyword before them: the headline (a band's words, the common case).
+      if (parts.headline === undefined) parts.headline = clean(t.text, HEADLINE_MAX);
+      continue;
+    }
+    const w = t.word!;
+    if ((WORD_STYLES as readonly string[]).includes(w)) {
+      parts.words = w as WordStyle;
+      const text = w === "none" ? undefined : take(w === "question" ? QUESTION_MAX : HEADLINE_MAX);
+      if (text && w === "question") parts.question = text;
+      else if (text) parts.headline = text;
+    } else if ((FIGURES as readonly string[]).includes(w) || w === "noface") {
+      parts.figure = w === "noface" ? "none" : (w as Figure);
+    } else if ((MARKS as readonly string[]).includes(w)) {
+      const words = MARK_WORDS[w as MarkKind] !== undefined ? take(WORDS_MAX) : undefined;
+      parts.marks.push({ kind: w as MarkKind, ...(words ? { words } : {}) });
+    } else if (w === "title") {
+      const text = take(LISTING_TITLE_MAX);
+      if (text) parts.title = text;
+    } else unknown.push(w);
   }
-  const words = ACCENT_WORDS[character] !== undefined ? (t?.words ?? ACCENT_WORDS[character]) : undefined;
-  return { style, character, ...(style === "strip" || style === "loud" ? { headline } : {}), ...(style === "question" ? { question } : {}), ...(words ? { words } : {}) };
+  return { parts, unknown };
+}
+
+const q = (s: string): string => `"${s.replace(/"/g, "'")}"`;
+
+/** The parts as a canonical line (what is written into the header). */
+export function printThumbLine(p: ThumbParts): string {
+  const out: string[] = [];
+  if (p.words) out.push(p.words);
+  if (p.words === "question" && p.question) out.push(q(p.question));
+  else if (p.headline && p.words !== "none" && p.words !== "question") out.push(q(p.headline));
+  if (p.figure) out.push(p.figure === "none" ? "noface" : p.figure);
+  for (const m of p.marks) out.push(m.words ? `${m.kind} ${q(m.words)}` : m.kind);
+  if (p.title) out.push(`title ${q(p.title)}`);
+  return out.join(" ");
+}
+
+// The first round's block (style/character/headline/question/title), still read.
+const OLD_STYLE: Record<string, WordStyle> = { plain: "none", strip: "band", loud: "burst", question: "question" };
+
+/** A header's `thumb:` value — the line, or the first round's block — as a canonical line; undefined when it says nothing. */
+export function readThumb(raw: unknown): string | undefined {
+  if (typeof raw === "string") {
+    const line = printThumbLine(parseThumbLine(raw).parts);
+    return line || undefined;
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const r = raw as Record<string, unknown>;
+  const p: ThumbParts = { marks: [] };
+  if (typeof r.style === "string" && OLD_STYLE[r.style]) p.words = OLD_STYLE[r.style];
+  if (r.style === "loud") p.marks.push({ kind: "seal" }, { kind: "arrow" });
+  if (typeof r.character === "string" && ((FIGURES as readonly string[]).includes(r.character) || r.character === "none")) p.figure = r.character as Figure;
+  const headline = clean(r.headline, HEADLINE_MAX);
+  if (headline) p.headline = headline;
+  const question = clean(r.question, QUESTION_MAX);
+  if (question) p.question = question;
+  const title = clean(r.title, LISTING_TITLE_MAX);
+  if (title) p.title = title;
+  const line = printThumbLine(p);
+  return line || undefined;
+}
+
+/** The listing title a line gives, if any. */
+export function thumbTitle(line: string | undefined): string | undefined {
+  return line ? parseThumbLine(line).parts.title : undefined;
 }
 
 /** A children's cast, by its tags (children, kids, school; barn, skole). */
 export function kidsByTags(tags: readonly string[] | undefined): boolean {
   return (tags ?? []).some((t) => /^(children|kids?|school|pupils|barn|skole|elever)$/i.test(t.trim()));
+}
+
+/**
+ * Every choice made. With a headline and no word style: the band. band and
+ * burst need a headline, question a question (or a title that is one) —
+ * else none. The figure, unless chosen: a cartoon thinker on a children's
+ * quiz band, else none; eyes need the band to peek over. The author's marks
+ * as written; none are added for them.
+ */
+export function planThumb(line: string | undefined, ctx: { title?: string; format?: string; kids?: boolean } = {}): ThumbPlan {
+  const p: ThumbParts = line ? parseThumbLine(line).parts : { marks: [] };
+  const headline = p.headline;
+  const question = p.question ?? (ctx.title && /\?\s*$/.test(ctx.title) ? clean(ctx.title, QUESTION_MAX) : undefined);
+  let words: WordStyle = p.words ?? (headline ? "band" : "none");
+  if ((words === "band" || words === "burst") && !headline) words = "none";
+  if (words === "question" && !question) words = "none";
+  let figure: Figure = p.figure ?? (ctx.kids && ctx.format === "quiz" && words === "band" ? "thinking" : "none");
+  if (figure === "eyes" && words !== "band") figure = "none";
+  const marks = p.marks.map((m) => (MARK_WORDS[m.kind] !== undefined ? { kind: m.kind, words: m.words ?? MARK_WORDS[m.kind] } : { kind: m.kind }));
+  return { words, ...(words === "band" || words === "burst" ? { headline } : {}), ...(words === "question" ? { question } : {}), figure, marks };
+}
+
+/** Nothing to draw over the poster: the card serves it as published. */
+export function isPlain(plan: ThumbPlan): boolean {
+  return plan.words === "none" && plan.figure === "none" && plan.marks.length === 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -114,13 +197,14 @@ export const THUMB_W = 1000;
 export const THUMB_H = 750;
 export const FONT = { marker: "Permanent Marker", loud: "Bangers", hand: "Patrick Hand" } as const;
 const INK = "#2b2622";
+const RED = "#c8372d";
 
 const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** A rough width per character, in em, for each face (wrapping and fitting only). */
 const EM: Record<keyof typeof FONT, number> = { marker: 0.68, loud: 0.5, hand: 0.4 };
 
-/** Greedy word wrap at an estimated width; null when a line cannot fit even alone. */
+/** Greedy word wrap at an estimated width; null when a word cannot fit even alone. */
 export function wrapWords(text: string, size: number, width: number, em: number): string[] | null {
   const max = width / (size * em);
   const lines: string[] = [];
@@ -146,17 +230,19 @@ export function fitText(text: string, face: keyof typeof FONT, width: number, ma
   return { size: lo, lines: wrapWords(text, lo, width, EM[face]) ?? [text] };
 }
 
-function strip(headline: string): string {
+const BAND_CY = 588;
+
+function band(headline: string): string {
+  const up = headline.toUpperCase();
   // One line while it reads at 52 or more; two lines only for a longer headline.
-  const one = fitText(headline.toUpperCase(), "marker", 860, 1, 70, 52);
-  const { size, lines } = one.lines.length === 1 && wrapWords(headline.toUpperCase(), one.size, 860, EM.marker)?.length === 1 ? one : fitText(headline.toUpperCase(), "marker", 860, 2, 70, 38);
+  const one = fitText(up, "marker", 860, 1, 70, 52);
+  const { size, lines } = one.lines.length === 1 && wrapWords(up, one.size, 860, EM.marker)?.length === 1 ? one : fitText(up, "marker", 860, 2, 70, 38);
   const lh = size * 1.12;
   const h = lines.length * lh + 34;
-  const cy = 588;
-  const y0 = cy - h / 2;
+  const y0 = BAND_CY - h / 2;
   const text = lines.map((l, i) => `<text x="500" y="${(y0 + 22 + size * 0.86 + i * lh).toFixed(1)}" text-anchor="middle" font-family="${FONT.marker}" font-size="${size}" fill="${INK}">${esc(l)}</text>`).join("");
   return (
-    `<g transform="rotate(-3.5 500 ${cy})">` +
+    `<g transform="rotate(-3.5 500 ${BAND_CY})">` +
     `<rect x="-40" y="${(y0 + 8).toFixed(1)}" width="1080" height="${h.toFixed(1)}" fill="rgba(0,0,0,0.18)"/>` +
     `<rect x="-40" y="${y0.toFixed(1)}" width="1080" height="${h.toFixed(1)}" fill="#fff4a8"/>` +
     `<path d="M-40 ${y0.toFixed(1)}H1040M-40 ${(y0 + h).toFixed(1)}H1040" stroke="${INK}" stroke-width="5"/>` +
@@ -165,31 +251,25 @@ function strip(headline: string): string {
   );
 }
 
-function loud(headline: string): string {
-  const words = headline.toUpperCase();
-  const { size, lines } = fitText(words, "loud", 560, 2, 150, 70);
+/** burst: the comic lettering, top left. Returns its art and its bottom edge (for an arrow). */
+function burst(headline: string): { art: string; bottom: number } {
+  const { size, lines } = fitText(headline.toUpperCase(), "loud", 560, 2, 150, 70);
   const lh = size * 0.98;
   const row = (l: string, i: number, fill: string): string => {
     const y = 70 + size * 0.85 + i * lh;
     return (
-      `<text x="${70 + 9}" y="${(y + 9).toFixed(1)}" font-family="${FONT.loud}" font-size="${size}" fill="${INK}" stroke="${INK}" stroke-width="10" stroke-linejoin="round">${esc(l)}</text>` +
+      `<text x="79" y="${(y + 9).toFixed(1)}" font-family="${FONT.loud}" font-size="${size}" fill="${INK}" stroke="${INK}" stroke-width="10" stroke-linejoin="round">${esc(l)}</text>` +
       `<text x="70" y="${y.toFixed(1)}" font-family="${FONT.loud}" font-size="${size}" fill="${fill}" stroke="${INK}" stroke-width="10" stroke-linejoin="round" paint-order="stroke">${esc(l)}</text>`
     );
   };
-  const text = lines.map((l, i) => row(l, i, i === 0 ? "#ffe23d" : "#ffffff")).join("");
-  const arrowY = Math.min(70 + lines.length * lh + 20, 420);
-  return (
-    `<rect width="${THUMB_W}" height="${THUMB_H}" fill="rgba(0,0,0,0.07)"/>` +
-    `<g transform="rotate(-4 300 200)">${text}</g>` +
-    `<g transform="translate(330 ${arrowY.toFixed(0)}) scale(2.1)"><path d="M10 18c40 6 82 28 110 74" fill="none" stroke="#e8302a" stroke-width="12" stroke-linecap="round"/><path d="M96 84l30 18 4-34" fill="none" stroke="#e8302a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></g>` +
-    `<g transform="rotate(12 868 128)"><circle cx="868" cy="128" r="104" fill="#e8302a"/><circle cx="868" cy="128" r="90" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="14 10"/>` +
-    ["NOT", "CLICK", "BAIT"].map((w, i) => `<text x="868" y="${92 + i * 38}" text-anchor="middle" font-family="${FONT.loud}" font-size="44" fill="#fff">${w}</text>`).join("") +
-    `</g>`
-  );
+  return {
+    art: `<rect width="${THUMB_W}" height="${THUMB_H}" fill="rgba(0,0,0,0.07)"/><g transform="rotate(-4 300 200)">${lines.map((l, i) => row(l, i, i === 0 ? "#ffe23d" : "#ffffff")).join("")}</g>`,
+    bottom: 70 + lines.length * lh + 20,
+  };
 }
 
-function question(q: string, posterHref: string): string {
-  const { size, lines } = fitText(q, "hand", 380, 6, 76, 44);
+function questionCard(text: string, posterHref: string): string {
+  const { size, lines } = fitText(text, "hand", 380, 6, 76, 44);
   const lh = size * 1.1;
   const top = THUMB_H / 2 - (lines.length * lh) / 2 + size * 0.8;
   return (
@@ -200,14 +280,14 @@ function question(q: string, posterHref: string): string {
   );
 }
 
-// The characters: 200 × 200 busts, flat colours (no CSS variables — the
-// server's renderer has none), heavy ink outlines like the rest of the site.
+// ---- The cartoon busts (children's casts): 200 × 200 art, flat colours —
+// no CSS variables, which the server's renderer does not have.
 interface Look {
   skin: string;
   hair: string;
   shirt: string;
 }
-const LOOKS: Record<(typeof KID_CHARACTERS)[number], Look> = {
+const LOOKS: Record<(typeof KID_FIGURES)[number], Look> = {
   surprised: { skin: "#f2c29b", hair: "#5a3a24", shirt: "#4f86c6" },
   thinking: { skin: "#f2c29b", hair: "#2b2622", shirt: "#6aa36f" },
   puzzled: { skin: "#f2c29b", hair: "#c0632b", shirt: "#d9822b" },
@@ -225,8 +305,8 @@ const arm = (d: string, shirt: string): string => `<path d="${d}" fill="none" st
 const line = (d: string, w = 5): string => `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${w}" stroke-linecap="round"/>`;
 const eye = (cx: number, cy: number, r: number, px: number, py: number): string => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#fff" stroke="${INK}" stroke-width="4"/><circle cx="${px}" cy="${py}" r="${Math.max(4, r * 0.4)}" fill="${INK}"/>`;
 
-/** One character's 200 × 200 art (no wrapper). */
-export function characterArt(c: (typeof KID_CHARACTERS)[number]): string {
+/** One cartoon bust's 200 × 200 art (no wrapper). */
+export function characterArt(c: (typeof KID_FIGURES)[number]): string {
   const l = LOOKS[c];
   if (c === "surprised")
     return (
@@ -265,86 +345,144 @@ export function characterArt(c: (typeof KID_CHARACTERS)[number]): string {
   );
 }
 
-const RED = "#c8372d";
-
-/** A grown-up accent, in the canvas's own coordinates (laid out for B's top-right corner). */
-export function accentArt(c: (typeof ADULT_ACCENTS)[number], words = ""): string {
-  const w = esc(words);
-  switch (c) {
-    case "reader":
-      return `<g transform="translate(728 18) scale(1.3)">
-<path d="M28 250c4-56 38-86 92-88 54 2 88 32 92 88z" fill="#34506b"/><path d="M96 150h48v24c-8 10-40 10-48 0z" fill="#d9a07c"/>
-<path d="M90 168c10 12 50 12 60 0l6 14c-14 14-58 14-72 0z" fill="#2a4157"/><ellipse cx="120" cy="104" rx="38" ry="46" fill="#e8b48f"/>
-<path d="M80 98c-4-40 26-62 56-56 26 4 40 26 36 50-10-14-30-24-54-22-14 2-28 12-38 28z" fill="#3a2a22"/>
-<path d="M84 96c-6 2-8 16 0 22" fill="#e8b48f" stroke="#c98f6c" stroke-width="2"/>
-<rect x="99" y="96" width="20" height="14" rx="4" fill="none" stroke="${INK}" stroke-width="3"/><rect x="125" y="96" width="20" height="14" rx="4" fill="none" stroke="${INK}" stroke-width="3"/>
-<path d="M119 101h6" stroke="${INK}" stroke-width="3"/><path d="M102 88q8-5 16-2M128 85q9-4 17 2" fill="none" stroke="#3a2a22" stroke-width="3" stroke-linecap="round"/>
-<path d="M114 128q8 3 16 0" fill="none" stroke="#9c5a44" stroke-width="3" stroke-linecap="round"/>
-<path d="M70 250c0-34 14-62 40-80" fill="none" stroke="#2a4157" stroke-width="30" stroke-linecap="round"/>
-<path d="M104 160c-10-4-14-16-8-24l10-8c8-4 16 0 18 8l2 18c-4 8-14 10-22 6z" fill="#e8b48f"/></g>`;
-    case "skeptic":
-      return `<g transform="translate(728 18) scale(1.3)">
-<path d="M28 250c4-56 38-86 92-88 54 2 88 32 92 88z" fill="#7a3b3b"/><path d="M98 150h44v20c-8 8-36 8-44 0z" fill="#b7835f"/>
-<ellipse cx="120" cy="104" rx="38" ry="46" fill="#c9926c"/>
-<path d="M78 104c-8-46 24-70 52-66 30 2 50 26 44 64-6-22-20-36-42-38 4 8 0 14-6 16-12-14-30-10-48 24z" fill="#1f1a17"/>
-<path d="M100 90l18 2M126 84q10-8 20 0" fill="none" stroke="#1f1a17" stroke-width="3.5" stroke-linecap="round"/>
-<circle cx="110" cy="104" r="3.5" fill="#1f1a17"/><circle cx="136" cy="102" r="3.5" fill="#1f1a17"/>
-<path d="M110 130q10-4 20 2" fill="none" stroke="#7d4636" stroke-width="3" stroke-linecap="round"/>
-<path d="M52 214c30-18 104-18 136 0" fill="none" stroke="#5e2c2c" stroke-width="30" stroke-linecap="round"/>
-<path d="M60 204c40 14 90 14 124-6" fill="none" stroke="#7a3b3b" stroke-width="22" stroke-linecap="round"/>
-<ellipse cx="62" cy="206" rx="13" ry="10" fill="#c9926c"/><ellipse cx="180" cy="200" rx="13" ry="10" fill="#c9926c"/></g>`;
-    case "hand":
-      return `<g transform="translate(640 40) scale(1.75)" fill="#fffdf7" stroke="${INK}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
-<path d="M200 70h-50l-10-12H40c-10 0-14 14-2 18h70c-6 6-6 16 2 20-6 6-4 16 4 18-4 8 2 16 10 16h46l12-8h28z"/>
-<path d="M200 64h18v68h-18z" fill="#e9dfc9"/><path d="M110 94h24M116 112h20M122 130h16" fill="none" stroke-width="3"/></g>`;
-    case "eyes":
-      return `<g transform="rotate(-3.5 500 588)" stroke="${INK}" stroke-linecap="round">
+/** Peeking eyes over the band's top edge (drawn before the band, so it hides their lower half). */
+function eyes(): string {
+  return `<g transform="rotate(-3.5 500 ${BAND_CY})" stroke="${INK}" stroke-linecap="round">
 <path d="M610 520c0-40 26-66 62-66s62 26 62 66" fill="#fffdf7" stroke-width="5"/><path d="M740 520c0-40 26-66 62-66s62 26 62 66" fill="#fffdf7" stroke-width="5"/>
 <circle cx="690" cy="500" r="14" fill="${INK}"/><circle cx="820" cy="500" r="14" fill="${INK}"/>
 <path d="M618 432q50-30 104-6M748 418q54-18 104 14" fill="none" stroke-width="7"/>
 <path d="M560 528c40-10 66-8 92-2M846 524c30-6 58-6 86 4" fill="none" stroke-width="6"/></g>`;
-    case "note": {
-      // Two lines at most, as large as fits the corner (x 740–1000).
-      const { size, lines: two } = fitText(words, "marker", 250, 2, 54, 28);
-      return `<g fill="none" stroke="${RED}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M760 190c-30 30-70 46-120 52"/><path d="M660 222l-26 22 34 8"/></g>` +
-        two.map((l, i) => `<text x="${870 + i * 10}" y="${120 + i * 58}" text-anchor="middle" font-family="${FONT.marker}" font-size="${size}" fill="${RED}" transform="rotate(-8 ${870 + i * 10} ${120 + i * 58})">${esc(l)}</text>`).join("");
-    }
-    case "stamp": {
-      const { size } = fitText(words.toUpperCase(), "loud", 230, 1, 66, 30);
-      return `<g transform="rotate(-12 830 150)" opacity="0.9"><rect x="690" y="92" width="280" height="116" rx="10" fill="none" stroke="${RED}" stroke-width="9" stroke-dasharray="60 6 30 4"/>
-<rect x="704" y="106" width="252" height="88" rx="6" fill="none" stroke="${RED}" stroke-width="3"/>
-<text x="830" y="${150 + size * 0.34}" text-anchor="middle" font-family="${FONT.loud}" font-size="${size}" letter-spacing="3" fill="${RED}">${esc(words.toUpperCase())}</text></g>`;
-    }
-    case "bubble": {
-      const { size } = fitText(words, "hand", 220, 1, 72, 32);
-      return `<g transform="rotate(4 860 130)"><path d="M760 60h200c22 0 36 14 36 36v70c0 22-14 36-36 36h-120l-40 44 6-44h-46c-22 0-36-14-36-36V96c0-22 14-36 36-36z" fill="#fffdf7" stroke="${INK}" stroke-width="5" stroke-linejoin="round"/>
-<text x="860" y="${131 + size * 0.36}" text-anchor="middle" font-family="${FONT.hand}" font-size="${size}" fill="${INK}">${w}</text></g>`;
-    }
-  }
 }
 
-const isKid = (c: ThumbCharacter): c is (typeof KID_CHARACTERS)[number] => (KID_CHARACTERS as readonly string[]).includes(c);
+// ---- Placement. A slot is a 280 × 260 box in one corner of the free area;
+// items are drawn in a box's own coordinates (0..280 × 0..260), and `inward`
+// says which way the canvas's middle lies (a note's arrow points there).
 
-function character(c: ThumbCharacter, style: ThumbStyle, words = ""): string {
-  if (c === "none") return "";
-  if (isKid(c)) {
-    // B: the top-right corner, over the figure's margin; D: big, bottom right.
-    const [x, y, s] = style === "loud" ? [640, 400, 1.75] : [722, 14, 1.42];
-    return `<g transform="translate(${x} ${y}) scale(${s})">${characterArt(c)}</g>`;
-  }
-  const art = accentArt(c, words);
-  // D keeps its seal top right: the accent moves down to the bottom right.
-  return style === "loud" ? `<g transform="translate(0 380)">${art}</g>` : art;
+export type Corner = "tl" | "tr" | "bl" | "br";
+const SLOT_W = 280;
+const SLOT_H = 260;
+const SLOT_AT: Record<Corner, [number, number]> = { tl: [24, 20], tr: [THUMB_W - SLOT_W - 24, 20], bl: [24, THUMB_H - SLOT_H - 20], br: [THUMB_W - SLOT_W - 24, THUMB_H - SLOT_H - 20] };
+
+/** The corners each word style leaves free, in the order used when the poster says nothing. */
+export function freeCorners(words: WordStyle): Corner[] {
+  if (words === "band") return ["tr", "tl"];
+  if (words === "burst") return ["tr", "br", "bl"];
+  if (words === "question") return ["tr", "br"];
+  return ["tr", "tl", "br", "bl"];
 }
 
-/** The listing picture as an SVG string, the poster at `posterHref` (a data: URL on the server). */
-export function thumbSvg(plan: ThumbPlan, posterHref: string): string {
-  const poster = `<rect width="${THUMB_W}" height="${THUMB_H}" fill="#fffdf7"/><image href="${esc(posterHref)}" width="${THUMB_W}" height="${THUMB_H}"/>`;
-  let body = poster;
-  if (plan.style === "strip" && plan.headline) {
-    // Peeking eyes sit behind the strip, over its edge; everything else is on top of the figure, under the strip.
-    body += plan.character === "eyes" ? character("eyes", "strip") + strip(plan.headline) : character(plan.character, "strip", plan.words) + strip(plan.headline);
-  } else if (plan.style === "loud" && plan.headline) body += loud(plan.headline) + character(plan.character, "loud", plan.words);
-  else if (plan.style === "question" && plan.question) body = question(plan.question, posterHref);
+/**
+ * How busy each corner of the poster is: the share of its sampled pixels
+ * that are not paper, from RGBA bytes. Lower is emptier. Shared by the
+ * server (pngjs) and the panel (a canvas).
+ */
+export function cornerBusyness(rgba: Uint8Array | Uint8ClampedArray, w: number, h: number): Record<Corner, number> {
+  const out = {} as Record<Corner, number>;
+  for (const c of Object.keys(SLOT_AT) as Corner[]) {
+    const [x0, y0] = SLOT_AT[c];
+    let ink = 0;
+    let n = 0;
+    for (let y = y0; y < y0 + SLOT_H; y += 6)
+      for (let x = x0; x < x0 + SLOT_W; x += 6) {
+        const px = Math.min(w - 1, Math.floor((x / THUMB_W) * w));
+        const py = Math.min(h - 1, Math.floor((y / THUMB_H) * h));
+        const i = (py * w + px) * 4;
+        const lum = 0.3 * rgba[i] + 0.59 * rgba[i + 1] + 0.11 * rgba[i + 2];
+        n++;
+        if (rgba[i + 3] > 40 && lum < 228) ink++;
+      }
+    out[c] = n ? ink / n : 0;
+  }
+  return out;
+}
+
+function noteArt(words: string, inward: 1 | -1): string {
+  const { size, lines } = fitText(words, "marker", 250, 2, 54, 28);
+  const text = lines.map((l, i) => `<text x="${140 + i * 8}" y="${(60 + size * 0.6 + i * size * 1.08).toFixed(1)}" text-anchor="middle" font-family="${FONT.marker}" font-size="${size}" fill="${RED}" transform="rotate(-8 140 ${60 + i * size})">${esc(l)}</text>`).join("");
+  // The arrow leaves the words towards the canvas's middle.
+  const y = 80 + lines.length * size;
+  const arrow = `<g fill="none" stroke="${RED}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M150 ${y}c-20 30-60 52-110 60"/><path d="M60 ${y + 42}l-26 18 32 10"/></g>`;
+  return text + (inward === -1 ? arrow : `<g transform="translate(${SLOT_W} 0) scale(-1 1)">${arrow}</g>`);
+}
+
+function stampArt(words: string): string {
+  const up = words.toUpperCase();
+  const { size } = fitText(up, "loud", 230, 1, 66, 30);
+  return `<g transform="rotate(-12 140 110)" opacity="0.9"><rect x="0" y="52" width="280" height="116" rx="10" fill="none" stroke="${RED}" stroke-width="9" stroke-dasharray="60 6 30 4"/>
+<rect x="14" y="66" width="252" height="88" rx="6" fill="none" stroke="${RED}" stroke-width="3"/>
+<text x="140" y="${(110 + size * 0.34).toFixed(1)}" text-anchor="middle" font-family="${FONT.loud}" font-size="${size}" letter-spacing="3" fill="${RED}">${esc(up)}</text></g>`;
+}
+
+const STAR = "M70 0l14 30 32-12-8 32 34 8-28 20 22 26-34 2 2 34-28-18-20 28-10-32-32 10 14-30L4 76l30-14L16 32l34 4z";
+function starArt(words: string): string {
+  const { size } = fitText(words, "loud", 80, 1, 64, 26);
+  return `<g transform="translate(50 20) rotate(8 70 70) scale(1.25)">
+<path d="${STAR}" fill="#000" opacity="0.18" transform="translate(5 7)" stroke="#000" stroke-width="22" stroke-linejoin="round"/>
+<path d="${STAR}" fill="#fff" stroke="#fff" stroke-width="22" stroke-linejoin="round"/>
+<path d="${STAR}" fill="#7b5cff" stroke="${INK}" stroke-width="5" stroke-linejoin="round"/>
+<text x="70" y="${(78 + size * 0.32).toFixed(1)}" text-anchor="middle" font-family="${FONT.loud}" font-size="${size}" fill="#fff" stroke="${INK}" stroke-width="2">${esc(words)}</text></g>`;
+}
+
+const bangArt = (): string => `<text x="140" y="190" text-anchor="middle" font-family="${FONT.loud}" font-size="170" fill="#e8302a" stroke="${INK}" stroke-width="7" paint-order="stroke" transform="rotate(8 140 130)">!!</text>`;
+
+function sealArt(): string {
+  return (
+    `<g transform="rotate(12 140 120)"><circle cx="140" cy="120" r="104" fill="#e8302a"/><circle cx="140" cy="120" r="90" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="14 10"/>` +
+    ["NOT", "CLICK", "BAIT"].map((w, i) => `<text x="140" y="${84 + i * 38}" text-anchor="middle" font-family="${FONT.loud}" font-size="44" fill="#fff">${w}</text>`).join("") +
+    `</g>`
+  );
+}
+
+const kidArt = (c: (typeof KID_FIGURES)[number]): string => `<g transform="translate(10 0) scale(1.3)">${characterArt(c)}</g>`;
+
+/** The big red arrow: from under burst's lettering (or the upper middle), down and to the right. */
+function arrowArt(fromY: number): string {
+  return `<g transform="translate(330 ${Math.min(fromY, 420).toFixed(0)}) scale(2.1)"><path d="M10 18c40 6 82 28 110 74" fill="none" stroke="#e8302a" stroke-width="12" stroke-linecap="round"/><path d="M96 84l30 18 4-34" fill="none" stroke="#e8302a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+}
+
+/**
+ * The listing picture as an SVG string, the poster at `posterHref` (a data:
+ * URL on the server). `busy`, when known, orders the free corners emptiest
+ * first; the figure takes the emptiest, then each mark the next (a corner
+ * takes a second, smaller item nearer the middle when items outnumber corners).
+ */
+export function thumbSvg(plan: ThumbPlan, posterHref: string, busy?: Record<Corner, number>): string {
+  let base = `<rect width="${THUMB_W}" height="${THUMB_H}" fill="#fffdf7"/><image href="${esc(posterHref)}" width="${THUMB_W}" height="${THUMB_H}"/>`;
+  let arrowFrom = 300;
+  if (plan.words === "question" && plan.question) base = questionCard(plan.question, posterHref);
+  if (plan.words === "burst" && plan.headline) {
+    const b = burst(plan.headline);
+    base += b.art;
+    arrowFrom = b.bottom;
+  }
+  // The corner items: a cartoon figure first, then the marks (the arrow has a place of its own).
+  const items: ((inward: 1 | -1) => string)[] = [];
+  if (plan.figure !== "none" && plan.figure !== "eyes") {
+    const f = plan.figure;
+    items.push(() => kidArt(f));
+  }
+  for (const m of plan.marks) {
+    if (m.kind === "note") items.push((inward) => noteArt(m.words ?? "", inward));
+    else if (m.kind === "stamp") items.push(() => stampArt(m.words ?? ""));
+    else if (m.kind === "star") items.push(() => starArt(m.words ?? "?!"));
+    else if (m.kind === "bang") items.push(bangArt);
+    else if (m.kind === "seal") items.push(sealArt);
+  }
+  let corners = freeCorners(plan.words);
+  if (busy) corners = [...corners].sort((a, b) => busy[a] - busy[b]);
+  const used = new Map<Corner, number>();
+  let over = "";
+  items.forEach((art, i) => {
+    const c = corners[i % corners.length];
+    const k = used.get(c) ?? 0;
+    used.set(c, k + 1);
+    const [x, y0] = SLOT_AT[c];
+    const inward: 1 | -1 = c[1] === "l" ? 1 : -1;
+    // A second item in a corner stands nearer the middle, and smaller.
+    const y = k === 0 ? y0 : c[0] === "t" ? y0 + 190 : y0 - 170;
+    over += k === 0 ? `<g transform="translate(${x} ${y})">${art(inward)}</g>` : `<g transform="translate(${x + 40} ${y}) scale(0.7)">${art(inward)}</g>`;
+  });
+  if (plan.marks.some((m) => m.kind === "arrow")) over += arrowArt(arrowFrom);
+  const body = plan.words === "band" && plan.headline ? base + (plan.figure === "eyes" ? eyes() : "") + over + band(plan.headline) : base + over;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${THUMB_W}" height="${THUMB_H}" viewBox="0 0 ${THUMB_W} ${THUMB_H}">${body}</svg>`;
 }

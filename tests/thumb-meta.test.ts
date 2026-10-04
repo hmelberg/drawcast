@@ -1,19 +1,27 @@
-// The cast header's `thumb:` block survives open and save (thumbnail round, 2026-10-04).
+// The cast header's `thumb:` line survives open and save (thumbnail round, 2026-10-04).
 import { expect, test } from "vitest";
-import { formatPlaylist, parsePlaylistText as parsePlaylist } from "../src/playlist/playlist";
+import { formatPlaylist, parsePlaylistText } from "../src/playlist/playlist";
 
-const TEXT = '# The deadliest animal\nsubtitle: "Guess."\nformat: quiz\nthumb:\n    style: strip\n    headline: "It\'s not the shark"\n    character: surprised\n\n## The deadliest animal\n    text t "Hi" x 500 y 400\n\nHello there.\n    draw t\n';
+const TEXT = '# The deadliest animal\nsubtitle: "Guess."\nformat: quiz\nthumb: band "It\'s not the shark" stamp "MYTH?" star\n\n## The deadliest animal\n    text t "Hi" x 500 y 400\n\nHello there.\n    draw t\n';
+const LINE = 'band "It\'s not the shark" stamp "MYTH?" star';
 
-test("a .cast's thumb block is read and written back", () => {
-  const pl = parsePlaylist(TEXT);
-  expect(pl.meta.thumb).toEqual({ style: "strip", headline: "It's not the shark", character: "surprised" });
-  const again = parsePlaylist(formatPlaylist(pl, "script"));
-  expect(again.meta.thumb).toEqual(pl.meta.thumb);
-  const yaml = parsePlaylist(formatPlaylist(pl, "yaml"));
-  expect(yaml.meta.thumb).toEqual(pl.meta.thumb);
+test("a .cast's thumb line is read and written back, in both formats", () => {
+  const pl = parsePlaylistText(TEXT);
+  expect(pl.meta.thumb).toBe(LINE);
+  expect(parsePlaylistText(formatPlaylist(pl, "script")).meta.thumb).toBe(LINE);
+  expect(parsePlaylistText(formatPlaylist(pl, "yaml")).meta.thumb).toBe(LINE);
 });
 
-test("a bad thumb block is dropped, never a broken document", () => {
-  const pl = parsePlaylist(TEXT.replace("style: strip", "style: glitter").replace("character: surprised", "character: clown"));
-  expect(pl.meta.thumb).toEqual({ headline: "It's not the shark" });
+test("the first round's block reads as a line", () => {
+  const pl = parsePlaylistText(TEXT.replace(`thumb: ${LINE}`, 'thumb:\n    style: strip\n    headline: "Hey"\n    character: surprised'));
+  expect(pl.meta.thumb).toBe('band "Hey" surprised');
+});
+
+test("cast.mjs pack writes the line into the header", async () => {
+  const { packedCastText } = await import("../scripts/cast-account.mjs");
+  const { singlePlaylist } = await import("../src/playlist/playlist");
+  const { formatSpec } = await import("../src/spec/text");
+  const spec = { title: "T", elements: [{ id: "t", type: "text", text: "Hi", x: 500, y: 400 }], commands: [{ draw: ["t"], speak: "Hello there." }] };
+  const out = packedCastText({ spec, thumb: 'band "Hey" star' }, "script", { singlePlaylist, formatPlaylist, formatSpec } as never);
+  expect(parsePlaylistText(out).meta.thumb).toBe('band "Hey" star');
 });

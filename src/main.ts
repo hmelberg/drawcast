@@ -93,7 +93,7 @@ import { appendRecord, localRecordStorage } from "./render/record";
 import { applyViewsFlag } from "./views";
 import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
 import { snapshotPng, posterForPlaylistText } from "./export/snapshot";
-import type { ThumbSpec } from "../netlify/lib/thumb.mts";
+import { thumbTitle } from "../netlify/lib/thumb.mts";
 import { beatSheets } from "./export/beat-sheet";
 import { LANGUAGES, languageLabel } from "./export/tts";
 import { subtitleLanguages } from "./spec/subtitles";
@@ -5216,7 +5216,7 @@ async function publishDrawcast({
    *  format writes it — into the document itself, so it is kept. */
   format?: CastFormat | "auto";
   /** Share's front-page picture: the `thumb:` block to write (null removes it). */
-  thumb?: ThumbSpec | null;
+  thumb?: string | null;
   /** Share's Private checkbox (registry delivery 2, task 9). Private
    *  publishes the cast file locked (task 10) — see privateCastLock. */
   private?: boolean;
@@ -5303,7 +5303,7 @@ async function publishDrawcast({
     }
     // The front-page picture (thumbnail round): the document's `thumb:` block, as the panel left it.
     if (thumbChoice !== undefined) {
-      const same = JSON.stringify(doc.playlist.meta.thumb ?? null) === JSON.stringify(thumbChoice);
+      const same = (doc.playlist.meta.thumb ?? null) === thumbChoice;
       if (!same) {
         const meta = { ...doc.playlist.meta };
         if (thumbChoice) meta.thumb = thumbChoice;
@@ -5365,7 +5365,7 @@ async function publishDrawcast({
         kind: "cast",
         target: `${repoStr}/${joinPath(castsDir, `${out.slug}${publishExt()}`)}`,
         // The listing title, when the author gave the front page its own.
-        title: doc.playlist.meta.thumb?.title ?? doc.title,
+        title: thumbTitle(doc.playlist.meta.thumb) ?? doc.title,
         page: out.castUrl,
         // The front page's format and topics, read from what was published.
         format: publishedFacts.format,

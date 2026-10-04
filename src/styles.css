@@ -3673,3 +3673,11 @@ body.viewer-body.watch-body.watch-theatre {
 .thumb-choice .thumb-row select { max-width: 100%; }
 .thumb-preview { margin-top: 0.5rem; max-width: 360px; }
 .thumb-preview .thumb-svg { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 8px; }
+.thumb-choice #share-thumb-line { width: 100%; box-sizing: border-box; font-family: ui-monospace, Menlo, monospace; font-size: var(--text-sm); }
+.thumb-chips { display: grid; gap: 0.25rem; margin: 0.35rem 0; }
+.thumb-chip-group { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
+.thumb-chip-label { font-size: var(--text-xs); color: var(--muted); min-width: 4.2rem; }
+.thumb-chip { font: inherit; font-size: var(--text-xs); padding: 0.05rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.thumb-chip:hover { border-color: var(--ink); }
+.thumb-unknown { color: var(--loss, #b5482e); }
+.thumb-choice .thumb-row { display: block; }

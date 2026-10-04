@@ -7,7 +7,18 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Resvg } from "@resvg/resvg-js";
-import { thumbSvg, THUMB_W, type ThumbPlan } from "./thumb.mts";
+import { PNG } from "pngjs";
+import { cornerBusyness, thumbSvg, THUMB_W, type Corner, type ThumbPlan } from "./thumb.mts";
+
+/** How busy each corner of the poster is (thumb.mts cornerBusyness), or undefined when it cannot be read. */
+export function posterBusyness(poster: Uint8Array): Record<Corner, number> | undefined {
+  try {
+    const png = PNG.sync.read(Buffer.from(poster));
+    return cornerBusyness(png.data, png.width, png.height);
+  } catch {
+    return undefined;
+  }
+}
 
 const FACES = ["public/fonts/thumb/PermanentMarker-Regular.ttf", "public/fonts/thumb/Bangers-Regular.ttf", "public/fonts/patrickhand/PatrickHand-Regular.ttf"];
 
@@ -35,7 +46,7 @@ export function renderThumb(plan: ThumbPlan, poster: Uint8Array): Uint8Array {
   fonts ??= fontFiles();
   if (fonts.length === 0) throw new Error("thumb fonts not found");
   const href = `data:image/png;base64,${Buffer.from(poster).toString("base64")}`;
-  const svg = thumbSvg(plan, href);
+  const svg = thumbSvg(plan, href, posterBusyness(poster));
   const r = new Resvg(svg, {
     fitTo: { mode: "width", value: THUMB_W },
     font: { fontFiles: fonts, loadSystemFonts: false, defaultFontFamily: "Patrick Hand" },

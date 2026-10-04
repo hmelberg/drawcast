@@ -6,7 +6,7 @@
 // A single document (JSON or YAML) is a one-item playlist — exactly the
 // pre-playlist behavior, so every existing drawcast keeps working.
 
-import { readThumb, type ThumbSpec } from "../../netlify/lib/thumb.mts";
+import { readThumb } from "../../netlify/lib/thumb.mts";
 import { leftoverFoldMarker, leftoverFoldMessage } from "../ui/spec-fold";
 import { CORE_SCHEMA, dump, load, loadAll } from "js-yaml";
 import { cardElements, titleFont } from "../spec/card";
@@ -71,7 +71,7 @@ export interface PlaylistMeta {
   poster?: string;
   /** The listing picture's words and style (thumbnail round, 2026-10-04 —
    *  netlify/lib/thumb.mts): drawn by the site over the poster, never in the player. */
-  thumb?: ThumbSpec;
+  thumb?: string;
   /** How playback continues after an item: wait for a click, or auto after gap seconds. */
   advance: "click" | "auto";
   gap: number;
