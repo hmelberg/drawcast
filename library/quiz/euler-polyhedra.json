@@ -515,9 +515,9 @@
     "id": "tv",
     "type": "text",
     "text": "8 corners",
-    "x": 790,
-    "y": 590,
-    "font_size": 46,
+    "x": 760,
+    "y": 600,
+    "font_size": 42,
     "style": {
      "color": "#b5482e"
     }
@@ -526,9 +526,9 @@
     "id": "te",
     "type": "text",
     "text": "12 edges",
-    "x": 790,
-    "y": 530,
-    "font_size": 46,
+    "x": 760,
+    "y": 525,
+    "font_size": 42,
     "style": {
      "color": "#3d3833"
     }
@@ -537,9 +537,9 @@
     "id": "tf",
     "type": "text",
     "text": "6 faces",
-    "x": 790,
-    "y": 470,
-    "font_size": 46,
+    "x": 760,
+    "y": 450,
+    "font_size": 42,
     "style": {
      "color": "#2f6b8f"
     }
@@ -547,10 +547,10 @@
    {
     "id": "sum_c",
     "type": "text",
-    "x": 790,
-    "y": 390,
+    "x": 750,
+    "y": 360,
     "text": "8 − 12 + 6 = 2",
-    "font_size": 56,
+    "font_size": 52,
     "style": {
      "color": "#b5482e"
     }
@@ -558,10 +558,10 @@
    {
     "id": "sum_p",
     "type": "text",
-    "x": 790,
+    "x": 750,
     "y": 390,
     "text": "5 − 8 + 5 = 2",
-    "font_size": 56,
+    "font_size": 52,
     "style": {
      "color": "#b5482e"
     }
@@ -570,9 +570,9 @@
     "id": "ball",
     "type": "text",
     "text": "football: 60 − 90 + 32",
-    "x": 790,
+    "x": 740,
     "y": 305,
-    "font_size": 36,
+    "font_size": 32,
     "style": {
      "color": "#2f6b8f"
     }
@@ -581,7 +581,7 @@
     "id": "eul",
     "type": "text",
     "text": "Euler, 1750",
-    "x": 790,
+    "x": 750,
     "y": 500,
     "font_size": 40,
     "style": {
@@ -596,24 +596,24 @@
     "type": "path",
     "points": [
      [
-      120.0,
-      220.0
+      120,
+      220
      ],
      [
-      380.0,
-      220.0
+      380,
+      220
      ],
      [
-      380.0,
-      480.0
+      380,
+      480
      ],
      [
-      120.0,
-      480.0
+      120,
+      480
      ],
      [
-      120.0,
-      220.0
+      120,
+      220
      ]
     ],
     "style": {
@@ -625,24 +625,24 @@
     "type": "path",
     "points": [
      [
-      190.0,
-      290.0
+      190,
+      290
      ],
      [
-      310.0,
-      290.0
+      310,
+      290
      ],
      [
-      310.0,
-      410.0
+      310,
+      410
      ],
      [
-      190.0,
-      410.0
+      190,
+      410
      ],
      [
-      190.0,
-      290.0
+      190,
+      290
      ]
     ],
     "style": {
@@ -654,16 +654,16 @@
     "type": "path",
     "points": [
      [
-      180.0,
-      530.0
+      180,
+      530
      ],
      [
-      440.0,
-      530.0
+      440,
+      530
      ],
      [
-      440.0,
-      270.0
+      440,
+      270
      ]
     ],
     "style": {
@@ -675,12 +675,12 @@
     "type": "path",
     "points": [
      [
-      120.0,
-      480.0
+      120,
+      480
      ],
      [
-      180.0,
-      530.0
+      180,
+      530
      ]
     ],
     "style": {
@@ -692,12 +692,12 @@
     "type": "path",
     "points": [
      [
-      380.0,
-      480.0
+      380,
+      480
      ],
      [
-      440.0,
-      530.0
+      440,
+      530
      ]
     ],
     "style": {
@@ -709,12 +709,12 @@
     "type": "path",
     "points": [
      [
-      380.0,
-      220.0
+      380,
+      220
      ],
      [
-      440.0,
-      270.0
+      440,
+      270
      ]
     ],
     "style": {
@@ -726,16 +726,16 @@
     "type": "path",
     "points": [
      [
-      190.0,
-      290.0
+      190,
+      290
      ],
      [
-      250.0,
-      340.0
+      250,
+      340
      ],
      [
-      310.0,
-      340.0
+      310,
+      340
      ]
     ],
     "style": {
@@ -747,12 +747,12 @@
     "type": "path",
     "points": [
      [
-      250.0,
-      340.0
+      250,
+      340
      ],
      [
-      250.0,
-      410.0
+      250,
+      410
      ]
     ],
     "style": {
@@ -777,9 +777,9 @@
     "id": "zero",
     "type": "text",
     "text": "V − E + F = 0",
-    "x": 760,
+    "x": 740,
     "y": 440,
-    "font_size": 60,
+    "font_size": 56,
     "style": {
      "color": "#b5482e"
     }
@@ -788,7 +788,7 @@
     "id": "topo",
     "type": "text",
     "text": "→ topology",
-    "x": 760,
+    "x": 740,
     "y": 350,
     "font_size": 40,
     "style": {
@@ -924,12 +924,10 @@
     ]
    },
    {
-    "highlight": {
-     "target": [
-      "cube"
-     ]
-    },
-    "speak": "Eight corners, twelve edges,"
+    "speak": "Eight corners, twelve edges,",
+    "draw": [
+     "te"
+    ]
    },
    {
     "draw": [
@@ -1011,6 +1009,7 @@
     ],
     "speak": "So the number keeps track of holes, and that idea grew into a whole field of maths: topology."
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }
