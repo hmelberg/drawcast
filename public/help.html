@@ -114,6 +114,10 @@
         <a href="#instructions">Instructions &amp; references</a>
         <a href="#spec">The spec format</a>
         <a href="#commands">Command reference</a>
+        <a href="#page">The page</a>
+        <a href="#cards">Cards</a>
+        <a href="#scales">Number lines</a>
+        <a href="#charts">Charts</a>
         <a href="#cast">The .cast script</a>
         <a href="#playlists">Multi-part drawcasts</a>
         <a href="#controls">Player controls</a>
@@ -386,6 +390,122 @@ commands:
         <p class="muted">
           Seeking is a control, not a command: drag the progress bar to jump to any point.
         </p>
+
+        <h2 id="page">The page</h2>
+        <p>
+          Every page has the same frame: a heading strip along the top, the content area in the
+          middle, and a band at the bottom kept clear for the captions. The engine composes the page
+          inside that frame, so you describe <em>what</em> is on it and leave the placing to it.
+        </p>
+        <h3>A heading by default</h3>
+        <p>
+          A page with no <code>card</code> command draws its <code>title</code> as the heading —
+          quickly, unnarrated, with the first ink. Say <code>heading</code> to change that:
+        </p>
+        <pre><code>{ "title": "Why is the sky blue?", "heading": "Rayleigh scattering", … }   // other words
+{ "title": "Why is the sky blue?", "heading": false, … }                   // no heading</code></pre>
+        <p>
+          A <code>card</code> command still works when you want the heading spoken or the slower
+          centre card. Leave a template's own <code>title</code> parameter unset, or you get two headings.
+        </p>
+        <h3>The figure fills the page</h3>
+        <p>
+          A figure that is alone on the page grows into the content area — cards, number lines, pie
+          charts, size comparisons and templates that lay out in a box. With company it keeps its
+          share. Text a viewer must read (card words, tick numbers, chart labels and values) starts at
+          a readable size, wraps onto a second line before it shrinks, and shrinks only to avoid a
+          collision. If a figure still ends up small on an empty page, the check says so.
+        </p>
+        <h3>Centred between the heading and the captions</h3>
+        <p>
+          When the figure sits clearly off-centre in the content area, it is moved as one piece so
+          the space above and below is even. Pages whose figure moves, morphs or animates are left as
+          laid out. The hatch:
+        </p>
+        <pre><code>"page": { "valign": "top" }    // center (default) · top · none</code></pre>
+        <div class="note">
+          <strong>What you no longer do by hand:</strong> add a <code>card</code> just to get a
+          heading, nudge coordinates to centre a figure, bump <code>font_size</code> so labels can be
+          read, size cards, or keep things clear of the captions. When you do want control, the
+          hatches are <code>heading</code>, <code>page</code>, cards <code>size</code>, number-line
+          <code>ticks</code>/<code>tick_format</code>, a template's <code>box</code>, an element's
+          <code>x</code>/<code>y</code>/<code>width</code>, and the top-level
+          <code>text.font_size</code>.
+        </div>
+
+        <h2 id="cards">Cards</h2>
+        <p>
+          A <code>cards</code> element is a set of paper cards the viewer orders, sorts or places.
+          They size themselves: <code>size: "auto"</code> (the default) grows them, up to 1.6×, when
+          they are alone on the page; a number from <code>0.6</code> to <code>2</code> sets the size
+          yourself. Card words wrap onto two lines before they get smaller.
+        </p>
+        <pre><code>{ "id": "kill", "type": "cards", "size": 1.3, "ends": ["most", "least"],
+  "items": ["Heart disease", "Stroke", "Chronic lung disease"] }</code></pre>
+        <p>
+          A label attached to a card, and a compare card's value, travel with the card when it
+          slides; hiding the set hides them too. Card and guess questions finish with
+          <strong>Done</strong>.
+        </p>
+        <h3>Place on a line</h3>
+        <p>
+          Give the cards <code>along</code> (a number line's id) and each item a <code>value</code>.
+          While a card is dragged over the line, a pin shows the exact value it would land on. After
+          Done, each card glides to its true place and leaves a faded ghost at yours, so the two can
+          be compared while the explanation runs.
+        </p>
+        <pre><code>{ "id": "years", "type": "scale", "min": 1800, "max": 2000, "label": "Invented" },
+{ "id": "inv", "type": "cards", "along": "years",
+  "items": [ { "text": "Telephone", "value": 1876 }, { "text": "Aeroplane", "value": 1903 },
+             { "text": "Internet", "value": 1983 } ] }
+
+{ "draw": ["years", "inv"], "speak": "Three inventions, and two centuries to put them on." },
+{ "ask": { "question": "Drag each invention to the year it was made, then press Done.",
+           "on": "inv", "store": "p", "right": "{p.within} of {p.total} close." } }</code></pre>
+
+        <h2 id="scales">Number lines</h2>
+        <p>
+          A <code>scale</code> element is a number line to guess on. The engine places it on the page;
+          its ticks are large enough to read and thin out when crowded.
+        </p>
+        <ul>
+          <li><strong>Big numbers in words.</strong> Ticks read “43 million”, “1 billion” — up to quintillion, then 10ⁿ — and the voice says them the same way. On a <code>log: true</code> line that spans powers of ten, this is what keeps it readable.</li>
+          <li><strong>BC years.</strong> A year line that reaches back past year 0 writes “3000 BC” and “AD 500”. <code>era: "BCE"</code> writes BCE and CE instead; <code>era: "none"</code> keeps the minus sign.</li>
+          <li><strong><code>tick_format</code></strong>: <code>words</code> (default), <code>numerals</code>, or <code>power</code> (10ⁿ).</li>
+          <li><strong>The unit</strong> is written once, on the line, not on every tick.</li>
+          <li>While the viewer guesses, a ghost marker shows the value under the pointer.</li>
+        </ul>
+        <pre><code>{ "id": "s", "type": "scale", "min": 1000000, "max": 100000000000, "log": true,
+  "value": 8100000000, "unit": "people", "label": "People alive today" }
+
+{ "id": "s", "type": "scale", "min": -3000, "max": 2000, "value": -2560, "era": "BCE",
+  "label": "The Great Pyramid is built" }
+
+{ "id": "s", "type": "scale", "min": 1, "max": 1000000000000, "log": true,
+  "tick_format": "power", "label": "Stars in a galaxy" }</code></pre>
+
+        <h2 id="charts">Charts</h2>
+        <p>
+          The data charts (<code>bar_chart</code>, <code>line_chart</code>, <code>pie_chart</code> and
+          friends) draw names, values and ticks at a readable size; long category names go onto two
+          lines. Bar and line charts get round numbers up the y axis by default —
+          <code>y_ticks: false</code> leaves it bare — and a long line chart gets more year ticks. A
+          pie on its own grows into the content area.
+        </p>
+        <p>
+          <code>sort: "desc"</code> (or <code>"asc"</code>) keeps the bars in order of their value at
+          the stage shown, so an <code>animate</code> between stages slides each bar to its new rank.
+          <code>bar_3</code> stays the third label's bar wherever it stands.
+        </p>
+        <pre><code>{ "template": "bar_chart",
+  "params": { "labels": ["Mandarin", "Spanish", "English", "Hindi"],
+              "values": [[940, 485, 390, 345], [1180, 560, 1530, 610]],
+              "stage": 0, "sort": "desc" },
+  "commands": [
+    { "draw": ["axes", "bar_1", "bar_2", "bar_3", "bar_4"], "parallel": true,
+      "speak": "Native speakers first: Mandarin leads." },
+    { "animate": { "stage": 1 }, "duration": 2.5,
+      "speak": "Now count everyone who speaks it, and English jumps to first." } ] }</code></pre>
 
         <h2 id="cast">The .cast script</h2>
         <p>
