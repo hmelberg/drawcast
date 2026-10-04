@@ -26,10 +26,13 @@
     "type": "sequence",
     "items": [
      {
-      "icon": {
-       "of": "brick",
-       "set": "twemoji"
-      },
+      "icon": [
+       "great wall of china",
+       "great wall",
+       "castle wall",
+       "brick wall",
+       "brick"
+      ],
       "label": "Great Wall from space",
       "mark": {
        "text": "Myth",
@@ -80,7 +83,9 @@
        "color": "#2f6b8f"
       }
      }
-    ]
+    ],
+    "size": 420,
+    "show_upcoming": "dots"
    }
   ],
   "commands": [
@@ -91,11 +96,19 @@
    },
    {
     "draw": [
-     "claims_1"
+     "claims_dot_1",
+     "claims_dot_2",
+     "claims_dot_3",
+     "claims_dot_4",
+     "claims_dot_5"
     ],
+    "parallel": true,
     "speak": "Five things almost everyone has heard. For each one: true, or myth?"
    },
    {
+    "draw": [
+     "claims_1"
+    ],
     "speak": "First: you can see the Great Wall of China from space."
    },
    {
@@ -108,7 +121,14 @@
      "correct": 2,
      "right": "Myth. The wall is long but only about as wide as a road, and China's first astronaut, Yang Liwei, could not see it in 2003.",
      "on_canvas": true,
-     "reveal": true
+     "reveal": {
+      "text": "MYTH: too narrow",
+      "at": {
+       "x": 210,
+       "y": 430
+      },
+      "size": 40
+     }
     }
    },
    {
@@ -127,7 +147,14 @@
      "correct": 2,
      "right": "Myth. Goldfish remember for months: they learn when food comes, and which sound means dinner.",
      "on_canvas": true,
-     "reveal": true
+     "reveal": {
+      "text": "MYTH: months",
+      "at": {
+       "x": 210,
+       "y": 430
+      },
+      "size": 40
+     }
     }
    },
    {
@@ -146,7 +173,14 @@
      "correct": 2,
      "right": "Myth. Tall things get hit again and again: the Empire State Building is struck about twenty-five times a year.",
      "on_canvas": true,
-     "reveal": true
+     "reveal": {
+      "text": "MYTH: 25×/yr",
+      "at": {
+       "x": 210,
+       "y": 430
+      },
+      "size": 40
+     }
     }
    },
    {
@@ -165,7 +199,14 @@
      "correct": 1,
      "right": "True. A tiny share of their potassium is radioactive potassium-40, though your body keeps its potassium level steady, so it does no harm.",
      "on_canvas": true,
-     "reveal": true
+     "reveal": {
+      "text": "TRUE: K-40",
+      "at": {
+       "x": 210,
+       "y": 430
+      },
+      "size": 40
+     }
     }
    },
    {
@@ -184,7 +225,14 @@
      "correct": 1,
      "right": "True. Two hearts pump blood through the gills, and a third sends it round the body.",
      "on_canvas": true,
-     "reveal": true
+     "reveal": {
+      "text": "TRUE: 3 hearts",
+      "at": {
+       "x": 210,
+       "y": 430
+      },
+      "size": 40
+     }
     }
    },
    {
@@ -197,7 +245,9 @@
     "highlight": {
      "target": [
       "claims_4",
-      "claims_5"
+      "claims_4_mark",
+      "claims_5",
+      "claims_5_mark"
      ],
      "effect": "circle"
     },

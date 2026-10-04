@@ -3,7 +3,7 @@ Five of the world's great languages. Which has the most native speakers, the peo
   [right] You got {r}.
   [wrong] You got {r}.
 Mandarin wins by a mile: nearly a billion people grew up speaking it.
-Spanish comes second, thanks to Latin America, with almost half a billion.
+Spanish comes second, with almost half a billion: carried across the Atlantic five centuries ago, it is now the home language of most of Latin America.
 Then English and Hindi, close together at around three hundred and fifty million or so each.
 French, for all its fame, has only about seventy-five million native speakers.
 But count everyone who speaks a language, natively or not, and the order changes.

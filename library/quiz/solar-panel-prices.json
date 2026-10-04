@@ -64,9 +64,39 @@
   ],
   "elements": [
    {
+    "id": "endpt",
+    "type": "point",
+    "at": {
+     "data": [
+      2024,
+      0.27
+     ]
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
     "id": "end",
     "type": "text",
-    "text": "2024: $0.27",
+    "text": "$0.27",
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "ref": "endpt",
+     "side": "above",
+     "gap": 40
+    }
+   },
+   {
+    "id": "drop",
+    "type": "text",
+    "text": "−94% since 2008",
     "font_size": 52,
     "style": {
      "color": "#b5482e"
@@ -74,22 +104,30 @@
     "cites": [
      "owid"
     ],
-    "x": 730,
+    "x": 640,
+    "y": 470
+   },
+   {
+    "id": "fact",
+    "type": "text",
+    "text": "giant factories",
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 560,
     "y": 315
    },
    {
-    "id": "drop",
+    "id": "swanson",
     "type": "text",
-    "text": "−94%",
-    "font_size": 78,
+    "text": "×2 panels → −20% price",
+    "font_size": 40,
     "style": {
-     "color": "#b5482e"
+     "color": "#2f6b8f"
     },
-    "cites": [
-     "owid"
-    ],
-    "x": 610,
-    "y": 440
+    "x": 640,
+    "y": 400
    },
    {
     "id": "y1975",
@@ -147,30 +185,23 @@
    },
    {
     "draw": [
+     "endpt",
      "end",
      "drop"
     ],
     "speak": "That is a fall of about ninety-four percent in sixteen years, to twenty-seven cents."
    },
    {
-    "point": {
-     "at": {
-      "data": [
-       2010,
-       2.51
-      ]
-     },
-     "gesture": "circle"
-    },
-    "speak": "After 2008, giant factories, many of them in China, pushed the price down faster than ever."
+    "speak": "After 2008, giant factories, many of them in China, pushed the price down faster than ever.",
+    "draw": [
+     "fact"
+    ]
    },
    {
-    "highlight": {
-     "target": [
-      "line_1"
-     ]
-    },
-    "speak": "The rule of thumb, called Swanson's law: every doubling of all the panels ever made cuts the price by about a fifth."
+    "speak": "The rule of thumb, called Swanson's law: every doubling of all the panels ever made cuts the price by about a fifth.",
+    "draw": [
+     "swanson"
+    ]
    },
    {
     "highlight": {
@@ -188,11 +219,18 @@
     "speak": "And the story starts earlier. In 1975, the same watt cost about a hundred and thirty-two dollars, far off the top of this chart."
    },
    {
+    "erase": [
+     "drop",
+     "fact",
+     "swanson"
+    ]
+   },
+   {
+    "cue": 0.3,
+    "speak": "From then to now, the price has fallen by more than ninety-nine percent.",
     "draw": [
      "total"
-    ],
-    "cue": 0.3,
-    "speak": "From then to now, the price has fallen by more than ninety-nine percent."
+    ]
    }
   ]
  }
