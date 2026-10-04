@@ -8,6 +8,7 @@
 Twenty-three people make two hundred and fifty-three pairs, and each pair is a fresh chance of a match.
 (b) So it's not twenty-three tries. It's two hundred and fifty-three.
 (a) Right. Each pair matches only once in three hundred and sixty-five, but with that many tries, missing every single time gets unlikely.
+(a) The 2014 World Cup showed it. Of the thirty-two squads of twenty-three players, exactly sixteen had two players sharing a birthday.
 (b) And a bigger room? Say, seventy people?
 (a) Then a shared birthday is all but certain: ninety-nine point nine percent.
 (b) Next office party, I'm taking bets.

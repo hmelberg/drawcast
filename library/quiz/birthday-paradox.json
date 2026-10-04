@@ -72,7 +72,7 @@
     "type": "text",
     "text": "6%?",
     "x": 192,
-    "y": 480,
+    "y": 445,
     "font_size": 40,
     "style": {
      "color": "#8f887c"
@@ -1308,6 +1308,70 @@
      "ln22_4",
      "ln22_10"
     ]
+   },
+   {
+    "id": "g6m",
+    "type": "path",
+    "points": [
+     [
+      192,
+      388
+     ],
+     [
+      192,
+      418
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "nomatch",
+    "type": "text",
+    "text": "no match: 49%",
+    "x": 505,
+    "y": 310,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "wc",
+    "type": "icon",
+    "of": "soccer ball",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 200,
+    "y": 390
+   },
+   {
+    "id": "wc_l",
+    "type": "text",
+    "text": "World Cup 2014:",
+    "x": 580,
+    "y": 430,
+    "font_size": 44,
+    "cites": [
+     "wc2014"
+    ]
+   },
+   {
+    "id": "wc_n",
+    "type": "text",
+    "text": "16 of 32 squads",
+    "x": 580,
+    "y": 335,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "wc2014"
+    ]
    }
   ],
   "commands": [
@@ -1327,7 +1391,8 @@
    {
     "draw": [
      "chance",
-     "guess6"
+     "guess6",
+     "g6m"
     ],
     "voice": "b",
     "speak": "Twenty-three out of three hundred and sixty-five days? That sounds tiny. Maybe six percent?"
@@ -1344,22 +1409,22 @@
    },
    {
     "erase": [
-     "guess6"
+     "guess6",
+     "g6m"
     ]
    },
    {
-    "highlight": {
-     "target": [
-      "chance"
-     ]
-    },
     "voice": "b",
-    "speak": "Half? With only twenty-three people? That can't be right."
+    "speak": "Half? With only twenty-three people? That can't be right.",
+    "draw": [
+     "nomatch"
+    ]
    },
    {
     "erase": [
      "chance",
-     "chance_answer"
+     "chance_answer",
+     "nomatch"
     ]
    },
    {
@@ -1405,19 +1470,32 @@
    },
    {
     "draw": [
+     "wc",
+     "wc_l",
+     "wc_n"
+    ],
+    "voice": "a",
+    "speak": "The 2014 World Cup showed it. Of the thirty-two squads of twenty-three players, exactly sixteen had two players sharing a birthday."
+   },
+   {
+    "erase": [
+     "wc",
+     "wc_l",
+     "wc_n"
+    ]
+   },
+   {
+    "draw": [
      "chance",
-     "chance_answer",
-     "seventy"
+     "chance_answer"
     ],
     "voice": "b",
     "speak": "And a bigger room? Say, seventy people?"
    },
    {
-    "highlight": {
-     "target": [
-      "seventy"
-     ]
-    },
+    "draw": [
+     "seventy"
+    ],
     "voice": "a",
     "speak": "Then a shared birthday is all but certain: ninety-nine point nine percent."
    },
@@ -1434,6 +1512,15 @@
   "text": {
    "font_size": 34
   },
-  "affirm": "playful"
+  "affirm": "playful",
+  "sources": [
+   {
+    "id": "wc2014",
+    "title": "Birthday problem (2014 FIFA World Cup squads)",
+    "authors": "Wikipedia; TheJournal.ie analysis of FIFA squad lists",
+    "year": 2014,
+    "finding": "of the 32 squads of 23 players at the 2014 World Cup, 16 had at least one pair sharing a birthday"
+   }
+  ]
  }
 }

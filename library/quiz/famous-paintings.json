@@ -53,7 +53,8 @@
        "set": "twemoji"
       }
      }
-    ]
+    ],
+    "size": 1.25
    },
    {
     "id": "s1911",
@@ -89,19 +90,19 @@
     "points": [
      [
       356,
-      264
+      286
      ],
      [
       644,
-      264
+      286
      ],
      [
       644,
-      616
+      638
      ],
      [
       356,
-      616
+      638
      ]
     ],
     "closed": true,
@@ -116,19 +117,19 @@
     "points": [
      [
       385,
-      293
+      315
      ],
      [
       615,
-      293
+      315
      ],
      [
       615,
-      587
+      609
      ],
      [
       385,
-      587
+      609
      ]
     ],
     "closed": true,
@@ -141,7 +142,7 @@
     "id": "ml_head",
     "type": "ellipse",
     "x": 500,
-    "y": 480,
+    "y": 502,
     "rx": 42,
     "ry": 54,
     "style": {
@@ -157,31 +158,31 @@
     "points": [
      [
       439,
-      344
+      366
      ],
      [
       446,
-      440
+      462
      ],
      [
       465,
-      520
+      542
      ],
      [
       500,
-      544
+      566
      ],
      [
       535,
-      520
+      542
      ],
      [
       554,
-      440
+      462
      ],
      [
       561,
-      344
+      366
      ]
     ],
     "smooth": true,
@@ -196,23 +197,23 @@
     "points": [
      [
       404,
-      299
+      321
      ],
      [
       428,
-      368
+      390
      ],
      [
       500,
-      408
+      430
      ],
      [
       572,
-      368
+      390
      ],
      [
       596,
-      299
+      321
      ]
     ],
     "smooth": true,
@@ -243,7 +244,7 @@
     "type": "text",
     "text": "most famous",
     "x": 500,
-    "y": 225,
+    "y": 232,
     "font_size": 44,
     "style": {
      "color": "#b5482e"
@@ -332,7 +333,7 @@
       "s1911"
      ]
     },
-    "speak": "Newspapers around the world printed her face, and crowds queued to stare at the empty wall. Even Pablo Picasso was questioned by the police."
+    "speak": "Newspapers around the world printed her face, and crowds queued to stare at the empty wall."
    },
    {
     "draw": [

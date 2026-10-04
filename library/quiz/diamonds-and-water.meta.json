@@ -11,5 +11,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": true,
- "notes": "2026-10-04 republish: chart takes the engine's placement (box dropped); price line, stop arrow and the diamond's level are in data coordinates (data: true / {data}) instead of computed canvas numbers; price label attached to its line; y label shortened (was off-canvas), x label dropped (first bar reads '1st glass'); affirm playful; lines unchanged. Soft pacing flags: idle 5-8 s on four dialogue lines."
+ "notes": "2026-10-04 republish + review: water and diamond drawn together on Smith's line; short choices (Diamonds are more useful / Water is plentiful / Prices set by law); price/stop/diamond level in data coordinates; 'marginal utility' over the bars; bigger diamond; affirm playful. Changed lines: [right] 'Water is plentiful, so one more glass is worth very little.' Soft pacing: idle 6-8 s on two lines."
 }

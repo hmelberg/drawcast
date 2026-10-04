@@ -12,5 +12,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "2026-10-04 republish: hand-drawn dashed old bar (placed at a computed slot) dropped — ghost/keep do not hold a template bar across a stage animate; the old 10 : 1 is struck through when 2016 arrives; texts moved off the y ticks; affirm playful; lines unchanged."
+ "notes": "2026-10-04 republish + review: old 10 : 1 struck through when 2016 arrives; chart on the left (box), notes on the right; the axis rescales to 45 with the 2016 stage (animate ylim.1); a dashed 'red cells' level inside the human bar; a toilet and a third stage (bacteria 38 → 27) play out the punchline; affirm playful. Changed lines: [right] shortened to 'About one each.'; new last line 'Flush, and for a little while, you are mostly you again.' (Sender et al. 2016: a defecation can flip the ratio). check keeps one static warn (stage-0 value '10' vs the later red-cells label)."
 }

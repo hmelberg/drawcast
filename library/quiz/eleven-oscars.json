@@ -84,10 +84,10 @@
    {
     "id": "l_ben",
     "type": "text",
-    "text": "1959 · 11/12",
+    "text": "11 of 12",
     "x": 215,
     "y": 245,
-    "font_size": 26,
+    "font_size": 32,
     "style": {
      "color": "#2f6b8f"
     }
@@ -95,10 +95,10 @@
    {
     "id": "l_tit",
     "type": "text",
-    "text": "1997 · 11/14",
+    "text": "11 of 14",
     "x": 405,
     "y": 245,
-    "font_size": 26,
+    "font_size": 32,
     "style": {
      "color": "#2f6b8f"
     }
@@ -106,10 +106,10 @@
    {
     "id": "l_rotk",
     "type": "text",
-    "text": "2003 · 11/11",
+    "text": "11 of 11",
     "x": 595,
     "y": 245,
-    "font_size": 28,
+    "font_size": 32,
     "style": {
      "color": "#b5482e"
     }
@@ -130,6 +130,17 @@
     "text": "← 10",
     "x": 300,
     "y": 511,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "l_av",
+    "type": "text",
+    "text": "← 3",
+    "x": 760,
+    "y": 503,
     "font_size": 40,
     "style": {
      "color": "#2f6b8f"
@@ -168,7 +179,7 @@
     "draw": [
      "l_ben"
     ],
-    "speak": "Three films share the record. Ben-Hur came first, in 1959, chariot race and all."
+    "speak": "Only three films share the record. Ben-Hur came first, in 1959, chariot race and all."
    },
    {
     "draw": [
@@ -181,6 +192,12 @@
      "l_wss"
     ],
     "speak": "West Side Story came painfully close, with ten."
+   },
+   {
+    "draw": [
+     "l_av"
+    ],
+    "speak": "And Avatar, the biggest earner of all, took home just three."
    },
    {
     "draw": [
