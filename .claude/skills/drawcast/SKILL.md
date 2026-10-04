@@ -79,10 +79,13 @@ every working file below is `dev-casts/<slug>…`.
      clickbait voice that the cast actually pays off ("It's falling right
      now", "99 % accurate. Probably fine.") and let the user pick; never a
      promise the cast does not keep. It goes on a tilted paper strip over
-     the poster (style B, the site's default). Name a character only when
-     one fits (`surprised` for a surprising fact; a quiz gets `thinking` by
-     itself); `style: loud` (over-the-top ironic) or `question` only when
-     the user asks.
+     the poster (style B, the site's default). A figure in the corner is
+     optional: for adults `note`, `stamp` or `bubble` (each with its own
+     `words`), `eyes`, `hand`, `reader`, `skeptic`; for a children's cast
+     (tagged children/kids/school) the cartoons `surprised`, `thinking`,
+     `puzzled`, `aha` — a children's quiz gets `thinking` by itself, an
+     adult cast none. `style: loud` (over-the-top ironic) or `question` only
+     when the user asks.
    - **Subtitle:** write one yourself: a single sentence in the narration's
      language saying what the viewer gets ("How herd immunity protects
      people who can't be vaccinated"), not "a drawcast about…". It is the

@@ -16,6 +16,7 @@ export interface CastCardText {
   title?: string;
   subtitle?: string;
   format?: string;
+  tags?: string[];
   thumb?: ThumbSpec;
 }
 
@@ -110,11 +111,13 @@ export function castCardText(text: string): CastCardText {
   const top = head as Record<string, unknown>;
   const pl = top.playlist;
   const src = pl && typeof pl === "object" ? (pl as Record<string, unknown>) : top;
-  const { title, subtitle, format, thumb } = src;
+  const { title, subtitle, format, thumb, tags } = src;
   const out: CastCardText = {};
   if (typeof title === "string" && title.trim()) out.title = clip(title, TITLE_MAX);
   if (typeof subtitle === "string" && subtitle.trim()) out.subtitle = clip(subtitle, LINE_MAX);
   if (typeof format === "string") out.format = format;
+  const tagList = Array.isArray(tags) ? tags.filter((x): x is string => typeof x === "string") : typeof tags === "string" ? tags.split(",") : [];
+  if (tagList.length) out.tags = tagList.map((x) => x.trim()).filter(Boolean);
   const t = readThumb(thumb);
   if (t) out.thumb = t;
   return out;
@@ -151,6 +154,12 @@ function scriptCardText(text: string): CastCardText {
       continue;
     }
     if (/^##(\s|$)/.test(line) || /^\s+\S/.test(line)) break;
+    const tagLine = /^tags:\s+(.+)$/.exec(line);
+    if (tagLine) {
+      const v = tagLine[1].trim().replace(/^\[|\]$/g, "");
+      out.tags = v.split(",").map((x) => scalar(x).trim()).filter(Boolean);
+      continue;
+    }
     const fmt = /^format:\s+(\S+)/.exec(line);
     if (fmt) {
       out.format = scalar(fmt[1]);

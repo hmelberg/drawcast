@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { castCardText } from "../netlify/lib/share-card.mts";
-import { characterArt, fitText, planThumb, readThumb, thumbSvg, THUMB_CHARACTERS } from "../netlify/lib/thumb.mts";
+import { accentArt, ADULT_ACCENTS, characterArt, fitText, KID_CHARACTERS, kidsByTags, planThumb, readThumb, thumbSvg } from "../netlify/lib/thumb.mts";
 import { renderThumb } from "../netlify/lib/thumb-render.mts";
 import { handleCardRequest, type CardDeps } from "../netlify/functions/card.mts";
 
@@ -26,10 +26,21 @@ describe("planThumb: the defaults Hans chose", () => {
     expect(planThumb({ style: "question" }, { title: "The deadliest animal" }).style).toBe("plain");
     expect(planThumb({ style: "question" }, { title: "Is a tomato a fruit?" })).toEqual({ style: "question", character: "none", question: "Is a tomato a fruit?" });
   });
-  test("the character: thinking on a quiz's strip, surprised on D, none on A and E, the author's pick wins", () => {
-    expect(planThumb({ headline: "h" }, { format: "quiz" }).character).toBe("thinking");
-    expect(planThumb({ headline: "h" }, { format: "drawcast" }).character).toBe("none");
-    expect(planThumb({ headline: "h", style: "loud" }).character).toBe("surprised");
+  test("automatic figures: a cartoon only for a children's cast; grown-ups get none on B, the skeptic on D", () => {
+    expect(planThumb({ headline: "h" }, { format: "quiz", kids: true }).character).toBe("thinking");
+    expect(planThumb({ headline: "h" }, { format: "quiz" }).character).toBe("none");
+    expect(planThumb({ headline: "h", style: "loud" }, { kids: true }).character).toBe("surprised");
+    expect(planThumb({ headline: "h", style: "loud" }).character).toBe("skeptic");
+    expect(kidsByTags(["biology", "Children"])).toBe(true);
+    expect(kidsByTags(["biology"])).toBe(false);
+  });
+  test("a note, stamp or bubble says the author's words, or its own", () => {
+    expect(planThumb({ headline: "h", character: "stamp" }).words).toBe("PLOT TWIST");
+    expect(planThumb({ headline: "h", character: "stamp", words: "Myth?" }).words).toBe("Myth?");
+    expect(planThumb({ headline: "h", character: "reader", words: "x" }).words).toBeUndefined();
+    expect(planThumb({ headline: "h", character: "eyes", style: "loud" }).character).toBe("none");
+  });
+  test("the author's pick wins, and A and E carry none", () => {
     expect(planThumb({ headline: "h", character: "aha" }).character).toBe("aha");
     expect(planThumb({ style: "question", question: "q?", character: "aha" }).character).toBe("none");
   });
@@ -43,7 +54,8 @@ describe("drawing", () => {
     expect(long.size).toBeLessThan(70);
   });
   test("every character is drawn with flat colours (no CSS variables)", () => {
-    for (const c of THUMB_CHARACTERS) if (c !== "none") expect(characterArt(c)).not.toMatch(/var\(/);
+    for (const c of KID_CHARACTERS) expect(characterArt(c)).not.toMatch(/var\(/);
+    for (const c of ADULT_ACCENTS) expect(accentArt(c, "x")).not.toMatch(/var\(/);
   });
   test("the SVG escapes the author's words", () => {
     const svg = thumbSvg({ style: "strip", character: "none", headline: "<b>&" }, "data:image/png;base64,AA");

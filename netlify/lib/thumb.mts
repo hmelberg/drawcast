@@ -15,8 +15,14 @@
 
 export const THUMB_STYLES = ["plain", "strip", "loud", "question"] as const;
 export type ThumbStyle = (typeof THUMB_STYLES)[number];
-export const THUMB_CHARACTERS = ["none", "surprised", "thinking", "puzzled", "aha"] as const;
+/** Cartoon busts for children's casts; ink and flat editorial accents for adults' (Hans 2026-10-04). */
+export const KID_CHARACTERS = ["surprised", "thinking", "puzzled", "aha"] as const;
+export const ADULT_ACCENTS = ["reader", "skeptic", "hand", "eyes", "note", "stamp", "bubble"] as const;
+export const THUMB_CHARACTERS = ["none", ...KID_CHARACTERS, ...ADULT_ACCENTS] as const;
 export type ThumbCharacter = (typeof THUMB_CHARACTERS)[number];
+/** The accents that carry words, and what they say when the author wrote none. */
+export const ACCENT_WORDS: Partial<Record<ThumbCharacter, string>> = { note: "wait, what?", stamp: "PLOT TWIST", bubble: "Hm." };
+export const WORDS_MAX = 24;
 
 /** What a cast's header may say (every field optional; "auto" = the site decides). */
 export interface ThumbSpec {
@@ -28,6 +34,8 @@ export interface ThumbSpec {
   question?: string;
   /** The listing title, when it should differ from the title card's. */
   title?: string;
+  /** A note's, stamp's or bubble's own words (default ACCENT_WORDS). */
+  words?: string;
 }
 
 /** What is drawn, every choice made. */
@@ -36,6 +44,7 @@ export interface ThumbPlan {
   character: ThumbCharacter;
   headline?: string;
   question?: string;
+  words?: string;
 }
 
 export const HEADLINE_MAX = 60;
@@ -61,6 +70,8 @@ export function readThumb(raw: unknown): ThumbSpec | undefined {
   if (question) out.question = question;
   const title = clean(r.title, LISTING_TITLE_MAX);
   if (title) out.title = title;
+  const words = clean(r.words, WORDS_MAX);
+  if (words) out.words = words;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -70,7 +81,7 @@ export function readThumb(raw: unknown): ThumbSpec | undefined {
  * title that is one). The character, unless chosen: Thinking deeply on a
  * quiz's strip, Surprised on D, none otherwise — and never on A or E.
  */
-export function planThumb(t: ThumbSpec | undefined, ctx: { title?: string; format?: string } = {}): ThumbPlan {
+export function planThumb(t: ThumbSpec | undefined, ctx: { title?: string; format?: string; kids?: boolean } = {}): ThumbPlan {
   const headline = t?.headline;
   const titleQuestion = ctx.title && /\?\s*$/.test(ctx.title) ? clean(ctx.title, QUESTION_MAX) : undefined;
   const question = t?.question ?? titleQuestion;
@@ -80,10 +91,20 @@ export function planThumb(t: ThumbSpec | undefined, ctx: { title?: string; forma
   let character: ThumbCharacter = "none";
   if (style === "strip" || style === "loud") {
     if (t?.character && t.character !== "auto") character = t.character;
-    else if (style === "loud") character = ctx.format === "quiz" ? "puzzled" : "surprised";
-    else character = ctx.format === "quiz" ? "thinking" : "none";
+    // Automatic: a cartoon only for a children's cast (its tags say so);
+    // a grown-up cast gets none on a strip, the skeptic on D.
+    else if (style === "loud") character = ctx.kids ? (ctx.format === "quiz" ? "puzzled" : "surprised") : "skeptic";
+    else character = ctx.kids && ctx.format === "quiz" ? "thinking" : "none";
+    // Peeking eyes hang over the strip's edge: D has no strip.
+    if (style === "loud" && character === "eyes") character = "none";
   }
-  return { style, character, ...(style === "strip" || style === "loud" ? { headline } : {}), ...(style === "question" ? { question } : {}) };
+  const words = ACCENT_WORDS[character] !== undefined ? (t?.words ?? ACCENT_WORDS[character]) : undefined;
+  return { style, character, ...(style === "strip" || style === "loud" ? { headline } : {}), ...(style === "question" ? { question } : {}), ...(words ? { words } : {}) };
+}
+
+/** A children's cast, by its tags (children, kids, school; barn, skole). */
+export function kidsByTags(tags: readonly string[] | undefined): boolean {
+  return (tags ?? []).some((t) => /^(children|kids?|school|pupils|barn|skole|elever)$/i.test(t.trim()));
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +207,7 @@ interface Look {
   hair: string;
   shirt: string;
 }
-const LOOKS: Record<Exclude<ThumbCharacter, "none">, Look> = {
+const LOOKS: Record<(typeof KID_CHARACTERS)[number], Look> = {
   surprised: { skin: "#f2c29b", hair: "#5a3a24", shirt: "#4f86c6" },
   thinking: { skin: "#f2c29b", hair: "#2b2622", shirt: "#6aa36f" },
   puzzled: { skin: "#f2c29b", hair: "#c0632b", shirt: "#d9822b" },
@@ -205,7 +226,7 @@ const line = (d: string, w = 5): string => `<path d="${d}" fill="none" stroke="$
 const eye = (cx: number, cy: number, r: number, px: number, py: number): string => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#fff" stroke="${INK}" stroke-width="4"/><circle cx="${px}" cy="${py}" r="${Math.max(4, r * 0.4)}" fill="${INK}"/>`;
 
 /** One character's 200 × 200 art (no wrapper). */
-export function characterArt(c: Exclude<ThumbCharacter, "none">): string {
+export function characterArt(c: (typeof KID_CHARACTERS)[number]): string {
   const l = LOOKS[c];
   if (c === "surprised")
     return (
@@ -244,19 +265,86 @@ export function characterArt(c: Exclude<ThumbCharacter, "none">): string {
   );
 }
 
-function character(c: ThumbCharacter, style: ThumbStyle): string {
+const RED = "#c8372d";
+
+/** A grown-up accent, in the canvas's own coordinates (laid out for B's top-right corner). */
+export function accentArt(c: (typeof ADULT_ACCENTS)[number], words = ""): string {
+  const w = esc(words);
+  switch (c) {
+    case "reader":
+      return `<g transform="translate(728 18) scale(1.3)">
+<path d="M28 250c4-56 38-86 92-88 54 2 88 32 92 88z" fill="#34506b"/><path d="M96 150h48v24c-8 10-40 10-48 0z" fill="#d9a07c"/>
+<path d="M90 168c10 12 50 12 60 0l6 14c-14 14-58 14-72 0z" fill="#2a4157"/><ellipse cx="120" cy="104" rx="38" ry="46" fill="#e8b48f"/>
+<path d="M80 98c-4-40 26-62 56-56 26 4 40 26 36 50-10-14-30-24-54-22-14 2-28 12-38 28z" fill="#3a2a22"/>
+<path d="M84 96c-6 2-8 16 0 22" fill="#e8b48f" stroke="#c98f6c" stroke-width="2"/>
+<rect x="99" y="96" width="20" height="14" rx="4" fill="none" stroke="${INK}" stroke-width="3"/><rect x="125" y="96" width="20" height="14" rx="4" fill="none" stroke="${INK}" stroke-width="3"/>
+<path d="M119 101h6" stroke="${INK}" stroke-width="3"/><path d="M102 88q8-5 16-2M128 85q9-4 17 2" fill="none" stroke="#3a2a22" stroke-width="3" stroke-linecap="round"/>
+<path d="M114 128q8 3 16 0" fill="none" stroke="#9c5a44" stroke-width="3" stroke-linecap="round"/>
+<path d="M70 250c0-34 14-62 40-80" fill="none" stroke="#2a4157" stroke-width="30" stroke-linecap="round"/>
+<path d="M104 160c-10-4-14-16-8-24l10-8c8-4 16 0 18 8l2 18c-4 8-14 10-22 6z" fill="#e8b48f"/></g>`;
+    case "skeptic":
+      return `<g transform="translate(728 18) scale(1.3)">
+<path d="M28 250c4-56 38-86 92-88 54 2 88 32 92 88z" fill="#7a3b3b"/><path d="M98 150h44v20c-8 8-36 8-44 0z" fill="#b7835f"/>
+<ellipse cx="120" cy="104" rx="38" ry="46" fill="#c9926c"/>
+<path d="M78 104c-8-46 24-70 52-66 30 2 50 26 44 64-6-22-20-36-42-38 4 8 0 14-6 16-12-14-30-10-48 24z" fill="#1f1a17"/>
+<path d="M100 90l18 2M126 84q10-8 20 0" fill="none" stroke="#1f1a17" stroke-width="3.5" stroke-linecap="round"/>
+<circle cx="110" cy="104" r="3.5" fill="#1f1a17"/><circle cx="136" cy="102" r="3.5" fill="#1f1a17"/>
+<path d="M110 130q10-4 20 2" fill="none" stroke="#7d4636" stroke-width="3" stroke-linecap="round"/>
+<path d="M52 214c30-18 104-18 136 0" fill="none" stroke="#5e2c2c" stroke-width="30" stroke-linecap="round"/>
+<path d="M60 204c40 14 90 14 124-6" fill="none" stroke="#7a3b3b" stroke-width="22" stroke-linecap="round"/>
+<ellipse cx="62" cy="206" rx="13" ry="10" fill="#c9926c"/><ellipse cx="180" cy="200" rx="13" ry="10" fill="#c9926c"/></g>`;
+    case "hand":
+      return `<g transform="translate(640 40) scale(1.75)" fill="#fffdf7" stroke="${INK}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+<path d="M200 70h-50l-10-12H40c-10 0-14 14-2 18h70c-6 6-6 16 2 20-6 6-4 16 4 18-4 8 2 16 10 16h46l12-8h28z"/>
+<path d="M200 64h18v68h-18z" fill="#e9dfc9"/><path d="M110 94h24M116 112h20M122 130h16" fill="none" stroke-width="3"/></g>`;
+    case "eyes":
+      return `<g transform="rotate(-3.5 500 588)" stroke="${INK}" stroke-linecap="round">
+<path d="M610 520c0-40 26-66 62-66s62 26 62 66" fill="#fffdf7" stroke-width="5"/><path d="M740 520c0-40 26-66 62-66s62 26 62 66" fill="#fffdf7" stroke-width="5"/>
+<circle cx="690" cy="500" r="14" fill="${INK}"/><circle cx="820" cy="500" r="14" fill="${INK}"/>
+<path d="M618 432q50-30 104-6M748 418q54-18 104 14" fill="none" stroke-width="7"/>
+<path d="M560 528c40-10 66-8 92-2M846 524c30-6 58-6 86 4" fill="none" stroke-width="6"/></g>`;
+    case "note": {
+      // Two lines at most, as large as fits the corner (x 740–1000).
+      const { size, lines: two } = fitText(words, "marker", 250, 2, 54, 28);
+      return `<g fill="none" stroke="${RED}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M760 190c-30 30-70 46-120 52"/><path d="M660 222l-26 22 34 8"/></g>` +
+        two.map((l, i) => `<text x="${870 + i * 10}" y="${120 + i * 58}" text-anchor="middle" font-family="${FONT.marker}" font-size="${size}" fill="${RED}" transform="rotate(-8 ${870 + i * 10} ${120 + i * 58})">${esc(l)}</text>`).join("");
+    }
+    case "stamp": {
+      const { size } = fitText(words.toUpperCase(), "loud", 230, 1, 66, 30);
+      return `<g transform="rotate(-12 830 150)" opacity="0.9"><rect x="690" y="92" width="280" height="116" rx="10" fill="none" stroke="${RED}" stroke-width="9" stroke-dasharray="60 6 30 4"/>
+<rect x="704" y="106" width="252" height="88" rx="6" fill="none" stroke="${RED}" stroke-width="3"/>
+<text x="830" y="${150 + size * 0.34}" text-anchor="middle" font-family="${FONT.loud}" font-size="${size}" letter-spacing="3" fill="${RED}">${esc(words.toUpperCase())}</text></g>`;
+    }
+    case "bubble": {
+      const { size } = fitText(words, "hand", 220, 1, 72, 32);
+      return `<g transform="rotate(4 860 130)"><path d="M760 60h200c22 0 36 14 36 36v70c0 22-14 36-36 36h-120l-40 44 6-44h-46c-22 0-36-14-36-36V96c0-22 14-36 36-36z" fill="#fffdf7" stroke="${INK}" stroke-width="5" stroke-linejoin="round"/>
+<text x="860" y="${131 + size * 0.36}" text-anchor="middle" font-family="${FONT.hand}" font-size="${size}" fill="${INK}">${w}</text></g>`;
+    }
+  }
+}
+
+const isKid = (c: ThumbCharacter): c is (typeof KID_CHARACTERS)[number] => (KID_CHARACTERS as readonly string[]).includes(c);
+
+function character(c: ThumbCharacter, style: ThumbStyle, words = ""): string {
   if (c === "none") return "";
-  // B: the top-right corner, over the figure's margin; D: big, bottom right.
-  const [x, y, s] = style === "loud" ? [640, 400, 1.75] : [722, 14, 1.42];
-  return `<g transform="translate(${x} ${y}) scale(${s})">${characterArt(c)}</g>`;
+  if (isKid(c)) {
+    // B: the top-right corner, over the figure's margin; D: big, bottom right.
+    const [x, y, s] = style === "loud" ? [640, 400, 1.75] : [722, 14, 1.42];
+    return `<g transform="translate(${x} ${y}) scale(${s})">${characterArt(c)}</g>`;
+  }
+  const art = accentArt(c, words);
+  // D keeps its seal top right: the accent moves down to the bottom right.
+  return style === "loud" ? `<g transform="translate(0 380)">${art}</g>` : art;
 }
 
 /** The listing picture as an SVG string, the poster at `posterHref` (a data: URL on the server). */
 export function thumbSvg(plan: ThumbPlan, posterHref: string): string {
   const poster = `<rect width="${THUMB_W}" height="${THUMB_H}" fill="#fffdf7"/><image href="${esc(posterHref)}" width="${THUMB_W}" height="${THUMB_H}"/>`;
   let body = poster;
-  if (plan.style === "strip" && plan.headline) body += character(plan.character, "strip") + strip(plan.headline);
-  else if (plan.style === "loud" && plan.headline) body += loud(plan.headline) + character(plan.character, "loud");
+  if (plan.style === "strip" && plan.headline) {
+    // Peeking eyes sit behind the strip, over its edge; everything else is on top of the figure, under the strip.
+    body += plan.character === "eyes" ? character("eyes", "strip") + strip(plan.headline) : character(plan.character, "strip", plan.words) + strip(plan.headline);
+  } else if (plan.style === "loud" && plan.headline) body += loud(plan.headline) + character(plan.character, "loud", plan.words);
   else if (plan.style === "question" && plan.question) body = question(plan.question, posterHref);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${THUMB_W}" height="${THUMB_H}" viewBox="0 0 ${THUMB_W} ${THUMB_H}">${body}</svg>`;
 }

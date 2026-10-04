@@ -26,7 +26,7 @@ import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, s
 import { castFormat, type CastFormat } from "../standalone/transcript";
 import { thumbChoice } from "./thumb-choice";
 import { posterForPlaylistText } from "../export/snapshot";
-import type { ThumbSpec } from "../../netlify/lib/thumb.mts";
+import { kidsByTags, type ThumbSpec } from "../../netlify/lib/thumb.mts";
 import { playlistSpeakLines } from "../playlist/session";
 import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
@@ -921,6 +921,7 @@ function build(): ShareSession {
         thumb: playlist.meta.thumb,
         title: doc.title,
         format: playlist.meta.format ?? castFormat(itemsOf(playlist).map((i) => i.spec), playlistSpeakLines(playlist).filter((l) => l.text.trim()).length),
+        kids: kidsByTags(playlist.meta.tags),
         poster: () => posterForPlaylistText(formatPlaylist(playlist, "yaml")),
       });
     }
