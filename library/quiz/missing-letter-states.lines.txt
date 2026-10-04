@@ -1,6 +1,6 @@
 Fifty US states, from Alabama to Wyoming. One of these four letters appears in none of their names.
 All four are rare letters in English. But only one is missing completely.
-[ASK] Which letter appears in no US state name?
+[ASK] Which letter appears in no US state name? Tap it.
   [right] Q. Not one of the fifty states has a Q in its name.
   [wrong] Try spelling the states with the most unusual names.
 J is rescued by a single state: New Jersey.
