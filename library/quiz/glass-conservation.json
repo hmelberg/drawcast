@@ -21,20 +21,20 @@
     "type": "path",
     "points": [
      [
-      80,
-      460
+      230,
+      487
      ],
      [
-      80,
-      230
+      230,
+      292
      ],
      [
-      320,
-      230
+      470,
+      292
      ],
      [
-      320,
-      460
+      470,
+      487
      ]
     ],
     "style": {
@@ -46,20 +46,20 @@
     "type": "path",
     "points": [
      [
-      84,
-      233
+      234,
+      294
      ],
      [
-      316,
-      233
+      466,
+      294
      ],
      [
-      316,
-      350
+      466,
+      394
      ],
      [
-      84,
-      350
+      234,
+      394
      ]
     ],
     "closed": true,
@@ -76,20 +76,20 @@
     "type": "path",
     "points": [
      [
-      380,
-      460
+      530,
+      487
      ],
      [
-      380,
-      230
+      530,
+      292
      ],
      [
-      620,
-      230
+      770,
+      292
      ],
      [
-      620,
-      460
+      770,
+      487
      ]
     ],
     "style": {
@@ -101,20 +101,20 @@
     "type": "path",
     "points": [
      [
-      384,
-      233
+      534,
+      294
      ],
      [
-      616,
-      233
+      766,
+      294
      ],
      [
-      616,
-      350
+      766,
+      394
      ],
      [
-      384,
-      350
+      534,
+      394
      ]
     ],
     "closed": true,
@@ -131,19 +131,19 @@
     "type": "path",
     "points": [
      [
-      690,
+      840,
       640
      ],
      [
-      690,
-      230
+      840,
+      292
      ],
      [
-      790,
-      230
+      940,
+      292
      ],
      [
-      790,
+      940,
       640
      ]
     ],
@@ -156,20 +156,20 @@
     "type": "path",
     "points": [
      [
-      694,
-      233
+      844,
+      294
      ],
      [
-      786,
-      233
+      936,
+      294
      ],
      [
-      786,
-      518
+      936,
+      536
      ],
      [
-      694,
-      518
+      844,
+      536
      ]
     ],
     "closed": true,
@@ -209,12 +209,12 @@
     "id": "pour",
     "type": "arrow",
     "from": {
-     "x": 540,
-     "y": 500
+     "x": 690,
+     "y": 521
     },
     "to": {
-     "x": 670,
-     "y": 610
+     "x": 820,
+     "y": 615
     },
     "style": {
      "color": "#2f6b8f"
@@ -225,18 +225,18 @@
     "type": "node",
     "shape": "rect",
     "text": "Same",
-    "x": 790,
-    "y": 420,
+    "x": 870,
+    "y": 470,
     "width": 150,
     "font_size": 34
    },
    {
     "id": "st_age",
     "type": "text",
-    "text": "most get it by ~7",
-    "x": 790,
-    "y": 250,
-    "font_size": 36,
+    "text": "age 4: the tall one · age 7: the same",
+    "x": 500,
+    "y": 200,
+    "font_size": 32,
     "style": {
      "color": "#2f6b8f"
     },
@@ -247,9 +247,9 @@
    {
     "id": "st_pia",
     "type": "text",
-    "text": "Piaget, 1941",
-    "x": 790,
-    "y": 320,
+    "text": "Jean Piaget, 1941",
+    "x": 500,
+    "y": 262,
     "font_size": 36,
     "style": {
      "color": "#2f6b8f"
@@ -257,6 +257,31 @@
     "cites": [
      "piaget"
     ]
+   },
+   {
+    "id": "kid",
+    "type": "icon",
+    "of": "child",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 850,
+    "y": 420
+   },
+   {
+    "id": "kid_arrow",
+    "type": "arrow",
+    "from": {
+     "x": 770,
+     "y": 430
+    },
+    "to": {
+     "x": 715,
+     "y": 430
+    },
+    "style": {
+     "color": "#b5482e"
+    }
    }
   ],
   "commands": [
@@ -330,22 +355,26 @@
      "reveal": {
       "text": "Same water!",
       "at": {
-       "x": 760,
-       "y": 560
-      }
+       "x": 830,
+       "y": 600
+      },
+      "size": 36,
+      "keep": true
      }
     }
    },
    {
+    "erase": [
+     "same"
+    ],
     "speak": "Hang on. I said the tall one.",
     "voice": "b"
    },
    {
-    "highlight": {
-     "target": [
-      "glass_c"
-     ]
-    },
+    "draw": [
+     "kid",
+     "kid_arrow"
+    ],
     "speak": "So do most four-year-olds. They point to the tall glass, because the water is higher.",
     "voice": "a"
    },
@@ -375,7 +404,7 @@
    {
     "highlight": {
      "target": [
-      "glass_c"
+      "kid"
      ]
     },
     "speak": "So that's why my little brother always grabbed the tall glass.",
@@ -388,7 +417,7 @@
       "glass_c"
      ]
     },
-    "speak": "Smart move, though: same juice, bigger-looking prize.",
+    "speak": "Smart move, though: same water, bigger-looking prize.",
     "voice": "a"
    }
   ],

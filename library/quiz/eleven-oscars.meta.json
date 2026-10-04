@@ -9,8 +9,8 @@
  ],
  "level": "standard",
  "lang": "en",
- "score": 4,
+ "score": 3,
  "verdict": "keep",
  "dialogue": false,
- "notes": "2026-10-04 republish: affirm playful only. Tried the W2 path (cards auto size, year labels as labels attached to the cards, trophy at the RotK card): attached labels do not follow a tap-all card into its box (they stay at, or are thrown onto, the card's home), so the hand-placed labels at the cards' answered slots (x 20, width 960 kept) stay. Engine gap: attached labels should follow select/sort moves."
+ "notes": "2026-10-04 republish + review: labels '11 of 12/14/11' bigger; Avatar decoy gets a line and '← 3'; affirm playful. Changed lines: 'Only three films share the record…', new 'And Avatar, the biggest earner of all, took home just three.' Not done: bigger cards — the tap-all bin reserves room for all 7 cards and the engine pins it to the caption band floor (size >1 overflows; y cannot raise it); 'Return of the King' still wraps; labels hand-placed (attached labels don't follow select moves yet)."
 }

@@ -12,10 +12,10 @@
     "USA+China+India"
    ],
    "values": [
-    30.37,
-    2.17,
-    2.34,
-    22.72
+    30.4,
+    2.2,
+    2.3,
+    22.7
    ],
    "icons": [
     {
@@ -85,11 +85,35 @@
     "id": "fits",
     "type": "text",
     "text": "room to spare",
-    "x": 620,
-    "y": 620,
-    "font_size": 40,
+    "font_size": 34,
     "style": {
      "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      3,
+      27.6
+     ]
+    }
+   },
+   {
+    "id": "africa_lvl",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      0.4,
+      30.4
+     ],
+     [
+      3.4,
+      30.4
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "dash": true,
+     "stroke_width": 2
     }
    }
   ],
@@ -142,9 +166,8 @@
    {
     "point": {
      "at": {
-      "ref": "bar_2"
-     },
-     "gesture": "underline"
+      "ref": "map"
+     }
     },
     "speak": "It keeps compass directions true, so a straight line on it is a steady course across the sea."
    },
@@ -152,8 +175,7 @@
     "highlight": {
      "target": [
       "bar_2"
-     ],
-     "effect": "circle"
+     ]
     },
     "speak": "But to do that it stretches the land more and more toward the poles, and Greenland sits far in the north."
    },
@@ -172,6 +194,7 @@
    {
     "draw": [
      "bar_4",
+     "africa_lvl",
      "fits"
     ],
     "speak": "And Africa could swallow the United States, China and India together, with room to spare."

@@ -64,14 +64,18 @@
       }
      },
      {
-      "icon": "spiral calendar",
+      "icon": [
+       "stomach",
+       "organ"
+      ],
       "label": "New stomach lining",
       "mark": {
        "text": "True",
        "color": "#2f6b8f"
       }
      }
-    ]
+    ],
+    "size": 330
    }
   ],
   "commands": [
@@ -84,7 +88,7 @@
     "draw": [
      "myths_1"
     ],
-    "speak": "Your body, true or myth? First: cracking your knuckles gives you arthritis."
+    "speak": "Your body, true or myth? First, Grandma’s favourite warning: cracking your knuckles gives you arthritis."
    },
    {
     "quiz": {
@@ -122,7 +126,7 @@
     "draw": [
      "myths_3"
     ],
-    "speak": "Then the razor: shaved hair grows back thicker."
+    "speak": "Then the razor’s old reputation: shave, and the hair grows back thicker."
    },
    {
     "quiz": {
@@ -160,7 +164,7 @@
     "draw": [
      "myths_5"
     ],
-    "speak": "And last: your stomach gets a new lining every few days."
+    "speak": "And last, a strange one: your stomach gets a new lining every few days."
    },
    {
     "quiz": {
@@ -186,8 +190,7 @@
      "target": [
       "myths_4",
       "myths_5"
-     ],
-     "effect": "circle"
+     ]
     },
     "speak": "The three family warnings were myths. The two from biology class were true."
    }
