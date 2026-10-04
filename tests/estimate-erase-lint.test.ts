@@ -5,6 +5,9 @@ import { describe, expect, test } from "vitest";
 import { expandSpec } from "../src/spec/expand";
 import { layoutSpec } from "../src/layout/layout";
 import { lintCommands } from "../src/lint/lint";
+import { layoutAsSeen } from "../src/lint/at-scale";
+import { heuristicMeasure } from "../src/layout/measure";
+import { readFileSync } from "node:fs";
 import type { Command, Spec } from "../src/spec/types";
 
 const ask: Command = {
@@ -36,5 +39,16 @@ describe("an erased estimate is gone for the lint", () => {
   });
   test("erased after its ask, nothing drawn later is judged against it", () => {
     expect(aboutAnswer(cast(true))).toEqual([]);
+  });
+});
+
+describe("a scale part the cast names keeps the walk's own answer", () => {
+  // library/quiz/ball-in-play: the cast erases mins and mins_answer by name;
+  // the answer is never drawn by a command, so it is never judged against
+  // the scale's caption (lint clean on main; r3-quick regressed it).
+  test("ball-in-play stays lint clean", () => {
+    const ex = expandSpec(JSON.parse(readFileSync("library/quiz/ball-in-play.json", "utf8")).spec as Spec);
+    const l = layoutAsSeen(ex, heuristicMeasure);
+    expect([...l.issues, ...lintCommands(ex)].map((i) => i.message).filter((m) => m.includes("mins_answer"))).toEqual([]);
   });
 });
