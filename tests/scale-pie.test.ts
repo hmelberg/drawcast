@@ -103,7 +103,9 @@ describe("scale", () => {
     const all = (spec.elements ?? []).filter((e) => /^s_tick_\d+_num$/.test(e.id));
     expect(all).toHaveLength(19); // every tick keeps its number's id; the thinned ones are empty
     const nums = all.map((e) => e.text).filter((t) => t !== "");
-    expect(nums).toEqual(["1000", "1 million", "1 billion", "1 trillion", "1 quadrillion", "1 quintillion", "1 sextillion"]);
+    // Thinned as far as the lint's heuristic measure needs (W25): the names
+    // alone, as a ruler — "1 quadrillion" in full crowds at 22.
+    expect(nums).toEqual(["1000", "million", "billion", "trillion", "quadrillion", "quintillion", "sextillion"]);
   });
 
   test("a unit is written once, at the line's right end", () => {

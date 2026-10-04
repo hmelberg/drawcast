@@ -11,7 +11,7 @@
 // <id>_answer is simply the answer shown. The group <id> keeps the scale's
 // numbers, so the guess reads its truth and geometry back (authoredScales).
 
-import { CAPTION_TOP, contentBox, MARGIN } from "../layout/page";
+import { CAPTION_TOP, contentBox, MARGIN, PAGE_W } from "../layout/page";
 import type { Spec, SpecElement } from "./types";
 import { isSlider, sliderLineElements, sliderValueElements, sliderY } from "./slider";
 
@@ -174,6 +174,17 @@ function eraOf(sc: ScaleElementLike, log: boolean, lo: number, hi: number): "BC"
   return lo <= -200 && hi <= 3000 && (hi >= 1000 || hi <= 0) ? "BC" : null;
 }
 
+/**
+ * A tick number's width for thinning: the wider of the font's own estimate
+ * and the layout's heuristic measure (0.52 em a character), so a line the
+ * lint measures with the heuristic (check, the examples gate) is thinned as
+ * far as the lint needs — W25: "1 million … 10 billion" on a 1000-to-10-
+ * billion line passed here and warned there.
+ */
+function tickWidth(s: string, font: number): number {
+  return Math.max(scaleLabelWidth(s, font), Math.max(1, s.length) * font * 0.52);
+}
+
 /** A label's width at a font size — the handwriting font, narrow letters narrow. */
 export function scaleLabelWidth(s: string, font: number): number {
   let em = 0;
@@ -293,6 +304,12 @@ const TICK_INK = "#7a7468";
 const LABEL_GAP = 16;
 
 /** The marker and its number at value v: `<id>_answer` (a group) and its two members. */
+/** The marker's number centred over x — but whole on the page (W25: 8.1 billion near a line's right end ran off it); the pin stays at x. */
+function numberX(text: string, x: number, size: number): number {
+  const hw = tickWidth(text, size) / 2 + 8;
+  return Math.round(Math.max(hw, Math.min(PAGE_W - hw, x)));
+}
+
 export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement[] {
   if (isSlider(sc)) return sliderValueElements(sc, v);
   const g = scaleGeometry(sc);
@@ -311,7 +328,7 @@ export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement
       closed: true,
       style: { color, fill: color, fill_style: "wash" },
     },
-    { id: `${sc.id}_answer_num`, type: "text", text: g.format(v), x, y: g.y + 36 + Math.round(size * 0.6), font_size: size, style: { color } },
+    { id: `${sc.id}_answer_num`, type: "text", text: g.format(v), x: numberX(g.format(v), x, size), y: g.y + 36 + Math.round(size * 0.6), font_size: size, style: { color } },
     { id: `${sc.id}_answer`, type: "group", members: [`${sc.id}_answer_pin`, `${sc.id}_answer_num`] },
   ];
 }
@@ -344,7 +361,7 @@ export function scaleTickLabels(g: ScaleGeometry, textScale = 1): { labelled: Se
     const f = size * textScale;
     for (let j = 1; j < idx.length; j++) {
       const a = idx[j - 1], b = idx[j];
-      if (xs[b] - xs[a] < (scaleLabelWidth(text(g.ticks[a]), f) + scaleLabelWidth(text(g.ticks[b]), f)) / 2 + LABEL_GAP) return false;
+      if (xs[b] - xs[a] < (tickWidth(text(g.ticks[a]), f) + tickWidth(text(g.ticks[b]), f)) / 2 + LABEL_GAP) return false;
     }
     return true;
   };
