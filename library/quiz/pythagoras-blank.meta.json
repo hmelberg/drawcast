@@ -11,5 +11,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "Fill the formula with others tiles; 3×3/4×4/5×5 grid lines drawn as paths (pieces grid cannot rotate for the hypotenuse square). Figure size is capped by the 170–650 band (11 units tall); math 'size' seems capped, so the formula stays small."
+ "notes": "Republished 2026-10-04: formula enlarged (size 64). Grid numbers sit on their grid lines (lint warns, intended). Two long history lines idle ~9 s over one small text."
 }

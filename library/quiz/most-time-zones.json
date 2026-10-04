@@ -88,8 +88,8 @@
     "type": "text",
     "text": "always day",
     "x": 830,
-    "y": 420,
-    "font_size": 48,
+    "y": 480,
+    "font_size": 46,
     "style": {
      "color": "#b5482e"
     }
@@ -99,8 +99,8 @@
     "type": "text",
     "text": "somewhere",
     "x": 830,
-    "y": 355,
-    "font_size": 48,
+    "y": 360,
+    "font_size": 46,
     "style": {
      "color": "#b5482e"
     }
@@ -120,12 +120,6 @@
     "voice": "a"
    },
    {
-    "point": {
-     "at": {
-      "ref": "axes"
-     },
-     "gesture": "underline"
-    },
     "speak": "Easy. Russia. It's the biggest country there is.",
     "voice": "b"
    },
@@ -140,7 +134,9 @@
      ],
      "correct": 3,
      "right": "France, with twelve, thanks to islands and territories scattered around the globe.",
-     "wrong": "Think of islands, not land."
+     "wrong": "Think of islands, not land.",
+     "on_canvas": true,
+     "reveal": true
     }
    },
    {
@@ -167,6 +163,11 @@
     },
     "speak": "The mainland has just one clock.",
     "voice": "a"
+   },
+   {
+    "erase": [
+     "reveal_1_stamp"
+    ]
    },
    {
     "draw": [
@@ -221,6 +222,7 @@
      "daytime2"
     ]
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }

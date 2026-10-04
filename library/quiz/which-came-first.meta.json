@@ -11,5 +11,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "compare cards cannot show icons and their size is fixed (max 240 wide), so the grid cannot be scaled up; values are 'years ago' because compare always rewards the bigger value."
+ "notes": "Republish 2026-10-04: compare cards wear icons now (Tenochtitlan without one: no fitting icon), engine places/sizes them; hand-placed side icons and year texts at computed slots dropped; year beats highlight the cards and their years-ago values; affirm playful. Values are years ago because compare rewards the bigger value."
 }

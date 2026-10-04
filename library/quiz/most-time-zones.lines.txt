@@ -1,14 +1,14 @@
-A: Which country on Earth has the most time zones?
-B: Easy. Russia. It's the biggest country there is.
-[ASK] Which country has the most time zones?  choices=['Russia', 'United States', 'France', 'China']
+(a) Which country on Earth has the most time zones?
+(b) Easy. Russia. It's the biggest country there is.
+[QUIZ] Which country has the most time zones?  choices=["Russia","United States","France","China"]
   [right] France, with twelve, thanks to islands and territories scattered around the globe.
   [wrong] Think of islands, not land.
-A: Russia has eleven. The United States, counting its Pacific islands, also has eleven.
-B: France? Mainland France would fit inside Texas!
-A: The mainland has just one clock.
-A: But Tahiti, Guadeloupe, Réunion and New Caledonia are France too, each on its own time.
-B: And China? It's almost as wide as the United States.
-A: One time zone. All of China runs on Beijing time.
-A: So in the far west, a winter sunrise comes after ten in the morning.
-B: So the sun never sets on France?
-A: Just about. From Polynesia to the Indian Ocean, it is nearly always daytime somewhere in France.
+(a) Russia has eleven. The United States, counting its Pacific islands, also has eleven.
+(b) France? Mainland France would fit inside Texas!
+(a) The mainland has just one clock.
+(a) But Tahiti, Guadeloupe, Réunion and New Caledonia are France too, each on its own time.
+(b) And China? It's almost as wide as the United States.
+(a) One time zone. All of China runs on Beijing time.
+(a) So in the far west, a winter sunrise comes after ten in the morning.
+(b) So the sun never sets on France?
+(a) Just about. From Polynesia to the Indian Ocean, it is nearly always daytime somewhere in France.

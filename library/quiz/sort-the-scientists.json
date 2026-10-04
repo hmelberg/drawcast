@@ -33,16 +33,10 @@
     "finding": "with Otto Frisch she explained nuclear fission (1938-39); the 1944 Nobel Prize in Chemistry went to Otto Hahn alone; element 109, meitnerium, is named after her"
    }
   ],
-  "text": {
-   "font_size": 34
-  },
   "elements": [
    {
     "id": "sci",
     "type": "cards",
-    "x": 60,
-    "width": 880,
-    "y": 615,
     "items": [
      {
       "text": "William Harvey",
@@ -88,29 +82,29 @@
     "id": "nob",
     "type": "text",
     "text": "no Nobel",
-    "x": 500,
-    "y": 318,
     "font_size": 34,
     "style": {
      "color": "#b5482e"
     },
     "cites": [
      "meitner"
-    ]
+    ],
+    "x": 500,
+    "y": 270
    },
    {
     "id": "mt",
     "type": "text",
     "text": "element 109",
-    "x": 500,
-    "y": 250,
     "font_size": 34,
     "style": {
      "color": "#2f6b8f"
     },
     "cites": [
      "meitner"
-    ]
+    ],
+    "x": 500,
+    "y": 200
    }
   ],
   "commands": [
@@ -197,6 +191,10 @@
     ],
     "speak": "Science made amends later: element 109 is named meitnerium, after her."
    }
-  ]
+  ],
+  "text": {
+   "font_size": 34
+  },
+  "affirm": "playful"
  }
 }

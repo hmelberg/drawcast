@@ -1,6 +1,7 @@
 Hundreds of people have flown in space since 1961. But only a few have ever stood on the Moon.
-[ASK] How many people have walked on the Moon? Type a number.
+[ASK] How many people have walked on the Moon? Set the counter.
   [right] Twelve. All of them American, and all between 1969 and 1972.
+  [wrong] You said {g}. Fewer: all of them American, and all between 1969 and 1972.
 Six Apollo crews landed, each putting two men on the surface while a third waited in orbit.
 Every mission from Apollo 11 to 17 landed, but one.
 Apollo 13 never got there. An oxygen tank exploded on the way, and the crew only just made it home.

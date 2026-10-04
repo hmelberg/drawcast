@@ -21,7 +21,6 @@
    ],
    "series": [
     {
-     "name": "Solar panels",
      "values": [
       6.5,
       4.7,
@@ -35,14 +34,15 @@
       0.37,
       0.37,
       0.27
-     ]
+     ],
+     "name": "Solar panels"
     }
    ],
    "ylim": [
     0,
     8
    ],
-   "y_label": "Price per watt, 2025 US$",
+   "y_label": "$ per watt",
    "points": true
   },
   "sources": [
@@ -64,43 +64,10 @@
   ],
   "elements": [
    {
-    "id": "yt2",
-    "type": "text",
-    "text": "2",
-    "font_size": 26,
-    "style": {
-     "color": "#8f887c"
-    },
-    "x": 150,
-    "y": 347
-   },
-   {
-    "id": "yt4",
-    "type": "text",
-    "text": "4",
-    "font_size": 26,
-    "style": {
-     "color": "#8f887c"
-    },
-    "x": 150,
-    "y": 455
-   },
-   {
-    "id": "yt6",
-    "type": "text",
-    "text": "6",
-    "font_size": 26,
-    "style": {
-     "color": "#8f887c"
-    },
-    "x": 150,
-    "y": 562
-   },
-   {
     "id": "end",
     "type": "text",
     "text": "2024: $0.27",
-    "font_size": 40,
+    "font_size": 52,
     "style": {
      "color": "#b5482e"
     },
@@ -114,7 +81,7 @@
     "id": "drop",
     "type": "text",
     "text": "−94%",
-    "font_size": 60,
+    "font_size": 78,
     "style": {
      "color": "#b5482e"
     },
@@ -129,8 +96,8 @@
     "type": "text",
     "text": "1975: $132 ↑",
     "x": 640,
-    "y": 610,
-    "font_size": 44,
+    "y": 625,
+    "font_size": 52,
     "style": {
      "color": "#b5482e"
     },
@@ -144,7 +111,7 @@
     "text": "−99.8% since 1975",
     "x": 640,
     "y": 540,
-    "font_size": 44,
+    "font_size": 52,
     "style": {
      "color": "#b5482e"
     },
@@ -161,10 +128,7 @@
    },
    {
     "draw": [
-     "axes",
-     "yt2",
-     "yt4",
-     "yt6"
+     "axes"
     ],
     "speak": "How fast have solar panels become cheaper? Here is the price of one watt of panel, in today's dollars."
    },
@@ -230,9 +194,6 @@
     "cue": 0.3,
     "speak": "From then to now, the price has fallen by more than ninety-nine percent."
    }
-  ],
-  "text": {
-   "font_size": 34
-  }
+  ]
  }
 }

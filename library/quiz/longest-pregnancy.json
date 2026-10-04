@@ -13,9 +13,6 @@
     "finding": "African elephant about 22 months, giraffe about 15 months, human about 9 months, dog about 63 days, golden hamster about 16 days"
    }
   ],
-  "text": {
-   "font_size": 34
-  },
   "elements": [
    {
     "id": "preg",
@@ -64,37 +61,35 @@
       }
      }
     ],
-    "x": 60,
-    "width": 880,
-    "y": 610
+    "size": 1.5
    },
    {
     "id": "nm0",
     "type": "text",
     "text": "Elephant",
-    "x": 160,
-    "y": 490,
-    "font_size": 32
+    "x": 170,
+    "y": 580,
+    "font_size": 40
    },
    {
     "id": "bar0",
     "type": "path",
     "points": [
      [
-      270,
-      468
+      280,
+      554
      ],
      [
-      754,
-      468
+      760.0,
+      554
      ],
      [
-      754,
-      512
+      760.0,
+      606
      ],
      [
-      270,
-      512
+      280,
+      606
      ]
     ],
     "closed": true,
@@ -110,9 +105,9 @@
     "id": "val0",
     "type": "text",
     "text": "22 months",
-    "x": 674,
-    "y": 490,
-    "font_size": 32,
+    "x": 850.0,
+    "y": 580,
+    "font_size": 38,
     "style": {
      "color": "#b5482e"
     }
@@ -130,29 +125,29 @@
     "id": "nm1",
     "type": "text",
     "text": "Giraffe",
-    "x": 160,
-    "y": 422,
-    "font_size": 32
+    "x": 170,
+    "y": 490,
+    "font_size": 40
    },
    {
     "id": "bar1",
     "type": "path",
     "points": [
      [
-      270,
-      400
+      280,
+      464
      ],
      [
-      600,
-      400
+      607.3,
+      464
      ],
      [
-      600,
-      444
+      607.3,
+      516
      ],
      [
-      270,
-      444
+      280,
+      516
      ]
     ],
     "closed": true,
@@ -168,9 +163,9 @@
     "id": "val1",
     "type": "text",
     "text": "15 months",
-    "x": 520,
-    "y": 422,
-    "font_size": 32,
+    "x": 697.3,
+    "y": 490,
+    "font_size": 38,
     "style": {
      "color": "#2f6b8f"
     }
@@ -188,29 +183,29 @@
     "id": "nm2",
     "type": "text",
     "text": "Human",
-    "x": 160,
-    "y": 354,
-    "font_size": 32
+    "x": 170,
+    "y": 400,
+    "font_size": 40
    },
    {
     "id": "bar2",
     "type": "path",
     "points": [
      [
-      270,
-      332
+      280,
+      374
      ],
      [
-      468,
-      332
+      476.4,
+      374
      ],
      [
-      468,
-      376
+      476.4,
+      426
      ],
      [
-      270,
-      376
+      280,
+      426
      ]
     ],
     "closed": true,
@@ -226,9 +221,9 @@
     "id": "val2",
     "type": "text",
     "text": "9 months",
-    "x": 548,
-    "y": 354,
-    "font_size": 32,
+    "x": 566.4,
+    "y": 400,
+    "font_size": 38,
     "style": {
      "color": "#2f6b8f"
     }
@@ -246,29 +241,29 @@
     "id": "nm3",
     "type": "text",
     "text": "Dog",
-    "x": 160,
-    "y": 286,
-    "font_size": 32
+    "x": 170,
+    "y": 310,
+    "font_size": 40
    },
    {
     "id": "bar3",
     "type": "path",
     "points": [
      [
-      270,
-      264
+      280,
+      284
      ],
      [
-      316.2,
-      264
+      325.2,
+      284
      ],
      [
-      316.2,
-      308
+      325.2,
+      336
      ],
      [
-      270,
-      308
+      280,
+      336
      ]
     ],
     "closed": true,
@@ -284,9 +279,9 @@
     "id": "val3",
     "type": "text",
     "text": "2 months",
-    "x": 396.2,
-    "y": 286,
-    "font_size": 32,
+    "x": 415.2,
+    "y": 310,
+    "font_size": 38,
     "style": {
      "color": "#2f6b8f"
     }
@@ -304,29 +299,29 @@
     "id": "nm4",
     "type": "text",
     "text": "Hamster",
-    "x": 160,
-    "y": 218,
-    "font_size": 32
+    "x": 170,
+    "y": 220,
+    "font_size": 40
    },
    {
     "id": "bar4",
     "type": "path",
     "points": [
      [
-      270,
-      196
+      280,
+      194
      ],
      [
-      281.66,
-      196
+      291.6,
+      194
      ],
      [
-      281.66,
-      240
+      291.6,
+      246
      ],
      [
-      270,
-      240
+      280,
+      246
      ]
     ],
     "closed": true,
@@ -342,9 +337,9 @@
     "id": "val4",
     "type": "text",
     "text": "16 days",
-    "x": 361.66,
-    "y": 218,
-    "font_size": 32,
+    "x": 381.6,
+    "y": 220,
+    "font_size": 38,
     "style": {
      "color": "#b5482e"
     }
@@ -362,9 +357,9 @@
     "id": "calf",
     "type": "text",
     "text": "calf ≈ 100 kg",
-    "x": 865,
-    "y": 490,
-    "font_size": 30,
+    "x": 840,
+    "y": 632,
+    "font_size": 32,
     "style": {
      "color": "#b5482e"
     }
@@ -390,6 +385,11 @@
      "right": "You got {p}.",
      "wrong": "You got {p}."
     }
+   },
+   {
+    "hide": [
+     "preg"
+    ]
    },
    {
     "draw": [
@@ -445,6 +445,7 @@
     },
     "speak": "On the open savanna, a baby that cannot keep up does not survive. So the long wait pays."
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }

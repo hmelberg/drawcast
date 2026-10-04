@@ -1,6 +1,6 @@
 (a) Here's a puzzle about our neighbour Venus. Like Earth, it spins on its axis, and it circles the Sun.
 (b) So which is longer there, a day or a year? A year, surely. A day is just one spin.
-[ASK] On Venus, which takes longer: one turn on its axis, or one trip round the Sun?
+[QUIZ] On Venus, which takes longer: one turn on its axis, or one trip round the Sun?  choices=["The day","The year","About the same"]
   [right] The day. Venus takes 243 Earth days to turn once, but only 225 to go round the Sun.
   [wrong] Venus is the slowest spinner of all the planets.
 (a) Watch the red marker. Venus goes once round the Sun, and in that time it hasn't quite turned once.

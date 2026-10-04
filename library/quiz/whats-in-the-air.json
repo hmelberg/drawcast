@@ -14,13 +14,7 @@
     78.08,
     20.95,
     0.97
-   ],
-   "box": {
-    "x": 120,
-    "y": 165,
-    "w": 760,
-    "h": 490
-   }
+   ]
   },
   "text": {
    "font_size": 34
@@ -72,9 +66,9 @@
     "id": "co2",
     "type": "text",
     "text": "CO₂: 0.04 %",
-    "x": 145,
-    "y": 330,
-    "font_size": 42,
+    "x": 825,
+    "y": 352,
+    "font_size": 40,
     "style": {
      "color": "#b5482e"
     },
@@ -86,9 +80,9 @@
     "id": "rise",
     "type": "text",
     "text": "+50 % since 1750",
-    "x": 145,
-    "y": 270,
-    "font_size": 34,
+    "x": 825,
+    "y": 285,
+    "font_size": 30,
     "style": {
      "color": "#b5482e"
     },
@@ -174,6 +168,7 @@
     ],
     "speak": "Tiny, yet that share has grown by half since before the industrial age."
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }

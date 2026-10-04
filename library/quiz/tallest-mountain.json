@@ -27,10 +27,10 @@
    ],
    "y_label": "Metres",
    "box": {
-    "x": 50,
-    "y": 205,
-    "w": 560,
-    "h": 440
+    "x": 140,
+    "y": 215,
+    "w": 470,
+    "h": 430
    }
   },
   "text": {
@@ -59,9 +59,9 @@
     "id": "above_sea",
     "type": "text",
     "text": "above sea",
-    "x": 205,
-    "y": 560,
-    "font_size": 36,
+    "x": 297,
+    "y": 575,
+    "font_size": 30,
     "style": {
      "color": "#b5482e"
     }
@@ -70,9 +70,9 @@
     "id": "seafloor",
     "type": "text",
     "text": "from sea floor",
-    "x": 440,
-    "y": 625,
-    "font_size": 36,
+    "x": 532,
+    "y": 628,
+    "font_size": 30,
     "style": {
      "color": "#2f6b8f"
     },
@@ -142,8 +142,8 @@
     "id": "chim_l",
     "type": "text",
     "text": "Chimborazo",
-    "x": 810,
-    "y": 603,
+    "x": 790,
+    "y": 640,
     "font_size": 38,
     "style": {
      "color": "#b5482e"
@@ -161,8 +161,8 @@
       390
      ],
      [
-      938,
-      445
+      948,
+      420
      ]
     ],
     "style": {
@@ -174,9 +174,9 @@
     "id": "ev_l",
     "type": "text",
     "text": "Everest",
-    "x": 888,
-    "y": 475,
-    "font_size": 32,
+    "x": 850,
+    "y": 440,
+    "font_size": 28,
     "style": {
      "color": "#8f887c"
     }
@@ -184,10 +184,10 @@
    {
     "id": "plus",
     "type": "text",
-    "text": "+2 km from centre",
-    "x": 810,
-    "y": 548,
-    "font_size": 36,
+    "text": "+2 km out",
+    "x": 805,
+    "y": 582,
+    "font_size": 32,
     "style": {
      "color": "#b5482e"
     },
@@ -296,6 +296,7 @@
     },
     "speak": "But the tallest of them all is mostly underwater."
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }

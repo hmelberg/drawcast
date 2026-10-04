@@ -15,12 +15,6 @@
     27,
     5
    ],
-   "box": {
-    "x": 100,
-    "y": 140,
-    "w": 800,
-    "h": 500
-   },
    "percent": false
   },
   "sources": [
@@ -73,8 +67,8 @@
     "id": "p5",
     "type": "text",
     "text": "5%",
-    "x": 565,
-    "y": 628,
+    "x": 598,
+    "y": 648,
     "font_size": 52,
     "style": {
      "color": "#2f6b8f"
@@ -87,9 +81,9 @@
     "id": "unknown",
     "type": "text",
     "text": "95% unknown",
-    "x": 810,
-    "y": 560,
-    "font_size": 48,
+    "x": 820,
+    "y": 545,
+    "font_size": 44,
     "style": {
      "color": "#b5482e"
     },
@@ -178,6 +172,7 @@
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }

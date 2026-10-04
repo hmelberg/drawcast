@@ -108,7 +108,6 @@
     }
    ],
    "stage": 0,
-   "x_ticks": false,
    "xlim": [
     1800,
     2100
@@ -119,9 +118,6 @@
    ],
    "y_label": "Billions of people",
    "x_label": "Year"
-  },
-  "text": {
-   "font_size": 34
   },
   "sources": [
    {
@@ -166,14 +162,14 @@
     "id": "p1_l",
     "type": "text",
     "text": "1 bn: 1804",
-    "font_size": 34,
+    "font_size": 40,
     "style": {
      "color": "#2f6b8f"
     },
     "at": {
      "ref": "p1",
      "side": "above-right",
-     "gap": 14
+     "gap": 30
     }
    },
    {
@@ -193,14 +189,14 @@
     "id": "p2_l",
     "type": "text",
     "text": "2 bn: 1927",
-    "font_size": 34,
+    "font_size": 40,
     "style": {
      "color": "#2f6b8f"
     },
     "at": {
      "ref": "p2",
-     "side": "above-left",
-     "gap": 14
+     "side": "above",
+     "gap": 18
     }
    },
    {
@@ -220,7 +216,7 @@
     "id": "p8_l",
     "type": "text",
     "text": "8 bn: 2022",
-    "font_size": 34,
+    "font_size": 40,
     "style": {
      "color": "#b5482e"
     },
