@@ -25,6 +25,11 @@
   command = "npx vitest run tests/no-bundled-secrets.test.ts && npm run build"
   publish = "dist"
 
+# After a production deploy, ask for every card picture once so the CDN has
+# them before visitors do (netlify/plugins/warm-cards).
+[[plugins]]
+  package = "./netlify/plugins/warm-cards"
+
 # The Commodore 64 face is fetched cross-origin by pages that embed the
 # engine (the engine build ships no public folder), and a font is a
 # CORS-checked resource — without this header the browser refuses it.
