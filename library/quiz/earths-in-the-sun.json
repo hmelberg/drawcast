@@ -20,7 +20,7 @@
    {
     "id": "sun",
     "type": "ellipse",
-    "x": 235,
+    "x": 270,
     "y": 415,
     "rx": 228,
     "ry": 228,
@@ -35,7 +35,7 @@
     "id": "sun_l",
     "type": "text",
     "text": "Sun",
-    "x": 235,
+    "x": 270,
     "y": 415,
     "font_size": 64,
     "style": {
@@ -45,7 +45,7 @@
    {
     "id": "earth",
     "type": "ellipse",
-    "x": 520,
+    "x": 560,
     "y": 415,
     "rx": 2.1,
     "ry": 2.1,
@@ -60,11 +60,11 @@
     "id": "earth_arrow",
     "type": "arrow",
     "from": {
-     "x": 610,
+     "x": 650,
      "y": 500
     },
     "to": {
-     "x": 527,
+     "x": 567,
      "y": 422
     },
     "style": {
@@ -75,7 +75,7 @@
     "id": "earth_l",
     "type": "text",
     "text": "Earth, to scale",
-    "x": 740,
+    "x": 770,
     "y": 530,
     "font_size": 42,
     "style": {
@@ -89,9 +89,9 @@
     "max": 10000000,
     "log": true,
     "value": 1300000,
-    "x": 475,
+    "x": 530,
     "y": 250,
-    "width": 470,
+    "width": 400,
     "cites": [
      "nasa"
     ]
@@ -122,9 +122,9 @@
     "id": "mass",
     "type": "text",
     "text": "99.8 % of the mass",
-    "x": 770,
+    "x": 760,
     "y": 395,
-    "font_size": 42,
+    "font_size": 38,
     "style": {
      "color": "#2f6b8f"
     },
@@ -211,6 +211,7 @@
     },
     "speak": "So everything else, Jupiter and us included, is crumbs."
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }
