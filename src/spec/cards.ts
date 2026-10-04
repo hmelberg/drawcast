@@ -421,6 +421,21 @@ function textFields(fit: CardTextFit, own: number): Pick<CardsGeometry, "font" |
   };
 }
 
+/** Magnitude words a rank's ends can carry (polish 2026-10-04 A1). */
+const RANK_HIGH = /^(most|more|many|high|higher|highest|big|bigger|biggest|large|larger|largest|great|greatest|top|best|heavy|heavier|heaviest|long|longer|longest|tall|taller|tallest|fast|faster|fastest|old|older|oldest|deadly|deadlier|deadliest|rich|richer|richest|expensive|strong|stronger|strongest|hot|hotter|hottest|max|maximum)\b/i;
+const RANK_LOW = /^(least|less|fewest|fewer|few|low|lower|lowest|small|smaller|smallest|bottom|worst|light|lighter|lightest|short|shorter|shortest|slow|slower|slowest|young|younger|youngest|poor|poorer|poorest|cheap|cheaper|cheapest|weak|weaker|weakest|cold|colder|coldest|min|minimum)\b/i;
+
+/** True when a rank's slots run the other way round (A1): a row grows
+ *  left → right (the most on the right), a column has the most on top. Ends
+ *  that are not a magnitude pair (first/last, before/after) stay as written. */
+export function rankFlipped(el: Pick<CardsElementLike, "ends" | "arrange" | "steps">): boolean {
+  if (el.steps === true || !Array.isArray(el.ends) || el.ends.length !== 2) return false;
+  const a = String(el.ends[0]).trim(), b = String(el.ends[1]).trim();
+  const firstHigh = RANK_HIGH.test(a) && RANK_LOW.test(b);
+  const firstLow = RANK_LOW.test(a) && RANK_HIGH.test(b);
+  return el.arrange === "column" ? firstLow : firstHigh;
+}
+
 /** A deck: a sort with deck: true (not a select). */
 const isDeck = (el: CardsElementLike): boolean => cardsMode(el) === "sort" && el.deck === true && typeof el.select !== "string";
 
@@ -481,11 +496,12 @@ export function cardsExtent(g: CardsGeometry, el?: Pick<CardsElementLike, "ends"
   }
   if (g.arrows) stepsExtentAdd(g.slots, g.w, g.h, g.column === true, k, Array.isArray(el?.ends) && el.ends.length === 2, add);
   else if (g.mode === "rank" && Array.isArray(el?.ends) && el.ends.length === 2 && g.slots.length > 0) {
-    const first = g.slots[0], last = g.slots[g.slots.length - 1];
+    const ys = g.slots.map((p) => p[1]), xs = g.slots.map((p) => p[0]);
+    const topY = Math.max(...ys), botY = Math.min(...ys);
     if (el.arrange === "column") {
-      add(first[0], first[0], first[1], first[1] + g.h / 2 + 34 * k);
-      add(last[0], last[0], last[1] - g.h / 2 - 34 * k, last[1]);
-    } else add(first[0], last[0], first[1] - g.h / 2 - 38 * k, first[1]);
+      add(xs[0], xs[0], topY, topY + g.h / 2 + 34 * k);
+      add(xs[0], xs[0], botY - g.h / 2 - 34 * k, botY);
+    } else add(Math.min(...xs), Math.max(...xs), ys[0] - g.h / 2 - 38 * k, ys[0]);
   }
   return e;
 }
@@ -687,6 +703,7 @@ function cardsGeometryAt(el: CardsElementLike, k: number, ch0: number, scaleOf?:
 
   if (mode === "rank") {
     const column = el.arrange === "column";
+    const flip = rankFlipped(el);
     let slots: Pt[];
     let w: number;
     let fit: CardTextFit;
@@ -696,13 +713,13 @@ function cardsGeometryAt(el: CardsElementLike, k: number, ch0: number, scaleOf?:
       fit = fitCardTexts(texts, w, fontAt(20, CARD_H * k), k);
       const CH = ch0 + fit.extra;
       const cx = (x0 + x1) / 2;
-      slots = items.map((_, i) => [cx, yTop - i * (CH + gap)] as Pt);
+      slots = items.map((_, i) => [cx, yTop - (flip ? n - 1 - i : i) * (CH + gap)] as Pt);
     } else {
       const y = isNum(el.y) ? el.y : 380;
       const slotW = width / Math.max(1, n);
       w = Math.min(190 * k, slotW - gap);
       fit = fitCardTexts(texts, w, fontAt(20, CARD_H * k), k);
-      slots = items.map((_, i) => [x0 + slotW * (i + 0.5), y] as Pt);
+      slots = items.map((_, i) => [x0 + slotW * ((flip ? n - 1 - i : i) + 0.5), y] as Pt);
     }
     const home: Pt[] = new Array(n);
     perm.forEach((card, s) => (home[card] = slots[s]));
@@ -1010,8 +1027,13 @@ export function cardsElements(el: CardsElementLike, scaleOf?: (id: string) => Sc
     const column = el.arrange === "column";
     const at = (p: Pt, sign: 1 | -1): [number, number] => (column ? [p[0], p[1] + sign * (g.h / 2 + 22 * k)] : [p[0], p[1] - g.h / 2 - 26 * k]);
     const fs = Math.round(20 * k);
-    out.push({ id: `${el.id}_end_1`, type: "text", text: column ? `↑ ${el.ends[0]}` : `← ${el.ends[0]}`, x: at(first, 1)[0], y: at(first, 1)[1], font_size: fs, style: quiet });
-    out.push({ id: `${el.id}_end_2`, type: "text", text: column ? `↓ ${el.ends[1]}` : `${el.ends[1]} →`, x: at(last, -1)[0], y: at(last, -1)[1], font_size: fs, style: quiet });
+    // The first end's words stand by the first slot — on the right of a
+    // flipped row, at the foot of a flipped column (A1); the arrows point out.
+    const flip = rankFlipped(el);
+    const w1 = column ? `${flip ? "↓" : "↑"} ${el.ends[0]}` : flip ? `${el.ends[0]} →` : `← ${el.ends[0]}`;
+    const w2 = column ? `${flip ? "↑" : "↓"} ${el.ends[1]}` : flip ? `← ${el.ends[1]}` : `${el.ends[1]} →`;
+    out.push({ id: `${el.id}_end_1`, type: "text", text: w1, x: at(first, flip ? -1 : 1)[0], y: at(first, flip ? -1 : 1)[1], font_size: fs, style: quiet });
+    out.push({ id: `${el.id}_end_2`, type: "text", text: w2, x: at(last, flip ? 1 : -1)[0], y: at(last, flip ? 1 : -1)[1], font_size: fs, style: quiet });
   }
   // A deck: the cards still to come are not drawn with the group (a card's
   // text is drawn over every card's paper, so a stack would show through);
@@ -1122,6 +1144,27 @@ const AUTO_STEP = 0.05;
  * With company, or when nothing fits, the element stays as it is (size 1).
  */
 export function resolveCardsSize(el: CardsElementLike, spec: Pick<Spec, "elements" | "commands" | "title" | "template" | "params" | "vars">, scaleOf?: (id: string) => ScaleElementLike | undefined): CardsElementLike {
+  // A rank with no arrange (polish 2026-10-04 A2): a row or a column, whichever
+  // draws the larger cards — the row unless the column's are clearly larger.
+  // Only a ranking (ends given): a plain row of cards, an odd one out, stays a row.
+  if (cardsMode(el) === "rank" && Array.isArray(el.ends) && el.ends.length === 2 && el.rule === undefined && el.arrange === undefined && el.steps !== true && (el.size === undefined || el.size === "auto")) {
+    const row = resolveCardsSizeAs({ ...el, arrange: "row" }, spec, scaleOf);
+    const col = resolveCardsSizeAs({ ...el, arrange: "column" }, spec, scaleOf);
+    const area = (c: CardsElementLike): number => {
+      const g = cardsGeometry(c, scaleOf);
+      return g.squeezed || g.tooLong ? 0 : g.w * g.h;
+    };
+    const chosen = area(col) > area(row) * COLUMN_WINS ? col : row;
+    // The row stays unwritten, so a spec read again resolves the same way.
+    return chosen === row ? { ...row, arrange: undefined } : chosen;
+  }
+  return resolveCardsSizeAs(el, spec, scaleOf);
+}
+
+/** How much larger a column's cards must be before it replaces the row (A2). */
+const COLUMN_WINS = 1.25;
+
+function resolveCardsSizeAs(el: CardsElementLike, spec: Pick<Spec, "elements" | "commands" | "title" | "template" | "params" | "vars">, scaleOf?: (id: string) => ScaleElementLike | undefined): CardsElementLike {
   if (el.size !== undefined && el.size !== "auto") return el;
   const mode = cardsMode(el);
   if (mode === "fill" || isDeck(el)) return el;

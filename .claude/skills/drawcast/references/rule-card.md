@@ -152,7 +152,7 @@ Attention (nothing changes):
   then point/highlight/focus/pause/flow/animate run under it (draw/show/erase
   still wait).
 - `focus`: dims everything else for the sentence (or `duration`); regions,
-  a dense figure walked part by part.
+  a dense figure walked part by part. On a chart, `highlight` the bar.
 - `fade`: `{"fade": {"target": [..], "to": 0.25}}` persistent (`to: 1`
   restores). `hide` removes.
 - `camera`: `{"center": {"ref": ..}, "zoom": 2}`, `{"on": [ids]}` frames them,

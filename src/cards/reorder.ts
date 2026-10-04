@@ -83,8 +83,11 @@ export function yoursRow(g: CardsGeometry, a: Arrangement, word: string): GuessM
     out.push({ at: labelAt(g, s), text: short(g.texts[card]), anchor: column ? "end" : "middle", color: YOURS, size: LABEL_SIZE });
   });
   if (out.length === 0) return out;
-  const s0 = g.slots[0];
-  const wordAt: Pt = column ? [s0[0] - g.w / 2 - 44, Math.min(740, s0[1] + g.h / 2 + 16)] : [Math.max(48, s0[0] - g.w / 2 - 8), labelAt(g, 0)[1]];
+  // The word stands before the row's left end (a column's top) — slot 0
+  // may be the other end when the rank grows left → right (A1).
+  const lead = g.slots.reduce((b, p, i) => ((column ? p[1] > g.slots[b][1] : p[0] < g.slots[b][0]) ? i : b), 0);
+  const s0 = g.slots[lead];
+  const wordAt: Pt = column ? [s0[0] - g.w / 2 - 44, Math.min(740, s0[1] + g.h / 2 + 16)] : [Math.max(48, s0[0] - g.w / 2 - 8), labelAt(g, lead)[1]];
   return [{ at: wordAt, text: word, anchor: "end", color: YOURS, size: LABEL_SIZE }, ...out];
 }
 

@@ -176,7 +176,9 @@ export interface BackendModule {
  * How far `focus` dims everything it does not name. 0.16 (to 2026-09-28)
  * all but erased the rest — Hans: "too strong" — so the viewer lost the
  * context the focus is meant to sit in. At 0.38 the rest reads as set
- * aside, still legible. One value for the player, the frame harness and
- * the export, so they agree.
+ * aside, still legible. 0.38 still read as the whole figure fading
+ * (2026-10-04, the deadliest animal) — 0.6 keeps the page whole and the
+ * focus plain. One value for the player, the frame harness and the export,
+ * so they agree.
  */
-export const FOCUS_DIM = 0.38;
+export const FOCUS_DIM = 0.6;

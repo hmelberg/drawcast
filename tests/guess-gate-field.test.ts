@@ -212,8 +212,8 @@ describe("typing a bar's number (M1)", () => {
 describe("the gate's words (M2, L6)", () => {
   test("a Norwegian cast's dock is Norwegian", async () => {
     const m = await mount({ bars: 2, account: { budget: 20, label: "Igjen", isDefault: true }, lang: "nb" });
-    expect(m.stage.find("cs-guess-answer")!.textContent).toBe("Ferdig ▸");
-    expect(m.stage.find("cs-figgate-skip")!.textContent).toBe("Hopp over ▸");
+    expect(m.stage.find("cs-guess-answer")!.textContent).toBe("Ferdig");
+    expect(m.stage.find("cs-figgate-skip")!.textContent).toBe("Hopp over");
     expect(m.stage.find("cs-figgate-hint")!.textContent).toBe("Fordel budsjettet: 10 igjen");
   });
 

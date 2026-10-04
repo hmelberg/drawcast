@@ -10,7 +10,7 @@ import { expandSpec } from "../src/spec/expand";
 import type { BBox } from "../src/layout/geometry";
 import type { Spec, SpecElement } from "../src/spec/types";
 
-const rank: CardsElementLike = { id: "r", type: "cards", items: ["Rome", "Paris", "Oslo", "Lima"], ends: ["oldest", "newest"] };
+const rank: CardsElementLike = { id: "r", type: "cards", items: ["Rome", "Paris", "Oslo", "Lima"], ends: ["oldest", "newest"], arrange: "row" };
 const page = (els: unknown[], commands: unknown[]): Spec => ({ title: "Q", elements: els, commands: [{ card: { title: "Q" } }, ...commands] }) as unknown as Spec;
 const sizeOf = (s: Spec, id = "r"): number | undefined => (s.elements!.find((e) => e.id === id) as { size?: number }).size;
 const extentOf = (s: Spec): BBox => {

@@ -194,6 +194,8 @@ export interface LintIssue {
     | "cards-check"
     /** something over a guessed scale's marker band, where the viewer's number goes (W25) — warns */
     | "scale-marker"
+    /** numbers written by hand over a bar_chart instead of its value labels (polish 2026-10-04 A3) — warns */
+    | "hand-chart-numbers"
     | "cards-text";
   ids: string[];
   message: string;
@@ -1806,6 +1808,15 @@ function lintFeedback(spec: Spec): LintIssue[] {
 export function lintCommands(spec: Spec, opts: LintCommandsOptions = {}): LintIssue[] {
   const cmds = spec.commands ?? [];
   const issues: LintIssue[] = [...lintSources(spec), ...lintMore(spec), ...lintCode(spec), ...lintWidget(spec), ...lintGuess(spec), ...lintTreeAsk(spec), ...lintFormulaAsk(spec), ...lintMathSizes(spec), ...lintLiveMath(spec), ...lintCurveExprs(spec), ...lintBook(spec), ...lintFeedback(spec), ...lintChoose(spec), ...lintAsks(spec)];
+
+  // Chart numbers written by hand (polish 2026-10-04 A3): fixed x/y that no
+  // longer meet the bars once the engine sizes the chart, and that Test me
+  // must hide by guesswork. The chart's own value labels ride on the bars.
+  if (spec.template === "bar_chart" && (spec.params as { value_labels?: unknown } | undefined)?.value_labels !== true) {
+    const NUMERIC = /^\s*[<>~≈]?\s*[\d][\d.,\s]*\s*(%|k|m)?\s*$/i;
+    const hand = (spec.elements ?? []).filter((e) => e.type === "text" && NUMERIC.test(String((e as { text?: unknown }).text ?? "")));
+    if (hand.length >= 2) issues.push({ rule: "hand-chart-numbers", ids: hand.map((e) => e.id), message: `${hand.length} numbers placed by hand over a bar_chart (${hand.slice(0, 3).map((e) => e.id).join(", ")}…) — set value_labels: true and let each bar carry its own (drawn with the bar, hidden by Test me)`, severity: "warn" });
+  }
 
   // A link whose href names nothing the resolver can read draws, but never
   // opens (links/resolve.ts decides the forms a target may take).

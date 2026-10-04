@@ -122,6 +122,8 @@ export interface Reprojector {
   /** The spec's elements with every live patch applied, or undefined when
    *  there is none — what a frame must be laid out from mid-sweep. */
   patchedElements?(): SpecElement[] | undefined;
+  /** The spec's own elements, as authored (Test me reads its written numbers). */
+  specElements?(): readonly SpecElement[];
   /** Fields laid over one element for every frame and commit from now on
    *  (null takes them off): a formula's `fills` once its ask is answered
    *  (design 2026-10-03 §5.4 — the box stays filled). */
@@ -1696,6 +1698,10 @@ export class Player {
     const visible = new Set(before.visible);
     const handles = setup0.handles.filter((h) => h.shows.every((id) => visible.has(id)));
     if (handles.length === 0) return false;
+    // A number the cast wrote on the figure gives the answer away (polish
+    // 2026-10-04 A3, the deadliest animal's hand-placed bar values): hidden
+    // while the viewer guesses, back with the boundary afterwards.
+    for (const id of writtenNumbers(this.reprojector.specElements?.() ?? [], visible)) visible.delete(id);
     const setup: GuessSetup = { ...setup0, handles };
     this.selfTestAbort?.abort();
     const ac = new AbortController();
@@ -4973,4 +4979,9 @@ function anySignal(a: AbortSignal, b: AbortSignal): AbortSignal {
   a.addEventListener("abort", stop, { once: true });
   b.addEventListener("abort", stop, { once: true });
   return c.signal;
+}
+
+/** The author's text elements on screen that carry a number (Test me hides them, A3). */
+export function writtenNumbers(elements: readonly SpecElement[], visible: ReadonlySet<string>): string[] {
+  return elements.filter((e) => e.type === "text" && visible.has(e.id) && /\d/.test(String((e as { text?: unknown }).text ?? ""))).map((e) => e.id);
 }

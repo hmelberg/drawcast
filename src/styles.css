@@ -1097,6 +1097,11 @@ a.cs-more-title:focus-visible { outline: 2px solid #b5482e; outline-offset: 2px;
 .cs-stage.cs-more-bottom:is(.cs-caption-below, .cs-caption-strip) .cs-caption {
   padding-inline: var(--cs-more-reserve, 0.9rem);
 }
+/* …and of Test me in the bottom-left corner (2026-10-04: the caption lay
+   over the chip in the editor's small player, and took its clicks). */
+.cs-stage:has(> .cs-testme:not([hidden])):not(.cs-caption-below):not(.cs-caption-strip) .cs-caption {
+  max-width: calc(100% - 1.2rem - 2 * max(var(--cs-more-reserve, 0px), 6.6rem));
+}
 
 /* Control bar as its own strip below the drawing — never covers the figure */
 .cs-controlbar {
@@ -1998,13 +2003,35 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   background: #3f6fb5;
   border-color: #2f5590;
 }
+/* Skip is a plain word, not a second button (polish 2026-10-04 A6): one
+   filled Done, nothing else framed in the row. */
 .cs-gatedock > .cs-figgate-skip,
 .cs-connect-bar > .cs-cardgate-pill.skip,
 .cs-draggate > .cs-figgate-skip {
   color: var(--muted);
-  background: var(--surface);
-  border-color: var(--muted);
+  background: transparent;
+  border-color: transparent;
+  padding-inline: 0.5rem;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
+.cs-gatedock > .cs-figgate-skip:hover,
+.cs-connect-bar > .cs-cardgate-pill.skip:hover,
+.cs-draggate > .cs-figgate-skip:hover { color: var(--ink); }
+/* The hint, when the headline has no room for it: muted words, no pill. */
+.cs-gatedock > .cs-figgate-hint,
+.cs-gatedock > .cs-gatehead-how {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--muted);
+}
+/* The viewer's turn: Sources steps to the right edge as its book alone, so
+   the row reads Skip · Done and nothing else (A6). */
+.cs-stage.cs-docked .cs-more-bottom-left { left: auto; right: 0.5rem; }
+.cs-stage.cs-docked .cs-more-chip .cs-more-label { display: none; }
+.cs-stage.cs-docked .cs-more-chip { padding-inline: 0.45rem; opacity: 0.55; }
 .cs-stage.cs-docked:not(.cs-caption-below):not(.cs-caption-strip) .cs-caption {
   /* !important: the caption's placement writes its own bottom inline, and
      the dock must win while it stands. */
@@ -2042,10 +2069,11 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   font-size: 0.8rem;
   line-height: 1.2;
   padding: 0.15rem 0.5rem;
-  color: var(--ink);
-  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  /* Muted words, no band (A6): one framed thing in the row — Done. */
+  color: var(--muted);
+  background: transparent;
   box-shadow: none;
-  border-width: 1px;
+  border-width: 0;
 }
 .cs-stage.cs-docked-narrow .cs-more { display: none; }
 .cs-stage.cs-docked-narrow .cs-gatedock { padding-inline: 0.4rem; }
@@ -3524,6 +3552,10 @@ body.viewer-body.watch-body {
 .react-pill .react-up { border-right: 1px solid var(--line); }
 .react-btn:hover { color: var(--ink); background: var(--paper); }
 .react-btn[aria-pressed="true"] { color: var(--ink); background: var(--paper); font-weight: 600; }
+/* Open thumbs, filled while pressed (2026-10-04: no emoji, so no yellow). */
+.react-btn .cs-icon { width: 1.2em; height: 1.2em; }
+.react-btn .react-full, .react-btn[aria-pressed="true"] .react-open { display: none; }
+.react-btn[aria-pressed="true"] .react-full { display: inline; }
 .react-count:empty { display: none; }
 .react-pair { display: inline-flex; gap: 0.2rem; }
 .cs-menu-slot:empty { display: none; }

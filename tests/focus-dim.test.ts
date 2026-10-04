@@ -42,9 +42,9 @@ const SPEC = {
 };
 
 describe("focus dims on the fade wrapper and composes", () => {
-  test("the strength is one named value, lighter than the old 0.16", () => {
-    expect(FOCUS_DIM).toBeGreaterThanOrEqual(0.3);
-    expect(FOCUS_DIM).toBeLessThanOrEqual(0.45);
+  test("the strength is one named value, set aside but never a fade of the page", () => {
+    expect(FOCUS_DIM).toBeGreaterThanOrEqual(0.5);
+    expect(FOCUS_DIM).toBeLessThanOrEqual(0.7);
   });
 
   for (const style of STYLES) {

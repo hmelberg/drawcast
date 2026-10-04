@@ -8,6 +8,7 @@
 import type { RenderHandle } from "../render";
 import { h } from "./dom";
 import { gateIsOpen } from "./gates";
+import { gateLangOf, gateWords } from "./gate-words";
 import { guessGateFor } from "./guess-gate";
 
 export function attachTestMe(stage: HTMLElement, hd: RenderHandle): void {
@@ -25,7 +26,9 @@ export function attachTestMe(stage: HTMLElement, hd: RenderHandle): void {
     busy = true;
     refresh();
     void player
-      .selfTest((signal, session) => gate(signal, { question: "", retry: false, required: false, guess: session }))
+      // A headline of its own (2026-10-04): it puts the paused line's caption
+      // away while the viewer guesses, as every question's headline does.
+      .selfTest((signal, session) => gate(signal, { question: gateWords(gateLangOf(hd)).testYourself, retry: false, required: false, guess: session }))
       .finally(() => {
         busy = false;
         refresh();

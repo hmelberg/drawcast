@@ -160,6 +160,17 @@ every working file below is `dev-casts/<slug>…`.
 - Something happens while each line is spoken; emphasis only where the
   meaning is; calm, few colours, each one role.
 - A closing quiz that checks the insight, not recall.
+- A model to copy for quizzes and openings — *the-deadliest-animal*
+  (hmelberg/drawcast-library): an interesting, non-obvious question; a few
+  details that fold a second question into the first (how many does the
+  mosquito kill?); a surprising answer; then a kicker fact that reframes it
+  (the runner-up is us).
+- Rankings read like a number line: least on the left, most on the right
+  (a column: most on top) — the engine lays a magnitude rank out that way
+  whatever the order of `ends`. Bar numbers are the chart's own
+  `value_labels: true`, never text placed over the bars (they drift off the
+  bars and Test me cannot hide them). On a chart, `highlight` a bar rather
+  than `focus` — focus is for a dense figure of six or more parts.
 - Every checkable claim checked (step 3); the studies behind it in `sources`.
 - A link to another drawcast is a `link` element (`href`, `form: card|text`,
   `open`, optional `title`/`image`) — only to targets the user or the course

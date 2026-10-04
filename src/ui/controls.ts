@@ -196,7 +196,7 @@ export function quizGateFor(stage: HTMLElement, skipFeedback: () => void = () =>
           resolve(null);
         }
       };
-      const skip = h("button", { class: "cs-cardgate-pill skip" }, "Skip ▸") as HTMLButtonElement;
+      const skip = h("button", { class: "cs-cardgate-pill skip" }, "Skip") as HTMLButtonElement;
       const pills: HTMLButtonElement[] = step.choices.map((choice, i) => {
         const pill = h("button", { class: "cs-cardgate-pill" }, `${i + 1} · ${choice}`) as HTMLButtonElement;
         pill.addEventListener("click", (e) => {
@@ -733,7 +733,7 @@ export function askGateFor(stage: HTMLElement): (signal: AbortSignal, step: AskG
         if (e.key === "Enter") submit();
       });
       if (!step.required) {
-        const skip = h("button", { class: "cs-cardgate-pill skip" }, "Skip ▸");
+        const skip = h("button", { class: "cs-cardgate-pill skip" }, "Skip");
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           settle(null, 0);

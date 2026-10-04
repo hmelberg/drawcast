@@ -1018,7 +1018,7 @@ export function widgetGateFor(stage: HTMLElement, hd: RenderHandle, host: Widget
         resolve(ok ? step.answer : given);
       });
       if (!step.required) {
-        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip ▸");
+        const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip");
         skip.addEventListener("click", (e) => {
           e.stopPropagation();
           finish(null);
