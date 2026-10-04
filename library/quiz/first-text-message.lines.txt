@@ -4,7 +4,9 @@ Billions of text messages are sent every day. But when was the very first one se
   [wrong] You said {y}; it was {y.true}.
 On the third of December 1992, a twenty-two-year-old engineer, Neil Papworth, sent two words: Merry Christmas.
 He typed it on a computer, because no phone could write a message yet.
-It reached Richard Jarvis of Vodafone, at his office Christmas party, and he had no way to reply.
+It reached Richard Jarvis of Vodafone, at his office Christmas party.
+His phone could receive it, but he had no way to reply.
 The famous limit of one hundred and sixty characters is older still.
 In 1985, Friedhelm Hillebrand counted the letters on postcards and telex messages, and found that was enough to say most things.
-So texting began as a Christmas greeting that could not be answered.
+In 2021 Vodafone sold that first message as a digital collectible, for a hundred and seven thousand euros.
+Not bad for a Christmas greeting that could not be answered.
