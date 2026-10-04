@@ -16,7 +16,6 @@
    {
     "id": "babies",
     "type": "cards",
-    "y": 610,
     "items": [
      {
       "text": "Kangaroo",
@@ -44,32 +43,29 @@
      },
      {
       "text": "Eel",
-      "match": "Elver"
+      "match": "Elver",
+      "icon": "eel"
      }
-    ],
-    "x": 50,
-    "width": 620
+    ]
    },
    {
     "id": "ech",
     "type": "text",
     "text": "echidna's baby",
-    "x": 830,
-    "y": 520,
-    "font_size": 34,
+    "x": 500,
+    "y": 570,
+    "font_size": 44,
     "style": {
      "color": "#b5482e"
     }
    },
    {
     "id": "puggle",
-    "type": "node",
-    "shape": "rect",
+    "type": "text",
     "text": "Puggle",
-    "x": 830,
-    "y": 445,
-    "width": 230,
-    "font_size": 48,
+    "x": 500,
+    "y": 400,
+    "font_size": 96,
     "style": {
      "color": "#b5482e"
     },
@@ -143,6 +139,11 @@
     "speak": "And a young eel is an elver, swimming in from the sea after a journey of thousands of kilometres."
    },
    {
+    "erase": [
+     "babies"
+    ]
+   },
+   {
     "draw": [
      "ech",
      "puggle"
@@ -155,13 +156,14 @@
      "target": [
       "puggle"
      ],
-     "effect": "box"
+     "effect": "circle"
     },
     "speak": "Fittingly, the word may have started out as the name of a soft toy."
    }
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }
