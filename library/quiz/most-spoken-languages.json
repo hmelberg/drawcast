@@ -60,7 +60,29 @@
     "cites": [
      "eth"
     ],
-    "size": 1.6
+    "size": 2
+   },
+   {
+    "id": "tag_nat",
+    "type": "text",
+    "text": "Native",
+    "x": 760,
+    "y": 610,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "tag_all",
+    "type": "text",
+    "text": "All speakers",
+    "x": 760,
+    "y": 610,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
    }
   ],
   "commands": [
@@ -92,7 +114,8 @@
    {
     "draw": [
      "axes",
-     "bar_1"
+     "bar_1",
+     "tag_nat"
     ],
     "speak": "Mandarin wins by a mile: nearly a billion people grew up speaking it."
    },
@@ -100,7 +123,7 @@
     "draw": [
      "bar_2"
     ],
-    "speak": "Spanish comes second, thanks to Latin America, with almost half a billion."
+    "speak": "Spanish comes second, with almost half a billion: carried across the Atlantic five centuries ago, it is now the home language of most of Latin America."
    },
    {
     "draw": [
@@ -114,6 +137,16 @@
      "bar_5"
     ],
     "speak": "French, for all its fame, has only about seventy-five million native speakers."
+   },
+   {
+    "erase": [
+     "tag_nat"
+    ]
+   },
+   {
+    "draw": [
+     "tag_all"
+    ]
    },
    {
     "animate": {

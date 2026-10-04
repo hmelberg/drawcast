@@ -67,7 +67,7 @@
     "id": "nm0",
     "type": "text",
     "text": "Elephant",
-    "x": 170,
+    "x": 115,
     "y": 580,
     "font_size": 40
    },
@@ -76,20 +76,20 @@
     "type": "path",
     "points": [
      [
-      280,
-      554
+      265,
+      552
      ],
      [
-      760.0,
-      554
+      615.0,
+      552
      ],
      [
-      760.0,
-      606
+      615.0,
+      608
      ],
      [
-      280,
-      606
+      265,
+      608
      ]
     ],
     "closed": true,
@@ -105,27 +105,18 @@
     "id": "val0",
     "type": "text",
     "text": "22 months",
-    "x": 850.0,
+    "x": 700.0,
     "y": 580,
-    "font_size": 38,
+    "font_size": 36,
     "style": {
      "color": "#b5482e"
     }
    },
    {
-    "id": "row0",
-    "type": "group",
-    "members": [
-     "nm0",
-     "bar0",
-     "val0"
-    ]
-   },
-   {
     "id": "nm1",
     "type": "text",
     "text": "Giraffe",
-    "x": 170,
+    "x": 115,
     "y": 490,
     "font_size": 40
    },
@@ -134,20 +125,20 @@
     "type": "path",
     "points": [
      [
-      280,
-      464
+      265,
+      462
      ],
      [
-      607.3,
-      464
+      503.6,
+      462
      ],
      [
-      607.3,
-      516
+      503.6,
+      518
      ],
      [
-      280,
-      516
+      265,
+      518
      ]
     ],
     "closed": true,
@@ -163,27 +154,18 @@
     "id": "val1",
     "type": "text",
     "text": "15 months",
-    "x": 697.3,
+    "x": 588.6,
     "y": 490,
-    "font_size": 38,
+    "font_size": 36,
     "style": {
      "color": "#2f6b8f"
     }
    },
    {
-    "id": "row1",
-    "type": "group",
-    "members": [
-     "nm1",
-     "bar1",
-     "val1"
-    ]
-   },
-   {
     "id": "nm2",
     "type": "text",
     "text": "Human",
-    "x": 170,
+    "x": 115,
     "y": 400,
     "font_size": 40
    },
@@ -192,20 +174,20 @@
     "type": "path",
     "points": [
      [
-      280,
-      374
+      265,
+      372
      ],
      [
-      476.4,
-      374
+      408.2,
+      372
      ],
      [
-      476.4,
-      426
+      408.2,
+      428
      ],
      [
-      280,
-      426
+      265,
+      428
      ]
     ],
     "closed": true,
@@ -221,27 +203,18 @@
     "id": "val2",
     "type": "text",
     "text": "9 months",
-    "x": 566.4,
+    "x": 493.2,
     "y": 400,
-    "font_size": 38,
+    "font_size": 36,
     "style": {
      "color": "#2f6b8f"
     }
    },
    {
-    "id": "row2",
-    "type": "group",
-    "members": [
-     "nm2",
-     "bar2",
-     "val2"
-    ]
-   },
-   {
     "id": "nm3",
     "type": "text",
     "text": "Dog",
-    "x": 170,
+    "x": 115,
     "y": 310,
     "font_size": 40
    },
@@ -250,20 +223,20 @@
     "type": "path",
     "points": [
      [
-      280,
-      284
+      265,
+      282
      ],
      [
-      325.2,
-      284
+      297.9,
+      282
      ],
      [
-      325.2,
-      336
+      297.9,
+      338
      ],
      [
-      280,
-      336
+      265,
+      338
      ]
     ],
     "closed": true,
@@ -279,27 +252,18 @@
     "id": "val3",
     "type": "text",
     "text": "2 months",
-    "x": 415.2,
+    "x": 382.9,
     "y": 310,
-    "font_size": 38,
+    "font_size": 36,
     "style": {
      "color": "#2f6b8f"
     }
    },
    {
-    "id": "row3",
-    "type": "group",
-    "members": [
-     "nm3",
-     "bar3",
-     "val3"
-    ]
-   },
-   {
     "id": "nm4",
     "type": "text",
     "text": "Hamster",
-    "x": 170,
+    "x": 115,
     "y": 220,
     "font_size": 40
    },
@@ -308,26 +272,26 @@
     "type": "path",
     "points": [
      [
-      280,
-      194
+      265,
+      192
      ],
      [
-      291.6,
-      194
+      273.4,
+      192
      ],
      [
-      291.6,
-      246
+      273.4,
+      248
      ],
      [
-      280,
-      246
+      265,
+      248
      ]
     ],
     "closed": true,
     "style": {
-     "color": "#b5482e",
-     "fill": "#b5482e",
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
      "fill_style": "wash",
      "opacity": 0.4,
      "stroke_width": 2
@@ -337,29 +301,131 @@
     "id": "val4",
     "type": "text",
     "text": "16 days",
-    "x": 381.6,
+    "x": 358.4,
     "y": 220,
-    "font_size": 38,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "calf",
+    "type": "text",
+    "text": "calf: 100 kg",
+    "x": 862,
+    "y": 580,
+    "font_size": 28,
     "style": {
      "color": "#b5482e"
     }
+   },
+   {
+    "id": "ic0",
+    "type": "icon",
+    "of": "elephant",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 580
+   },
+   {
+    "id": "ic1",
+    "type": "icon",
+    "of": "giraffe",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 490
+   },
+   {
+    "id": "ic2",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 400
+   },
+   {
+    "id": "ic3",
+    "type": "icon",
+    "of": "dog face",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 310
+   },
+   {
+    "id": "ic4",
+    "type": "icon",
+    "of": "hamster",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 220
+   },
+   {
+    "id": "row0",
+    "type": "group",
+    "members": [
+     "nm0",
+     "ic0",
+     "bar0",
+     "val0"
+    ]
+   },
+   {
+    "id": "row1",
+    "type": "group",
+    "members": [
+     "nm1",
+     "ic1",
+     "bar1",
+     "val1"
+    ]
+   },
+   {
+    "id": "row2",
+    "type": "group",
+    "members": [
+     "nm2",
+     "ic2",
+     "bar2",
+     "val2"
+    ]
+   },
+   {
+    "id": "row3",
+    "type": "group",
+    "members": [
+     "nm3",
+     "ic3",
+     "bar3",
+     "val3"
+    ]
    },
    {
     "id": "row4",
     "type": "group",
     "members": [
      "nm4",
+     "ic4",
      "bar4",
      "val4"
     ]
    },
    {
-    "id": "calf",
+    "id": "stand",
     "type": "text",
-    "text": "calf ≈ 100 kg",
-    "x": 840,
-    "y": 632,
-    "font_size": 32,
+    "text": "stands in hours",
+    "x": 830,
+    "y": 490,
+    "font_size": 28,
     "style": {
      "color": "#b5482e"
     }
@@ -425,21 +491,19 @@
     "draw": [
      "calf"
     ],
-    "speak": "So why does the elephant wait so long? Its calf is born big, at about a hundred kilograms."
+    "speak": "So why does the elephant wait so long? Its calf is born big, at about a hundred kilograms.",
+    "cue": 0.45
+   },
+   {
+    "speak": "And it is born ready: within hours it stands, and soon walks with the herd.",
+    "draw": [
+     "stand"
+    ]
    },
    {
     "highlight": {
      "target": [
       "bar0"
-     ]
-    },
-    "speak": "And it is born ready: within hours it stands, and soon walks with the herd."
-   },
-   {
-    "highlight": {
-     "target": [
-      "bar0",
-      "val0"
      ],
      "effect": "circle"
     },

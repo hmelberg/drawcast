@@ -10,6 +10,6 @@
 (b) And the guinea pig. At least that's from Guinea?
 [QUIZ] Where do guinea pigs come from?  choices=["Guinea","The Andes","New Guinea"]
   [right] The Andes of South America, where people tamed them thousands of years ago, and still eat them today.
-(b) So not from Guinea. And not a pig either.
+(b) So not from Guinea at all. Peru even gives it a national day every October, with fairs and feasts.
 (a) You got {score} of {score_total}. Three names, three fibs.
 (a) As for the guinea pig: it's a rodent. It just squeals a bit like a piglet.

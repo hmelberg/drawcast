@@ -66,7 +66,7 @@
      ]
     },
     {
-     "name": "UN forecast",
+     "name": "UN",
      "values": [
       [
        null,
@@ -225,6 +225,60 @@
      "side": "left",
      "gap": 14
     }
+   },
+   {
+    "id": "p3",
+    "type": "point",
+    "at": {
+     "data": [
+      1960,
+      3.0
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "p4",
+    "type": "point",
+    "at": {
+     "data": [
+      1974,
+      4.0
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "p7",
+    "type": "point",
+    "at": {
+     "data": [
+      2011,
+      7.0
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "young",
+    "type": "text",
+    "text": "fewer died young",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      1880,
+      6.0
+     ]
+    }
    }
   ],
   "commands": [
@@ -243,7 +297,7 @@
     "draw": [
      "line_1"
     ],
-    "speak": "In 1800 there were about one billion of us. By 1950, about two and a half billion."
+    "speak": "In 1800 there were nearly one billion of us. By 1950, about two and a half billion."
    },
    {
     "ask": {
@@ -277,6 +331,9 @@
    },
    {
     "draw": [
+     "p3",
+     "p4",
+     "p7",
      "p8",
      "p8_l"
     ],
@@ -291,12 +348,10 @@
     "speak": "only eleven years after the seventh."
    },
    {
-    "highlight": {
-     "target": [
-      "line_1"
-     ]
-    },
-    "speak": "Not because people had more children, but because far fewer died young."
+    "speak": "Not because people had more children, but because far fewer died young.",
+    "draw": [
+     "young"
+    ]
    },
    {
     "draw": [

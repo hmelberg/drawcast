@@ -19,16 +19,37 @@
     "of": "crescent moon",
     "set": "twemoji",
     "icon_look": "picture",
-    "size": 420,
-    "x": 500,
+    "size": 380,
+    "x": 650,
     "y": 430
+   },
+   {
+    "id": "rocket",
+    "type": "icon",
+    "of": "rocket",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 250,
+    "y": 450
+   },
+   {
+    "id": "y1961",
+    "type": "text",
+    "text": "since 1961",
+    "x": 250,
+    "y": 290,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
    },
    {
     "id": "m11",
     "type": "text",
     "text": "11",
     "x": 110,
-    "y": 315,
+    "y": 272,
     "font_size": 44,
     "style": {
      "color": "#5e584e"
@@ -42,7 +63,7 @@
     "icon_look": "picture",
     "size": 100,
     "x": 110,
-    "y": 515
+    "y": 470
    },
    {
     "id": "a2",
@@ -52,14 +73,14 @@
     "icon_look": "picture",
     "size": 100,
     "x": 110,
-    "y": 405
+    "y": 360
    },
    {
     "id": "m12",
     "type": "text",
     "text": "12",
     "x": 240,
-    "y": 315,
+    "y": 272,
     "font_size": 44,
     "style": {
      "color": "#5e584e"
@@ -73,7 +94,7 @@
     "icon_look": "picture",
     "size": 100,
     "x": 240,
-    "y": 515
+    "y": 470
    },
    {
     "id": "a4",
@@ -83,14 +104,14 @@
     "icon_look": "picture",
     "size": 100,
     "x": 240,
-    "y": 405
+    "y": 360
    },
    {
     "id": "m13",
     "type": "text",
     "text": "13",
     "x": 370,
-    "y": 315,
+    "y": 272,
     "font_size": 44,
     "style": {
      "color": "#b5482e"
@@ -101,7 +122,7 @@
     "type": "text",
     "text": "14",
     "x": 500,
-    "y": 315,
+    "y": 272,
     "font_size": 44,
     "style": {
      "color": "#5e584e"
@@ -115,7 +136,7 @@
     "icon_look": "picture",
     "size": 100,
     "x": 500,
-    "y": 515
+    "y": 470
    },
    {
     "id": "a6",
@@ -125,14 +146,14 @@
     "icon_look": "picture",
     "size": 100,
     "x": 500,
-    "y": 405
+    "y": 360
    },
    {
     "id": "m15",
     "type": "text",
     "text": "15",
     "x": 630,
-    "y": 315,
+    "y": 272,
     "font_size": 44,
     "style": {
      "color": "#5e584e"
@@ -146,7 +167,7 @@
     "icon_look": "picture",
     "size": 100,
     "x": 630,
-    "y": 515
+    "y": 470
    },
    {
     "id": "a8",
@@ -156,14 +177,14 @@
     "icon_look": "picture",
     "size": 100,
     "x": 630,
-    "y": 405
+    "y": 360
    },
    {
     "id": "m16",
     "type": "text",
     "text": "16",
     "x": 760,
-    "y": 315,
+    "y": 272,
     "font_size": 44,
     "style": {
      "color": "#5e584e"
@@ -177,7 +198,7 @@
     "icon_look": "picture",
     "size": 100,
     "x": 760,
-    "y": 515
+    "y": 470
    },
    {
     "id": "a10",
@@ -187,14 +208,14 @@
     "icon_look": "picture",
     "size": 100,
     "x": 760,
-    "y": 405
+    "y": 360
    },
    {
     "id": "m17",
     "type": "text",
     "text": "17",
     "x": 890,
-    "y": 315,
+    "y": 272,
     "font_size": 44,
     "style": {
      "color": "#5e584e"
@@ -208,7 +229,7 @@
     "icon_look": "picture",
     "size": 100,
     "x": 890,
-    "y": 515
+    "y": 470
    },
    {
     "id": "a12",
@@ -218,7 +239,7 @@
     "icon_look": "picture",
     "size": 100,
     "x": 890,
-    "y": 405
+    "y": 360
    },
    {
     "id": "x13",
@@ -226,11 +247,11 @@
     "points": [
      [
       322,
-      370
+      320
      ],
      [
       418,
-      550
+      510
      ]
     ],
     "style": {
@@ -244,11 +265,11 @@
     "points": [
      [
       322,
-      550
+      510
      ],
      [
       418,
-      370
+      320
      ]
     ],
     "style": {
@@ -261,7 +282,7 @@
     "type": "text",
     "text": "Apollo",
     "x": 500,
-    "y": 228,
+    "y": 200,
     "font_size": 32,
     "style": {
      "color": "#5e584e"
@@ -272,7 +293,7 @@
     "type": "text",
     "text": "12",
     "x": 470,
-    "y": 605,
+    "y": 625,
     "font_size": 72,
     "style": {
      "color": "#b5482e"
@@ -288,15 +309,15 @@
     "set": "twemoji",
     "icon_look": "picture",
     "size": 60,
-    "x": 550,
-    "y": 605
+    "x": 560,
+    "y": 625
    },
    {
     "id": "first",
     "type": "text",
     "text": "Armstrong, 1969",
     "x": 180,
-    "y": 600,
+    "y": 618,
     "font_size": 32,
     "style": {
      "color": "#2f6b8f"
@@ -307,7 +328,7 @@
     "type": "text",
     "text": "Cernan, 1972",
     "x": 840,
-    "y": 600,
+    "y": 618,
     "font_size": 32,
     "style": {
      "color": "#b5482e"
@@ -318,7 +339,7 @@
     "type": "text",
     "text": "“TDC” in the dust",
     "x": 790,
-    "y": 225,
+    "y": 200,
     "font_size": 34,
     "style": {
      "color": "#b5482e"
@@ -333,17 +354,17 @@
    },
    {
     "draw": [
+     "rocket",
+     "y1961",
      "moon"
     ],
     "speak": "Hundreds of people have flown in space since 1961. But only a few have ever stood on the Moon."
    },
    {
-    "fade": {
-     "target": [
-      "moon"
-     ],
-     "to": 0.25
-    }
+    "erase": [
+     "rocket",
+     "y1961"
+    ]
    },
    {
     "ask": {
@@ -362,7 +383,8 @@
    },
    {
     "erase": [
-     "estimate_1"
+     "estimate_1",
+     "moon"
     ]
    },
    {
@@ -390,7 +412,6 @@
      "a11",
      "a12"
     ],
-    "parallel": true,
     "speak": "Six Apollo crews landed, each putting two men on the surface while a third waited in orbit."
    },
    {
@@ -412,7 +433,8 @@
     "draw": [
      "first"
     ],
-    "speak": "Neil Armstrong stepped out first, in July 1969, and Buzz Aldrin followed him about twenty minutes later."
+    "speak": "Neil Armstrong stepped out first, in July 1969, and Buzz Aldrin followed him about twenty minutes later.",
+    "cue": 0.45
    },
    {
     "draw": [
@@ -427,11 +449,10 @@
     "speak": "Before he climbed back in, he traced his daughter's initials in the lunar dust."
    },
    {
-    "point": {
-     "at": {
-      "ref": "twelve"
-     },
-     "gesture": "underline"
+    "highlight": {
+     "target": [
+      "twelve"
+     ]
     },
     "speak": "No one has walked there since, in more than fifty years. So the club is still just twelve."
    }

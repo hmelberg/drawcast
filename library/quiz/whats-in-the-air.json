@@ -6,14 +6,14 @@
   "template": "pie_chart",
   "params": {
    "labels": [
-    "Nitrogen",
     "Oxygen",
-    "Argon & rest"
+    "Argon & rest",
+    "Nitrogen"
    ],
    "values": [
-    78.08,
     20.95,
-    0.97
+    0.97,
+    78.08
    ]
   },
   "text": {
@@ -52,12 +52,26 @@
     }
    },
    {
+    "id": "rise",
+    "type": "text",
+    "text": "+50 % since 1750",
+    "x": 832,
+    "y": 262,
+    "font_size": 28,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "noaa"
+    ]
+   },
+   {
     "id": "lazy",
     "type": "text",
     "text": "argos = lazy",
-    "x": 800,
-    "y": 610,
-    "font_size": 40,
+    "x": 862,
+    "y": 402,
+    "font_size": 30,
     "style": {
      "color": "#8f6aa8"
     }
@@ -66,9 +80,9 @@
     "id": "co2",
     "type": "text",
     "text": "CO₂: 0.04 %",
-    "x": 825,
-    "y": 352,
-    "font_size": 40,
+    "x": 832,
+    "y": 322,
+    "font_size": 36,
     "style": {
      "color": "#b5482e"
     },
@@ -77,18 +91,34 @@
     ]
    },
    {
-    "id": "rise",
-    "type": "text",
-    "text": "+50 % since 1750",
-    "x": 825,
-    "y": 285,
-    "font_size": 30,
+    "id": "co2_hair",
+    "type": "path",
+    "points": [
+     [
+      758,
+      330
+     ],
+     [
+      752,
+      446
+     ]
+    ],
     "style": {
-     "color": "#b5482e"
-    },
-    "cites": [
-     "noaa"
-    ]
+     "color": "#b5482e",
+     "stroke_width": 1.5,
+     "dash": true
+    }
+   },
+   {
+    "id": "inout",
+    "type": "text",
+    "text": "in → out",
+    "x": 190,
+    "y": 330,
+    "font_size": 34,
+    "style": {
+     "color": "#8f6aa8"
+    }
    }
   ],
   "commands": [
@@ -113,7 +143,7 @@
      "question": "How is the air split? Drag the dividers to share out the pie.",
      "on": "all",
      "store": "g",
-     "default": "40,55,5",
+     "default": "55,5,40",
      "right": "Close: off by {g.off} points on average.",
      "wrong": "Off by {g.off} points on average."
     }
@@ -121,23 +151,21 @@
    {
     "highlight": {
      "target": [
-      "slice_1"
+      "slice_3"
      ]
     },
     "speak": "Nitrogen is the giant: seventy-eight percent of every breath."
    },
    {
-    "highlight": {
-     "target": [
-      "slice_1"
-     ]
-    },
-    "speak": "And it goes straight back out again: our bodies can't use it at all."
+    "speak": "And it goes straight back out again: our bodies can't use it at all.",
+    "draw": [
+     "inout"
+    ]
    },
    {
     "highlight": {
      "target": [
-      "slice_2"
+      "slice_1"
      ]
     },
     "speak": "Oxygen, the gas we actually need, is only about a fifth."
@@ -150,7 +178,8 @@
    },
    {
     "draw": [
-     "co2"
+     "co2",
+     "co2_hair"
     ],
     "speak": "And carbon dioxide, the gas behind global warming?"
    },

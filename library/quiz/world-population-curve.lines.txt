@@ -1,5 +1,5 @@
 How did the world's population grow to eight billion?
-In 1800 there were about one billion of us. By 1950, about two and a half billion.
+In 1800 there were nearly one billion of us. By 1950, about two and a half billion.
 [ASK] Here is the line up to 1950. Draw the rest: how did it grow to today?
   [right] Close. You drew {g}; the real line ends at {g.true} billion.
   [wrong] You drew {g}; the real line ends at {g.true} billion.

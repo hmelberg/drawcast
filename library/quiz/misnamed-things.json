@@ -24,6 +24,14 @@
     "authors": "Encyclopaedia Britannica",
     "year": 2025,
     "finding": "a South American rodent, domesticated in the Andes thousands of years ago; still raised for food there"
+   },
+   {
+    "id": "cuy",
+    "title": "National Guinea Pig Day (Día Nacional del Cuy)",
+    "authors": "Peru, Ministry of Agriculture (reported by TreXperience Peru)",
+    "year": 2013,
+    "url": "https://trexperienceperu.com/travel-news/national-guinea-pig-day-adorable-symbol-culture-and-nutrition-peru",
+    "finding": "since 2013 Peru marks National Cuy Day on the second Friday of October, with fairs and festivals promoting breeding and eating guinea pigs"
    }
   ],
   "elements": [
@@ -55,7 +63,7 @@
      },
      {
       "icon": {
-       "of": "hamster",
+       "of": "mouse face",
        "set": "twemoji"
       },
       "label": "Guinea pig",
@@ -64,6 +72,21 @@
        "color": "#b5482e"
       }
      }
+    ],
+    "show_upcoming": "dots"
+   },
+   {
+    "id": "cuyday",
+    "type": "text",
+    "text": "Peru: Cuy Day",
+    "x": 800,
+    "y": 340,
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "cuy"
     ]
    }
   ],
@@ -75,14 +98,20 @@
    },
    {
     "draw": [
-     "names_1"
+     "names_dot_1",
+     "names_dot_2",
+     "names_dot_3"
     ],
     "voice": "a",
-    "speak": "Three famous names, and every one of them tells a fib. Can you spot where?"
+    "speak": "Three famous names, and every one of them tells a fib. Can you spot where?",
+    "parallel": true
    },
    {
     "voice": "a",
-    "speak": "First, the Hundred Years' War, between England and France."
+    "speak": "First, the Hundred Years' War, between England and France.",
+    "draw": [
+     "names_1"
+    ]
    },
    {
     "quiz": {
@@ -97,7 +126,12 @@
      "id": "war",
      "on_canvas": true,
      "say_question": true,
-     "reveal": "116 years"
+     "reveal": "116 years",
+     "buttons_at": {
+      "x": 810,
+      "y": 430
+     },
+     "buttons_layout": "column"
     }
    },
    {
@@ -129,7 +163,12 @@
      "id": "hat",
      "on_canvas": true,
      "say_question": true,
-     "reveal": "Ecuador"
+     "reveal": "Ecuador",
+     "buttons_at": {
+      "x": 810,
+      "y": 430
+     },
+     "buttons_layout": "column"
     }
    },
    {
@@ -161,17 +200,25 @@
      "id": "pig",
      "on_canvas": true,
      "say_question": true,
-     "reveal": "The Andes"
+     "reveal": "The Andes",
+     "buttons_at": {
+      "x": 810,
+      "y": 430
+     },
+     "buttons_layout": "column"
     }
    },
    {
     "voice": "b",
-    "speak": "So not from Guinea. And not a pig either.",
-    "highlight": {
-     "target": [
-      "names_3_label"
-     ]
-    }
+    "speak": "So not from Guinea at all. Peru even gives it a national day every October, with fairs and feasts.",
+    "draw": [
+     "cuyday"
+    ]
+   },
+   {
+    "hide": [
+     "cuyday"
+    ]
    },
    {
     "draw": [

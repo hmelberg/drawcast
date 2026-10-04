@@ -41,7 +41,7 @@
     "type": "text",
     "text": "43 quintillion",
     "x": 710,
-    "y": 590,
+    "y": 605,
     "font_size": 60,
     "style": {
      "color": "#b5482e"
@@ -55,7 +55,7 @@
     "type": "text",
     "text": "100 × the universe's age",
     "x": 710,
-    "y": 500,
+    "y": 520,
     "font_size": 40,
     "style": {
      "color": "#2f6b8f"
@@ -66,7 +66,7 @@
     "type": "text",
     "text": "≤ 20 moves",
     "x": 710,
-    "y": 400,
+    "y": 440,
     "font_size": 64,
     "style": {
      "color": "#2f6b8f"
@@ -917,6 +917,31 @@
      "st_t21",
      "st_t22"
     ]
+   },
+   {
+    "id": "god_l",
+    "type": "text",
+    "text": "God's number",
+    "x": 710,
+    "y": 370,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "cpu",
+    "type": "text",
+    "text": "2010 · 35 CPU-years",
+    "x": 710,
+    "y": 318,
+    "font_size": 32,
+    "style": {
+     "color": "#5e584e"
+    },
+    "cites": [
+     "cube20"
+    ]
    }
   ],
   "commands": [
@@ -973,12 +998,11 @@
     "speak": "And yet every single one can be solved in twenty moves or fewer."
    },
    {
-    "highlight": {
-     "target": [
-      "god"
-     ]
-    },
-    "speak": "That limit is called God's number. A team proved it in 2010, using about thirty-five years of computer time donated by Google."
+    "speak": "That limit is called God's number. A team proved it in 2010, using about thirty-five years of computer time donated by Google.",
+    "draw": [
+     "god_l",
+     "cpu"
+    ]
    },
    {
     "speak": "They did not solve the positions one by one: they grouped them into huge families, and used the cube's symmetry to deal with whole families at once.",
@@ -992,7 +1016,8 @@
     "speak": "So no mess is ever more than twenty twists from home, even if finding those twenty is the hard part.",
     "highlight": {
      "target": [
-      "god"
+      "god",
+      "god_l"
      ],
      "effect": "circle"
     }
