@@ -397,3 +397,49 @@ describe("a highlight on faded ink", () => {
     });
   }
 });
+
+describe("pulse on see-through ink", () => {
+  // A code pane's marker band is a wide stroke at 60 % (layout/code.ts). Its
+  // pulse echo dropped that opacity with the attribute and painted opaque red
+  // bars over the code; it keeps an area's 0.4 instead.
+  const BAND = {
+    elements: [
+      { id: "band", type: "path", points: [[200, 300], [600, 300]], style: { opacity: 0.6, stroke_width: 16 } },
+      { id: "ink", type: "path", points: [[200, 400], [600, 400]] },
+    ],
+    commands: [{ draw: ["band", "ink"] }],
+  };
+  async function mountedBand() {
+    const { restore, doc } = installMiniDom();
+    const layout = layoutSpec(BAND as never, heuristicMeasure);
+    const container = new FakeNode("div", doc as never);
+    const r = await rendererFor("clean").mount(layout, BAND as never, container as never);
+    for (const el of r.elements.values()) el.finish();
+    return { restore, container, effects: r.effects! };
+  }
+  const strokes = (n: FakeNode): FakeNode[] => [n, ...n.children.flatMap(strokes)].filter((c) => c.tagName?.toLowerCase() === "path" && c.getAttribute("stroke"));
+
+  test("a translucent stroke's echo stays see-through", async () => {
+    const { restore, container, effects } = await mountedBand();
+    try {
+      effects.setHighlight(["band"], "pulse", 1, null);
+      const paths = echoes(container).flatMap(strokes);
+      expect(paths.length).toBeGreaterThan(0);
+      for (const p of paths) expect(p.getAttribute("stroke-opacity")).toBe("0.4");
+    } finally {
+      restore();
+    }
+  });
+
+  test("an opaque stroke's echo stays full strength", async () => {
+    const { restore, container, effects } = await mountedBand();
+    try {
+      effects.setHighlight(["ink"], "pulse", 1, null);
+      const paths = echoes(container).flatMap(strokes);
+      expect(paths.length).toBeGreaterThan(0);
+      for (const p of paths) expect(p.getAttribute("stroke-opacity")).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+});

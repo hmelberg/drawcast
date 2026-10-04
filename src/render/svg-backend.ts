@@ -1270,6 +1270,10 @@ export const LASER_COLOR = "#d33827";
  */
 function emphasisClone(g: SVGGElement, color: string): SVGGElement {
   const c = g.cloneNode(true) as SVGGElement;
+  // A see-through stroke (a code pane's marker band, 60 % under the letters)
+  // keeps its see-through in the echo, at an area's 0.4: the opacity it lost
+  // with the attribute below made a pulse paint opaque red bars over the code.
+  const seeThrough = Number(g.getAttribute("opacity") ?? "1") < 1;
   c.removeAttribute("opacity");
   c.style.opacity = "0";
   c.style.pointerEvents = "none";
@@ -1287,6 +1291,7 @@ function emphasisClone(g: SVGGElement, color: string): SVGGElement {
     // solid-fill paths included — keeps the bolder echo it has always had.
     if (p.hasAttribute(EXACT_ATTR)) continue;
     p.setAttribute("stroke", color);
+    if (seeThrough) p.setAttribute("stroke-opacity", "0.4");
     const w = parseFloat(p.getAttribute("stroke-width") ?? "3") || 3;
     p.setAttribute("stroke-width", String(w + 1.5));
   }
@@ -1389,6 +1394,8 @@ function outlineD(leaf: Extract<Drawable, { kind: "stroke" }>): string | null {
 }
 
 let frameMaskSeq = 0;
+/** Window clip ids, document-wide (see clipFor). */
+let clipSeq = 0;
 
 /** A thick round-capped path — band and marker alike — under the ink, posed like its leaf. */
 function penPath(d: string, color: string, width: number, alpha: number, pose: string | null): SVGPathElement {
@@ -2565,7 +2572,11 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean; c
         const key = `${clip.x},${clip.y},${clip.w},${clip.h}`;
         let id = clipIds.get(key);
         if (!id) {
-          id = `cs-clip-${clipIds.size + 1}`;
+          // Unique in the DOCUMENT, not just this mount: `url(#…)` resolves
+          // to the first element with the id, so a second mount's
+          // `cs-clip-1` (the next part of a lecture, a frames sheet) clipped
+          // its window with the first mount's rectangle.
+          id = `cs-clip-${++clipSeq}`;
           const cp = document.createElementNS(SVG_NS, "clipPath");
           cp.setAttribute("id", id);
           cp.setAttribute("clipPathUnits", "userSpaceOnUse");

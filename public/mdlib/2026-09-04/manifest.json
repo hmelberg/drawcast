@@ -13,6 +13,14 @@
     "codelists/NUDB_BU.json": "493ebd04f3af4b92",
     "codelists/NUDB_KOMM_16.json": "8634ccc4b59c0146",
     "codelists/REGSYS_ARB_YRKE_STYRK08.json": "d3bc62ac65cc142c",
-    "codelists/REGSYS_VIRK_NACE1_SN07.json": "cf685d91c3d5cd8c"
+    "codelists/REGSYS_VIRK_NACE1_SN07.json": "cf685d91c3d5cd8c",
+    "m2py_runtime/__init__.py": "ce4ee97fce99da3a",
+    "m2py_runtime/exprcompile.py": "ac5fbe5666682027",
+    "m2py_runtime/keys.py": "3f77ca0b26037695",
+    "m2py_runtime/manifest.py": "d9d2a2e5fc5bef45",
+    "m2py_runtime/pandas_ops.py": "d2fea4fa95c4df31",
+    "m2py_runtime/polars_ops.py": "e5bd263cb1ee01c7",
+    "m2py_runtime/profile.py": "63484f563b455ec4",
+    "m2py_runtime/sources.py": "2463c9a3534f4398"
   }
 }

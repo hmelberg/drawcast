@@ -4,7 +4,7 @@
 import { dump } from "js-yaml";
 import { fieldLines, formatValue } from "./values";
 import { COMMAND_ORDER, ELEMENT_KEYS, ELEMENT_ORDER, LIST_VERBS, MODIFIER_KEYS, OBJECT_VERBS, QUESTION_VERBS, SCALAR_VERBS, TARGET_FIELD, TARGET_VERBS, restValue } from "./parse";
-import { AROUND_FIELD, ELEMENT_ALIASES, FLAG_FOR, LAYOUT_HEADS, PLACE_WORDS, SIDE_TYPES, isColor } from "./sugar";
+import { AROUND_FIELD, ELEMENT_ALIASES, FLAGS, FLAG_FOR, LAYOUT_HEADS, PLACE_WORDS, SIDE_TYPES, SIDE_WORDS, isColor } from "./sugar";
 
 /** The keys that can head a direction line. Everything else in a command
  *  rides along as a modifier on the same line. */
@@ -12,6 +12,16 @@ const MAIN_VERBS = new Set<string>([...LIST_VERBS, ...TARGET_VERBS, ...OBJECT_VE
 import type { Command, Spec, SpecElement } from "../types";
 
 const INDENT = "    ";
+
+/**
+ * Whether `below <ref>` reads back as a placement: the reader takes the word
+ * after a side word as its ref only when that word is a plain id and nothing
+ * the grammar owns — an element field (`legend`, `label`), a flag, a side or
+ * place word. Any other ref stays the long pair (`at.side below at.ref legend`).
+ */
+function phraseRef(ref: string): boolean {
+  return /^[A-Za-z_][\w-]*$/.test(ref) && ref !== "hidden" && !ELEMENT_KEYS.has(ref) && FLAGS[ref] === undefined && !SIDE_WORDS.has(ref) && !PLACE_WORDS.has(ref);
+}
 
 /** The order settings print in — fixed, so a reprint never reshuffles a file's head. */
 export const SETTING_ORDER: [keyof Spec, string][] = [
@@ -111,7 +121,7 @@ function shorthands(el: SpecElement): { words: string[]; used: Set<string>; eate
 
   // What a border wraps.
   const aroundField = AROUND_FIELD[el.type];
-  if (aroundField !== undefined && Array.isArray(e[aroundField])) {
+  if (aroundField !== undefined && Array.isArray(e[aroundField]) && (e[aroundField] as unknown[]).every((id) => typeof id === "string" && phraseRef(id))) {
     words.push("around", ...(e[aroundField] as string[]));
     used.add(aroundField);
   }
@@ -124,7 +134,7 @@ function shorthands(el: SpecElement): { words: string[]; used: Set<string>; eate
   } else if (at && typeof at.place === "string" && Object.keys(at).length === 1) {
     const word = [...PLACE_WORDS].find(([, anchor]) => anchor === at.place)?.[0];
     if (word !== undefined) { words.push(word); used.add("at"); }
-  } else if (at && typeof at.side === "string" && typeof at.ref === "string" && Object.keys(at).every((k) => ["side", "ref", "gap"].includes(k))) {
+  } else if (at && typeof at.side === "string" && typeof at.ref === "string" && phraseRef(at.ref) && Object.keys(at).every((k) => ["side", "ref", "gap"].includes(k))) {
     words.push(at.side, at.ref);
     if (typeof at.gap === "number") words.push("gap", String(at.gap));
     used.add("at");

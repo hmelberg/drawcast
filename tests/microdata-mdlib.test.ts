@@ -38,6 +38,19 @@ describe("the pinned snapshot exists on disk", () => {
     for (const f of files) expect(existsSync(new URL(f, dir))).toBe(true);
   });
 
+  test("every m2py_runtime module the emulator imports is in the manifest", () => {
+    // A correct `merge` imports m2py_runtime.keys lazily; the snapshot once
+    // shipped without the package and the merge failed with
+    // ModuleNotFoundError in the browser (scripts/mdlib-sanity.py runs it).
+    const files = parseMdlibManifest(readFileSync(new URL("manifest.json", dir), "utf8"));
+    const m2py = readFileSync(new URL("m2py.py", dir), "utf8");
+    const used = new Set([...m2py.matchAll(/from m2py_runtime import (\w+)|m2py_runtime\.(\w+)/g)].map((m) => m[1] ?? m[2]));
+    expect(used.has("keys")).toBe(true);
+    expect(files).toContain("m2py_runtime/__init__.py");
+    for (const mod of used) expect(files).toContain(`m2py_runtime/${mod}.py`);
+    expect(readdirSync(new URL("m2py_runtime/", dir))).not.toContain("__pycache__");
+  });
+
   test("the snapshot ships no build junk — it is copied verbatim into dist/", () => {
     // Running scripts/mdlib-sanity.py imports the emulator, and CPython would
     // drop a __pycache__ into the snapshot that vite then publishes.

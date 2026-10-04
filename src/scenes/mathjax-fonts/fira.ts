@@ -14,3 +14,22 @@ export const dynamic: Record<string, unknown> = Object.fromEntries(
     mod,
   ]),
 );
+
+// Each dynamic file registers its glyphs by calling dynamicSetup on the font
+// class IT imports (`../../svg.js`). In a production build that is the class
+// above; under the dev server (the font is a pre-bundled dep, the glob is
+// served raw) and under Vite SSR (cast.mjs check/frames: the font is
+// externalized) it is a second copy, so the class above kept its placeholder
+// setups — which mark the file failed — and the first Latin-1 letter in a
+// formula (å, ø, æ in \text{…}) threw "dynamic file 'latin' failed to load".
+// Hand the twin's real setups to the class MathJax draws with.
+type FontClass = { dynamicFiles: Record<string, { setup: (font: unknown) => void }> };
+const twins = import.meta.glob("/node_modules/@mathjax/mathjax-fira-font/mjs/svg.js", { eager: true }) as Record<string, { MathJaxFiraFont?: FontClass }>;
+for (const twin of Object.values(twins)) {
+  const other = twin.MathJaxFiraFont;
+  const own = MathJaxFiraFont as unknown as FontClass;
+  if (!other || other === own) continue;
+  for (const [name, file] of Object.entries(other.dynamicFiles)) {
+    if (own.dynamicFiles[name]) own.dynamicFiles[name].setup = file.setup;
+  }
+}

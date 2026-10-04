@@ -353,3 +353,20 @@ describe("the frames demo", () => {
     expect(doc.split("---").length - 1).toBe(5); // header + five scenes
   });
 });
+
+describe("a table after a long log", () => {
+  // Run-output tables were not counted in the stdout budget: after a long
+  // command log a `tabulate` table was drawn out under the pane's bottom.
+  test("the table claims its rows first; the log is trimmed, the table stays inside the pane", () => {
+    const stdout = Array.from({ length: 60 }, (_, i) => `log ${i}`).join("\n");
+    const tables = [{ columns: ["a", "b"], rows: Array.from({ length: 8 }, (_, i) => [String(i), "x"]) }];
+    const s = spec({ show: "output", frame: "panel", code_result: JSON.stringify({ ok: true, stdout, stderr: "", figures: [], tables }) });
+    const all = flattenDrawables(layoutSpec(s, heuristicMeasure).drawables);
+    const frame = (all.find((d) => d.id === "c1__frame") as { shapeHint?: { y: number } }).shapeHint!;
+    const cells = all.filter((d) => d.id.startsWith("c1__tbl0__td")) as TextDrawable[];
+    expect(cells.length).toBe(16);
+    for (const c of cells) expect(c.pos[1]).toBeGreaterThan(frame.y);
+    const outs = all.filter((d) => /^c1__out\d+$/.test(d.id)) as TextDrawable[];
+    expect(outs.at(-1)!.text).toMatch(/more lines/);
+  });
+});

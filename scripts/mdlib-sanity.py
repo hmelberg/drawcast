@@ -71,6 +71,24 @@ check('the dataset is bound by name', hasattr(gl.get('demo'), 'columns'))
 check('and `df` is the active one', gl.get('df') is gl.get('demo'))
 check('the imported variables are columns', {'kjonn', 'inntekt'} <= set(map(str, gl['df'].columns)), list(gl['df'].columns))
 
+print('\nmerge')
+# merge resolves its key through m2py_runtime.keys, imported lazily at the
+# first merge — a snapshot without the package said ModuleNotFoundError there.
+MERGE = """require no.ssb.fdb:54 as fd
+create-dataset personer
+import fd/BEFOLKNING_KJOENN as kjonn
+create-dataset inntekter
+import fd/INNTEKT_WLONN 2022-01-01 as inntekt
+merge inntekt into personer
+use personer
+summarize inntekt
+"""
+merged = json.loads(g['_md_run'](MERGE))
+check('merge runs with no runner error', merged.get('error') == '', merged.get('error'))
+check('merge finds m2py_runtime', 'm2py_runtime' not in merged['output'], merged['output'][-400:])
+check('no merge command failed', 'FEIL' not in merged['output'], merged['output'][-400:])
+check('the merged variable is a column of the target', 'inntekt' in set(map(str, g['__g']['personer'].columns)), list(g['__g']['personer'].columns))
+
 print('\nruns are isolated')
 # The result cache is keyed by the SCRIPT's hash, so a run that could see an
 # earlier run's datasets would be cached under a key that does not mention
