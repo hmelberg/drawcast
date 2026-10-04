@@ -436,7 +436,14 @@ export function scaleLineElements(sc: ScaleElementLike, textScale = 1): SpecElem
       out.push({ id: `${sc.id}_unit`, type: "text", text: u, x: g.x1 - w / 2, y: g.y - drop - Math.round(f * 1.45), font_size: size, style: { color: TICK_INK } });
     }
   }
-  if (sc.label) out.push({ id: `${sc.id}_caption`, type: "text", text: sc.label, x: (g.x0 + g.x1) / 2, y: g.y + 44 + Math.round(sizes.answer * 1.2 + sizes.caption * 0.5), font_size: sizes.caption });
+  if (sc.label) {
+    // Over the line's middle — and over its markers' words when it has some
+    // (W27: the caption between the line and the words crossed their leaders).
+    const markersTop = scaleMarkersTop(sc, textScale);
+    const base = g.y + 44 + Math.round(sizes.answer * 1.2 + sizes.caption * 0.5);
+    const y = markersTop === null ? base : Math.max(base, Math.round(markersTop + 10 + sizes.caption * textScale * 0.625));
+    out.push({ id: `${sc.id}_caption`, type: "text", text: sc.label, x: (g.x0 + g.x1) / 2, y, font_size: sizes.caption });
+  }
   out.push({ id: sc.id, type: "group", members: out.map((e) => e.id), ...scaleKeep(sc) });
   return out;
 }
@@ -452,24 +459,26 @@ const MARKER_INK = "#8f887c";
  * clear; neighbours that would touch (or the caption) push a label up a row.
  */
 export function scaleMarkerElements(sc: ScaleElementLike, textScale = 1): SpecElement[] {
-  if (isSlider(sc) || !Array.isArray(sc.markers) || sc.markers.length === 0) return [];
+  return markerLayout(sc, textScale).elements;
+}
+
+/** The top of the markers' words (null: none) — the caption goes over them (scaleLineElements). */
+export function scaleMarkersTop(sc: ScaleElementLike, textScale = 1): number | null {
+  return markerLayout(sc, textScale).top;
+}
+
+function markerLayout(sc: ScaleElementLike, textScale: number): { elements: SpecElement[]; top: number | null } {
+  if (isSlider(sc) || !Array.isArray(sc.markers) || sc.markers.length === 0) return { elements: [], top: null };
   const g = scaleGeometry(sc);
   const sizes = g.sizes ?? { tick: TICK_SIZE, answer: 28, caption: 26 };
   const size = sizes.tick;
   const f = size * textScale;
   const answerF = sizes.answer * Math.max(1, textScale);
   const bandTop = g.y + 36 + Math.round(sizes.answer * 0.6) + answerF * 0.6;
-  const rowH = Math.round(f * 1.3);
+  // A text's box is 1.25 em high (layout/measure); rows keep 8 between boxes.
+  const rowH = Math.round(f * 1.25 + 8);
   type Box = { x0: number; x1: number; y0: number; y1: number };
-  const hits = (a: Box, b: Box): boolean => a.x0 < b.x1 + 12 && b.x0 < a.x1 + 12 && a.y0 < b.y1 && b.y0 < a.y1;
-  const taken: Box[] = [];
-  if (sc.label) {
-    const cf = sizes.caption * textScale;
-    const cy = g.y + 44 + Math.round(sizes.answer * 1.2 + sizes.caption * 0.5);
-    const cw = scaleLabelWidth(sc.label, cf);
-    const cx = (g.x0 + g.x1) / 2;
-    taken.push({ x0: cx - cw / 2, x1: cx + cw / 2, y0: cy - cf * 0.6, y1: cy + cf * 0.6 });
-  }
+  const hits = (a: Box, b: Box): boolean => a.x0 < b.x1 + 12 && b.x0 < a.x1 + 12 && a.y0 < b.y1 + 6 && b.y0 < a.y1 + 6;
   // The answer's number (when the scale has one): a leader must not cross it.
   let answerBox: Box | null = null;
   if (isNum(sc.value)) {
@@ -483,36 +492,42 @@ export function scaleMarkerElements(sc: ScaleElementLike, textScale = 1): SpecEl
     .map((m, i) => ({ m, i }))
     .filter(({ m }) => m && isNum(m.value))
     .sort((a, b) => a.m.value - b.m.value);
-  const out: SpecElement[] = [];
+  // First every label's place: the lowest row where it touches no other.
+  const placed: { i: number; x: number; text: string; color: string; tx: number; box: Box }[] = [];
   for (const { m, i } of order) {
-    const id = `${sc.id}_marker_${i + 1}`;
     const x = g.xAt(m.value);
     const color = typeof m.color === "string" && m.color !== "" ? m.color : MARKER_INK;
     const text = typeof m.label === "string" && m.label.trim() !== "" ? m.label.trim() : g.format(m.value);
-    const w = scaleLabelWidth(text, f);
+    // The wider of the font's estimate and the lint's measure (tickWidth): check judges by the latter.
+    const w = tickWidth(text, f);
     const tx = Math.max(8 + w / 2, Math.min(PAGE_W - 8 - w / 2, x));
-    let row = 0;
     let box: Box = { x0: 0, x1: 0, y0: 0, y1: 0 };
-    for (; row < 4; row++) {
-      const cy = bandTop + 8 + f / 2 + row * rowH;
-      box = { x0: tx - w / 2, x1: tx + w / 2, y0: cy - f / 2, y1: cy + f / 2 };
-      if (!taken.some((b) => hits(b, box))) break;
+    for (let row = 0; row < 8; row++) {
+      const cy = bandTop + 8 + f * 0.625 + row * rowH;
+      box = { x0: tx - w / 2, x1: tx + w / 2, y0: cy - f * 0.625, y1: cy + f * 0.625 };
+      if (!placed.some((p) => hits(p.box, box))) break;
     }
-    taken.push(box);
-    const cy = (box.y0 + box.y1) / 2;
+    placed.push({ i, x, text, color, tx, box });
+  }
+  // Then the ink. The leader runs up from the tick to the words — unless it
+  // would cross the answer's number or a lower label (13's words under 14's
+  // leader): the words then stand over their tick alone.
+  const out: SpecElement[] = [];
+  for (const p of placed) {
+    const id = `${sc.id}_marker_${p.i + 1}`;
     const members = [`${id}_tick`, `${id}_words`];
-    out.push({ id: `${id}_tick`, type: "path", points: [[x, g.y - 14], [x, g.y + 14]], style: { color, stroke_width: 4 } });
-    out.push({ id: `${id}_words`, type: "text", text, x: Math.round(tx), y: Math.round(cy), font_size: size, style: { color } });
-    // The leader runs up from the tick to the words — unless it would cross the answer's number.
-    const top = box.y0 - 4;
-    const crosses = answerBox !== null && x > answerBox.x0 - 6 && x < answerBox.x1 + 6;
+    out.push({ id: `${id}_tick`, type: "path", points: [[p.x, g.y - 14], [p.x, g.y + 14]], style: { color: p.color, stroke_width: 4 } });
+    out.push({ id: `${id}_words`, type: "text", text: p.text, x: Math.round(p.tx), y: Math.round((p.box.y0 + p.box.y1) / 2), font_size: size, style: { color: p.color } });
+    const top = p.box.y0 - 4;
+    const across = (b: Box): boolean => p.x > b.x0 - 6 && p.x < b.x1 + 6 && b.y0 < top && b.y1 > g.y + 14;
+    const crosses = (answerBox !== null && across(answerBox)) || placed.some((q) => q !== p && across(q.box));
     if (!crosses && top - (g.y + 14) > 6) {
-      out.push({ id: `${id}_lead`, type: "path", points: [[x, g.y + 14], [x, Math.round(top)]], style: { color, stroke_width: 2, opacity: 0.7 } });
+      out.push({ id: `${id}_lead`, type: "path", points: [[p.x, g.y + 14], [p.x, Math.round(top)]], style: { color: p.color, stroke_width: 2, opacity: 0.7 } });
       members.push(`${id}_lead`);
     }
     out.push({ id, type: "group", members });
   }
-  return out;
+  return { elements: out, top: Math.max(...placed.map((p) => p.box.y1)) };
 }
 
 /** The scale's numbers its group keeps (not its caption: a group's label
