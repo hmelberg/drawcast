@@ -1270,6 +1270,10 @@ export const LASER_COLOR = "#d33827";
  */
 function emphasisClone(g: SVGGElement, color: string): SVGGElement {
   const c = g.cloneNode(true) as SVGGElement;
+  // A see-through stroke (a code pane's marker band, 60 % under the letters)
+  // keeps its see-through in the echo, at an area's 0.4: the opacity it lost
+  // with the attribute below made a pulse paint opaque red bars over the code.
+  const seeThrough = Number(g.getAttribute("opacity") ?? "1") < 1;
   c.removeAttribute("opacity");
   c.style.opacity = "0";
   c.style.pointerEvents = "none";
@@ -1287,6 +1291,7 @@ function emphasisClone(g: SVGGElement, color: string): SVGGElement {
     // solid-fill paths included — keeps the bolder echo it has always had.
     if (p.hasAttribute(EXACT_ATTR)) continue;
     p.setAttribute("stroke", color);
+    if (seeThrough) p.setAttribute("stroke-opacity", "0.4");
     const w = parseFloat(p.getAttribute("stroke-width") ?? "3") || 3;
     p.setAttribute("stroke-width", String(w + 1.5));
   }
