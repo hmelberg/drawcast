@@ -348,10 +348,13 @@ layout: |
   // Base sizes a viewer can read on a full page; each shrinks only when its
   // neighbours would collide at the width there is, never below the size the
   // chart used before (17 for categories, 13 past 12 bars, 15 for values).
-  const TICK_SIZE = 20, TICK_MIN = 15;
-  const CAT_SIZE = 21, CAT_WRAP_MIN = 18, CAT_MIN = n > 12 ? 13 : 17;
-  const VALUE_SIZE = 20, VALUE_MIN = 15;
-  const LEGEND_SIZE = 20;
+  // The chart as the page's figure (no box, or a box most of the content
+  // area: W25, "chart text reads tiny next to large cards") starts two sizes up.
+  const MAIN = !boxed || (b.w >= 700 && b.h >= 380) ? 2 : 0;
+  const TICK_SIZE = 20 + MAIN, TICK_MIN = 15;
+  const CAT_SIZE = 21 + MAIN, CAT_WRAP_MIN = 18, CAT_MIN = n > 12 ? 13 : 17;
+  const VALUE_SIZE = 20 + MAIN, VALUE_MIN = 15;
+  const LEGEND_SIZE = 20 + MAIN;
   // Round tick values: the smallest step of 1, 2, 2.5 or 5 × 10ⁿ that puts at
   // most `most` ticks on [lo, hi] with neighbours at least `minGap` apart
   // (`per`: logical units per data unit).
@@ -576,13 +579,13 @@ layout: |
     const ly = plot.y1 - 16;
     const children = [];
     series.forEach((s, j) => {
-      const y = ly - j * 28;
+      const y = ly - j * (LEGEND_SIZE + 8);
       const color = C.series[j % C.series.length];
       children.push(kit.area("legend__s" + j, [[lx, y - 10], [lx + 20, y - 10], [lx + 20, y + 10], [lx, y + 10]], color, { opacity: 0.55 }));
       children.push(kit.text("legend__t" + j, [lx + 28, y], s.name, { fontSize: LEGEND_SIZE, anchor: "start" }));
     });
     push(kit.group("legend", children));
-    anchors.legend = [lx + legW / 2, ly - (m - 1) * 14];
+    anchors.legend = [lx + legW / 2, ly - ((m - 1) * (LEGEND_SIZE + 8)) / 2];
   }
 
   if (title) {
@@ -1339,6 +1342,9 @@ layout: |
   // then runs off the 1000-wide canvas (out-of-canvas, an ERROR). An authored
   // box pays the same cost: a box says where the plot goes, not that a label
   // may hang over the canvas edge.
+  // The chart as the page's figure: its tick numbers start two sizes up (W25),
+  // as bar_chart; the end labels keep 21 (they meet the x caption at 23).
+  const MAIN = !boxed || (b.w >= 700 && b.h >= 380) ? 2 : 0;
   const END_SIZE = 21; // the end label's font size (W4: 19 → 21, readable on a full page)
   const END_GAP = 12; // gap between the last point and its name
   const CANVAS_EDGE = 4; // CANVAS_EDGE_MARGIN (src/layout/axes.ts) — the margin the app's own axis captions keep
@@ -1466,7 +1472,7 @@ layout: |
   const xL = plot.x0 + padCols, xR = plot.x1 - padCols;
 
   // ---- Readable sizes and round ticks (spec 2026-10-04-page-frame, W4) ----
-  const TICK_SIZE = 20, TICK_MIN = 15;
+  const TICK_SIZE = 20 + MAIN, TICK_MIN = 15;
   // Round tick values: the smallest step of `mults` × 10ⁿ that puts at most
   // `most` ticks on [lo, hi] with neighbours at least `minGap` apart (`per`:
   // logical units per data unit).
