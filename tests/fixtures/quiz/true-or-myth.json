@@ -1,0 +1,447 @@
+{
+ "request": "True or myth? Five things everyone has heard, one at a time. #interactive #short",
+ "subtitle": "Five things almost everyone has heard, from goldfish memory to radioactive bananas: true or myth? Guess each, then find out why.",
+ "spec": {
+  "title": "True or myth? Five things everyone has heard",
+  "sources": [
+   {
+    "id": "esb",
+    "title": "Lightning facts: the Empire State Building",
+    "authors": "US National Weather Service",
+    "year": 2023,
+    "finding": "the Empire State Building is struck about 25 times a year"
+   },
+   {
+    "id": "bed",
+    "title": "Banana equivalent dose",
+    "authors": "Wikipedia",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/Banana_equivalent_dose",
+    "finding": "a banana's potassium-40 gives about 15 becquerels; the body keeps its potassium level constant"
+   }
+  ],
+  "elements": [
+   {
+    "id": "gw",
+    "type": "icon",
+    "of": "brick",
+    "icon_look": "picture",
+    "size": 340,
+    "x": 500,
+    "y": 450,
+    "set": "twemoji"
+   },
+   {
+    "id": "gw_l",
+    "type": "text",
+    "text": "Great Wall from space",
+    "font_size": 48,
+    "x": 500,
+    "y": 215
+   },
+   {
+    "id": "fish",
+    "type": "icon",
+    "of": "fish",
+    "icon_look": "picture",
+    "size": 340,
+    "x": 500,
+    "y": 450,
+    "set": "twemoji"
+   },
+   {
+    "id": "fish_l",
+    "type": "text",
+    "text": "3-second memory",
+    "font_size": 48,
+    "x": 500,
+    "y": 215
+   },
+   {
+    "id": "bolt",
+    "type": "icon",
+    "of": "cloud with lightning",
+    "icon_look": "picture",
+    "size": 340,
+    "x": 500,
+    "y": 450,
+    "cites": [
+     "esb"
+    ],
+    "set": "twemoji"
+   },
+   {
+    "id": "bolt_l",
+    "type": "text",
+    "text": "Never twice",
+    "font_size": 48,
+    "x": 500,
+    "y": 215
+   },
+   {
+    "id": "banana",
+    "type": "icon",
+    "of": "banana",
+    "icon_look": "picture",
+    "size": 340,
+    "x": 500,
+    "y": 450,
+    "cites": [
+     "bed"
+    ],
+    "set": "twemoji"
+   },
+   {
+    "id": "banana_l",
+    "type": "text",
+    "text": "Radioactive?",
+    "font_size": 48,
+    "x": 500,
+    "y": 215
+   },
+   {
+    "id": "octo",
+    "type": "icon",
+    "of": "octopus",
+    "icon_look": "picture",
+    "size": 340,
+    "x": 500,
+    "y": 450,
+    "set": "twemoji"
+   },
+   {
+    "id": "octo_l",
+    "type": "text",
+    "text": "Three hearts?",
+    "font_size": 48,
+    "x": 500,
+    "y": 215
+   },
+   {
+    "id": "r_gw",
+    "type": "icon",
+    "of": "brick",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 180,
+    "y": 400
+   },
+   {
+    "id": "r_fish",
+    "type": "icon",
+    "of": "fish",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 340,
+    "y": 400
+   },
+   {
+    "id": "r_bolt",
+    "type": "icon",
+    "of": "cloud with lightning",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 500,
+    "y": 400
+   },
+   {
+    "id": "r_banana",
+    "type": "icon",
+    "of": "banana",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 660,
+    "y": 400
+   },
+   {
+    "id": "r_octo",
+    "type": "icon",
+    "of": "octopus",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 820,
+    "y": 400
+   },
+   {
+    "id": "gw_v",
+    "type": "text",
+    "text": "MYTH",
+    "x": 790,
+    "y": 560,
+    "font_size": 60,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "fish_v",
+    "type": "text",
+    "text": "MYTH",
+    "x": 790,
+    "y": 560,
+    "font_size": 60,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "bolt_v",
+    "type": "text",
+    "text": "MYTH",
+    "x": 790,
+    "y": 560,
+    "font_size": 60,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "banana_v",
+    "type": "text",
+    "text": "TRUE",
+    "x": 790,
+    "y": 560,
+    "font_size": 60,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "octo_v",
+    "type": "text",
+    "text": "TRUE",
+    "x": 790,
+    "y": 560,
+    "font_size": 60,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "True or myth?"
+    }
+   },
+   {
+    "draw": [
+     "r_gw",
+     "r_fish",
+     "r_bolt",
+     "r_banana",
+     "r_octo"
+    ],
+    "parallel": true,
+    "speak": "Five things almost everyone has heard. For each one: true, or myth?"
+   },
+   {
+    "hide": [
+     "r_gw",
+     "r_fish",
+     "r_bolt",
+     "r_banana",
+     "r_octo"
+    ]
+   },
+   {
+    "draw": [
+     "gw",
+     "gw_l"
+    ],
+    "speak": "First: you can see the Great Wall of China from space."
+   },
+   {
+    "quiz": {
+     "question": "The Great Wall can be seen from space with the naked eye. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "right": "Myth. The wall is long but only about as wide as a road, and China's first astronaut, Yang Liwei, could not see it in 2003."
+    }
+   },
+   {
+    "draw": [
+     "gw_v"
+    ]
+   },
+   {
+    "pause": 1.5
+   },
+   {
+    "hide": [
+     "gw",
+     "gw_l",
+     "gw_v"
+    ]
+   },
+   {
+    "draw": [
+     "fish",
+     "fish_l"
+    ],
+    "speak": "Next, the goldfish, said to forget everything in three seconds."
+   },
+   {
+    "quiz": {
+     "question": "A goldfish's memory lasts only about three seconds. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "right": "Myth. Goldfish remember for months: they learn when food comes, and which sound means dinner."
+    }
+   },
+   {
+    "draw": [
+     "fish_v"
+    ]
+   },
+   {
+    "pause": 1.5
+   },
+   {
+    "hide": [
+     "fish",
+     "fish_l",
+     "fish_v"
+    ]
+   },
+   {
+    "draw": [
+     "bolt",
+     "bolt_l"
+    ],
+    "speak": "Then the old saying that lightning never strikes the same place twice."
+   },
+   {
+    "quiz": {
+     "question": "Lightning never strikes the same place twice. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "right": "Myth. Tall things get hit again and again: the Empire State Building is struck about twenty-five times a year."
+    }
+   },
+   {
+    "draw": [
+     "bolt_v"
+    ]
+   },
+   {
+    "pause": 1.5
+   },
+   {
+    "hide": [
+     "bolt",
+     "bolt_l",
+     "bolt_v"
+    ]
+   },
+   {
+    "draw": [
+     "banana",
+     "banana_l"
+    ],
+    "speak": "Now the breakfast table: bananas are said to be radioactive."
+   },
+   {
+    "quiz": {
+     "question": "Bananas are radioactive. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 1,
+     "right": "True. A tiny share of their potassium is radioactive potassium-40, though your body keeps its potassium level steady, so it does no harm."
+    }
+   },
+   {
+    "draw": [
+     "banana_v"
+    ]
+   },
+   {
+    "pause": 1.5
+   },
+   {
+    "hide": [
+     "banana",
+     "banana_l",
+     "banana_v"
+    ]
+   },
+   {
+    "draw": [
+     "octo",
+     "octo_l"
+    ],
+    "speak": "And last, the octopus, said to have three hearts."
+   },
+   {
+    "quiz": {
+     "question": "An octopus has three hearts. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 1,
+     "right": "True. Two hearts pump blood through the gills, and a third sends it round the body."
+    }
+   },
+   {
+    "draw": [
+     "octo_v"
+    ]
+   },
+   {
+    "pause": 1.5
+   },
+   {
+    "hide": [
+     "octo",
+     "octo_l",
+     "octo_v"
+    ]
+   },
+   {
+    "draw": [
+     "r_gw",
+     "r_fish",
+     "r_bolt",
+     "r_banana",
+     "r_octo"
+    ],
+    "parallel": true,
+    "speak": "You got {score} of {score_total}."
+   },
+   {
+    "highlight": {
+     "target": [
+      "r_banana",
+      "r_octo"
+     ],
+     "effect": "circle"
+    },
+    "speak": "And the two that sounded silliest were true."
+   }
+  ],
+  "feedback": {
+   "style": "warm",
+   "perfect": "Nobody fools you.",
+   "good": "A sharp eye for a myth.",
+   "poor": "These myths fool almost everyone.",
+   "none": "The myths won this round."
+  }
+ }
+}

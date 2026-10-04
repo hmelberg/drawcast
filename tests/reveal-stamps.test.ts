@@ -18,11 +18,11 @@ import { SpeechManager } from "../src/render/speech";
 import type { RenderedElement } from "../src/render/backend";
 import type { Spec } from "../src/spec/types";
 
-/** library/quiz/true-or-myth.json as it would be written now: buttons on the
+/** tests/fixtures/quiz/true-or-myth.json (the quiz as published 2026-10-03, frozen so the live library can change) as it would be written now: buttons on the
  *  figure and `reveal: true` instead of the hand-drawn MYTH/TRUE texts, the
  *  draws after each quiz and the 1.5 s pauses that let viewers catch them. */
 const tom = (): Spec => {
-  const d = JSON.parse(readFileSync(new URL("../library/quiz/true-or-myth.json", import.meta.url), "utf8")) as { spec: Spec };
+  const d = JSON.parse(readFileSync(new URL("./fixtures/quiz/true-or-myth.json", import.meta.url), "utf8")) as { spec: Spec };
   const s = d.spec;
   s.elements = (s.elements ?? []).filter((e) => !e.id.endsWith("_v"));
   const ids = (v: unknown): string[] => (typeof v === "string" ? [v] : Array.isArray(v) ? (v as string[]) : []);

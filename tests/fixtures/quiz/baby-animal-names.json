@@ -1,0 +1,167 @@
+{
+ "request": "Baby animal names: match each animal to its young, with icons. #interactive #short",
+ "subtitle": "Joey, cygnet, leveret, elver: match four animals to the names of their young, and meet the best baby name of all.",
+ "spec": {
+  "title": "What are their babies called?",
+  "sources": [
+   {
+    "id": "am",
+    "title": "Echidnas; Macquarie Dictionary entry 'puggle'",
+    "authors": "Australian Museum",
+    "year": 2023,
+    "finding": "a baby echidna is called a puggle (the word may have begun as a soft-toy name); a newborn kangaroo joey is about the size of a jelly bean"
+   }
+  ],
+  "elements": [
+   {
+    "id": "babies",
+    "type": "cards",
+    "y": 610,
+    "items": [
+     {
+      "text": "Kangaroo",
+      "match": "Joey",
+      "icon": {
+       "of": "kangaroo",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Swan",
+      "match": "Cygnet",
+      "icon": {
+       "of": "swan",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Hare",
+      "match": "Leveret",
+      "icon": {
+       "of": "rabbit",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Eel",
+      "match": "Elver"
+     }
+    ],
+    "x": 50,
+    "width": 620
+   },
+   {
+    "id": "ech",
+    "type": "text",
+    "text": "echidna's baby",
+    "x": 830,
+    "y": 520,
+    "font_size": 34,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "puggle",
+    "type": "node",
+    "shape": "rect",
+    "text": "Puggle",
+    "x": 830,
+    "y": 445,
+    "width": 230,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "am"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "What are their babies called?"
+    }
+   },
+   {
+    "draw": [
+     "babies"
+    ],
+    "speak": "What do you call a baby kangaroo? Or a baby swan? Many animals' young have names of their own."
+   },
+   {
+    "ask": {
+     "question": "Match each animal to the name of its young: drag from one card to its partner.",
+     "on": "babies",
+     "store": "m",
+     "right": "All {m} right.",
+     "wrong": "{m} right. Here are the true pairs.",
+     "feedback": {
+      "style": "warm",
+      "perfect": "Were you raised by a zookeeper?",
+      "good": "The nursery is in safe hands.",
+      "poor": "Most people only know the joey.",
+      "none": "Even the owlet got away. Never mind."
+     }
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "babies_1",
+      "babies_m_1"
+     ]
+    },
+    "speak": "A baby kangaroo is a joey, born about the size of a jelly bean, and raised in its mother's pouch."
+   },
+   {
+    "highlight": {
+     "target": [
+      "babies_2",
+      "babies_m_2"
+     ]
+    },
+    "speak": "A young swan is a cygnet, from cygnus, the Latin for swan."
+   },
+   {
+    "highlight": {
+     "target": [
+      "babies_3",
+      "babies_m_3"
+     ]
+    },
+    "speak": "A young hare is a leveret, from the old French word for a hare."
+   },
+   {
+    "highlight": {
+     "target": [
+      "babies_4",
+      "babies_m_4"
+     ]
+    },
+    "speak": "And a young eel is an elver, swimming in from the sea after a journey of thousands of kilometres."
+   },
+   {
+    "draw": [
+     "ech",
+     "puggle"
+    ],
+    "cue": 0.4,
+    "speak": "But the best name of all belongs to the echidna, the spiny egg-laying mammal of Australia. Its baby is a puggle."
+   },
+   {
+    "highlight": {
+     "target": [
+      "puggle"
+     ],
+     "effect": "box"
+    },
+    "speak": "Fittingly, the word may have started out as the name of a soft toy."
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ }
+}

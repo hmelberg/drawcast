@@ -17,7 +17,7 @@ import type { BBox } from "../src/layout/geometry";
 import type { Spec } from "../src/spec/types";
 
 const area = contentBox({ heading: true }); // y 160 … 655
-const quiz = (name: string): Spec => (JSON.parse(readFileSync(new URL(`../library/quiz/${name}.json`, import.meta.url), "utf8")) as { spec: Spec }).spec;
+const quiz = (name: string): Spec => (JSON.parse(readFileSync(new URL(`./fixtures/quiz/${name}.json`, import.meta.url), "utf8")) as { spec: Spec }).spec;
 const centre = (b: BBox): [number, number] => [b.x + b.w / 2, b.y + b.h / 2];
 
 describe("the settle offset", () => {
