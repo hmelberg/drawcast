@@ -6,6 +6,7 @@ import { expandSpec } from "../src/spec/expand";
 import type { Spec } from "../src/spec/types";
 import { scaleGeometry } from "../src/spec/scale";
 import {
+  countPillPoint,
   decodeGuess,
   defaultGuess,
   encodeGuess,
@@ -158,6 +159,18 @@ describe("population handles", () => {
     const b = h.box!;
     expect(valueAt(h, [b.x + b.w / 2, b.y], [0])).toEqual([50]);
     expect(valueAt(h, [b.x + b.w * 2, b.y], [0])).toEqual([100]);
+  });
+
+  test("the value pill hangs under the people AND their legend (W25)", () => {
+    const { setup, layout } = setupFor(crowd, "crowd_sick");
+    const h = setup.handles[0];
+    const legendYs = layout.drawables.filter((d) => /^crowd_legend/.test((d as { id?: string }).id ?? "")).length;
+    expect(legendYs).toBeGreaterThan(0);
+    const p = countPillPoint(h, [10])!;
+    // Its top edge under the lowest drawn thing: the legend is under the people.
+    expect(h.under).toBeDefined();
+    expect(p[1]).toBe(h.under);
+    expect(h.under!).toBeLessThan(h.people!.box.y);
   });
 });
 

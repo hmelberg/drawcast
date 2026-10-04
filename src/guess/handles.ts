@@ -89,6 +89,9 @@ export interface GuessHandle {
   people?: { centres: Pt[]; h: number; seq: number[] | null; box: BBox };
   /** count: the crowd's box (logical); angle: the pie's centre and radius. */
   box?: BBox;
+  /** count: the lowest y of what is drawn — the people and their legend
+   *  (logical); the value pill hangs under it (countPillPoint). */
+  under?: number;
   centre?: Pt;
   radius?: number;
   /** angle: the pie's centre and radius in the template's own units (before
@@ -673,6 +676,9 @@ function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>, dr
       people = { ...drawn, seq, box: own };
       if (!box) box = own;
     }
+    // The lowest of the people and their legend: the pill hangs under both.
+    const drawnBoxes = [people?.box, boxes.get(`${el.id}_legend`), ...keys.map((k) => boxes.get(`${el.id}_${k}`))].filter((b): b is BBox => b !== undefined);
+    const under = drawnBoxes.length > 0 ? Math.min(...drawnBoxes.map((b) => b.y)) : box ? box.y : null;
     return {
       part,
       shows: ids.filter((id) => boxes.has(id) || id === el.id),
@@ -687,6 +693,7 @@ function populationHandle(spec: Spec, part: string, boxes: Map<string, BBox>, dr
       ...(varName ? { paths: [`vars.${varName}`] } : { population: { id: el.id, state } }),
       ...(box ? { box } : {}),
       ...(people ? { people } : {}),
+      ...(under !== null ? { under } : {}),
     };
   }
   return null;
@@ -1081,6 +1088,18 @@ export function pointFor(h: GuessHandle, values: number[], j = 0): Pt | null {
       return at ? h.toLogical(at) : null;
     }
   }
+}
+
+/**
+ * count: where the value pill hangs (logical) — its TOP edge, under the
+ * people and their legend (W25: lifted from 125 under the box it sat on the
+ * legend, or on the last row, wherever the drawing was small), level with the
+ * last person marked when the marks follow the place.
+ */
+export function countPillPoint(h: GuessHandle, values: number[]): Pt | null {
+  const p = pointFor(h, values);
+  if (!p || h.kind !== "count") return p;
+  return [p[0], h.under ?? h.box?.y ?? p[1]];
 }
 
 /** A pie handle's divider `j` at `values`, as a clockwise fraction from 12 o'clock. */

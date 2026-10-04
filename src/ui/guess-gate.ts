@@ -19,7 +19,7 @@
 
 import type { RenderHandle } from "../render";
 import type { GuessSession } from "../render/player";
-import { accountOf, budgetBalanced, budgetReachable, encodeGuess, hitDistance, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, personAt, pickHandle, pointFor, strokeEntries, strokeStart, valueAt, type GuessHandle } from "../guess/handles";
+import { accountOf, budgetBalanced, budgetReachable, encodeGuess, hitDistance, marketAnchor, marketGrab, marketKey, nearestDivider, nudge, countPillPoint, personAt, pickHandle, pointFor, strokeEntries, strokeStart, valueAt, type GuessHandle } from "../guess/handles";
 import { clockFraction } from "../guess/handles";
 import { onSlider } from "../guess/slider-marks";
 import { clientPointFor, h, logicalPoint } from "./dom";
@@ -118,7 +118,7 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
       };
       const placePill = (): void => {
         const g = handles[focus];
-        const p = pointFor(g, values[focus], entry);
+        const p = g.kind === "count" ? countPillPoint(g, values[focus]) : pointFor(g, values[focus], entry);
         const c = p ? clientPointFor(stage, p) : null;
         const v = values[focus][multiEntry(g) ? entry : 0];
         const name = g.entryLabels?.[entry] ?? (g.kind === "curve" ? "" : g.label);
@@ -132,6 +132,8 @@ export function guessGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abo
           pill.classList.toggle("cs-guess-passive", g.kind === "curve");
           const beside = g.kind === "height" ? besideBar(g, c) : null;
           pill.classList.toggle("cs-guess-beside", beside !== null);
+          // A crowd's pill hangs under the people and their legend, never over them.
+          pill.classList.toggle("cs-guess-under", g.kind === "count");
           pill.style.left = `${beside ? beside[0] : c[0]}px`;
           pill.style.top = `${c[1]}px`;
         } else pill.hidden = true;
