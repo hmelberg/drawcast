@@ -301,12 +301,16 @@ layout: |
   // tallest bar always is — the value written above such a bar would sit on
   // the caption. The scale grows (no ylim given) until every value label
   // under the caption clears it, at every stage.
+  // The chart as the page's figure (no box, or a box most of the content
+  // area: W25, "chart text reads tiny next to large cards") starts two sizes up.
+  const MAIN = !boxed || (b.w >= 700 && b.h >= 380) ? 2 : 0;
   const yLab0 = str(params.y_label, "");
   if (yLab0 && params.value_labels === true && !ylim && series.length === 1 && !stacked && n > 0 && yMax > 0) {
     const cap = kit.axisLabel("axes__y_label", "y", plot, yLab0, { fontSize: 22 });
     const cw = kit.textWidth(yLab0, 22), ch = 22 * 1.25;
     const cx0 = cap.anchor === "start" ? cap.pos[0] : cap.anchor === "end" ? cap.pos[0] - cw : cap.pos[0] - cw / 2;
-    const room = cap.pos[1] - ch / 2 - 4 - (20 * 0.75 + 6 + 20 * 0.625) /* a value label at its largest size, 20 */ - plot.y0;
+    const VMAX = 20 + MAIN; // a value label at its largest size
+    const room = cap.pos[1] - ch / 2 - 4 - (VMAX * 0.75 + 6 + VMAX * 0.625) - plot.y0;
     const H = plot.y1 - plot.y0, sw = (plot.x1 - plot.x0) / n;
     if (room > H * 0.5 && room < H) {
       for (let k = 0; k < K; k++) {
@@ -348,9 +352,6 @@ layout: |
   // Base sizes a viewer can read on a full page; each shrinks only when its
   // neighbours would collide at the width there is, never below the size the
   // chart used before (17 for categories, 13 past 12 bars, 15 for values).
-  // The chart as the page's figure (no box, or a box most of the content
-  // area: W25, "chart text reads tiny next to large cards") starts two sizes up.
-  const MAIN = !boxed || (b.w >= 700 && b.h >= 380) ? 2 : 0;
   const TICK_SIZE = 20 + MAIN, TICK_MIN = 15;
   const CAT_SIZE = 21 + MAIN, CAT_WRAP_MIN = 18, CAT_MIN = n > 12 ? 13 : 17;
   const VALUE_SIZE = 20 + MAIN, VALUE_MIN = 15;
