@@ -36,7 +36,7 @@
 
 import bundledExamples from "../examples.json";
 import { setTrustPolicy } from "../security/code-trust";
-import { elementBBoxes } from "../layout/layout";
+import { composedPairs, elementBBoxes } from "../layout/layout";
 import type { BBox } from "../layout/geometry";
 import { lintCommands } from "../lint/lint";
 import { posedIssues } from "../lint/posed";
@@ -45,8 +45,7 @@ import { figureUnion, fillIssue, fullestFrames, hasHeadingInk } from "../lint/fi
 import { pacingReport, type PacingProblem } from "../lint/pacing-report";
 import { itemsOf, parsePlaylistText } from "../playlist/playlist";
 import { render } from "../render";
-import { splitVarOverrides, withOverrides } from "../render/params";
-import { withVarValues } from "../spec/vars";
+import { specAt } from "../render/params";
 import { LASER_COLOR, makeBrowserMeasure } from "../render/svg-backend";
 import { FOCUS_DIM, type BackendEffects } from "../render/backend";
 import { pointerPath } from "../render/effects";
@@ -137,19 +136,6 @@ interface Cast {
 }
 
 const measure = makeBrowserMeasure();
-
-/** The spec at a set of animate overrides — the shape render() lays out
- *  (`vars.<name>` keys into vars, everything else into params). Mirrors
- *  `specAt` in tests/examples.test.ts on purpose: the two must agree. */
-function specAt(spec: Spec, overrides: Record<string, number>): Spec {
-  if (Object.keys(overrides).length === 0) return spec;
-  const split = splitVarOverrides(overrides);
-  return {
-    ...spec,
-    params: withOverrides(spec.params, split.params),
-    ...(Object.keys(split.vars).length > 0 ? { vars: withVarValues(spec.vars, split.vars) } : {}),
-  };
-}
 
 /**
  * A cast from text: a bare spec, an examples.json entry ({request, spec} or
@@ -254,7 +240,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       const onScreen = (ids: string[]) => ids.length === 0 || ids.every((id) => visible.has(id) || [...visible].some((v) => id.startsWith(`${v}__`)));
       // …and where it stands: an element moved since it was drawn is judged at its new place.
       const state = hd.plan.states[frame.at - 1];
-      const issues = state ? posedIssues(layout.drawables, measure, state, layout.issues, layout.world) : layout.issues;
+      const issues = state ? posedIssues(layout.drawables, measure, state, layout.issues, layout.world, composedPairs(at, layout)) : layout.issues;
       const seen = issues.filter((i) => onScreen(i.ids));
       const unseen = issues.filter((i) => !onScreen(i.ids));
       report.frames.push({

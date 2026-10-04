@@ -1601,7 +1601,11 @@ const commands = {
       // app's generation too — advisory; the examples gate does not read it.
       // The layout's own "no icon for X" repeats what iconReport said, less helpfully.
       const layoutWarnings = (laid.warnings ?? []).filter((m) => !(iconIssues.length > 0 && /^no icon for "/.test(m)));
-      const issues = [...iconIssues, ...laid.issues, ...layoutWarnings.map((message) => ({ severity: "warning", message })), ...lintCommands(ex), ...lintCrowding(laid, ex)];
+      // Move-aware (W31): the pairs a move, an arrange, a following label or
+      // a question's cards bring together, judged at the resting pose after
+      // each command — the layout above judges the figure where it was drawn.
+      const { movedIssues } = await load("/src/lint/moved.ts");
+      const issues = [...iconIssues, ...laid.issues, ...movedIssues(ex, heuristicMeasure, laid), ...layoutWarnings.map((message) => ({ severity: "warning", message })), ...lintCommands(ex), ...lintCrowding(laid, ex)];
       // The fill advisory (src/lint/fill.ts) on the finished page — advice,
       // not a defect: frames judges every page of the cast at its fullest.
       const { fillIssue, hasHeadingInk } = await load("/src/lint/fill.ts");

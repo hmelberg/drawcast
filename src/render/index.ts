@@ -370,6 +370,79 @@ export function planOptionsFor(
   };
 }
 
+/**
+ * The plan render() plays, from the mounted layout: every PlanOptions hook
+ * render wires (boxes, anchors, the data mapping, cards and formula
+ * questions, guesses, the layouts at a boundary's params). `layoutFor` is
+ * the caller's boundary layout at a param set (render's carries live code
+ * patches and minted elements; a static caller's is layoutSpec at those
+ * params). Exported so the static move-aware lint (lint/moved.ts) plans
+ * exactly as the player does — the same offsets, turns and visibility.
+ */
+export function planSpec(
+  spec: Spec,
+  layout: LayoutResult,
+  measure: MeasureFn,
+  bboxes: Map<string, BBox>,
+  layoutFor: (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides) => LayoutResult,
+): { plan: Plan; formulas: ReturnType<typeof formulaHooksFor> } {
+  const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l, measure), layout.fit?.settle ?? 0);
+
+  const plan = planCommands(spec.commands, layout.order, {
+    book: spec.book !== undefined,
+    ...(spec.sources ? { sources: spec.sources } : {}),
+    ...(spec.feedback !== undefined ? { feedback: spec.feedback } : {}),
+    bboxOf: (id) => bboxes.get(id) ?? null,
+    // A spot ask's point inside the place (spec/spot.ts): read once, on the first ask that wants it.
+    ringsOf: (() => {
+      let rings: Map<string, Pt[][]> | null = null;
+      return (id: string) => (rings ??= elementRings(layout)).get(id) ?? null;
+    })(),
+    windows: layout.windows ?? {},
+    // The layout's own frame when it has one: it is the RESOLVED domain
+    // (`box: "auto"` becomes a rectangle there, and only there).
+    ...domainMapping(spec.domain && layout.frame ? layout.frame : spec.domain, layout.fit),
+    animateBase: spec.template ? spec.params ?? {} : null,
+    cardsFor: (id) => cardsPlanFor(formulas.cardsOn(id)),
+    ...(layout.templateIds ? { templateIds: layout.templateIds } : {}),
+    formulaFor: (id) => {
+      const rt = formulas.formula(id);
+      return rt ? { blanks: rt.blanks.length } : null;
+    },
+    guessParts: guessPartsFor(spec, layout, measure),
+    ...(spec.template && scenes[spec.template]?.tweenSpace
+      ? { tweenSpace: (key: string) => scenes[spec.template!]!.tweenSpace!(key, spec.params ?? {}) }
+      : {}),
+    varsBase: spec.vars ?? null,
+    // A template's world larger than the page: camera boxes and `reset` are relative to it.
+    ...(layout.world ? { world: layout.world } : {}),
+    bboxesFor: (params, overrides) => {
+      const b = elementBBoxes(layoutFor(params, true, undefined, overrides), measure);
+      return (id) => b.get(id) ?? null;
+    },
+    // `{data: [x, y]}` after an animate: the axes as they then stand (the
+    // same cached boundary layout bboxesFor just made).
+    dataToLogicalFor: (params, overrides) => {
+      const l = layoutFor(params, true, undefined, overrides);
+      return l.frame ? domainMapping(l.frame, l.fit).toLogical : null;
+    },
+    // trail on animate samples 61 of these per sweep: uncached, or the
+    // boundary cache would hoard them.
+    anchorsAt: (params, overrides) => {
+      const l = layoutFor(params, false, undefined, overrides);
+      const b = elementBBoxes(l, measure);
+      return (id, name) => {
+        const named = l.namedAnchors[id]?.[name];
+        if (named) return named;
+        const box = b.get(id);
+        return box ? boxAnchor(box, name) : null;
+      };
+    },
+    ...planOptionsFor(spec, layout),
+  });
+  return { plan, formulas };
+}
+
 let fontsReady: Promise<void> | null = null;
 let c64FontReady: Promise<void> | null = null;
 /** The C64 face, only for a figure with a C64 screen on it (2026-10-03: it
@@ -605,60 +678,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
   const layoutFor = (params: Record<string, unknown>, cache: boolean, elements?: SpecElement[], overrides?: LayoutOverrides, trailProgress?: Record<string, number>, pins?: Record<string, LabelPin>): LayoutResult =>
     withMinted(rawLayoutFor(params, cache, elements, overrides, pins), minted, (p, ov) => rawLayoutFor(p, true, undefined, ov), trailProgress);
 
-  const formulas = formulaHooksFor(spec, bboxes, (l) => elementBBoxes(l, measure), layout.fit?.settle ?? 0);
-
-  const plan = planCommands(spec.commands, layout.order, {
-    book: spec.book !== undefined,
-    ...(spec.sources ? { sources: spec.sources } : {}),
-    ...(spec.feedback !== undefined ? { feedback: spec.feedback } : {}),
-    bboxOf: (id) => bboxes.get(id) ?? null,
-    // A spot ask's point inside the place (spec/spot.ts): read once, on the first ask that wants it.
-    ringsOf: (() => {
-      let rings: Map<string, Pt[][]> | null = null;
-      return (id: string) => (rings ??= elementRings(layout)).get(id) ?? null;
-    })(),
-    windows: layout.windows ?? {},
-    // The layout's own frame when it has one: it is the RESOLVED domain
-    // (`box: "auto"` becomes a rectangle there, and only there).
-    ...domainMapping(spec.domain && layout.frame ? layout.frame : spec.domain, layout.fit),
-    animateBase: spec.template ? spec.params ?? {} : null,
-    cardsFor: (id) => cardsPlanFor(formulas.cardsOn(id)),
-    ...(layout.templateIds ? { templateIds: layout.templateIds } : {}),
-    formulaFor: (id) => {
-      const rt = formulas.formula(id);
-      return rt ? { blanks: rt.blanks.length } : null;
-    },
-    guessParts: guessPartsFor(spec, layout, measure),
-    ...(spec.template && scenes[spec.template]?.tweenSpace
-      ? { tweenSpace: (key: string) => scenes[spec.template!]!.tweenSpace!(key, spec.params ?? {}) }
-      : {}),
-    varsBase: spec.vars ?? null,
-    // A template's world larger than the page: camera boxes and `reset` are relative to it.
-    ...(layout.world ? { world: layout.world } : {}),
-    bboxesFor: (params, overrides) => {
-      const b = elementBBoxes(layoutFor(params, true, undefined, overrides), measure);
-      return (id) => b.get(id) ?? null;
-    },
-    // `{data: [x, y]}` after an animate: the axes as they then stand (the
-    // same cached boundary layout bboxesFor just made).
-    dataToLogicalFor: (params, overrides) => {
-      const l = layoutFor(params, true, undefined, overrides);
-      return l.frame ? domainMapping(l.frame, l.fit).toLogical : null;
-    },
-    // trail on animate samples 61 of these per sweep: uncached, or the
-    // boundary cache would hoard them.
-    anchorsAt: (params, overrides) => {
-      const l = layoutFor(params, false, undefined, overrides);
-      const b = elementBBoxes(l, measure);
-      return (id, name) => {
-        const named = l.namedAnchors[id]?.[name];
-        if (named) return named;
-        const box = b.get(id);
-        return box ? boxAnchor(box, name) : null;
-      };
-    },
-    ...planOptionsFor(spec, layout),
-  });
+  const { plan, formulas } = planSpec(spec, layout, measure, bboxes, layoutFor);
   minted = plan.minted;
   const mountedLayout = withMinted(layout, minted, (p, ov) => rawLayoutFor(p, true, undefined, ov));
 

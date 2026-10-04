@@ -2,6 +2,8 @@
 // objects (demand_shift.amount), animate targets address them by path.
 
 import { fitRegion, isFitName } from "../layout/regions";
+import { withVarValues } from "../spec/vars";
+import type { Spec } from "../spec/types";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -111,4 +113,17 @@ export function splitVarOverrides(params: Record<string, unknown>): { params: Re
     else rest[k] = v;
   }
   return { params: rest, vars };
+}
+
+/** The spec at a set of animate overrides — the shape render() lays out at a
+ *  boundary (`vars.<name>` keys into vars, everything else into params). The
+ *  frames harness and the static move-aware lint (lint/moved.ts) both read it. */
+export function specAt(spec: Spec, overrides: Record<string, unknown>): Spec {
+  if (Object.keys(overrides).length === 0) return spec;
+  const split = splitVarOverrides(overrides);
+  return {
+    ...spec,
+    params: withOverrides(spec.params, split.params),
+    ...(Object.keys(split.vars).length > 0 ? { vars: withVarValues(spec.vars, split.vars) } : {}),
+  };
 }

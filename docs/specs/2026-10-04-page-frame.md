@@ -147,3 +147,34 @@ and a short line in the compiler prompt.
   the label's height (`label_room`); a ring/box highlight encloses the target's own labels.
 - Not done: binscatter's plot (same y 130, an example draws on it); annotation circles round
   attached labels; a faded ghost of template parts on `animate` / `keep`.
+
+
+## W31 — move-aware check (built 2026-10-04, branch r3-move)
+- `check` now judges what a move brings together, statically: `src/lint/moved.ts` `movedIssues`
+  plans the cast exactly as the player does (`render/index.ts planSpec`, extracted from render()
+  so both share it — moves, arranges, labels that follow their element, compare values and
+  attached labels that follow a card, cards that go to their slots / boxes / true places on a
+  question's reveal, turns, morphed outlines, visibility and fades) and, at the RESTING boundary
+  after each command (never mid-animation), lays the figure out at that boundary's params and
+  re-judges the pairs the poses moved relative to each other (`lint/posed.ts rejudged`, the
+  half of `posedIssues` the frames harness already used).
+- Attribution: the plan records which command made each step (`Plan.commandOf`, −1 for the
+  implicit final draw); an issue reads "— where it stands after the move leaf_0 ("Forks spin
+  freely…")" — verb, targets, the line's first words (not an index: check judges the expanded
+  spec, where a card beat or a question is several commands). One report per (rule, ids), at its
+  first boundary; a pair the layout already reports is not repeated.
+- Exemptions kept: the layout's composition pairs (scratch card, annotation on its target, a
+  deck's stack, `fit` groups — now one exported `composedPairs`, which the frames harness passes
+  too) and the accepted crossings of a moving field (`crossing` keys, lint.ts). A sub-drawable
+  (`xb1_text`) is posed with its element, and a morph's new outline is used — both were missing
+  in `posedIssues`, so the frames harness gains them as well.
+- Placement rules only (overlaps, out-of-canvas). Crowding counts texts on the page, which a move
+  does not change; settling never moves a cast with move/arrange, so its dy is in the layout.
+- Verified: 390 bundled examples and all 50 library/quiz casts. New: examples "Reading a tree of
+  life" — Human written over Chimp for the beat between the two half-swap moves (the frames harness
+  flags the same frame, @15; real); library "How loud is loud?" — "Rock concert" / "Lawnmower"
+  after the ranking's reveal, the same heuristic-metric card-text verdict check already gives the
+  cards at home (not seen in the browser's metrics). Nothing else.
+- Limits: copies and ghosts (minted at plan time) are not judged; neither is a measure's rewritten
+  text or a formula's morphed TeX; heuristic metrics as the rest of `check`; textual command order
+  (gotos not followed), as coVisible.

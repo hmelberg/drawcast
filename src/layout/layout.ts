@@ -536,27 +536,7 @@ export function layoutSpec(
     drawables.push(...markInk);
   }
 
-  // lint hands us TOP-LEVEL drawable ids (`n1_text`, a pieces cell, a
-  // measure's number), while a group holds ELEMENT ids: resolve each to the
-  // member that owns it — the same ownership tier-2 scaled by — or the
-  // exemption never fires for the parts an element mints.
-  const ownsId = (m: string, id: string) => id === m || id.startsWith(`${m}_`) || (pieceGroups[m] ?? []).includes(id);
-  // An annotation lies ON what it marks by design (a cross over a rejected
-  // formula, a ring round an answer): mark and target are one composition,
-  // not an overlap (2026-09-25 example revisions).
-  const annotated: [string, string[]][] = (spec.elements ?? [])
-    .filter((e) => e.type === "annotation")
-    .map((e) => [e.id, (Array.isArray(e.target) ? e.target : e.target !== undefined ? [e.target] : []) as string[]]);
-  const marks = (x: string, y: string) => annotated.some(([id, ts]) => ownsId(id, x) && ts.some((t) => ownsId(t, y)));
-  // A deck's cards wait in one stack, only the top one drawn until it is
-  // dealt (spec/cards.ts, round 6 §7): one composition, not a collision.
-  const decks = authoredCards(spec)
-    .filter((c) => c.deck === true)
-    .map((c) => (c.items ?? []).map((_, i) => `${c.id}_${i + 1}`));
-  const stacked = (a: string, b: string) => decks.some((ids) => ids.some((m) => ownsId(m, a)) && ids.some((m) => ownsId(m, b)));
-  // …and a scratch card covering ink is the card's job, not a collision.
-  const composed = (a: string, b: string) =>
-    onCard(a) || onCard(b) || marks(a, b) || marks(b, a) || stacked(a, b) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
+  const composed = composedPairs(spec, { groups, pieceGroups, fitGroups });
   const layoutIssues = lintLayout(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], composed, world ?? undefined);
   layoutIssues.push(...headingIntrusions(drawables, measure, spec.commands));
   // A question whose cards or options sit over the figure (spec round 6 §6).
@@ -896,6 +876,40 @@ export function inverseDomainMapping(domain: Spec["domain"] | DataFrame | undefi
   const ix = linearScale([f.box.x0, f.box.x1], f.x);
   const iy = linearScale([f.box.y0, f.box.y1], f.y);
   return ([x, y]) => [ix((x - dx) / s), iy((y - dy) / s)];
+}
+
+/**
+ * The pairs the overlap lint excuses as ONE composition (lintLayout's
+ * `sameGroup`): anything on a scratch card, an annotation on what it marks,
+ * a deck's stacked cards, the members of a `fit` group. Exported so a lint
+ * that judges the figure again at other poses (lint/moved.ts) excuses the
+ * same pairs the layout did.
+ */
+export function composedPairs(spec: Spec, l: Pick<LayoutResult, "groups" | "pieceGroups" | "fitGroups">): (a: string, b: string) => boolean {
+  const { pieceGroups, fitGroups } = l;
+  const cards = scratchCards(l.groups);
+  const onCard = (id: string) => cards.length > 0 && isScratchPart(cards, id);
+    // lint hands us TOP-LEVEL drawable ids (`n1_text`, a pieces cell, a
+    // measure's number), while a group holds ELEMENT ids: resolve each to the
+    // member that owns it — the same ownership tier-2 scaled by — or the
+    // exemption never fires for the parts an element mints.
+    const ownsId = (m: string, id: string) => id === m || id.startsWith(`${m}_`) || (pieceGroups[m] ?? []).includes(id);
+    // An annotation lies ON what it marks by design (a cross over a rejected
+    // formula, a ring round an answer): mark and target are one composition,
+    // not an overlap (2026-09-25 example revisions).
+    const annotated: [string, string[]][] = (spec.elements ?? [])
+      .filter((e) => e.type === "annotation")
+      .map((e) => [e.id, (Array.isArray(e.target) ? e.target : e.target !== undefined ? [e.target] : []) as string[]]);
+    const marks = (x: string, y: string) => annotated.some(([id, ts]) => ownsId(id, x) && ts.some((t) => ownsId(t, y)));
+    // A deck's cards wait in one stack, only the top one drawn until it is
+    // dealt (spec/cards.ts, round 6 §7): one composition, not a collision.
+    const decks = authoredCards(spec)
+      .filter((c) => c.deck === true)
+      .map((c) => (c.items ?? []).map((_, i) => `${c.id}_${i + 1}`));
+    const stacked = (a: string, b: string) => decks.some((ids) => ids.some((m) => ownsId(m, a)) && ids.some((m) => ownsId(m, b)));
+    // …and a scratch card covering ink is the card's job, not a collision.
+    return (a: string, b: string) =>
+      onCard(a) || onCard(b) || marks(a, b) || marks(b, a) || stacked(a, b) || Object.values(fitGroups).some((ls) => ls.some((m) => ownsId(m, a)) && ls.some((m) => ownsId(m, b)));
 }
 
 /**

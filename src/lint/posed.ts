@@ -10,7 +10,7 @@
 // per frame (src/dev/frames.ts).
 
 import { lintLayout, type LintIssue } from "./lint";
-import { leafDrawables, type Drawable, type Pt } from "../layout/model";
+import { leafDrawables, SUB_SUFFIXES, type Drawable, type Pt } from "../layout/model";
 import { mapDrawable, poseMapOf } from "../layout/posed";
 import type { BBox } from "../layout/geometry";
 import type { MeasureFn } from "../layout/measure";
@@ -22,6 +22,8 @@ const PLACED = new Set<LintIssue["rule"]>(["out-of-canvas", "overlap-label-label
 export interface Poses {
   offsets: Record<string, Pt>;
   turns?: Record<string, Turn>;
+  /** Morphed ORIGINAL-frame leaf points (plan.states[i].shapes): element id → leaf id → points. */
+  shapes?: Record<string, Record<string, Pt[]>>;
 }
 
 /**
@@ -31,14 +33,47 @@ export interface Poses {
  * the posed drawables; the rest are kept as the layout gave them. Pairs
  * posed alike keep the layout's verdict, its composition exemptions too.
  */
-export function posedIssues(drawables: Drawable[], measure: MeasureFn, poses: Poses, base: LintIssue[], bounds?: BBox): LintIssue[] {
-  const keyOf = (id: string): string => {
-    const o = poses.offsets[id], t = poses.turns?.[id];
+export function posedIssues(drawables: Drawable[], measure: MeasureFn, poses: Poses, base: LintIssue[], bounds?: BBox, sameGroup?: (a: string, b: string) => boolean): LintIssue[] {
+  const r = rejudged(drawables, measure, poses, bounds, sameGroup);
+  if (!r) return base;
+  return [...base.filter((i) => !r.changed(i)), ...r.issues];
+}
+
+/**
+ * Only the judging-again half of posedIssues: the placement issues among
+ * the pairs `poses` moved relative to each other (and posed elements off
+ * the canvas), at their real places — null when nothing is posed. `changed`
+ * says whether a base issue is one of those pairs (its verdict superseded).
+ * `sameGroup` is the layout's composition exemption (layout.ts
+ * composedPairs), so a scratch card or an annotation stays excused.
+ */
+export function rejudged(
+  drawables: Drawable[],
+  measure: MeasureFn,
+  poses: Poses,
+  bounds?: BBox,
+  sameGroup?: (a: string, b: string) => boolean,
+): { issues: LintIssue[]; changed: (i: LintIssue) => boolean } | null {
+  // A sub-drawable (`xb1_text`, a box's words) is posed with its element:
+  // the player moves every drawable of an id (model.ts drawablesForId).
+  const poseId = (id: string): string => {
+    if (id in poses.offsets || (poses.turns && id in poses.turns) || (poses.shapes && id in poses.shapes)) return id;
+    for (const s of SUB_SUFFIXES) {
+      const base = id.endsWith(`_${s}`) ? id.slice(0, -s.length - 1) : "";
+      if (base && (base in poses.offsets || (poses.turns && base in poses.turns) || (poses.shapes && base in poses.shapes))) return base;
+    }
+    return id;
+  };
+  const keyOf = (raw: string): string => {
+    const id = poseId(raw);
+    const o = poses.offsets[id], t = poses.turns?.[id], sh = poses.shapes?.[id];
     const moved = o !== undefined && (o[0] !== 0 || o[1] !== 0);
-    return moved || t !== undefined ? JSON.stringify([o ?? [0, 0], t ?? null]) : "";
+    const morphed = sh !== undefined && Object.keys(sh).length > 0;
+    // A morphed element is its own pose: nothing else shares its new outline.
+    return moved || t !== undefined || morphed ? JSON.stringify([o ?? [0, 0], t ?? null, morphed ? id : null]) : "";
   };
   const posed = drawables.filter((d) => keyOf(d.id) !== "");
-  if (posed.length === 0) return base;
+  if (posed.length === 0) return null;
   // An issue names leaves (`same_text`); a pose belongs to the top-level element.
   const owner = new Map<string, string>();
   for (const top of drawables) {
@@ -48,13 +83,13 @@ export function posedIssues(drawables: Drawable[], measure: MeasureFn, poses: Po
   const key = (id: string): string => keyOf(owner.get(id) ?? id);
   const changed = (i: LintIssue): boolean => PLACED.has(i.rule) && (i.ids.length === 1 ? key(i.ids[0]) !== "" : new Set(i.ids.map(key)).size > 1);
   const moved = drawables.map((d) => {
-    const o = poses.offsets[d.id], t = poses.turns?.[d.id];
     if (keyOf(d.id) === "") return d;
+    const id = poseId(d.id);
+    const o = poses.offsets[id], t = poses.turns?.[id];
     const { map, scale } = poseMapOf({ offset: o ?? [0, 0], turn: t });
-    return mapDrawable(d, map, scale);
+    return mapDrawable(d, map, scale, poses.shapes?.[id]);
   });
   // No commands: which of these are on screen together is the caller's to
   // judge at this boundary (the frames harness filters by visibility).
-  const again = lintLayout(moved, measure, undefined, undefined, undefined, bounds).filter(changed);
-  return [...base.filter((i) => !changed(i)), ...again];
+  return { issues: lintLayout(moved, measure, undefined, undefined, sameGroup, bounds).filter(changed), changed };
 }

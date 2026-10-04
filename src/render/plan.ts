@@ -493,6 +493,10 @@ export interface Plan {
   /** The boundary before any step, when it is not INITIAL_STATE — a tree
    *  ask's blanks are "?" there too. */
   start?: SceneState;
+  /** commandOf[i] = the index in `commands` of the command that made
+   *  steps[i]; -1 for the implicit final draw. What the static move-aware
+   *  lint (lint/moved.ts) names an issue by. Optional for hand-built plans. */
+  commandOf?: number[];
 }
 
 /** One option of a choose ask (spec 2026-10-03-round6 §4). */
@@ -683,6 +687,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   const known = new Set(allIds);
   const steps: PlanStep[] = [];
   const states: SceneState[] = [];
+  const commandOf: number[] = [];
   const warnings: string[] = [];
   const labels: Record<string, number> = {};
   /** Trails (move.trail, design §2.5) and ghosts (keep/ghost, design §2.1
@@ -784,6 +789,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       step = { ...step, cue: currentCue, ...(currentCueEnd === true ? { cueEnd: true } : {}) };
     }
     steps.push(step);
+    commandOf.push(cmdIndex);
     states.push({
       visible: [...visible],
       offsets: { ...offsets },
@@ -2876,6 +2882,7 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   currentNarrationSpeaker = undefined;
   currentNarrationDelivery = undefined;
   const remaining = allIds.filter((id) => !mentioned.has(id));
+  cmdIndex = -1;
   if (remaining.length > 0) {
     makeVisible(remaining);
     pushStep({ kind: "draw", ids: remaining, parallel: false, implicit: true });
@@ -2894,5 +2901,5 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
     start = hide(start ?? INITIAL_STATE);
   }
 
-  return { steps, states, labels, warnings, minted, sources: [...sourceSet], ...(start ? { start } : {}) };
+  return { steps, states, labels, warnings, minted, sources: [...sourceSet], commandOf, ...(start ? { start } : {}) };
 }
