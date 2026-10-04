@@ -247,3 +247,32 @@ describe("sequence: the schema", () => {
     expect(errs.join("\n")).toContain("every item is its words");
   });
 });
+
+describe("sequence: an item's cites (W28)", () => {
+  const sources = [{ id: "nasa", title: "Can you see the Great Wall from space?", authors: "NASA", year: 2005 }];
+  const cited = (cites: unknown): Spec =>
+    ({
+      title: "Myths",
+      sources,
+      elements: [{ id: "s", type: "sequence", items: [{ icon: "brick", label: "Great Wall", mark: "Myth", cites }, { text: "Goldfish forget", label: "Goldfish" }] }],
+      commands: [{ speak: "First.", draw: ["s_1"] }, { speak: "Next.", draw: ["s_2"] }],
+    }) as unknown as Spec;
+
+  it("validates, and the picture and its name carry the item's sources to the info card", async () => {
+    const { cardTargets } = await import("../src/ui/card-model");
+    expect(validateSpec(cited(["nasa"])).errors ?? []).toEqual([]);
+    const out = expandSpec(cited("nasa"));
+    const m = byId(out);
+    expect(m.get("s_1")).toMatchObject({ cites: ["nasa"] });
+    expect(m.get("s_1_label")).toMatchObject({ cites: ["nasa"] });
+    expect(m.get("s_2")?.cites).toBeUndefined();
+    const targets = cardTargets(out);
+    expect(targets.get("s_1")?.cites?.map((c) => c.id)).toEqual(["nasa"]);
+    expect(targets.get("s_1_label")?.cites?.map((c) => c.id)).toEqual(["nasa"]);
+  });
+
+  it("an item citing an unknown source is an error, as on any element", () => {
+    const errs = validateSpec(cited(["nobody"])).errors ?? [];
+    expect(errs.some((e) => e.includes('cites "nobody"'))).toBe(true);
+  });
+});

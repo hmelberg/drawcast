@@ -11,6 +11,7 @@ import { blankConvertible, blankIsNumber, formulaBlanks, hasBlanks, tileRight } 
 import { walkTree } from "../scenes/decision_tree/rollback";
 import type { DecisionTreeParams } from "../scenes/decision_tree/layout";
 import { authoredScales } from "../spec/scale";
+import { elementCites } from "../spec/sequence";
 import { authoredCards, cardsGeometry, cardsMode, type CardsElementLike } from "../spec/cards";
 import { isDefaultHeadingBeat } from "../spec/card";
 import { lintAsks } from "./ask-lint";
@@ -1015,7 +1016,7 @@ function lintMore(spec: Spec): LintIssue[] {
     return [{ rule: "more-list", ids: [], message: "more.items lists nothing to show — list source ids or {title, url} entries, or write more: false", severity: "warn" }];
   }
   const listed = new Set(more.items.filter((i): i is string => typeof i === "string"));
-  const cited = new Set((spec.elements ?? []).flatMap((e) => (Array.isArray(e.cites) ? e.cites : typeof e.cites === "string" ? [e.cites] : [])));
+  const cited = new Set((spec.elements ?? []).flatMap(elementCites));
   const left = (spec.sources ?? []).filter((s) => !listed.has(s.id) && !cited.has(s.id)).map((s) => s.id);
   if (left.length === 0) return [];
   return [{ rule: "more-list", ids: [], message: `more.items leaves out ${left.map((id) => `"${id}"`).join(", ")}, which no element cites — add ${left.length === 1 ? "it" : "them"} to more.items`, severity: "warn" }];

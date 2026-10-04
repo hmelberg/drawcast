@@ -51,6 +51,10 @@ export type SequenceItem =
       label?: string;
       /** In the strip once done: a short word ("Myth") or a colour ("#b5482e"). */
       mark?: string | { text: string; color?: string };
+      /** Ids of top-level `sources` this item stands for (W28): its picture and
+       *  its name carry them, so their info card names the study, as any
+       *  element's `cites` does. */
+      cites?: string[] | string;
       /** Machine-written icon data (spec/icon-data.ts iconSlots), copied onto the icon. */
       icon_strokes?: string;
       credit?: string;
@@ -161,6 +165,20 @@ export function sequenceGeometry(el: SequenceElementLike, heading: boolean): Seq
   return { centre: { x: cx, y: cy }, size, labelY: cy - size / 2 - LABEL_GAP - SEQ_LABEL_FONT / 2, slots, stripSize, markY, recapY: Math.round((top + bottom) / 2), recapSize };
 }
 
+/** An item's `cites`, as a list (a single id may be written bare). */
+export function itemCites(item: SequenceItem): string[] {
+  if (typeof item !== "object" || item === null) return [];
+  const c = item.cites;
+  return (typeof c === "string" ? [c] : Array.isArray(c) ? c : []).filter((x): x is string => typeof x === "string" && x !== "");
+}
+
+/** Every source id an element cites — its own `cites`, and a sequence's items' (W28). */
+export function elementCites(el: SpecElement): string[] {
+  const own = Array.isArray(el.cites) ? el.cites : typeof el.cites === "string" ? [el.cites] : [];
+  const items = el.type === ("sequence" as SpecElement["type"]) && Array.isArray(el.items) ? (el.items as SequenceItem[]).flatMap(itemCites) : [];
+  return [...own, ...items];
+}
+
 /** The ids an item has: its picture, and its name and mark when it has them. */
 export function itemIds(seqId: string, k: number): { picture: string; label: string; mark: string; dot: string } {
   return { picture: `${seqId}_${k}`, label: `${seqId}_${k}_label`, mark: `${seqId}_${k}_mark`, dot: `${seqId}_dot_${k}` };
@@ -187,6 +205,8 @@ function sequenceElements(el: SequenceElementLike, g: SequenceGeometry, byId: Ma
     const k = i + 1;
     const ids = itemIds(el.id, k);
     pictures.push(ids.picture);
+    const cites = typeof item === "object" ? itemCites(item) : [];
+    const cited = cites.length > 0 ? { cites } : {};
     if (typeof item === "string") {
       // An element the author drew: a group around it, so <id>_k names it.
       out.push({ id: ids.picture, type: "group", members: [item] } as unknown as SpecElement);
@@ -210,6 +230,7 @@ function sequenceElements(el: SequenceElementLike, g: SequenceGeometry, byId: Ma
         ...(typeof item.icon_strokes === "string" ? { strokes: item.icon_strokes } : {}),
         ...(typeof item.credit === "string" ? { credit: item.credit } : {}),
         ...(typeof (item as { icon_key?: unknown }).icon_key === "string" ? { icon_key: (item as { icon_key: string }).icon_key } : {}),
+        ...cited,
       } as unknown as SpecElement);
     } else {
       const w = Math.min(CARD_W, PAGE_W - 2 * MARGIN);
@@ -226,10 +247,11 @@ function sequenceElements(el: SequenceElementLike, g: SequenceGeometry, byId: Ma
         radius: 12,
         shadow: true,
         style: { fill: CARD_PAPER },
+        ...cited,
       } as unknown as SpecElement);
     }
     if (typeof item === "object" && typeof item.label === "string" && item.label.trim() !== "") {
-      out.push({ id: ids.label, type: "text", text: item.label, font_size: SEQ_LABEL_FONT, x: g.centre.x, y: Math.round(g.labelY) } as unknown as SpecElement);
+      out.push({ id: ids.label, type: "text", text: item.label, font_size: SEQ_LABEL_FONT, x: g.centre.x, y: Math.round(g.labelY), ...cited } as unknown as SpecElement);
     }
     const slot = g.slots[i];
     if (typeof item === "object" && item.mark !== undefined && slot) {
