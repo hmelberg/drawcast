@@ -231,22 +231,11 @@
     "font_size": 34
    },
    {
-    "id": "st_same",
-    "type": "text",
-    "text": "same water",
-    "x": 790,
-    "y": 600,
-    "font_size": 48,
-    "style": {
-     "color": "#b5482e"
-    }
-   },
-   {
     "id": "st_age",
     "type": "text",
     "text": "most get it by ~7",
     "x": 790,
-    "y": 520,
+    "y": 250,
     "font_size": 36,
     "style": {
      "color": "#2f6b8f"
@@ -260,7 +249,7 @@
     "type": "text",
     "text": "Piaget, 1941",
     "x": 790,
-    "y": 440,
+    "y": 320,
     "font_size": 36,
     "style": {
      "color": "#2f6b8f"
@@ -337,18 +326,17 @@
      "answer": "same",
      "store": "c",
      "right": "The same. Nothing was added or spilled; the water only changed shape.",
-     "wrong": "Think back to the pouring."
+     "wrong": "Think back to the pouring.",
+     "reveal": {
+      "text": "Same water!",
+      "at": {
+       "x": 760,
+       "y": 560
+      }
+     }
     }
    },
    {
-    "erase": [
-     "same"
-    ]
-   },
-   {
-    "draw": [
-     "st_same"
-    ],
     "speak": "Hang on. I said the tall one.",
     "voice": "b"
    },
@@ -396,13 +384,14 @@
    {
     "highlight": {
      "target": [
-      "st_same"
-     ],
-     "effect": "circle"
+      "glass_a",
+      "glass_c"
+     ]
     },
     "speak": "Smart move, though: same juice, bigger-looking prize.",
     "voice": "a"
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }
