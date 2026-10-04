@@ -118,6 +118,8 @@
         <a href="#cards">Cards</a>
         <a href="#scales">Number lines</a>
         <a href="#charts">Charts</a>
+        <a href="#questions">Questions</a>
+        <a href="#icons">Icons</a>
         <a href="#cast">The .cast script</a>
         <a href="#playlists">Multi-part drawcasts</a>
         <a href="#controls">Player controls</a>
@@ -370,8 +372,8 @@ commands:
             <tr><td><code>clear: {}</code></td><td>Hides everything visible. <code>clear: { keep: [ax, curve] }</code> spares what you list — list <em>everything</em> that should stay.</td></tr>
             <tr><td><code>pause: 0.5</code></td><td>Silence, in seconds. A beat after a reveal is worth more than it looks.</td></tr>
             <tr><td><code>wait: click</code></td><td>Stops until the viewer clicks. Auto-resolves in video export.</td></tr>
-            <tr><td><code>quiz</code></td><td>A multiple-choice question card (skippable unless <code>required: true</code>). Several in a row make a test. In a video the card hovers over the options and picks the right one by itself.</td></tr>
-            <tr><td><code>ask</code></td><td>A typed-answer question. With <code>answer</code> it is checked (optional <code>retry</code>/<code>reveal</code>); with <code>store</code> + <code>default</code> the reply is saved and later narration can say it back with <code>{name}</code>. In a video the card types its answer by itself.</td></tr>
+            <tr><td><code>quiz</code></td><td>A multiple-choice question card (skippable unless <code>required: true</code>). Several in a row make a test. In a video the card hovers over the options and picks the right one by itself. <code>on_canvas</code>, <code>reveal</code> and <code>confidence</code> are in <a href="#questions">Questions</a>.</td></tr>
+            <tr><td><code>ask</code></td><td>A typed-answer question. With <code>answer</code> it is checked (optional <code>retry</code>/<code>reveal</code>); with <code>store</code> + <code>default</code> the reply is saved and later narration can say it back with <code>{name}</code>. In a video the card types its answer by itself. Guessing on the figure, ordering, spotting, estimating and polls are in <a href="#questions">Questions</a>.</td></tr>
             <tr><td><code>label</code> / gotos</td><td><code>label</code> names a position; <code>right_goto</code>/<code>wrong_goto</code> on quiz and ask jump there on a viewer's answer — a wrong answer can replay the explanation and ask again. <code>if</code> jumps on a stored answer (<code>{"if": {"var": "age", "gt": 20, "goto": "…"}}</code>). Videos always play straight through.</td></tr>
             <tr><td><code>explore</code></td><td>Holds the lesson for the viewer: with a <code>pane: controls</code> script the drawn knobs are live and the tray stays shut — press ▶ or click the figure to continue; otherwise the ⊕ tray opens. On a script with <code>controls</code> the beat first plays a demo of the knobs — a short walk of its own, or the sweep <code>play: {"values": {…}}</code> plans — and hands the panel over afterwards; <code>play: false</code> drops the demo. A video keeps that demo and the beat's narration, and skips only the waiting; a beat with no controls script is still skipped whole. The ⊕ also pulses after any personalized animation. An <code>explore</code> naming a script with <code>controls</code> opens those controls.</td></tr>
             <tr><td><code>run</code></td><td>Plays a <code>controls</code> script through a series of values without handing the lesson over: <code>{"run": {"code": "sim", "values": {"rate": {"from": 1, "to": 9, "steps": 5}}, "every": 1.2}}</code>. A value may hold (<code>rate: 4</code>), step through a list (<code>[1, 4, 9]</code>), or sweep a range; <code>every</code> is seconds per step and <code>loop</code> repeats the series. Controls the sweep does not name stay at their defaults, and a shorter list holds its last value. The paired <code>speak</code> plays over the sweep — in the app and in the movie alike — and the script stays where the sweep left it: a knob afterwards continues from there, and only a scrub back past the run restores the author's script.</td></tr>
@@ -506,6 +508,180 @@ commands:
       "speak": "Native speakers first: Mandarin leads." },
     { "animate": { "stage": 1 }, "duration": 2.5,
       "speak": "Now count everyone who speaks it, and English jumps to first." } ] }</code></pre>
+
+        <h2 id="questions">Questions</h2>
+        <p>
+          Two commands ask the viewer something: <code>quiz</code> (pick one of a few choices) and
+          <code>ask</code> (everything else — typing, guessing on the figure, ordering, tapping). Each
+          form below is one or two fields on one of them. In a video, every question answers itself.
+        </p>
+
+        <h3>Buttons on the figure</h3>
+        <p>
+          <code>on_canvas: true</code> draws a quiz's choices as buttons beside the figure — no card
+          pops up, and the question is not said again, so say it in the line before. Made for
+          True/Myth and yes/no runs over a picture. Optional: <code>buttons</code> (each choice's
+          <code>text</code> and <code>icon</code>), <code>buttons_at</code> (their centre),
+          <code>buttons_layout</code> (<code>row</code> or <code>column</code>),
+          <code>say_question: true</code>, <code>keep_buttons: true</code>, and <code>id</code> (the
+          buttons are <code>&lt;id&gt;_btn_1</code>, …).
+        </p>
+        <pre><code>{ "draw": ["moon"], "speak": "The Moon is drifting away from us. True, or myth?" },
+{ "quiz": { "question": "The Moon is drifting away from us.", "choices": ["True", "Myth"],
+            "correct": 1, "on_canvas": true, "buttons_layout": "column",
+            "reveal": "3.8 cm a year",
+            "right": "True: lasers show it moving about 3.8 centimetres further away each year." } }</code></pre>
+
+        <h3>Reveal stamps</h3>
+        <p>
+          <code>reveal</code> on a quiz or an ask stamps the verdict beside the figure as the
+          <code>right</code> line is spoken: <code>true</code> stamps the right choice's words
+          (“MYTH”), a string stamps those words. The long form is
+          <code>{ "text", "at", "color", "size", "style": "stamp" | "label", "keep" }</code>, where
+          <code>at</code> is an element id or <code>{x, y}</code>. The stamp goes when its figure is
+          hidden — so never draw a verdict yourself after the question.
+        </p>
+        <pre><code>"reveal": { "text": "3.8 cm a year", "at": "moon", "style": "stamp" }</code></pre>
+
+        <h3>A run of pictures</h3>
+        <p>
+          A <code>sequence</code> shows things one at a time: the current one large in the middle,
+          the finished ones waiting small in a strip. Items are <code>{icon, label}</code>,
+          <code>{text, label}</code> or the id of something you drew; a <code>mark</code> (a word, or
+          <code>{text, color}</code>) appears under each in the strip once done. Draw
+          <code>&lt;id&gt;_1</code>, <code>&lt;id&gt;_2</code>, … in turn, and
+          <code>&lt;id&gt;_strip</code> to bring the row back as a recap. Also <code>strip</code>
+          (top, bottom, none), <code>show_upcoming: "dots"</code> and <code>recap: false</code>.
+        </p>
+        <pre><code>{ "id": "sleepers", "type": "sequence", "items": [
+    { "icon": "horse", "label": "Horse", "mark": { "text": "Yes", "color": "#3f7d4e" } },
+    { "icon": ["cow", "cow face"], "label": "Cow", "mark": { "text": "No", "color": "#b5482e" } } ] }
+
+{ "draw": ["sleepers_1"], "speak": "First the horse." },
+{ "quiz": { "question": "Can a horse sleep standing up?", "choices": ["Yes", "No"],
+            "correct": 1, "on_canvas": true, "right": "Yes: its legs lock, so it dozes on its feet." } },
+…
+{ "draw": ["sleepers_strip"], "speak": "You got {score} of {score_total}." }</code></pre>
+
+        <h3>Odd one out</h3>
+        <p>
+          Cards with one item marked <code>odd: true</code> and a <code>rule</code> saying what the
+          others share. The viewer taps one; the odd one is ringed and the rule is written under the
+          cards. Three to six cards. Over things already drawn, use <code>choose</code> +
+          <code>answer</code> + <code>rule</code> on the ask instead.
+        </p>
+        <pre><code>{ "id": "zoo", "type": "cards", "rule": "All four are mammals; the shark is a fish.",
+  "items": [ { "text": "Whale", "icon": "whale" }, { "text": "Bat", "icon": "bat" },
+             { "text": "Dolphin", "icon": "dolphin" }, { "text": "Shark", "icon": "shark", "odd": true } ] }
+
+{ "ask": { "question": "Which one is not a mammal? Tap it.", "on": "zoo",
+           "right": "The shark: a fish, with gills and no milk." } }</code></pre>
+
+        <h3>Spot it</h3>
+        <p>
+          The viewer taps a place on a picture and is judged on its outline, which is drawn at the
+          reveal. <code>spot</code> is a region of an image, a template part (an organ,
+          <code>country_norway</code>) or any drawn id. Draw the place first, without naming it.
+        </p>
+        <pre><code>{ "ask": { "question": "Where is the liver? Tap it.", "spot": "liver", "on": "anatomy",
+           "right": "There: under the right ribs.", "wrong": "Look higher, and on the body's right." } }</code></pre>
+
+        <h3>Estimate</h3>
+        <p>
+          A lone number with no figure to guess on: a big counter over a slider, scored by how close
+          the guess is. The ask draws it itself (erase it later as <code>estimate_1</code>). It takes
+          <code>unit</code>, <code>log</code>, <code>label</code>, <code>tick_format</code> and
+          <code>era</code> like a number line.
+        </p>
+        <pre><code>{ "ask": { "question": "How many bones does an adult have? Drag the slider to your estimate.",
+           "estimate": { "min": 0, "max": 500, "value": 206, "unit": "bones" },
+           "store": "g", "default": "150",
+           "right": "Close: you said {g}, it is {g.true}.", "wrong": "You said {g}; it is {g.true}, {g.off} away." } }</code></pre>
+
+        <h3>Put the steps in order</h3>
+        <p>
+          Cards with <code>steps: true</code> get numbered slots, first to last; once they stand in
+          the true order, arrows draw in between them. List the items in their true order — they are
+          shuffled on screen.
+        </p>
+        <pre><code>{ "id": "cosmos", "type": "cards", "steps": true, "ends": ["first", "last"],
+  "items": ["Big Bang", "First stars", "Sun forms", "Earth forms", "First life"] }
+
+{ "ask": { "question": "In what order did these happen? Drag the earliest to the first place.",
+           "on": "cosmos", "store": "k", "right": "{k} in place.", "wrong": "You got {k}." } }</code></pre>
+
+        <h3>How sure are you?</h3>
+        <p>
+          <code>confidence: true</code> on a quiz (or on an ask with <code>choose</code> and
+          <code>answer</code>) adds a bet after the pick — 50/50, Fairly sure, Certain. Over a run of
+          questions, <code>{calib}</code> says how well calibrated the viewer was (“a bit
+          overconfident”) and <code>{calib.score}</code> gives it out of 100.
+        </p>
+        <pre><code>{ "quiz": { "question": "How long does sunlight take to reach Earth?",
+            "choices": ["8 seconds", "8 minutes", "8 hours"], "correct": 2,
+            "confidence": true, "right": "About eight minutes and twenty seconds." } },
+{ "speak": "You were {calib}: {calib.score} of 100." }</code></pre>
+
+        <h3>Poll and compare</h3>
+        <p>
+          An opinion with no right answer, compared with what the people in a real study chose.
+          Give 2–4 <code>choices</code> with each one's <code>share</code> (a fraction) and the study
+          in <code>sources</code>; <code>{p.share}</code> is the share who chose as the viewer did,
+          <code>{p.most}</code> the commonest choice. On a number line instead:
+          <code>"poll": { "on": "&lt;scale id&gt;", "others": [{ "value": 40, "share": 0.3 }, …] }</code>.
+        </p>
+        <pre><code>{ "ask": { "question": "How many of the 100 kroner do you offer the stranger?",
+           "poll": { "choices": [ { "text": "41 to 50", "share": 0.44 }, { "text": "31 to 40", "share": 0.26 },
+                                  { "text": "21 to 30", "share": 0.1 }, { "text": "20 or less", "share": 0.14 } ],
+                     "source": "azar" },
+           "judge": false, "store": "p", "right": "You and {p.share} of players chose {p}." } }</code></pre>
+
+        <h3>Before and after</h3>
+        <p>
+          A first guess kept back (<code>reveal: false</code>), some new evidence, then a second guess
+          with <code>revise</code> naming the first. The viewer starts from their first guess and
+          sees both against the truth; <code>{g2.moved}</code> is how far they moved.
+        </p>
+        <pre><code>{ "ask": { "question": "How many people die on the world's roads each year? Click the line.",
+           "on": "roads", "reveal": false, "store": "g1", "default": "400000" } },
+{ "draw": ["clock"], "speak": "A clue: someone dies on a road about every twenty-six seconds." },
+{ "ask": { "question": "With that clue, how many a year? Guess again.", "on": "roads",
+           "revise": "g1", "store": "g2", "default": "1100000", "relative": true, "tolerance": 0.2 } }</code></pre>
+
+        <h3 id="replies">Replies</h3>
+        <p>
+          A viewer who answers right hears a short reply that varies — “Spot on.”, “Two in a row.” —
+          in the drawcast's language, never the same one twice running, with a streak line now and
+          then and, in a cast whose <code>feedback</code> is warm or dry, the odd joke. The
+          <code>right</code> line is kept for whoever got it wrong, and for videos. The cast-level
+          <code>affirm</code> changes the replies:
+        </p>
+        <table>
+          <thead><tr><th>Value</th><th>The viewer hears</th></tr></thead>
+          <tbody>
+            <tr><td><em>(left out)</em></td><td>The varied replies.</td></tr>
+            <tr><td><code>"playful"</code></td><td>Now and then a dry joke (“Suspiciously good.”) — for a light cast.</td></tr>
+            <tr><td><code>"plain"</code></td><td>Just “Correct.”</td></tr>
+            <tr><td><code>["Nailed it.", "Yes!"]</code></td><td>Your own phrases.</td></tr>
+            <tr><td><code>false</code></td><td>Nothing.</td></tr>
+          </tbody>
+        </table>
+        <p class="muted">
+          The poster — the picture shown before Play and on a published link's card — is taken just
+          before the first question, so a quiz's picture never gives its answers away.
+        </p>
+
+        <h2 id="icons">Icons</h2>
+        <p>
+          An <code>icon</code> stamps a named thing; you write only the keyword and the app fetches
+          the artwork. For something rare, give fallbacks — the thing first, plainer stand-ins after,
+          tried in order. On a card, a node or a sequence item, <code>icon</code> takes a list; on an
+          icon element, <code>or</code> sits beside <code>of</code>. When nothing matches, the check
+          warns instead of drawing a blank or a wrong stand-in.
+        </p>
+        <pre><code>{ "id": "pig", "type": "icon", "of": "guinea pig", "or": ["hamster", "mouse"], "size": 200 }
+
+{ "text": "Quinoa", "icon": ["quinoa", "grain", "wheat"] }</code></pre>
 
         <h2 id="cast">The .cast script</h2>
         <p>
