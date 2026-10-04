@@ -286,7 +286,8 @@ export function coVisible(commands: Command[] | undefined, allIds: string[], exp
       const base = id.slice(0, -tail.length);
       if (managed.has(base) && !visible.has(base)) return base;
     }
-    const scalePart = /^(.+?)_(?:answer(?:_pin|_num)?|marker_\d+(?:_tick|_words|_lead)?)$/.exec(id);
+    // Only a part no command names (else the walk already knows where it is).
+    const scalePart = managed.has(id) ? null : /^(.+?)_(?:answer(?:_pin|_num)?|marker_\d+(?:_tick|_words|_lead)?)$/.exec(id);
     if (scalePart) {
       const b = gone(scalePart[1]);
       if (b !== null) return b;
