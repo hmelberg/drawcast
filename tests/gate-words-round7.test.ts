@@ -11,8 +11,8 @@ test("every cards hint has a Norwegian twin, and the new words exist in both", (
     expect(nb.cards[k]).toBeTruthy();
     expect(nb.cards[k]).not.toBe(en.cards[k]);
   }
-  expect(en.done).toBe("Done ▸");
-  expect(nb.done).toBe("Ferdig ▸");
+  expect(en.done).toBe("Done");
+  expect(nb.done).toBe("Ferdig");
 });
 test("the reorder's yours row, in both tongues", () => {
   expect(gateWords("en").yours).toBe("yours");

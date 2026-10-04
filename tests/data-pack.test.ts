@@ -160,8 +160,16 @@ describe("bar_chart — the title clears the y caption", () => {
     const title = textAt(titled, "title")!;
     expect(title.pos[1]).toBeGreaterThanOrEqual(cap.pos[1] + 38);
     expect(title.pos[1]).toBeLessThanOrEqual(730);
+    // Without a title the caption still needs its row under the content
+    // area's top (polish 2026-10-04 A4): a box reaching past 593 gives it up;
+    // a lower box is honoured unchanged.
     const untitled = layout({ labels: ["a", "b"], values: [1, 2], y_label: "Share of rolls", box });
-    expect(yTop(untitled)).toBeCloseTo(box.y + box.h + AXIS_OVERHANG, 6);
+    expect(yTop(untitled)).toBeCloseTo(593 + AXIS_OVERHANG, 6);
+    const low = { x: 120, y: 95, w: 855, h: 480 };
+    const lower = layout({ labels: ["a", "b"], values: [1, 2], y_label: "Share of rolls", box: low });
+    expect(yTop(lower)).toBeCloseTo(low.y + low.h + AXIS_OVERHANG, 6);
+    const noCaption = layout({ labels: ["a", "b"], values: [1, 2], box });
+    expect(yTop(noCaption)).toBeCloseTo(box.y + box.h + AXIS_OVERHANG, 6);
   });
 
   // The degenerate box: its floor is already above the 620 a title wants, so

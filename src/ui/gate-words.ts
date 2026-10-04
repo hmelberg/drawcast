@@ -64,12 +64,15 @@ export interface GateWords {
   dragNames: string;
   /** choose: tap one of the drawn options. */
   choose: string;
+  /** Test me's headline (ui/test-me.ts). */
+  testYourself: string;
 }
 
 const EN: GateWords = {
-  answer: "Answer ▸",
-  skip: "Skip ▸",
-  done: "Done ▸",
+  answer: "Answer",
+  testYourself: "Test yourself: what are the numbers?",
+  skip: "Skip",
+  done: "Done",
   yours: "yours",
   connect: "Press a star and drag to the next. Click a line to remove it",
   typeNumber: "Type a number",
@@ -109,14 +112,15 @@ const EN: GateWords = {
     many: "Tap a box and type what goes in it",
   },
   tree: { blanks: "Tap a ? and type the number", branch: "Tap the best branch", nowBranch: "Now tap the best branch" },
-  dragNames: "Drag each name onto the figure ▸",
+  dragNames: "Drag each name onto the figure",
   choose: "Tap your choice on the figure",
 };
 
 const NB: GateWords = {
-  answer: "Svar ▸",
-  skip: "Hopp over ▸",
-  done: "Ferdig ▸",
+  answer: "Svar",
+  testYourself: "Test deg selv: hva er tallene?",
+  skip: "Hopp over",
+  done: "Ferdig",
   yours: "din",
   connect: "Trykk på en stjerne og dra til den neste. Klikk på en linje for å fjerne den",
   typeNumber: "Skriv et tall",
@@ -156,7 +160,7 @@ const NB: GateWords = {
     many: "Trykk på en boks og skriv det som skal stå der",
   },
   tree: { blanks: "Trykk på et ? og skriv tallet", branch: "Trykk på den beste grenen", nowBranch: "Trykk nå på den beste grenen" },
-  dragNames: "Dra hvert navn til figuren ▸",
+  dragNames: "Dra hvert navn til figuren",
   choose: "Trykk på valget ditt i figuren",
 };
 

@@ -497,7 +497,7 @@ describe("check: each (round 7 §3)", () => {
     const o = await open(z);
     expect(o.stage.find("cs-figgate-hint")!.textContent).toMatch(/then Done/);
     expect(o.answer().hidden).toBe(false);
-    expect(o.answer().textContent).toBe("Done ▸");
+    expect(o.answer().textContent).toBe("Done");
     tap(o.gate, z.home[0]); // Whale: ✓
     tap(o.gate, z.home[1]); // Shark: ✗, back to the tray, faded
     await wait(1300);
@@ -583,7 +583,7 @@ describe("place: the value it lands on, while dragging and after (Hans 2026-10-0
   const sg = pg.scale!;
   test("the finish button says Done", async () => {
     const o = await open(pg);
-    expect(o.answer().textContent).toBe("Done ▸");
+    expect(o.answer().textContent).toBe("Done");
     o.answer().click();
     await o.done;
   });

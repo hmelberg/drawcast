@@ -788,6 +788,7 @@ export async function render(spec: Spec, container: HTMLElement, options: Render
         else codePatches.delete(id);
       },
       patchedElements: livePatched,
+      specElements: () => spec.elements ?? [],
       setElementPatch: (id, fields) => {
         if (fields) elementPatches.set(id, fields);
         else elementPatches.delete(id);

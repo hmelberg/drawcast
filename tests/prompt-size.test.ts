@@ -714,7 +714,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Merged layout-w16 2026-10-04: +1733 (confidence, poll). -> 407278.
 // Re-pinned UP 2026-10-04 (r3 quick wins): scale markers. +329. -> 407607.
 // Re-pinned UP 2026-10-04 (r3 quick wins): a sequence item's cites. +102. -> 407709.
-const BASELINE_SYSTEM_CHARS = 407709;
+// Re-pinned UP 2026-10-04 (polish A3/A5): bar numbers are value_labels, highlight a chart. +220. -> 407929.
+const BASELINE_SYSTEM_CHARS = 407929;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

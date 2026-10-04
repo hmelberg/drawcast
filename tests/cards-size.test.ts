@@ -15,7 +15,7 @@ import { cardsPlanFor, planOptionsFor } from "../src/render/index";
 import type { Spec, SpecElement } from "../src/spec/types";
 
 const STROKES = "M0 0";
-const rank: CardsElementLike = { id: "r", type: "cards", items: ["Rome", "Paris", "Oslo", "Lima", "Kyiv"], ends: ["most", "least"] };
+const rank: CardsElementLike = { id: "r", type: "cards", items: ["Rome", "Paris", "Oslo", "Lima", "Kyiv"], ends: ["least", "most"], arrange: "row" };
 const page = (els: unknown[], commands: unknown[] = [{ card: { title: "Q" } }, { draw: ["r"] }]): Spec => ({ title: "Q", elements: els, commands }) as unknown as Spec;
 const group = (s: Spec, id = "r") => s.elements!.find((e) => e.id === id) as SpecElement & { size?: number; x?: number; y?: number };
 

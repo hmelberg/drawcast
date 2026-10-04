@@ -1,4 +1,4 @@
-// 👍 / 👎 on the watch page (2026-10-03, delivery 2): signed-in viewers only,
+// Like / dislike (open thumbs) on the watch page (2026-10-03, delivery 2): signed-in viewers only,
 // listed items only, stored in Anvil (POST /react, /react/state). The 👍
 // count is public; a 👎 is private — it counts only for the author's
 // signals and is never shown, here or in the catalogue.
@@ -10,6 +10,7 @@
 import { getToken, setToken, signInUrl } from "../account";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
 import { h } from "../ui/dom";
+import { icon, type IconName } from "../ui/icons";
 
 export type Vote = 1 | -1 | 0;
 export interface ReactState {
@@ -107,10 +108,17 @@ export function reactionControls(rawName: string): { pill: HTMLElement; menuRow:
   const build = (cls: string, withLabels: boolean): HTMLElement => {
     const signedIn = getToken() !== "";
     const tip = (t: string): string => (signedIn ? t : `${t} (sign in)`);
-    const up = h("button", { type: "button", class: "react-btn react-up", title: tip("I like this"), "aria-label": "Like" }, "👍") as HTMLButtonElement;
+    // Open thumbs, filled while pressed (styles.css swaps the pair).
+    const thumbs = (open: IconName, full: IconName): SVGSVGElement[] => {
+      const a = icon(open), b = icon(full);
+      a.classList.add("react-open");
+      b.classList.add("react-full");
+      return [a, b];
+    };
+    const up = h("button", { type: "button", class: "react-btn react-up", title: tip("I like this"), "aria-label": "Like" }, ...thumbs("thumbUp", "thumbUpFilled")) as HTMLButtonElement;
     const count = h("span", { class: "react-count" });
     up.append(count);
-    const down = h("button", { type: "button", class: "react-btn react-down", title: tip("I don't like this — only the author's signals see it"), "aria-label": "Dislike" }, "👎") as HTMLButtonElement;
+    const down = h("button", { type: "button", class: "react-btn react-down", title: tip("I don't like this — only the author's signals see it"), "aria-label": "Dislike" }, ...thumbs("thumbDown", "thumbDownFilled")) as HTMLButtonElement;
     up.addEventListener("click", () => void press(1));
     down.addEventListener("click", () => void press(-1));
     const root = withLabels
