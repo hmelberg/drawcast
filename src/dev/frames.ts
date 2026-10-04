@@ -17,8 +17,8 @@
 //
 // A "resting frame" is a boundary the viewer actually sits at: the first beat
 // that puts ink down, every boundary where an animate has committed new params
-// (plan.states[i].params), and the last boundary. Not every beat — a draw beat
-// mid-figure is a frame nobody stops on.
+// (plan.states[i].params), and the last boundary (dev/frame-list.ts). Not
+// every beat — a draw beat mid-figure is a frame nobody stops on.
 //
 // MID-GESTURE frames (&beats=all): a frame is the state AFTER its beat, and
 // the momentary gestures — highlight, focus, point, flow — hold only while
@@ -27,6 +27,12 @@
 // drawn as the viewer sees it mid-sentence instead (paintGesture): the same
 // backend effect calls the player makes, frozen at full strength. Pictures
 // only — window.__frames reports the same data either way.
+//
+// QUESTION frames (dev/frame-list.ts): every quiz and ask is drawn twice —
+// before the answer, with the player's own gate opened on the figure
+// (openQuestion: headline, dock, quiz card, cards at home, buttons), and
+// after the reveal. The after-state alone showed reviewers answers a live
+// viewer never sees while answering, and none of the question.
 
 import bundledExamples from "../examples.json";
 import { setTrustPolicy } from "../security/code-trust";
@@ -63,12 +69,23 @@ import type { Spec } from "../spec/types";
 import { ensureEnginesForSpecs } from "../scenes/engines";
 import { ensureEnabledPacks, PACK_DEFS } from "../scenes/packs";
 import { posterForPlaylistText } from "../export/snapshot";
+import { attachPlayerControls } from "../ui/controls";
+import { frameLabel, frameList } from "./frame-list";
+// The gates' own look (the headline, the dock, the quiz card): a question
+// frame opens the real gate on the figure, as the player does.
+import "../styles.css";
 
 interface FrameReport {
-  /** Boundary: the figure as it stands after this many plan steps. */
+  /** Boundary: the figure as it stands after this many plan steps (a
+   *  question frame: the boundary before its question — what is judged). */
   at: number;
-  /** Why this frame is a resting place — "first ink", an animate's overrides, or "end". */
+  /** Why this frame is a resting place — "first ink", an animate's overrides, a
+   *  beat, "end", or a question's pair (dev/frame-list.ts). */
   changed: string;
+  /** A question's pair: the question's step number (1-based) — the @N of both labels. */
+  ask?: number;
+  /** The question frame: the figure BEFORE the answer (boundary `at`), the gate open on it. */
+  before?: true;
   /** Cumulative animate overrides at this boundary (dot paths). */
   params: Record<string, number>;
   /** The narration spoken between the previous resting frame and this one. */
@@ -170,44 +187,6 @@ function bundledCast(index: number): Cast {
   return { title, source: `examples.json[${index}]`, parts: ex.spec ? [ex.spec] : [] };
 }
 
-/** Boundaries the viewer rests at, with why. */
-function restingFrames(plan: { steps: { kind: string; text?: string; narration?: string }[]; states: { params: Record<string, number> }[] }, everyBeat = false): { at: number; changed: string }[] {
-  const out: { at: number; changed: string }[] = [];
-  const firstDraw = plan.steps.findIndex((s) => s.kind === "draw");
-  if (firstDraw >= 0) out.push({ at: firstDraw + 1, changed: "first ink" });
-  let prev = "{}";
-  plan.states.forEach((state, i) => {
-    const key = JSON.stringify(state.params ?? {});
-    if (key !== prev) {
-      // An animate commits its overrides at this boundary. Report the delta,
-      // not the whole accumulated set — what CHANGED is the interesting part.
-      out.push({ at: i + 1, changed: `animate ${key}` });
-      prev = key;
-    }
-  });
-  if (plan.steps.length > 0) out.push({ at: plan.steps.length, changed: "end" });
-  // Every beat (?beats=all): a frame after each narrated line — what the
-  // viewer sees while it is spoken (added last, so a boundary that is also
-  // first ink, an animate or the end keeps that name). Resting frames alone never show a camera
-  // zoom, the middle of a derivation or a label placed and later erased,
-  // which is where layouts break (the ledger's feature ideas 2 and 8; two
-  // agents built their own truncation hacks for it, 2026-09-25).
-  if (everyBeat) {
-    plan.steps.forEach((s, i) => {
-      const line = s.kind === "speak" ? s.text : s.narration;
-      if (line) out.push({ at: i + 1, changed: `beat “${line.length > 40 ? line.slice(0, 39) + "…" : line}”` });
-    });
-  }
-  // A quiet question (on-canvas quiz buttons, spec/answer-buttons.ts) speaks
-  // no line, so no beat shows its buttons: a frame of its own.
-  plan.steps.forEach((s, i) => {
-    if (s.kind === "ask" && (s as { quiet?: boolean }).quiet) out.push({ at: i + 1, changed: "question (on-canvas buttons)" });
-  });
-  // Dedupe by boundary, keeping the first reason given for it.
-  const seen = new Set<number>();
-  return out.filter((f) => (seen.has(f.at) ? false : (seen.add(f.at), true))).sort((a, b) => a.at - b.at);
-}
-
 function speakBetween(steps: { kind: string; text?: string }[], from: number, to: number): string[] {
   return steps.slice(from, to).flatMap((s) => (s.kind === "speak" && s.text ? [s.text] : []));
 }
@@ -241,7 +220,7 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
     report.planWarnings = hd.plan.warnings;
     const pacing = pacingReport(hd.plan.steps, (i) => hd.timeline.stepRunMs(i));
     report.pacing = { lines: pacing.lines, totalMs: pacing.totalMs, spokenLines: pacing.spokenLines, lengthBand: pacing.lengthBand, problems: pacing.problems };
-    const frames = restingFrames(hd.plan as never, everyBeat());
+    const frames = frameList(hd.plan, everyBeat());
     // Does it play at all? Step every boundary, not just the resting ones —
     // an exception halfway through a cast is invisible to any lint.
     for (let n = 0; n <= hd.plan.steps.length; n++) {
@@ -281,15 +260,18 @@ async function reportPart(spec: Spec, host: HTMLElement): Promise<PartReport> {
       report.frames.push({
         at: frame.at,
         changed: frame.changed,
+        ...(frame.ask !== undefined ? { ask: frame.ask } : {}),
+        ...(frame.before ? { before: true as const } : {}),
         params,
-        speak: speakBetween(hd.plan.steps as { kind: string; text?: string }[], prevAt, frame.at),
+        // A question frame: the question itself, as the headline reads it.
+        speak: frame.before ? [String((hd.plan.steps[frame.at] as { question?: string }).question ?? "")] : speakBetween(hd.plan.steps as { kind: string; text?: string }[], prevAt, frame.at),
         issues: seen.map((i) => `[${i.severity}] ${i.message}`),
-        hiddenIssues: unseen.map((i) => `[${i.severity}] ${i.message} (not on screen at @${frame.at})`),
+        hiddenIssues: unseen.map((i) => `[${i.severity}] ${i.message} (not on screen at ${frameLabel(frame).split(" ")[0]})`),
         advisories: [],
         bboxes: Object.fromEntries([...boxes.entries()].map(([id, b]) => [id, b])),
       });
       fillInputs.push({ boxes: [...boxes.entries()], visible: (id) => onScreen([id]) });
-      prevAt = frame.at;
+      if (!frame.before) prevAt = frame.at;
     }
     // The fill advisory, on each page at its fullest (lint/fill.ts).
     const unions = fillInputs.map((f) => figureUnion(f.boxes, f.visible));
@@ -379,6 +361,39 @@ function paintGesture(hd: RenderHandle, at: number, step: PlanStep, canvas: HTML
   }
 }
 
+// ---- question frames ----
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Stand a mount at the viewer's turn of the question at step `at`: the
+ * player's own controls and gates attached (ui/controls.ts), the playhead at
+ * the boundary before the question, played until its gate opens — so the
+ * tile shows what the player draws there (the headline and dock, the quiz
+ * card, the cards at home, the guessed part not yet drawn, the on-canvas
+ * buttons), then left waiting on the gate, which nobody answers.
+ * Returns a note when the gate never opened, else null.
+ */
+async function openQuestion(hd: RenderHandle, canvas: HTMLElement, at: number): Promise<string | null> {
+  attachPlayerControls(canvas, hd, { mode: "silent", speed: 2, questions: "interactive" });
+  const tl = hd.timeline;
+  let opened = (): void => undefined;
+  const open = new Promise<boolean>((r) => (opened = () => r(true)));
+  const quiz = tl.quizGate;
+  const ask = tl.askGate;
+  if (quiz) tl.quizGate = (signal, step) => (opened(), quiz(signal, step));
+  if (ask) tl.askGate = (signal, step) => (opened(), ask(signal, step));
+  // Fast: what precedes the gate (the question's silent reading, a line
+  // drawing itself in) is not what the picture is of.
+  tl.setSpeed(10);
+  tl.renderUpTo(at);
+  void tl.play().catch(() => undefined);
+  const ok = await Promise.race([open, sleep(15_000).then(() => false)]);
+  // The headline fades in, the cards glide home, a stage fades the rest.
+  await sleep(1200);
+  return ok ? null : `the question's gate did not open in 15 s — this is the boundary before it, without the gate`;
+}
+
 // ---- the page ----
 
 const app = document.getElementById("frames-app")!;
@@ -401,7 +416,10 @@ const css = `
   .part h2 { font-size: 14px; margin: 0 0 8px; }
   .sheet { display: flex; flex-wrap: wrap; gap: 14px; }
   .cell { width: 460px; }
-  .canvas { width: 460px; height: 345px; background: #fff; border: 1px solid #ddd; overflow: hidden; }
+  .canvas { width: 460px; height: 345px; background: #fff; border: 1px solid #ddd; overflow: hidden; position: relative; }
+  /* A question frame carries the player's controls for its gates: the bar
+     itself is not part of the picture. */
+  .canvas .cs-controlbar, .canvas .cs-bigplay { display: none !important; }
   .cap { font: 11px/1.35 ui-monospace, monospace; color: #444; padding: 4px 0; }
   .cap b { color: #111; }
   .bad { color: #b5482e; }
@@ -469,11 +487,15 @@ async function show(cast: Cast): Promise<CastReport> {
       // Each cell is its own mount held at its own boundary: the sheet is live
       // ink, so a screenshot of this page is a screenshot of the real figure.
       const hd = await render(spec, canvas, { mode: "silent" });
-      hd.timeline.renderUpTo(frame.at);
+      // A question frame: the viewer's turn, as the player stands it — the
+      // real gate opened on the boundary before the question.
+      const gateTrouble = frame.before ? await openQuestion(hd, canvas, frame.at) : null;
+      if (!frame.before) hd.timeline.renderUpTo(frame.at);
       // Only with &beats=all: a resting frame stays the after-state it always was.
-      const gesture = everyBeat() ? gestureAt(hd.plan, frame.at) : null;
+      const gesture = everyBeat() && !frame.before ? gestureAt(hd.plan, frame.at) : null;
       if (gesture) paintGesture(hd, frame.at, gesture, canvas);
-      cap.append(h("b", {}, `@${frame.at} ${frame.changed}${gesture ? ` (mid-gesture: ${gestureLabel(gesture)})` : ""}`));
+      cap.append(h("b", {}, `${frameLabel(frame)}${gesture ? ` (mid-gesture: ${gestureLabel(gesture)})` : ""}`));
+      if (gateTrouble) cap.append(h("div", { class: "bad" }, gateTrouble));
       if (frame.issues.length > 0) cap.append(h("div", { class: "bad" }, frame.issues.join("\n")));
       else cap.append(h("span", { class: "ok" }, ` — lint clean (browser metrics)${frame.hiddenIssues.length > 0 ? ` · ${frame.hiddenIssues.length} off-screen` : ""}`));
       if (frame.advisories?.length) cap.append(h("div", { class: "advice" }, frame.advisories.join("\n")));
