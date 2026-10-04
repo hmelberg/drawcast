@@ -97,7 +97,9 @@
       .back:hover { color: var(--rust); }
       footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.88rem; }
       @media (max-width: 860px) {
-        .wrap { flex-direction: column; gap: 1.2rem; }
+        /* stretch, not flex-start: a flex-start column sizes main to its widest
+           pre or table, and the whole page scrolls sideways on a phone. */
+        .wrap { flex-direction: column; gap: 1.2rem; align-items: stretch; padding-left: 1rem; padding-right: 1rem; }
         nav { position: static; width: 100%; columns: 2; }
       }
     </style>
@@ -547,7 +549,7 @@ commands:
 { "quiz": { "question": "The Moon is drifting away from us.", "choices": ["True", "Myth"],
             "correct": 1, "on_canvas": true, "buttons_layout": "column",
             "reveal": "3.8 cm a year",
-            "right": "True: lasers show it moving about 3.8 centimetres further away each year." } }</code></pre>
+            "right": "True: it moves about 3.8 centimetres further away each year." } }</code></pre>
 
         <h3>Reveal stamps</h3>
         <p>
