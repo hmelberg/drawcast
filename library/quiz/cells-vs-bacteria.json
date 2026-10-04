@@ -49,39 +49,12 @@
   ],
   "elements": [
    {
-    "id": "oldbar",
-    "type": "path",
-    "points": [
-     [
-      624,
-      100
-     ],
-     [
-      624,
-      598
-     ],
-     [
-      844,
-      598
-     ],
-     [
-      844,
-      100
-     ]
-    ],
-    "style": {
-     "color": "#8f887c",
-     "dash": true,
-     "stroke_width": 2
-    }
-   },
-   {
     "id": "old",
     "type": "text",
     "text": "the old 10 : 1",
-    "x": 340,
-    "y": 570,
-    "font_size": 44,
+    "x": 420,
+    "y": 600,
+    "font_size": 40,
     "style": {
      "color": "#8f887c"
     }
@@ -90,9 +63,9 @@
     "id": "new",
     "type": "text",
     "text": "2016: about 1 : 1",
-    "x": 340,
-    "y": 450,
-    "font_size": 48,
+    "x": 420,
+    "y": 510,
+    "font_size": 44,
     "style": {
      "color": "#b5482e"
     },
@@ -104,12 +77,20 @@
     "id": "loo",
     "type": "text",
     "text": "one trip to the toilet",
-    "x": 340,
-    "y": 380,
-    "font_size": 40,
+    "x": 420,
+    "y": 425,
+    "font_size": 36,
     "style": {
      "color": "#2f6b8f"
     }
+   },
+   {
+    "id": "old_x",
+    "type": "annotation",
+    "target": [
+     "old"
+    ],
+    "kind": "strike"
    }
   ],
   "commands": [
@@ -146,9 +127,11 @@
     "speak": "For decades, textbooks said bacteria outnumber us ten to one."
    },
    {
-    "draw": [
-     "oldbar"
-    ],
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    },
     "speak": "But that began as a rough guess in 1972, and was copied for forty years."
    },
    {
@@ -160,7 +143,8 @@
    },
    {
     "draw": [
-     "new"
+     "new",
+     "old_x"
     ],
     "speak": "Ron Sender, Shai Fuchs and Ron Milo found about thirty-eight trillion bacteria"
    },
@@ -195,6 +179,7 @@
     "cue": 0.55,
     "speak": "In fact the two are so close that, as the authors noted, one trip to the toilet can tip the balance back toward you."
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }
