@@ -271,12 +271,25 @@ export function coVisible(commands: Command[] | undefined, allIds: string[], exp
   // A sub-drawable ("card_3_text" …) is never named in a command, so it
   // counts as on screen at the end — wrongly so when its owner was taken
   // away (cards erased after their question): then it goes with its owner.
+  // A scale's answer marker and its extra markers (spec/scale.ts) are
+  // never named either: the guess draws the answer and the markers come with
+  // the line — and an erase of the scale (an estimate's `estimate_1` after
+  // its ask, W27) takes them with it (render ownedBy). They go with the line.
+  const gone = (base: string): string | null => {
+    for (const b of [base, `${base}_line`]) if (managed.has(b) && !visible.has(b)) return b;
+    return null;
+  };
   const owner = (id: string): string => {
     for (const s of SUB_SUFFIXES) {
       const tail = `_${s}`;
       if (!id.endsWith(tail) || id.length <= tail.length) continue;
       const base = id.slice(0, -tail.length);
       if (managed.has(base) && !visible.has(base)) return base;
+    }
+    const scalePart = /^(.+?)_(?:answer(?:_pin|_num)?|marker_\d+(?:_tick|_words|_lead)?)$/.exec(id);
+    if (scalePart) {
+      const b = gone(scalePart[1]);
+      if (b !== null) return b;
     }
     return id;
   };
