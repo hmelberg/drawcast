@@ -12,5 +12,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": true,
- "notes": "log scale tick numbers fixed at 18 px; board drawn freehand (32 dark squares)"
+ "notes": "Republished 2026-10-04: dropped the hand-placed 'years of world harvest' label (the scale draws its unit); scale range 0.01–1000 years and moved in so the answer marker stays on the page; text sizes trimmed so nothing leaves the canvas; affirm playful. Board drawn freehand (32 dark squares)."
 }
