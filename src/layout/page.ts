@@ -3,7 +3,7 @@
 // and lints stop repeating their own copies of the same numbers.
 //
 //   y 750 ┌──────────────────────────────┐
-//         │   heading strip (title)      │  HEADING_Y 726, underline ≈ 697
+//         │   heading strip (title)      │  HEADING_Y 726, underline ≈ 693
 //   y 655 ├──────────────────────────────┤  CONTENT_TOP
 //         │                              │
 //         │   content: the figure        │  x 60 … 940 (MARGIN)
@@ -25,13 +25,16 @@ export const PAGE_H = 750;
 export const MARGIN = 60;
 /** The heading's baseline-centre y (spec/card.ts headingElements). */
 export const HEADING_Y = 726;
-/** The top heading's drawn text size: a one-line title across the top, 26–36. */
+/** The top heading's drawn text size: a one-line title across the top, 26–40
+ *  (W28: one step up from 36 — a title up to about 40 characters is drawn at
+ *  40; its centre at 726 keeps the words under the top edge, 750). */
+export const HEADING_FONT_MAX = 40;
 export function headingFont(text: string): number {
-  return Math.max(26, Math.min(36, Math.round(880 / (0.55 * Math.max(1, text.length)))));
+  return Math.max(26, Math.min(HEADING_FONT_MAX, Math.round(880 / (0.55 * Math.max(1, text.length)))));
 }
-/** Top of the content area under a heading: 40 under the lowest underline
- *  (a 36-unit heading's, at 726 − 0.82 × 36 ≈ 696), the gap canvas.ts
- *  HEADING_GAP keeps above a plot. */
+/** Top of the content area under a heading: about 40 under the lowest
+ *  underline (a 40-unit heading's, at 726 − 0.82 × 40 ≈ 693), the gap
+ *  canvas.ts HEADING_GAP keeps above a plot. */
 export const CONTENT_TOP = 655;
 /** Top of the content area on a page with no heading. */
 export const CONTENT_TOP_BARE = 700;

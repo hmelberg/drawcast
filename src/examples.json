@@ -66641,7 +66641,7 @@
           "id": "t_fans",
           "type": "text",
           "text": "Fans pay ${market.price_buyers}",
-          "x": 760,
+          "x": 800,
           "y": 470,
           "font_size": 26,
           "style": {
