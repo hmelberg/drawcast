@@ -46,7 +46,14 @@
      },
      {
       "text": "Tenochtitlan",
-      "value": 701
+      "value": 701,
+      "icon": {
+       "of": "hindu temple",
+       "set": "twemoji",
+       "or": [
+        "lake"
+       ]
+      }
      },
      {
       "text": "Oxford lectures",
@@ -71,7 +78,120 @@
      "bain",
      "oxford",
      "wrangel"
-    ]
+    ],
+    "size": 1
+   },
+   {
+    "id": "vs1",
+    "type": "text",
+    "text": "vs",
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    },
+    "at": {
+     "ref": "pairs_1",
+     "side": "right",
+     "gap": 14
+    }
+   },
+   {
+    "id": "vs3",
+    "type": "text",
+    "text": "vs",
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    },
+    "at": {
+     "ref": "pairs_3",
+     "side": "right",
+     "gap": 14
+    }
+   },
+   {
+    "id": "vs5",
+    "type": "text",
+    "text": "vs",
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    },
+    "at": {
+     "ref": "pairs_5",
+     "side": "right",
+     "gap": 14
+    }
+   },
+   {
+    "id": "c_pend",
+    "type": "text",
+    "text": "2 pendulums",
+    "font_size": 26,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "pairs_1",
+     "side": "left",
+     "gap": 16
+    }
+   },
+   {
+    "id": "c_lake",
+    "type": "text",
+    "text": "on a lake",
+    "font_size": 26,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "pairs_3",
+     "side": "left",
+     "gap": 16
+    }
+   },
+   {
+    "id": "c_bc",
+    "type": "text",
+    "text": "2560 BC",
+    "font_size": 26,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "pairs_6",
+     "side": "right",
+     "gap": 16
+    }
+   },
+   {
+    "id": "c_wr",
+    "type": "text",
+    "text": "Wrangel Is.",
+    "font_size": 26,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "pairs_5",
+     "side": "left",
+     "gap": 16
+    }
+   },
+   {
+    "id": "c_1096",
+    "type": "text",
+    "text": "by 1096",
+    "font_size": 26,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "pairs_4",
+     "side": "right",
+     "gap": 16
+    }
    }
   ],
   "commands": [
@@ -82,7 +202,10 @@
    },
    {
     "draw": [
-     "pairs"
+     "pairs",
+     "vs1",
+     "vs3",
+     "vs5"
     ],
     "speak": "Which came first? Three pairs, and in each one, history plays a trick on you."
    },
@@ -108,7 +231,7 @@
       "pairs_1"
      ]
     },
-    "speak": "First: the fax is older than the telephone."
+    "speak": "Start with the fax."
    },
    {
     "highlight": {
@@ -119,28 +242,21 @@
     "speak": "Alexander Bain patented a way to send pictures by telegraph in 1843, thirty-three years before Bell's phone."
    },
    {
-    "highlight": {
-     "target": [
-      "pairs_1"
-     ]
-    },
+    "draw": [
+     "c_pend"
+    ],
     "speak": "His design used two swinging pendulums, kept in step, to scan a picture line by line."
    },
    {
-    "highlight": {
-     "target": [
-      "pairs_v_4",
-      "pairs_v_3"
-     ]
-    },
+    "draw": [
+     "c_1096"
+    ],
     "speak": "Next, Oxford was teaching students by 1096, more than two centuries before the Aztecs founded their capital, Tenochtitlan."
    },
    {
-    "highlight": {
-     "target": [
-      "pairs_4"
-     ]
-    },
+    "draw": [
+     "c_lake"
+    ],
     "speak": "So when that city rose from its lake, Oxford had already been teaching for generations."
    },
    {
@@ -152,28 +268,25 @@
     "speak": "And the Great Pyramid is older than the last woolly mammoths."
    },
    {
-    "highlight": {
-     "target": [
-      "pairs_v_6"
-     ]
-    },
+    "draw": [
+     "c_bc"
+    ],
     "speak": "The pyramid was finished around 2560 BC."
    },
    {
-    "highlight": {
-     "target": [
-      "pairs_5"
-     ]
-    },
+    "draw": [
+     "c_wr"
+    ],
     "speak": "A small herd survived on Wrangel Island, in the Arctic Ocean, until about four thousand years ago."
    },
    {
     "highlight": {
      "target": [
       "pairs_5",
-      "pairs_6"
-     ],
-     "effect": "circle"
+      "pairs_v_5",
+      "pairs_6",
+      "pairs_v_6"
+     ]
     },
     "speak": "So when the pyramid was already five centuries old, mammoths still walked the Earth."
    }

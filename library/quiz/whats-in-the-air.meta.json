@@ -12,5 +12,5 @@
  "score": 3,
  "verdict": "keep",
  "dialogue": false,
- "notes": "Republish 2026-10-04: pie box dropped; CO2 labels moved right of the pie (were half off the left edge); affirm playful. Slice labels small; 1 % slice fiddly to drag."
+ "notes": "Review round 2026-10-04: slices reordered (Oxygen, Argon, Nitrogen) so no label sits straight above the pie: the template's radius grows ~8 %; 'argos = lazy' under the Argon label; 'CO₂: 0.04 %' outside the pie with a dashed hairline to the argon sliver; 'in → out' cue on the nitrogen line. Pie labels stay 24 (template); no larger pie possible without a start-angle param."
 }
