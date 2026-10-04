@@ -177,11 +177,15 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
           // here, so the front page and every link preview show the same.
           // Anything that goes wrong serves the poster as published.
           const plan = planThumb(found.text.thumb, { title: found.text.title, format: found.text.format, kids: kidsByTags(found.text.tags) });
+          // What happened, for anyone reading the headers (x-thumb): drawn, plain, or why not.
+          let drawn = "plain";
           if (!isPlain(plan) && deps.draw) {
             try {
               bytes = deps.draw(plan, new Uint8Array(bytes));
-            } catch {
-              /* the poster as it is */
+              drawn = "drawn";
+            } catch (err) {
+              drawn = `error: ${String((err as Error)?.message ?? err).slice(0, 120).replace(/[^\x20-\x7e]/g, "?")}`;
+              console.error("card: thumb drawing failed", err);
             }
           }
           // Netlify-CDN-Cache-Control (2026-10-03): the front page shows a
@@ -195,6 +199,7 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
               "cache-control": "public, max-age=3600",
               "netlify-cdn-cache-control": "public, durable, max-age=3600, stale-while-revalidate=86400",
               "access-control-allow-origin": "*",
+              "x-thumb": drawn,
             },
           });
         }
