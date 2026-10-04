@@ -1394,6 +1394,8 @@ function outlineD(leaf: Extract<Drawable, { kind: "stroke" }>): string | null {
 }
 
 let frameMaskSeq = 0;
+/** Window clip ids, document-wide (see clipFor). */
+let clipSeq = 0;
 
 /** A thick round-capped path — band and marker alike — under the ink, posed like its leaf. */
 function penPath(d: string, color: string, width: number, alpha: number, pose: string | null): SVGPathElement {
@@ -2570,7 +2572,11 @@ function makeSvgBackend(opts: { name: string; label: string; sketchy: boolean; c
         const key = `${clip.x},${clip.y},${clip.w},${clip.h}`;
         let id = clipIds.get(key);
         if (!id) {
-          id = `cs-clip-${clipIds.size + 1}`;
+          // Unique in the DOCUMENT, not just this mount: `url(#…)` resolves
+          // to the first element with the id, so a second mount's
+          // `cs-clip-1` (the next part of a lecture, a frames sheet) clipped
+          // its window with the first mount's rectangle.
+          id = `cs-clip-${++clipSeq}`;
           const cp = document.createElementNS(SVG_NS, "clipPath");
           cp.setAttribute("id", id);
           cp.setAttribute("clipPathUnits", "userSpaceOnUse");
