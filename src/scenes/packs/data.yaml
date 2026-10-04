@@ -621,7 +621,7 @@ kit: 11
 status: ready
 description: >-
   A pie chart from data: how a whole splits into parts, one slice per label,
-  starting at 12 o'clock and running clockwise, each named outside the pie
+  starting at 12 o'clock (start_angle turns it) and running clockwise, each named outside the pie
   with its percent. `values` may be one list (static) or a list of lists —
   STAGES of the same pie — and the numeric `stage` param picks which one is
   shown; a fractional stage interpolates, so `animate: {stage: 1}` turns
@@ -652,6 +652,9 @@ params:
     percent:
       type: boolean
       description: "Write each slice's percent after its name (default true)."
+    start_angle:
+      type: number
+      description: "Where the first slice starts, in degrees clockwise from 12 o'clock (default 0; 90 starts at 3 o'clock)."
     box:
       type: object
       properties: { x: { type: number }, y: { type: number }, w: { type: number }, h: { type: number } }
@@ -701,6 +704,10 @@ layout: |
   for (let i = 0; i < n; i++) vals.push(at(k0, i) + (at(k1, i) - at(k0, i)) * t);
   const total = vals.reduce((a, b) => a + b, 0);
   const shares = vals.map((v) => (total > 0 ? v / total : 1 / Math.max(1, n)));
+  // Where the first slice starts: start_angle degrees clockwise from 12 o'clock (W28).
+  const START = ((num(params.start_angle, 0) % 360) * Math.PI) / 180;
+  const TAU = 2 * Math.PI;
+  const norm = (a) => ((a % TAU) + TAU) % TAU;
 
   const b = params.box;
   const boxed = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0;
@@ -726,7 +733,7 @@ layout: |
       const row = [];
       for (let i = 0; i < n; i++) row.push(at(k, i));
       const tot = row.reduce((a, v) => a + v, 0);
-      let a0 = 0;
+      let a0 = START;
       for (let i = 0; i < n; i++) {
         const sh = tot > 0 ? row[i] / tot : 1 / Math.max(1, n);
         const mid = a0 + sh * Math.PI;
@@ -753,8 +760,28 @@ layout: |
 
   const drawables = [], labelReqs = [], anchors = {}, order = [];
   const push = (d) => { drawables.push(d); order.push(d.id); };
-  let a0 = 0;
+  // The names first, walked clockwise from 12 o'clock whatever the start, so
+  // the crowding rule below always walks down the right side and up the left.
+  const mids = [];
+  { let a = START; for (let i = 0; i < n; i++) { mids.push(a + shares[i] * Math.PI); a += shares[i] * TAU; } }
+  const namePos = new Array(n);
   let lastRight = null, lastLeft = null, topLabel = -Infinity;
+  const walk = mids.map((_, i) => i).sort((p, q) => norm(mids[p]) - norm(mids[q]));
+  for (const i of walk) {
+    const mid = mids[i];
+    const lp = P(mid, r + LABEL_OFF);
+    const right = Math.sin(mid) >= 0;
+    // Thin neighbours put their names on top of each other: keep each name
+    // a line clear of the last one on its side, in the direction the
+    // clockwise walk is heading there (down the right, up the left).
+    const last = right ? lastRight : lastLeft;
+    const gapY = labelSize * 1.25 + 2;
+    if (last !== null) lp[1] = right ? Math.min(lp[1], last - gapY) : Math.max(lp[1], last + gapY);
+    if (right) lastRight = lp[1]; else lastLeft = lp[1];
+    topLabel = Math.max(topLabel, lp[1]);
+    namePos[i] = { lp, right };
+  }
+  let a0 = START;
   for (let i = 0; i < n; i++) {
     const id = "slice_" + (i + 1);
     const sweep = shares[i] * 2 * Math.PI;
@@ -771,16 +798,7 @@ layout: |
       children.push(kit.stroke(id + "__o", wedge, { closed: true, color, strokeWidth: 2.5, ms: MS.stroke }));
     }
     const mid = a0 + sweep / 2;
-    const lp = P(mid, r + LABEL_OFF);
-    const right = Math.sin(mid) >= 0;
-    // Thin neighbours put their names on top of each other: keep each name
-    // a line clear of the last one on its side, in the direction the
-    // clockwise walk is heading there (down the right, up the left).
-    const last = right ? lastRight : lastLeft;
-    const gapY = labelSize * 1.25 + 2;
-    if (last !== null) lp[1] = right ? Math.min(lp[1], last - gapY) : Math.max(lp[1], last + gapY);
-    if (right) lastRight = lp[1]; else lastLeft = lp[1];
-    topLabel = Math.max(topLabel, lp[1]);
+    const { lp, right } = namePos[i];
     children.push(kit.text(id + "__l", lp, labelText(i, shares[i]), { fontSize: labelSize, anchor: right ? "start" : "end" }));
     push(kit.group(id, children));
     anchors[id] = P(mid, r * 0.6);
