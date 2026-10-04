@@ -711,6 +711,12 @@ const elementSchema = {
     ticks: { type: "integer", minimum: 1, maximum: 20, description: "scale: how many tick intervals (default 5)." },
     tick_format: { type: "string", enum: ["words", "numerals", "power"], description: "scale: words (default: \"43 million\"), numerals, or power (10ⁿ)." },
     era: { type: "string", enum: ["BC", "BCE", "none"], description: "scale: negative years as BC (default), BCE, or none (minus)." },
+    markers: {
+      type: "array",
+      maxItems: 6,
+      items: { type: "object", properties: { value: { type: "number" }, label: { type: "string" }, color: { type: "string" } }, required: ["value"], additionalProperties: false },
+      description: "scale: extra labelled points on the line ({value: 7, label: \"old limit\"}) — the engine places the words; drawn with the line (or draw <id>_marker_<n>).",
+    },
     slider: { type: "boolean", description: "scale: set by an ask's estimate — never write it." },
     states: {
       type: "object",

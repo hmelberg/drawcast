@@ -50,6 +50,11 @@ export interface ScaleElementLike {
   font_size?: number;
   /** Drawn as an estimate slider (spec/slider.ts, W15). */
   slider?: boolean;
+  /** Extra labelled points on the line ("old limit" at 7, "2011" at 13; W27):
+   *  each a taller tick with its words over the line, placed by the engine
+   *  (rows above the marker's number, clear of each other and the caption).
+   *  Drawn with the line unless the cast draws `<id>_marker_<n>` itself. */
+  markers?: { value: number; label?: string; color?: string }[];
   style?: SpecElement["style"];
 }
 
@@ -436,6 +441,80 @@ export function scaleLineElements(sc: ScaleElementLike, textScale = 1): SpecElem
   return out;
 }
 
+/** A marker's ink when it names no colour: quieter than the answer, like the ticks. */
+const MARKER_INK = "#8f887c";
+
+/**
+ * The scale's extra markers (W27, `markers`): `<id>_marker_<n>` — a taller
+ * tick on the line, its words over it and a thin leader between. The words
+ * go above the band the answer's number takes (lint/scale-marker-room's
+ * band), so the guess's number and the tick numbers under the line stay
+ * clear; neighbours that would touch (or the caption) push a label up a row.
+ */
+export function scaleMarkerElements(sc: ScaleElementLike, textScale = 1): SpecElement[] {
+  if (isSlider(sc) || !Array.isArray(sc.markers) || sc.markers.length === 0) return [];
+  const g = scaleGeometry(sc);
+  const sizes = g.sizes ?? { tick: TICK_SIZE, answer: 28, caption: 26 };
+  const size = sizes.tick;
+  const f = size * textScale;
+  const answerF = sizes.answer * Math.max(1, textScale);
+  const bandTop = g.y + 36 + Math.round(sizes.answer * 0.6) + answerF * 0.6;
+  const rowH = Math.round(f * 1.3);
+  type Box = { x0: number; x1: number; y0: number; y1: number };
+  const hits = (a: Box, b: Box): boolean => a.x0 < b.x1 + 12 && b.x0 < a.x1 + 12 && a.y0 < b.y1 && b.y0 < a.y1;
+  const taken: Box[] = [];
+  if (sc.label) {
+    const cf = sizes.caption * textScale;
+    const cy = g.y + 44 + Math.round(sizes.answer * 1.2 + sizes.caption * 0.5);
+    const cw = scaleLabelWidth(sc.label, cf);
+    const cx = (g.x0 + g.x1) / 2;
+    taken.push({ x0: cx - cw / 2, x1: cx + cw / 2, y0: cy - cf * 0.6, y1: cy + cf * 0.6 });
+  }
+  // The answer's number (when the scale has one): a leader must not cross it.
+  let answerBox: Box | null = null;
+  if (isNum(sc.value)) {
+    const ax = g.xAt(g.value);
+    const t = g.format(g.value);
+    const hw = tickWidth(t, answerF) / 2;
+    const cx = numberX(t, ax, sizes.answer);
+    answerBox = { x0: cx - hw, x1: cx + hw, y0: g.y + 4, y1: bandTop };
+  }
+  const order = sc.markers
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) => m && isNum(m.value))
+    .sort((a, b) => a.m.value - b.m.value);
+  const out: SpecElement[] = [];
+  for (const { m, i } of order) {
+    const id = `${sc.id}_marker_${i + 1}`;
+    const x = g.xAt(m.value);
+    const color = typeof m.color === "string" && m.color !== "" ? m.color : MARKER_INK;
+    const text = typeof m.label === "string" && m.label.trim() !== "" ? m.label.trim() : g.format(m.value);
+    const w = scaleLabelWidth(text, f);
+    const tx = Math.max(8 + w / 2, Math.min(PAGE_W - 8 - w / 2, x));
+    let row = 0;
+    let box: Box = { x0: 0, x1: 0, y0: 0, y1: 0 };
+    for (; row < 4; row++) {
+      const cy = bandTop + 8 + f / 2 + row * rowH;
+      box = { x0: tx - w / 2, x1: tx + w / 2, y0: cy - f / 2, y1: cy + f / 2 };
+      if (!taken.some((b) => hits(b, box))) break;
+    }
+    taken.push(box);
+    const cy = (box.y0 + box.y1) / 2;
+    const members = [`${id}_tick`, `${id}_words`];
+    out.push({ id: `${id}_tick`, type: "path", points: [[x, g.y - 14], [x, g.y + 14]], style: { color, stroke_width: 4 } });
+    out.push({ id: `${id}_words`, type: "text", text, x: Math.round(tx), y: Math.round(cy), font_size: size, style: { color } });
+    // The leader runs up from the tick to the words — unless it would cross the answer's number.
+    const top = box.y0 - 4;
+    const crosses = answerBox !== null && x > answerBox.x0 - 6 && x < answerBox.x1 + 6;
+    if (!crosses && top - (g.y + 14) > 6) {
+      out.push({ id: `${id}_lead`, type: "path", points: [[x, g.y + 14], [x, Math.round(top)]], style: { color, stroke_width: 2, opacity: 0.7 } });
+      members.push(`${id}_lead`);
+    }
+    out.push({ id, type: "group", members });
+  }
+  return out;
+}
+
 /** The scale's numbers its group keeps (not its caption: a group's label
  *  means nothing) — the guess reads its truth and geometry back from them. */
 function scaleKeep(sc: ScaleElementLike): Partial<SpecElement> {
@@ -562,7 +641,7 @@ export function expandScales(spec: Spec): Spec {
       continue;
     }
     const sc = placeScale(el as unknown as ScaleElementLike, spec as Spec & { heading?: unknown });
-    out.push(...scaleLineElements(sc, textScale), ...(isNum(sc.value) ? scaleValueElements(sc, sc.value) : []));
+    out.push(...scaleLineElements(sc, textScale), ...scaleMarkerElements(sc, textScale), ...(isNum(sc.value) ? scaleValueElements(sc, sc.value) : []));
   }
   return { ...spec, elements: out };
 }

@@ -515,6 +515,8 @@ export interface SpecElement {
   tick_format?: "words" | "numerals" | "power";
   /** scale: years before year 1 — "BC" (default on a timeline into negative years), "BCE", or "none". */
   era?: "BC" | "BCE" | "none";
+  /** scale: extra labelled points on the line, placed by the engine (W27): `<id>_marker_<n>`. */
+  markers?: { value: number; label?: string; color?: string }[];
   /** scale: drawn as an estimate slider — a chunky track and a big counter (W15; an ask's `estimate` writes it). */
   slider?: boolean;
   /** population: how many people (default: the states' sum, else 100). */

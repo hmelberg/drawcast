@@ -495,6 +495,7 @@ commands:
           <li><strong><code>tick_format</code></strong>: <code>words</code> (default), <code>numerals</code>, or <code>power</code> (10ⁿ).</li>
           <li><strong>The unit</strong> is written once, on the line, not on every tick.</li>
           <li>While the viewer guesses, a ghost marker shows the value under the pointer.</li>
+          <li><strong><code>markers</code></strong>: other points worth naming — <code>[{"value": 7, "label": "old limit"}]</code>. The engine places their words over the line, clear of each other; they come with the line, or draw <code>&lt;id&gt;_marker_1</code> on its own beat.</li>
         </ul>
         <pre><code>{ "id": "s", "type": "scale", "min": 1000000, "max": 100000000000, "log": true,
   "value": 8100000000, "unit": "people", "label": "People alive today" }
