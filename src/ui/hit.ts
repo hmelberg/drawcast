@@ -123,3 +123,37 @@ export function nearestLine(lines: ReadonlyMap<string, Pt[][]>, p: Pt, reach: nu
   }
   return best;
 }
+
+/**
+ * A code panel's lines as rows (2026-10-05, the microdata course: "Klikk på
+ * linjen …" judged right answers wrong). A line's box is only its text — a
+ * click right of a short line, or in the gap between two, landed on the
+ * panel itself (`md`), never on `md_line_4`. Here each `<id>_line_N` box is
+ * widened to its panel's right edge (less a margin) and grown to meet its
+ * neighbours halfway, so the whole row answers for the line. Returns a new map.
+ */
+export function rowBands(boxes: ReadonlyMap<string, BBox>): Map<string, BBox> {
+  const out = new Map(boxes);
+  const groups = new Map<string, { id: string; b: BBox }[]>();
+  for (const [id, b] of boxes) {
+    const m = /^(.+)_line_\d+$/.exec(id);
+    if (!m || !boxes.has(m[1])) continue;
+    const g = groups.get(m[1]) ?? [];
+    g.push({ id, b });
+    groups.set(m[1], g);
+  }
+  for (const [panel, lines] of groups) {
+    const p = boxes.get(panel)!;
+    const right = p.x + p.w - 12;
+    // y-up: top to bottom is highest y first.
+    lines.sort((a, b) => b.b.y - a.b.y);
+    lines.forEach(({ id, b }, i) => {
+      const above = lines[i - 1]?.b;
+      const below = lines[i + 1]?.b;
+      const top = above ? (b.y + b.h + above.y) / 2 : b.y + b.h;
+      const bottom = below ? (b.y + below.y + below.h) / 2 : b.y;
+      out.set(id, { x: b.x, y: bottom, w: Math.max(b.w, right - b.x), h: top - bottom });
+    });
+  }
+  return out;
+}

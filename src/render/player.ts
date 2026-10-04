@@ -3893,6 +3893,14 @@ export class Player {
       case "explore": {
         await this.narrationBarrier();
         if (signal.aborted) return;
+        // An editor opened at once covers the figure while the line saying
+        // what to do is still being spoken (Hans 2026-10-05, the microdata
+        // course: "it should tell you first, then open"): a code beat's own
+        // line ends before its editor opens.
+        if (step.code !== undefined && this.narrationVoice) {
+          await this.narrationVoice.catch(() => undefined);
+          if (signal.aborted) return;
+        }
         if (this.exploreGate) {
           const kept = await this.exploreGate(signal, step);
           if (kept && !signal.aborted) for (const [k, v] of Object.entries(kept)) this.vars.set(k.toLowerCase(), v);

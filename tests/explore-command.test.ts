@@ -169,3 +169,34 @@ describe("settleParams and getParamOverrides", () => {
     expect(player.getParamOverrides()).toEqual({ n: 80 });
   });
 });
+
+describe("a code explore tells first, then opens (2026-10-05, the microdata course)", () => {
+  class SlowSpeech extends RecordingSpeech {
+    done = false;
+    override speak(text: string): Promise<void> {
+      this.spoken.push(text);
+      this.done = false;
+      return new Promise((r) => setTimeout(() => ((this.done = true), r()), 80));
+    }
+  }
+  test("the editor's gate opens only once the beat's own line has been said", async () => {
+    const speech = new SlowSpeech();
+    const player = new Player(planCommands([{ explore: { code: "md" }, speak: "Change the last line to tabulate sex, then run it." }], []), new Map(), speech, null, { mode: "narrated" });
+    let openedDuringLine: boolean | null = null;
+    player.exploreGate = async () => {
+      openedDuringLine = !speech.done;
+    };
+    await player.play();
+    expect(openedDuringLine).toBe(false);
+  });
+  test("an explore of sliders still opens with its line (the demo plays under the voice)", async () => {
+    const speech = new SlowSpeech();
+    const player = new Player(planCommands([{ explore: { params: ["n"] }, speak: "Try some numbers yourself." }], []), new Map(), speech, null, { mode: "narrated" });
+    let openedDuringLine: boolean | null = null;
+    player.exploreGate = async () => {
+      openedDuringLine = !speech.done;
+    };
+    await player.play();
+    expect(openedDuringLine).toBe(true);
+  });
+});

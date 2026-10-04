@@ -18,7 +18,7 @@ import type { SpeechManager } from "../render/speech";
 import { answersMatch } from "../spec/answers";
 import { elementBBoxes, elementRings } from "../layout/layout";
 import { makeBrowserMeasure } from "../render/svg-backend";
-import { hitElement } from "./hit";
+import { hitElement, rowBands } from "./hit";
 import { pianoKeyAt, pianoKeyBox, pianoKeyGuide, pianoNoteForKey, pianoOctaves } from "../render/widgets";
 import { clientPointFor, h, logicalPoint } from "./dom";
 import { icon } from "./icons";
@@ -596,7 +596,8 @@ function figureGateFor(stage: HTMLElement, hd: RenderHandle): (signal: AbortSign
       stage.querySelector(".cs-figgate")?.remove();
       const hint = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, "Click on the figure \u25b8");
       const gate = h("div", { class: "cs-figgate" }, hint);
-      const boxes = elementBBoxes(hd.layout, makeBrowserMeasure());
+      // A code panel's lines answer for their whole row (hit.ts rowBands).
+      const boxes = rowBands(elementBBoxes(hd.layout, makeBrowserMeasure()));
       const rings = elementRings(hd.layout);
       let settled = false;
       const remove = (): void => {
