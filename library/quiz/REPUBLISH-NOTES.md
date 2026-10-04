@@ -21,3 +21,7 @@ Collected while the engine changed; fix these when re-framing each cast.
 - true-or-myth, body-myths, misnamed-things: on-canvas answer buttons (W8) instead of the quiz modal.
 - Card casts: adaptive size (W2) — drop hand-placed labels that were placed at computed slots (eleven-oscars).
 - Posters: regenerated automatically (poster = before the first question).
+
+## After the engine deploy (not before)
+- Re-push the microdata course (hmelberg/dcast/microdata) with the new tooling so its end pages read Norwegian ("Neste: …"), then re-bake that line; the m2py_runtime package ships with the deploy (merge runs in the browser).
+- Republish the 50 quizzes (library/quiz) with the new engine; re-bake changed lines (within the TTS budget).
