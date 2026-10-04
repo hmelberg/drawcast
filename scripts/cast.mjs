@@ -1662,13 +1662,14 @@ const commands = {
         if (m && Number(m[1]) > tiles.length) unlinkSync(`${out}/${old}`);
       }
       writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 1));
-      console.log(`${tiles.length} tile(s): ${tiles.join(", ")} — one frame per spoken line (mid-gesture where the line highlights, focuses, points or flows)`);
+      console.log(`${tiles.length} tile(s): ${tiles.join(", ")} — one frame per spoken line (mid-gesture where the line highlights, focuses, points or flows); each question twice: before the answer (its gate open) and after the reveal`);
       for (const part of report.parts ?? []) {
         const bad = [...part.validationErrors, ...(part.iconIssues ?? []), ...part.planWarnings, ...part.commandIssues, ...part.playbackErrors];
         if (bad.length) console.log("  " + bad.join("\n  "));
-        for (const fr of part.frames ?? []) if (fr.issues?.length) console.log(`  @${fr.at} ${fr.changed}: ${fr.issues.join(" · ")}`);
+        // A question's pair is labelled with its step number (src/dev/frame-list.ts).
+        for (const fr of part.frames ?? []) if (fr.issues?.length) console.log(`  @${fr.ask ?? fr.at} ${fr.changed}: ${fr.issues.join(" · ")}`);
         // Advice, not defects (src/lint/fill.ts): a page at its fullest.
-        for (const fr of part.frames ?? []) if (fr.advisories?.length) console.log(`  @${fr.at} ${fr.changed}: ${fr.advisories.join(" · ")}`);
+        for (const fr of part.frames ?? []) if (fr.advisories?.length) console.log(`  @${fr.ask ?? fr.at} ${fr.changed}: ${fr.advisories.join(" · ")}`);
       }
       if (errors.length) console.log("page errors:\n  " + errors.join("\n  "));
       if (!(report.parts ?? []).some((p) => p.frames?.some((f) => f.issues?.length))) console.log("  no browser lint on any frame");
