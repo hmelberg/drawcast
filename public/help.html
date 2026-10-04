@@ -114,6 +114,7 @@
         <a href="#instructions">Instructions &amp; references</a>
         <a href="#spec">The spec format</a>
         <a href="#commands">Command reference</a>
+        <a href="#cast">The .cast script</a>
         <a href="#playlists">Multi-part drawcasts</a>
         <a href="#controls">Player controls</a>
         <a href="#share">Sharing a drawcast</a>
@@ -309,8 +310,10 @@ Show how a rent ceiling creates a shortage #norwegian #calm</code></pre>
 
         <h2 id="spec">The spec format</h2>
         <p>
-          A drawcast is a small document — YAML by default, JSON if you prefer — with a list of
-          commands. You can read and edit it directly; the preview re-renders on
+          A drawcast is a small document with a list of commands. The editor shows it as a
+          <a href="#cast"><code>.cast</code> script</a>, and that is what Publish writes. YAML and JSON
+          are read too, and <strong>⬇ Download</strong> can save a single drawcast in any of the
+          three. They all hold the same fields, so the YAML below and a script say the same thing. You can read and edit the text directly; the preview re-renders on
           <strong>Re-render</strong>.
         </p>
         <pre><code>title: Demand increase
@@ -330,7 +333,10 @@ commands:
         <table>
           <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
           <tbody>
-            <tr><td><code>title</code></td><td>Short title, drawn above the figure.</td></tr>
+            <tr><td><code>title</code></td><td>Short title. It is also the page's heading unless you say otherwise (see <a href="#page">The page</a>).</td></tr>
+            <tr><td><code>heading</code></td><td><code>false</code> for no heading, or other words for the heading than the title.</td></tr>
+            <tr><td><code>page</code></td><td><code>{ valign: top }</code> or <code>none</code> stops the figure being centred vertically.</td></tr>
+            <tr><td><code>affirm</code></td><td>What a viewer hears after a right answer (see <a href="#replies">Replies</a>).</td></tr>
             <tr><td><code>template</code></td><td>Which template computes the geometry.</td></tr>
             <tr><td><code>params</code></td><td>That template's parameters.</td></tr>
             <tr><td><code>elements</code></td><td>Hand-placed pieces when no template fits: axes, curve, point, arrow, label, region, node, edge, annotation, path, text, shape.</td></tr>
@@ -379,6 +385,85 @@ commands:
         </table>
         <p class="muted">
           Seeking is a control, not a command: drag the progress bar to jump to any point.
+        </p>
+
+        <h2 id="cast">The .cast script</h2>
+        <p>
+          A <code>.cast</code> file is the same drawcast written the way a script is: what the voice
+          says at the left margin, and the stage directions indented under it. It is what the editor
+          shows and what Publish writes; everything a JSON spec can say, a script can say too.
+        </p>
+        <table>
+          <thead><tr><th>Line</th><th>Means</th></tr></thead>
+          <tbody>
+            <tr><td><code># Title</code></td><td>The drawcast's title (and so its heading). With <code>## Part</code> pages under it, the playlist's name instead.</td></tr>
+            <tr><td><code>## Part title</code></td><td>Starts a new page (part) of a multi-part drawcast.</td></tr>
+            <tr><td><code>key: value</code></td><td>A setting, at the left margin (the list is below).</td></tr>
+            <tr><td>Plain text at the margin</td><td>A spoken line. <code>A:</code> / <code>B:</code> in front of it gives a dialogue its two voices.</td></tr>
+            <tr><td>An indented line</td><td>A stage direction — a command (<code>draw sun</code>, <code>pause 0.4</code>) or an element (<code>icon sun of sun size 300</code>). The first direction under a spoken line happens while it is said; an element declared there is drawn there. <code>hidden true</code> declares it without drawing it.</td></tr>
+            <tr><td>Deeper indent</td><td>Belongs to the line above: a question's <code>right:</code> and <code>wrong:</code>, its choices (<code>* wrong</code>, <code>+ right</code>), a set of cards' items.</td></tr>
+            <tr><td><code>(@highlight sun@)</code></td><td>An action inside a spoken line, timed at that word.</td></tr>
+            <tr><td><code>@name</code></td><td>A label to jump to (<code>wrong_goto</code>, <code>if</code>).</td></tr>
+            <tr><td><code>// …</code></td><td>A comment.</td></tr>
+            <tr><td><code>```yaml</code> … <code>```</code></td><td>The escape hatch: a YAML list is added as elements, a mapping merged into the page. <code>```python sim</code> is a code element named <code>sim</code>.</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Values are a bare word, a number, <code>true</code>/<code>false</code>, a
+          <code>"quoted string"</code>, or inline JSON (<code>[…]</code>, <code>{…}</code>). A dotted
+          name reaches inside an object: <code>estimate.max 500</code>. Positions read as words:
+          <code>below brain gap 20</code>.
+        </p>
+        <h3>Settings</h3>
+        <table>
+          <thead><tr><th>Where</th><th>Keys</th></tr></thead>
+          <tbody>
+            <tr><td>Each page</td><td><code>lang</code> <code>voice</code> <code>level</code> <code>heading</code> <code>page</code> <code>affirm</code> <code>feedback</code> <code>record</code> <code>sources</code> <code>use</code> (the template) <code>with</code> (its params, as a YAML block under it) <code>domain</code> <code>vars</code> <code>text</code> <code>canvas</code> <code>zoom_from</code> <code>book</code> <code>adjust</code> <code>details</code> <code>more</code> <code>end_page</code> <code>chapter</code></td></tr>
+            <tr><td>The document (before the first page)</td><td><code>subtitle</code> <code>advance</code> <code>gap</code> <code>transitions</code> <code>next</code> <code>prompt</code> <code>tags</code> <code>format</code> <code>poster</code> <code>comments</code> <code>views</code> <code>enroll</code></td></tr>
+          </tbody>
+        </table>
+        <h3>A complete quiz</h3>
+        <p>
+          No <code>card</code> is needed — the title is the heading. The first quiz answers on buttons
+          beside the brain and stamps its verdict; the estimate draws its own slider; the last quiz
+          asks for a bet.
+        </p>
+        <pre><code># True or myth? Your body
+affirm: playful
+tags: ["biology", "quiz"]
+
+    icon brain of brain size 300 hidden true
+    text brain_l "Ten percent?" below brain gap 20 hidden true
+
+Three things people say about the human body, and whether each one is true.
+    draw brain
+
+The first: we only use ten percent of our brains. True, or myth?
+    draw brain_l
+
+    quiz "We use only ten percent of our brains." on_canvas true reveal true
+        right: Myth. Scans show activity all over the brain, even during sleep.
+        * True
+        + Myth
+
+    hide brain brain_l
+
+Next, your skeleton, which holds you up and guards your heart.
+
+    ask "How many bones does an adult have? Drag the slider to your estimate." estimate.min 0 estimate.max 500 estimate.value 206 estimate.unit bones store g default "150"
+        right: Close: you said {g}, and it is {g.true}.
+        wrong: You said {g}; it is {g.true}, {g.off} away.
+
+    quiz "Which organ is the largest?" confidence true
+        right: The skin: about two square metres of it.
+        * The liver
+        + The skin
+        * The brain
+
+You got {score} of {score_total}, and you were {calib}.</code></pre>
+        <p class="muted">
+          Working in the repository? <code>node scripts/cast.mjs check my.cast</code> validates a script
+          and runs the same layout checks the app does.
         </p>
 
         <h2 id="playlists">Multi-part drawcasts</h2>
