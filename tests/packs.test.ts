@@ -572,7 +572,14 @@ describe("biology pack", () => {
     expect(r.drawables.some((d) => d.id === "node_g")).toBe(true);
     expect(r.drawables.some((d) => d.id === "node_m")).toBe(true);
     expect(r.drawables.some((d) => d.id === "node_x")).toBe(false); // process: no shape
-    expect(r.labels.some((l) => l.id === "node_label_x")).toBe(true); // but the label still exists
+    // but its name still stands; every name is written inside its shape now
+    // (W25), a text at the node's anchor, drawn with its node.
+    for (const k of ["p", "g", "x"]) {
+      const t = r.drawables.find((d) => d.id === `node_label_${k}`);
+      expect(t?.kind).toBe("text");
+      expect(t && t.kind === "text" ? t.pos : null).toEqual(r.anchors[`node_${k}`]);
+    }
+    expect(r.attached?.node_p).toEqual(["node_label_p"]);
   });
 
   test("punnett_square: Aa x Aa gives genotypes AA/Aa/Aa/aa (dominant allele first) and a 3:1 phenotype ratio by default", () => {

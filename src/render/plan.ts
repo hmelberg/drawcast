@@ -1894,14 +1894,20 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
       if (places.length > 0) warnings.push(`highlight: places and ids in one highlight — highlight "${placeNames.join('", "')}" in its own command`);
       const ids = visibleTargets(plain, "highlight");
       if (ids.length === 0) continue;
-      const boxes: Record<string, BBox> = {};
-      for (const id of ids) {
-        const box = bboxOf(id); // layout box; the player adds the live offset
-        if (box) boxes[id] = box;
-      }
       // light / ring are the picture marks' names; on an ordinary id they read as glow / circle.
       const asked = cmd.highlight.effect;
       const effect = asked === "light" ? "glow" : asked === "ring" ? "circle" : asked ?? "glow";
+      // A ring or a box goes round the element AND its own label or value
+      // on screen (W25: a ring round a bar or a card cut through the label
+      // under it). Not with `part`, which narrows the mark to a piece.
+      const enclose = (effect === "circle" || effect === "box") && !part;
+      const boxes: Record<string, BBox> = {};
+      for (const id of ids) {
+        const box = bboxOf(id); // layout box; the player adds the live offset
+        if (!box) continue;
+        const own = enclose ? [...new Set(opts.attachedTo?.(id) ?? [])].filter((f) => visibleSet.has(f) && !ids.includes(f)).map(bboxOf).filter((b): b is BBox => b !== null) : [];
+        boxes[id] = own.length > 0 ? (unionBox([box, ...own]) ?? box) : box;
+      }
       pushStep({
         kind: "highlight",
         ids,

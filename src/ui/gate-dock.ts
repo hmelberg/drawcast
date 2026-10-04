@@ -21,6 +21,7 @@
 // .cs-stage.cs-headline) and comes back when the headline fades.
 
 import { h } from "./dom";
+import { CONTENT_TOP, PAGE_H } from "../layout/page";
 
 export interface GateDock {
   /** The row; append buttons to it. */
@@ -53,33 +54,92 @@ export interface GateHead {
   how: HTMLElement;
 }
 
+/** The share of the drawing's height above the content area (page.ts): the
+ *  heading strip, where a headline over the drawing may stand without
+ *  covering the figure. */
+export const HEAD_STRIP = (PAGE_H - CONTENT_TOP) / PAGE_H;
+/** The headline's question font (px): its full size, and the least it shrinks to. */
+const HEAD_FONT_MAX = 22.4;
+const HEAD_FONT_MIN = 13;
+/** Under this the how line leaves the headline before the question shrinks further. */
+const HEAD_FONT_KEEP = 17;
+
+/**
+ * The headline over the drawing must fit the heading strip (`room`, px): the
+ * largest question font from `max` down to 17 that does with the how line
+ * under it; failing that, down to `min` without the how line (it goes to the dock);
+ * failing that too, the least font, no how line. `measure` gives the
+ * headline's height at a font and with or without the how line. Pure, for
+ * the tests.
+ */
+export function fitHeadline(room: number, measure: (fontPx: number, how: boolean) => number, max = HEAD_FONT_MAX, min = HEAD_FONT_MIN): { fontPx: number; how: boolean } {
+  // The how line stays while the question can keep a good size (≥ HEAD_FONT_KEEP);
+  // past that the question's size matters more and the how line goes to the dock.
+  for (const [how, least] of [[true, Math.max(min, Math.min(max, HEAD_FONT_KEEP))], [false, min]] as const) {
+    for (let f = max; f >= least - 1e-9; f -= 1) if (measure(f, how) <= room) return { fontPx: Math.round(f * 10) / 10, how };
+  }
+  return { fontPx: min, how: false };
+}
+
+export interface GateHeadMount {
+  /** Lay the headline again. `over`: it stands over the drawing, fitted to
+   *  the heading strip (the default; else it stands above the drawing, on a
+   *  phone with room for both); `shift`: how far the drawing stands lowered
+   *  for it now (px). Returns whether the how line stays in it, and how far
+   *  (px) it overruns the strip even at its least size. */
+  relayout(over?: boolean, shift?: number): { how: boolean; overrun: number };
+  height(): number;
+  dispose(): void;
+}
+
 /**
  * Mount the headline on the STAGE (a gate is removed at once when it
  * finishes; the headline fades out after it). Null for no question.
  */
-export function mountGateHead(stage: HTMLElement, head: GateHead): { relayout(): void; height(): number; dispose(): void } | null {
+export function mountGateHead(stage: HTMLElement, head: GateHead): GateHeadMount | null {
   // A headline still fading from the last question goes at once.
   stage.querySelector(".cs-gatehead")?.remove();
   if (head.question.trim() === "") return null;
   head.how.classList.remove("cs-waitgate-pill");
   head.how.classList.add("cs-gatehead-how");
-  const el = h("div", { class: "cs-gatehead" }, h("div", { class: "cs-gatehead-q", title: head.question }, head.question), head.how);
+  const q = h("div", { class: "cs-gatehead-q", title: head.question }, head.question);
+  const el = h("div", { class: "cs-gatehead" }, q, head.how);
   stage.appendChild(el);
   stage.classList.add(HEADLINE);
   let gone = false;
-  const relayout = (): void => {
-    if (gone) return;
-    // A caption below or in a strip (a phone): the drawing stands under the
-    // headline (the dock gives it room, --cs-head-h), so the headline takes
-    // the stage's top. An overlay caption: just under the drawing's own top
-    // edge, in the strip the layouts leave free (HEAD_ROOM_Y).
-    if (stage.classList.contains("cs-caption-below") || stage.classList.contains("cs-caption-strip")) {
-      el.style.top = "0px";
-      return;
-    }
+  let keepsHow = true;
+  /** The how line in the headline (true) or out of it (the dock takes it). */
+  const setHow = (on: boolean): void => {
+    if (on && head.how.parentNode !== el) el.appendChild(head.how);
+    keepsHow = on;
+  };
+  const relayout = (over = true, shift = 0): { how: boolean; overrun: number } => {
+    if (gone) return { how: keepsHow, overrun: 0 };
     const svg = stage.querySelector<SVGSVGElement>("svg.cs-svg");
-    const top = svg ? svg.getBoundingClientRect().top - stage.getBoundingClientRect().top : 0;
+    const svgBox = svg?.getBoundingClientRect();
+    if (!over) {
+      // Above the drawing (a phone with room under it): the stage's top, full size.
+      q.style.removeProperty("font-size");
+      setHow(true);
+      el.style.top = "0px";
+      return { how: true, overrun: 0 };
+    }
+    // Over the drawing, just under its top edge, in the heading strip the
+    // page frame leaves free (W25): the question as large as fits there, so
+    // it neither covers the figure nor takes height from it.
+    const top = svgBox ? svgBox.top - stage.getBoundingClientRect().top - shift : 0;
     el.style.top = `${Math.max(0, top) + 6}px`;
+    const room = svgBox && svgBox.height > 0 ? svgBox.height * HEAD_STRIP - 6 + shift : Infinity;
+    const fit = fitHeadline(room, (f, how) => {
+      q.style.fontSize = `${f}px`;
+      if (how && head.how.parentNode !== el) el.appendChild(head.how);
+      if (!how && head.how.parentNode === el) head.how.remove();
+      return el.offsetHeight;
+    });
+    q.style.fontSize = `${fit.fontPx}px`;
+    if (!fit.how && head.how.parentNode === el) head.how.remove();
+    setHow(fit.how);
+    return { how: fit.how, overrun: Math.max(0, Math.ceil(el.offsetHeight - room)) };
   };
   relayout();
   return {
@@ -119,14 +179,14 @@ export function mountGateDock(stage: HTMLElement, gate: HTMLElement, items: HTML
   stage.classList.add(DOCKED);
   let disposed = false;
   let shrink = 0;
-  /** A phone (caption below / strip): the drawing stands under the headline. */
-  const setHeadH = (): number => {
-    const below = stage.classList.contains("cs-caption-strip") || stage.classList.contains("cs-caption-below");
-    const headH = below && top ? top.height() : 0;
-    stage.style.setProperty("--cs-head-h", `${headH}px`);
-    return headH;
+  /** How far the drawing stands lowered under the headline now (px). */
+  let headShift = 0;
+  /** The how line: in the headline, or (it did not fit there) first in the dock. */
+  const placeHow = (inHead: boolean): void => {
+    if (!head || !top) return;
+    if (!inHead && head.how.parentNode !== el) el.insertBefore(head.how, el.firstChild);
+    el.hidden = !inHead ? false : items.length === 0;
   };
-  setHeadH();
 
   const relayout = (): void => {
     if (disposed) return;
@@ -137,22 +197,47 @@ export function mountGateDock(stage: HTMLElement, gate: HTMLElement, items: HTML
     const narrow = stage.getBoundingClientRect().width < NARROW_PX;
     el.classList.toggle("cs-gatedock-narrow", narrow);
     if (stage.classList.contains(DOCKED_NARROW) !== narrow) stage.classList.toggle(DOCKED_NARROW, narrow);
+    const mode = stage.classList.contains("cs-caption-strip") ? "strip" : stage.classList.contains("cs-caption-below") ? "below" : "overlay";
+    // A headline hides the caption (styles.css): it takes no height then.
+    const captionH = caption && !top ? caption.getBoundingClientRect().height : 0;
+    const stageH = stage.getBoundingClientRect().height;
+    const svgH = svg ? svg.getBoundingClientRect().height + shrink : 0;
+    // The headline stands ABOVE the drawing only where the stage has the
+    // height for it (a phone held upright, a caption below): the drawing
+    // keeps its size. Anywhere else it stands OVER the drawing, in the
+    // heading strip (W25: above it, the headline cost a 460 px player two
+    // thirds of the drawing's width).
+    let headH = 0;
+    if (top) {
+      let over = true;
+      if (svg && mode !== "overlay") {
+        top.relayout(false, headShift);
+        placeHow(true);
+        const tall = top.height();
+        if (dockShrink({ mode, stageH, svgH, captionH, dockH: el.offsetHeight + 8, headH: tall }) === 0) {
+          over = false;
+          headH = tall;
+        }
+      }
+      if (over) {
+        const fit = top.relayout(true, headShift);
+        placeHow(fit.how);
+        // Even at its least size it overruns the strip (a phone, a long
+        // question): the drawing steps down that much — never more.
+        if (mode !== "overlay") headH = fit.overrun;
+      }
+    }
+    headShift = headH;
+    stage.style.setProperty("--cs-head-h", `${headH}px`);
     // The dock's own height, plus its gap from the stage's edge.
     const dockH = el.offsetHeight + 8;
     stage.style.setProperty("--cs-dock-h", `${dockH}px`);
-    const mode = stage.classList.contains("cs-caption-strip") ? "strip" : stage.classList.contains("cs-caption-below") ? "below" : "overlay";
-    const headH = setHeadH();
     let next = 0;
-    if (svg && mode !== "overlay") {
-      const svgH = svg.getBoundingClientRect().height + shrink;
-      const captionH = caption ? caption.getBoundingClientRect().height : 0;
-      next = dockShrink({ mode, stageH: stage.getBoundingClientRect().height, svgH, captionH, dockH, headH });
-    }
+    if (svg && mode !== "overlay") next = dockShrink({ mode, stageH, svgH, captionH, dockH, headH });
     if (next !== shrink) {
       shrink = next;
       stage.style.setProperty("--cs-dock-shrink", `${shrink}px`);
     }
-    top?.relayout();
     onLayout();
   };
 

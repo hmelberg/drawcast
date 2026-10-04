@@ -124,3 +124,26 @@ and a short line in the compiler prompt.
   across relayouts); bundled examples blocked that way and off-centre by 30–150: about 16.
 - **W27 Found while re-preparing quizzes (2026-10-04)** — chart/pie labels (~20) look small beside large cards: scale chart text with the page's card size or offer `label_size`; cards with company never grow (by design) and authors guessed sizes — consider growing against the free area of the content box; `check` doesn't treat the estimate slider (`estimate_1`) as erased after `erase`; a number line can't take extra markers (author hand-placed "old limit: 7" and "2011: 13"); idle opening beats in sequence casts (the first item could draw with the opening line).
 - **W28 Wishes from the quiz reviews (2026-10-04)** — card layouts with company still look small (grow cards into the free part of the content box, not only when alone); a slightly larger heading font; the frames tool should draw the quiz card / buttons on question frames and show the pre-answer state there (reviewers keep flagging "spoilers" that are only the frames' answer-state tiles); chart label size and pie start angle hatches; a sequence item's `cites`; number-line extra markers ("old limit: 7").
+
+
+## W25 — interaction polish and template faults (built 2026-10-04, branch layout-pa)
+- **Ask headline** (ui/gate-dock.ts): stands OVER the drawing in the heading strip (y 655–750), its
+  font fitted there (22 → 13 px; the how line goes to the dock before the question drops under 17);
+  above the drawing only when the stage has height for both; a hidden caption takes no height; at the
+  least size an overrun lowers the drawing by just that. A 460 px player keeps its full figure.
+- **Pills**: a crowd's count pill hangs under the people and the legend (countPillPoint); a bar's
+  value pill stays between the y-axis and the plot's right end (ui/bar-pill.ts).
+- **scale-marker lint**: anything on screen at a scale guess in the band its marker number takes.
+- **Template labels come with their element**: a template's `attached` list and `label_<id>` are
+  drawnAfter (layout.ts); number_line's ticks come with its line; pathway names inside their shapes.
+- **Readable templates**: forest_plot (26/22, compact rows, axis ≥ 240), causal_dag (26–20, ellipse
+  round its name), event_study / did_trends / rd_plot / ceac plots from y 205; ceac `currency`,
+  `thousands`, `x_min`, `x_label`, a free `x_max`, and a template warnings channel
+  (`SceneLayout.warnings`) for a threshold off the axis; bar_chart/line_chart ticks two sizes up when
+  the chart is the page's figure.
+- **Engine**: `shape: "person"` on a shape; quiz/poll button icons resolve (resolveIcons/iconSlots
+  see the command looks); log-scale tick thinning measures as the lint does, and the marker's number
+  stays on the page; at-ref elements follow their card into a select/sort box, whose rows open by
+  the label's height (`label_room`); a ring/box highlight encloses the target's own labels.
+- Not done: binscatter's plot (same y 130, an example draws on it); annotation circles round
+  attached labels; a faded ghost of template parts on `animate` / `keep`.

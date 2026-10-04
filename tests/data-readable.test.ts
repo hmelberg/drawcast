@@ -25,15 +25,16 @@ describe("bar_chart", () => {
     const l = lay("bar_chart", { labels: ["Bat", "Cat", "Human", "Giraffe"], values: [19.9, 12.5, 8, 4.6], ylim: [0, 24] });
     const ticks = texts(l, /^axes__yt\d+$/);
     expect(ticks.map((t) => t.text)).toEqual(["0", "5", "10", "15", "20"]);
-    expect(ticks.every((t) => t.fontSize === 20)).toBe(true);
+    // 22: the chart is the page's figure (W25: two sizes up from 20).
+    expect(ticks.every((t) => t.fontSize === 22)).toBe(true);
     clean(l);
     expect(texts(lay("bar_chart", { labels: ["A", "B"], values: [1, 2], y_ticks: false }), /^axes__yt/)).toEqual([]);
   });
 
-  test("category and value labels are 21 and 20 when they fit", () => {
+  test("category and value labels are 23 and 22 when they fit (the page's figure; W25)", () => {
     const l = lay("bar_chart", { labels: ["Norway", "Sweden", "Denmark"], values: [87, 52, 58], value_labels: true });
-    expect(texts(l, /^bar_\d+__l$/).map((t) => t.fontSize)).toEqual([21, 21, 21]);
-    expect(texts(l, /^bar_\d+__v0$/).map((t) => t.fontSize)).toEqual([20, 20, 20]);
+    expect(texts(l, /^bar_\d+__l$/).map((t) => t.fontSize)).toEqual([23, 23, 23]);
+    expect(texts(l, /^bar_\d+__v0$/).map((t) => t.fontSize)).toEqual([22, 22, 22]);
     clean(l);
   });
 

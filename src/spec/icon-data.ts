@@ -231,7 +231,7 @@ interface IconSlot {
  *  partners), a bar chart's `icons` (round 7 §6). `create`: a bar icon's
  *  data host (params.icon_data[i]) is made when missing — for the writers;
  *  readers get a throwaway host. */
-export function iconSlots(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "template" | "params">>, opts: { create?: boolean } = {}): IconSlot[] {
+export function iconSlots(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "template" | "params" | "commands">>, opts: { create?: boolean } = {}): IconSlot[] {
   const out: IconSlot[] = [];
   for (const el of spec.elements ?? []) {
     if (!el || typeof el !== "object") continue;
@@ -259,6 +259,19 @@ export function iconSlots(spec: Pick<Spec, "elements"> & Partial<Pick<Spec, "tem
         const a = iconAsk(item.icon);
         if (a) out.push({ ask: a, look: "picture", host: item, data: "icon_strokes", credit: "credit" });
       }
+    }
+  }
+  // On-canvas answer buttons (spec/answer-buttons.ts) and a poll's buttons
+  // (spec/poll.ts) ask for icons in their commands: each look hosts its own
+  // data, which the button's node then carries (W25: check said "no icon"
+  // for every one — the expansion made nodes the resolver never saw).
+  for (const c of spec.commands ?? []) {
+    const looks = [...(Array.isArray(c?.quiz?.buttons) ? c.quiz.buttons : []), ...(Array.isArray(c?.ask?.poll?.choices) ? c.ask.poll.choices : [])];
+    for (const it of looks) {
+      if (typeof it !== "object" || it === null) continue;
+      const item = it as unknown as Record<string, unknown>;
+      const a = iconAsk(item.icon);
+      if (a) out.push({ ask: a, look: "picture", host: item, data: "icon_strokes", credit: "credit" });
     }
   }
   const p = spec.params as Record<string, unknown> | undefined;

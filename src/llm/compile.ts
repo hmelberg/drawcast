@@ -162,6 +162,11 @@ export function apiSchema(opts: { code?: boolean; sound?: boolean; c64?: boolean
   delete props.elements.items.properties.fills;
   // …and an on-canvas quiz's: what its buttons' group tells the layout.
   delete props.elements.items.properties.answer_buttons;
+  // …and the icon resolver's, on quiz buttons and poll choices (W25).
+  const cmdProps = props.commands.items.properties;
+  for (const looks of [cmdProps.quiz?.properties?.buttons?.items?.properties, cmdProps.ask?.properties?.poll?.properties?.choices?.items?.properties]) {
+    if (looks) for (const k of ["icon_strokes", "icon_key", "credit"]) delete looks[k];
+  }
   const itemObject = (props.elements.items.properties.items?.items?.anyOf as any[] | undefined)?.find((b) => b?.type === "object");
   if (itemObject?.properties) delete itemObject.properties.blank;
   if (opts.code === false) {

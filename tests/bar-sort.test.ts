@@ -206,7 +206,7 @@ describe("the value over the first bar clears the y caption", () => {
     const top = all(l).find((d) => d.id === "bar_3__v0") as TextDrawable;
     expect(top.text).toBe("1528");
     // The value's top stays under the caption's bottom.
-    expect(top.pos[1] + 20 * 0.625).toBeLessThanOrEqual(cap.pos[1] - 22 * 0.625);
+    expect(top.pos[1] + top.fontSize * 0.625).toBeLessThanOrEqual(cap.pos[1] - 22 * 0.625);
     expect(l.issues.filter((i) => /overlap/.test(i.message))).toEqual([]);
   });
 });

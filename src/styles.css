@@ -2063,6 +2063,9 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
    pill stands beside the bar's top instead (ui/guess-gate.ts). */
 .cs-stage .cs-guess-value.cs-guess-beside,
 .cs-stage .cs-guess-field.cs-guess-beside { transform: translate(0, -50%); }
+/* A crowd's pill hangs under the people and their legend (guess/handles.ts
+   countPillPoint): its top edge a little under the lowest of them. */
+.cs-stage .cs-guess-value.cs-guess-under { transform: translate(-50%, 8px); }
 @media (max-width: 560px) {
   .cs-gatedock { gap: 0.4rem; padding-inline: calc(0.4rem + var(--cs-more-reserve, 0px)); }
   .cs-gatedock > .cs-figgate-hint { font-size: var(--text-xs); padding: 0.2rem 0.6rem; }

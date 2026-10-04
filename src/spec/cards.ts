@@ -102,6 +102,10 @@ export interface CardsElementLike {
   rule?: string;
   /** sort, select, deck (round 7 §3): each (default) — every card is judged as it is dropped; end — all at Answer. */
   check?: "each" | "end";
+  /** sort, select (machine-written by expandCards, W25): the height a card's
+   *  own label needs under it — the boxes' rows open by it, so a label that
+   *  follows its card into a box does not land on the card below. */
+  label_room?: number;
   /** paper (default), flat or outline (the plain boxes of before). */
   look?: CardsLook | string;
   /** How the cards' icons show (round 6 §8): picture (default) or drawn — copied onto every card node. */
@@ -724,12 +728,13 @@ function cardsGeometryAt(el: CardsElementLike, k: number, ch0: number, scaleOf?:
     // Tap all: the cards are read where they stand, on a phone too (≥ ~10 px at 390 px).
     const fit = fitCardTexts(texts, w, fontAt(icons ? 22 : 26, CARD_H * k), k);
     const CH = ch0 + fit.extra;
-    const binH = 44 * k + rows * (CH + 8 * k) + 8 * k;
-    const boxTop = layout === "drop" ? topY - trayRows * (CH + gap) + gap - 40 * k : topY;
+    const lr = labelRoom(el);
+    const binH = 44 * k + rows * (CH + 8 * k + lr) + 8 * k;
+    const boxTop = layout === "drop" ? topY - trayRows * (CH + gap + lr) + gap - 40 * k : topY;
     const binBoxes: CardBox[] = [{ c: [bx0 + bWidth / 2, boxTop - binH / 2] as Pt, w: binW, h: binH }];
     const trayTop = layout === "rise" ? topY - binH - 40 * k : topY;
     const tray: Pt[] = items.map((_, s) =>
-      (side ? [x0 + width / 6, trayTop - CH / 2 - s * (CH + gap)] : [x0 + slotW * ((s % perRow) + 0.5), trayTop - CH / 2 - Math.floor(s / perRow) * (CH + gap)]) as Pt,
+      (side ? [x0 + width / 6, trayTop - CH / 2 - s * (CH + gap + lr)] : [x0 + slotW * ((s % perRow) + 0.5), trayTop - CH / 2 - Math.floor(s / perRow) * (CH + gap + lr)]) as Pt,
     );
     const home: Pt[] = new Array(n);
     perm.forEach((card, s) => (home[card] = tray[s]));
@@ -737,7 +742,7 @@ function cardsGeometryAt(el: CardsElementLike, k: number, ch0: number, scaleOf?:
       const row = Math.floor(j / cols), col = j % cols;
       const inRow = Math.min(cols, n - row * cols);
       const box = binBoxes[0];
-      return [box.c[0] + (col - (inRow - 1) / 2) * (w + 10 * k), box.c[1] + box.h / 2 - 44 * k - CH / 2 - row * (CH + 8 * k)];
+      return [box.c[0] + (col - (inRow - 1) / 2) * (w + 10 * k), box.c[1] + box.h / 2 - 44 * k - CH / 2 - row * (CH + 8 * k + lr)];
     };
     let seen = 0;
     const truth = truthBin.map((b, i) => (b === 0 ? binSlot(0, seen++) : home[i]));
@@ -775,8 +780,9 @@ function cardsGeometryAt(el: CardsElementLike, k: number, ch0: number, scaleOf?:
   const trayRows = Math.ceil(n / perRow);
   let fit = fitCardTexts(texts, w, fontAt(20, CARD_H * k), k);
   let CH = ch0 + fit.extra;
-  const boxH = (h: number): number => 52 * k + rows * (h + 8 * k);
-  const trayH = (h: number): number => trayRows * (h + gap) - gap;
+  const lr = labelRoom(el);
+  const boxH = (h: number): number => 52 * k + rows * (h + 8 * k + lr);
+  const trayH = (h: number): number => trayRows * (h + gap + lr) - gap;
   // The lowest the cards or the boxes reach. side: the boxes keep the
   // counter's row under them; the column of cards needs none.
   const lowest = (h: number): number => (side ? Math.min(topY - boxH(h) - COUNTER_ROOM * k, topY - trayH(h)) : topY - boxH(h) - 40 * k - trayH(h));
@@ -791,12 +797,12 @@ function cardsGeometryAt(el: CardsElementLike, k: number, ch0: number, scaleOf?:
   }
   let ch = CH;
   while (ch > 28 * k && lowest(ch) < CARD_FLOOR) ch -= 2;
-  const binH = 44 * k + rows * (ch + 8 * k) + 8 * k;
+  const binH = 44 * k + rows * (ch + 8 * k + lr) + 8 * k;
   const boxTop = layout === "drop" ? topY - trayH(ch) - 40 * k : topY;
   const binBoxes: CardBox[] = bins.map((_, b) => ({ c: [bx0 + (bWidth / nb) * (b + 0.5), boxTop - binH / 2] as Pt, w: binW, h: binH }));
   const trayTop = layout === "rise" ? topY - binH - 40 * k : topY;
   const tray: Pt[] = items.map((_, s) =>
-    (side ? [x0 + trayW / 2, trayTop - ch / 2 - s * (ch + gap)] : [x0 + slotW * ((s % perRow) + 0.5), trayTop - ch / 2 - Math.floor(s / perRow) * (ch + gap)]) as Pt,
+    (side ? [x0 + trayW / 2, trayTop - ch / 2 - s * (ch + gap + lr)] : [x0 + slotW * ((s % perRow) + 0.5), trayTop - ch / 2 - Math.floor(s / perRow) * (ch + gap + lr)]) as Pt,
   );
   const home: Pt[] = new Array(n);
   perm.forEach((card, s) => (home[card] = tray[s]));
@@ -806,7 +812,7 @@ function cardsGeometryAt(el: CardsElementLike, k: number, ch0: number, scaleOf?:
     const box = binBoxes[b];
     const col = Math.floor(j / rows), row = j % rows;
     const used = Math.max(1, Math.min(cols, Math.ceil(Math.max(count, j + 1) / rows)));
-    return [box.c[0] + (col - (used - 1) / 2) * (w + 10 * k), box.c[1] + box.h / 2 - 44 * k - ch / 2 - row * (ch + 8 * k)];
+    return [box.c[0] + (col - (used - 1) / 2) * (w + 10 * k), box.c[1] + box.h / 2 - 44 * k - ch / 2 - row * (ch + 8 * k + lr)];
   };
   const seen = bins.map(() => 0);
   const truth = truthBin.map((b) => binSlot(b, seen[b]++, perBin[b]));
@@ -932,7 +938,7 @@ function deckGeometry(
 
 /** The authored fields a cards group carries back (authoredCards). `size` is
  *  the number expandCards chose, so the gate and the plan draw the same set. */
-const CARRIED = ["items", "rule", "bins", "ends", "steps", "arrange", "along", "compare", "pairs", "unit", "options", "then", "fill", "select", "deck", "check", "size", "x", "y", "width"] as const;
+const CARRIED = ["items", "rule", "bins", "ends", "steps", "arrange", "along", "compare", "pairs", "unit", "options", "then", "fill", "select", "deck", "check", "size", "x", "y", "width", "label_room"] as const;
 
 /** compare: the words over the cards — `title` as given; by default the
  *  question, unless the page has a heading of its own (page frame 2026-10-04:
@@ -1062,8 +1068,10 @@ export function cardFollowers(spec: Pick<Spec, "elements">, g: Pick<CardsGeometr
   });
   for (const e of spec.elements ?? []) {
     const to = (e as { attach_to?: unknown }).attach_to;
-    if (e.type !== "label" || typeof to !== "string" || !cardIx.has(to)) continue;
-    (out[to] ??= []).push(e.id, `${e.id}_leader`);
+    if (e.type === "label" && typeof to === "string" && cardIx.has(to)) (out[to] ??= []).push(e.id, `${e.id}_leader`);
+    // An element placed against a card (`at: {ref: <card>}`, W25) follows it too.
+    const ref = (e as { at?: { ref?: unknown } }).at?.ref;
+    if (typeof ref === "string" && cardIx.has(ref) && e.type !== "label") (out[ref] ??= []).push(e.id);
   }
   return out;
 }
@@ -1144,6 +1152,28 @@ export function resolveCardsSize(el: CardsElementLike, spec: Pick<Spec, "element
   return { ...el, ...wide };
 }
 
+/** sort / select (W25): the room a card's own label needs under it, from the cast's labels on it (expandCards stamps it). */
+function labelRoom(el: CardsElementLike): number {
+  return typeof el.label_room === "number" && el.label_room > 0 ? el.label_room : 0;
+}
+
+/** The height the labels on a cards element's cards need beside them: the
+ *  tallest label attached to (or placed against) one of its cards. */
+function labelRoomIn(spec: Spec, id: string, n: number): number {
+  const cards = new Set(Array.from({ length: n }, (_, i) => `${id}_${i + 1}`));
+  let room = 0;
+  for (const e of spec.elements ?? []) {
+    const x = e as { attach_to?: unknown; at?: { ref?: unknown; gap?: unknown }; font_size?: unknown; gap?: unknown };
+    const on = typeof x.attach_to === "string" ? x.attach_to : typeof x.at?.ref === "string" ? x.at.ref : null;
+    if (on === null || !cards.has(on)) continue;
+    const font = typeof x.font_size === "number" ? x.font_size : 22;
+    const gap = typeof x.at?.gap === "number" ? x.at.gap : typeof x.gap === "number" ? x.gap : 8;
+    // A label also stands off its card by its leader's length.
+    room = Math.max(room, Math.round(font * 1.25 + gap + ((e as { type: string }).type === "label" ? 28 : 4)));
+  }
+  return room;
+}
+
 export function expandCards(spec: Spec): Spec {
   const els = spec.elements ?? [];
   if (!els.some((e) => (e as { type: string }).type === "cards")) return spec;
@@ -1158,7 +1188,11 @@ export function expandCards(spec: Spec): Spec {
       out.push(el);
       continue;
     }
-    const c = resolveCardsSize(el as unknown as CardsElementLike, spec, scaleOf);
+    const raw = el as unknown as CardsElementLike;
+    // A sort's or a select's boxes open their rows for the cards' own labels (W25).
+    const mode = cardsMode(raw);
+    const room = mode === "sort" && raw.deck !== true ? labelRoomIn(spec, raw.id, (raw.items ?? []).length) : 0;
+    const c = resolveCardsSize(room > 0 ? { ...raw, label_room: room } : raw, spec, scaleOf);
     // A cast that draws or points at the title by name keeps it (casts written before 2026-10-04).
     const named = c.title === undefined && JSON.stringify(spec.commands ?? []).includes(`"${c.id}_title"`);
     out.push(...cardsElements({ ...c, title: named ? true : compareTitle(c, heading) ?? false }, scaleOf));

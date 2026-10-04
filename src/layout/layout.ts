@@ -14,6 +14,7 @@ import { effectiveTextStyle } from "./text-style";
 import { setMathTextStyle } from "./math";
 import { setMathFont, setMathHand } from "../scenes/engines";
 import type { Spec } from "../spec/types";
+import { lintScaleMarkerRoom } from "../lint/scale-marker-room";
 import { coVisible, idsOf, lintAskStage, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
 import { layoutElements, noIconWarning, type PieceGeometry } from "./tier2";
 import { iconAsk, isIconData } from "../spec/icon-data";
@@ -180,6 +181,8 @@ export function layoutSpec(
   let attached: Record<string, string[]> = {};
   let drawnWith: Record<string, string[]> = {};
   let drawnAfter: Record<string, string[]> = {};
+  /** A template element's own labels, drawn right after it (W25). */
+  const templateFollowers: Record<string, string[]> = {};
   let fitGroups: Record<string, string[]> = {};
   let namedAnchors: Record<string, Record<string, Pt>> = {};
   let pictures: NonNullable<LayoutResult["pictures"]> = {};
@@ -284,6 +287,19 @@ export function layoutSpec(
         if (sceneLayout.groups) groups = { ...sceneLayout.groups };
         if (sceneLayout.attached) attached = { ...sceneLayout.attached };
         if (sceneLayout.drawnWith) drawnWith = { ...sceneLayout.drawnWith };
+        if (sceneLayout.warnings) warnings.push(...sceneLayout.warnings.map((w) => `template "${spec.template}": ${w}`));
+        // A template element's own label comes with it (W25): drawing pt_0 or
+        // vline_0 brings pt_0_label / label_vline_0 right after it, as a
+        // measure brings label_<id> — not left for the final draw. Its own
+        // follower list (attached) and the label_<id> naming both count; a
+        // label the cast draws itself is drawn where the cast says (plan.ts).
+        {
+          const inOrder = new Set(sceneLayout.order);
+          for (const id of sceneLayout.order) {
+            const own = [...(sceneLayout.attached?.[id] ?? []), ...(inOrder.has(`label_${id}`) ? [`label_${id}`] : [])].filter((l) => l !== id && inOrder.has(l));
+            if (own.length > 0) templateFollowers[id] = [...new Set(own)];
+          }
+        }
         drawables.push(...sceneLayout.drawables);
         // A bar's icon keyword with no artwork (round 7 §6): named, as a node's
         // is — also when NONE of the keywords resolved (withIconData then makes
@@ -319,6 +335,7 @@ export function layoutSpec(
     }
   }
 
+  drawnAfter = { ...templateFollowers };
   if (spec.elements && spec.elements.length > 0) {
     // `drawables` here is the template's output — an at.ref may name a template id.
     // The figure writes numbers the way the voice reads them: 8,7 in a
@@ -339,7 +356,8 @@ export function layoutSpec(
     namedAnchors = tier2.namedAnchors;
     pictures = tier2.pictures;
     measures = tier2.measures;
-    drawnAfter = tier2.drawnAfter;
+    drawnAfter = { ...templateFollowers };
+    for (const [id, ls] of Object.entries(tier2.drawnAfter)) drawnAfter[id] = [...new Set([...(drawnAfter[id] ?? []), ...ls])];
     for (const el of spec.elements) {
       // A show:none code element draws nothing (it only feeds params), so it
       // must not become a command-addressable id or an implicit final draw.
@@ -544,6 +562,8 @@ export function layoutSpec(
   // A question whose cards or options sit over the figure (spec round 6 §6).
   const cardIds = new Set(authoredCards(spec).map((c) => c.id));
   layoutIssues.push(...lintAskStage(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], (id) => cardIds.has(id), composed));
+  // A guessed scale's marker and number need their band over the line clear (W25).
+  layoutIssues.push(...lintScaleMarkerRoom(spec, drawables, measure, (id) => pieceGroups[id] ?? groups[id]));
   const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;
   if (!codeEl || atDraw === null) {
     issues.push(...layoutIssues);

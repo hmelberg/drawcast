@@ -1595,6 +1595,37 @@ export function noIconWarning(keyword: string): string {
   return hasIconStore() ? `no icon for "${keyword}" — "${keyword}" is not in the offline icon cache (npm run icons)` : `no icon for "${keyword}"`;
 }
 
+/** A stick figure centred on `c`, `s` its half-height: a node's or a shape's `shape: "person"`. */
+function personDrawable(id: string, c: Pt, s: number, style: ReturnType<typeof resolveStyle>, drawOpts: ReturnType<typeof resolveDrawOpts>): GroupDrawable {
+  const head: StrokeDrawable = {
+    id: `${id}_head`,
+    kind: "stroke",
+    pts: [],
+    shapeHint: { type: "circle", c: [c[0], c[1] + s * 0.6], r: s * 0.38 },
+    z: Z_STROKE,
+    style,
+    drawOpts,
+  };
+  const body: StrokeDrawable = {
+    id: `${id}_body`,
+    kind: "stroke",
+    pts: [
+      [c[0] - s * 0.55, c[1] - s], // left leg
+      [c[0], c[1] - s * 0.25],
+      [c[0] + s * 0.55, c[1] - s], // right leg
+      [c[0], c[1] - s * 0.25],
+      [c[0], c[1] + s * 0.25], // torso
+      [c[0] - s * 0.6, c[1] - s * 0.05], // left arm
+      [c[0], c[1] + s * 0.25],
+      [c[0] + s * 0.6, c[1] - s * 0.05], // right arm
+    ],
+    z: Z_STROKE,
+    style,
+    drawOpts,
+  };
+  return { id, kind: "group", children: [head, body], z: Z_STROKE, style, drawOpts };
+}
+
 function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
   const c = ctx.anchors[el.id] ?? [CANVAS.w / 2, CANVAS.h / 2];
   const shape = el.shape ?? "circle";
@@ -1617,33 +1648,7 @@ function nodeDrawables(el: SpecElement, ctx: Ctx): Drawable[] {
 
   if (shape === "person") {
     const s = el.height !== undefined ? el.height / 2 : 34; // half-height
-    const head: StrokeDrawable = {
-      id: `${el.id}_head`,
-      kind: "stroke",
-      pts: [],
-      shapeHint: { type: "circle", c: [c[0], c[1] + s * 0.6], r: s * 0.38 },
-      z: Z_STROKE,
-      style,
-      drawOpts,
-    };
-    const body: StrokeDrawable = {
-      id: `${el.id}_body`,
-      kind: "stroke",
-      pts: [
-        [c[0] - s * 0.55, c[1] - s], // left leg
-        [c[0], c[1] - s * 0.25],
-        [c[0] + s * 0.55, c[1] - s], // right leg
-        [c[0], c[1] - s * 0.25],
-        [c[0], c[1] + s * 0.25], // torso
-        [c[0] - s * 0.6, c[1] - s * 0.05], // left arm
-        [c[0], c[1] + s * 0.25],
-        [c[0] + s * 0.6, c[1] - s * 0.05], // right arm
-      ],
-      z: Z_STROKE,
-      style,
-      drawOpts,
-    };
-    const group: GroupDrawable = { id: el.id, kind: "group", children: [head, body], z: Z_STROKE, style, drawOpts };
+    const group = personDrawable(el.id, c, s, style, drawOpts);
     ctx.nodeRadius.set(el.id, s * 1.2);
     out.push(group);
   } else if (shape === "rect" || shape === "decision") {
@@ -2006,10 +2011,20 @@ function connectorDrawable(el: SpecElement, ctx: Ctx): Drawable[] {
   ];
 }
 
-function shapeDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable {
+function shapeDrawable(el: SpecElement, ctx: Ctx): StrokeDrawable | GroupDrawable {
   const style = resolveStyle(el.style);
   const drawOpts = resolveDrawOpts(el.draw, { duration: SKETCH_MS.node });
   const shape = el.shape ?? "rect";
+  // A stick figure, as on a node (W25: a shape drew an empty rectangle).
+  // height (default 100) is the figure's; width is not read.
+  if (shape === "person") {
+    const c = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
+    const s = (el.height ?? 100) / 2;
+    ctx.anchors[el.id] = c;
+    ctx.nodeRadius.set(el.id, s * 1.2);
+    ctx.nodeBox.set(el.id, [s * 0.6, s]);
+    return personDrawable(el.id, c, s, style, drawOpts);
+  }
   if (shape === "circle" || shape === "chance") {
     const c = originOr(el, ctx, [CANVAS.w / 2, CANVAS.h / 2]);
     const r = el.radius ?? 40;
