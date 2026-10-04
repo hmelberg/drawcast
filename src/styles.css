@@ -3664,3 +3664,12 @@ body.viewer-body.watch-body.watch-theatre {
   border: 2px solid color-mix(in srgb, #2f6b8f 55%, transparent);
   background: color-mix(in srgb, #2f6b8f 8%, transparent);
 }
+
+/* The publish panel's front-page picture (ui/thumb-choice.ts, thumbnail round 2026-10-04). */
+.thumb-choice { margin: 0.4rem 0; border: 1px solid var(--line); border-radius: 8px; padding: 0.4rem 0.7rem; }
+.thumb-choice > summary { cursor: pointer; font-weight: 600; }
+.thumb-choice[open] > summary { margin-bottom: 0.3rem; }
+.thumb-choice .thumb-row input[type="text"] { width: 100%; box-sizing: border-box; }
+.thumb-choice .thumb-row select { max-width: 100%; }
+.thumb-preview { margin-top: 0.5rem; max-width: 360px; }
+.thumb-preview .thumb-svg { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 8px; }

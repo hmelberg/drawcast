@@ -823,7 +823,7 @@ const commands = {
       } catch {
         /* not JSON: readCast already refused it above */
       }
-      writeFileSync(out, packedCastText({ spec, subtitle: wrapper?.subtitle }, publishFormat(), { singlePlaylist, formatPlaylist, formatSpec }));
+      writeFileSync(out, packedCastText({ spec, subtitle: wrapper?.subtitle, thumb: wrapper?.thumb }, publishFormat(), { singlePlaylist, formatPlaylist, formatSpec }));
       console.log(`${relative(ROOT, out)}: ready for publish-target ${work} <owner/repo>`);
     });
   },

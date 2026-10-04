@@ -9,6 +9,15 @@
 // name the registry could have.
 import yaml from "js-yaml";
 import { NAME_LABEL_RE, RESERVED_LABELS } from "./name-host.mts";
+import { readThumb, type ThumbSpec } from "./thumb.mts";
+
+/** What a card reads from a cast: its text, and (thumbnail round, 2026-10-04) its format and `thumb:` block. */
+export interface CastCardText {
+  title?: string;
+  subtitle?: string;
+  format?: string;
+  thumb?: ThumbSpec;
+}
 
 export type ShareTarget = { kind: "name"; name: string } | { kind: "gh"; owner: string; repo: string; path: string };
 
@@ -85,7 +94,7 @@ function clip(s: string, max: number): string {
  *  no `playlist` object (a single-figure cast, whose first document is the
  *  spec itself) are the top-level `title` / `subtitle` read. A locked
  *  envelope has neither, so a private cast never puts a word on a card. */
-export function castCardText(text: string): { title?: string; subtitle?: string } {
+export function castCardText(text: string): CastCardText {
   // A .cast file (script): `# Title` on top, `subtitle:` among the settings
   // under it, all before the first page (`##`) or the first indented line.
   // (A YAML file may open with a `# comment`; its spec keys at column 0 say which it is.)
@@ -101,16 +110,19 @@ export function castCardText(text: string): { title?: string; subtitle?: string 
   const top = head as Record<string, unknown>;
   const pl = top.playlist;
   const src = pl && typeof pl === "object" ? (pl as Record<string, unknown>) : top;
-  const { title, subtitle } = src;
-  const out: { title?: string; subtitle?: string } = {};
+  const { title, subtitle, format, thumb } = src;
+  const out: CastCardText = {};
   if (typeof title === "string" && title.trim()) out.title = clip(title, TITLE_MAX);
   if (typeof subtitle === "string" && subtitle.trim()) out.subtitle = clip(subtitle, LINE_MAX);
+  if (typeof format === "string") out.format = format;
+  const t = readThumb(thumb);
+  if (t) out.thumb = t;
   return out;
 }
 
 /** castCardText for a script — src/spec/script's head, read by hand (netlify/lib must not import src/). */
-function scriptCardText(text: string): { title?: string; subtitle?: string } {
-  const out: { title?: string; subtitle?: string } = {};
+function scriptCardText(text: string): CastCardText {
+  const out: CastCardText = {};
   const scalar = (v: string): string => {
     const t = v.trim();
     if (t.startsWith('"')) {
@@ -122,8 +134,28 @@ function scriptCardText(text: string): { title?: string; subtitle?: string } {
     }
     return t;
   };
-  for (const line of text.replace(/\r\n?/g, "\n").split("\n")) {
+  const all = text.replace(/\r\n?/g, "\n").split("\n");
+  for (let i = 0; i < all.length; i++) {
+    const line = all[i];
+    // `thumb:` is a block: its indented lines under it, read as YAML.
+    if (/^thumb:\s*$/.test(line)) {
+      let j = i + 1;
+      while (j < all.length && /^\s+\S/.test(all[j])) j++;
+      try {
+        const t = readThumb(yaml.load(all.slice(i + 1, j).join("\n")));
+        if (t) out.thumb = t;
+      } catch {
+        /* a broken block is no thumb */
+      }
+      i = j - 1;
+      continue;
+    }
     if (/^##(\s|$)/.test(line) || /^\s+\S/.test(line)) break;
+    const fmt = /^format:\s+(\S+)/.exec(line);
+    if (fmt) {
+      out.format = scalar(fmt[1]);
+      continue;
+    }
     const h = /^#\s+(.+)$/.exec(line);
     if (h && out.title === undefined) {
       const t = h[1].trim();

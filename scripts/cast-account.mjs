@@ -463,9 +463,13 @@ export async function waitForCredit({ api, key, startMicro, creditBalance, timeo
 export function packedCastText(wrapper, format, lib) {
   const spec = wrapper.spec;
   const subtitle = typeof wrapper.subtitle === "string" ? wrapper.subtitle.trim() : "";
-  if (!subtitle) return lib.formatSpec(spec, format);
+  // The front-page picture's words and style (thumbnail round, 2026-10-04):
+  // a `thumb` object beside the spec goes into the header as its `thumb:` block.
+  const thumb = wrapper.thumb && typeof wrapper.thumb === "object" && !Array.isArray(wrapper.thumb) ? wrapper.thumb : null;
+  if (!subtitle && !thumb) return lib.formatSpec(spec, format);
   const playlist = lib.singlePlaylist(spec);
   if (typeof spec.title === "string" && spec.title.trim()) playlist.meta.title = spec.title;
-  playlist.meta.subtitle = subtitle;
+  if (subtitle) playlist.meta.subtitle = subtitle;
+  if (thumb) playlist.meta.thumb = thumb;
   return lib.formatPlaylist(playlist, format);
 }

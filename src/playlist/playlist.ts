@@ -6,6 +6,7 @@
 // A single document (JSON or YAML) is a one-item playlist — exactly the
 // pre-playlist behavior, so every existing drawcast keeps working.
 
+import { readThumb, type ThumbSpec } from "../../netlify/lib/thumb.mts";
 import { leftoverFoldMarker, leftoverFoldMessage } from "../ui/spec-fold";
 import { CORE_SCHEMA, dump, load, loadAll } from "js-yaml";
 import { cardElements, titleFont } from "../spec/card";
@@ -68,6 +69,9 @@ export interface PlaylistMeta {
    * PNG beside the cast; without it the poster is the finished drawing.
    */
   poster?: string;
+  /** The listing picture's words and style (thumbnail round, 2026-10-04 —
+   *  netlify/lib/thumb.mts): drawn by the site over the poster, never in the player. */
+  thumb?: ThumbSpec;
   /** How playback continues after an item: wait for a click, or auto after gap seconds. */
   advance: "click" | "auto";
   gap: number;
@@ -189,6 +193,8 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
   }
   if (typeof raw.enroll === "string") meta.enroll = raw.enroll;
   if (typeof raw.poster === "string") meta.poster = raw.poster;
+  const thumb = readThumb(raw.thumb);
+  if (thumb) meta.thumb = thumb;
   if (isPlainObject(raw.comments)) {
     const c = raw.comments;
     if (typeof c.repoId === "string" && typeof c.categoryId === "string") {
@@ -320,6 +326,12 @@ function parsePlaylistBody(text: string): Playlist {
         else delete playlist.meta.tags;
       }
       if (meta.format !== undefined && meta.format !== "drawcast" && meta.format !== "quiz" && meta.format !== "xplanation") delete playlist.meta.format;
+      // The listing picture's block (thumbnail round): validated as in YAML, or gone.
+      if (meta.thumb !== undefined) {
+        const thumb = readThumb(meta.thumb);
+        if (thumb) playlist.meta.thumb = thumb;
+        else delete playlist.meta.thumb;
+      }
       const chapters = (meta.chapters as { before: number; title: string }[] | undefined) ?? [];
       pages.forEach((p, i) => {
         for (const c of chapters) if (c.before === i) playlist.entries.push({ kind: "chapter", title: c.title });
@@ -471,6 +483,7 @@ export function isSingle(playlist: Playlist): boolean {
     playlist.meta.next === undefined &&
     playlist.meta.enroll === undefined &&
     playlist.meta.poster === undefined &&
+    playlist.meta.thumb === undefined &&
     playlist.meta.advance === DEFAULT_META.advance &&
     playlist.meta.gap === DEFAULT_META.gap &&
     playlist.meta.transitions === DEFAULT_META.transitions
@@ -515,6 +528,7 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   if (playlist.meta.next !== undefined) header.next = playlist.meta.next;
   if (playlist.meta.enroll !== undefined) header.enroll = playlist.meta.enroll;
   if (playlist.meta.poster !== undefined) header.poster = playlist.meta.poster;
+  if (playlist.meta.thumb !== undefined) header.thumb = playlist.meta.thumb;
   if (playlist.meta.advance !== DEFAULT_META.advance) header.advance = playlist.meta.advance;
   if (playlist.meta.gap !== DEFAULT_META.gap) header.gap = playlist.meta.gap;
   if (playlist.meta.transitions !== DEFAULT_META.transitions) header.transitions = playlist.meta.transitions;

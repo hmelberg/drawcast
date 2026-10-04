@@ -857,7 +857,8 @@ const BASELINE_SCHEMA_CHARS = 121281;
 // never writes it inside a page. 5372 -> 5383.
 // Re-pinned UP 2026-09-26: the `details:` page setting in the closed list. 5383 -> 5451.
 // Raised with headroom 2026-09-26 (same reason): measured 5451.
-const BASELINE_REVISE_CHARS = 6000;
+// Re-pinned UP 2026-10-04 (thumbnail round): `thumb:` joined the document settings. 6000 -> 6010.
+const BASELINE_REVISE_CHARS = 6010;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

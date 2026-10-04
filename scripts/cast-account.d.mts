@@ -151,7 +151,7 @@ export function creditBaseline(args: {
 }): Promise<number>;
 
 export function packedCastText(
-  wrapper: { spec: unknown; subtitle?: unknown; [key: string]: unknown },
+  wrapper: { spec: unknown; subtitle?: unknown; thumb?: unknown; [key: string]: unknown },
   format: "yaml" | "script",
-  lib: { singlePlaylist: (spec: never) => { meta: { title?: string; subtitle?: string } }; formatPlaylist: (playlist: never, format: "yaml" | "script") => string; formatSpec: (spec: unknown, format: "yaml" | "script") => string },
+  lib: { singlePlaylist: (spec: never) => { meta: { title?: string; subtitle?: string; thumb?: unknown } }; formatPlaylist: (playlist: never, format: "yaml" | "script") => string; formatSpec: (spec: unknown, format: "yaml" | "script") => string },
 ): string;

@@ -117,3 +117,10 @@
   from = "/w/*"
   to = "/index.html"
   status = 200
+
+# The listing picture (thumbnail round, 2026-10-04): /card/<name>.png draws
+# the cast's style over its poster with resvg, a native module esbuild must
+# not bundle, and with these three faces read from disk.
+[functions.card]
+  external_node_modules = ["@resvg/resvg-js"]
+  included_files = ["public/fonts/thumb/*.ttf", "public/fonts/patrickhand/*.ttf"]

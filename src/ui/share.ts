@@ -24,6 +24,9 @@ import { LANGUAGES, languageLabel } from "../export/tts";
 import type { ExportResult } from "../export/video";
 import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, sourceLanguage, type Playlist } from "../playlist/playlist";
 import { castFormat, type CastFormat } from "../standalone/transcript";
+import { thumbChoice } from "./thumb-choice";
+import { posterForPlaylistText } from "../export/snapshot";
+import type { ThumbSpec } from "../../netlify/lib/thumb.mts";
 import { playlistSpeakLines } from "../playlist/session";
 import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
@@ -290,6 +293,9 @@ export interface ShareDeps {
      *  lets the structure decide (castFormat); the other three are written
      *  into the document as its `format:` line. */
     format?: CastFormat | "auto";
+    /** The front-page picture (thumbnail round, 2026-10-04): a drawcast
+     *  only; written into the document as its `thumb:` block (null removes it). */
+    thumb?: ThumbSpec | null;
     allowSignup?: boolean;
     folder?: string;
     /** The Private checkbox (registry delivery 2, task 9): a private publish
@@ -904,8 +910,20 @@ function build(): ShareSession {
     formatSel,
     h("div", { class: "hint" }, "where drawcast.app lists it: under Drawcasts, Quiz or Xplanations"),
   );
+  // The front-page picture (thumbnail round): a drawcast's style and words.
+  const thumbBox = thumbChoice();
   function refreshFormatChoice(doc: ShareDoc, subject: "drawcast" | "course"): void {
     formatLabel.hidden = subject !== "drawcast";
+    thumbBox.root.hidden = subject !== "drawcast";
+    if (subject === "drawcast") {
+      const playlist = doc.playlist;
+      thumbBox.refresh({
+        thumb: playlist.meta.thumb,
+        title: doc.title,
+        format: playlist.meta.format ?? castFormat(itemsOf(playlist).map((i) => i.spec), playlistSpeakLines(playlist).filter((l) => l.text.trim()).length),
+        poster: () => posterForPlaylistText(formatPlaylist(playlist, "yaml")),
+      });
+    }
     if (subject !== "drawcast") return;
     const specs = itemsOf(doc.playlist).map((i) => i.spec);
     const detected = castFormat(specs, playlistSpeakLines(doc.playlist).filter((l) => l.text.trim()).length);
@@ -1282,6 +1300,7 @@ function build(): ShareSession {
     commentsLabel,
     countViewsLabel,
     formatLabel,
+    thumbBox.root,
     signupLabel,
     privateLabel,
     privatePayRow,
@@ -1300,6 +1319,7 @@ function build(): ShareSession {
       allowComments: commentsCb.checked && !commentsCb.disabled,
       countViews: countViewsCb.checked,
       format: deps.subject === "drawcast" ? (formatSel.value as CastFormat | "auto") : undefined,
+      thumb: deps.subject === "drawcast" ? (thumbBox.value() ?? null) : undefined,
       allowSignup: deps.subject === "course" ? signupCb.checked : undefined,
       private: privateCb.checked,
       confirmPublic: !privateCb.checked && confirmedPublic,

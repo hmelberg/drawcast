@@ -6,7 +6,9 @@
 // crawler gets a card page: the cast's title and subtitle and the poster
 // published beside it. Every failure is the generic card, status 200 — a
 // broken preview in someone's feed is worse than a plain one.
-import { cardHtml, cardPathFor, castCardText, courseCardText, GENERIC, GENERIC_SIZE, hashForShare, isPreviewBot, parseSharePath, POSTER_SIZE, sharePathFor, type ShareTarget } from "../lib/share-card.mts";
+import { cardHtml, cardPathFor, castCardText, courseCardText, GENERIC, GENERIC_SIZE, hashForShare, isPreviewBot, parseSharePath, POSTER_SIZE, sharePathFor, type CastCardText, type ShareTarget } from "../lib/share-card.mts";
+import { planThumb, type ThumbPlan } from "../lib/thumb.mts";
+import { renderThumb } from "../lib/thumb-render.mts";
 
 const ANVIL_BASE = "https://drawcast.anvil.app";
 const RAW = "https://raw.githubusercontent.com";
@@ -18,6 +20,8 @@ const DEADLINE_MS = 6000;
 /** Every call gets the request's one deadline signal; the live deps pass it
  *  to fetch, injected ones may ignore it. */
 export interface CardDeps {
+  /** The listing picture drawn over the poster (thumbnail round, netlify/lib/thumb-render.mts); absent, the poster as it is. */
+  draw?(plan: ThumbPlan, poster: Uint8Array): Uint8Array;
   resolve(name: string, signal?: AbortSignal): Promise<{ kind: "cast" | "course"; target: string } | null>;
   fetchText(url: string, signal?: AbortSignal): Promise<string | null>;
   fetchImage(url: string, signal?: AbortSignal): Promise<Response | null>;
@@ -71,14 +75,14 @@ function firstLectureFile(md: string): string | null {
 
 interface Found {
   /** undefined: the text could not be read — maybe private, so nothing of it shows. */
-  text?: { title?: string; subtitle?: string };
+  text?: CastCardText;
   /** Absolute poster URL at the source, when the cast has one. */
   poster?: string;
 }
 
 /** A cast's card text from its source; "locked" for a private cast's
  *  envelope — which must leave no trace on a card, not even "A drawcast". */
-async function castText(url: string, deps: CardDeps, signal: AbortSignal): Promise<{ title?: string; subtitle?: string } | "locked" | undefined> {
+async function castText(url: string, deps: CardDeps, signal: AbortSignal): Promise<CastCardText | "locked" | undefined> {
   const text = await deps.fetchText(url, signal);
   if (text === null) return undefined;
   if (LOCKED_RE.test(text)) return "locked";
@@ -168,12 +172,23 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
         if (isImage(img)) {
           // Read whole inside the deadline: a stream still open when the
           // request's signal fires would be cut off mid-picture.
-          const bytes = await img.arrayBuffer();
+          let bytes: ArrayBuffer | Uint8Array = await img.arrayBuffer();
+          // The cast's listing style (thumbnail round, 2026-10-04): drawn
+          // here, so the front page and every link preview show the same.
+          // Anything that goes wrong serves the poster as published.
+          const plan = planThumb(found.text.thumb, { title: found.text.title, format: found.text.format });
+          if (plan.style !== "plain" && deps.draw) {
+            try {
+              bytes = deps.draw(plan, new Uint8Array(bytes));
+            } catch {
+              /* the poster as it is */
+            }
+          }
           // Netlify-CDN-Cache-Control (2026-10-03): the front page shows a
           // grid of these, so Netlify's CDN keeps each for an hour (durable:
           // shared across edge nodes) — one function call per picture per
           // hour, not one per visitor; browsers still follow cache-control.
-          return new Response(bytes, {
+          return new Response(bytes as BodyInit, {
             status: 200,
             headers: {
               "content-type": "image/png",
@@ -235,7 +250,7 @@ export async function handleCardRequest(req: Request, deps: CardDeps): Promise<R
   }
   return html(
     cardHtml({
-      title: found.text.title ?? "A drawcast",
+      title: found.text.thumb?.title ?? found.text.title ?? "A drawcast",
       description: found.text.subtitle,
       url: `${origin}${sharePathFor(t)}`,
       image: own ? `${origin}${cardPathFor(t)}` : genericImage,
@@ -268,6 +283,7 @@ const live: CardDeps = {
   },
   fetchImage: (url, signal) => timed(url, signal),
   exists: async (url, signal) => isImage(await timed(url, signal, "HEAD")),
+  draw: renderThumb,
 };
 
 export default (req: Request): Promise<Response> => handleCardRequest(req, live);
