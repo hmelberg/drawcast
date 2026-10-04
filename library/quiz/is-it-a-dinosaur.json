@@ -24,7 +24,6 @@
     "id": "zoo",
     "type": "cards",
     "select": "Dinosaurs",
-    "y": 640,
     "cites": [
      "nhm"
     ],
@@ -39,7 +38,11 @@
      },
      {
       "text": "Pterodactyl",
-      "in": false
+      "in": false,
+      "icon": {
+       "of": "pterodactylus",
+       "set": "game-icons"
+      }
      },
      {
       "text": "Chicken",
@@ -59,19 +62,26 @@
      },
      {
       "text": "Triceratops",
-      "in": true
+      "in": true,
+      "icon": "triceratops"
      },
      {
       "text": "Plesiosaur",
-      "in": false
+      "in": false,
+      "icon": {
+       "of": "plesiosaurus",
+       "set": "game-icons"
+      }
      },
      {
       "text": "Dimetrodon",
-      "in": false
+      "in": false,
+      "icon": "dimetrodon"
      },
      {
       "text": "Stegosaurus",
-      "in": true
+      "in": true,
+      "icon": "stegosaurus"
      }
     ]
    },
@@ -277,6 +287,7 @@
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }
