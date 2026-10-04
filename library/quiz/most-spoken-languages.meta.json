@@ -12,5 +12,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "rank cards fixed size (font 22 with icons)"
+ "notes": "Republished 2026-10-04: rank cards (size 1.6), then a bar_chart (Ethnologue 2025, native → all speakers) with sort desc so English jumps to first on the stage animate; dropped the hand-placed number rows and '1st' label. Chart labels are the engine's ~21 units: small next to the cards."
 }

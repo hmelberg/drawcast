@@ -9,16 +9,13 @@
     "title": "Ethnologue: Languages of the World (2025 and 2026 editions)",
     "authors": "Eberhard, Simons & Fennig (SIL)",
     "year": 2025,
-    "finding": "first-language speakers: Mandarin about 940-990 million, Spanish about 490 million, English about 370-390 million, Hindi about 345-350 million, French about 75 million; total speakers: English about 1.5 billion, Mandarin 1.2 billion, Hindi 610 million, Spanish 560 million, French 310 million"
+    "finding": "first-language / total speakers, millions: Mandarin 990 / 1,184; Spanish 484 / 558; English 390 / 1,528; Hindi 345 / 609; French about 75 / 310"
    }
   ],
   "elements": [
    {
     "id": "langs",
     "type": "cards",
-    "x": 200,
-    "width": 780,
-    "y": 540,
     "items": [
      {
       "text": "Mandarin",
@@ -62,180 +59,8 @@
     ],
     "cites": [
      "eth"
-    ]
-   },
-   {
-    "id": "h_nat",
-    "type": "text",
-    "text": "native",
-    "x": 100,
-    "y": 400,
-    "font_size": 34,
-    "style": {
-     "color": "#5e584e"
-    }
-   },
-   {
-    "id": "h_tot",
-    "type": "text",
-    "text": "all speakers",
-    "x": 100,
-    "y": 290,
-    "font_size": 30,
-    "style": {
-     "color": "#5e584e"
-    }
-   },
-   {
-    "id": "n_zh",
-    "type": "text",
-    "text": "~1 bn",
-    "x": 278.0,
-    "y": 400,
-    "font_size": 36,
-    "style": {
-     "color": "#2f6b8f"
-    },
-    "cites": [
-     "eth"
-    ]
-   },
-   {
-    "id": "t_zh",
-    "type": "text",
-    "text": "1.2 bn",
-    "x": 278.0,
-    "y": 290,
-    "font_size": 36,
-    "style": {
-     "color": "#5e584e"
-    },
-    "cites": [
-     "eth"
-    ]
-   },
-   {
-    "id": "n_es",
-    "type": "text",
-    "text": "490 M",
-    "x": 434.0,
-    "y": 400,
-    "font_size": 36,
-    "style": {
-     "color": "#2f6b8f"
-    },
-    "cites": [
-     "eth"
-    ]
-   },
-   {
-    "id": "t_es",
-    "type": "text",
-    "text": "560 M",
-    "x": 434.0,
-    "y": 290,
-    "font_size": 36,
-    "style": {
-     "color": "#5e584e"
-    },
-    "cites": [
-     "eth"
-    ]
-   },
-   {
-    "id": "n_en",
-    "type": "text",
-    "text": "370 M",
-    "x": 590.0,
-    "y": 400,
-    "font_size": 36,
-    "style": {
-     "color": "#2f6b8f"
-    },
-    "cites": [
-     "eth"
-    ]
-   },
-   {
-    "id": "t_en",
-    "type": "text",
-    "text": "1.5 bn",
-    "x": 590.0,
-    "y": 290,
-    "font_size": 36,
-    "style": {
-     "color": "#b5482e"
-    },
-    "cites": [
-     "eth"
-    ]
-   },
-   {
-    "id": "n_hi",
-    "type": "text",
-    "text": "350 M",
-    "x": 746.0,
-    "y": 400,
-    "font_size": 36,
-    "style": {
-     "color": "#2f6b8f"
-    },
-    "cites": [
-     "eth"
-    ]
-   },
-   {
-    "id": "t_hi",
-    "type": "text",
-    "text": "610 M",
-    "x": 746.0,
-    "y": 290,
-    "font_size": 36,
-    "style": {
-     "color": "#5e584e"
-    },
-    "cites": [
-     "eth"
-    ]
-   },
-   {
-    "id": "n_fr",
-    "type": "text",
-    "text": "75 M",
-    "x": 902.0,
-    "y": 400,
-    "font_size": 36,
-    "style": {
-     "color": "#2f6b8f"
-    },
-    "cites": [
-     "eth"
-    ]
-   },
-   {
-    "id": "t_fr",
-    "type": "text",
-    "text": "310 M",
-    "x": 902.0,
-    "y": 290,
-    "font_size": 36,
-    "style": {
-     "color": "#5e584e"
-    },
-    "cites": [
-     "eth"
-    ]
-   },
-   {
-    "id": "first",
-    "type": "text",
-    "text": "1st",
-    "x": 590.0,
-    "y": 220,
-    "font_size": 40,
-    "style": {
-     "color": "#b5482e"
-    }
+    ],
+    "size": 1.6
    }
   ],
   "commands": [
@@ -260,67 +85,112 @@
     }
    },
    {
+    "erase": [
+     "langs"
+    ]
+   },
+   {
     "draw": [
-     "h_nat",
-     "n_zh"
+     "axes",
+     "bar_1"
     ],
     "speak": "Mandarin wins by a mile: nearly a billion people grew up speaking it."
    },
    {
     "draw": [
-     "n_es"
+     "bar_2"
     ],
     "speak": "Spanish comes second, thanks to Latin America, with almost half a billion."
    },
    {
     "draw": [
-     "n_en",
-     "n_hi"
+     "bar_3",
+     "bar_4"
     ],
     "speak": "Then English and Hindi, close together at around three hundred and fifty million or so each."
    },
    {
     "draw": [
-     "n_fr"
+     "bar_5"
     ],
     "speak": "French, for all its fame, has only about seventy-five million native speakers."
    },
    {
-    "draw": [
-     "h_tot",
-     "t_zh",
-     "t_es",
-     "t_en",
-     "t_hi",
-     "t_fr"
-    ],
+    "animate": {
+     "stage": 1
+    },
+    "duration": 2.5,
     "speak": "But count everyone who speaks a language, natively or not, and the order changes."
    },
    {
-    "draw": [
-     "first"
-    ],
+    "highlight": {
+     "target": [
+      "bar_3"
+     ]
+    },
     "speak": "English jumps to first, with about one and a half billion speakers. Most of them learned it as a second language."
    },
    {
     "highlight": {
      "target": [
-      "t_en"
+      "bar_3"
      ],
      "effect": "circle"
     },
     "speak": "So the world's most spoken language is mostly spoken with an accent."
    }
   ],
-  "text": {
-   "font_size": 36
-  },
-  "assets": {
-   "icon.flag-china.twemoji": "ics1:twemoji:flag-china:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#de2910\" d=\"M36 27a4 4 0 0 1-4 4H4a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4h28a4 4 0 0 1 4 4z\"/><path fill=\"#ffde02\" d=\"m11.136 8.977l.736.356l.589-.566l-.111.81l.72.386l-.804.144l-.144.804l-.386-.72l-.81.111l.566-.589zm4.665 2.941l-.356.735l.566.59l-.809-.112l-.386.721l-.144-.805l-.805-.144l.721-.386l-.112-.809l.59.566zm-.957 3.779l.268.772l.817.017l-.651.493l.237.783l-.671-.467l-.671.467l.236-.783l-.651-.493l.817-.017zm-3.708 3.28l.736.356l.589-.566l-.111.81l.72.386l-.804.144l-.144.804l-.386-.72l-.81.111l.566-.589zM7 10.951l.929 2.671l2.826.058l-2.253 1.708l.819 2.706L7 16.479l-2.321 1.615l.819-2.706l-2.253-1.708l2.826-.058z\"/></svg>",
-   "icon.flag-france.twemoji": "ics1:twemoji:flag-france:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#ed2939\" d=\"M36 27a4 4 0 0 1-4 4h-8V5h8a4 4 0 0 1 4 4z\"/><path fill=\"#002495\" d=\"M4 5a4 4 0 0 0-4 4v18a4 4 0 0 0 4 4h8V5z\"/><path fill=\"#eee\" d=\"M12 5h12v26H12z\"/></svg>",
-   "icon.flag-india.twemoji": "ics1:twemoji:flag-india:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#138808\" d=\"M0 27a4 4 0 0 0 4 4h28a4 4 0 0 0 4-4v-5H0z\"/><path fill=\"#f93\" d=\"M36 14V9a4 4 0 0 0-4-4H4a4 4 0 0 0-4 4v5z\"/><path fill=\"#f7f7f7\" d=\"M0 13.667h36v8.667H0z\"/><circle cx=\"18\" cy=\"18\" r=\"4\" fill=\"navy\"/><circle cx=\"18\" cy=\"18\" r=\"3.375\" fill=\"#f7f7f7\"/><path fill=\"#6666b3\" d=\"m18.1 16.75l-.1.65l-.1-.65l.1-1.95zm-.928-1.841l.408 1.909l.265.602l-.072-.653zm-.772.32l.888 1.738l.412.513l-.238-.613zm-.663.508l1.308 1.45l.531.389l-.389-.531zm-.508.663l1.638 1.062l.613.238l-.513-.412zm-.32.772l1.858.601l.653.072l-.602-.265zM14.8 18l1.95.1l.65-.1l-.65-.1zm.109.828l1.909-.408l.602-.265l-.653.072zm.32.772l1.738-.888l.513-.412l-.613.238zm.508.663l1.45-1.308l.389-.531l-.531.389zm.663.508l1.062-1.638l.238-.613l-.412.513zm.772.32l.601-1.858l.072-.653l-.265.602zM18 21.2l.1-1.95l-.1-.65l-.1.65zm.828-.109l-.408-1.909l-.265-.602l.072.653zm.772-.32l-.888-1.738l-.412-.513l.238.613zm.663-.508l-1.308-1.45l-.531-.389l.389.531zm.508-.663l-1.638-1.062l-.613-.238l.513.412zm.32-.772l-1.858-.601l-.653-.072l.602.265zM21.2 18l-1.95-.1l-.65.1l.65.1zm-.109-.828l-1.909.408l-.602.265l.653-.072zm-.32-.772l-1.738.888l-.513.412l.613-.238zm-.508-.663l-1.45 1.308l-.389.531l.531-.389zm-.663-.508l-1.062 1.638l-.238.613l.412-.513zm-.772-.32l-.601 1.858l-.072.653l.265-.602z\"/><g fill=\"navy\"><circle cx=\"17.56\" cy=\"14.659\" r=\".2\"/><circle cx=\"16.71\" cy=\"14.887\" r=\".2\"/><circle cx=\"15.948\" cy=\"15.326\" r=\".2\"/><circle cx=\"15.326\" cy=\"15.948\" r=\".2\"/><circle cx=\"14.887\" cy=\"16.71\" r=\".2\"/><circle cx=\"14.659\" cy=\"17.56\" r=\".2\"/><circle cx=\"14.659\" cy=\"18.44\" r=\".2\"/><circle cx=\"14.887\" cy=\"19.29\" r=\".2\"/><circle cx=\"15.326\" cy=\"20.052\" r=\".2\"/><circle cx=\"15.948\" cy=\"20.674\" r=\".2\"/><circle cx=\"16.71\" cy=\"21.113\" r=\".2\"/><circle cx=\"17.56\" cy=\"21.341\" r=\".2\"/><circle cx=\"18.44\" cy=\"21.341\" r=\".2\"/><circle cx=\"19.29\" cy=\"21.113\" r=\".2\"/><circle cx=\"20.052\" cy=\"20.674\" r=\".2\"/><circle cx=\"20.674\" cy=\"20.052\" r=\".2\"/><circle cx=\"21.113\" cy=\"19.29\" r=\".2\"/><circle cx=\"21.341\" cy=\"18.44\" r=\".2\"/><circle cx=\"21.341\" cy=\"17.56\" r=\".2\"/><circle cx=\"21.113\" cy=\"16.71\" r=\".2\"/><circle cx=\"20.674\" cy=\"15.948\" r=\".2\"/><circle cx=\"20.052\" cy=\"15.326\" r=\".2\"/><circle cx=\"19.29\" cy=\"14.887\" r=\".2\"/><circle cx=\"18.44\" cy=\"14.659\" r=\".2\"/><circle cx=\"18\" cy=\"18\" r=\".9\"/></g></svg>",
-   "icon.flag-spain.twemoji": "ics1:twemoji:flag-spain:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#c60a1d\" d=\"M36 27a4 4 0 0 1-4 4H4a4 4 0 0 1-4-4V9a4 4 0 0 1 4-4h28a4 4 0 0 1 4 4z\"/><path fill=\"#ffc400\" d=\"M0 12h36v12H0z\"/><path fill=\"#ea596e\" d=\"M9 17v3a3 3 0 1 0 6 0v-3z\"/><path fill=\"#f4a2b2\" d=\"M12 16h3v3h-3z\"/><path fill=\"#dd2e44\" d=\"M9 16h3v3H9z\"/><ellipse cx=\"12\" cy=\"14.5\" fill=\"#ea596e\" rx=\"3\" ry=\"1.5\"/><ellipse cx=\"12\" cy=\"13.75\" fill=\"#ffac33\" rx=\"3\" ry=\".75\"/><path fill=\"#99aab5\" d=\"M7 16h1v7H7zm9 0h1v7h-1z\"/><path fill=\"#66757f\" d=\"M6 22h3v1H6zm9 0h3v1h-3zm-8-7h1v1H7zm9 0h1v1h-1z\"/></svg>",
-   "icon.flag-united-kingdom.twemoji": "ics1:twemoji:flag-united-kingdom:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#00247d\" d=\"M0 9.059V13h5.628zM4.664 31H13v-5.837zM23 25.164V31h8.335zM0 23v3.941L5.63 23zM31.337 5H23v5.837zM36 26.942V23h-5.631zM36 13V9.059L30.371 13zM13 5H4.664L13 10.837z\"/><path fill=\"#cf1b2b\" d=\"m25.14 23l9.712 6.801a4 4 0 0 0 .99-1.749L28.627 23zM13 23h-2.141l-9.711 6.8c.521.53 1.189.909 1.938 1.085L13 23.943zm10-10h2.141l9.711-6.8a4 4 0 0 0-1.937-1.085L23 12.057zm-12.141 0L1.148 6.2a4 4 0 0 0-.991 1.749L7.372 13z\"/><path fill=\"#eee\" d=\"M36 21H21v10h2v-5.836L31.335 31H32a4 4 0 0 0 2.852-1.199L25.14 23h3.487l7.215 5.052c.093-.337.158-.686.158-1.052v-.058L30.369 23H36zM0 21v2h5.63L0 26.941V27c0 1.091.439 2.078 1.148 2.8l9.711-6.8H13v.943l-9.914 6.941c.294.07.598.116.914.116h.664L13 25.163V31h2V21zM36 9a3.98 3.98 0 0 0-1.148-2.8L25.141 13H23v-.943l9.915-6.942A4 4 0 0 0 32 5h-.663L23 10.837V5h-2v10h15v-2h-5.629L36 9.059zM13 5v5.837L4.664 5H4a4 4 0 0 0-2.852 1.2l9.711 6.8H7.372L.157 7.949A4 4 0 0 0 0 9v.059L5.628 13H0v2h15V5z\"/><path fill=\"#cf1b2b\" d=\"M21 15V5h-6v10H0v6h15v10h6V21h15v-6z\"/></svg>"
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Mandarin",
+    "Spanish",
+    "English",
+    "Hindi",
+    "French"
+   ],
+   "values": [
+    [
+     990,
+     484,
+     390,
+     345,
+     75
+    ],
+    [
+     1184,
+     558,
+     1528,
+     609,
+     310
+    ]
+   ],
+   "stage": 0,
+   "sort": "desc",
+   "value_labels": true,
+   "y_label": "Millions",
+   "icons": [
+    {
+     "of": "flag china",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag spain",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag united kingdom",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag india",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag france",
+     "set": "twemoji"
+    }
+   ]
   }
  }
 }

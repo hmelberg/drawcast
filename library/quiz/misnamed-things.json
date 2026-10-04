@@ -28,121 +28,43 @@
   ],
   "elements": [
    {
-    "id": "war",
-    "type": "icon",
-    "of": "crossed swords",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 320,
-    "x": 500,
-    "y": 450
-   },
-   {
-    "id": "war_l",
-    "type": "text",
-    "text": "Hundred Years' War",
-    "x": 500,
-    "y": 225,
-    "font_size": 50
-   },
-   {
-    "id": "war_v",
-    "type": "text",
-    "text": "116 years",
-    "x": 830,
-    "y": 450,
-    "font_size": 56,
-    "style": {
-     "color": "#b5482e"
-    }
-   },
-   {
-    "id": "hat",
-    "type": "icon",
-    "of": "womans hat",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 320,
-    "x": 500,
-    "y": 450
-   },
-   {
-    "id": "hat_l",
-    "type": "text",
-    "text": "Panama hat",
-    "x": 500,
-    "y": 225,
-    "font_size": 50
-   },
-   {
-    "id": "hat_v",
-    "type": "text",
-    "text": "Ecuador",
-    "x": 830,
-    "y": 450,
-    "font_size": 56,
-    "style": {
-     "color": "#b5482e"
-    }
-   },
-   {
-    "id": "pig",
-    "type": "icon",
-    "of": "hamster",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 320,
-    "x": 500,
-    "y": 450
-   },
-   {
-    "id": "pig_l",
-    "type": "text",
-    "text": "Guinea pig",
-    "x": 500,
-    "y": 225,
-    "font_size": 50
-   },
-   {
-    "id": "pig_v",
-    "type": "text",
-    "text": "The Andes",
-    "x": 830,
-    "y": 450,
-    "font_size": 56,
-    "style": {
-     "color": "#b5482e"
-    }
-   },
-   {
-    "id": "r1",
-    "type": "icon",
-    "of": "crossed swords",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 220,
-    "x": 200,
-    "y": 430
-   },
-   {
-    "id": "r2",
-    "type": "icon",
-    "of": "womans hat",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 220,
-    "x": 500,
-    "y": 430
-   },
-   {
-    "id": "r3",
-    "type": "icon",
-    "of": "hamster",
-    "set": "twemoji",
-    "icon_look": "picture",
-    "size": 220,
-    "x": 800,
-    "y": 430
+    "id": "names",
+    "type": "sequence",
+    "items": [
+     {
+      "icon": {
+       "of": "crossed swords",
+       "set": "twemoji"
+      },
+      "label": "Hundred Years' War",
+      "mark": {
+       "text": "116 years",
+       "color": "#b5482e"
+      }
+     },
+     {
+      "icon": {
+       "of": "womans hat",
+       "set": "twemoji"
+      },
+      "label": "Panama hat",
+      "mark": {
+       "text": "Ecuador",
+       "color": "#b5482e"
+      }
+     },
+     {
+      "icon": {
+       "of": "hamster",
+       "set": "twemoji"
+      },
+      "label": "Guinea pig",
+      "mark": {
+       "text": "Andes",
+       "color": "#b5482e"
+      }
+     }
+    ]
    }
   ],
   "commands": [
@@ -153,26 +75,12 @@
    },
    {
     "draw": [
-     "r1",
-     "r2",
-     "r3"
+     "names_1"
     ],
-    "parallel": true,
     "voice": "a",
     "speak": "Three famous names, and every one of them tells a fib. Can you spot where?"
    },
    {
-    "hide": [
-     "r1",
-     "r2",
-     "r3"
-    ]
-   },
-   {
-    "draw": [
-     "war",
-     "war_l"
-    ],
     "voice": "a",
     "speak": "First, the Hundred Years' War, between England and France."
    },
@@ -185,81 +93,57 @@
       "116 years"
      ],
      "correct": 3,
-     "right": "A hundred and sixteen years: England and France fought on and off from 1337 to 1453."
+     "right": "A hundred and sixteen years: England and France fought on and off from 1337 to 1453.",
+     "id": "war",
+     "on_canvas": true,
+     "say_question": true,
+     "reveal": "116 years"
     }
-   },
-   {
-    "draw": [
-     "war_v"
-    ]
-   },
-   {
-    "pause": 1.5
    },
    {
     "voice": "b",
     "speak": "A hundred and sixteen? I'd have said a hundred, obviously.",
     "highlight": {
      "target": [
-      "war_v"
+      "war_stamp"
      ]
     }
    },
    {
-    "hide": [
-     "war",
-     "war_l",
-     "war_v"
-    ]
-   },
-   {
     "draw": [
-     "hat",
-     "hat_l"
+     "names_2"
     ],
     "voice": "b",
     "speak": "Next one. The Panama hat. Surely that one's safe?"
    },
    {
     "quiz": {
-     "question": "Where are Panama hats made?",
+     "question": "So where are Panama hats really made?",
      "choices": [
       "Panama",
       "Ecuador",
       "Cuba"
      ],
      "correct": 2,
-     "right": "Ecuador. They are woven from toquilla palm straw, around towns like Montecristi and Cuenca."
+     "right": "Ecuador. They are woven from toquilla palm straw, around towns like Montecristi and Cuenca.",
+     "id": "hat",
+     "on_canvas": true,
+     "say_question": true,
+     "reveal": "Ecuador"
     }
-   },
-   {
-    "draw": [
-     "hat_v"
-    ]
-   },
-   {
-    "pause": 1.5
    },
    {
     "voice": "a",
     "speak": "They were shipped out through Panama, and the workers who dug the canal wore them.",
     "highlight": {
      "target": [
-      "hat_l"
+      "names_2_label"
      ]
     }
    },
    {
-    "hide": [
-     "hat",
-     "hat_l",
-     "hat_v"
-    ]
-   },
-   {
     "draw": [
-     "pig",
-     "pig_l"
+     "names_3"
     ],
     "voice": "b",
     "speak": "And the guinea pig. At least that's from Guinea?"
@@ -268,45 +152,31 @@
     "quiz": {
      "question": "Where do guinea pigs come from?",
      "choices": [
-      "Guinea, in Africa",
+      "Guinea",
       "The Andes",
       "New Guinea"
      ],
      "correct": 2,
-     "right": "The Andes of South America, where people tamed them thousands of years ago, and still eat them today."
+     "right": "The Andes of South America, where people tamed them thousands of years ago, and still eat them today.",
+     "id": "pig",
+     "on_canvas": true,
+     "say_question": true,
+     "reveal": "The Andes"
     }
-   },
-   {
-    "draw": [
-     "pig_v"
-    ]
-   },
-   {
-    "pause": 1.5
    },
    {
     "voice": "b",
     "speak": "So not from Guinea. And not a pig either.",
     "highlight": {
      "target": [
-      "pig_l"
+      "names_3_label"
      ]
     }
    },
    {
-    "hide": [
-     "pig",
-     "pig_l",
-     "pig_v"
-    ]
-   },
-   {
     "draw": [
-     "r1",
-     "r2",
-     "r3"
+     "names_strip"
     ],
-    "parallel": true,
     "voice": "a",
     "speak": "You got {score} of {score_total}. Three names, three fibs."
    },
@@ -315,7 +185,7 @@
     "speak": "As for the guinea pig: it's a rodent. It just squeals a bit like a piglet.",
     "highlight": {
      "target": [
-      "r3"
+      "names_3"
      ]
     }
    }
@@ -327,13 +197,6 @@
    "poor": "These names have fooled people for centuries.",
    "none": "The names won this round."
   },
-  "text": {
-   "font_size": 34
-  },
-  "assets": {
-   "icon.crossed-swords.twemoji": "ics1:twemoji:crossed-swords:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><path fill=\"#ccd6dd\" d=\"m24 29l5-5L6 1H1v5z\"/><path fill=\"#9aaab4\" d=\"M1 1v5l23 23l2.5-2.5z\"/><path fill=\"#d99e82\" d=\"M33.424 32.808c.284-.284.458-.626.531-.968l-5.242-6.195l-.701-.702c-.564-.564-1.57-.473-2.248.205l-.614.612c-.677.677-.768 1.683-.204 2.247l.741.741l6.15 5.205c.345-.072.688-.247.974-.532z\"/><path fill=\"#bf6952\" d=\"M33.424 32.808c.284-.284.458-.626.531-.968l-1.342-1.586l-.737 3.684c.331-.077.661-.243.935-.518zm-3.31-5.506l-.888 4.441l1.26 1.066l.82-4.1zm-1.401-1.657l-.701-.702a1.2 1.2 0 0 0-.326-.224l-.978 4.892l1.26 1.066l.957-4.783zm-2.401-.888a2 2 0 0 0-.548.392l-.614.611a2 2 0 0 0-.511.86c-.142.51-.046 1.035.307 1.387l.596.596zq0-.002 0 0\"/><circle cx=\"33.25\" cy=\"33.25\" r=\"2.75\" fill=\"#8a4633\"/><path fill=\"#ffac33\" d=\"M29.626 22.324a1.033 1.033 0 0 1 0 1.462l-6.092 6.092a1.033 1.033 0 1 1-1.462-1.462l6.092-6.092a1.033 1.033 0 0 1 1.462 0\"/><circle cx=\"22.072\" cy=\"29.877\" r=\"1.75\" fill=\"#ffac33\"/><circle cx=\"29.626\" cy=\"22.323\" r=\"1.75\" fill=\"#ffac33\"/><circle cx=\"22.072\" cy=\"29.877\" r=\"1\" fill=\"#ffcc4d\"/><circle cx=\"29.626\" cy=\"22.323\" r=\"1\" fill=\"#ffcc4d\"/><path fill=\"#ffac33\" d=\"M33.903 29.342a.76.76 0 0 1 0 1.078l-3.476 3.475a.762.762 0 1 1-1.078-1.078l3.476-3.475a.76.76 0 0 1 1.078 0\"/><path fill=\"#ccd6dd\" d=\"m12 29l-5-5L30 1h5v5z\"/><path fill=\"#9aaab4\" d=\"M35 1v5L12 29l-2.5-2.5z\"/><path fill=\"#d99e82\" d=\"M2.576 32.808a1.95 1.95 0 0 1-.531-.968l5.242-6.195l.701-.702c.564-.564 1.57-.473 2.248.205l.613.612c.677.677.768 1.683.204 2.247l-.741.741l-6.15 5.205a1.95 1.95 0 0 1-.974-.532z\"/><path fill=\"#bf6952\" d=\"M2.576 32.808a1.95 1.95 0 0 1-.531-.968l1.342-1.586l.737 3.684a1.93 1.93 0 0 1-.935-.518zm3.31-5.506l.888 4.441l-1.26 1.066l-.82-4.1zm1.401-1.657l.701-.702a1.2 1.2 0 0 1 .326-.224l.978 4.892l-1.26 1.066l-.957-4.783zm2.401-.888c.195.095.382.225.548.392l.613.612c.254.254.425.554.511.86c.142.51.046 1.035-.307 1.387l-.596.596zq0-.002 0 0\"/><circle cx=\"2.75\" cy=\"33.25\" r=\"2.75\" fill=\"#8a4633\"/><path fill=\"#ffac33\" d=\"M6.374 22.324a1.033 1.033 0 0 0 0 1.462l6.092 6.092a1.033 1.033 0 1 0 1.462-1.462l-6.092-6.092a1.033 1.033 0 0 0-1.462 0\"/><circle cx=\"13.928\" cy=\"29.877\" r=\"1.75\" fill=\"#ffac33\"/><circle cx=\"6.374\" cy=\"22.323\" r=\"1.75\" fill=\"#ffac33\"/><circle cx=\"13.928\" cy=\"29.877\" r=\"1\" fill=\"#ffcc4d\"/><circle cx=\"6.374\" cy=\"22.323\" r=\"1\" fill=\"#ffcc4d\"/><path fill=\"#ffac33\" d=\"M2.097 29.342a.76.76 0 0 0 0 1.078l3.476 3.475a.762.762 0 1 0 1.078-1.078l-3.476-3.475a.76.76 0 0 0-1.078 0\"/></svg>",
-   "icon.hamster.twemoji": "ics1:twemoji:hamster:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><circle cx=\"8.5\" cy=\"9.5\" r=\"8.5\" fill=\"#ffcc4d\"/><circle cx=\"27.5\" cy=\"9.5\" r=\"8.5\" fill=\"#ffcc4d\"/><path fill=\"#ea596e\" d=\"M13.912 5.854a6.89 6.89 0 0 0-5.443-2.667a6.907 6.907 0 0 0-6.906 6.906a6.9 6.9 0 0 0 3.996 6.256c.709-4.195 3.983-8.672 8.353-10.495m13.619-2.666a6.88 6.88 0 0 0-5.443 2.667c4.369 1.823 7.643 6.3 8.354 10.496a6.902 6.902 0 0 0-2.911-13.163\"/><path fill=\"#ffe8b6\" d=\"M34 22.593c-2-10.045-11.333-6.5-16-6.5s-14-3.546-16 6.5c-1.295 6.504 3.794 9.879 9.032 11.387C12.682 35.212 15.19 36 18 36s5.318-.788 6.969-2.021c5.237-1.508 10.326-4.882 9.031-11.386\"/><path fill=\"#ffcc4d\" d=\"M30.6 18c0 11-5.641 6-12.6 6S5.4 29 5.4 18c0-5.799 5.641-13 12.6-13s12.6 7.201 12.6 13\"/><path fill=\"#ea596e\" d=\"M20.905 27.956c0 1.604-2.012 3.352-2.905 3.352c-.894 0-2.905-1.748-2.905-3.352C15.095 26.351 16.882 26 18 26s2.905.351 2.905 1.956\"/><path fill=\"#c1694f\" d=\"M35.515 30.303c-5.245-3.146-12.355-2.175-12.656-2.133c-.014.002-.023.011-.037.013c-.081.015-.153.048-.228.081c-.046.021-.093.035-.134.062c-.061.039-.107.092-.158.144c-.041.041-.084.076-.117.123c-.036.052-.056.111-.082.17c-.027.062-.058.121-.071.189c-.004.016-.015.028-.018.045c-.009.055.006.105.006.159c-.001.049-.016.095-.009.146c.002.016.012.027.015.042c.013.069.041.13.067.193c.024.06.044.12.079.173c.028.044.067.076.101.115c.053.058.104.114.168.158c.038.026.083.041.125.062c.074.036.146.07.229.087c.015.003.026.013.041.016c.056.01 5.636.977 8.364 4.613c.196.263.496.4.801.4a.998.998 0 0 0 .799-1.599c-1.108-1.479-2.573-2.566-4.025-3.369c1.88.242 3.942.765 5.711 1.826a1 1 0 0 0 1.372-.342c.284-.476.13-1.09-.343-1.374m-21.686-.596c.034-.052.053-.111.077-.169c.026-.064.055-.124.068-.193c.003-.016.013-.028.016-.044c.007-.053-.008-.103-.009-.154s.014-.1.005-.151c-.002-.016-.013-.027-.016-.043c-.015-.069-.045-.131-.074-.194c-.025-.057-.045-.115-.08-.165c-.032-.047-.075-.082-.115-.123c-.051-.053-.099-.105-.16-.146c-.04-.025-.087-.039-.131-.06a1 1 0 0 0-.23-.081c-.014-.003-.024-.012-.038-.014c-.301-.042-7.412-1.014-12.656 2.133a1 1 0 1 0 1.029 1.714c1.768-1.061 3.83-1.583 5.709-1.825c-1.451.802-2.915 1.89-4.023 3.368A.998.998 0 0 0 4 35.159a1 1 0 0 0 .801-.4c2.717-3.622 8.31-4.604 8.366-4.613c.015-.003.025-.012.04-.016c.077-.016.144-.049.214-.082c.048-.022.099-.039.142-.069c.059-.04.104-.093.152-.144c.039-.042.082-.079.114-.128\"/><path fill=\"#272b2b\" d=\"M10 20s0-2 2-2s2 2 2 2v2s0 2-2 2s-2-2-2-2zm12 0s0-2 2-2s2 2 2 2v2s0 2-2 2s-2-2-2-2z\"/></svg>",
-   "icon.womans-hat.twemoji": "ics1:twemoji:womans-hat:<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 36 36\"><ellipse cx=\"18\" cy=\"23\" fill=\"#ffd983\" rx=\"18\" ry=\"5\"/><path fill=\"#ffd983\" d=\"M29 17c0 1.566-4.925 6-11 6S7.043 18.566 7.043 17C7.043 10 14 7 18 7s11 3 11 10\"/><path fill=\"#9266cc\" d=\"M29 21c-5 3-17 3-22 0c0-.492.043-3.535.043-4C13 20 23 20 29 17c-.003.465 0 3.508 0 4\"/><ellipse cx=\"18\" cy=\"24\" fill=\"#fff\" rx=\"1\" ry=\"2\"/><ellipse cx=\"18\" cy=\"18\" fill=\"#fff\" rx=\"1\" ry=\"2\"/><path fill=\"#fff\" d=\"M16.586 23.828c-.781.781-1.731 1.098-2.121.707c-.391-.391-.074-1.34.707-2.121s1.73-1.098 2.122-.707c.39.391.073 1.341-.708 2.121m4.242-4.242c-.78.781-1.73 1.098-2.121.707s-.074-1.34.707-2.122s1.73-1.098 2.121-.707s.074 1.341-.707 2.122\"/><path fill=\"#fff\" d=\"M15 22c-1.105 0-2-.448-2-1c0-.553.896-1 2-1s2 .447 2 1s-.896 1-2 1m6 0c-1.104.001-2-.447-2-1s.896-1 2-1s2 .447 2 1s-.896 1-2 1\"/><path fill=\"#fff\" d=\"M15.172 19.587c-.782-.782-1.098-1.732-.707-2.122c.391-.391 1.34-.074 2.121.707c.781.782 1.098 1.73.707 2.121c-.391.392-1.341.074-2.121-.706m4.242 4.242c-.782-.78-1.098-1.73-.707-2.121c.391-.392 1.34-.074 2.121.707s1.098 1.73.707 2.121c-.389.39-1.34.074-2.121-.707\"/><circle cx=\"18\" cy=\"21\" r=\"2\" fill=\"#ffac33\"/></svg>"
-  }
+  "affirm": "playful"
  }
 }
