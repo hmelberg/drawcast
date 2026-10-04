@@ -14,6 +14,7 @@ import { effectiveTextStyle } from "./text-style";
 import { setMathTextStyle } from "./math";
 import { setMathFont, setMathHand } from "../scenes/engines";
 import type { Spec } from "../spec/types";
+import { lintScaleMarkerRoom } from "../lint/scale-marker-room";
 import { coVisible, idsOf, lintAskStage, lintLayout, FIT_SCALE_FLOOR, type LintIssue } from "../lint/lint";
 import { layoutElements, noIconWarning, type PieceGeometry } from "./tier2";
 import { iconAsk, isIconData } from "../spec/icon-data";
@@ -544,6 +545,8 @@ export function layoutSpec(
   // A question whose cards or options sit over the figure (spec round 6 §6).
   const cardIds = new Set(authoredCards(spec).map((c) => c.id));
   layoutIssues.push(...lintAskStage(drawables, measure, spec.commands, (id) => pieceGroups[id] ?? groups[id], (id) => cardIds.has(id), composed));
+  // A guessed scale's marker and number need their band over the line clear (W25).
+  layoutIssues.push(...lintScaleMarkerRoom(spec, drawables, measure, (id) => pieceGroups[id] ?? groups[id]));
   const atDraw = codeEl && !opts.skipDrawBeatLint ? paramsAtFirstDraw(rawSpec, codeEl.id) : null;
   if (!codeEl || atDraw === null) {
     issues.push(...layoutIssues);

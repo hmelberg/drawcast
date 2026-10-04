@@ -20,9 +20,9 @@
     "of": "ant",
     "set": "twemoji",
     "icon_look": "picture",
-    "size": 170,
+    "size": 130,
     "x": 500,
-    "y": 570
+    "y": 590
    },
    {
     "id": "count",

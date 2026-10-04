@@ -189,6 +189,8 @@ export interface LintIssue {
     | "ask-question"
     /** a sort judged on each drop whose right/wrong line points at arrows or marks (round 7 §3.6) — warns */
     | "cards-check"
+    /** something over a guessed scale's marker band, where the viewer's number goes (W25) — warns */
+    | "scale-marker"
     | "cards-text";
   ids: string[];
   message: string;
@@ -838,7 +840,7 @@ export function lintAskStage(
 
 /** The plan's visibility walk, for the rules that need what is on screen at a
  *  command: `at(c, visible)` sees the set as it stands BEFORE the command. */
-function walkVisible(commands: Command[], expandId: ((id: string) => string[] | null | undefined) | undefined, at: (c: Command, visible: ReadonlySet<string>) => void): void {
+export function walkVisible(commands: Command[], expandId: ((id: string) => string[] | null | undefined) | undefined, at: (c: Command, visible: ReadonlySet<string>) => void): void {
   const kids = (id: string): string[] => expandId?.(id) ?? [];
   const ids = (raw: string[] | string | undefined): string[] => idsOf(raw).flatMap((id) => [id, ...kids(id)]);
   const visible = new Set<string>();
