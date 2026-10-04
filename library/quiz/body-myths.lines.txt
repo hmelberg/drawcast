@@ -1,17 +1,21 @@
 Your body, true or myth? First: cracking your knuckles gives you arthritis.
-[ASK] Cracking your knuckles gives you arthritis. True or myth?  choices=['True', 'Myth']
+[QUIZ] Cracking your knuckles gives you arthritis. True or myth?  choices=["True","Myth"]
   [right] Myth. A doctor, Donald Unger, cracked the knuckles of one hand for sixty years and never the other: no arthritis in either, and an Ig Nobel Prize.
 Next, the one that ruins bedtime: we all swallow spiders in our sleep.
-[ASK] We swallow spiders in our sleep. True or myth?  choices=['True', 'Myth']
+[QUIZ] We swallow spiders in our sleep. True or myth?  choices=["True","Myth"]
   [right] Myth. No case has ever been recorded, and a big, breathing, rumbling sleeper is the last place a spider wants to go.
 Then the razor: shaved hair grows back thicker.
-[ASK] Shaved hair grows back thicker. True or myth?  choices=['True', 'Myth']
+[QUIZ] Shaved hair grows back thicker. True or myth?  choices=["True","Myth"]
   [right] Myth. The razor leaves a blunt tip that feels coarse, but a study in 1928 already found the hair grows back no thicker and no faster.
 Now a school lesson: you have more than five senses.
-[ASK] Humans have more than five senses. True or myth?  choices=['True', 'Myth']
+[QUIZ] Humans have more than five senses. True or myth?  choices=["True","Myth"]
   [right] True. Balance, heat, pain, and knowing where your arms are with your eyes shut are senses too: scientists count far more than five.
 And last: your stomach gets a new lining every few days.
-[ASK] Your stomach lining renews itself every few days. True or myth?  choices=['True', 'Myth']
+[QUIZ] Your stomach lining renews itself every few days. True or myth?  choices=["True","Myth"]
   [right] True. The cells on the stomach's surface are replaced every three to five days, before its own acid can digest them.
 You got {score} of {score_total}.
 The three family warnings were myths. The two from biology class were true.
+[feedback perfect] Your body has no secrets from you.
+[feedback good] A sharp eye for an old wives' tale.
+[feedback poor] These myths fool almost everyone.
+[feedback none] The myths won this round.

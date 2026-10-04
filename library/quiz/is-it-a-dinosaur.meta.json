@@ -11,5 +11,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "select cards' size and the box height are fixed by the engine; twemoji icons only for T. rex, chicken, mammoth."
+ "notes": "2026-10-04 republish: every card has a picture now (icon keywords; pterodactylus/plesiosaurus from game-icons after the honest-icon check found no plain match), cards take the engine's placement (y dropped); affirm playful; lines unchanged. Mixed icon styles (twemoji colour + game-icons silhouettes)."
 }

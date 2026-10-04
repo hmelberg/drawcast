@@ -2,7 +2,7 @@ Did Cleopatra live closer in time to the builders of the Great Pyramid, or to th
 Here are the three moments: the pyramid is finished, Cleopatra dies, and Apollo 11 lands.
 [ASK] When did each happen? Drag each card to its year on the timeline.
   [right] All {w.total} close.
-  [wrong] {w} of {w.total} close.
+  [wrong] {w.within} of {w.total} close.
 The Great Pyramid was finished around 2560 BC, for the pharaoh Khufu.
 That is about two and a half thousand years before Cleopatra died.
 She died in 30 BC.

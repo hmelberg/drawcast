@@ -60,8 +60,8 @@
     "id": "limit",
     "type": "text",
     "text": "1985: 160 characters",
-    "x": 412.5,
-    "y": 450,
+    "x": 380,
+    "y": 620,
     "font_size": 28,
     "style": {
      "color": "#b5482e"
@@ -107,11 +107,11 @@
     "points": [
      [
       412.5,
-      515
+      525
      ],
      [
       412.5,
-      478
+      595
      ]
     ],
     "style": {
@@ -205,6 +205,7 @@
   ],
   "text": {
    "font_size": 32
-  }
+  },
+  "affirm": "playful"
  }
 }

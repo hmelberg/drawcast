@@ -12,5 +12,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "card size fixed (max width 180); icons make the cards taller"
+ "notes": "2026-10-04 republish: affirm playful only. Tried the W2 path (cards auto size, year labels as labels attached to the cards, trophy at the RotK card): attached labels do not follow a tap-all card into its box (they stay at, or are thrown onto, the card's home), so the hand-placed labels at the cards' answered slots (x 20, width 960 kept) stay. Engine gap: attached labels should follow select/sort moves."
 }

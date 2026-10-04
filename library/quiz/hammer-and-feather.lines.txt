@@ -1,6 +1,6 @@
 On the Moon, an astronaut drops a hammer and a feather at the same moment. Which one lands first?
 The hammer weighs over a kilo. The feather, about thirty grams.
-[ASK] On the Moon, which lands first?  choices=['The hammer', 'The feather', 'Both together']
+[QUIZ] On the Moon, which lands first?  choices=["The hammer","The feather","Both together"]
   [right] They land together. With no air to hold the feather back, gravity speeds both up at exactly the same rate.
   [wrong] Ask what slows a feather down on Earth.
 Astronaut David Scott tried it on Apollo 15, in 1971, live on television.

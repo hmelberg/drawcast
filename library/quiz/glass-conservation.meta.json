@@ -11,5 +11,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": true,
- "notes": "Choose on the figure (two glass groups + 'Same' rect). After the pour the tall glass slides beside the wide one (move). Lint flags labels on the tall glass's ORIGINAL position (it ignores the move): false positives."
+ "notes": "2026-10-04 republish: the hand-drawn 'same water' verdict after the ask → ask reveal stamp 'Same water!' (pinned beside the Same button, which now stays); Piaget notes moved under it; the last line highlights both glasses instead of the old verdict; affirm playful; lines unchanged (the 'Hang on' line no longer draws). Soft pacing: idle 8 s on the conservation line."
 }

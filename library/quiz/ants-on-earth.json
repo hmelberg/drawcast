@@ -27,24 +27,22 @@
    {
     "id": "count",
     "type": "scale",
-    "min": 0.01,
-    "max": 100000,
+    "min": 10000000000,
+    "max": 100000000000000000,
     "log": true,
-    "unit": "trillion",
-    "value": 20000,
-    "x": 100,
-    "y": 440,
-    "width": 800,
+    "unit": "ants",
+    "value": 20000000000000000,
     "cites": [
      "schultheiss"
-    ]
+    ],
+    "y": 440
    },
    {
     "id": "zeros",
     "type": "text",
     "text": "20,000,000,000,000,000",
     "x": 500,
-    "y": 320,
+    "y": 340,
     "font_size": 48,
     "style": {
      "color": "#2f6b8f"
@@ -55,7 +53,7 @@
     "type": "text",
     "text": "2.5 million per person",
     "x": 500,
-    "y": 250,
+    "y": 240,
     "font_size": 44,
     "style": {
      "color": "#2f6b8f"
@@ -92,17 +90,6 @@
     "style": {
      "color": "#b5482e"
     }
-   },
-   {
-    "id": "unit",
-    "type": "text",
-    "text": "ants, in trillions",
-    "x": 500,
-    "y": 360,
-    "font_size": 30,
-    "style": {
-     "color": "#8f887c"
-    }
    }
   ],
   "commands": [
@@ -114,8 +101,7 @@
    {
     "draw": [
      "ant",
-     "count",
-     "unit"
+     "count"
     ],
     "speak": "How many ants are alive on Earth right now?"
    },
@@ -128,11 +114,6 @@
      "right": "Close: you said {a}, and it is about {a.true}.",
      "wrong": "You said {a}. It is about {a.true}."
     }
-   },
-   {
-    "erase": [
-     "unit"
-    ]
    },
    {
     "draw": [
@@ -195,6 +176,7 @@
   ],
   "text": {
    "font_size": 34
-  }
+  },
+  "affirm": "playful"
  }
 }

@@ -11,5 +11,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "log scale guess (10 to 10 million; from 1 the end tick labels overflow); Sun and Earth drawn to scale; the scale marker prints 1300 000 (engine number format)."
+ "notes": "2026-10-04 republish: Sun moved off the left edge, mass label fixed (was off-canvas); affirm playful; lines unchanged. Tried size_compare (beside, Sun/Earth, ratio): it drew a smaller Sun beside the scale and crowded the labels, so the hand-drawn to-scale disc stays."
 }

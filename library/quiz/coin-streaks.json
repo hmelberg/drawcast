@@ -19,8 +19,6 @@
     "type": "node",
     "shape": "circle",
     "text": "H",
-    "x": 120,
-    "y": 410,
     "width": 136,
     "font_size": 56,
     "style": {
@@ -32,8 +30,6 @@
     "type": "node",
     "shape": "circle",
     "text": "H",
-    "x": 272,
-    "y": 410,
     "width": 136,
     "font_size": 56,
     "style": {
@@ -45,8 +41,6 @@
     "type": "node",
     "shape": "circle",
     "text": "H",
-    "x": 424,
-    "y": 410,
     "width": 136,
     "font_size": 56,
     "style": {
@@ -58,8 +52,6 @@
     "type": "node",
     "shape": "circle",
     "text": "H",
-    "x": 576,
-    "y": 410,
     "width": 136,
     "font_size": 56,
     "style": {
@@ -71,8 +63,6 @@
     "type": "node",
     "shape": "circle",
     "text": "H",
-    "x": 728,
-    "y": 410,
     "width": 136,
     "font_size": 56,
     "style": {
@@ -84,8 +74,6 @@
     "type": "node",
     "shape": "circle",
     "text": "?",
-    "x": 880,
-    "y": 410,
     "width": 136,
     "font_size": 56,
     "style": {
@@ -100,29 +88,24 @@
      "h2",
      "h3",
      "h4",
-     "h5"
-    ]
-   },
-   {
-    "id": "fifty",
-    "type": "text",
-    "text": "50 : 50",
-    "x": 880,
-    "y": 255,
-    "font_size": 56,
-    "style": {
-     "color": "#b5482e"
-    }
+     "h5",
+     "next"
+    ],
+    "layout": "row",
+    "gap": 24
    },
    {
     "id": "odds",
     "type": "text",
     "text": "1 in 32",
-    "x": 424,
-    "y": 255,
     "font_size": 56,
     "style": {
      "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "h3",
+     "side": "below",
+     "gap": 50
     }
    },
    {
@@ -130,8 +113,8 @@
     "type": "text",
     "text": "26",
     "x": 500,
-    "y": 470,
-    "font_size": 200,
+    "y": 460,
+    "font_size": 160,
     "style": {
      "color": "#222222"
     },
@@ -155,7 +138,7 @@
     "type": "text",
     "text": "blacks in a row",
     "x": 500,
-    "y": 320,
+    "y": 310,
     "font_size": 52
    },
    {
@@ -174,7 +157,7 @@
     "type": "text",
     "text": "the Monte Carlo fallacy",
     "x": 500,
-    "y": 215,
+    "y": 205,
     "font_size": 44,
     "style": {
      "color": "#b5482e"
@@ -189,7 +172,11 @@
    },
    {
     "draw": [
-     "heads"
+     "h1",
+     "h2",
+     "h3",
+     "h4",
+     "h5"
     ],
     "speak": "You toss a fair coin five times, and it lands heads every time. What comes next?",
     "voice": "a"
@@ -211,15 +198,22 @@
      ],
      "correct": 2,
      "right": "Exactly half. The coin has no memory: every toss starts from scratch.",
-     "wrong": "Ask what the coin remembers."
+     "wrong": "Ask what the coin remembers.",
+     "reveal": "50 : 50"
     }
    },
    {
-    "draw": [
-     "fifty"
-    ],
     "speak": "But five heads in a row is rare. Doesn't that count for something?",
-    "voice": "b"
+    "voice": "b",
+    "highlight": {
+     "target": [
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5"
+     ]
+    }
    },
    {
     "draw": [
@@ -240,8 +234,6 @@
    {
     "erase": [
      "heads",
-     "next",
-     "fifty",
      "odds"
     ]
    },
@@ -284,6 +276,7 @@
     "speak": "It does. It's often called the Monte Carlo fallacy, and the wheel never knew it was on a streak.",
     "voice": "a"
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }

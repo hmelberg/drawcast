@@ -11,5 +11,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": true,
- "notes": "bar-chart labels fixed small"
+ "notes": "2026-10-04 republish: chart takes the engine's placement (box dropped); price line, stop arrow and the diamond's level are in data coordinates (data: true / {data}) instead of computed canvas numbers; price label attached to its line; y label shortened (was off-canvas), x label dropped (first bar reads '1st glass'); affirm playful; lines unchanged. Soft pacing flags: idle 5-8 s on four dialogue lines."
 }

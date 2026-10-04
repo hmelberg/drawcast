@@ -206,8 +206,8 @@
     "id": "y1889",
     "type": "text",
     "text": "1889",
-    "x": 170,
-    "y": 560,
+    "x": 190,
+    "y": 590,
     "font_size": 60,
     "style": {
      "color": "#b5482e"
@@ -217,8 +217,8 @@
     "id": "h300",
     "type": "text",
     "text": "300 m",
-    "x": 170,
-    "y": 470,
+    "x": 190,
+    "y": 495,
     "font_size": 44,
     "style": {
      "color": "#2f6b8f"
@@ -228,9 +228,9 @@
     "id": "ugly",
     "type": "text",
     "text": "1887: \"monstrous\"",
-    "x": 790,
-    "y": 610,
-    "font_size": 36,
+    "x": 780,
+    "y": 535,
+    "font_size": 32,
     "style": {
      "color": "#b5482e"
     },
@@ -241,10 +241,10 @@
    {
     "id": "permit",
     "type": "text",
-    "text": "permit ends 1909",
+    "text": "permit to 1909",
     "x": 790,
-    "y": 530,
-    "font_size": 40,
+    "y": 460,
+    "font_size": 34,
     "style": {
      "color": "#b5482e"
     },
@@ -257,8 +257,8 @@
     "type": "text",
     "text": "saved by radio",
     "x": 790,
-    "y": 455,
-    "font_size": 40,
+    "y": 385,
+    "font_size": 34,
     "style": {
      "color": "#2f6b8f"
     },
@@ -300,11 +300,11 @@
     "type": "path",
     "points": [
      [
-      728.0,
+      728,
       240
      ],
      [
-      728.0,
+      728,
       262
      ]
     ],
@@ -317,7 +317,7 @@
     "id": "l1930",
     "type": "text",
     "text": "1930",
-    "x": 728.0,
+    "x": 728,
     "y": 285,
     "font_size": 26,
     "style": {
@@ -327,10 +327,10 @@
    {
     "id": "chrys",
     "type": "text",
-    "text": "1930: Chrysler Building",
+    "text": "1930: Chrysler",
     "x": 790,
-    "y": 380,
-    "font_size": 30,
+    "y": 610,
+    "font_size": 32,
     "style": {
      "color": "#2f6b8f"
     }
@@ -339,9 +339,9 @@
     "id": "still",
     "type": "text",
     "text": "still standing",
-    "x": 170,
-    "y": 380,
-    "font_size": 40,
+    "x": 200,
+    "y": 400,
+    "font_size": 36,
     "style": {
      "color": "#b5482e"
     }
@@ -438,6 +438,7 @@
      "still"
     ]
    }
-  ]
+  ],
+  "affirm": "playful"
  }
 }
