@@ -3681,3 +3681,33 @@ body.viewer-body.watch-body.watch-theatre {
 .thumb-chip:hover { border-color: var(--ink); }
 .thumb-unknown { color: var(--loss, #b5482e); }
 .thumb-choice .thumb-row { display: block; }
+
+/* A live number to drag while an explore beat holds (ui/tray.ts ringLiveNumbers,
+   2026-10-05): a dashed ring that pulses twice and a small "drag ↔" under it.
+   It never takes the press — the number under it does. */
+.cs-live-ring {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  border: 2px dashed #3f6fb5;
+  border-radius: 10px;
+  box-sizing: border-box;
+  animation: cs-live-ring-pulse 0.9s ease-in-out 2;
+}
+.cs-live-ring-hint {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translate(-50%, 4px);
+  white-space: nowrap;
+  font-family: var(--sketch-font);
+  font-size: var(--text-sm);
+  color: #3f6fb5;
+}
+@keyframes cs-live-ring-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-live-ring { animation: none; }
+}

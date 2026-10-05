@@ -94,6 +94,32 @@ const animationFrame = (fn: () => void): (() => void) => {
 };
 
 /** The host for a page whose formulas show live vars; null when none do. */
+/**
+ * The live numbers on screen at the playhead (the drawn math's `<id>_var_<name>`
+ * parts): their var and their box on the page, the formula's move offset
+ * applied. What the host hit-tests, and what an explore gate rings so the
+ * viewer can see what to drag (2026-10-05).
+ */
+export function liveVarBoxes(hd: RenderHandle): { id: string; name: string; box: BBox }[] {
+  const { mathIds: authored, live } = liveMathOf(hd.spec);
+  if (authored.length === 0) return [];
+  const names = new Set(live.keys());
+  const visible = new Set(sceneAt(hd.plan, hd.timeline.position).visible);
+  const ids = [...visible].filter((id) => authored.some((m) => id === m || new RegExp(`^${m}_\\d+$`).test(id)));
+  if (ids.length === 0) return [];
+  const layout = hd.timeline.paintedLayout() ?? hd.layout;
+  const offsets = sceneAt(hd.plan, hd.timeline.position).offsets;
+  const out: { id: string; name: string; box: BBox }[] = [];
+  for (const [id, box] of partBoxes(layout.drawables.filter((d) => ids.includes(d.id)), ids)) {
+    const name = varOfPart(id, ids, names);
+    if (name === null) continue;
+    const owner = ids.find((m) => id.startsWith(`${m}_var_`))!;
+    const [dx, dy] = offsets[owner] ?? [0, 0];
+    out.push({ id, name, box: { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h } });
+  }
+  return out;
+}
+
 export function liveVarHostFor(hd: RenderHandle, deps: LiveVarHostDeps = {}): WidgetHost | null {
   const { mathIds: authored, live } = liveMathOf(hd.spec);
   if (authored.length === 0) return null;
@@ -107,27 +133,8 @@ export function liveVarHostFor(hd: RenderHandle, deps: LiveVarHostDeps = {}): Wi
   let gesture: { id: string; name: string; start: Pt; v0: number; moved: boolean; pending: Pt | null; unframe: (() => void) | null; before: Record<string, number> } | null = null;
   let editing: { id: string; name: string; field: EditField; box: BBox } | null = null;
 
-  /** A formula's own id, or a derivation line of it (`eq_2`) that is on screen. */
-  const drawnMath = (): string[] => {
-    const visible = new Set(sceneAt(hd.plan, hd.timeline.position).visible);
-    return [...visible].filter((id) => authored.some((m) => id === m || new RegExp(`^${m}_\\d+$`).test(id)));
-  };
-  /** Each visible live part: its var and its box on the page (the formula's move offset applied). */
-  const parts = (): { id: string; name: string; box: BBox }[] => {
-    const ids = drawnMath();
-    if (ids.length === 0) return [];
-    const layout = hd.timeline.paintedLayout() ?? hd.layout;
-    const offsets = sceneAt(hd.plan, hd.timeline.position).offsets;
-    const out: { id: string; name: string; box: BBox }[] = [];
-    for (const [id, box] of partBoxes(layout.drawables.filter((d) => ids.includes(d.id)), ids)) {
-      const name = varOfPart(id, ids, names);
-      if (name === null) continue;
-      const owner = ids.find((m) => id.startsWith(`${m}_var_`))!;
-      const [dx, dy] = offsets[owner] ?? [0, 0];
-      out.push({ id, name, box: { x: box.x + dx, y: box.y + dy, w: box.w, h: box.h } });
-    }
-    return out;
-  };
+  /** Each visible live part: its var and its box on the page (liveVarBoxes). */
+  const parts = (): { id: string; name: string; box: BBox }[] => liveVarBoxes(hd).filter((p) => names.has(p.name));
   const partAtPoint = (p: Pt): { id: string; name: string; box: BBox } | null => {
     let best: { id: string; name: string; box: BBox } | null = null;
     let bestD = Infinity;
