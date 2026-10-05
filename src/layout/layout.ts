@@ -21,7 +21,7 @@ import { iconAsk, isIconData } from "../spec/icon-data";
 import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
 import { setFigureLocale, withTextFit } from "../scenes/kit";
-import { setHeadingBox } from "./axes";
+import { clearAxisCaptions, setHeadingBox } from "./axes";
 import { contentBox, FIT_BAND, GUTTER, HEADING_FONT_MAX, HEADING_Y, MARGIN, PAGE_H, PAGE_W } from "./page";
 import { pageVAlign, pinnedIds, settleBlocker, settleOffset, shiftAll } from "./settle";
 import type { MeasureSpec } from "./measures";
@@ -317,6 +317,10 @@ export function layoutSpec(
             if (own.length > 0) templateFollowers[id] = [...new Set(own)];
           }
         }
+        // An axis caption and its end ticks clear of each other as measured
+        // here — at the cast's text scale, which grew them into each other
+        // (axes.ts clearAxisCaptions, 2026-10-05).
+        sceneLayout.drawables = clearAxisCaptions(sceneLayout.drawables, measure);
         drawables.push(...sceneLayout.drawables);
         // A bar's icon keyword with no artwork (round 7 §6): named, as a node's
         // is — also when NONE of the keywords resolved (withIconData then makes
