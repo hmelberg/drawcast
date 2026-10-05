@@ -28,3 +28,4 @@ dist-skill/
 
 # Browser-automation screenshots and logs (Playwright MCP) — scratch, kept on disk only
 .playwright-mcp/
+docs/card-lab/runs/

@@ -13,7 +13,7 @@ export function decodePicture(b64) {
 }
 
 /** cast.mjs browser()'s lookup — Playwright's own headless shell cache. */
-async function defaultLaunch() {
+export async function defaultLaunch() {
   const { chromium } = await import("playwright-core");
   const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
   const cache = process.env.PLAYWRIGHT_BROWSERS_PATH

@@ -69,6 +69,8 @@ import { validateSpec } from "../spec/schema";
 import type { Spec } from "../spec/types";
 import { ensureEnginesForSpecs } from "../scenes/engines";
 import { ensureEnabledPacks, PACK_DEFS } from "../scenes/packs";
+import { compileCard } from "../card/convert";
+import type { CardResult } from "../card/types";
 import { posterForPlaylistText } from "../export/snapshot";
 import { attachPlayerControls } from "../ui/controls";
 import { frameLabel, frameList } from "./frame-list";
@@ -535,6 +537,7 @@ declare global {
   interface Window {
     __stampCode: (index: number) => Promise<Record<string, string>>;
     __poster: (text: string) => Promise<string | null>;
+    __card: (text: string) => Promise<CardResult | null>;
     __frames: (input?: { index?: number; cast?: string; text?: string; beats?: "all" | "resting" }) => Promise<CastReport>;
   }
 }
@@ -589,4 +592,14 @@ window.__poster = async (text) => {
   let bin = "";
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(bin);
+};
+
+/**
+ * The card lab's call (scripts/card-lab.mjs, 2026-10-05): the cast's
+ * compiled card (src/card/convert.ts) — the poster frame's own drawing,
+ * simplified — or null when it has no poster item.
+ */
+window.__card = async (text) => {
+  await ensureEnabledPacks(Object.keys(PACK_DEFS));
+  return compileCard(text);
 };
