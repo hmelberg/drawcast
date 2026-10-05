@@ -42,6 +42,16 @@ describe("pacing report — the player's timing, read off the plan", () => {
     expect(pacingReport([draw(words(4)), fixed], runs({ 0: 1000, 1: 1500 })).problems.map((p) => p.kind)).toEqual(["idle"]);
   });
 
+  test("in a book, a block written or marked on the text pane is activity for its line (2026-10-05)", () => {
+    const write: PlanStep = { kind: "text", op: { op: "write", id: "a", text: "Elastic: **big** response", temp: false }, narration: words(30) };
+    expect(pacingReport([draw(words(4)), write], runs({ 0: 1000 })).problems).toEqual([]);
+    const mark: PlanStep = { kind: "text", op: { op: "mark", ids: ["a"], effect: "light", keep: false }, narration: words(30) };
+    expect(pacingReport([draw(words(4)), write, mark], runs({ 0: 1000 })).problems).toEqual([]);
+    // a view switch or a clear of the pane is not new ink
+    const view: PlanStep = { kind: "text", op: { op: "view", view: "both" }, narration: words(30) };
+    expect(pacingReport([draw(words(4)), view], runs({ 0: 1000 })).problems.map((p) => p.kind)).toEqual(["idle"]);
+  });
+
   test("a long pause is idle; a short one between moving beats is not", () => {
     const long = pacingReport([draw(words(6)), { kind: "pause", seconds: 7 }, draw(words(6))], runs({ 0: 2000, 2: 2000 }));
     expect(long.problems[0].message).toMatch(/pause 7\.0 s/);

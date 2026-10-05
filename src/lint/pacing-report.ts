@@ -147,7 +147,11 @@ export function timeBeats(steps: PlanStep[], runMs: (index: number) => number): 
     if (narrated || BARRIER.has(step.kind)) start = Math.max(t, pendingEnd);
     const A = runMs(i);
     const cue = narrated ? cueStartMs(step.cue, step.cueEnd, line!, delivery, A) : 0;
-    const held = narrated && HELD.has(step.kind) && "untilNarrationEnd" in step && step.untilNarrationEnd === true;
+    // In a book a block written on the text pane, or a mark on one, is what
+    // the viewer reads while the line is spoken: activity for the whole line,
+    // not an instant (an 11-part book was flagged idle on every write, 2026-10-05).
+    const onText = step.kind === "text" && (step.op.op === "write" || step.op.op === "mark");
+    const held = narrated && ((HELD.has(step.kind) && "untilNarrationEnd" in step && step.untilNarrationEnd === true) || onText);
     // A held gesture moves until the voice stops; a held mark spreads its stops over the rest of the line.
     const moveMs = held ? Math.max(step.kind === "mark" ? A : 0, L - cue) : A;
     const active: [number, number][] = [[start + cue, start + cue + moveMs]];
