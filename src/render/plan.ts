@@ -39,6 +39,7 @@ import type { PlayArgs } from "../spec/types";
 import { confidenceBoxes } from "../guess/confidence";
 import { pollPlan } from "../guess/poll";
 import { animatableVars } from "../spec/vars";
+import { foldVerbDuration } from "../spec/verb-duration";
 
 /**
  * One operation on a book's text pane (spec 2026-10-01-book-layout §4.2). The
@@ -360,7 +361,14 @@ export function heldFrom(plan: Plan): number | null {
   const n = plan.states.length;
   if (n === 0 || plan.states[n - 1].visible.length > 0) return null;
   for (let i = n - 2; i >= 0; i--) {
-    if (plan.states[i].visible.length > 0) return i + 1;
+    if (plan.states[i].visible.length > 0) {
+      // A book goes on in its text pane after the figure is cleared (the
+      // summary under an erased card sort): an empty figure there is the
+      // page, not a blank ending — holding brought the erased cards back
+      // (2026-10-05, the odds book's last part).
+      if (plan.steps.slice(i + 1).some((st) => st.kind === "text")) return null;
+      return i + 1;
+    }
   }
   return null;
 }
@@ -656,7 +664,9 @@ const CAMERA_FIT_MARGIN = 1.4;
  *  view's centre — the caption band covers roughly the bottom tenth. */
 const CAMERA_FIT_LIFT = 0.1;
 
-export function planCommands(commands: Command[] | undefined, allIds: string[], opts: PlanOptions = {}): Plan {
+export function planCommands(commandsIn: Command[] | undefined, allIds: string[], opts: PlanOptions = {}): Plan {
+  // `{highlight: …, duration: 2}` holds the highlight 2 s, as validation reads it (spec/verb-duration.ts).
+  const commands = commandsIn?.map(foldVerbDuration);
   /** The camera at rest: the page, or the fit of a template's world. */
   const rest = restView(opts.world);
   /** A question's feedback, resolved with the cast's; plain with no reward (the default) leaves the step as it was. */
@@ -1500,8 +1510,13 @@ export function planCommands(commands: Command[] | undefined, allIds: string[], 
   for (const c of commands ?? []) if (c.write !== undefined && typeof c.write === "object" && c.write.id) namedBlocks.add(c.write.id);
   let blockCount = 0;
   const blockIds = new Set<string>(namedBlocks);
+  // A figure id is known, or names a group the resolver expands to known ids
+  // (a cards set's `ccSort` → `ccSort_1`, `ccSort_bin_1_box`, … — the
+  // layout's order lists leaves only): in a book, `erase: [ccSort]` erased a
+  // text block that did not exist and the sorted cards stayed (2026-10-05).
+  const onFigure = (id: string): boolean => known.has(id) || expandOne(id, "", true).length > 0;
   const isTextTarget = (ids: string[]): boolean =>
-    ids.length > 0 && ids.every((id) => !known.has(id) && (blockIds.has(id) || /^w\d+$/.test(id) || opts.book === true));
+    ids.length > 0 && ids.every((id) => !onFigure(id) && (blockIds.has(id) || /^w\d+$/.test(id) || opts.book === true));
   const listOf = (v: string[] | string | undefined): string[] => (v === undefined ? [] : typeof v === "string" ? [v] : v);
   const textOpOf = (cmd: Command): TextOp | null => {
     if (cmd.write !== undefined) {

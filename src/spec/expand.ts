@@ -87,9 +87,11 @@ export function markBarGuess(spec: Spec): Spec {
   return asked ? { ...spec, params: { ...spec.params, bar_guess: true } } : spec;
 }
 
+import { expandCheckCleanup } from "./check-cleanup";
+
 export function expandSpec(spec: Spec): Spec {
   // Icons named by keyword take their data from `assets:` or the offline
   // cache FIRST (spec/icon-data.ts): a card's height depends on whether its
   // icon is there, and that is decided when the cards expand.
-  return markBarGuess(expandWalks(expandSound(expandDerivations(expandDefaultHeading(expandCards(expandScratch(expandOddOneOut(expandCardSets(expandFormulaTiles(expandScales(expandEstimates(expandEquationPreset(withIconData(expandSpot(linkStampsToButtons(expandAnswerButtons(expandPolls(expandRevealStamps(expandSequences(spec))))))))))))))))))));
+  return markBarGuess(expandWalks(expandSound(expandDerivations(expandDefaultHeading(expandCards(expandScratch(expandOddOneOut(expandCardSets(expandFormulaTiles(expandScales(expandCheckCleanup(expandEstimates(expandEquationPreset(withIconData(expandSpot(linkStampsToButtons(expandAnswerButtons(expandPolls(expandRevealStamps(expandSequences(spec)))))))))))))))))))));
 }

@@ -1604,8 +1604,10 @@ const commands = {
       // Move-aware (W31): the pairs a move, an arrange, a following label or
       // a question's cards bring together, judged at the resting pose after
       // each command — the layout above judges the figure where it was drawn.
-      const { movedIssues } = await load("/src/lint/moved.ts");
-      const issues = [...iconIssues, ...laid.issues, ...movedIssues(ex, heuristicMeasure, laid), ...layoutWarnings.map((message) => ({ severity: "warning", message })), ...lintCommands(ex), ...lintCrowding(laid, ex)];
+      // An overlap that holds only at params no resting boundary shows (an
+      // animate carries the pair apart before they are on screen) is dropped.
+      const { movedIssues, settledIssues } = await load("/src/lint/moved.ts");
+      const issues = [...iconIssues, ...settledIssues(ex, heuristicMeasure, laid), ...movedIssues(ex, heuristicMeasure, laid), ...layoutWarnings.map((message) => ({ severity: "warning", message })), ...lintCommands(ex), ...lintCrowding(laid, ex)];
       // The fill advisory (src/lint/fill.ts) on the finished page — advice,
       // not a defect: frames judges every page of the cast at its fullest.
       const { fillIssue, hasHeadingInk } = await load("/src/lint/fill.ts");

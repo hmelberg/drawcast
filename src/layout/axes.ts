@@ -1,11 +1,13 @@
 import { CANVAS, type PlotArea } from "./canvas";
-import { heuristicMeasure } from "./measure";
+import { bboxOfText, boxesOverlap } from "./geometry";
+import { heuristicMeasure, type MeasureFn } from "./measure";
 import {
   Z_STROKE,
   Z_TEXT,
   SKETCH_MS,
   defaultDrawOpts,
   defaultStyle,
+  type Drawable,
   type GroupDrawable,
   type Pt,
   type StrokeDrawable,
@@ -232,4 +234,77 @@ export function makeAxes(id: string, plot: PlotArea, xLabel?: string, yLabel?: s
     style,
     drawOpts: defaultDrawOpts("sketch"),
   };
+}
+
+/** The lint's own pad between two labels (lint.ts overlap-label-label). */
+const CAPTION_PAD = 2;
+/** An axis caption: a template's `axes__x_label`, makeAxes' `<id>_x_label`. */
+const CAPTION_ID = /_([xy])_label$/;
+/** A number on an axis (an end mark or a tick), never a category's name. */
+const TICK_ID = /axes__(?:[xy][01]|[xy]t\d+)$/;
+
+/**
+ * An axis caption and the labels in the row it hangs off — the end tick
+ * ("30" at the x axis end), a tick, the last category's name — kept clear of
+ * each other at the size they are DRAWN (2026-10-05). The templates set the
+ * caption one row from the ticks at their own sizes; a cast's text scale
+ * (text.font_size 32) grows every box and the caption ran into the end
+ * numbers. As scale markers clear their caption (953db9d7): the caption
+ * moves — the x caption down, the y caption up — as far as it needs or the
+ * canvas edge allows, and only if that puts it on nothing new; a NUMBER it
+ * is still on is dropped (the axis keeps its other numbers), a category's
+ * name never. A page where nothing collides is returned as it was.
+ */
+export function clearAxisCaptions(drawables: Drawable[], measure: MeasureFn = heuristicMeasure): Drawable[] {
+  const texts: TextDrawable[] = [];
+  const collect = (d: Drawable): void => {
+    if (d.kind === "group") d.children.forEach(collect);
+    else if (d.kind === "text" && d.text.trim() !== "") texts.push(d);
+  };
+  drawables.forEach(collect);
+  const moved = new Map<string, Pt>();
+  const dropped = new Set<string>();
+  for (const cap of texts) {
+    const axis = CAPTION_ID.exec(cap.id)?.[1];
+    if (!axis) continue;
+    const others = texts.filter((t) => t !== cap && !CAPTION_ID.test(t.id) && !dropped.has(t.id));
+    const boxOf = (t: TextDrawable, pos: Pt = moved.get(t.id) ?? t.pos) => bboxOfText({ ...t, pos }, measure);
+    const box = boxOf(cap);
+    // Already off the canvas: that is the out-of-canvas lint's to say, and
+    // no number should go for a caption that cannot be read anyway.
+    if (box.y < CANVAS_EDGE_MARGIN || box.y + box.h > CANVAS.h - CANVAS_EDGE_MARGIN) continue;
+    // Only the row the caption hangs off: above an x caption, below a y caption.
+    const sign = axis === "x" ? -1 : 1;
+    const hits = others.filter((t) => {
+      const b = boxOf(t);
+      return boxesOverlap(box, b, CAPTION_PAD) && Math.sign(box.y + box.h / 2 - (b.y + b.h / 2)) === sign;
+    });
+    if (hits.length === 0) continue;
+    const need = Math.max(
+      ...hits.map((t) => {
+        const b = boxOf(t);
+        return axis === "x" ? box.y + box.h + CAPTION_PAD - b.y : b.y + b.h + CAPTION_PAD - box.y;
+      }),
+    ) + 0.5;
+    // As far as it needs, or as far as the canvas edge lets it.
+    const room = axis === "x" ? box.y - CANVAS_EDGE_MARGIN : CANVAS.h - CANVAS_EDGE_MARGIN - (box.y + box.h);
+    const pos: Pt = [cap.pos[0], cap.pos[1] + sign * Math.max(0, Math.min(need, room))];
+    const next = boxOf(cap, pos);
+    if (others.some((t) => !hits.includes(t) && boxesOverlap(next, boxOf(t), CAPTION_PAD))) {
+      for (const t of hits) if (TICK_ID.test(t.id)) dropped.add(t.id);
+      continue;
+    }
+    if (pos[1] !== cap.pos[1]) moved.set(cap.id, pos);
+    // What the edge left it still on goes, if it is a number.
+    for (const t of hits) if (boxesOverlap(next, boxOf(t), CAPTION_PAD) && TICK_ID.test(t.id)) dropped.add(t.id);
+  }
+  if (moved.size === 0 && dropped.size === 0) return drawables;
+  const walk = (d: Drawable): Drawable | null => {
+    if (d.kind === "group") return { ...d, children: d.children.map(walk).filter((c): c is Drawable => c !== null) };
+    if (d.kind !== "text") return d;
+    if (dropped.has(d.id)) return null;
+    const at = moved.get(d.id);
+    return at ? { ...d, pos: at } : d;
+  };
+  return drawables.map(walk).filter((d): d is Drawable => d !== null);
 }

@@ -170,6 +170,13 @@ describe("book lint (spec §9)", async () => {
     expect(rules({ book: {}, commands: [{ write: { id: "a", text: "a" } }, ...marks] })).toEqual(["book-marks"]);
   });
 
+  test("marks on a template's own parts are figure marks, not text marks (2026-10-05)", () => {
+    // bar_chart's bar_1 and two_by_two_table's cell_0_0 are not in spec.elements,
+    // but they are on the figure — only marks on written blocks count.
+    const figure = ["bar_1", "bar_2", "cell_0_0", "cell_1_1"].map((t) => ({ highlight: { target: t } }));
+    expect(rules({ book: {}, template: "bar_chart", commands: [{ write: { id: "a", text: "a" } }, ...figure, { highlight: { target: "a" } }] })).toEqual([]);
+  });
+
   test("not a book: no book rules", () => {
     expect(rules({ commands: [{ write: "x ".repeat(80) }] })).toEqual([]);
   });

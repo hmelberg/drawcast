@@ -21,7 +21,8 @@ const cast = (erase: boolean): Spec =>
     elements: [{ id: "twelve", type: "text", text: "12 people walked there", x: 500, y: 450, font_size: 60 }],
     commands: [
       { speak: "Only a few have ever stood on the Moon." },
-      ask,
+      // Kept on purpose (after: keep) — since 2026-10-05 a slider leaves by itself.
+      erase ? ask : ({ ask: { ...(ask.ask as object), after: "keep" } } as Command),
       ...(erase ? [{ erase: ["estimate_1"] }] : []),
       { draw: ["twelve"], speak: "Twelve, all between 1969 and 1972." },
     ],
@@ -39,6 +40,10 @@ describe("an erased estimate is gone for the lint", () => {
   });
   test("erased after its ask, nothing drawn later is judged against it", () => {
     expect(aboutAnswer(cast(true))).toEqual([]);
+  });
+  test("left to the default, the slider leaves by itself and is not judged either", () => {
+    const auto = { ...cast(true), commands: (cast(true).commands ?? []).filter((c) => !c.erase) } as Spec;
+    expect(aboutAnswer(auto)).toEqual([]);
   });
 });
 

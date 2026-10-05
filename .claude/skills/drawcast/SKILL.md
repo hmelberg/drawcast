@@ -177,6 +177,13 @@ every working file below is `dev-casts/<slug>…`.
 - Something happens while each line is spoken; emphasis only where the
   meaning is; calm, few colours, each one role.
 - A closing quiz that checks the insight, not recall.
+- In a longer piece, a few on-figure checks of understanding (a guess on a
+  number line, an estimate slider, a sort, a prediction) placed right before
+  the reveal they test, each on the concept just discussed — in balance,
+  not after every concept. Their own visuals leave after the answer by
+  default (a slider always; a number line or cards when the page goes on
+  explaining); `after: keep` on the ask when a later line builds on them,
+  `after: clear` to force it. A quiz-format cast keeps them.
 - A model to copy for quizzes and openings — *the-deadliest-animal*
   (hmelberg/drawcast-library): an interesting, non-obvious question; a few
   details that fold a second question into the first (how many does the

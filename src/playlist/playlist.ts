@@ -435,9 +435,16 @@ export interface PlaylistItem {
 export function itemsOf(playlist: Playlist): PlaylistItem[] {
   const items: PlaylistItem[] = [];
   let chapter: string | undefined;
+  // A quiz keeps each check's visuals after its answer (2026-10-05,
+  // spec/check-cleanup.ts): the answer on screen is the point there. A page
+  // that says otherwise keeps its own word.
+  const quiz = playlist.meta?.format === "quiz";
   for (const e of playlist.entries) {
     if (e.kind === "chapter") chapter = e.title;
-    else items.push({ spec: e.spec, chapter, index: items.length });
+    else {
+      const spec = quiz && e.spec.page?.checks === undefined && (e.spec.commands ?? []).some((c) => c.ask !== undefined) ? { ...e.spec, page: { ...(e.spec.page ?? {}), checks: "keep" as const } } : e.spec;
+      items.push({ spec, chapter, index: items.length });
+    }
   }
   return items;
 }

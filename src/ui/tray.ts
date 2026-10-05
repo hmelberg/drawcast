@@ -57,7 +57,8 @@ import type { BBox } from "../layout/geometry";
 import { mountKeyGuide } from "./controls";
 import { pianoOctaves } from "../render/widgets";
 import { choiceSpecs, exploreSurface, readChoice, sliderSpecs, trayPlan, type ChoiceSpec, type SliderSpec } from "./tray-model";
-import { liveMathOf } from "./live-vars";
+import { liveMathOf, liveVarBoxes } from "./live-vars";
+import { stageRectOf } from "./number-edit";
 import { panelViewFor } from "./panel-view";
 import { codeKey, gateItem, languageNeedsTrust } from "../security/code-trust";
 
@@ -563,9 +564,39 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
   // on a figure the viewer is invited to click, a pill is the one thing
   // that plainly means "I am done".
   let gatePill: HTMLElement | null = null;
+  /** The rings on the live numbers while an explore beat holds (2026-10-05). */
+  let liveRings: HTMLElement[] = [];
   const removeGatePill = (): void => {
     gatePill?.remove();
     gatePill = null;
+    for (const r of liveRings) r.remove();
+    liveRings = [];
+  };
+  /**
+   * What to drag, made visible: a beat that holds the run for live numbers
+   * (a formula's `{h}`) showed only a small Continue pill, and the number
+   * itself looked like any other ink (Hans 2026-10-05, the odds book: "it
+   * does not stop or show anything to change"). Each live number on screen
+   * gets a dashed ring that pulses twice, with one "drag ↔" hint under the first; the hand
+   * cursor is the stage's own. They go with the pill.
+   */
+  const ringLiveNumbers = (): void => {
+    if (!stage) return;
+    const parts = liveVarBoxes(hd);
+    // One hint, under the first ring: two numbers side by side would put two on top of each other.
+    const hint = parts.length > 1 ? "drag the ringed numbers \u2194" : "drag \u2194";
+    for (const [i, part] of parts.entries()) {
+      const r = stageRectOf(stage, part.box);
+      if (!r) continue;
+      const pad = 6;
+      const ring = h("div", { class: "cs-live-ring", "aria-hidden": "true" }, ...(i === 0 ? [h("span", { class: "cs-live-ring-hint" }, hint)] : []));
+      ring.style.left = `${r.left - pad}px`;
+      ring.style.top = `${r.top - pad}px`;
+      ring.style.width = `${r.right - r.left + 2 * pad}px`;
+      ring.style.height = `${r.bottom - r.top + 2 * pad}px`;
+      stage.appendChild(ring);
+      liveRings.push(ring);
+    }
   };
   const showGatePill = (): void => {
     if (!stage || gatePill) return;
@@ -1536,6 +1567,7 @@ export function attachParamsTray(host: HTMLElement, hd: RenderHandle): void {
         // clicks, and here the figure click IS Continue.
         stage?.classList.add("cs-gated");
         showGatePill();
+        if (liveMathOf(hd.spec).mathIds.length > 0) ringLiveNumbers();
       }
       if (shut) return;
       // The card, where the script is drawn: the same freeze and guard the

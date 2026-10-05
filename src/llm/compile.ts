@@ -30,6 +30,7 @@ import { visualRepairMessages, wantsVisualRepair } from "./visual";
 import { LOOK_PROMPT_SOURCE, applySpecEditsLenient, isEditsReply, lookFixPrompt, lookFoundNothing, lookUserContent, type LookImage } from "./look";
 import type { Spec } from "../spec/types";
 import { layoutAsSeen } from "../lint/at-scale";
+import { settledIssues } from "../lint/moved";
 import { expandSpec } from "../spec/expand";
 import { lintCommands, lintReportText, type LintIssue } from "../lint/lint";
 import { lintCrowding } from "../lint/crowding";
@@ -780,7 +781,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
         try {
           const expanded = expandSpec(best);
           const laid = layoutAsSeen(expanded, measure); // at the cast's text scale, as drawn
-          lintIssues = [...laid.issues, ...lintCommands(expanded), ...lintCrowding(laid, expanded)];
+          lintIssues = [...settledIssues(expanded, measure, laid), ...lintCommands(expanded), ...lintCrowding(laid, expanded)];
         } catch (err) {
           lintIssues = [];
           validation.errors.push(`layout failed: ${(err as Error).message}`);
@@ -886,7 +887,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     try {
       const expanded = expandSpec(spec);
       const laid = layoutAsSeen(expanded, measure); // at the cast's text scale, as drawn
-      return [...laid.issues, ...lintCommands(expanded), ...lintCrowding(laid, expanded)];
+      return [...settledIssues(expanded, measure, laid), ...lintCommands(expanded), ...lintCrowding(laid, expanded)];
     } catch {
       return null;
     }

@@ -5,7 +5,7 @@
 import { describe, expect, test } from "vitest";
 import { coVisible } from "../src/lint/lint";
 import { posedIssues } from "../src/lint/posed";
-import { movedIssues } from "../src/lint/moved";
+import { movedIssues, settledIssues } from "../src/lint/moved";
 import { planCommands } from "../src/render/plan";
 import { layoutSpec } from "../src/layout/layout";
 import { heuristicMeasure } from "../src/layout/measure";
@@ -100,5 +100,32 @@ describe("movedIssues (the move-aware check)", () => {
     expect(plan.commandOf?.[0]).toBe(0);
     expect(plan.commandOf?.at(-1)).toBe(-1);
     expect(new Set(plan.commandOf)).toEqual(new Set([0, 1, -1]));
+  });
+});
+
+// An overlap that holds only at a param state no resting boundary shows is
+// not on screen (2026-10-05: a curve's guide values flagged at HR 1, though
+// they were drawn only once the animate had taken the curve to HR 0.5).
+describe("settledIssues (params as the viewer sees them)", () => {
+  const sliding = { ...label, bind: { x: "740 - k" } };
+  const at = (commands: unknown[]) => {
+    const spec = { vars: { k: 0 }, elements: [glass, sliding], commands } as unknown as Spec;
+    return { spec, laid: layoutSpec(spec, heuristicMeasure) };
+  };
+
+  test("drawn only after an animate moved it apart: the layout's overlap is dropped", () => {
+    const { spec, laid } = at([{ draw: ["gc"] }, { animate: { k: 340 }, duration: 1 }, { draw: ["note"], speak: "Apart now." }]);
+    expect(onStroke(laid.issues)).toHaveLength(1); // the layout judges k = 0
+    expect(onStroke(settledIssues(spec, heuristicMeasure, laid))).toEqual([]);
+  });
+
+  test("on screen together before the animate: the overlap stands", () => {
+    const { spec, laid } = at([{ draw: ["gc", "note"] }, { animate: { k: 340 }, duration: 1 }]);
+    expect(onStroke(settledIssues(spec, heuristicMeasure, laid))).toHaveLength(1);
+  });
+
+  test("no animate: the layout's issues, untouched", () => {
+    const { spec, laid } = at([{ draw: ["gc", "note"] }]);
+    expect(settledIssues(spec, heuristicMeasure, laid)).toBe(laid.issues);
   });
 });
