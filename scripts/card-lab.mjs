@@ -12,7 +12,14 @@ import { defaultLaunch, defaultServe } from "./pictures.mjs";
 import { iconCacheDir, iconFetcher, routePage } from "./icon-fetch.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..");
-const LIBRARY = join(ROOT, "dev-casts/repos/hmelberg__drawcast-library/casts");
+const CLONE = join(ROOT, "dev-casts/repos/hmelberg__drawcast-library/casts");
+const arg = (name) => {
+  const i = process.argv.indexOf(name);
+  return i > 0 ? process.argv[i + 1] : undefined;
+};
+/** `--from <dir>`: casts from another folder (the same slugs, e.g. with thumbnail pages written); `--run <name>`: the run's folder name. */
+const LIBRARY = arg("--from") ? resolve(arg("--from")) : CLONE;
+const RUN = arg("--run");
 const PER_CAST_MS = 30000;
 
 const only = (() => {
@@ -85,39 +92,41 @@ try {
   process.stdout.write("\n");
 
   const date = new Date().toISOString().slice(0, 10);
-  const dir = join(ROOT, "docs/card-lab/runs", date);
+  const dir = join(ROOT, "docs/card-lab/runs", RUN ?? date);
   const latest = join(ROOT, "docs/card-lab/runs/latest");
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "cards.json"), JSON.stringify(rows));
 
-  // The page drawing every card, timed — normal, then at 4× slower CPU.
-  const stats = { rendererGzip: await rendererGzip() };
-  rmSync(latest, { recursive: true, force: true });
-  cpSync(dir, latest, { recursive: true });
-  for (const [key, rate] of [["drawMs", 1], ["drawMsSlow", 4]]) {
-    const p = await browser.newPage({ viewport: { width: 1300, height: 900 } });
-    const cdp = await p.context().newCDPSession(p);
-    await cdp.send("Emulation.setCPUThrottlingRate", { rate });
-    // The dev server may reload the page once while it prepares the renderer's
-    // dependencies on first use: wait again after such a reload.
-    for (let attempt = 0; attempt < 3 && stats[key] === undefined; attempt++) {
-      try {
-        if (attempt === 0) await p.goto(`${server.url}card-lab.html`);
-        else await p.waitForLoadState("load");
-        await p.waitForFunction(() => typeof window.__drawMs === "number", null, { timeout: 120000 });
-        stats[key] = await p.evaluate(() => window.__drawMs);
-      } catch (e) {
-        if (attempt === 2) throw e;
+  // A named run (--run) is a side experiment: it leaves `latest` and the timing alone.
+  if (!RUN) {
+    // The page drawing every card, timed — normal, then at 4× slower CPU.
+    const stats = { rendererGzip: await rendererGzip() };
+    rmSync(latest, { recursive: true, force: true });
+    cpSync(dir, latest, { recursive: true });
+    for (const [key, rate] of [["drawMs", 1], ["drawMsSlow", 4]]) {
+      const p = await browser.newPage({ viewport: { width: 1300, height: 900 } });
+      const cdp = await p.context().newCDPSession(p);
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate });
+      // The dev server may reload the page once while it prepares the renderer's
+      // dependencies on first use: wait again after such a reload.
+      for (let attempt = 0; attempt < 3 && stats[key] === undefined; attempt++) {
+        try {
+          if (attempt === 0) await p.goto(`${server.url}card-lab.html`);
+          else await p.waitForLoadState("load");
+          await p.waitForFunction(() => typeof window.__drawMs === "number", null, { timeout: 120000 });
+          stats[key] = await p.evaluate(() => window.__drawMs);
+        } catch (e) {
+          if (attempt === 2) throw e;
+        }
       }
+      await p.close();
     }
-    await p.close();
+    writeFileSync(join(dir, "stats.json"), JSON.stringify(stats));
+    writeFileSync(join(latest, "stats.json"), JSON.stringify(stats));
   }
-  writeFileSync(join(dir, "stats.json"), JSON.stringify(stats));
-  writeFileSync(join(latest, "stats.json"), JSON.stringify(stats));
-
   const ok = rows.filter((r) => r.result);
   const med = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? 0;
-  console.log(`${ok.length}/${rows.length} cards; median ${med(ok.map((r) => r.result.bytes))} B (+ icons ${med(ok.map((r) => r.result.iconBytes))} B); renderer ${stats.rendererGzip} B gzip; draw ${stats.drawMs} ms, ${stats.drawMsSlow} ms at 4× slower`);
+  console.log(`${ok.length}/${rows.length} cards; median ${med(ok.map((r) => r.result.bytes))} B (+ icons ${med(ok.map((r) => r.result.iconBytes))} B)${RUN ? ` → docs/card-lab/runs/${RUN}` : ""}`);
   for (const r of rows.filter((x) => !x.result)) console.log(`  no card: ${r.slug} — ${r.error ?? "no poster item"}`);
 } finally {
   await browser.close().catch(() => {});
