@@ -8,6 +8,7 @@
 import { RoughGenerator } from "roughjs/bin/generator";
 import type { Options as RoughOptions } from "roughjs/bin/core";
 import { thumbSvg, type Corner } from "../../netlify/lib/thumb.mts";
+import { decodePts } from "./points";
 import { CARD_H, CARD_W, type CardArea, type CardIcon, type CardItem, type CardStroke, type CardText, type CompiledCard } from "./types";
 
 const PAPER = "#fffdf7";
@@ -23,10 +24,55 @@ function esc(s: string): string {
 /** Logical y-up to SVG y-down. */
 const sy = (y: number): number => CARD_H - y;
 
-function pairs(flat: number[]): [number, number][] {
-  const out: [number, number][] = [];
-  for (let i = 0; i + 1 < flat.length; i += 2) out.push([flat[i], sy(flat[i + 1])]);
-  return out;
+/** Logical points to SVG space. */
+function svgPts(p: string): [number, number][] {
+  return decodePts(p).map(([x, y]) => [x, sy(y)] as [number, number]);
+}
+
+/** A line through the points as SVG path data (render/svg-backend.ts pathFromPts): ONE path, so rough.js wobbles it as the engine does. */
+function pathD(pts: [number, number][], closed?: boolean): string {
+  const d = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x} ${y}`).join(" ");
+  return closed ? `${d} Z` : d;
+}
+
+/** Dashes cut from the line itself (render/svg-backend.ts dashedPathFromPts): rough.js has no dash of its own. */
+function dashedD(pts: [number, number][], dash = 11, gap = 9): string {
+  const parts: string[] = [];
+  let carry = 0;
+  let drawing = true;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    let [x, y] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    let left = Math.hypot(x1 - x, y1 - y);
+    const ux = (x1 - x) / (left || 1);
+    const uy = (y1 - y) / (left || 1);
+    while (left > 0) {
+      const step = Math.min((drawing ? dash : gap) - carry, left);
+      const nx = x + ux * step;
+      const ny = y + uy * step;
+      if (drawing) parts.push(`M${x.toFixed(1)} ${y.toFixed(1)} L${nx.toFixed(1)} ${ny.toFixed(1)}`);
+      x = nx;
+      y = ny;
+      left -= step;
+      carry += step;
+      if (carry >= (drawing ? dash : gap) - 1e-6) {
+        carry = 0;
+        drawing = !drawing;
+      }
+    }
+  }
+  return parts.join(" ");
+}
+
+/** A circle or box as a closed ring of SVG points, for cutting its dashes. */
+function ring(it: CardStroke): [number, number][] {
+  if (it.rc) {
+    const [x, y, w, h] = it.rc;
+    return [[x, sy(y)], [x + w, sy(y)], [x + w, sy(y + h)], [x, sy(y + h)], [x, sy(y)]];
+  }
+  const [cx, cy, r] = it.ci!;
+  const n = Math.max(24, Math.min(144, Math.round(r / 2)));
+  return Array.from({ length: n + 1 }, (_, i): [number, number] => [cx + r * Math.cos((2 * Math.PI * i) / n), sy(cy) + r * Math.sin((2 * Math.PI * i) / n)]);
 }
 
 /** rough.js's drawable as SVG paths (its own toPaths: d, stroke, fill). */
@@ -75,14 +121,21 @@ function arrowhead(pts: [number, number][], at: "end" | "start", size: number): 
 
 function stroke(it: CardStroke): string {
   // A shape's own fill is solid (render/svg-backend.ts roughHintFill); hatching is for regions.
-  const o = opts(it, it.f ? { fill: it.f, fillStyle: "solid" } : {});
-  const dash = it.d ? ` stroke-dasharray="10 8"` : "";
+  const fill = it.f ? { fill: it.f, fillStyle: "solid" as const } : {};
+  const o = opts(it, fill);
   let out = "";
-  if (it.ci) out += paths(gen.circle(it.ci[0], sy(it.ci[1]), it.ci[2] * 2, o), dash);
-  else if (it.rc) out += paths(gen.rectangle(it.rc[0], sy(it.rc[1] + it.rc[3]), it.rc[2], it.rc[3], o), dash);
-  else {
-    const pts = pairs(it.p);
-    if (pts.length >= 2) out += paths(it.cl ? gen.polygon(pts, o) : gen.linearPath(pts, o), dash);
+  if (it.ci || it.rc) {
+    if (it.d) {
+      if (it.f) out += paths(it.ci ? gen.circle(it.ci[0], sy(it.ci[1]), it.ci[2] * 2, { ...o, stroke: "none" }) : gen.rectangle(it.rc![0], sy(it.rc![1] + it.rc![3]), it.rc![2], it.rc![3], { ...o, stroke: "none" }));
+      out += paths(gen.path(dashedD(ring(it)), opts(it)));
+    } else if (it.ci) out += paths(gen.circle(it.ci[0], sy(it.ci[1]), it.ci[2] * 2, o));
+    else out += paths(gen.rectangle(it.rc![0], sy(it.rc![1] + it.rc![3]), it.rc![2], it.rc![3], o));
+  } else {
+    const pts = svgPts(it.p);
+    if (pts.length >= 2) {
+      const line = it.d ? dashedD(it.cl && pts.length >= 3 ? [...pts, pts[0]] : pts) : pathD(pts, !!it.cl);
+      out += paths(gen.path(line, it.d ? opts(it) : o));
+    }
     if (it.a && pts.length >= 2) {
       const ends: ("end" | "start")[] = it.a === "b" ? ["start", "end"] : [it.a === "e" ? "end" : "start"];
       for (const at of ends) {
@@ -95,9 +148,13 @@ function stroke(it: CardStroke): string {
 }
 
 function area(it: CardArea): string {
-  const pts = pairs(it.p);
+  const pts = svgPts(it.p);
   if (pts.length < 3) return "";
-  if (it.x) return `<path d="M${pts.map(([x, y]) => `${x} ${y}`).join("L")}Z" fill="${it.f}" opacity="${it.o}"/>`;
+  if (it.x) {
+    // Exact: one filled path, its holes cut even-odd (a formula's letters).
+    const d = [pts, ...(it.hl ?? []).map(svgPts)].filter((r) => r.length >= 3).map((r) => pathD(r, true)).join(" ");
+    return `<path d="${d}" fill="${it.f}" fill-rule="evenodd" opacity="${it.o}"/>`;
+  }
   const o = opts(it, { fill: it.f, fillStyle: "hachure", hachureGap: 5.5, fillWeight: 1.7, strokeWidth: 1.8, stroke: "none" });
   return `<g opacity="${Math.min(1, it.o + 0.15)}">${paths(gen.polygon(pts, o))}</g>`;
 }

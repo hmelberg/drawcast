@@ -13,14 +13,19 @@ import { cornerSlots, kidsByTags, planThumb, type Corner } from "../../netlify/l
 import { leafDrawables, type Drawable } from "../layout/model";
 import { parsePlaylistText, posterItemOf } from "../playlist/playlist";
 import { render } from "../render";
+import { decodePts, encodePts } from "./points";
 import { CARD_H, CARD_VERSION, CARD_W, type CardItem, type CardResult, type CompiledCard } from "./types";
 
-/** The compiled card's size cap, JSON bytes. */
-export const CARD_CAP = 4096;
+/** The compiled card's size cap, JSON bytes (round 2: 20 KB — at most about
+ *  5 KB sent, since the feed travels compressed; 4 KB cut chess pieces and
+ *  cube faces, 12 KB still the pawns of a chess position). */
+export const CARD_CAP = 20480;
 /** A label longer than this keeps its first words. */
 const TEXT_MAX = 28;
 /** Point simplification tolerance, canvas units. */
 const SIMPLIFY = 1.5;
+/** A formula letter keeps its shape closer: its strokes are a few units wide. */
+const SIMPLIFY_GLYPH = 0.6;
 
 type Leaf = Exclude<Drawable, { kind: "group" }>;
 type Pt = [number, number];
@@ -46,7 +51,7 @@ export function simplify(pts: Pt[], tol = SIMPLIFY): Pt[] {
 }
 
 const round = (n: number): number => Math.round(n);
-const flat = (pts: Pt[], dx: number, dy: number): number[] => pts.flatMap(([x, y]) => [round(x + dx), round(y + dy)]);
+const flat = (pts: Pt[], dx: number, dy: number): string => encodePts(pts.map(([x, y]) => [x + dx, y + dy]));
 
 /** A label cut to its first words when it is long. */
 export function shortText(t: string, max = TEXT_MAX): string {
@@ -92,9 +97,23 @@ export function cardItem(d: Leaf, dx = 0, dy = 0): CardItem | string {
     };
   }
   if (d.kind === "area") {
-    if (d.holes?.length || d.tex?.length) return "formula";
-    const pts = simplify(d.pts as Pt[]);
-    return { k: "a", p: flat(pts, dx, dy), f: d.style.fill ?? d.style.color, o: Number(d.style.opacity.toFixed(2)), r, sd, ...(d.precise ? { x: 1 as const } : {}) };
+    // A formula's letters (round 2): kept as their exact outlines, holes and
+    // all — the engine has already turned the TeX into shapes, so the card
+    // needs no maths library to show them.
+    const glyph = !!(d.holes?.length || d.tex?.length);
+    const tol = glyph ? SIMPLIFY_GLYPH : SIMPLIFY;
+    const pts = simplify(d.pts as Pt[], tol);
+    const holes = (d.holes ?? []).map((h) => flat(simplify(h as Pt[], tol), dx, dy));
+    return {
+      k: "a",
+      p: flat(pts, dx, dy),
+      ...(holes.length ? { hl: holes } : {}),
+      f: d.style.fill ?? d.style.color,
+      o: Number(d.style.opacity.toFixed(2)),
+      r,
+      sd,
+      ...(d.precise || glyph ? { x: 1 as const } : {}),
+    };
   }
   // stroke
   const hint = d.shapeHint;
@@ -111,8 +130,8 @@ export function cardItem(d: Leaf, dx = 0, dy = 0): CardItem | string {
     ...(d.style.opacity < 1 ? { o: Number(d.style.opacity.toFixed(2)) } : {}),
     ...(d.style.dash ? { d: 1 as const } : {}),
   };
-  if (hint?.type === "circle") return { ...base, p: [], ci: [round(hint.c[0] + dx), round(hint.c[1] + dy), round(hint.r)] };
-  if (hint?.type === "rect") return { ...base, p: [], rc: [round(hint.x + dx), round(hint.y + dy), round(hint.w), round(hint.h)] };
+  if (hint?.type === "circle") return { ...base, p: "", ci: [round(hint.c[0] + dx), round(hint.c[1] + dy), round(hint.r)] };
+  if (hint?.type === "rect") return { ...base, p: "", rc: [round(hint.x + dx), round(hint.y + dy), round(hint.w), round(hint.h)] };
   return { ...base, p: flat(simplify(d.pts as Pt[]), dx, dy) };
 }
 
@@ -138,8 +157,9 @@ export function boxOf(it: CardItem): [number, number, number, number] {
   }
   if (it.k === "s" && it.ci) return [it.ci[0] - it.ci[2], it.ci[1] - it.ci[2], it.ci[0] + it.ci[2], it.ci[1] + it.ci[2]];
   if (it.k === "s" && it.rc) return [it.rc[0], it.rc[1], it.rc[0] + it.rc[2], it.rc[1] + it.rc[3]];
-  const xs = it.p.filter((_, i) => i % 2 === 0);
-  const ys = it.p.filter((_, i) => i % 2 === 1);
+  const pts = decodePts(it.p);
+  const xs = pts.map((q) => q[0]);
+  const ys = pts.map((q) => q[1]);
   return xs.length ? [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] : [0, 0, 0, 0];
 }
 

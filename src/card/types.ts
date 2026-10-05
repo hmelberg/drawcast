@@ -14,11 +14,17 @@ export const CARD_VERSION = 1;
 export const CARD_W = 1000;
 export const CARD_H = 750;
 
-/** A line or outline: flat [x0, y0, x1, y1, …]. */
+/**
+ * Points, compactly (round 2): integers as one string — the first point, then
+ * each next point as its difference from the one before ("120 40 3 -2 5 0").
+ * A line of 30 points is about a third of its JSON array. See card/points.ts.
+ */
+export type Pts = string;
+
+/** A line or outline. */
 export interface CardStroke {
   k: "s";
-  /** Flat points. */
-  p: number[];
+  p: Pts;
   /** Ink colour. */
   c: string;
   /** Stroke width. */
@@ -43,12 +49,14 @@ export interface CardStroke {
 /** A filled region. */
 export interface CardArea {
   k: "a";
-  p: number[];
+  p: Pts;
+  /** Holes, painted even-odd: the counters of a formula's letters (an "o", an "8"). */
+  hl?: Pts[];
   f: string;
   o: number;
   r: number;
   sd: number;
-  /** Painted exactly (no hatching): glyph-like shapes. */
+  /** Painted exactly (no hatching): glyph-like shapes, a formula's letters. */
   x?: 1;
 }
 

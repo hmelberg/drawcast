@@ -7,9 +7,11 @@ import type { CompiledCard } from "../src/card/types";
 const card: CompiledCard = {
   v: 1,
   items: [
-    { k: "s", p: [100, 100, 900, 100], c: "#222", w: 2, r: 1.2, sd: 7, a: "e" },
-    { k: "s", p: [], c: "#222", w: 2, r: 1, sd: 8, rc: [100, 200, 200, 100], f: "#fffdf7" },
-    { k: "a", p: [200, 200, 400, 200, 400, 400], f: "#e07a5f", o: 0.35, r: 1, sd: 9 },
+    { k: "s", p: "100 100 800 0", c: "#222", w: 2, r: 1.2, sd: 7, a: "e" },
+    { k: "s", p: "", c: "#222", w: 2, r: 1, sd: 8, rc: [100, 200, 200, 100], f: "#fffdf7" },
+    { k: "a", p: "200 200 200 0 0 200", f: "#e07a5f", o: 0.35, r: 1, sd: 9 },
+    { k: "a", p: "600 600 40 0 0 40 -40 0", hl: ["610 610 20 0 0 20"], f: "#222", o: 1, r: 0, sd: 3, x: 1 },
+    { k: "s", p: "100 300 300 0", c: "#222", w: 2, r: 1, sd: 4, d: 1 },
     { k: "t", x: 500, y: 700, t: "Why prices rose & fell", s: 24, an: "m", c: "#222" },
     { k: "i", x: 700, y: 400, w: 80, h: 80, href: "data:image/svg+xml;utf8,<svg/>" },
   ],
@@ -26,6 +28,10 @@ describe("drawCard", () => {
     expect(svg).toContain("MYTH?");
     expect(svg.toUpperCase()).toContain("NOT WHAT YOU THINK");
     expect(new DOMParserLike(svg).ok).toBe(true);
+  });
+  test("a formula letter is one exact even-odd path", () => {
+    const svg = drawCard(card);
+    expect(svg).toMatch(/<path d="M600 150 L640 150 L640 110 L600 110 Z M610 140 L630 140 L630 120 Z" fill="#222" fill-rule="evenodd"/);
   });
   test("the same card draws the same every time (the engine's seeds)", () => {
     expect(drawCard(card)).toBe(drawCard(card));
