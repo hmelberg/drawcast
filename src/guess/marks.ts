@@ -1,14 +1,15 @@
 // What a guess leaves on the figure (spec 2026-10-01-guess-and-reveal §5):
 // a GHOST of the guess (dashed, in the viewer's colour) that stays where the
 // viewer put it while the figure moves to the truth, and a GAP mark spanning
-// guess → truth with the difference written beside it. Pure: the effects
+// guess → truth with the difference written beside it; the ghost tagged
+// "You" (guess/color.ts youWord), as a beside reveal tags yours. Pure: the effects
 // layer (render/svg-backend.ts setGuessMarks) draws what this returns.
 
 import type { Pt } from "../layout/model";
 import { accountOf, angleOf, budgetBalanced, dockNumber, pointFor, type GuessHandle } from "./handles";
-import { scaleBracketDrop, scaleGeometry } from "../spec/scale";
+import { scaleBracketDrop, scaleGeometry, youTagAt } from "../spec/scale";
 import { MARKET_DOMAIN, along, clipToSquare, curveOfGaps, impliedEquilibrium } from "./market";
-import { GUESS_COLOR } from "./color";
+import { GUESS_COLOR, YOU_SIZE, youWord } from "./color";
 import { onSlider, sliderMarks } from "./slider-marks";
 import { CANVAS } from "../layout/canvas";
 import { AXIS_OVERHANG } from "../layout/axes";
@@ -81,6 +82,8 @@ const GHOST_OPACITY = 0.5;
 const HANDLE_R = 6;
 const GAP_TICK = 14;
 const OPEN_DOT_R = 12;
+/** A ghost's "You" is a size under the tag's. */
+const YOU_SMALL = 15;
 
 /**
  * The marks for these handles: ghosts at `guess`; gaps grown to `t` (0..1)
@@ -119,6 +122,8 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
             texts.push({ at: [h.cx, y], text: signed(h, h.truth[0] - g[0]), anchor: "middle" });
           }
         }
+        // "You" by the ghost's top, outside it on the left (the gap's bracket is on the right).
+        texts.push({ at: [x0 - 4, top[1]], text: youWord(), anchor: "end", size: YOU_SMALL });
         break;
       }
       case "curve": {
@@ -128,7 +133,12 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
           const p = pointFor(h, g, j);
           if (p) pts.push(p);
         });
-        if (pts.length >= 2) lines.push({ pts, dashed: true });
+        if (pts.length >= 2) {
+          lines.push({ pts, dashed: true });
+          // "You" at the right end of your line.
+          const end = pts[pts.length - 1];
+          texts.push({ at: [end[0] + 8, end[1]], text: youWord(), anchor: "start", size: YOU_SIZE });
+        }
         // The gap, point by point: a connector from each guessed point to the
         // true one, and the average miss written by the last point.
         if (t > 0 && h.toLogical && h.xs) {
@@ -156,6 +166,7 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
           const fg = angleOf(h, g, j);
           const ft = angleOf(h, h.truth, j);
           lines.push({ pts: [c, at(fg, r)], dashed: true });
+          if (j === 0) texts.push({ at: at(fg, r + 44), text: youWord(), anchor: "middle", size: YOU_SIZE });
           if (t > 0 && Math.abs(ft - fg) > 0.005) {
             const arc: Pt[] = [];
             const steps = 24;
@@ -167,7 +178,7 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
       }
       case "count": {
         if (!h.box) break;
-        texts.push({ at: [h.box.x, h.box.y + h.box.h + 22], text: `you ${h.format(g[0])}`, anchor: "start" });
+        texts.push({ at: [h.box.x, h.box.y + h.box.h + 22], text: `${youWord()}: ${h.format(g[0])}`, anchor: "start" });
         break;
       }
       case "point": {
@@ -184,6 +195,8 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
         const y = sg.y;
         lines.push({ pts: [[x - 10, y + 30], [x + 10, y + 30], [x, y + 6]], closed: true, dashed: true });
         const xt = sg.xAt(h.truth[0]);
+        // "You" beside the ghost, on the side away from the truth.
+        texts.push({ at: youTagAt(sg, x, xt >= x ? -1 : 1, YOU_SMALL), text: youWord(), anchor: "middle", size: YOU_SMALL });
         if (t > 0 && Math.abs(xt - x) > 4) {
           const x1 = x + (xt - x) * t;
           const by = y - scaleBracketDrop(sg);
@@ -208,9 +221,12 @@ export function guessMarks(handles: GuessHandle[], guess: number[][], t = 1, opt
         const asking = opts.asking === true;
         // Beside (spec 2026-10-03-round6 §3): the copy stays as it was answered, solid.
         for (const pts of runs) lines.push(asking || opts.beside ? { pts, width: COPY_WIDTH } : { pts, dashed: true, width: GHOST_WIDTH, opacity: GHOST_OPACITY });
-        if (asking && runs.length > 0) {
+        if (runs.length > 0) {
           const longest = runs.reduce((a, b) => (b.length > a.length ? b : a));
-          for (const at of [longest[0], midOf(longest), longest[longest.length - 1]]) dots.push({ at, r: HANDLE_R });
+          if (asking) for (const at of [longest[0], midOf(longest), longest[longest.length - 1]]) dots.push({ at, r: HANDLE_R });
+          // Answered: "You" past your copy's far end (while asked, its grab dots say whose it is).
+          const e = longest[longest.length - 1];
+          if (!asking) texts.push({ at: [e[0] + 14, e[1]], text: youWord(), anchor: "start", size: YOU_SIZE, ...(opts.beside ? {} : { opacity: GHOST_OPACITY + 0.2 }) });
         }
         const at = (q: number, x: number): Pt => h.toLogical!(m.axis === "price" ? [q, x] : [x, q]);
         const half = GAP_TICK / 2;

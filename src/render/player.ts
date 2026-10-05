@@ -47,8 +47,9 @@ import { bandOf, guessBand, isEnglish, pickLine, seedOf, type Band } from "../fe
 import { isLong, pickJoke, rewardFor, type RewardEvent } from "../feedback/rewards";
 import { accountMarks, guessMarks } from "../guess/marks";
 import { GHOST_FADE, besidePositions, cardsBeside, cardsParts, placeGlide } from "../cards/beside";
-import { BESIDE_MS, EACH_MS, FADED, WRONG, YOURS, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, mergeRooms, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
+import { EACH_MS, FADED, WRONG, YOURS, besideDuration, besideMarks, besideStyles, besideOffsets, besideParams, besideValues, fadeYours, mergeRooms, partProgress, revealLength, tick, type RevealOrder } from "../guess/reveal";
 import { gateLang, gateWords } from "../ui/gate-words";
+import { setYouWord } from "../guess/color";
 import type { CardsGeometry } from "../spec/cards";
 import { CORRECTED, counterMarks } from "../cards/counter";
 import { REORDER_MS, VERDICT_MS, reorderAt, reorderLanded, rankVerdicts, yoursRow } from "../cards/reorder";
@@ -743,6 +744,8 @@ export class Player {
   readonly affirmer = new Affirmer();
   setSourceLang(lang: string | null): void {
     this.sourceLang = lang;
+    // The tag on the viewer's own answer ("You", "Du": guess/color.ts).
+    setYouWord(gateWords(gateLang(lang)).yours);
     // The movie's stand-in {calib} (constructor), in the cast's language.
     if (this.bets.size === 0 && this.vars.has("calib")) {
       for (const [k, v] of Object.entries(calibVars([{ p: CONFIDENCE_LEVELS[MOVIE_LEVEL], ok: true }], gateLang(lang)))) this.vars.set(k, v);
@@ -1662,11 +1665,13 @@ export class Player {
   private async revealBeside(setup: GuessSetup, guess: number[][], paint: GuessPaint, owner: string, signal: AbortSignal, index: number, order: RevealOrder): Promise<boolean> {
     this.guessOwners.add(owner);
     const hs = setup.handles;
-    const total = revealLength(hs.length, BESIDE_MS, order);
+    // A scale's reveal runs longer: your pin glides to the truth before it lands.
+    const dur = besideDuration(hs);
+    const total = revealLength(hs.length, dur, order);
     const styles = besideStyles(hs);
     await this.progress(total, signal, (t) => {
-      const prog = hs.map((_, k) => partProgress(k, t * total, BESIDE_MS, order));
-      paint(besideValues(hs, guess, prog), false, { params: besideParams(hs, prog), offsets: besideOffsets(hs, prog), styles });
+      const prog = hs.map((_, k) => partProgress(k, t * total, dur, order));
+      paint(besideValues(hs, guess, prog), false, { params: besideParams(hs, prog), offsets: besideOffsets(hs, prog), styles: besideStyles(hs, prog) });
       this.effects?.setGuessMarks?.(owner, besideMarks(hs, guess, prog));
     });
     if (signal.aborted) {

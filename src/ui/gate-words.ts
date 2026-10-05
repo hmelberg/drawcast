@@ -29,7 +29,8 @@ export interface GateWords {
    *  placed, ranked, sorted, matched; bars dragged; a constellation drawn
    *  (Hans 2026-10-04: "Done" over "Answer" there). */
   done: string;
-  /** The reorder's row of the viewer's own order (round 7 §4). */
+  /** The tag on the viewer's own answer — a scale's pin, a bar half, a line,
+   *  a pie, a crowd's count, the reorder's row of their order (round 7 §4). */
   yours: string;
   /** connect: press a star and drag; a click on a line removes it. */
   connect: string;
@@ -73,7 +74,7 @@ const EN: GateWords = {
   testYourself: "Test yourself: what are the numbers?",
   skip: "Skip",
   done: "Done",
-  yours: "yours",
+  yours: "You",
   connect: "Press a star and drag to the next. Click a line to remove it",
   typeNumber: "Type a number",
   guessFor: (label) => `Your guess for ${label}`,
@@ -121,7 +122,7 @@ const NB: GateWords = {
   testYourself: "Test deg selv: hva er tallene?",
   skip: "Hopp over",
   done: "Ferdig",
-  yours: "din",
+  yours: "Du",
   connect: "Trykk på en stjerne og dra til den neste. Klikk på en linje for å fjerne den",
   typeNumber: "Skriv et tall",
   guessFor: (label) => `Ditt gjett for ${label}`,

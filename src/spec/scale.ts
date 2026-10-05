@@ -13,6 +13,7 @@
 
 import { CAPTION_TOP, contentBox, MARGIN, PAGE_W } from "../layout/page";
 import type { Spec, SpecElement } from "./types";
+import { GUESS_COLOR, YOU_SIZE, youWord } from "../guess/color";
 import { isSlider, sliderLineElements, sliderValueElements, sliderY } from "./slider";
 
 /** The authored scale element's fields this module reads. */
@@ -56,6 +57,11 @@ export interface ScaleElementLike {
    *  Drawn with the line unless the cast draws `<id>_marker_<n>` itself. */
   markers?: { value: number; label?: string; color?: string }[];
   style?: SpecElement["style"];
+  /** Read back for a guess (authoredScales): the marker drawn from it is the
+   *  VIEWER's — in their blue with a "You" tag (`<id>_answer_you`), never the
+   *  scale's accent, so yours is one colour from the first moment (the
+   *  reveal draws the truth in ink: guess/reveal.ts). */
+  yours?: boolean;
 }
 
 export interface ScaleGeometry {
@@ -315,12 +321,25 @@ function numberX(text: string, x: number, size: number): number {
   return x < hw ? Math.round(hw) : x > PAGE_W - hw ? Math.round(PAGE_W - hw) : x;
 }
 
+/** Where a "You" tag stands beside a pin at x: on the `side` given (−1 left,
+ *  +1 right), centred `YOU_SIZE` high over the line — clear of the ticks. */
+export function youTagAt(g: ScaleGeometry, x: number, side: -1 | 1, size = YOU_SIZE): [number, number] {
+  const w = scaleLabelWidth(youWord(), size);
+  return [Math.round(x + side * (14 + w / 2)), g.y + 22];
+}
+
 export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement[] {
   if (isSlider(sc)) return sliderValueElements(sc, v);
   const g = scaleGeometry(sc);
   const x = g.xAt(v);
-  const color = sc.style?.color ?? ACCENT;
+  const color = sc.yours ? GUESS_COLOR : (sc.style?.color ?? ACCENT);
   const size = g.sizes?.answer ?? 28;
+  // The viewer's pin is tagged: left of it, or right near the line's left end.
+  const tag: SpecElement[] = [];
+  if (sc.yours) {
+    const [tx, ty] = youTagAt(g, x, x - g.x0 < 60 ? 1 : -1);
+    tag.push({ id: `${sc.id}_answer_you`, type: "text", text: youWord(), x: tx, y: ty, font_size: YOU_SIZE, style: { color } });
+  }
   return [
     {
       id: `${sc.id}_answer_pin`,
@@ -334,7 +353,8 @@ export function scaleValueElements(sc: ScaleElementLike, v: number): SpecElement
       style: { color, fill: color, fill_style: "wash" },
     },
     { id: `${sc.id}_answer_num`, type: "text", text: g.format(v), x: numberX(g.format(v), x, size), y: g.y + 36 + Math.round(size * 0.6), font_size: size, style: { color } },
-    { id: `${sc.id}_answer`, type: "group", members: [`${sc.id}_answer_pin`, `${sc.id}_answer_num`] },
+    ...tag,
+    { id: `${sc.id}_answer`, type: "group", members: [`${sc.id}_answer_pin`, `${sc.id}_answer_num`, ...tag.map((e) => e.id)] },
   ];
 }
 
@@ -571,6 +591,8 @@ export function authoredScales(spec: Pick<Spec, "elements">): ScaleElementLike[]
       ...(el.font_size !== undefined ? { font_size: el.font_size } : {}),
       ...(el.slider === true ? { slider: true } : {}),
       ...(el.style !== undefined ? { style: el.style } : {}),
+      // Read back for a guess: a marker drawn from it is the viewer's.
+      yours: true,
     });
   }
   return out;

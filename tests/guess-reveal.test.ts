@@ -99,8 +99,12 @@ describe("bars: halves", () => {
     expect(Math.min(...filled.pts.map((p) => p[0]))).toBeCloseTo(h.cx! - h.halfW!, 5);
     const gap = m.texts.find((t) => t.text === "+22")!;
     expect(gap.color).toBe(TRUTH);
-    // Not yet at the end: no gap written.
-    expect(besideMarks(setup.handles, [[30]], [0.5]).texts).toEqual([]);
+    // Yours is tagged "You", in blue over your half.
+    const you = m.texts.find((t) => t.text === "You")!;
+    expect(you.color).toBe(YOURS);
+    expect(you.at[0]).toBeLessThan(h.cx!);
+    // Not yet at the end: no gap written (only the tag).
+    expect(besideMarks(setup.handles, [[30]], [0.5]).texts.map((t) => t.text)).toEqual(["You"]);
   });
 
   test("fading takes the blue down to FADED and leaves the ink", () => {
@@ -164,7 +168,7 @@ describe("pie: a true pie beside yours", () => {
     const { setup } = setupFor(pie, "slice_2");
     const m = besideMarks(setup.handles, [[45]], [1]);
     expect(m.lines.some((l) => l.fill === YOURS)).toBe(true);
-    expect(m.texts.some((t) => t.text === "45%" && t.color === YOURS)).toBe(true);
+    expect(m.texts.some((t) => t.text === "You: 45%" && t.color === YOURS)).toBe(true);
     // Half way through: moved, the shares still yours.
     expect(besideValues(setup.handles, [[45]], [0.5])[0][0]).toBeCloseTo(45);
     expect(besideValues(setup.handles, [[45]], [1])[0][0]).toBeCloseTo(30);
@@ -184,6 +188,74 @@ describe("scale: your pin stays, the true pin drops", () => {
     expect(m.lines.some((l) => l.fill === YOURS)).toBe(true);
     expect(m.lines.some((l) => l.color === TRUTH)).toBe(true);
     expect(m.texts.some((t) => t.text === "+36" && t.color === TRUTH)).toBe(true);
+  });
+
+  test("yours is blue and tagged \"You\" from the first moment; the truth is ink and never tagged", async () => {
+    const { scaleValueElements, authoredScales } = await import("../src/spec/scale");
+    const { setup } = setupFor(scale, "year");
+    // While asked: the pin painted from the guess's read-back is the viewer's.
+    const asked = scaleValueElements(setup.handles[0].scale!, 1720);
+    expect(asked.find((e) => e.id === "year_answer_pin")!.style!.color).toBe(YOURS);
+    expect(asked.find((e) => e.id === "year_answer_num")!.style!.color).toBe(YOURS);
+    expect(asked.find((e) => e.id === "year_answer_you")!.text).toBe("You");
+    // The authored marker (the answer simply shown) keeps its accent and has no tag.
+    const shown = scaleValueElements({ id: "year", type: "scale", min: 1700, max: 1800 }, 1756);
+    expect(shown.find((e) => e.id === "year_answer_pin")!.style!.color).not.toBe(YOURS);
+    expect(shown.some((e) => e.id === "year_answer_you")).toBe(false);
+    expect(authoredScales(expandSpec(scale))[0].yours).toBe(true);
+    // The reveal paints the truth in ink, its tag gone, fading in as it lands.
+    const st = besideStyles(setup.handles, [0]);
+    expect((st["year_answer_pin"].style as { color: string; opacity?: number }).color).toBe(TRUTH);
+    expect((st["year_answer_pin"].style as { opacity?: number }).opacity).toBe(0);
+    expect(st["year_answer_you"]).toEqual({ text: "" });
+    expect((besideStyles(setup.handles)["year_answer_pin"].style as { opacity?: number }).opacity).toBeUndefined();
+  });
+
+  test("your \"You\" pin glides to the truth, leaving a faint ghost; the bracket grows behind it", async () => {
+    const { scaleGeometry } = await import("../src/spec/scale");
+    const { setup } = setupFor(scale, "year");
+    const sg = scaleGeometry(setup.handles[0].scale!);
+    const xg = sg.xAt(1720), xt = sg.xAt(1756);
+    // The travelling pin is the filled blue triangle at full strength; its apex x is where it stands.
+    const pinX = (p: number): number | null => {
+      const m = besideMarks(setup.handles, [[1720]], [p]);
+      const f = m.lines.filter((l) => l.fill === YOURS && (l.fillOpacity ?? 0) > 0.35);
+      return f.length > 0 ? f[f.length - 1].pts[2][0] : null;
+    };
+    expect(pinX(0)).toBeCloseTo(xg, 5);
+    const mid = pinX(0.3)!;
+    expect(mid).toBeGreaterThan(xg + 1);
+    expect(mid).toBeLessThan(xt - 1);
+    // Arrived and landed: the travelling pin has faded into the truth's.
+    expect(pinX(1)).toBeNull();
+    const end = besideMarks(setup.handles, [[1720]], [1]);
+    // The ghost stays at your guess, faint; your number and a small "You" with it.
+    const ghost = end.lines.filter((l) => l.fill === YOURS);
+    expect(ghost).toHaveLength(1);
+    expect(ghost[0].pts[2][0]).toBeCloseTo(xg, 5);
+    expect(ghost[0].fillOpacity!).toBeLessThan(0.6);
+    const you = end.texts.filter((t) => t.text === "You");
+    expect(you).toHaveLength(1);
+    expect(you[0].at[0]).toBeLessThan(xg); // on the side away from the truth
+    expect(end.texts.some((t) => t.text === "1720" && t.color === YOURS)).toBe(true);
+    // The bracket spans guess → truth in ink.
+    const br = end.lines.find((l) => l.color === TRUTH)!;
+    expect(Math.min(...br.pts.map((q) => q[0]))).toBeCloseTo(xg, 5);
+    expect(Math.max(...br.pts.map((q) => q[0]))).toBeCloseTo(xt, 5);
+    // The truth lands after the glide has begun: still up at the start, down at the end.
+    expect(Object.values(besideOffsets(setup.handles, [0.3]))[0][1]).toBeGreaterThan(0);
+  });
+
+  test("the tag speaks the cast's language", async () => {
+    const { setYouWord } = await import("../src/guess/color");
+    const { gateWords } = await import("../src/ui/gate-words");
+    const { setup } = setupFor(scale, "year");
+    setYouWord(gateWords("nb").yours);
+    try {
+      expect(besideMarks(setup.handles, [[1720]], [1]).texts.some((t) => t.text === "Du")).toBe(true);
+    } finally {
+      setYouWord(gateWords("en").yours);
+    }
   });
 });
 

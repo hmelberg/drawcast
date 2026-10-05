@@ -164,7 +164,7 @@ describe("reorder in the player (the default for rank)", () => {
     const landed = history.filter((h) => h.m !== null && h.m.lines.length > 0)[0].m!;
     expect(landed.lines).toHaveLength(2);
     expect(landed.texts.filter((t) => t.text === "✓")).toHaveLength(2);
-    expect(landed.texts.some((t) => t.text === "yours" && t.color === YOURS)).toBe(true);
+    expect(landed.texts.some((t) => t.text === "You" && t.color === YOURS)).toBe(true);
     player.renderUpTo(2);
     expect(marks.get("cards_1")!.lines).toHaveLength(2);
     player.renderUpTo(1);
