@@ -10,7 +10,7 @@ import { estimateErrors, expandEstimates } from "./slider";
 import AjvModule, { type ValidateFunction } from "ajv";
 import { fillIconDataInPlace } from "./icon-data";
 import { ASSET_MAX_BYTES, assetBytes, assetRef, formatAssetSize, isDataAsset, paramAssetRefs, resolveAssetRefs, resolveParamAssetRefs } from "./assets";
-import { BUILTIN_WIDGETS, SIDE_VALUES, type CardItemSpec, type Command, type Spec, type SpecElement, ACTIVITY_IDS, MUSIC_SYMBOLS } from "./types";
+import { BUILTIN_WIDGETS, SIDE_VALUES, type CardItemSpec, type Command, type Spec, type SpecElement, ACTIVITY_IDS, MUSIC_SYMBOLS, THUMB_MARK_KINDS } from "./types";
 import { isReservedVar } from "./answers";
 import { SUB_SUFFIXES } from "../layout/model";
 import { UNIVERSAL_ANCHORS } from "../layout/anchors";
@@ -206,7 +206,7 @@ const elementSchema = {
       enum: [
         "axes", "curve", "point", "arrow", "label", "region", "node", "edge", "annotation", "path", "text", "shape", "portrait", "source", "code", "scratch",
         "sector", "arc", "polygon", "pieces", "angle", "measure", "ellipse", "line",
-        "group", "math", "image", "icon", "inset", "music", "population", "link", "scale", "cards", "sequence",
+        "group", "math", "image", "icon", "inset", "music", "population", "thumb", "link", "scale", "cards", "sequence",
       ],
     },
     // axes
@@ -339,9 +339,9 @@ const elementSchema = {
     },
     kind: {
       type: "string",
-      enum: ["box", "circle", "strike", "cross"],
+      enum: ["box", "circle", "strike", "cross", ...THUMB_MARK_KINDS],
       description:
-        "annotation: a PERMANENT mark — box or circle the conclusion, strike or cross out a rejected option. Default: box for text targets, circle otherwise. (Temporary attention = the highlight verb with glow, or point; area emphasis = region shading.)",
+        "thumb: a thumbnail page's words or sticker. annotation: a PERMANENT mark — box or circle the conclusion, strike or cross out a rejected option. Default: box for text targets, circle otherwise. (Temporary attention = the highlight verb with glow, or point; area emphasis = region shading.)",
     },
     // node / shape
     shape: {
@@ -454,7 +454,7 @@ const elementSchema = {
         "line: one or two points the line passes through — [{\"ref\": \"tri\", \"anchor\": \"vertex_1\"}, {\"ref\": \"tri\", \"anchor\": \"vertex_2\"}] extends a side; with one point give slope or angle.",
     },
     slope: { type: "number", description: "line: rise over run in domain units when a domain is declared, else logical." },
-    angle: { type: "number", description: "line: direction in degrees counter-clockwise from +x (not the angle element type — this is the `line` element's own direction field)." },
+    angle: { type: "number", description: "line: direction in degrees counter-clockwise from +x (not the angle element type — this is the `line` element's own direction field). thumb: its turn, the same way." },
     // portrait / source
     of: {
       type: "string",
@@ -2464,6 +2464,9 @@ function elementErrors(el: SpecElement): string[] {
       if ((typeof el.of !== "string" || el.of.trim() === "") && (typeof el.url !== "string" || el.url.trim() === "") && !el.strokes) {
         errs.push(`element "${el.id}": image needs of or url`);
       }
+      break;
+    case "thumb":
+      need(typeof el.kind === "string" && (THUMB_MARK_KINDS as readonly string[]).includes(el.kind), "needs kind: band, burst, question, stamp, note, star, bang, seal, arrow or a figure");
       break;
     case "icon":
     case "inset":

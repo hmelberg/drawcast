@@ -9,15 +9,13 @@
 // replaces the drawing on the front page.
 
 import { castCardText } from "../../netlify/lib/share-card.mts";
-import { cornerSlots, FIGURES, HEADLINE_MAX, kidsByTags, MARKS, planThumb, type Corner, type MarkKind, type ThumbPlan } from "../../netlify/lib/thumb.mts";
-import type { Spec, SpecElement } from "../spec/types";
+import { cornerSlots, kidsByTags, planThumb, type Corner } from "../../netlify/lib/thumb.mts";
 import { leafDrawables, type Drawable } from "../layout/model";
-import { parsePlaylistText, posterItemOf, thumbnailItemOf } from "../playlist/playlist";
+import { parsePlaylistText, posterItemOf } from "../playlist/playlist";
 import { render } from "../render";
 import { iconNameOfHref } from "../spec/icon-data";
 import { decodePts, encodePts } from "./points";
-import { STOCK_WHEN_DROPPED, stockFor } from "./stock";
-import { CARD_H, CARD_VERSION, CARD_W, type CardItem, type CardText, type CardResult, type CompiledCard } from "./types";
+import { CARD_H, CARD_VERSION, CARD_W, type CardItem, type CardResult, type CompiledCard } from "./types";
 
 /** The compiled card's size cap, JSON bytes: 10 KB (Hans, 2026-10-05) — about
  *  3 KB sent, since the feed travels compressed; icons go by name. */
@@ -31,17 +29,6 @@ const SIMPLIFY_GLYPH = 0.6;
 
 type Leaf = Exclude<Drawable, { kind: "group" }>;
 type Pt = [number, number];
-
-/** How closely a non-letter shape keeps its outline: in proportion to its
- *  size (a chess piece is ~60 units, ~17 px on a card — its fine curves are
- *  invisible there), never finer than SIMPLIFY. */
-function toleranceFor(pts: Pt[]): number {
-  if (pts.length < 3) return SIMPLIFY;
-  const xs = pts.map((q) => q[0]);
-  const ys = pts.map((q) => q[1]);
-  const diag = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
-  return Math.max(SIMPLIFY, Math.min(4, diag / 30));
-}
 
 /** Ramer–Douglas–Peucker: the line's shape with fewer points. */
 export function simplify(pts: Pt[], tol = SIMPLIFY): Pt[] {
@@ -116,7 +103,7 @@ export function cardItem(d: Leaf, dx = 0, dy = 0): CardItem | string {
     // all — the engine has already turned the TeX into shapes, so the card
     // needs no maths library to show them.
     const glyph = !!(d.holes?.length || d.tex?.length);
-    const tol = glyph ? SIMPLIFY_GLYPH : toleranceFor(d.pts as Pt[]);
+    const tol = glyph ? SIMPLIFY_GLYPH : SIMPLIFY;
     const pts = simplify(d.pts as Pt[], tol);
     const holes = (d.holes ?? []).map((h) => flat(simplify(h as Pt[], tol), dx, dy));
     return {
@@ -147,7 +134,7 @@ export function cardItem(d: Leaf, dx = 0, dy = 0): CardItem | string {
   };
   if (hint?.type === "circle") return { ...base, p: "", ci: [round(hint.c[0] + dx), round(hint.c[1] + dy), round(hint.r)] };
   if (hint?.type === "rect") return { ...base, p: "", rc: [round(hint.x + dx), round(hint.y + dy), round(hint.w), round(hint.h)] };
-  return { ...base, p: flat(simplify(d.pts as Pt[], toleranceFor(d.pts as Pt[])), dx, dy) };
+  return { ...base, p: flat(simplify(d.pts as Pt[]), dx, dy) };
 }
 
 /** render/svg-backend.ts hashSeed: the engine's own wobble seed for an id. */
@@ -261,35 +248,6 @@ function marksOf(text: string): ReturnType<typeof planThumb> {
 }
 
 /**
- * A thumbnail page's own marks (`thumb` elements, 2026-10-05) as the plan the
- * marks are drawn from, or null when the page has none (the cast's `thumb:`
- * line then gives them). A mark with x and y stands there (the engine's
- * logical y-up canvas), turned by `angle` (degrees, counter-clockwise, as a
- * line's); one without takes a free corner, as the line's do.
- */
-export function marksOfPage(spec: Spec, title?: string): ThumbPlan | null {
-  const marks = (spec.elements ?? []).filter((e) => e.type === "thumb");
-  if (!marks.length) return null;
-  const plan: ThumbPlan = { words: "none", figure: "none", marks: [] };
-  const words = (e: SpecElement): string | undefined => (typeof e.text === "string" && e.text.trim() ? e.text.trim().slice(0, HEADLINE_MAX) : undefined);
-  for (const e of marks) {
-    const k = e.kind as string;
-    if (k === "band" || k === "burst") {
-      plan.words = k;
-      plan.headline = words(e) ?? title;
-    } else if (k === "question") {
-      plan.words = "question";
-      plan.question = words(e) ?? title;
-    } else if ((FIGURES as readonly string[]).includes(k)) plan.figure = k as ThumbPlan["figure"];
-    else if ((MARKS as readonly string[]).includes(k)) {
-      const at = typeof e.x === "number" && typeof e.y === "number" ? ([e.x, CARD_H - e.y] as [number, number]) : undefined;
-      plan.marks.push({ kind: k as MarkKind, ...(words(e) ? { words: words(e) } : {}), ...(at ? { at } : {}), ...(typeof e.angle === "number" ? { rotate: -e.angle } : {}) });
-    }
-  }
-  return plan;
-}
-
-/**
  * A private cast's card (Hans, 2026-10-05): the headline and marks on plain
  * paper — nothing of the figure, which a private cast keeps to its readers.
  */
@@ -306,17 +264,13 @@ export function headlineCard(text: string): CardResult {
 export async function compileCard(text: string, opts: { private?: boolean } = {}): Promise<CardResult | null> {
   if (opts.private) return headlineCard(text);
   const playlist = parsePlaylistText(text);
-  // A thumbnail page the author (or the AI) wrote wins over the poster frame.
-  const own = thumbnailItemOf(playlist);
-  const item = own ?? posterItemOf(playlist);
+  const item = posterItemOf(playlist);
   if (!item) return null;
   const host = document.createElement("div");
   host.style.cssText = `position:fixed;left:-10000px;top:0;width:${CARD_W}px;height:${CARD_H}px`;
   document.body.appendChild(host);
   try {
-    // A thumbnail page draws no heading of its own unless it asks for one: its words are the author's.
-    const spec = own ? { ...own.spec, heading: own.spec.heading ?? (false as const) } : item.spec;
-    const hd = await render(spec, host, { mode: "silent" });
+    const hd = await render(item.spec, host, { mode: "silent" });
     try {
       hd.timeline.showPoster();
       const layout = hd.timeline.reprojector?.committed?.() ?? hd.layout;
@@ -338,21 +292,10 @@ export async function compileCard(text: string, opts: { private?: boolean } = {}
         if (typeof it === "string") dropped.push(it);
         else items.push(it);
       }
-      const marks = (own && marksOfPage(own.spec, castCardText(text).title)) || marksOf(text);
-      let capped = capItems(items, JSON.stringify(marks).length);
+      const marks = marksOf(text);
+      const capped = capItems(items, JSON.stringify(marks).length);
       for (let i = 0; i < capped.dropped; i++) dropped.push("over the cap");
-      // Too detailed for a card (a chess position, a skeleton): a stock
-      // picture of its topic under the cast's own heading, when one fits.
-      if (items.length && capped.dropped / items.length > STOCK_WHEN_DROPPED) {
-        const facts = castCardText(text);
-        const stock = stockFor(facts.title ?? "", facts.tags ?? []);
-        if (stock) {
-          const title: CardText = { k: "t", x: CARD_W / 2, y: CARD_H - 34, t: shortText(facts.title ?? "", 60), s: 40, an: "m", c: "#2b2b2b" };
-          capped = { items: [...stock, ...(title.t ? [title] : [])], dropped: capped.dropped };
-          dropped.push("stock picture");
-        }
-      }
-      const card: CompiledCard = { v: CARD_VERSION, items: capped.items, marks, corners: cornersByInk(capped.items), ...(own ? { own: 1 as const } : {}) };
+      const card: CompiledCard = { v: CARD_VERSION, items: capped.items, marks, corners: cornersByInk(capped.items) };
       const all = JSON.stringify(card).length;
       const bytes = JSON.stringify({ ...card, items: card.items.map(lean) }).length;
       return { card, dropped, bytes, iconBytes: all - bytes };

@@ -718,7 +718,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-05 (check visuals leave): the schema's ask.after and page.checks. +367. -> 408296.
 // Re-pinned UP 2026-10-05 (authoring round): two_by_two_table's label_size, totals, box and cell_letters in its catalog params. +1518. -> 409814.
 // Re-pinned UP 2026-10-05 (thumbnail page): a page's role: thumbnail. +115. -> 409929.
-const BASELINE_SYSTEM_CHARS = 409929;
+// Re-pinned UP 2026-10-05 (thumb marks): the thumb element type and its kinds. +199. -> 410128.
+const BASELINE_SYSTEM_CHARS = 410128;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -835,7 +836,8 @@ const BASELINE_SYSTEM_CHARS = 409929;
 // Re-pinned UP 2026-10-04 (r3 quick wins): a sequence item's cites. +102. -> 121281.
 // Re-pinned UP 2026-10-05 (check visuals leave): ask.after and page.checks. +367. -> 121648.
 // Re-pinned UP 2026-10-05 (thumbnail page): a page's role: thumbnail. +115. -> 121763.
-const BASELINE_SCHEMA_CHARS = 121763;
+// Re-pinned UP 2026-10-05 (thumb marks): the thumb element type and its kinds. +199. -> 121962.
+const BASELINE_SCHEMA_CHARS = 121962;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in

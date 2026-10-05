@@ -112,7 +112,7 @@ export function annotationDrawables(
   fit: TargetFit = DEFAULT_FIT,
   ink: Pt[] = [],
 ): Drawable[] {
-  let kind = el.kind ?? defaultKind(textTarget);
+  let kind = (el.kind ?? defaultKind(textTarget)) as AnnotationKind;
   if (!KINDS.includes(kind)) {
     // Old specs may carry retired kinds (underline/highlight) — degrade, don't crash.
     onWarn?.(`annotation "${el.id}": retired/unknown kind "${kind}" — using ${defaultKind(textTarget)}`);

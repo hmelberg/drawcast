@@ -129,24 +129,43 @@ every working file below is `dev-casts/<slug>…`.
    also carry `title "…"`, a listing title of its own). A course needs none per lecture:
    its card's line is the first paragraph under the title in `course.md`.
 
-   **Thumbnail (when the poster frame won't do).** The front page and link
-   previews draw each cast's thumbnail from its poster frame — the finished
-   drawing — under the `thumb` words. When that frame is a poor picture of
-   the cast (a quiz whose figure stays hidden until answered, a photo or a
-   code-made chart, a figure too busy to read at 280 px, or one that does
-   not say what the cast is about), write a `"thumbnail"` beside the spec:
-   ONE still page in the same spec language (`elements`, or `template` +
-   `params`), with no commands and no narration — every element shows unless
-   `hidden`. One idea, readable small: the main diagram simplified, one to
-   three colour icons (`{"type": "icon", "of": "…", "set": "twemoji",
-   "icon_look": "picture", "size": 120…}`), a few big words. Leave a top
-   corner free for a stamp or note and the bottom strip for the band. No
-   photos, code or interactions; at most about 40 elements (a thumbnail is
-   capped at 10 KB). `cast.mjs pack` adds it as a `## Thumbnail` page with
-   `role: thumbnail`, which is never played. Look at it:
+   **Thumbnail.** The front page and link previews show each cast's
+   thumbnail. Without a thumbnail page it is made from the poster frame (the
+   finished drawing) under the `thumb` words — the default. A thumbnail's
+   job is different from the poster's: to make someone curious enough to
+   click, honestly. Write a `"thumbnail"` beside the spec when you can do
+   better than the poster frame — always when that frame is a poor picture
+   (a quiz whose figure stays hidden until answered, a photo or a code-made
+   chart, a figure too busy to read at 280 px), and whenever a picture made
+   for the purpose would draw people in more. It need not copy the poster:
+   it is ONE still page in the same spec language (`elements`, or
+   `template` + `params`), no commands, no narration — every element shows
+   unless `hidden` — and may show whatever makes the cast's question
+   irresistible. Patterns that work: the question with its surprising
+   answer half-shown (a "?" where the result goes); one striking number,
+   big; a contrast or tension (the shark against the mosquito); a before
+   and after, or a mistake about to happen; a face or figure reacting. One
+   idea, readable small: a few big shapes, one to three colour icons
+   (`{"type": "icon", "of": "…", "set": "twemoji", "icon_look": "picture",
+   "size": 150…}`), a few big words. The cast must pay off what the
+   thumbnail promises, as with the headline. Its words and stickers can go
+   on the page too, as `thumb` elements in the `thumb` line's vocabulary —
+   `{"type": "thumb", "kind": "band", "text": "It's not the shark"}`;
+   `kind` is band, burst, question, stamp, note, star, bang, seal, arrow or
+   a figure (eyes, aha, surprised, puzzled, thinking); a stamp, note, star,
+   bang or seal with `x`, `y` (and `angle`, degrees anticlockwise) stands
+   there, one without takes a free corner. A page with `thumb` elements
+   replaces the `thumb` line; without them the line's words are used. Leave
+   room for the marks: the bottom strip for a band, a corner or a placed
+   spot for each sticker. No photos, code or
+   interactions; at most about 40 elements (a thumbnail is capped at
+   10 KB). `cast.mjs pack` adds it as a `## Thumbnail` page with
+   `role: thumbnail`, which is never played; the poster then never replaces
+   it on the front page. Look at it:
    `node scripts/cast.mjs thumbnail dev-casts/<slug>.json` writes
    `dev-casts/thumbnail-<slug>.png` (the poster frame's thumbnail when there
-   is no `thumbnail`) — view it like a frame.
+   is no `thumbnail`) — view it at a quarter size, as the front page shows
+   it, and ask whether you would click.
 5. **Check it:** `node scripts/cast.mjs check dev-casts/<slug>.json`. Fix
    every INVALID and every `[error]`; warnings are for step 6's eyes — a
    `crowding` warning (too many texts on the page at once, or small print)

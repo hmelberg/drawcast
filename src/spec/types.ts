@@ -44,6 +44,7 @@ export type ElementType =
   | "music"
   | "scratch"
   | "population"
+  | "thumb"
   | "link"
   | "scale"
   | "cards"
@@ -55,6 +56,11 @@ export type ElementType =
  * point laser; area emphasis to region shading.
  */
 export type AnnotationKind = "box" | "circle" | "strike" | "cross";
+
+/** A thumbnail page's `thumb` element (2026-10-05): the listing words and stickers
+ *  (netlify/lib/thumb.mts), never drawn in the cast itself. */
+export const THUMB_MARK_KINDS = ["band", "burst", "question", "stamp", "note", "star", "bang", "seal", "arrow", "eyes", "aha", "surprised", "puzzled", "thinking"] as const;
+export type ThumbMarkKind = (typeof THUMB_MARK_KINDS)[number];
 
 /**
  * Canonical list — Side is derived from it (not the reverse) so a ninth
@@ -250,7 +256,7 @@ export interface SpecElement {
    *  A bare string is folded into a one-element list by normalizeSpec. */
   target?: string[] | string;
   /** Mark style; defaults to box for text targets, circle otherwise. */
-  kind?: AnnotationKind;
+  kind?: AnnotationKind | ThumbMarkKind;
   // node / tier-3 shape
   shape?: "decision" | "chance" | "terminal" | "rect" | "circle" | "triangle" | "person";
   // tier-3 raw coordinates (logical units)

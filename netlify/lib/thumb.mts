@@ -31,6 +31,11 @@ export type MarkKind = (typeof MARKS)[number];
 export interface Mark {
   kind: MarkKind;
   words?: string;
+  /** Where the author put it (a thumbnail page's `mark` element, 2026-10-05): the
+   *  mark's centre on the 1000 × 750 canvas, SVG space (y down); absent, a corner. */
+  at?: [number, number];
+  /** Degrees, clockwise. */
+  rotate?: number;
 }
 /** The marks that carry words, and what they say when the author wrote none. */
 export const MARK_WORDS: Partial<Record<MarkKind, string>> = { note: "wait, what?", stamp: "PLOT TWIST", star: "?!" };
@@ -477,6 +482,7 @@ export function thumbSvg(plan: ThumbPlan, posterHref: string, busy?: Record<Corn
     items.push(() => kidArt(f));
   }
   for (const m of plan.marks) {
+    if (m.at) continue; // drawn where it was put, below
     if (m.kind === "note") items.push((inward) => noteArt(m.words ?? "", inward));
     else if (m.kind === "stamp") items.push(() => stampArt(m.words ?? ""));
     else if (m.kind === "star") items.push(() => starArt(m.words ?? "?!"));
@@ -485,8 +491,22 @@ export function thumbSvg(plan: ThumbPlan, posterHref: string, busy?: Record<Corn
   }
   let corners = freeCorners(plan.words);
   if (busy) corners = [...corners].sort((a, b) => busy[a] - busy[b]);
+  // A corner a placed mark stands in comes last: the corner marks go elsewhere first.
+  const covered = (c: Corner): boolean =>
+    plan.marks.some((m) => m.at && Math.abs(m.at[0] - (SLOT_AT[c][0] + SLOT_W / 2)) < SLOT_W && Math.abs(m.at[1] - (SLOT_AT[c][1] + SLOT_H / 2)) < SLOT_H);
+  corners = [...corners.filter((c) => !covered(c)), ...corners.filter(covered)];
   const used = new Map<Corner, number>();
   let over = "";
+  // A mark the author placed stands where it was put, centred there (the
+  // slot's art is drawn in a SLOT_W × SLOT_H box); the rest take corners.
+  const placed = plan.marks.filter((m) => m.at);
+  for (const m of placed) {
+    const art = m.kind === "note" ? noteArt(m.words ?? "", 1) : m.kind === "stamp" ? stampArt(m.words ?? "") : m.kind === "star" ? starArt(m.words ?? "?!") : m.kind === "bang" ? bangArt() : m.kind === "seal" ? sealArt() : "";
+    if (!art) continue;
+    const [cx, cy] = m.at!;
+    const turn = m.rotate ? ` rotate(${m.rotate} ${SLOT_W / 2} ${SLOT_H / 2})` : "";
+    over += `<g transform="translate(${(cx - SLOT_W / 2).toFixed(0)} ${(cy - SLOT_H / 2).toFixed(0)})${turn}">${art}</g>`;
+  }
   items.forEach((art, i) => {
     const c = corners[i % corners.length];
     const k = used.get(c) ?? 0;

@@ -58,7 +58,9 @@ the GitHub one.
    `push` again.
    A cast's front-page thumbnail can be given a page of its own: add a last
    page `## Thumbnail` with `role: thumbnail` — one still picture, no
-   narration (SKILL.md step 4 says what goes on it) — and check it with
+   narration (SKILL.md step 4 says what goes on it; its words and stickers
+   as `thumb` lines: `thumb t1 "It's not the shark" kind band`,
+   `thumb t2 "PLOT TWIST" kind stamp x 800 y 640 angle 10`) — and check it with
    `node scripts/cast.mjs thumbnail <workdir>/<file>.cast`. The push
    registers the new thumbnail.
 

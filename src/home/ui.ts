@@ -40,7 +40,7 @@ function drawnThumb(card: CompiledCard): HTMLElement {
     icons = got;
     if (!poster) paint();
   });
-  if (card.poster) {
+  if (card.poster && !card.own) {
     const src = card.poster;
     const load = (): void => {
       const img = new Image();

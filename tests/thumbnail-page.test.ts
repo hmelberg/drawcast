@@ -39,3 +39,52 @@ test("role: thumbnail survives printing the page back", () => {
   expect(text).toContain("role: thumbnail");
   expect(thumbnailItemOf(parsePlaylistText(text))).not.toBeNull();
 });
+
+import { marksOfPage } from "../src/card/convert";
+import { thumbSvg } from "../netlify/lib/thumb.mts";
+import { validateSpec } from "../src/spec/schema";
+
+const WITH_MARKS = `# The deadliest animal
+thumb: band "Old line"
+
+## The deadliest animal
+    text t1 "Animals" x 300 y 500
+
+Which animal kills the most people?
+    draw t1
+
+## Thumbnail
+role: thumbnail
+    icon shark size 220 set twemoji x 280 y 400 icon_look picture of shark
+    thumb m1 "It's not the shark" kind band
+    thumb m2 "PLOT TWIST" kind stamp x 800 y 640 angle 10
+    thumb m3 "tiny!" kind note
+    thumb m4 kind surprised
+`;
+
+test("a thumbnail page's thumb elements are its marks: words, figure, placed and corner marks", () => {
+  const page = thumbnailItemOf(parsePlaylistText(WITH_MARKS))!.spec;
+  expect(validateSpec(page).ok).toBe(true);
+  expect(marksOfPage(page)).toEqual({
+    words: "band",
+    headline: "It's not the shark",
+    figure: "surprised",
+    marks: [
+      { kind: "stamp", words: "PLOT TWIST", at: [800, 110], rotate: -10 },
+      { kind: "note", words: "tiny!" },
+    ],
+  });
+  expect(marksOfPage({ elements: [] })).toBeNull();
+});
+
+test("a placed mark stands where it was put; a corner mark avoids the corner it covers", () => {
+  const svg = thumbSvg({ words: "none", figure: "none", marks: [{ kind: "stamp", words: "X", at: [800, 110], rotate: -10 }, { kind: "note", words: "n" }] }, "p.png", { tr: 0, tl: 1, br: 2, bl: 3 });
+  expect(svg).toContain("translate(660 -20) rotate(-10");
+  // The note does not take the top-right corner the stamp stands in.
+  expect(svg).not.toMatch(/translate\(696 20\)/);
+});
+
+test("a thumb element needs a known kind", () => {
+  const bad = { elements: [{ id: "x", type: "thumb", kind: "sparkle" }] };
+  expect(validateSpec(bad as never).ok).toBe(false);
+});

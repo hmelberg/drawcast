@@ -101,8 +101,6 @@ export interface CompiledCard {
   corners: Corner[];
   /** The poster beside the cast (GitHub Pages), when public: it replaces the drawing once it has loaded. */
   poster?: string;
-  /** 1: drawn from the cast's own thumbnail page (role: thumbnail) — its own picture, which no poster ever replaces. */
-  own?: 1;
 }
 
 /** What compiling a cast gave: the card, and what it had to leave out (for the lab's coverage table). */
