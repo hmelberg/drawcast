@@ -13,7 +13,7 @@ export function decodePicture(b64) {
 }
 
 /** cast.mjs browser()'s lookup — Playwright's own headless shell cache. */
-async function defaultLaunch() {
+export async function defaultLaunch() {
   const { chromium } = await import("playwright-core");
   const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
   const cache = process.env.PLAYWRIGHT_BROWSERS_PATH
@@ -69,7 +69,22 @@ async function within(ms, p) {
 }
 
 export async function drawPictures(texts, opts = {}) {
-  if (texts.length === 0) return { pictures: [], note: null };
+  const { results, note } = await inHarness(texts, opts, "__poster");
+  return { pictures: results.map(decodePicture), note };
+}
+
+/**
+ * Each cast's listing card (src/card/convert.ts, cards round 2026-10-05),
+ * compiled in the same browser harness through window.__card — the card
+ * object, or null. `opts.private` gives the headline-only card.
+ */
+export async function drawCards(texts, opts = {}) {
+  const { results, note } = await inHarness(texts, opts, "__card", { private: !!opts.private });
+  return { cards: results.map((r) => r?.card ?? null), note };
+}
+
+async function inHarness(texts, opts, call, arg) {
+  if (texts.length === 0) return { results: [], note: null };
   const launch = opts.launch ?? defaultLaunch;
   const serve = opts.serve ?? defaultServe(opts.root ?? process.cwd());
   const perCastMs = opts.perCastMs ?? 30000;
@@ -89,26 +104,26 @@ export async function drawPictures(texts, opts = {}) {
       });
       await routePage(page, icons); // Iconify through the scripts' disk cache and retry
       await page.goto(`${server.url}frames.html`);
-      await page.waitForFunction(() => typeof window.__poster === "function", null, { timeout: 60000 });
+      await page.waitForFunction((c) => typeof window[c] === "function", call, { timeout: 60000 });
       return page;
     };
     let page = await open();
-    const pictures = [];
+    const results = [];
     for (const text of texts) {
-      if (!page) { pictures.push(null); continue; }
-      const b64 = await within(perCastMs, page.evaluate((t) => window.__poster(t), text).catch(() => null));
-      if (b64 === TIMED_OUT) {
+      if (!page) { results.push(null); continue; }
+      const out = await within(perCastMs, page.evaluate(([c, t, a]) => window[c](t, a), [call, text, arg]).catch(() => null));
+      if (out === TIMED_OUT) {
         // A real hang blocks the page's JS thread: later drawings would all time out too.
-        pictures.push(null);
+        results.push(null);
         await page.close?.().catch(() => undefined);
         page = await open().catch(() => null);
         continue;
       }
-      pictures.push(decodePicture(b64));
+      results.push(out);
     }
-    return { pictures, note: null };
+    return { results, note: null };
   } catch (err) {
-    return { pictures: texts.map(() => null), note: String(err?.message ?? err).split("\n")[0] };
+    return { results: texts.map(() => null), note: String(err?.message ?? err).split("\n")[0] };
   } finally {
     await browser?.close().catch(() => undefined);
     await server?.close().catch(() => undefined);

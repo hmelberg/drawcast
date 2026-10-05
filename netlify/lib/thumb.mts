@@ -268,13 +268,28 @@ function burst(headline: string): { art: string; bottom: number } {
   };
 }
 
-function questionCard(text: string, posterHref: string): string {
+/** The picture under the marks: the poster at `posterHref`, or — a card
+ *  drawn from its own compiled drawing (src/card, 2026-10-05) — that drawing
+ *  as inline SVG markup on the same 1000 × 750 canvas. */
+function pictureLayer(posterHref: string, picture?: string): string {
+  return picture !== undefined ? `<g>${picture}</g>` : `<image href="${esc(posterHref)}" width="1000" height="750"/>`;
+}
+
+/** The corners' slots (left, top, width, height) the marks stand in — for a
+ *  reader that measures how busy a corner is from shapes, not pixels. */
+export function cornerSlots(): Record<Corner, { x: number; y: number; w: number; h: number }> {
+  const out = {} as Record<Corner, { x: number; y: number; w: number; h: number }>;
+  for (const c of Object.keys(SLOT_AT) as Corner[]) out[c] = { x: SLOT_AT[c][0], y: SLOT_AT[c][1], w: SLOT_W, h: SLOT_H };
+  return out;
+}
+
+function questionCard(text: string, posterHref: string, picture?: string): string {
   const { size, lines } = fitText(text, "hand", 380, 6, 76, 44);
   const lh = size * 1.1;
   const top = THUMB_H / 2 - (lines.length * lh) / 2 + size * 0.8;
   return (
     `<rect width="${THUMB_W}" height="${THUMB_H}" fill="#fffdf7"/>` +
-    `<svg x="460" y="0" width="540" height="750" viewBox="270 80 460 640" preserveAspectRatio="xMidYMid slice"><image href="${esc(posterHref)}" width="1000" height="750"/></svg>` +
+    `<svg x="460" y="0" width="540" height="750" viewBox="270 80 460 640" preserveAspectRatio="xMidYMid slice">${pictureLayer(posterHref, picture)}</svg>` +
     `<rect width="460" height="750" fill="#2f5d8a"/>` +
     lines.map((l, i) => `<text x="52" y="${(top + i * lh).toFixed(1)}" font-family="${FONT.hand}" font-size="${size}" fill="#fffdf7">${esc(l)}</text>`).join("")
   );
@@ -446,10 +461,10 @@ function arrowArt(fromY: number): string {
  * first; the figure takes the emptiest, then each mark the next (a corner
  * takes a second, smaller item nearer the middle when items outnumber corners).
  */
-export function thumbSvg(plan: ThumbPlan, posterHref: string, busy?: Record<Corner, number>): string {
-  let base = `<rect width="${THUMB_W}" height="${THUMB_H}" fill="#fffdf7"/><image href="${esc(posterHref)}" width="${THUMB_W}" height="${THUMB_H}"/>`;
+export function thumbSvg(plan: ThumbPlan, posterHref: string, busy?: Record<Corner, number>, picture?: string): string {
+  let base = `<rect width="${THUMB_W}" height="${THUMB_H}" fill="#fffdf7"/>${pictureLayer(posterHref, picture)}`;
   let arrowFrom = 300;
-  if (plan.words === "question" && plan.question) base = questionCard(plan.question, posterHref);
+  if (plan.words === "question" && plan.question) base = questionCard(plan.question, posterHref, picture);
   if (plan.words === "burst" && plan.headline) {
     const b = burst(plan.headline);
     base += b.art;

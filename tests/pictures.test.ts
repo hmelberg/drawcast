@@ -12,8 +12,9 @@ function fakeLaunch(answers: Record<string, string | null | "throw" | "hang">, c
     newPage: async () => (counter.pages++, {
       goto: async () => undefined,
       waitForFunction: async () => undefined,
-      evaluate: async (_fn: unknown, text: string) => {
-        const a = answers[text];
+      // The harness passes [call, text, arg] (pictures.mjs inHarness: posters and cards).
+      evaluate: async (_fn: unknown, args: [string, string, unknown]) => {
+        const a = answers[args[1]];
         if (a === "throw") throw new Error("boom");
         if (a === "hang") return new Promise(() => undefined);
         return a ?? null;

@@ -425,6 +425,15 @@ async function registerPublished(origin, wd, session, verify) {
       return { title: p.meta.title ?? itemsOf(p)[0]?.spec.title ?? "", format: facts.format, tags: facts.tags, level: facts.level };
     };
     const reg = registerFor(origin, { parseCourse, courseRegistration, courseTopicTags, castMeta }, courseText, castText);
+    // The listing card (cards round, 2026-10-05): compiled in a browser like
+    // the poster, with the poster's GitHub Pages address when public; a
+    // private cast's is its headline only. No card is never a failed register.
+    if (origin.kind === "cast" && castText !== undefined && process.env.DRAWCAST_NO_CARD !== "1") {
+      const { drawCards } = await import("./pictures.mjs");
+      const { posterPagesUrl } = await load("/src/publish/cast.ts");
+      const { cards } = await drawCards([castText], { root: ROOT, private: !!origin.private }).catch(() => ({ cards: [null] }));
+      if (cards[0]) reg.card = origin.private ? cards[0] : { ...cards[0], poster: posterPagesUrl(origin.owner, origin.repo, origin.castsDir, stripDocExt(origin.file)) };
+    }
     const names = origin.kind === "course" ? await load("/src/names.ts") : undefined;
     return registerNow({ origin, session, verify, reg, registry, names, fetchImpl, work });
   });

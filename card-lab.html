@@ -1,0 +1,53 @@
+<!doctype html>
+<!--
+  Dev-only card lab (2026-10-05). NOT part of the build: vite's build input is
+  index.html alone, so this page exists on `npm run dev` and never ships.
+
+    npm run cardlab        compiles every library cast's card into
+                           docs/card-lab/runs/latest/cards.json
+    npm run dev            then open  http://localhost:5173/card-lab.html
+
+  Three columns per cast: today's server-drawn card, the compiled card drawn
+  by the small renderer (src/card/draw.ts), and the same marks over the
+  poster. Rate the middle one; "Copy ledger" gives lines for
+  docs/card-lab/LEDGER.md.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Card lab</title>
+    <style>
+      @font-face { font-family: "Patrick Hand"; src: url(/fonts/patrickhand/PatrickHand-Regular.ttf); }
+      @font-face { font-family: "Permanent Marker"; src: url(/fonts/thumb/PermanentMarker-Regular.ttf); }
+      @font-face { font-family: "Bangers"; src: url(/fonts/thumb/Bangers-Regular.ttf); }
+      :root { --ink: #2b2b2b; --line: #d8d2c4; --paper: #f4efe3; --muted: #6b665c; }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.4 system-ui, sans-serif; }
+      header { position: sticky; top: 0; z-index: 2; background: var(--paper); border-bottom: 1px solid var(--line); padding: 10px 16px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+      h1 { font: 22px "Patrick Hand", cursive; margin: 0; }
+      #stats { color: var(--muted); }
+      main { padding: 12px 16px 40px; }
+      .row { display: grid; grid-template-columns: 220px repeat(3, var(--w)); gap: 12px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+      .row.head { font-weight: 600; position: sticky; top: 52px; background: var(--paper); z-index: 1; }
+      .cell img, .cell svg { width: var(--w); height: calc(var(--w) * 0.75); display: block; border: 1px solid var(--line); border-radius: 8px; background: #fffdf7; }
+      .meta { font-size: 12px; color: var(--muted); }
+      .meta b { color: var(--ink); }
+      .rate button { font: inherit; margin-right: 4px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: pointer; }
+      .rate button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+      table { border-collapse: collapse; margin-top: 8px; }
+      td, th { padding: 2px 10px 2px 0; text-align: left; }
+      body.phone { --w: 160px; }
+      body { --w: 280px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Card lab</h1>
+      <label><input type="checkbox" id="phone" /> phone width</label>
+      <button id="ledger">Copy ledger</button>
+      <span id="stats"></span>
+    </header>
+    <main id="app">Loading…</main>
+    <script type="module" src="/src/dev/card-lab.ts"></script>
+  </body>
+</html>

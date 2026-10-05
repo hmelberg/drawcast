@@ -105,6 +105,12 @@ export function posterPathFor(castPath: string): string {
   return stripDocExt(castPath) + ".png";
 }
 
+/** The poster's address on the repo's GitHub Pages site — where a card's
+ *  picture loads from, at no cost to drawcast.app (cards round, 2026-10-05). */
+export function posterPagesUrl(owner: string, repo: string, castsDir: string, slug: string): string {
+  return `https://${owner}.github.io/${repo}/${castsDir ? `${castsDir}/` : ""}${slug}.png`;
+}
+
 /**
  * The ONE prediction of a private cast's registry target and item key
  * (registry delivery 2, task 10) — Share's quote (privateRequest) and the
