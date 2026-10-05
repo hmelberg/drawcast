@@ -58,6 +58,8 @@ const CONDITIONAL: Record<string, string[]> = {
   solar_system: ["missing_note", "title"],
   sky_map: ["title"],
   logic_gates: ["title"],
+  // The margin totals (2026-10-05) are drawn only with totals / row_totals / col_totals.
+  two_by_two_table: ["row_total_0", "row_total_1", "col_total_0", "col_total_1", "grand_total", "row_totals_head", "col_totals_head"],
   bubble_sort: ["title"],
   // The diagram and results views (and a title): the manifest's two examples
   // are the timelines and the overview. Its bundled casts (a diagram and a

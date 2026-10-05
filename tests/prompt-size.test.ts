@@ -716,7 +716,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-04 (r3 quick wins): a sequence item's cites. +102. -> 407709.
 // Re-pinned UP 2026-10-04 (polish A3/A5): bar numbers are value_labels, highlight a chart. +220. -> 407929.
 // Re-pinned UP 2026-10-05 (check visuals leave): the schema's ask.after and page.checks. +367. -> 408296.
-const BASELINE_SYSTEM_CHARS = 408296;
+// Re-pinned UP 2026-10-05 (authoring round): two_by_two_table's label_size, totals, box and cell_letters in its catalog params. +1518. -> 409814.
+const BASELINE_SYSTEM_CHARS = 409814;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):

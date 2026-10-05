@@ -59,7 +59,15 @@
       },
       "title": {
         "type": "string"
-      }
+      },
+      "label_size": { "type": "number", "minimum": 18, "maximum": 40, "description": "Size of headers, captions and totals (default 22–24); cell values grow with it." },
+      "totals": { "type": "boolean", "description": "Margin totals summed from numeric cells, and the grand total. Default false." },
+      "row_totals": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 2, "description": "Row totals as written, instead of totals: true." },
+      "col_totals": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 2 },
+      "total": { "type": "string", "description": "Grand total as written." },
+      "total_label": { "type": "string", "description": "Word over the totals (default \"Total\")." },
+      "cell_letters": { "type": "boolean", "description": "Small a/b/c/d letters in the cell corners. Default false." },
+      "box": { "type": "object", "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "w": { "type": "number" }, "h": { "type": "number" } }, "required": ["x", "y", "w", "h"], "description": "Region the whole table fills to share the page (a region name or {x, y, w, h}); its words keep their size." }
     },
     "required": ["row_label", "col_label", "row_values", "col_values", "cells"]
   },
@@ -74,7 +82,11 @@
     "row_title": "caption for the row axis (row_label)",
     "col_title": "caption for the column axis (col_label)",
     "title": "figure title, when set",
-    "hl_<r>_<c>": "shaded highlight behind one cell, e.g. hl_0_0 — present only for cells named in `highlight`"
+    "hl_<r>_<c>": "shaded highlight behind one cell, e.g. hl_0_0 — present only for cells named in `highlight`",
+    "row_total_0 / row_total_1": "row totals",
+    "col_total_0 / col_total_1": "column totals",
+    "grand_total": "the grand total",
+    "row_totals_head / col_totals_head": "the \"Total\" headings"
   },
   "examples": [
     {
