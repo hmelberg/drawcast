@@ -434,7 +434,7 @@ async function registerPublished(origin, wd, session, verify) {
       const { posterPagesUrl } = await load("/src/publish/cast.ts");
       const { cards } = await drawCards([castText], { root: ROOT, private: !!origin.private }).catch(() => ({ cards: [null] }));
       // A written thumbnail (own) keeps its own picture: no poster to replace it.
-      if (cards[0]) reg.card = origin.private || cards[0].own ? cards[0] : { ...cards[0], poster: posterPagesUrl(origin.owner, origin.repo, origin.castsDir, stripDocExt(origin.file)) };
+      if (cards[0]) reg.card = origin.private || (cards[0].own && cards[0].picture !== "poster") ? cards[0] : { ...cards[0], poster: posterPagesUrl(origin.owner, origin.repo, origin.castsDir, stripDocExt(origin.file)) };
     }
     const names = origin.kind === "course" ? await load("/src/names.ts") : undefined;
     return registerNow({ origin, session, verify, reg, registry, names, fetchImpl, work });

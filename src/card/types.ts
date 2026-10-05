@@ -103,6 +103,13 @@ export interface CompiledCard {
   poster?: string;
   /** 1: drawn from the cast's own thumbnail page (role: thumbnail) — its own picture, which no poster ever replaces. */
   own?: 1;
+  /**
+   * The picture under the words (2026-10-06): absent, the drawing — nothing
+   * downloaded; "poster", the poster at `poster` (the author chose it, or the
+   * drawing lost too much: a photo, a code-made chart, the size cap); or an
+   * allowed image's address (thumb.mts pictureAllowed).
+   */
+  picture?: "poster" | string;
 }
 
 /** What compiling a cast gave: the card, and what it had to leave out (for the lab's coverage table). */

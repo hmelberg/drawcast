@@ -20,6 +20,7 @@
 //   marks   note "…" · stamp "…" · star "…" (default ?!) · bang (!!) ·
 //           seal (not clickbait) · arrow — any number, combined
 //   title "…"  the listing title, when it should differ from the title card's
+//   poster · image "https://…"  the picture under the words (default: the drawing)
 
 export const WORD_STYLES = ["band", "burst", "question", "none"] as const;
 export type WordStyle = (typeof WORD_STYLES)[number];
@@ -55,6 +56,30 @@ export interface ThumbParts {
   figure?: Figure;
   marks: Mark[];
   title?: string;
+  /**
+   * The picture under the words (2026-10-06): absent, the thumbnail as drawn
+   * from text — the default, nothing downloaded; `poster`, the cast's own
+   * poster; or an image's https address (pictureAllowed says which hosts).
+   */
+  picture?: "poster" | string;
+}
+
+/**
+ * Whether an image may stand under a thumbnail: the author's own GitHub
+ * (Pages, raw, jsDelivr) or Wikimedia Commons, https only — an image from
+ * anywhere else would let that site see who opens the front page, and could
+ * change or vanish.
+ */
+export function pictureAllowed(url: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:") return false;
+  const host = u.hostname.toLowerCase();
+  return host.endsWith(".github.io") || host === "raw.githubusercontent.com" || (host === "cdn.jsdelivr.net" && u.pathname.startsWith("/gh/")) || host === "upload.wikimedia.org";
 }
 
 /** Every choice made: what is drawn. */
@@ -116,6 +141,12 @@ export function parseThumbLine(line: string): { parts: ThumbParts; unknown: stri
     } else if (w === "title") {
       const text = take(LISTING_TITLE_MAX);
       if (text) parts.title = text;
+    } else if (w === "poster") {
+      parts.picture = "poster";
+    } else if (w === "image") {
+      const url = next !== undefined ? (i++, next.trim()) : undefined;
+      if (url && pictureAllowed(url)) parts.picture = url;
+      else unknown.push(url ? `image ${url}` : "image");
     } else unknown.push(w);
   }
   return { parts, unknown };
@@ -132,6 +163,8 @@ export function printThumbLine(p: ThumbParts): string {
   if (p.figure) out.push(p.figure === "none" ? "noface" : p.figure);
   for (const m of p.marks) out.push(m.words ? `${m.kind} ${q(m.words)}` : m.kind);
   if (p.title) out.push(`title ${q(p.title)}`);
+  if (p.picture === "poster") out.push("poster");
+  else if (p.picture) out.push(`image ${q(p.picture)}`);
   return out.join(" ");
 }
 

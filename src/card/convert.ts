@@ -9,7 +9,7 @@
 // replaces the drawing on the front page.
 
 import { castCardText } from "../../netlify/lib/share-card.mts";
-import { cornerSlots, FIGURES, HEADLINE_MAX, kidsByTags, MARKS, planThumb, type Corner, type MarkKind, type ThumbPlan } from "../../netlify/lib/thumb.mts";
+import { cornerSlots, FIGURES, HEADLINE_MAX, kidsByTags, MARKS, parseThumbLine, planThumb, type Corner, type MarkKind, type ThumbPlan } from "../../netlify/lib/thumb.mts";
 import type { Spec, SpecElement } from "../spec/types";
 import { leafDrawables, type Drawable } from "../layout/model";
 import { parsePlaylistText, posterItemOf, thumbnailItemOf } from "../playlist/playlist";
@@ -352,7 +352,14 @@ export async function compileCard(text: string, opts: { private?: boolean } = {}
           dropped.push("stock picture");
         }
       }
-      const card: CompiledCard = { v: CARD_VERSION, items: capped.items, marks, corners: cornersByInk(capped.items), ...(own ? { own: 1 as const } : {}) };
+      // The picture under the words: the author's choice on the `thumb:` line,
+      // else — the safety net — the poster when the drawing lost what made it
+      // (a photo, a code-made chart, a quarter of its items) and no stock
+      // picture took its place. Absent, the drawing alone.
+      const chosen = parseThumbLine(castCardText(text).thumb ?? "").parts.picture;
+      const weak = !own && !dropped.includes("stock picture") && (dropped.includes("picture") || dropped.includes("code") || capped.dropped / Math.max(1, items.length) > STOCK_WHEN_DROPPED);
+      const picture = chosen ?? (weak ? "poster" : undefined);
+      const card: CompiledCard = { v: CARD_VERSION, items: capped.items, marks, corners: cornersByInk(capped.items), ...(own ? { own: 1 as const } : {}), ...(picture ? { picture } : {}) };
       const all = JSON.stringify(card).length;
       const bytes = JSON.stringify({ ...card, items: card.items.map(lean) }).length;
       return { card, dropped, bytes, iconBytes: all - bytes };

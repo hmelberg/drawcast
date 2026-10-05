@@ -5404,7 +5404,7 @@ async function publishDrawcast({
         ...(publishedFacts.tags ? { tags: publishedFacts.tags } : {}),
         ...(publishedFacts.level ? { level: publishedFacts.level } : {}),
         // A written thumbnail (card.own) keeps its own picture: no poster to replace it.
-        ...(card ? { card: !lock && poster && !card.own ? { ...card, poster: posterPagesUrl(repo.owner, repo.repo, castsDir, out.slug) } : card } : {}),
+        ...(card ? { card: !lock && poster && (!card.own || card.picture === "poster") ? { ...card, poster: posterPagesUrl(repo.owner, repo.repo, castsDir, out.slug) } : card } : {}),
       },
       bounded,
     );

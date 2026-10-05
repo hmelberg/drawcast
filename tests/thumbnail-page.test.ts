@@ -88,3 +88,25 @@ test("a thumb element needs a known kind", () => {
   const bad = { elements: [{ id: "x", type: "thumb", kind: "sparkle" }] };
   expect(validateSpec(bad as never).ok).toBe(false);
 });
+
+import { parseThumbLine, pictureAllowed, printThumbLine } from "../netlify/lib/thumb.mts";
+
+test("the thumb line's picture: poster, or an image from an allowed host; printed back", () => {
+  expect(parseThumbLine('band "Hi" poster').parts.picture).toBe("poster");
+  const img = parseThumbLine('band "Hi" image "https://upload.wikimedia.org/wikipedia/commons/a/ab/Map.png"');
+  expect(img.parts.picture).toBe("https://upload.wikimedia.org/wikipedia/commons/a/ab/Map.png");
+  expect(printThumbLine(img.parts)).toBe('band "Hi" image "https://upload.wikimedia.org/wikipedia/commons/a/ab/Map.png"');
+  const bad = parseThumbLine('band "Hi" image "https://evil.example/pixel.png"');
+  expect(bad.parts.picture).toBeUndefined();
+  expect(bad.unknown).toEqual(["image https://evil.example/pixel.png"]);
+});
+
+test("allowed picture hosts: the author's GitHub and Wikimedia Commons, https only", () => {
+  expect(pictureAllowed("https://ann.github.io/casts/x.png")).toBe(true);
+  expect(pictureAllowed("https://raw.githubusercontent.com/ann/casts/main/x.png")).toBe(true);
+  expect(pictureAllowed("https://cdn.jsdelivr.net/gh/ann/casts@abc/x.png")).toBe(true);
+  expect(pictureAllowed("https://cdn.jsdelivr.net/npm/x/y.png")).toBe(false);
+  expect(pictureAllowed("http://ann.github.io/x.png")).toBe(false);
+  expect(pictureAllowed("https://example.com/x.png")).toBe(false);
+  expect(pictureAllowed("not a url")).toBe(false);
+});

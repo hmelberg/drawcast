@@ -39,6 +39,13 @@ const CHIPS: { group: string; words: { label: string; insert: string; title: str
     ],
   },
   { group: "Listing", words: [{ label: "title", insert: 'title "', title: "a listing title of its own" }] },
+  {
+    group: "Picture",
+    words: [
+      { label: "poster", insert: "poster", title: "the cast's poster under the words, instead of the drawing (downloaded when shown)" },
+      { label: "image", insert: 'image "', title: "an image under the words: an https address in your own GitHub repo or on Wikimedia Commons" },
+    ],
+  },
 ];
 
 let facesLoaded: Promise<void> | null = null;

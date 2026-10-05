@@ -11,6 +11,7 @@ import { cardOf } from "./feed";
 import { drawCard, iconNames, type Icons } from "../card/draw";
 import { loadIcons } from "../card/icons";
 import type { CompiledCard } from "../card/types";
+import { pictureAllowed } from "../../netlify/lib/thumb.mts";
 
 /** Retry waits for a card picture the server was still building (a 503 —
  *  netlify/functions/card.mts finishes it in the background meanwhile). */
@@ -19,9 +20,10 @@ const THUMB_RETRIES_MS = [2500, 7000];
 /**
  * The listing picture from the cast's card (cards round, 2026-10-05): drawn
  * at once from text (card/draw.ts), its named icons filled in when they
- * arrive (card/icons.ts, from Iconify), and the poster from the author's
- * GitHub Pages site under the same marks once it has loaded — fetched only
- * when the card nears the screen. drawCard escapes every text it draws.
+ * arrive (card/icons.ts, from Iconify), and — only when the card asks for a
+ * picture (its poster, or an allowed image) — that picture under the same
+ * marks once it has loaded, fetched when the card nears the screen.
+ * drawCard escapes every text it draws.
  */
 function drawnThumb(card: CompiledCard): HTMLElement {
   const box = h("div", { class: "home-thumb home-thumb-card" });
@@ -40,8 +42,10 @@ function drawnThumb(card: CompiledCard): HTMLElement {
     icons = got;
     if (!poster) paint();
   });
-  if (card.poster && !card.own) {
-    const src = card.poster;
+  // A picture only when the card asks for one (2026-10-06): the drawing is the
+  // thumbnail otherwise, and nothing more is downloaded.
+  const src = card.picture === "poster" ? card.poster : card.picture && pictureAllowed(card.picture) ? card.picture : undefined;
+  if (src) {
     const load = (): void => {
       const img = new Image();
       img.onload = () => {
