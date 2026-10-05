@@ -144,7 +144,9 @@ function scriptCardText(text: string): CastCardText {
     // `thumb:` is a line (thumb.mts) — or, from the first round, a block of indented lines read as YAML.
     const thumbLine = /^thumb:\s+(.+)$/.exec(line);
     if (thumbLine) {
-      const t = readThumb(thumbLine[1].trim().replace(/^'(.*)'$/, "$1").replace(/''/g, "'"));
+      // The app's printer writes the line as a quoted YAML string (`thumb: "band \"…\""`); hand-written lines are bare.
+      const raw = thumbLine[1].trim();
+      const t = readThumb(raw.startsWith('"') ? scalar(raw) : raw.replace(/^'(.*)'$/, "$1").replace(/''/g, "'"));
       if (t) out.thumb = t;
       continue;
     }

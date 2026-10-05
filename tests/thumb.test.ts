@@ -123,3 +123,8 @@ describe("/card/ draws the line", () => {
     expect(new Uint8Array(await (await handleCardRequest(get("/card/c.png"), d)).arrayBuffer())).toEqual(POSTER);
   });
 });
+
+test("the line as the app's printer writes it (a quoted YAML string) reads the same", () => {
+  const text = '# T\nthumb: "band \\"Twice the odds is not twice the risk\\""\n\n## T\nuse: bar_chart\n';
+  expect(castCardText(text).thumb).toBe('band "Twice the odds is not twice the risk"');
+});
