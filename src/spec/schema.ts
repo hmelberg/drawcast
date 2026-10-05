@@ -1066,6 +1066,7 @@ const commandSchema = {
         reveal_style: { enum: ["beside", "morph", "reorder"], description: "Reveal of a guess, cards, tree or formula: beside (default; the answer stays, the truth is drawn beside it), morph (the answer glides into the truth) or reorder (default for rank cards: they slide into the true order, a faint yours row behind)." },
         reveal_order: { enum: ["all", "each"], description: "all (default), or each: the truth part by part, 0.6 s apart." },
         keep: { type: "boolean", description: "Guess: true keeps yours past the next question and a later animate (it follows the part)." },
+        after: { type: "string", enum: ["keep", "clear"], description: "The check's own slider, number line or cards after the answer: clear (leave) or keep. Default: a slider leaves; a scale or cards leave when the page goes on explaining." },
         stage: { const: "own", description: "own: the rest of the figure fades while the question stands (cards or options over the figure)." },
         confidence: { type: "boolean", description: "With choose and answer: a bet, as on quiz." },
         poll: {
@@ -1455,9 +1456,9 @@ export const specSchema = {
     heading: { oneOf: [{ type: "string" }, { const: false }], description: "Top heading: omitted, the title (on a page with no card); a string, that text; false, none." },
     page: {
       type: "object",
-      properties: { valign: { type: "string", enum: ["center", "top", "none"] } },
+      properties: { valign: { type: "string", enum: ["center", "top", "none"] }, checks: { type: "string", enum: ["keep", "clear"] } },
       additionalProperties: false,
-      description: 'valign: "center" (default) evens the space above and below the figure; "top"; "none".',
+      description: 'valign: "center" (default) evens the space above and below the figure; "top"; "none". checks: keep or clear every check\'s own visuals after its answer (a quiz keeps).',
     },
     end_page: { type: "boolean", description: "Machine-written; never write it." },
     zoom_from: {

@@ -1078,6 +1078,11 @@ export interface AskArgs {
    *  recomputed from the same answer. Default: they end at whichever comes
    *  first — the guessed part changing shape, or the next question. */
   keep?: boolean;
+  /** What the check's own visuals do once its answer is explained
+   *  (2026-10-05, spec/check-cleanup.ts): "clear" — the slider, number line
+   *  or cards it is asked on leave; "keep" — they stay. Absent: a slider
+   *  leaves, a scale or cards leave when the page goes on explaining. */
+  after?: "keep" | "clear";
   /** "own" (spec 2026-10-03-round6 §6): the question on its own page —
    *  while it stands the rest of the figure fades to 15 % (not removed);
    *  the asked parts and their cards, options or blanks stay at full
@@ -1224,7 +1229,10 @@ export interface Spec {
    * clearly off-centre; "top" — its top at the content area's top; "none" —
    * where it was laid out. layout/settle.ts has the rule.
    */
-  page?: { valign?: "center" | "top" | "none" };
+  /** `checks` (2026-10-05): whether a check's own visuals (a slider, a number
+   *  line, a card set) stay after its answer — "keep" (a quiz-format cast's
+   *  default, set by the playlist), "clear"; absent: spec/check-cleanup.ts decides. */
+  page?: { valign?: "center" | "top" | "none"; checks?: "keep" | "clear" };
   /** Machine-written: a course lecture's generated end page (playlist.ts
    *  makeEndPage) — links to the previous and next lecture. The poster skips it. */
   end_page?: boolean;

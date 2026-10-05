@@ -1103,6 +1103,8 @@ export class Player {
 
   /** Apply a scene's visibility/offsets/pointer/camera to the currently mounted elements. */
   private applyScene(scene: SceneState): void {
+    // A commit supersedes any guess frame: nothing left to repaint.
+    this.guessRepaint = null;
     const visible = new Set(scene.visible);
     for (const [id, el] of this.elements) {
       // Cards a beside reveal left where the viewer put them stay there.
@@ -1275,6 +1277,10 @@ export class Player {
       if (this.staged !== mine) return;
       mine.alpha = a;
       for (const id of ids) this.elements.get(id)?.setOpacity?.(this.baseOpacity(id, before) * a);
+      // A guess frame rebuilt the nodes those handles held: paint it again at
+      // this alpha (frameScene reads it), or the figure stayed bright under
+      // an open slider until the first drag (2026-10-05).
+      this.guessRepaint?.();
     };
     try {
       await Promise.all([this.progress(STAGE_MS, signal, (t) => paint(1 - (1 - STAGE_DIM) * t)), run()]);
@@ -1609,7 +1615,11 @@ export class Player {
     // A sketched line's copy, or a market curve's (spec 2026-10-03 §3.2: the
     // copy is a mark — the template is never painted from it).
     const sketched = setup.handles.some((h) => h.kind === "curve" || h.kind === "market");
-    return (values, marks = true, extra) => {
+    const draw: GuessPaint = (values, marks = true, extra) => {
+      // The last paint, again: a question on its own page fades the rest of
+      // the figure while this frame stands (onOwnPage), and a frame's nodes
+      // are rebuilt — the fade reaches them only through a repaint.
+      this.guessRepaint = () => draw(values, marks, extra);
       const patch0 = this.guess!.patch(setup, values, baseElements);
       // A beside reveal's truth in ink (extra.styles: a scale's own pin and number).
       const styles = extra?.styles;
@@ -1623,7 +1633,10 @@ export class Player {
         this.effects?.setGuessMarks?.(owner, guessMarks(setup.handles, values, 0, { asking: true, shift }));
       }
     };
+    return draw;
   }
+  /** Repaints the guess frame on screen (set by each paint; a commit ends it). */
+  private guessRepaint: (() => void) | null = null;
 
   /** The handles for `on` at a boundary (the template params as they stand there). */
   private guessSetupAt(on: string[], from: number | undefined, before: SceneState, quiet = false, end?: GuessEnd): GuessSetup | null {
