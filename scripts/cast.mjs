@@ -834,7 +834,7 @@ const commands = {
       } catch {
         /* not JSON: readCast already refused it above */
       }
-      writeFileSync(out, packedCastText({ spec, subtitle: wrapper?.subtitle, thumb: wrapper?.thumb, thumbnail: wrapper?.thumbnail }, publishFormat(), { singlePlaylist, formatPlaylist, formatSpec }));
+      writeFileSync(out, packedCastText({ spec, subtitle: wrapper?.subtitle, thumb: wrapper?.thumb, thumbnail: wrapper?.thumbnail, thumbnails: wrapper?.thumbnails }, publishFormat(), { singlePlaylist, formatPlaylist, formatSpec }));
       console.log(`${relative(ROOT, out)}: ready for publish-target ${work} <owner/repo>`);
     });
   },
@@ -1659,20 +1659,27 @@ const commands = {
         const { formatSpec } = await load("/src/spec/text.ts");
         const { singlePlaylist, formatPlaylist } = await load("/src/playlist/playlist.ts");
         const wrapper = JSON.parse(raw);
-        text = packedCastText({ spec: wrapper.spec ?? wrapper, subtitle: wrapper.subtitle, thumb: wrapper.thumb, thumbnail: wrapper.thumbnail }, "script", { singlePlaylist, formatPlaylist, formatSpec });
+        text = packedCastText({ spec: wrapper.spec ?? wrapper, subtitle: wrapper.subtitle, thumb: wrapper.thumb, thumbnail: wrapper.thumbnail, thumbnails: wrapper.thumbnails }, "script", { singlePlaylist, formatPlaylist, formatSpec });
       }
       const { drawCards } = await import("./pictures.mjs");
       const { cards, note } = await drawCards([text], { root: ROOT });
       if (!cards[0]) throw new Error(`No thumbnail drawn (${note ?? "the drawing failed"})`);
       const { drawCard, iconNames } = await load("/src/card/draw.ts");
       const { loadIcons } = await load("/src/card/icons.ts");
-      return { svg: drawCard(cards[0], { icons: await loadIcons(iconNames(cards[0])) }), card: cards[0] };
+      // The thumbnail and its variants, one picture each.
+      const all = [cards[0], ...(cards[0].variants ?? [])];
+      const icons = await loadIcons(all.flatMap(iconNames));
+      return { svg: all.map((c) => drawCard(c, { icons })), card: cards[0] };
     });
     const { Resvg } = await import("@resvg/resvg-js");
     const fonts = ["public/fonts/patrickhand/PatrickHand-Regular.ttf", "public/fonts/thumb/PermanentMarker-Regular.ttf", "public/fonts/thumb/Bangers-Regular.ttf"].map((f) => resolve(ROOT, f));
-    const png = new Resvg(svg, { fitTo: { mode: "width", value: 1000 }, font: { fontFiles: fonts, loadSystemFonts: false, defaultFontFamily: "Patrick Hand" } }).render().asPng();
-    writeFileSync(target, png);
-    console.log(`wrote ${relative(ROOT, target)} — ${JSON.stringify(card).length} bytes of card, ${card.items.length} items`);
+    svg.forEach((one, i) => {
+      const file = i === 0 ? target : target.replace(/\.png$/i, `-${i + 1}.png`);
+      const png = new Resvg(one, { fitTo: { mode: "width", value: 1000 }, font: { fontFiles: fonts, loadSystemFonts: false, defaultFontFamily: "Patrick Hand" } }).render().asPng();
+      writeFileSync(file, png);
+      console.log(`wrote ${relative(ROOT, file)}`);
+    });
+    console.log(`${svg.length} thumbnail(s), ${JSON.stringify(card).length} bytes of card`);
   },
 
   async frames(args) {

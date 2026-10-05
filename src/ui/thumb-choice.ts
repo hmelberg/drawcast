@@ -146,16 +146,16 @@ export function thumbChoice(): ThumbChoice {
   );
   // The thumbnail page (2026-10-05): a picture of its own, written or asked of the AI.
   const pageArea = h("textarea", { id: "share-thumb-page", rows: "7", spellcheck: "false", placeholder: "No thumbnail page: the picture is made from the poster frame." }) as HTMLTextAreaElement;
-  const askBtn = h("button", { type: "button", class: "thumb-chip" }, "Ask AI for a thumbnail") as HTMLButtonElement;
+  const askBtn = h("button", { type: "button", class: "thumb-chip" }, "Ask AI for thumbnails") as HTMLButtonElement;
   const showBtn = h("button", { type: "button", class: "thumb-chip" }, "Preview") as HTMLButtonElement;
-  const dropBtn = h("button", { type: "button", class: "thumb-chip" }, "Remove the page") as HTMLButtonElement;
+  const dropBtn = h("button", { type: "button", class: "thumb-chip" }, "Remove the pages") as HTMLButtonElement;
   const pageNote = h("div", { class: "hint" });
   const pagePreview = h("div", { class: "thumb-preview" });
   const pageBox = h(
     "div",
     { class: "thumb-page" },
-    h("div", { class: "thumb-chip-label" }, "Thumbnail page"),
-    h("div", { class: "hint" }, "A picture made to draw people in — not necessarily the poster. Written in the cast's own notation; its thumb lines are the band and stickers."),
+    h("div", { class: "thumb-chip-label" }, "Thumbnail pages"),
+    h("div", { class: "hint" }, "Pictures made to draw people in — not necessarily the poster. Each page starts with a \"## Thumbnail\" line; with several, the front page shows them in turn and keeps showing the one people click most. Written in the cast's own notation; its thumb lines are the band and stickers."),
     pageArea,
     h("div", { class: "thumb-chips" }, askBtn, showBtn, dropBtn),
     pageNote,
@@ -182,8 +182,10 @@ export function thumbChoice(): ThumbChoice {
     pageNote.textContent = "Drawing…";
     try {
       const svg = await drawPage(pageArea.value.trim() || null);
-      pagePreview.innerHTML = svg ? svg.replace("<svg ", '<svg class="thumb-svg" ') : "";
-      pageNote.textContent = pageArea.value.trim() ? "The thumbnail this page gives." : "No page: the thumbnail made from the poster frame.";
+      pagePreview.innerHTML = svg ?? "";
+      pageNote.textContent = pageArea.value.trim()
+        ? "The thumbnails these pages give: the front page shows them in turn and learns which is clicked."
+        : "No page: the thumbnail made from the poster frame.";
     } catch (err) {
       pageNote.textContent = `Not a thumbnail page: ${String((err as Error)?.message ?? err)}`;
     }
@@ -198,7 +200,7 @@ export function thumbChoice(): ThumbChoice {
   askBtn.addEventListener("click", () => {
     if (!ask) return;
     askBtn.disabled = true;
-    pageNote.textContent = "Asking the AI for a thumbnail…";
+    pageNote.textContent = "Asking the AI for three thumbnails…";
     void ask()
       .then((body) => {
         pageArea.value = body;

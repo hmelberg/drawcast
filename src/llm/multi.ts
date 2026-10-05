@@ -27,8 +27,8 @@ export interface PartsResult {
   specs: Spec[];
   /** The chapter each spec falls under, parallel to `specs`. */
   chapterOf: (string | undefined)[];
-  /** The cast's thumbnail page, asked of part 1 only when cfg.thumbnail (llm/thumbnail.ts). */
-  thumbnail?: Spec;
+  /** The cast's thumbnail pages, asked of part 1 only when cfg.thumbnail (llm/thumbnail.ts). */
+  thumbnails?: Spec[];
   /** 1-based numbers of the parts that produced no spec. */
   failed: number[];
   /** Why each of `failed` failed, in the same order. */
@@ -359,7 +359,7 @@ export async function generateFromOutline(
     errors,
     error: specs.length === 0 ? (errors[0] ?? "no spec") : undefined,
     ...(templateGaps.length > 0 ? { templateGaps } : {}),
-    ...(outcomes[0]?.thumbnail ? { thumbnail: outcomes[0].thumbnail } : {}),
+    ...(outcomes[0]?.thumbnails?.length ? { thumbnails: outcomes[0].thumbnails } : {}),
   };
 }
 

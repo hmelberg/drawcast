@@ -937,7 +937,10 @@ function build(): ShareSession {
           const text = formatPlaylist(withThumbnailPage(playlist, page), "script");
           const made = await compileCard(text);
           if (!made) return null;
-          return drawCard(made.card, { icons: await loadIcons(iconNames(made.card)) });
+          // Every thumbnail, side by side: the first and its variants.
+          const all = [made.card, ...(made.card.variants ?? [])];
+          const icons = await loadIcons(all.flatMap(iconNames));
+          return all.map((c) => drawCard(c, { icons }).replace("<svg ", '<svg class="thumb-svg" ')).join("");
         },
       });
     }

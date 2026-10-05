@@ -56,8 +56,9 @@ the GitHub one.
    commits each cast's link-card picture (`<file>.png`, drawn the way the app
    draws it); to give an older published repo its pictures, `pull` it and
    `push` again.
-   A cast's front-page thumbnail can be given a page of its own: add a last
-   page `## Thumbnail` with `role: thumbnail` — one still picture, no
+   A cast's front-page thumbnail can be given pages of its own — up to
+   three different ones, each a last page `## Thumbnail` with
+   `role: thumbnail`, which the front page shows in turn — one still picture, no
    narration (SKILL.md step 4 says what goes on it; its words and stickers
    as `thumb` lines: `thumb t1 "It's not the shark" kind band`,
    `thumb t2 "PLOT TWIST" kind stamp x 800 y 640 angle 10`) — and check it with

@@ -4,7 +4,7 @@
 import { expect, test } from "vitest";
 import { thumbnailBodyOf, thumbnailUser, THUMBNAIL_SYSTEM } from "../src/llm/thumbnail";
 import { thumbnailBody, withThumbnailPage } from "../src/card/page";
-import { itemsOf, parsePlaylistText, thumbnailItemOf } from "../src/playlist/playlist";
+import { itemsOf, parsePlaylistText, thumbnailItemOf, thumbnailItemsOf } from "../src/playlist/playlist";
 
 const CAST = `# Why prices rose
 subtitle: "How demand moved the price"
@@ -19,11 +19,11 @@ The price rose because demand shifted.
 test("the reply keeps only element lines, indented, whatever the model wrapped them in", () => {
   const reply = 'Here you go:\n```\n## Thumbnail\nrole: thumbnail\n  icon house size 300 set twemoji x 260 y 470 icon_look picture of house\n\ttext n "+30 %" x 700 y 520 font_size 150\nthumb b "Demand did it" kind band\n```\nEnjoy!';
   expect(thumbnailBodyOf(reply)).toBe(
-    '    icon house size 300 set twemoji x 260 y 470 icon_look picture of "house"\n    text n "+30 %" x 700 y 520 font_size 150\n    thumb b "Demand did it" kind band',
+    '## Thumbnail\n    icon house size 300 set twemoji x 260 y 470 icon_look picture of "house"\n    text n "+30 %" x 700 y 520 font_size 150\n    thumb b "Demand did it" kind band',
   );
   expect(thumbnailBodyOf("Sorry, I can't.")).toBe("");
   // A keyword with spaces gets the quotes the notation needs.
-  expect(thumbnailBodyOf("    icon zap size 260 set twemoji x 850 y 450 icon_look picture of high voltage")).toBe('    icon zap size 260 set twemoji x 850 y 450 icon_look picture of "high voltage"');
+  expect(thumbnailBodyOf("    icon zap size 260 set twemoji x 850 y 450 icon_look picture of high voltage")).toBe('## Thumbnail\n    icon zap size 260 set twemoji x 850 y 450 icon_look picture of "high voltage"');
 });
 
 test("the model is told the title, subtitle and opening lines, and the notation", () => {
@@ -49,40 +49,48 @@ test("a page's lines go into the playlist as its one thumbnail page, and come ba
   expect(thumbnailItemOf(withThumbnailPage(withPage, null))).toBeNull();
 });
 
+test("three pages from the AI become three thumbnail pages, in order, and come back out", () => {
+  const reply = "## Thumbnail\n    text a \"A\" x 500 y 500 font_size 90\n    thumb b \"One\" kind band\n## Thumbnail\n    text c \"B\" x 500 y 500 font_size 90\n    thumb d \"Two\" kind band\n\n## Thumbnail\n    text e \"C\" x 500 y 500 font_size 90\n    thumb f \"Three\" kind band";
+  const text = thumbnailBodyOf(reply);
+  const pl = withThumbnailPage(parsePlaylistText(CAST), text);
+  expect(thumbnailItemsOf(pl).map((i) => i.spec.elements?.[0].id)).toEqual(["a", "c", "e"]);
+  expect(thumbnailBody(pl)!.match(/## Thumbnail/g)).toHaveLength(3);
+});
+
 test("lines that are not a page are refused", () => {
   expect(() => withThumbnailPage(parsePlaylistText(CAST), "    text t1 \"unclosed x 1")).toThrow();
 });
 
-import { takeThumbnail, THUMBNAIL_REQUEST_NOTE } from "../src/llm/thumbnail";
+import { takeThumbnails, THUMBNAIL_REQUEST_NOTE } from "../src/llm/thumbnail";
 import { validateSpec } from "../src/spec/schema";
 
-test("the cast-writing reply's thumbnail is taken off before validation and becomes a ready page", () => {
-  const reply: Record<string, unknown> = {
-    title: "Why prices rose",
-    elements: [],
-    thumbnail: {
-      elements: [
-        { id: "house", type: "icon", of: "house", set: "twemoji", icon_look: "picture", x: 260, y: 470, size: 300 },
-        { id: "b", type: "thumb", kind: "band", text: "Demand did it" },
-      ],
-    },
-  };
-  const page = takeThumbnail(reply, (s) => validateSpec(s).ok)!;
-  expect("thumbnail" in reply).toBe(false);
-  expect(page.role).toBe("thumbnail");
-  expect(page.page?.valign).toBe("none");
-  expect(page.elements?.map((e) => e.id)).toEqual(["house", "b"]);
+const PAGE = (word: string) => ({
+  elements: [
+    { id: "house", type: "icon", of: "house", set: "twemoji", icon_look: "picture", x: 260, y: 470, size: 300 },
+    { id: "b", type: "thumb", kind: "band", text: word },
+  ],
 });
 
-test("a missing or invalid thumbnail is dropped, never fatal, and still taken off", () => {
-  expect(takeThumbnail({ title: "x" }, () => true)).toBeNull();
-  const bad: Record<string, unknown> = { thumbnail: { elements: [{ id: "x", type: "thumb", kind: "sparkle" }] } };
-  expect(takeThumbnail(bad, (s) => validateSpec(s).ok)).toBeNull();
-  expect("thumbnail" in bad).toBe(false);
-  expect(takeThumbnail({ thumbnail: "a picture" }, () => true)).toBeNull();
+test("the cast-writing reply's thumbnails are taken off before validation and become ready pages", () => {
+  const reply: Record<string, unknown> = { title: "Why prices rose", elements: [], thumbnails: [PAGE("One"), PAGE("Two"), PAGE("Three")] };
+  const pages = takeThumbnails(reply, (s) => validateSpec(s).ok);
+  expect("thumbnails" in reply).toBe(false);
+  expect(pages).toHaveLength(3);
+  expect(pages.every((p) => p.role === "thumbnail" && p.page?.valign === "none")).toBe(true);
+  expect(pages.map((p) => (p.elements?.[1] as { text?: string }).text)).toEqual(["One", "Two", "Three"]);
+  // A single `thumbnail` is read too.
+  expect(takeThumbnails({ thumbnail: PAGE("Solo") }, (s) => validateSpec(s).ok)).toHaveLength(1);
 });
 
-test("the request note asks for the field in the reply's own JSON", () => {
-  expect(THUMBNAIL_REQUEST_NOTE).toContain('"thumbnail"');
+test("missing or invalid thumbnails are dropped, never fatal, and still taken off", () => {
+  expect(takeThumbnails({ title: "x" }, () => true)).toEqual([]);
+  const bad: Record<string, unknown> = { thumbnails: [{ elements: [{ id: "x", type: "thumb", kind: "sparkle" }] }, PAGE("Fine"), "a picture"] };
+  expect(takeThumbnails(bad, (s) => validateSpec(s).ok)).toHaveLength(1);
+  expect("thumbnails" in bad).toBe(false);
+});
+
+test("the request note asks for three different thumbnails in the reply's own JSON", () => {
+  expect(THUMBNAIL_REQUEST_NOTE).toContain('"thumbnails"');
+  expect(THUMBNAIL_REQUEST_NOTE).toContain("different hook AND a different main picture");
   expect(THUMBNAIL_REQUEST_NOTE).toContain('"kind": "band"');
 });

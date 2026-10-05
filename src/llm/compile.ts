@@ -2,7 +2,7 @@
 // with capped repair rounds fed back to the LLM. Every round is logged.
 // The vision critic (Loop 1.3) hooks in here when built — see ROADMAP.
 
-import { takeThumbnail, THUMBNAIL_REQUEST_NOTE } from "./thumbnail";
+import { takeThumbnails, THUMBNAIL_REQUEST_NOTE } from "./thumbnail";
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, isOutputLimitError, planningModelFor, repairModelFor, type Effort, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, outlineSchemaFor, type Outline } from "./outline";
@@ -251,14 +251,14 @@ export interface GenerationOutcome {
    * so the spec never carries them. For the owner — which templates to extend.
    */
   templateGaps?: TemplateGap[];
-  /** The cast's thumbnail page, when cfg.thumbnail asked for one and the reply carried a valid one (llm/thumbnail.ts takeThumbnail). */
-  thumbnail?: Spec;
+  /** The cast's thumbnail pages, when cfg.thumbnail asked for them and the reply carried valid ones (llm/thumbnail.ts takeThumbnails). */
+  thumbnails?: Spec[];
   /** Non-fatal notes for the author — a picture in the request that could not be mapped (cfg.mapPictures). */
   warnings?: string[];
 }
 
 export interface GenerateConfig {
-  /** Ask the same call for the cast's thumbnail page too (2026-10-05): a top-level `thumbnail` beside the spec, taken off before validation. */
+  /** Ask the same call for the cast's thumbnails too (2026-10-05): a top-level `thumbnails` beside the spec, taken off before validation. */
   thumbnail?: boolean;
   /**
    * Story first (llm/treatment.ts): before the JSON call the creative model
@@ -666,7 +666,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   // ---- end story step ----
   const gaps: TemplateGap[] = [];
   const userContent = [request, cfg.brief, seed?.text, mapNoteText, treatment ? stagingNote(treatment) : undefined, cfg.thumbnail ? THUMBNAIL_REQUEST_NOTE : undefined].filter(Boolean).join("\n\n");
-  let thumbnail: Spec | null = null;
+  let thumbnails: Spec[] = [];
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userContent }];
   const rounds: GenerationRound[] = [];
   let best: Spec | null = null;
@@ -741,8 +741,9 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       for (const g of takeTemplateGaps(json)) {
         if (!gaps.some((x) => x.template === g.template && x.missing === g.missing)) gaps.push(g);
       }
-      // The thumbnail rides the same reply: off before validation, kept from the latest round that carried a valid one.
-      thumbnail = takeThumbnail(json, (page) => validateSpec(page).ok) ?? thumbnail;
+      // The thumbnails ride the same reply: off before validation, kept from the latest round that carried valid ones.
+      const taken = takeThumbnails(json, (page) => validateSpec(page).ok);
+      if (taken.length) thumbnails = taken;
 
       lastRaw = raw;
       // Escalation (fires at most once): the model asked for a template's full
@@ -873,7 +874,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
       treatmentMs,
       treatmentTemplate: namedTemplate,
       templateGaps: gaps.length ? gaps : undefined,
-      ...(thumbnail ? { thumbnail } : {}),
+      ...(thumbnails.length ? { thumbnails } : {}),
       warnings: warnings.length ? warnings : undefined,
     };
   }
@@ -1055,7 +1056,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
     treatmentMs,
     treatmentTemplate: namedTemplate,
     templateGaps: gaps.length ? gaps : undefined,
-    ...(thumbnail ? { thumbnail } : {}),
+    ...(thumbnails.length ? { thumbnails } : {}),
     warnings: warnings.length ? warnings : undefined,
   };
 }

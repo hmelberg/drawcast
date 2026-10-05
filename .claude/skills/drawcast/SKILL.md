@@ -137,7 +137,10 @@ every working file below is `dev-casts/<slug>…`.
    better than the poster frame — always when that frame is a poor picture
    (a quiz whose figure stays hidden until answered, a photo or a code-made
    chart, a figure too busy to read at 280 px), and whenever a picture made
-   for the purpose would draw people in more. It need not copy the poster:
+   for the purpose would draw people in more — and then write THREE, as
+   `"thumbnails": [ … ]`, truly different: each with a different hook AND a
+   different main picture. The front page shows them in turn and keeps
+   showing the one people click most. Each need not copy the poster:
    it is ONE still page in the same spec language (`elements`, or
    `template` + `params`), no commands, no narration — every element shows
    unless `hidden` — and may show whatever makes the cast's question
@@ -159,13 +162,14 @@ every working file below is `dev-casts/<slug>…`.
    room for the marks: the bottom strip for a band, a corner or a placed
    spot for each sticker. No photos, code or
    interactions; at most about 40 elements (a thumbnail is capped at
-   10 KB). `cast.mjs pack` adds it as a `## Thumbnail` page with
-   `role: thumbnail`, which is never played; the poster then never replaces
-   it on the front page. Look at it:
+   10 KB each). `cast.mjs pack` adds each as a `## Thumbnail` page with
+   `role: thumbnail`, which is never played. The picture under the words is
+   the drawing; add `poster` or `image "https://…"` (your repo or Wikimedia
+   Commons) to the `thumb` line only when a real image says more. Look at it:
    `node scripts/cast.mjs thumbnail dev-casts/<slug>.json` writes
-   `dev-casts/thumbnail-<slug>.png` (the poster frame's thumbnail when there
-   is no `thumbnail`) — view it at a quarter size, as the front page shows
-   it, and ask whether you would click.
+   `dev-casts/thumbnail-<slug>.png` and `-2`, `-3` for the others (the
+   poster frame's thumbnail when there are none) — view each at a quarter
+   size, as the front page shows it, and ask whether you would click.
 5. **Check it:** `node scripts/cast.mjs check dev-casts/<slug>.json`. Fix
    every INVALID and every `[error]`; warnings are for step 6's eyes — a
    `crowding` warning (too many texts on the page at once, or small print)

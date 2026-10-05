@@ -3625,7 +3625,7 @@ async function generate(): Promise<void> {
     // Drive/disk/GitHub round trip — and the published copy — keeps it. The
     // cost is visible and accepted (§F.3.3): a generated single figure now
     // opens with a two-line `playlist:` header above its spec.
-    const playlist = withOwnThumbnail(finishSpec(outcome.spec), outcome.thumbnail);
+    const playlist = withOwnThumbnails(finishSpec(outcome.spec), outcome.thumbnails);
     const looks = outcome.rounds.filter((r) => r.label === "look");
     const lookText = looks.length ? ` · looked ${looks.length}×, ${looks.filter((r) => r.adopted).length} fix${looks.filter((r) => r.adopted).length === 1 ? "" : "es"} kept` : "";
     if (draftText !== null) {
@@ -3768,9 +3768,9 @@ async function authorTemplateAndRedraw(rawRequest: string, request: string, free
 }
 
 /** Picture mapping (llm/picture-map.ts, spec 2026-09-30-picture-regions §14): the planning model's eye, on the author's key — authoring only. */
-/** A generated cast with its thumbnail page (the cast-writing call's own, llm/thumbnail.ts), when the reply carried one. */
-function withOwnThumbnail(playlist: Playlist, thumbnail: Spec | undefined): Playlist {
-  return thumbnail ? { ...playlist, entries: [...playlist.entries, { kind: "item", spec: thumbnail }] } : playlist;
+/** A generated cast with its thumbnail pages (the cast-writing call's own, llm/thumbnail.ts), when the reply carried them. */
+function withOwnThumbnails(playlist: Playlist, thumbnails: Spec[] | undefined): Playlist {
+  return thumbnails?.length ? { ...playlist, entries: [...playlist.entries, ...thumbnails.map((spec) => ({ kind: "item" as const, spec }))] } : playlist;
 }
 
 function pictureDeps(apiKey: string) {
@@ -3943,7 +3943,7 @@ async function generateMulti(
     // …and its chapters, when the outline put the parts under any: the same
     // assembly the course runner uses, so a lecture made here and a lecture
     // made there are the same document (playlist/playlist.ts).
-    entries: [...entriesForParts(result.specs, result.chapterOf), ...(result.thumbnail ? [{ kind: "item" as const, spec: result.thumbnail }] : [])],
+    entries: [...entriesForParts(result.specs, result.chapterOf), ...(result.thumbnails ?? []).map((spec) => ({ kind: "item" as const, spec }))],
     warnings: [],
   };
   // Same as generate(): the founding request goes in the file (B9). Written as
