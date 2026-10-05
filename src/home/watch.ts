@@ -5,11 +5,12 @@
 // viewer (viewer.ts), never for a drawcast's own page elsewhere (an author's
 // GitHub page or an exported file shows the plain player).
 
-import { fetchCatalogue } from "../catalogue";
+import { fetchCatalogue, type CatalogueItem } from "../catalogue";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { h } from "../ui/dom";
 import featuredJson from "./featured.json";
 import { cardFromCatalogue, courseNext, mergeCards, parseFeatured, tagRows, upNext, type HomeCard } from "./model";
+import { feedQuery, fetchFeed, storedFeed } from "./feed";
 import { reactionControls } from "./react";
 import { recordWatch } from "./my-lists";
 import { card, topBar } from "./ui";
@@ -91,16 +92,27 @@ export function mountWatch(app: HTMLElement, opts: { name?: string; lectureTitle
   };
   show();
   const byName = new Map(featured.map((e) => [e.name, e]));
-  void fetchCatalogue(DEFAULT_ENROLL_API, { kind: "cast" }).then((answer) => {
-    if (answer === "error") return;
-    newest = answer.items.map((i) => cardFromCatalogue(i, byName));
+  // The front page's feed (home/feed.ts): the copy kept in this browser when
+  // there is one (refreshed behind, for the next front page), else the server's;
+  // the registry itself only when neither answers.
+  const kept = storedFeed();
+  const fresh = fetchFeed();
+  const items = (kind: "cast" | "course", names?: string[]): Promise<CatalogueItem[] | null> =>
+    (kept ? Promise.resolve(kept) : fresh).then(async (f) => {
+      if (f) return feedQuery(f.items, { kind, names });
+      const answer = await fetchCatalogue(DEFAULT_ENROLL_API, { kind, names });
+      return answer === "error" ? null : answer.items;
+    });
+  void items("cast").then((answer) => {
+    if (!answer) return;
+    newest = answer.map((i) => cardFromCatalogue(i, byName));
     show();
   });
   const courseName = opts.name?.includes("/") ? opts.name.split("/", 1)[0] : null;
   if (courseName) {
-    void fetchCatalogue(DEFAULT_ENROLL_API, { kind: "course", names: [courseName] }).then((answer) => {
-      if (answer === "error") return;
-      const course = answer.items.find((i) => i.name === courseName) ?? null;
+    void items("course", [courseName]).then((answer) => {
+      if (!answer) return;
+      const course = answer.find((i) => i.name === courseName) ?? null;
       lectures = courseNext(opts.name, course);
       if (lectures.length) show();
       // The lectures' own titles, when the course.md beside this one has them.

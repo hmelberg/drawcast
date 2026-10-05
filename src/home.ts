@@ -16,6 +16,7 @@ import { h } from "./ui/dom";
 import featuredJson from "./home/featured.json";
 import { note, section, topBar } from "./home/ui";
 import { fetchRanks } from "./home/rank";
+import { feedQuery, fetchFeed, sameFeed, storedFeed, type HomeFeed } from "./home/feed";
 import { clearHistory, fetchMyList, MY_LISTS, parseMyList, readHistory, type MyList } from "./home/my-lists";
 import { getToken, setToken, signInUrl } from "./account";
 import {
@@ -38,11 +39,21 @@ const FEATURED_ROW = 12;
 const TOPIC_ROW = 8;
 const featuredByName = new Map(featured.map((e) => [e.name, e]));
 
-/** One catalogue page per query, kept for this visit: switching chips back
- *  and forth never asks the registry twice. */
+/** The front page's data (home-cards round, 2026-10-05): the one feed
+ *  (home/feed.ts) — kept from the last visit, so the page draws at once, and
+ *  asked again behind it. Only when there is no feed at all does the page ask
+ *  the registry itself, one catalogue page per query, kept for this visit. */
+let feed: HomeFeed | null = storedFeed();
+const freshFeed: Promise<HomeFeed | null> = fetchFeed();
+async function currentFeed(): Promise<HomeFeed | null> {
+  return feed ?? (feed = await freshFeed);
+}
+
 const cache = new Map<string, Promise<CatalogueItem[] | "error">>();
 type Format = "drawcast" | "quiz" | "xplanation";
-function catalogue(kind: CatalogueFilterKind, q = "", extra: { format?: Format; names?: string[] } = {}): Promise<CatalogueItem[] | "error"> {
+async function catalogue(kind: CatalogueFilterKind, q = "", extra: { format?: Format; names?: string[] } = {}): Promise<CatalogueItem[] | "error"> {
+  const f = await currentFeed();
+  if (f) return feedQuery(f.items, { kind, q, ...extra });
   const key = `${kind}|${q}|${extra.format ?? ""}|${(extra.names ?? []).join(",")}`;
   let p = cache.get(key);
   if (!p) {
@@ -55,15 +66,12 @@ function catalogue(kind: CatalogueFilterKind, q = "", extra: { format?: Format; 
 /** The Popular row's items: the 30-day visit ranks (by drawcast, lectures
  *  counted for their course), then the catalogue's answer for exactly those
  *  names — so only listed, public items show — ordered by visits plus likes. */
-let popularPromise: Promise<CatalogueItem[]> | null = null;
-function popular(): Promise<CatalogueItem[]> {
-  popularPromise ??= fetchRanks().then(async (raw) => {
-    const ranks = rankByBase(raw).slice(0, 50);
-    if (!ranks.length) return [];
-    const items = await catalogue("", "", { names: ranks.map((r) => r.name) });
-    return items === "error" ? [] : popularItems(ranks, items);
-  });
-  return popularPromise;
+async function popular(): Promise<CatalogueItem[]> {
+  const f = await currentFeed();
+  const ranks = rankByBase(f ? f.ranks : await fetchRanks()).slice(0, 50);
+  if (!ranks.length) return [];
+  const items = await catalogue("", "", { names: ranks.map((r) => r.name) });
+  return items === "error" ? [] : popularItems(ranks, items);
 }
 
 export function runHome(): void {
@@ -117,7 +125,8 @@ export function runHome(): void {
     if (q) next.set("q", q);
     if (chip) next.set("f", chip);
     history.replaceState(null, "", `${location.pathname}${next.toString() ? `?${next}` : ""}`);
-    main.replaceChildren(note("Loading…"));
+    // From a kept feed the page is drawn at once: no "Loading…" flash.
+    if (!feed) main.replaceChildren(note("Loading…"));
     const parts = await view();
     if (my !== token) return; // superseded by a newer chip or search
     const shown = parts.filter((p): p is HTMLElement => p !== null);
@@ -197,4 +206,12 @@ export function runHome(): void {
   }
 
   void render();
+  // A kept feed drew the page; the server's newer one redraws it only if it differs.
+  const kept = feed;
+  if (kept)
+    void freshFeed.then((fresh) => {
+      if (!fresh || sameFeed(kept, fresh)) return;
+      feed = fresh;
+      void render();
+    });
 }
