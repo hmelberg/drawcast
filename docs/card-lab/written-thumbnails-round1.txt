@@ -1,0 +1,101 @@
+@@ euler-s-identity-as-half-a-turn
+    math eq tex "e^{i\\pi} = -1" x 500 y 560 size 130
+    path turn smooth thick #c0392b points [[760,300],[690,400],[500,440],[310,400],[240,300]]
+    text t1 "half a turn" x 500 y 330 font_size 64 #c0392b
+    thumb w1 "Nonsense? It's half a turn" kind band
+    thumb w2 kind star
+@@ fastest-ramp
+    path straight thick #2f6b8f points [[120,690],[880,280]]
+    path curve smooth thick #c7702e points [[120,690],[200,430],[360,300],[600,270],[880,280]]
+    path steep thick #6b8e23 points [[120,690],[150,300],[880,280]]
+    icon ball size 110 set twemoji x 120 y 690 icon_look picture of "soccer ball"
+    text q "Which wins?" x 650 y 560 font_size 80
+    thumb w1 "Shortest isn't fastest" kind band
+@@ how-a-nerve-signal-travels
+    icon brain size 300 set twemoji x 260 y 470 icon_look picture of brain
+    icon zap size 240 set twemoji x 560 y 470 icon_look picture of "high voltage"
+    text big "all or nothing" x 800 y 620 font_size 66 #b5482e
+    thumb w1 "A spark that never fades" kind band
+@@ most-time-zones
+    icon globe size 320 set twemoji x 300 y 470 icon_look picture of "globe showing europe-africa"
+    text big "12" x 720 y 500 font_size 260 #2f6b8f
+    thumb w1 "Not Russia" kind band
+    thumb w2 kind thinking
+@@ price-elasticity-a-book
+    icon bus size 320 set twemoji x 280 y 470 icon_look picture of bus
+    text up "fare +10 %" x 720 y 580 font_size 80 #b5482e
+    text down "riders −?" x 720 y 420 font_size 80 #2f6b8f
+    thumb w1 "When a fare rise loses money" kind band
+@@ rice-on-a-chessboard
+    icon rice size 300 set twemoji x 260 y 470 icon_look picture of "cooked rice"
+    math big tex "2^{63}" x 680 y 500 size 190
+    thumb w1 "A few sacks, tops?" kind band
+    thumb w2 "WRONG" kind stamp x 830 y 640 angle 12
+@@ rubiks-cube
+    text big "43 quintillion" x 500 y 560 font_size 110 #2f6b8f
+    text t2 "ways to mix one cube" x 500 y 400 font_size 66
+    thumb w1 "Never more than 20 moves" kind band
+@@ scholar-s-mate
+    icon pawn size 320 set twemoji x 300 y 470 icon_look picture of "chess pawn"
+    text big "4 moves" x 680 y 490 font_size 140 #b5482e
+    thumb w1 "Checkmate before you blink" kind band
+    thumb w2 "TRAP" kind stamp x 840 y 650 angle -10
+@@ sensitivity-and-specificity
+    icon test size 300 set twemoji x 230 y 470 icon_look picture of "test tube"
+    text a "90 % right" x 680 y 590 font_size 80 #2f6b8f
+    text c "most positives wrong?" x 640 y 420 font_size 60 #b5482e
+    thumb w1 "Good test, bad news?" kind band
+@@ sirkelens-areal-med-kakestykker
+    icon pizza size 330 set twemoji x 300 y 470 icon_look picture of pizza
+    math big tex "\\pi r^2" x 690 y 480 size 170
+    thumb w1 "Skjær den opp" kind band
+    thumb w2 kind aha
+@@ the-broad-street-pump
+    icon drop size 300 set twemoji x 260 y 470 icon_look picture of droplet
+    icon skull size 200 set twemoji x 540 y 520 icon_look picture of skull
+    text n "500 dead" x 780 y 560 font_size 80 #b5482e
+    text yr "Soho, 1854" x 780 y 410 font_size 60
+    thumb w1 "It wasn't the bad air" kind band
+@@ the-derivative-is-a-limit-of-slopes
+    icon rock size 220 set twemoji x 220 y 600 icon_look picture of rock
+    path fall dashed thick #8f887c points [[220,480],[220,290]]
+    math d tex "\\frac{dy}{dx}" x 640 y 500 size 170
+    thumb w1 "Speed with no time passing?" kind band
+@@ the-herd-immunity-threshold
+    icon shot size 300 set twemoji x 250 y 470 icon_look picture of syringe
+    text a "2× as contagious" x 680 y 590 font_size 66
+    text b "2× the vaccines?" x 680 y 420 font_size 70 #b5482e
+    thumb w1 "Not twice as many" kind band
+@@ what-99-accurate-is-worth
+    icon test size 280 set twemoji x 250 y 470 icon_look picture of microscope
+    text big "99 %" x 670 y 500 font_size 200 #2f6b8f
+    thumb w1 "99 % accurate. Probably fine." kind band
+    thumb w2 kind note
+@@ whats-in-the-air
+    icon wind size 300 set twemoji x 260 y 470 icon_look picture of "wind face"
+    text big "78 %" x 680 y 540 font_size 190 #2f6b8f
+    text t2 "useless to you" x 680 y 360 font_size 60
+    thumb w1 "Breathe in. Mostly nitrogen." kind band
+@@ where-the-206-bones-are
+    icon hand size 300 set twemoji x 260 y 470 icon_look picture of "raised hand"
+    text big "106 of 206" x 690 y 540 font_size 110 #2f6b8f
+    text t2 "in hands and feet" x 690 y 390 font_size 60
+    thumb w1 "Half your bones are here" kind band
+@@ where-the-quadratic-formula-comes-from
+    shape sq shape rect x 120 y 280 width 280 height 280 style.fill #cfe3ee
+    shape add shape rect x 400 y 280 width 80 height 280 style.fill #f6d7b0
+    shape add2 shape rect x 120 y 560 width 280 height 80 style.fill #f6d7b0
+    text x2 "x²" x 260 y 420 font_size 90
+    text q "?" x 440 y 600 font_size 90 #c0392b
+    math f tex "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}" x 760 y 450 size 70
+    thumb w1 "It's literally a square" kind band
+@@ why-45-goes-farthest
+    path arc smooth thick #c7702e points [[100,270],[280,560],[500,660],[720,560],[900,270]]
+    icon ball size 120 set twemoji x 500 y 660 icon_look picture of baseball
+    text a "45°" x 260 y 380 font_size 110 #2f6b8f
+    text b "30° = 60°?" x 730 y 380 font_size 70 #b5482e
+    thumb w1 "Two angles, one landing spot" kind band
+@@ why-a-major-chord-sounds-sweet
+    icon keys size 300 set twemoji x 260 y 470 icon_look picture of "musical keyboard"
+    math r tex "4 : 5 : 6" x 690 y 480 size 150
+    thumb w1 "Sweet is a ratio" kind band
