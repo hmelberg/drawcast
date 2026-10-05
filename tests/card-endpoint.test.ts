@@ -304,3 +304,78 @@ describe(".cast casts (published since 2026-10-03)", () => {
     expect(html).toContain('og:title" content="drawcast"');
   });
 });
+
+describe("kept pictures (home-cards round, 2026-10-05)", () => {
+  function memCache() {
+    const m = new Map<string, { bytes: Uint8Array; at: number; thumb: string }>();
+    return {
+      m,
+      get: async (k: string) => m.get(k) ?? null,
+      set: async (k: string, bytes: Uint8Array, meta: { at: number; thumb: string }) => void m.set(k, { bytes, ...meta }),
+      delete: async (k: string) => void m.delete(k),
+    };
+  }
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+
+  test("a built picture is kept, and the next request is served from it with no lookup", async () => {
+    const cache = memCache();
+    const first = await handleCardRequest(get("/card/vaccines.png", CHROME), deps({ cache, now: () => 1000 }));
+    expect(first.status).toBe(200);
+    expect(first.headers.get("x-card")).toBe("built");
+    await settle();
+    expect(cache.m.has("vaccines.png")).toBe(true);
+    const d = deps({ cache, now: () => 2000 });
+    const second = await handleCardRequest(get("/card/vaccines.png", CHROME), d);
+    expect(second.headers.get("x-card")).toBe("stored");
+    expect(d.fetched).toEqual([]);
+  });
+
+  test("an old kept picture is still served at once, and checked again in the background", async () => {
+    const cache = memCache();
+    cache.m.set("vaccines.png", { bytes: new Uint8Array([1]), at: 0, thumb: "plain" });
+    const deferred: Promise<unknown>[] = [];
+    const d = deps({ cache, now: () => 60 * 60 * 1000, defer: (w) => void deferred.push(w) });
+    const res = await handleCardRequest(get("/card/vaccines.png", CHROME), d);
+    expect(res.headers.get("x-card")).toBe("stored");
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array([1]));
+    await Promise.all(deferred);
+    expect(cache.m.get("vaccines.png")!.bytes).toEqual(new Uint8Array([137, 80, 78, 71]));
+  });
+
+  test("?refresh builds anew even when a picture is kept", async () => {
+    const cache = memCache();
+    cache.m.set("vaccines.png", { bytes: new Uint8Array([1]), at: 0, thumb: "plain" });
+    const res = await handleCardRequest(get("/card/vaccines.png?refresh=1", CHROME), deps({ cache, now: () => 5 }));
+    expect(res.headers.get("x-card")).toBe("built");
+  });
+
+  test("a cast with no picture any more is forgotten, and gets the generic card", async () => {
+    const cache = memCache();
+    cache.m.set("nobody.png", { bytes: new Uint8Array([1]), at: 0, thumb: "plain" });
+    const res = await handleCardRequest(get("/card/nobody.png?refresh=1", CHROME), deps({ cache }));
+    expect(res.status).toBe(302);
+    await settle();
+    expect(cache.m.has("nobody.png")).toBe(false);
+  });
+
+  test("a build that runs out of time is a 503 to retry for a person, and the generic card for a crawler", async () => {
+    const slow = { deadlineMs: 20, fetchText: (_u: string, signal?: AbortSignal) => new Promise<string | null>((r) => signal?.addEventListener("abort", () => r(null))) };
+    const res = await handleCardRequest(get("/card/vaccines.png", CHROME), deps(slow));
+    expect(res.status).toBe(503);
+    expect(res.headers.get("retry-after")).toBe("2");
+    expect(res.headers.get("netlify-cdn-cache-control")).toBe("no-store");
+    const bot = await handleCardRequest(get("/card/vaccines.png", FB), deps(slow));
+    expect(bot.status).toBe(302);
+  });
+
+  test("a picture whose drawing failed is not kept, and is cached only briefly", async () => {
+    const cache = memCache();
+    const castWithThumb = 'title: "Why vaccines work"\nthumb: band "Herd"\n';
+    const d = deps({ cache, fetchText: async () => castWithThumb, draw: () => { throw new Error("thumb fonts not found"); } });
+    const res = await handleCardRequest(get("/card/vaccines.png", CHROME), d);
+    expect(res.headers.get("x-thumb")).toMatch(/^error/);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=300");
+    await settle();
+    expect(cache.m.size).toBe(0);
+  });
+});

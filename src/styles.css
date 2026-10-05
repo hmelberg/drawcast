@@ -3470,6 +3470,12 @@ button.home-more { background: none; border: 0; padding: 0; cursor: pointer; fon
 }
 .home-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s ease; }
 .home-card:hover .home-thumb img { transform: scale(1.03); }
+/* A card whose picture never came (home-cards round, 2026-10-05): its title, on its format's tint. */
+.home-thumb-empty { display: flex; align-items: center; justify-content: center; padding: 1rem; text-align: center; }
+.home-thumb-title { font: 1.35rem/1.2 var(--sketch-font); color: var(--ink); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
+.home-thumb-quiz { background: color-mix(in srgb, var(--steel) 14%, var(--surface)); }
+.home-thumb-xplanation { background: color-mix(in srgb, var(--loss) 10%, var(--surface)); }
+.home-thumb-course { background: color-mix(in srgb, var(--ok, #3f7d4e) 14%, var(--surface)); }
 .home-card:focus-visible { outline: 2px solid var(--steel); outline-offset: 3px; border-radius: 10px; }
 .home-card-title {
   font-weight: 600; font-size: var(--text); line-height: 1.3; margin-top: 0.2rem;

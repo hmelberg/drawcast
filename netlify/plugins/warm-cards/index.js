@@ -3,9 +3,11 @@
 // card function for a hundred posters at once: slow, and lookups that timed
 // out showed the plain logo. This asks for every card once, a few at a time,
 // so visitors find them cached. It never fails the build.
+// Since 2026-10-05 the card function keeps every picture it builds in Blobs,
+// which outlive deploys, so after the first run this is mostly cheap reads.
 import { readFileSync } from "node:fs";
 
-const CONCURRENCY = 4;
+const CONCURRENCY = 8;
 const PER_REQUEST_MS = 20000;
 const TOTAL_MS = 180000;
 const CATALOGUE = "https://drawcast.anvil.app/_/api/catalogue";

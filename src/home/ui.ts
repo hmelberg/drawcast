@@ -8,9 +8,26 @@ import { h } from "../ui/dom";
 import { FORMAT_BADGE, FORMAT_CHIPS, homeHref, thumbUrl, type HomeCard } from "./model";
 import { MY_LISTS } from "./my-lists";
 
+/** Retry waits for a card picture the server was still building (a 503 —
+ *  netlify/functions/card.mts finishes it in the background meanwhile). */
+const THUMB_RETRIES_MS = [2500, 7000];
+
 export function card(c: HomeCard, opts: { compact?: boolean } = {}): HTMLElement {
-  const img = h("img", { src: thumbUrl(c.name), alt: "", loading: "lazy", decoding: "async" });
-  img.addEventListener("error", () => img.remove());
+  const src = thumbUrl(c.name);
+  const img = h("img", { src, alt: "", loading: "lazy", decoding: "async" }) as HTMLImageElement;
+  // Past the retries the box shows the title, never an empty box.
+  const thumb = h("div", { class: "home-thumb" }, img);
+  let tries = 0;
+  img.addEventListener("error", () => {
+    const wait = THUMB_RETRIES_MS[tries++];
+    if (wait === undefined) {
+      img.remove();
+      thumb.classList.add("home-thumb-empty", `home-thumb-${c.format ?? "drawcast"}`);
+      thumb.append(h("span", { class: "home-thumb-title" }, c.title));
+      return;
+    }
+    setTimeout(() => (img.src = `${src}?r=${tries}`), wait);
+  });
   const badges: HTMLElement[] = [];
   if (c.format) badges.push(h("span", { class: `home-badge home-badge-${c.format}` }, FORMAT_BADGE[c.format]));
   if (c.private) badges.push(h("span", { class: "home-badge home-badge-private" }, "Private"));
@@ -22,7 +39,7 @@ export function card(c: HomeCard, opts: { compact?: boolean } = {}): HTMLElement
     ...(meta ? [h("div", { class: "home-card-meta" }, meta)] : []),
     ...(badges.length ? [h("div", { class: "home-badges" }, ...badges)] : []),
   );
-  return h("a", { class: opts.compact ? "home-card home-card-compact" : "home-card", href: homeHref(c.name) }, h("div", { class: "home-thumb" }, img), text);
+  return h("a", { class: opts.compact ? "home-card home-card-compact" : "home-card", href: homeHref(c.name) }, thumb, text);
 }
 
 export function section(title: string, cards: HomeCard[], more?: HTMLElement): HTMLElement | null {
