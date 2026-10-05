@@ -7,7 +7,9 @@ import { DEFAULT_ENROLL_API } from "../learn";
 import { h } from "../ui/dom";
 import { FORMAT_BADGE, FORMAT_CHIPS, homeHref, thumbUrl, type HomeCard } from "./model";
 import { MY_LISTS } from "./my-lists";
-import { cardOf } from "./feed";
+import { cardOf, thumbCountsOf } from "./feed";
+import { chooseVariant, hash32, seeded } from "../card/choose";
+import { countClick, viewerId, watchShown } from "./thumb-count";
 import { drawCard, iconNames, type Icons } from "../card/draw";
 import { loadIcons } from "../card/icons";
 import type { CompiledCard } from "../card/types";
@@ -25,7 +27,12 @@ const THUMB_RETRIES_MS = [2500, 7000];
  * marks once it has loaded, fetched when the card nears the screen.
  * drawCard escapes every text it draws.
  */
-function drawnThumb(card: CompiledCard): HTMLElement {
+function drawnThumb(name: string, own: CompiledCard): { box: HTMLElement; variant: number } {
+  // A cast with several thumbnails shows one of them (card/choose.ts): mostly
+  // the one clicked most, the same one all day for this viewer.
+  const all = [own, ...(own.variants ?? [])];
+  const variant = chooseVariant(all.length, thumbCountsOf(name), seeded(hash32(`${viewerId()}|${name}|${new Date().toISOString().slice(0, 10)}`)));
+  const card = all[variant];
   const box = h("div", { class: "home-thumb home-thumb-card" });
   let icons: Icons = {};
   let poster: string | undefined;
@@ -65,7 +72,8 @@ function drawnThumb(card: CompiledCard): HTMLElement {
       io.observe(box);
     }
   }
-  return box;
+  if (all.length > 1) watchShown(box, name, variant);
+  return { box, variant };
 }
 
 /** The listing picture drawn by drawcast.app (/card/<name>.png): for items with no card yet. */
@@ -90,7 +98,8 @@ function serverThumb(c: HomeCard): HTMLElement {
 
 export function card(c: HomeCard, opts: { compact?: boolean } = {}): HTMLElement {
   const own = cardOf(c.name);
-  const thumb = own ? drawnThumb(own) : serverThumb(c);
+  const drawn = own ? drawnThumb(c.name, own) : null;
+  const thumb = drawn ? drawn.box : serverThumb(c);
   const badges: HTMLElement[] = [];
   if (c.format) badges.push(h("span", { class: `home-badge home-badge-${c.format}` }, FORMAT_BADGE[c.format]));
   if (c.private) badges.push(h("span", { class: "home-badge home-badge-private" }, "Private"));
@@ -102,7 +111,10 @@ export function card(c: HomeCard, opts: { compact?: boolean } = {}): HTMLElement
     ...(meta ? [h("div", { class: "home-card-meta" }, meta)] : []),
     ...(badges.length ? [h("div", { class: "home-badges" }, ...badges)] : []),
   );
-  return h("a", { class: opts.compact ? "home-card home-card-compact" : "home-card", href: homeHref(c.name) }, thumb, text);
+  const link = h("a", { class: opts.compact ? "home-card home-card-compact" : "home-card", href: homeHref(c.name) }, thumb, text);
+  // Which thumbnail drew the click, when the cast has several.
+  if (drawn && own && (own.variants?.length ?? 0) > 0) link.addEventListener("click", () => countClick(c.name, drawn.variant));
+  return link;
 }
 
 export function section(title: string, cards: HomeCard[], more?: HTMLElement): HTMLElement | null {

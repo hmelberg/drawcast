@@ -25,6 +25,8 @@ export interface HomeFeed {
   ranks: RankEntry[];
   /** Absent from a feed built before the ranking round. */
   scores?: Record<string, FeedScore>;
+  /** Each name's thumbnails: [shown, clicks] per variant (2026-10-06). */
+  thumbs?: Record<string, [number, number][]>;
 }
 
 /** The server's answer (or a kept copy), narrowed; null when it is not a feed. */
@@ -49,7 +51,15 @@ export function parseFeed(raw: unknown): HomeFeed | null {
     }
   }
   for (const i of items) if (i.card) CARDS.set(i.name, i.card);
-  return { built: r.built, items, ranks, ...(scores ? { scores } : {}) };
+  let thumbs: Record<string, [number, number][]> | undefined;
+  if (r.thumbs && typeof r.thumbs === "object") {
+    thumbs = {};
+    for (const [name, v] of Object.entries(r.thumbs as Record<string, unknown>)) {
+      if (Array.isArray(v)) thumbs[name] = v.slice(0, 5).map((x) => (Array.isArray(x) ? [Number(x[0]) || 0, Number(x[1]) || 0] : [0, 0]) as [number, number]);
+    }
+    THUMBS = thumbs;
+  }
+  return { built: r.built, items, ranks, ...(scores ? { scores } : {}), ...(thumbs ? { thumbs } : {}) };
 }
 
 /** Every listed item's card by name, as the feed last gave them (a curated
@@ -57,6 +67,12 @@ export function parseFeed(raw: unknown): HomeFeed | null {
 const CARDS = new Map<string, CompiledCard>();
 export function cardOf(name: string): CompiledCard | undefined {
   return CARDS.get(name);
+}
+
+/** The thumbnails' counts by name, as the feed last gave them. */
+let THUMBS: Record<string, [number, number][]> = {};
+export function thumbCountsOf(name: string): [number, number][] | undefined {
+  return THUMBS[name];
 }
 
 /** The copy kept from the last visit, or null (none, or storage refused). */

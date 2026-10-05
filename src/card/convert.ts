@@ -12,7 +12,7 @@ import { castCardText } from "../../netlify/lib/share-card.mts";
 import { cornerSlots, FIGURES, HEADLINE_MAX, kidsByTags, MARKS, parseThumbLine, planThumb, type Corner, type MarkKind, type ThumbPlan } from "../../netlify/lib/thumb.mts";
 import type { Spec, SpecElement } from "../spec/types";
 import { leafDrawables, type Drawable } from "../layout/model";
-import { parsePlaylistText, posterItemOf, thumbnailItemOf } from "../playlist/playlist";
+import { parsePlaylistText, posterItemOf, thumbnailItemsOf } from "../playlist/playlist";
 import { render } from "../render";
 import { iconNameOfHref } from "../spec/icon-data";
 import { decodePts, encodePts } from "./points";
@@ -303,13 +303,37 @@ export function headlineCard(text: string): CardResult {
  * The cast's compiled card, or null when it has no picture to give (no
  * poster item). Needs a document and the engine's packs loaded.
  */
+/** At most this many thumbnails per cast (the first and its variants). */
+export const MAX_VARIANTS = 5;
+
 export async function compileCard(text: string, opts: { private?: boolean } = {}): Promise<CardResult | null> {
   if (opts.private) return headlineCard(text);
   const playlist = parsePlaylistText(text);
-  // A thumbnail page the author (or the AI) wrote wins over the poster frame.
-  const own = thumbnailItemOf(playlist);
-  const item = own ?? posterItemOf(playlist);
-  if (!item) return null;
+  // Thumbnail pages the author (or the AI) wrote win over the poster frame;
+  // the first is the cast's thumbnail, the others its variants.
+  const pages = thumbnailItemsOf(playlist).slice(0, MAX_VARIANTS);
+  if (pages.length === 0) {
+    const item = posterItemOf(playlist);
+    return item ? compileOne(text, null, item) : null;
+  }
+  const made: CardResult[] = [];
+  for (const page of pages) {
+    const r = await compileOne(text, page, page);
+    if (r) made.push(r);
+  }
+  if (made.length === 0) return null;
+  const [first, ...rest] = made;
+  if (rest.length === 0) return first;
+  return {
+    card: { ...first.card, variants: rest.map((r) => r.card) },
+    dropped: made.flatMap((r) => r.dropped),
+    bytes: made.reduce((n, r) => n + r.bytes, 0),
+    iconBytes: made.reduce((n, r) => n + r.iconBytes, 0),
+  };
+}
+
+/** One thumbnail: a thumbnail page (`own`), or the poster frame's drawing. */
+async function compileOne(text: string, own: { spec: Spec } | null, item: { spec: Spec }): Promise<CardResult | null> {
   const host = document.createElement("div");
   host.style.cssText = `position:fixed;left:-10000px;top:0;width:${CARD_W}px;height:${CARD_H}px`;
   document.body.appendChild(host);

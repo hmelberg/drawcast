@@ -12,6 +12,7 @@ import { getStore } from "@netlify/blobs";
 import { RANK_DAYS, RANK_MAX } from "./rank.mts";
 import { dayString } from "../lib/view-key.mts";
 import { foldDays, parseDayKey, rankScore, type RankScore } from "../lib/rank-score.mts";
+import { parseThumbKey } from "./thumbs.mts";
 
 const CATALOGUE = "https://drawcast.anvil.app/_/api/catalogue";
 const STATS = "https://drawcast.anvil.app/_/api/catalogue/stats";
@@ -30,6 +31,29 @@ export interface Feed {
   scores?: Record<string, RankScore>;
   /** How many items the registry's stats covered: 0 means likes were ranked without their dates. */
   stats?: number;
+  /** Each name's thumbnails over the last RANK_DAYS days (2026-10-06): [shown, clicks] per variant, in variant order. */
+  thumbs?: Record<string, [number, number][]>;
+}
+
+/** One day's thumbnail count (netlify/functions/thumbs.mts). */
+export interface ThumbEntry {
+  name: string;
+  variant: number;
+  shown: number;
+  clicks: number;
+}
+
+/** The thumbnail counts by name: [shown, clicks] per variant, every segment together. */
+export function thumbStats(entries: ThumbEntry[]): Record<string, [number, number][]> {
+  const out: Record<string, [number, number][]> = {};
+  for (const e of entries) {
+    if (e.variant < 0 || e.variant > 4) continue;
+    const per = (out[e.name] ??= []);
+    while (per.length <= e.variant) per.push([0, 0]);
+    per[e.variant][0] += Math.max(0, e.shown);
+    per[e.variant][1] += Math.max(0, e.clicks);
+  }
+  return out;
 }
 
 /** One day's count under `v/` (visits) or `d/` (watched to the end). */
@@ -56,6 +80,8 @@ export interface FeedDeps {
   days(): Promise<DayEntry[]>;
   /** The registry's ranking stats, or null when it gave none. */
   stats(): Promise<ItemStats[] | null>;
+  /** Every thumbnail count of the last RANK_DAYS days (absent: none). */
+  thumbs?(): Promise<ThumbEntry[]>;
   load(): Promise<Feed | null>;
   save(feed: Feed): Promise<void>;
   defer?(work: Promise<unknown>): void;
@@ -76,11 +102,11 @@ export async function buildFeed(deps: FeedDeps): Promise<Feed | null> {
     }
     return out;
   };
-  const [casts, courses, days, stats] = await Promise.all([all("cast"), all("course"), deps.days().catch(() => []), deps.stats().catch(() => null)]);
+  const [casts, courses, days, stats, thumbs] = await Promise.all([all("cast"), all("course"), deps.days().catch(() => []), deps.stats().catch(() => null), deps.thumbs ? deps.thumbs().catch(() => []) : Promise.resolve([])]);
   if (casts === null || courses === null) return null;
   const items = [...casts, ...courses];
   const now = deps.now();
-  return { built: now, items, ranks: visitRanks(days), scores: scoresFor(items, days, stats, now), stats: stats?.length ?? 0 };
+  return { built: now, items, ranks: visitRanks(days), scores: scoresFor(items, days, stats, now), stats: stats?.length ?? 0, thumbs: thumbStats(thumbs) };
 }
 
 /** The older Popular row's list: visits per name (lectures apart) over the days given, most first. */
@@ -177,6 +203,17 @@ export default async (req: Request, context?: { waitUntil?: (work: Promise<unkno
           }),
         );
         batch.forEach((x, j) => out.push({ ...x.p!, count: counts[j] }));
+      }
+      return out;
+    },
+    thumbs: async () => {
+      const cutoff = dayString(Date.now() - (RANK_DAYS - 1) * DAY_MS);
+      const keys = (await visits.list({ prefix: "t/" })).blobs.map((b) => ({ key: b.key, p: parseThumbKey(b.key) })).filter((x) => x.p && x.p.day >= cutoff);
+      const out: ThumbEntry[] = [];
+      for (let i = 0; i < keys.length; i += 50) {
+        const batch = keys.slice(i, i + 50);
+        const recs = await Promise.all(batch.map((x) => visits.get(x.key, { type: "json" }).catch(() => null) as Promise<{ shown?: unknown; clicks?: unknown } | null>));
+        batch.forEach((x, j) => out.push({ name: x.p!.name, variant: x.p!.variant, shown: Number(recs[j]?.shown) || 0, clicks: Number(recs[j]?.clicks) || 0 }));
       }
       return out;
     },

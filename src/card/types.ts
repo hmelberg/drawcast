@@ -110,6 +110,8 @@ export interface CompiledCard {
    * allowed image's address (thumb.mts pictureAllowed).
    */
   picture?: "poster" | string;
+  /** The other thumbnails (2026-10-06): the cast's further thumbnail pages, each a whole card; the front page shows them in turn and counts which is clicked. */
+  variants?: CompiledCard[];
 }
 
 /** What compiling a cast gave: the card, and what it had to leave out (for the lab's coverage table). */

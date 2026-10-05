@@ -782,8 +782,12 @@ export function posterItemOf(playlist: Playlist): { spec: Spec } | null {
 
 /** The cast's thumbnail page (`role: thumbnail`), which itemsOf leaves out of playback, or null. */
 export function thumbnailItemOf(playlist: Playlist): { spec: Spec } | null {
-  for (const e of playlist.entries) if (e.kind !== "chapter" && e.spec.role === "thumbnail") return { spec: e.spec };
-  return null;
+  return thumbnailItemsOf(playlist)[0] ?? null;
+}
+
+/** Every thumbnail page, in order: the first is the cast's thumbnail, the rest its variants (2026-10-06), shown in turn and counted. */
+export function thumbnailItemsOf(playlist: Playlist): { spec: Spec }[] {
+  return playlist.entries.flatMap((e) => (e.kind !== "chapter" && e.spec.role === "thumbnail" ? [{ spec: e.spec }] : []));
 }
 
 /** True for a lecture's generated last page: the end page, or the legacy drawn Next card. */
