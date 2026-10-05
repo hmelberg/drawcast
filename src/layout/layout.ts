@@ -188,6 +188,7 @@ export function layoutSpec(
   let pictures: NonNullable<LayoutResult["pictures"]> = {};
   let measures: Record<string, MeasureSpec> = {};
   let seedAnchors: Record<string, Pt> = {};
+  let seedBoxes: SceneLayout["boxes"];
   let seedCurveSamples: Record<string, Pt[]> = {};
   let templateIds: string[] = [];
   let templateFrame: DataFrame | undefined;
@@ -333,6 +334,7 @@ export function layoutSpec(
         templateOwn = { drawables: sceneLayout.drawables, labels: sceneLayout.labels };
         order.push(...sceneLayout.order);
         seedAnchors = sceneLayout.anchors;
+        seedBoxes = sceneLayout.boxes;
         if (sceneLayout.frame) templateFrame = sceneLayout.frame;
         // The template's numbers, namespaced for `{market.dwl}` in drawn text.
         const ns = TEMPLATE_VALUES_NAME[spec.template] ?? spec.template;
@@ -358,7 +360,7 @@ export function layoutSpec(
     // Norwegian cast. spec.lang when set, else the narration's own sniff.
     const spoken = (spec.commands ?? []).map((c) => c.speak ?? "").join(" ");
     const decimalComma = usesDecimalComma(spec.lang, spoken.trim() ? detectLang(spoken) : undefined);
-    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], vars: spec.vars, templateValues: { ...templateValues, ...scriptValues(spec.elements) }, overrides, fit, decimalComma, frame: templateFrame });
+    const tier2 = layoutElements(spec.elements, spec.domain, seedAnchors, seedCurveSamples, { measure, seedDrawables: [...drawables], seedBoxes, vars: spec.vars, templateValues: { ...templateValues, ...scriptValues(spec.elements) }, overrides, fit, decimalComma, frame: templateFrame });
     drawables.push(...tier2.drawables);
     labelRequests.push(...tier2.labels);
     warnings.push(...tier2.warnings);

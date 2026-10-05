@@ -75,6 +75,16 @@ export function floorTextSizes(ds: Drawable[], s = 1, floor: number = TEXT_MIN):
   }
 }
 
+/** A template's part boxes (SceneLayout.boxes) under the same uniform scale. */
+function mapBoxes(boxes: SceneLayout["boxes"], s: number, dx: number, dy: number): void {
+  for (const b of Object.values(boxes ?? {})) {
+    b.x = b.x * s + dx;
+    b.y = b.y * s + dy;
+    b.w *= s;
+    b.h *= s;
+  }
+}
+
 /**
  * Fit the scene's ink into `box` IN PLACE and say what transform did it.
  * Null when the scene drew nothing (nothing to fit; the caller leaves it).
@@ -96,6 +106,7 @@ export function fitSceneLayout(scene: SceneLayout, box: BBox, measure: MeasureFn
     l.fontSize = fittedTextSize(l.fontSize, s, floor);
   }
   mapPoints(scene.anchors, map);
+  mapBoxes(scene.boxes, s, dx, dy);
   if (scene.curveSamples) {
     for (const k of Object.keys(scene.curveSamples)) scene.curveSamples[k] = scene.curveSamples[k].map(map);
   }
@@ -154,6 +165,7 @@ export function growSceneLayout(scene: SceneLayout, measure: MeasureFn, region: 
     l.fontSize = l.fontSize * Math.min(s, TEXT_GROW_MAX);
   }
   mapPoints(scene.anchors, map);
+  mapBoxes(scene.boxes, s, dx, dy);
   if (scene.curveSamples) {
     for (const k of Object.keys(scene.curveSamples)) scene.curveSamples[k] = scene.curveSamples[k].map(map);
   }

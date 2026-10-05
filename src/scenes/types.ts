@@ -63,6 +63,14 @@ export interface SceneLayout {
   drawnWith?: Record<string, string[]>;
 
   /**
+   * A part's box when its ink is smaller than the part — a table cell holds
+   * a number, not its square. A cast's label attached to the part with a
+   * `side` goes on that side of this box (tier2.ts, 2026-10-05); a part
+   * missing here uses the box of its ink. Canvas units; a fit maps them.
+   */
+  boxes?: Record<string, { x: number; y: number; w: number; h: number }>;
+
+  /**
    * What the template could not honour in its params, said to the author
    * (layout warnings, as `check` prints them) — a ceac threshold off its
    * axis, say, which it leaves out rather than draw off the plot (W25).

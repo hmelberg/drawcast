@@ -255,9 +255,10 @@ export function layoutElements(
   seedCurveSamples: Record<string, Pt[]> = {},
   /** measure: the text measurer relative placement sizes boxes with.
    *  seedDrawables: the template's drawables, so `at.ref` can name a template id.
+   *  seedBoxes: a template part's own box where its ink is smaller (scenes/types.ts boxes).
    *  vars: the spec's top-level numbers (spec/vars.ts).
    *  overrides: poses and morphed shapes the definitional references read (posed.ts). */
-  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; vars?: Spec["vars"]; templateValues?: Record<string, number | string>; overrides?: LayoutOverrides; fit?: TemplateFit; decimalComma?: boolean; frame?: DataFrame } = {},
+  opts: { measure?: MeasureFn; seedDrawables?: Drawable[]; seedBoxes?: Record<string, BBox>; vars?: Spec["vars"]; templateValues?: Record<string, number | string>; overrides?: LayoutOverrides; fit?: TemplateFit; decimalComma?: boolean; frame?: DataFrame } = {},
 ): Tier2Result {
   const measure = opts.measure ?? heuristicMeasure;
   // The numbers every reader wants; a computed var evaluated over the others.
@@ -950,8 +951,16 @@ export function layoutElements(
     const src = byIdForLayout.get(req.id);
     if (!src || src.type !== "label" || src.side === undefined || src.attach_to === undefined) continue;
     const target = byIdForLayout.get(src.attach_to);
-    if (!target || !OUTLINE_TYPES.has(target.type)) continue;
-    const box = boxOfId(drawables, target.id, measure, ctx.groups, ctx.pieceGroups);
+    // A template's own part (a bar of bar_chart, a cell of two_by_two_table)
+    // anchors at its centre too, so "above" a bar landed on the bar
+    // (2026-10-05): the part's box — the template's word for it, else the
+    // ink of a part that has an outline (a closed stroke or an area). A line
+    // (a tree's edge) keeps its point: beside a line's box is beside nothing.
+    const seed = target ? [] : (opts.seedDrawables ?? []).filter((d) => d.id === src.attach_to);
+    const outlined = leafDrawables(seed).some((d) => d.kind === "area" || (d.kind === "stroke" && d.closed === true));
+    const box = target
+      ? OUTLINE_TYPES.has(target.type) ? boxOfId(drawables, target.id, measure, ctx.groups, ctx.pieceGroups) : null
+      : opts.seedBoxes?.[src.attach_to] ?? (outlined ? boxOfId(seed, src.attach_to, measure) : null);
     if (box && box.w > 0 && box.h > 0) req.anchor = boxAnchor(box, SIDE_ANCHOR[src.side] ?? "center");
   }
 

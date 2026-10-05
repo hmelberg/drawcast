@@ -54,6 +54,9 @@ export function layoutTwoByTwoTable(params: TwoByTwoParams): SceneLayout {
   const drawables: Drawable[] = [];
   const labels: LabelRequest[] = [];
   const anchors: Record<string, Pt> = {};
+  // A cell's ink is its number; its box is the square (a label beside a cell
+  // goes beside the square, not beside the number — 2026-10-05).
+  const boxes: Record<string, { x: number; y: number; w: number; h: number }> = {};
   const order: string[] = [];
   const push = (d: Drawable) => {
     drawables.push(d);
@@ -91,6 +94,7 @@ export function layoutTwoByTwoTable(params: TwoByTwoParams): SceneLayout {
       }
       push({ id: `cell_${r}_${c}`, kind: "group", z: Z_STROKE, style: defaultStyle(), drawOpts: defaultDrawOpts(), children });
       anchors[`cell_${r}_${c}`] = center;
+      boxes[`cell_${r}_${c}`] = { x: X0 + CELL_W * c, y: Y0 + H - CELL_H * (r + 1), w: CELL_W, h: CELL_H };
     }
   }
 
@@ -133,5 +137,5 @@ export function layoutTwoByTwoTable(params: TwoByTwoParams): SceneLayout {
     anchors[id] = [(left + right) / 2, (top + bottom) / 2];
   }
 
-  return { drawables, labels, anchors, order };
+  return { drawables, labels, anchors, boxes, order };
 }
