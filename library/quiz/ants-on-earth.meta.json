@@ -12,5 +12,5 @@
  "score": 4,
  "verdict": "keep",
  "dialogue": false,
- "notes": "2026-10-04 republish: scale in ants (1e10-1e17, value 2e16) so ticks and {a.true} say words (20 quadrillion); hand-placed unit label dropped; affirm playful; lines unchanged."
+ "notes": "2026-10-04 republish: scale in ants (1e10-1e17, value 2e16) so ticks and {a.true} say words (20 quadrillion); hand-placed unit label dropped; affirm playful; lines unchanged. 2026-10-05: ask question is the task only (the heading and opening line already ask it; the engine no longer repeats it)."
 }

@@ -161,7 +161,7 @@
    },
    {
     "ask": {
-     "question": "Which of these films won eleven Oscars? Tap every one.",
+     "question": "Tap every film you think won eleven.",
      "on": "films",
      "store": "f",
      "right": "All {f.total} right.",

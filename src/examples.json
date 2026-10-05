@@ -84374,7 +84374,7 @@
         },
         {
           "ask": {
-            "question": "How many people die on the world's roads each year? Click the line.",
+            "question": "Click the line where you think it is.",
             "on": "roads",
             "reveal": false,
             "store": "g1",

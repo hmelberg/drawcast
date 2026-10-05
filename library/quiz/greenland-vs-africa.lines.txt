@@ -1,5 +1,5 @@
 On most wall maps, Greenland looks about as big as Africa.
-[ASK] Africa is drawn. How big is Greenland? Drag its bar to your guess.
+[ASK] Africa is drawn. Drag Greenland's bar to your guess.
   [right] Close: you said {g} million square kilometres, and it is {g.true}.
   [wrong] You said {g} million square kilometres; it is only {g.true}.
 Africa is about fourteen times bigger: thirty million square kilometres against two.
