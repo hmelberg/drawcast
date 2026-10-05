@@ -8,6 +8,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { callForText } from "./client";
 import { parsePlaylistText } from "../playlist/playlist";
 import { playlistSpeakLines } from "../playlist/session";
+import type { Spec } from "../spec/types";
 
 export const THUMBNAIL_SYSTEM = `You write the THUMBNAIL of a drawcast (a narrated, hand-drawn explainer): the one still picture that stands for it on drawcast.app's front page (shown about 280 px wide) and in link previews. Its job is to make someone curious enough to click — honestly: the cast must pay off what the thumbnail promises.
 
@@ -66,4 +67,31 @@ export async function askThumbnail(client: Anthropic, model: string, castText: s
   const body = thumbnailBodyOf(text);
   if (!body) throw new Error("The AI's answer had no thumbnail lines.");
   return body;
+}
+
+// ---- In the cast-writing call (2026-10-05): the thumbnail rides the spec reply ----
+
+/** The top-level field the spec reply may carry its thumbnail page in — never part of the spec schema (as treatment.ts template_gaps). */
+export const THUMBNAIL_KEY = "thumbnail";
+
+/** Appended to the cast-writing request when a thumbnail is wanted: what to add, in the reply's own JSON. */
+export const THUMBNAIL_REQUEST_NOTE = `ALSO add a top-level "thumbnail" field beside the spec: the cast's listing picture on drawcast.app's front page (about 280 px wide) and in link previews, made to make someone curious enough to click — honestly: the cast must pay off what it promises. Not a copy of the figure: one idea, readable small — the question with its surprising answer half-shown, one striking number, a contrast, a mistake about to happen. Shape: {"elements": [ … ]}, the canvas 1000 × 750, y UP; everything above y 230 (a band runs across the bottom); the top-right corner (x > 700, y > 560) clear for a sticker. Elements, at most 10: {"id", "type": "icon", "of": "<keyword>", "set": "twemoji", "icon_look": "picture", "x", "y", "size": 220–330}; {"id", "type": "text", "text", "x", "y", "font_size": 60–260, "style": {"color"}}; "math" (tex, x, y, size 100–190); "path"/"shape" as in the spec; and the listing words as {"id", "type": "thumb", "kind": "band", "text": "<2–6 shouted words>"} (always one band) plus at most one {"type": "thumb", "kind": "stamp" | "note" | "star", "text", "x", "y", "angle"}.`;
+
+/**
+ * Takes the thumbnail off a spec reply, IN PLACE (before the spec is
+ * validated), and returns it as a ready thumbnail page — or null when the
+ * reply has none or it is not a valid page (dropped, never fatal: the
+ * thumbnail is then made from the poster frame).
+ */
+export function takeThumbnail(json: unknown, validate: (spec: Spec) => boolean): Spec | null {
+  if (typeof json !== "object" || json === null || Array.isArray(json)) return null;
+  const obj = json as Record<string, unknown>;
+  if (!(THUMBNAIL_KEY in obj)) return null;
+  const raw = obj[THUMBNAIL_KEY];
+  delete obj[THUMBNAIL_KEY];
+  if (typeof raw !== "object" || raw === null || !Array.isArray((raw as { elements?: unknown }).elements)) return null;
+  const elements = (raw as { elements: unknown[] }).elements.filter((e) => typeof e === "object" && e !== null).slice(0, 14) as Spec["elements"];
+  if (!elements?.length) return null;
+  const page: Spec = { title: "Thumbnail", role: "thumbnail", page: { valign: "none" }, elements, commands: [] };
+  return validate(page) ? page : null;
 }

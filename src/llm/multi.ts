@@ -27,6 +27,8 @@ export interface PartsResult {
   specs: Spec[];
   /** The chapter each spec falls under, parallel to `specs`. */
   chapterOf: (string | undefined)[];
+  /** The cast's thumbnail page, asked of part 1 only when cfg.thumbnail (llm/thumbnail.ts). */
+  thumbnail?: Spec;
   /** 1-based numbers of the parts that produced no spec. */
   failed: number[];
   /** Why each of `failed` failed, in the same order. */
@@ -315,7 +317,8 @@ export async function generateFromOutline(
             // (partConfig).
             generateSpec(
               buildPartRequest(req.request, plan, i, req.brief),
-              partConfig(plan.parts[i].script?.length ? { ...cfg, pedagogyReview: false } : cfg, plan.parts[i].template),
+              // One thumbnail per cast: only the first part is asked for it.
+              { ...partConfig(plan.parts[i].script?.length ? { ...cfg, pedagogyReview: false } : cfg, plan.parts[i].template), thumbnail: cfg.thumbnail === true && i === 0 },
             ),
       ).then((outcome) => {
         finished++;
@@ -356,6 +359,7 @@ export async function generateFromOutline(
     errors,
     error: specs.length === 0 ? (errors[0] ?? "no spec") : undefined,
     ...(templateGaps.length > 0 ? { templateGaps } : {}),
+    ...(outcomes[0]?.thumbnail ? { thumbnail: outcomes[0].thumbnail } : {}),
   };
 }
 

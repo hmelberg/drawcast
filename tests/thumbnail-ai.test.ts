@@ -52,3 +52,37 @@ test("a page's lines go into the playlist as its one thumbnail page, and come ba
 test("lines that are not a page are refused", () => {
   expect(() => withThumbnailPage(parsePlaylistText(CAST), "    text t1 \"unclosed x 1")).toThrow();
 });
+
+import { takeThumbnail, THUMBNAIL_REQUEST_NOTE } from "../src/llm/thumbnail";
+import { validateSpec } from "../src/spec/schema";
+
+test("the cast-writing reply's thumbnail is taken off before validation and becomes a ready page", () => {
+  const reply: Record<string, unknown> = {
+    title: "Why prices rose",
+    elements: [],
+    thumbnail: {
+      elements: [
+        { id: "house", type: "icon", of: "house", set: "twemoji", icon_look: "picture", x: 260, y: 470, size: 300 },
+        { id: "b", type: "thumb", kind: "band", text: "Demand did it" },
+      ],
+    },
+  };
+  const page = takeThumbnail(reply, (s) => validateSpec(s).ok)!;
+  expect("thumbnail" in reply).toBe(false);
+  expect(page.role).toBe("thumbnail");
+  expect(page.page?.valign).toBe("none");
+  expect(page.elements?.map((e) => e.id)).toEqual(["house", "b"]);
+});
+
+test("a missing or invalid thumbnail is dropped, never fatal, and still taken off", () => {
+  expect(takeThumbnail({ title: "x" }, () => true)).toBeNull();
+  const bad: Record<string, unknown> = { thumbnail: { elements: [{ id: "x", type: "thumb", kind: "sparkle" }] } };
+  expect(takeThumbnail(bad, (s) => validateSpec(s).ok)).toBeNull();
+  expect("thumbnail" in bad).toBe(false);
+  expect(takeThumbnail({ thumbnail: "a picture" }, () => true)).toBeNull();
+});
+
+test("the request note asks for the field in the reply's own JSON", () => {
+  expect(THUMBNAIL_REQUEST_NOTE).toContain('"thumbnail"');
+  expect(THUMBNAIL_REQUEST_NOTE).toContain('"kind": "band"');
+});
