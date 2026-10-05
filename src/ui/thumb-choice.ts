@@ -200,7 +200,7 @@ export function thumbChoice(): ThumbChoice {
   askBtn.addEventListener("click", () => {
     if (!ask) return;
     askBtn.disabled = true;
-    pageNote.textContent = "Asking the AI for three thumbnails…";
+    pageNote.textContent = "Asking the AI…";
     void ask()
       .then((body) => {
         pageArea.value = body;

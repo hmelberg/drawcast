@@ -63,7 +63,7 @@ import { castPageHtml } from "./standalone/page";
 import { castFacts, type CastFormat } from "./standalone/transcript";
 import { compileCard } from "./card/convert";
 import { withThumbnailPage } from "./card/page";
-import { askThumbnail } from "./llm/thumbnail";
+import { askThumbnail, THUMBNAIL_VARIANTS } from "./llm/thumbnail";
 import type { CompiledCard } from "./card/types";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
@@ -3575,7 +3575,8 @@ async function generate(): Promise<void> {
       look: settings.lookPass ? beatSheets : undefined,
       treatment: singleCastTreatment(settings),
       // The thumbnail page in the same call (2026-10-05): taken off the reply, appended below.
-      thumbnail: true,
+      // Three thumbnails for a signed-in author (the registry keeps no more than one otherwise).
+      thumbnail: getToken() ? THUMBNAIL_VARIANTS : 1,
       onDraft: (draft) => {
         endSpecStream(false);
         const pl = finishSpec(structuredClone(draft));
@@ -3891,7 +3892,8 @@ async function generateMulti(
     { request: parsed.clean, parts: parsed.parts, brief },
     {
       apiKey,
-      thumbnail: true,
+      // Three thumbnails for a signed-in author (the registry keeps no more than one otherwise).
+      thumbnail: getToken() ? THUMBNAIL_VARIANTS : 1,
       look: settings.lookPass ? beatSheets : undefined,
       model: settings.model,
       effort: settings.effort,
@@ -6179,7 +6181,7 @@ function openShareFor(group: ShareGroup): void {
     askThumbnail: async (castText, thumbLine) => {
       const key = getApiKey();
       if (!key) throw new Error("add your Anthropic API key in Settings");
-      return askThumbnail(makeClient(key), settings.model, castText, thumbLine);
+      return askThumbnail(makeClient(key), settings.model, castText, thumbLine, undefined, getToken() ? THUMBNAIL_VARIANTS : 1);
     },
     publishDrive: (choices) => publishDriveCast(choices),
     publishServer: (choices) => publishServerCast(choices),

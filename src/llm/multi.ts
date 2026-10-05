@@ -318,7 +318,7 @@ export async function generateFromOutline(
             generateSpec(
               buildPartRequest(req.request, plan, i, req.brief),
               // One thumbnail per cast: only the first part is asked for it.
-              { ...partConfig(plan.parts[i].script?.length ? { ...cfg, pedagogyReview: false } : cfg, plan.parts[i].template), thumbnail: cfg.thumbnail === true && i === 0 },
+              { ...partConfig(plan.parts[i].script?.length ? { ...cfg, pedagogyReview: false } : cfg, plan.parts[i].template), thumbnail: i === 0 ? cfg.thumbnail : false },
             ),
       ).then((outcome) => {
         finished++;

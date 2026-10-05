@@ -94,3 +94,12 @@ test("the request note asks for three different thumbnails in the reply's own JS
   expect(THUMBNAIL_REQUEST_NOTE).toContain("different hook AND a different main picture");
   expect(THUMBNAIL_REQUEST_NOTE).toContain('"kind": "band"');
 });
+
+import { thumbnailRequestNote, thumbnailSystem } from "../src/llm/thumbnail";
+
+test("a signed-out author is asked for one thumbnail, a signed-in one for three", () => {
+  expect(thumbnailRequestNote(1)).toContain("ONE listing picture");
+  expect(thumbnailRequestNote(3)).toContain("3 different listing pictures");
+  expect(thumbnailSystem(1)).toContain("Write ONE thumbnail");
+  expect(thumbnailSystem(3)).toContain("Write 3 thumbnails");
+});

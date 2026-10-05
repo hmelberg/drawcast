@@ -2,7 +2,7 @@
 // with capped repair rounds fed back to the LLM. Every round is logged.
 // The vision critic (Loop 1.3) hooks in here when built — see ROADMAP.
 
-import { takeThumbnails, THUMBNAIL_REQUEST_NOTE } from "./thumbnail";
+import { takeThumbnails, thumbnailRequestNote } from "./thumbnail";
 import type Anthropic from "@anthropic-ai/sdk";
 import { makeClient, callForJson, callForText, describeApiError, isOutputLimitError, planningModelFor, repairModelFor, type Effort, type JsonCallMeta } from "./client";
 import { buildOutlineMessages, normalizeOutline, outlineSchemaFor, type Outline } from "./outline";
@@ -258,8 +258,8 @@ export interface GenerationOutcome {
 }
 
 export interface GenerateConfig {
-  /** Ask the same call for the cast's thumbnails too (2026-10-05): a top-level `thumbnails` beside the spec, taken off before validation. */
-  thumbnail?: boolean;
+  /** Ask the same call for the cast's thumbnails too (2026-10-05): a top-level `thumbnails` beside the spec, taken off before validation. A number is how many (three for a signed-in author, one otherwise); true is three. */
+  thumbnail?: boolean | number;
   /**
    * Story first (llm/treatment.ts): before the JSON call the creative model
    * writes a plain-text storyline — question, insight, example, figure,
@@ -665,7 +665,7 @@ export async function generateSpec(request: string, cfg: GenerateConfig): Promis
   }
   // ---- end story step ----
   const gaps: TemplateGap[] = [];
-  const userContent = [request, cfg.brief, seed?.text, mapNoteText, treatment ? stagingNote(treatment) : undefined, cfg.thumbnail ? THUMBNAIL_REQUEST_NOTE : undefined].filter(Boolean).join("\n\n");
+  const userContent = [request, cfg.brief, seed?.text, mapNoteText, treatment ? stagingNote(treatment) : undefined, cfg.thumbnail ? thumbnailRequestNote(typeof cfg.thumbnail === "number" ? cfg.thumbnail : undefined) : undefined].filter(Boolean).join("\n\n");
   let thumbnails: Spec[] = [];
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userContent }];
   const rounds: GenerationRound[] = [];

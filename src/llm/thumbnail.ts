@@ -10,11 +10,16 @@ import { parsePlaylistText } from "../playlist/playlist";
 import { playlistSpeakLines } from "../playlist/session";
 import type { Spec } from "../spec/types";
 
-export const THUMBNAIL_SYSTEM = `You write the THUMBNAIL of a drawcast (a narrated, hand-drawn explainer): the one still picture that stands for it on drawcast.app's front page (shown about 280 px wide) and in link previews. Its job is to make someone curious enough to click — honestly: the cast must pay off what the thumbnail promises.
+/** How many thumbnails a signed-in author's cast is asked for: the front page shows them in turn and learns which is clicked. A signed-out author gets one (the registry keeps no more: drawcast-anvil registry.may_have_variants). */
+export const THUMBNAIL_VARIANTS = 3;
+
+/** The thumbnail writer's instructions for `n` thumbnails (three for a signed-in author — the front page tries them in turn — one otherwise). */
+export function thumbnailSystem(n = THUMBNAIL_VARIANTS): string {
+  return `You write the THUMBNAIL of a drawcast (a narrated, hand-drawn explainer): the one still picture that stands for it on drawcast.app's front page (shown about 280 px wide) and in link previews. Its job is to make someone curious enough to click — honestly: the cast must pay off what the thumbnail promises.
 
 Patterns that work: the question with its surprising answer half-shown (a "?" where the result goes); one striking number, big; a contrast or tension (the shark against the mosquito); a before and after, or a mistake about to happen. One idea, readable small.
 
-Write THREE thumbnails, truly different — each with a different hook AND a different main picture (the front page shows them in turn and keeps the one people click). Reply with ONLY the three pages: each a line "## Thumbnail" and then its element lines, each indented four spaces — nothing else (no settings, no narration, no code fence). The canvas is 1000 wide and 750 high, y UP (y 750 is the top). Keep everything above y 230: the band sits across the bottom. Keep the top-right corner (x above 700, y above 560) clear of words and drawing: a stamp or note goes there, and a sticker must never cover a word. Sizes: key number or word font_size 110–260; other words 60–90 (smaller vanishes at front-page size); icons size 220–330. At most about 12 lines.
+${n > 1 ? `Write ${n} thumbnails, truly different — each with a different hook AND a different main picture (the front page shows them in turn and keeps the one people click). Reply with ONLY the ${n} pages: each` : "Write ONE thumbnail. Reply with ONLY the page:"} a line "## Thumbnail" and then its element lines, each indented four spaces — nothing else (no settings, no narration, no code fence). The canvas is 1000 wide and 750 high, y UP (y 750 is the top). Keep everything above y 230: the band sits across the bottom. Keep the top-right corner (x above 700, y above 560) clear of words and drawing: a stamp or note goes there, and a sticker must never cover a word. Sizes: key number or word font_size 110–260; other words 60–90 (smaller vanishes at front-page size); icons size 220–330. At most about 12 lines.
 
 The notation (ids are short words, unique on the page):
     icon <id> size 300 set twemoji x 260 y 470 icon_look picture of "<keyword>"   — a colour emoji picture, its keyword always quoted ("brain", "soccer ball")
@@ -27,6 +32,10 @@ The notation (ids are short words, unique on the page):
     thumb <id> kind thinking                                                       — a cartoon figure (eyes, aha, surprised, puzzled, thinking), for children's casts
 
 Always end with one band. Use only facts the cast's lines state.`;
+}
+
+/** Three, for the tests and the default. */
+export const THUMBNAIL_SYSTEM = thumbnailSystem();
 
 /** What the model is told about the cast: title, subtitle, the opening narration, the current words. */
 export function thumbnailUser(castText: string, thumbLine?: string): string {
@@ -69,8 +78,8 @@ export function thumbnailBodyOf(reply: string): string {
 }
 
 /** One request: the thumbnail pages' text for this cast. */
-export async function askThumbnail(client: Anthropic, model: string, castText: string, thumbLine?: string, signal?: AbortSignal): Promise<string> {
-  const { text } = await callForText(client, model, THUMBNAIL_SYSTEM, [{ role: "user", content: thumbnailUser(castText, thumbLine) }], { signal, maxTokens: 3000 });
+export async function askThumbnail(client: Anthropic, model: string, castText: string, thumbLine?: string, signal?: AbortSignal, n = THUMBNAIL_VARIANTS): Promise<string> {
+  const { text } = await callForText(client, model, thumbnailSystem(n), [{ role: "user", content: thumbnailUser(castText, thumbLine) }], { signal, maxTokens: 3000 });
   const body = thumbnailBodyOf(text);
   if (!body) throw new Error("The AI's answer had no thumbnail lines.");
   return body;
@@ -81,11 +90,14 @@ export async function askThumbnail(client: Anthropic, model: string, castText: s
 /** The top-level fields the spec reply may carry its thumbnail pages in — never part of the spec schema (as treatment.ts template_gaps). */
 export const THUMBNAIL_KEY = "thumbnail";
 export const THUMBNAILS_KEY = "thumbnails";
-/** How many thumbnails a cast is asked for: the front page shows them in turn and learns which is clicked. */
-export const THUMBNAIL_VARIANTS = 3;
 
-/** Appended to the cast-writing request when thumbnails are wanted: what to add, in the reply's own JSON. */
-export const THUMBNAIL_REQUEST_NOTE = `ALSO add a top-level "thumbnails" field beside the spec: ${THUMBNAIL_VARIANTS} different listing pictures for the cast on drawcast.app's front page (about 280 px wide) and in link previews. The front page shows them in turn and keeps the one people click, so make them truly different — each with a different hook AND a different main picture: one the question with its surprising answer half-shown, one a single striking number, one a contrast or a mistake about to happen. Each must make someone curious enough to click, honestly: the cast must pay off what it promises. Shape: [{"elements": [ … ]}, …], each on the canvas 1000 × 750, y UP; everything above y 230 (a band runs across the bottom); the top-right corner (x > 700, y > 560) clear for a sticker. Elements, at most 10 per picture: {"id", "type": "icon", "of": "<keyword>", "set": "twemoji", "icon_look": "picture", "x", "y", "size": 220–330}; {"id", "type": "text", "text", "x", "y", "font_size": 60–260, "style": {"color"}}; "math" (tex, x, y, size 100–190); "path"/"shape" as in the spec; and the listing words as {"id", "type": "thumb", "kind": "band", "text": "<2–6 shouted words>"} (one band each) plus at most one {"type": "thumb", "kind": "stamp" | "note" | "star", "text", "x", "y", "angle"}.`;
+/** Appended to the cast-writing request when thumbnails are wanted: what to add, in the reply's own JSON — `n` of them (three for a signed-in author, one otherwise). */
+export function thumbnailRequestNote(n = THUMBNAIL_VARIANTS): string {
+  return `ALSO add a top-level "thumbnails" field beside the spec: ${n > 1 ? `${n} different listing pictures for the cast on drawcast.app's front page (about 280 px wide) and in link previews. The front page shows them in turn and keeps the one people click, so make them truly different — each with a different hook AND a different main picture: one the question with its surprising answer half-shown, one a single striking number, one a contrast or a mistake about to happen. Each must` : "ONE listing picture for the cast on drawcast.app's front page (about 280 px wide) and in link previews — the question with its surprising answer half-shown, one striking number, or a contrast. It must"} make someone curious enough to click, honestly: the cast must pay off what it promises. Shape: [{"elements": [ … ]}, …], each on the canvas 1000 × 750, y UP; everything above y 230 (a band runs across the bottom); the top-right corner (x > 700, y > 560) clear for a sticker. Elements, at most 10 per picture: {"id", "type": "icon", "of": "<keyword>", "set": "twemoji", "icon_look": "picture", "x", "y", "size": 220–330}; {"id", "type": "text", "text", "x", "y", "font_size": 60–260, "style": {"color"}}; "math" (tex, x, y, size 100–190); "path"/"shape" as in the spec; and the listing words as {"id", "type": "thumb", "kind": "band", "text": "<2–6 shouted words>"} (one band each) plus at most one {"type": "thumb", "kind": "stamp" | "note" | "star", "text", "x", "y", "angle"}.`;
+}
+
+/** Three, for the tests and the default. */
+export const THUMBNAIL_REQUEST_NOTE = thumbnailRequestNote();
 
 /** One reply value as a ready thumbnail page, or null when it is not a valid one. */
 function pageOf(raw: unknown, validate: (spec: Spec) => boolean): Spec | null {
