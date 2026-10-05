@@ -13,7 +13,8 @@ a mostly empty page.
 ## Principles
 
 1. **One page frame** — `src/layout/page.ts`: heading strip (y 660–750), content area
-   (x 60–940, y 160–660; up to 700 with no heading), caption band (y 0–160). Every module
+   (x 60–940, y 110–655 since 2026-10-05, was 160; up to 700 with no heading), caption band
+   (y 0–110, was 0–160 — see W30). Every module
    that needs these numbers imports them; no private copies.
 2. **A heading by default.** A page with no `card` command draws `spec.title` as the top
    heading (the same look as `card`, quick and unnarrated with the first ink). Escape hatch:
@@ -115,9 +116,9 @@ and a short line in the compiler prompt.
   by hand) or no commands (a preview, a unit figure), books, insets, a shown code pane, live `vars`, a
   template that lays out in (or is fitted/grown to) its box, a world larger than the page, a widget
   or interactive template, and any cast whose figure changes over the run in ways one layout cannot
-  show (animate, move, arrange, flip, morph, copy, ghost, trail, run, explore, step), a guess on a
-  scale (guess/handles.ts reads the scale's line from the spec), `{canvas: …}` in a command, a
-  camera aimed at numbers. Lints run before the move (they judge the layout as built).
+  show (animate, move, arrange, flip, morph, copy, ghost, trail, run, explore, step),
+  `{canvas: …}` in a command, a camera aimed at numbers. (A guess on a scale was on this list
+  until 2026-10-05; it settles now — W30.) Lints run before the move (they judge the layout as built).
 - Hatch: top-level `page: {valign: "center" | "top" | "none"}` (strict; `.cast` setting `page:`).
 - Not done: relaxing spacing inside laid-out groups; settling casts with moves/morphs (their
   boundary layouts carry poses, so a per-layout dy would jitter — it would need the base dy pinned
@@ -286,3 +287,38 @@ share the page, into the part of the content box nobody else uses.
   (1.5), which-is-heavier 1.2 (1), which-came-first 1 (1; the alone rule gave 1.2 and pushed its
   side words off the page), cleopatra-closer / how-loud-is-loud / most-spoken-languages 1 (off the
   frame / touching words / a chart over the page). Bundled example "What is more dangerous" (company erased before the cards): 1 → 1.05 with its icons (1.4 without).
+
+## W30 — less empty page at the bottom (built 2026-10-05)
+Hans on ants-on-earth: "quite a lot of vertical free space at the bottom … a general problem with
+many drawcast pages … not perfectly centralized, some white space below is fine, but this is too
+much". Three causes, three rules — none of them stretches what an author placed:
+- **The caption band is right-sized: `CAPTION_TOP` 160 → 110** (`FIT_BAND` and `contentBox()`
+  follow: y 110–655, 545 high). The overlaid caption (render/figure-style.ts) is 1.15rem × the
+  cast's text scale, line-height 1.35, 0.65rem padding, 0.4rem off the floor: two lines are 66 px
+  at text scale 1 and 82 px at 1.3. In canvas units that is px × 750 / stage height — measured
+  stages: 512 px (1280 × 720 window), 652 px (1440 × 860), 808 px (1920 × 1080), i.e. 62–120
+  units. 110 holds two lines at scale 1 on any stage ≥ 450 px tall and at scale 1.3 on ≥ 560 px;
+  the band was 160, about a fifth of the page held for words that take a tenth. A phone held
+  upright writes the words below the drawing; text under 85 still gets its own strip
+  (caption-dark.ts `CAPTION_STRIP_TWO`). The pie and size_compare templates' spelled-out copies of
+  the content area follow (data.yaml, compare.yaml). Note: the frames harness draws captions on
+  ~345 px tiles, where two lines cover ~180 units — it overstates the caption against the player.
+- **Settle sooner: `SETTLE_SLACK` 60 → 30.** 60 called ants' 0-above / 35-below "noise"; 30 is
+  about one row of tick numbers. The "already fills the page" rule follows (≥ 94 % of 545).
+- **Centred, not biased.** The content area already sits high (its centre 382 is 36 above the
+  middle of the room under the heading's underline, 693 … 0) — that is the optical lift, and the
+  overlaid caption fills part of the band while the voice runs. An extra upward bias would bring
+  the empty bottom back.
+- **A guess on a scale settles.** `guessSetup` hands `scaleHandle` the layout's `fit.settle`: the
+  handle's `scale` carries the settled line's `y` (so the pointer, hit-testing, marks, the reveal
+  and polls — every reader of `scaleGeometry(h.scale)` — meet the ink) and `scaleSettle` the
+  shift; `patchFor` writes the preview marker at the spec's line, since the preview layout
+  settles it by the same dy (tested: tests/settle.test.ts). Cards along a scale were already
+  moved by `settleCardsGeometry`.
+- Effect (node survey, 440 library quiz + bundled casts, no picture icons): 112 change, 59 newly
+  settled; on settled pages the median of (white below the figure − white above it under the
+  underline) 105 → 71. Browser frames: ants bottom/top white 195/38 → 153/80; earths-in-the-sun
+  187/50 → 155/82; Schooling and pay (binscatter) 162/11 → 123/50; the deck "Fruit or not?" 42 →
+  126 off the floor; Fish, coconuts (node) was 4 units off the canvas floor and now settles. Cards
+  centred or grown in the content area (eleven-oscars, Is it a fruit?) reach ~110–120.
+

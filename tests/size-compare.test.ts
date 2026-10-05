@@ -13,6 +13,7 @@ import { unionBBoxForId } from "../src/layout/boxes";
 import { heuristicMeasure } from "../src/layout/measure";
 import type { SceneLayout } from "../src/scenes/types";
 import { iconSlots } from "../src/spec/icon-data";
+import { CAPTION_TOP } from "../src/layout/page";
 
 beforeEach(() => {
   unregisterPack("compare");
@@ -79,7 +80,7 @@ describe("size_compare: arrangements", () => {
       const bb = box(l, id);
       expect(bb.x, id).toBeGreaterThanOrEqual(58);
       expect(bb.x + bb.w, id).toBeLessThanOrEqual(942);
-      expect(bb.y, id).toBeGreaterThanOrEqual(158);
+      expect(bb.y, id).toBeGreaterThanOrEqual(CAPTION_TOP - 2);
       expect(bb.y + bb.h, id).toBeLessThanOrEqual(662);
     }
   });
@@ -142,9 +143,11 @@ describe("size_compare: gap, count_fit, tiny and bleed", () => {
   });
 
   test("a thing too small to see is a dot with a ring, never enlarged", () => {
-    const l = run({ layout: "beside", items: [SUN, EARTH] });
-    expect(box(l, "earth_shape").w).toBeLessThan(5);
-    expect(leaves(l).some((d) => d.id === "earth_label__ring")).toBe(true);
+    // (The Moon: at the content area's height since 2026-10-05, y 110–655,
+    // the Sun is drawn ~480 wide and Earth, 1/109 of it, just clears 4.)
+    const l = run({ layout: "beside", items: [SUN, { name: "Moon", value: 3474, unit: "km" }] });
+    expect(box(l, "moon_shape").w).toBeLessThan(5);
+    expect(leaves(l).some((d) => d.id === "moon_label__ring")).toBe(true);
     const big = run({ layout: "beside", items: [SUN, { name: "Jupiter", value: 139820 }] });
     expect(leaves(big).some((d) => d.id.endsWith("__ring"))).toBe(false);
   });

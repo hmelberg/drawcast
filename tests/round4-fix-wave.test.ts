@@ -155,7 +155,8 @@ describe("market copy marks (fix wave item 4)", async () => {
   test("no shift while untouched, with shift: false, or after the question", () => {
     expect(guessMarks([h], [[0, 0]], 0, { asking: true }).texts).toEqual([]);
     expect(guessMarks([h], [[-10, -10]], 0, { asking: true, shift: false }).texts).toEqual([]);
-    expect(guessMarks([h], [[-10, -10]], 0).texts).toEqual([]);
+    // After the question only the copy's "You" tag is written.
+    expect(guessMarks([h], [[-10, -10]], 0).texts.map((t) => t.text)).toEqual(["You"]);
   });
 
   test("the copy is clipped to the plot area", () => {

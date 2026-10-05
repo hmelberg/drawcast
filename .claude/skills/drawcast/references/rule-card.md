@@ -249,6 +249,9 @@ Ask:
   Cards stand above their boxes (`arrange: "side"` / `"rise"` to change).
   The `question` is the headline over the figure: a full sentence naming
   the task ("Which of these animals are mammals? Tap every mammal.").
+  When the page heading already asks it, `question` gives only the task
+  ("Click on the line where you think it is.") and the line before asks it
+  once: the heading stays the headline, the voice asks once.
 - Answer on the figure: options that are DRAWN things (bags, doors, bars,
   a group) → `choose: ["door1", "door2"]` (+ `answer` to judge, or
   `judge: false`; `{id, goto}` + `then` to branch), not decide cards. A

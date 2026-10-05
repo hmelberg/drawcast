@@ -1,5 +1,5 @@
 How many ants are alive on Earth right now?
-[ASK] How many ants live on Earth? Click on the line: each step is ten times the last.
+[ASK] Click on the line where you think it is: each step is ten times the last.
   [right] Close: you said {a}, and it is about {a.true}.
   [wrong] You said {a}. It is about {a.true}.
 That is twenty thousand trillion, or twenty quadrillion: a two followed by sixteen zeros.

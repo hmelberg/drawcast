@@ -30,7 +30,10 @@ describe("binscatter in the page frame", () => {
     const e = (examples as { spec?: Spec }[]).find((x) => x.spec?.template === "binscatter")!;
     const l = layoutSpec(expandSpec(e.spec!));
     const f = l.frame!;
-    const toY = (v: number) => f.box.y0 + ((v - f.y[0]) / (f.y[1] - f.y[0])) * (f.box.y1 - f.box.y0);
+    // The frame is the template's own; a settled page (layout/settle.ts)
+    // moved the ink by fit.settle, which the data mapping carries.
+    const settle = l.fit?.settle ?? 0;
+    const toY = (v: number) => f.box.y0 + ((v - f.y[0]) / (f.y[1] - f.y[0])) * (f.box.y1 - f.box.y0) + settle;
     const toX = (v: number) => f.box.x0 + ((v - f.x[0]) / (f.x[1] - f.x[0])) * (f.box.x1 - f.box.x0);
     // The spread bar stands at 5.75 years-of-schooling units, around the fit there.
     const [a, b] = pts(l, "spread");

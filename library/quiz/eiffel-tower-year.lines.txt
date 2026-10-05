@@ -1,5 +1,5 @@
 Paris without the Eiffel Tower is hard to picture. But when was it finished?
-[ASK] In what year was the Eiffel Tower finished? Click on the line.
+[ASK] Click on the line where you think it is.
   [right] Close: you said {y}, and it was {y.true}.
   [wrong] You said {y}; it was {y.true}.
 It opened in 1889, for the World's Fair, a hundred years after the French Revolution began.

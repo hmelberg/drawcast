@@ -1962,8 +1962,15 @@ input.cs-formula-field.invalid { color: #3d3833; border-color: #b5482e; backgrou
   animation: none;
 }
 .cs-gatehead > .cs-gatehead-how.cs-figgate-next { animation: gatedock-next 0.45s ease-out; }
+/* The page's heading already asks the question (Hans 2026-10-05): it stays
+   the one headline, and only the task stands under its underline, small. */
+.cs-gatehead.cs-gatehead-task > .cs-gatehead-how {
+  margin-top: 0;
+  text-shadow: 0 0 4px var(--paper, #f5f1e6), 0 0 8px var(--paper, #f5f1e6);
+}
 /* The caption would only repeat the question the headline already shows. */
-.cs-stage.cs-headline .cs-caption { visibility: hidden; }
+.cs-stage.cs-headline .cs-caption,
+.cs-stage.cs-gatetask .cs-caption { visibility: hidden; }
 .cs-stage.cs-headline :is([data-leaf-id^="card_"][data-leaf-id$="_title"], [data-leaf-id^="card_"][data-leaf-id$="_line"]) {
   opacity: 0 !important;
   transition: opacity 0.3s ease;

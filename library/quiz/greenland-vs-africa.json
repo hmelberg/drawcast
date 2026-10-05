@@ -132,7 +132,7 @@
    },
    {
     "ask": {
-     "question": "Africa is drawn. How big is Greenland? Drag its bar to your guess.",
+     "question": "Africa is drawn. Drag Greenland's bar to your guess.",
      "on": "bar_2",
      "store": "g",
      "default": "20",

@@ -40,6 +40,7 @@ import { confidenceBoxes } from "../guess/confidence";
 import { pollPlan } from "../guess/poll";
 import { animatableVars } from "../spec/vars";
 import { foldVerbDuration } from "../spec/verb-duration";
+import { taskBeside } from "../spec/question-echo";
 
 /**
  * One operation on a book's text pane (spec 2026-10-01-book-layout §4.2). The
@@ -783,7 +784,12 @@ export function planCommands(commandsIn: Command[] | undefined, allIds: string[]
   /** Voice/delivery hints for currentNarration — travel together, always. */
   let currentNarrationSpeaker: "a" | "b" | undefined;
   let currentNarrationDelivery: Delivery | undefined;
+  /** The last line the voice said (a step's narration or a speak): an ask
+   *  that only restates it says its task alone (spec/question-echo.ts). */
+  let lastSaid: string | undefined;
   const pushStep = (step: PlanStep) => {
+    if (step.kind === "speak") lastSaid = step.text;
+    else if (currentNarration !== undefined) lastSaid = currentNarration;
     if (currentNarration !== undefined && step.kind !== "speak") {
       step = {
         ...step,
@@ -1648,7 +1654,14 @@ export function planCommands(commandsIn: Command[] | undefined, allIds: string[]
       // say_question: false — the line before said it (on-canvas quiz buttons):
       // only a paired speak or the intro is narrated.
       const sayQuestion = cmd.ask.say_question !== false;
-      if (currentNarration === undefined && sayQuestion) currentNarration = cmd.ask.question;
+      if (currentNarration === undefined && sayQuestion) {
+        // Said once (Hans 2026-10-05): a question the page's heading or the
+        // line just spoken already asks says only its task, or nothing.
+        const heading = [...visibleSet].filter((id) => /^card_\d+_title$/.test(id)).map((id) => opts.labelOf?.(id) ?? null).filter((t): t is string => !!t).at(-1);
+        const task = taskBeside(cmd.ask.question, heading, lastSaid);
+        const said = task === null ? cmd.ask.question : task;
+        if (said.trim() !== "") currentNarration = said;
+      }
       if (cmd.ask.intro) currentNarration = currentNarration === undefined ? cmd.ask.intro : `${cmd.ask.intro} ${currentNarration}`;
       // The drag widget: each item is an element of the figure (its box; shown
       // when the question ends), a piano note or a chess square. What nothing

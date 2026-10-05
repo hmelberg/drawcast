@@ -1,7 +1,7 @@
 // What an estimate slider's guess leaves (spec/slider.ts, W15): the slider's
 // own thumb and counter run from your guess to the truth (the reveal's
 // values), while your thumb stays where you put it — blue, faded — with your
-// number over it, and a bracket under the track spans the gap, written in
+// number and a "You" tag over it, and a bracket under the track spans the gap, written in
 // ink. Pure: guess/reveal.ts (beside) and guess/marks.ts (morph, a ghost)
 // call it for a handle on a slider.
 
@@ -9,7 +9,7 @@ import type { Pt } from "../layout/model";
 import { INK } from "../layout/model";
 import { scaleGeometry, type ScaleGeometry } from "../spec/scale";
 import { circlePts, isSlider, sliderTickY, THUMB_R } from "../spec/slider";
-import { GUESS_COLOR } from "./color";
+import { GUESS_COLOR, YOU_SIZE, youWord } from "./color";
 import type { GuessHandle } from "./handles";
 import { ratioText, signedScale, type GuessMarkLine, type GuessMarkText } from "./marks";
 
@@ -71,9 +71,10 @@ export function sliderMarks(
   const xt = g.xAt(truth);
   // Your number over your thumb — once the truth's thumb has left it.
   const xNow = g.xAt(sliderRevealValue(guess, truth, p));
-  if (Math.abs(xNow - x) > THUMB_R * 2.2 || p <= 0) {
-    texts.push({ at: [x, g.y + THUMB_R + 24], text: g.format(guess), anchor: "middle", color: YOURS, size: MINE_SIZE, opacity: fade });
-  }
+  const mine = Math.abs(xNow - x) > THUMB_R * 2.2 || p <= 0;
+  if (mine) texts.push({ at: [x, g.y + THUMB_R + 24], text: g.format(guess), anchor: "middle", color: YOURS, size: MINE_SIZE, opacity: fade });
+  // "You" over your thumb (over your number when it is written) — the tag it carried while asked.
+  texts.push({ at: [x, g.y + THUMB_R + (mine ? 58 : 16)], text: youWord(), anchor: "middle", color: YOURS, size: YOU_SIZE, opacity: fade * (opts.dashed ? 0.75 : 1) });
   if (p > 0 && Math.abs(xt - x) > 4) {
     const x1 = x + (xt - x) * ease(p);
     const by = sliderBracketY(g);

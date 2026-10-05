@@ -14,6 +14,7 @@
 // truth, your thumb stays faded, the gap is bracketed.
 
 import { INK } from "../layout/model";
+import { GUESS_COLOR, YOU_SIZE, youWord } from "../guess/color";
 import type { Spec, SpecElement, AskArgs } from "./types";
 import { scaleGeometry, scaleTickLabels, type ScaleElementLike, type ScaleGeometry } from "./scale";
 
@@ -92,12 +93,16 @@ export function sliderLineElements(sc: ScaleElementLike, keep: Partial<SpecEleme
 /** The thumb and the counter at value v: `<id>_answer` and its two members. */
 export function sliderValueElements(sc: ScaleElementLike, v: number): SpecElement[] {
   const g = scaleGeometry(sc);
-  const color = sc.style?.color ?? INK;
+  // The viewer's thumb and counter (a guess's read-back, sc.yours) in their blue, the thumb tagged "You".
+  const color = sc.yours ? GUESS_COLOR : (sc.style?.color ?? INK);
   const [cx, cy] = counterAt(g);
+  const x = g.xAt(v);
+  const tag: SpecElement[] = sc.yours ? [{ id: `${sc.id}_answer_you`, type: "text", text: youWord(), x, y: g.y + THUMB_R + 16, font_size: YOU_SIZE, style: { color } }] : [];
   return [
-    { id: `${sc.id}_answer_pin`, type: "path", points: circlePts(g.xAt(v), g.y, THUMB_R), closed: true, style: { color, fill: color, fill_style: "wash" } },
+    { id: `${sc.id}_answer_pin`, type: "path", points: circlePts(x, g.y, THUMB_R), closed: true, style: { color, fill: color, fill_style: "wash" } },
     { id: `${sc.id}_answer_num`, type: "text", text: g.format(v), x: cx, y: cy, font_size: COUNTER_SIZE, style: { color } },
-    { id: `${sc.id}_answer`, type: "group", members: [`${sc.id}_answer_pin`, `${sc.id}_answer_num`] },
+    ...tag,
+    { id: `${sc.id}_answer`, type: "group", members: [`${sc.id}_answer_pin`, `${sc.id}_answer_num`, ...tag.map((e) => e.id)] },
   ];
 }
 

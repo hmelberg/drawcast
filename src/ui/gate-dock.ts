@@ -22,6 +22,7 @@
 
 import { h } from "./dom";
 import { CONTENT_TOP, PAGE_H } from "../layout/page";
+import { taskBeside } from "../spec/question-echo";
 
 export interface GateDock {
   /** The row; append buttons to it. */
@@ -45,6 +46,8 @@ const NARROW_PX = 480;
 /** On the stage while a headline stands: a title card's heading stands aside (styles.css). */
 const HEADLINE = "cs-headline";
 const HEAD_FADE_MS = 300;
+/** On the stage while a task line stands under the page's heading: the caption steps aside (styles.css). */
+const TASKLINE = "cs-gatetask";
 
 /** The question over the figure (round 7 §8.1) and how to answer it. */
 export interface GateHead {
@@ -52,6 +55,9 @@ export interface GateHead {
   question: string;
   /** The gate's hint: small, under the question; the gate keeps it live. */
   how: HTMLElement;
+  /** The page's heading text (null: none); absent — read off the stage
+   *  (stageHeading). A question it already asks shows only its task. */
+  heading?: string | null;
 }
 
 /** The share of the drawing's height above the content area (page.ts): the
@@ -88,6 +94,9 @@ export interface GateHeadMount {
    *  for it now (px). Returns whether the how line stays in it, and how far
    *  (px) it overruns the strip even at its least size. */
   relayout(over?: boolean, shift?: number): { how: boolean; overrun: number };
+  /** False: the page's heading asks the question and stays; only the task
+   *  line stands under it (no headline; the heading stays). */
+  headline: boolean;
   height(): number;
   dispose(): void;
 }
@@ -102,7 +111,16 @@ export function mountGateHead(stage: HTMLElement, head: GateHead): GateHeadMount
   if (head.question.trim() === "") return null;
   head.how.classList.remove("cs-waitgate-pill");
   head.how.classList.add("cs-gatehead-how");
+  // The page's heading is the one stable headline (Hans 2026-10-05): a
+  // question it already asks adds only its task, under it.
+  const heading = head.heading === undefined ? stageHeading(stage) : head.heading === null ? null : { text: head.heading, el: null, line: null };
+  const task = heading ? taskBeside(head.question, heading.text) : null;
+  if (heading && task !== null) return mountTaskLine(stage, head, task, heading);
   const q = h("div", { class: "cs-gatehead-q", title: head.question }, head.question);
+  // In the cast's own hand, at the heading's size: the heading line changes
+  // its words, not its style.
+  const look = textLook(stage, heading?.el ?? null);
+  if (look.family) q.style.fontFamily = look.family;
   const el = h("div", { class: "cs-gatehead" }, q, head.how);
   stage.appendChild(el);
   stage.classList.add(HEADLINE);
@@ -130,12 +148,14 @@ export function mountGateHead(stage: HTMLElement, head: GateHead): GateHeadMount
     const top = svgBox ? svgBox.top - stage.getBoundingClientRect().top - shift : 0;
     el.style.top = `${Math.max(0, top) + 6}px`;
     const room = svgBox && svgBox.height > 0 ? svgBox.height * HEAD_STRIP - 6 + shift : Infinity;
+    // A heading on the page: the question takes its size (it stands in its place).
+    const max = heading?.el ? Math.max(HEAD_FONT_MIN, Math.min(HEAD_FONT_TOP, textLook(stage, heading.el).px ?? HEAD_FONT_MAX)) : HEAD_FONT_MAX;
     const fit = fitHeadline(room, (f, how) => {
       q.style.fontSize = `${f}px`;
       if (how && head.how.parentNode !== el) el.appendChild(head.how);
       if (!how && head.how.parentNode === el) head.how.remove();
       return el.offsetHeight;
-    });
+    }, max);
     q.style.fontSize = `${fit.fontPx}px`;
     if (!fit.how && head.how.parentNode === el) head.how.remove();
     setHow(fit.how);
@@ -143,6 +163,7 @@ export function mountGateHead(stage: HTMLElement, head: GateHead): GateHeadMount
   };
   relayout();
   return {
+    headline: true,
     relayout,
     height: () => (gone ? 0 : el.offsetHeight + 6),
     dispose: () => {
@@ -151,6 +172,120 @@ export function mountGateHead(stage: HTMLElement, head: GateHead): GateHeadMount
       // A newer question's headline may stand already: the stage's class is its.
       const newer = stage.querySelector(".cs-gatehead");
       if (newer === null || newer === el) stage.classList.remove(HEADLINE);
+      el.classList.add("cs-gatehead-out");
+      setTimeout(() => el.remove(), HEAD_FADE_MS);
+    },
+  };
+}
+
+/** The headline's largest size beside a heading: about a heading's own. */
+const HEAD_FONT_TOP = 34;
+/** Under the heading's underline, as a share of the drawing's height from its
+ *  top (no heading box to read): the underline sits near y 695 (spec/card.ts). */
+const UNDER_HEADING = (PAGE_H - 690) / PAGE_H;
+
+interface StageHeading {
+  text: string;
+  /** The heading's text leaf and its underline on the stage (null: told, not found). */
+  el: Element | null;
+  line: Element | null;
+}
+
+/** Shown: nothing on the way up to the drawing hides it (an undrawn or erased leaf). */
+function shownOnStage(el: Element): boolean {
+  for (let n: Element | null = el; n && !(n.tagName?.toLowerCase() === "svg"); n = n.parentElement) {
+    const st = (n as HTMLElement).style;
+    if (st && (st.visibility === "hidden" || st.display === "none" || st.opacity === "0")) return false;
+  }
+  if (typeof getComputedStyle === "function") {
+    const cs = getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none") return false;
+  }
+  return true;
+}
+
+/**
+ * The page's heading on the stage now: a card's (or the default) heading,
+ * `card_<n>_title`, drawn and not erased. Null when the page has none.
+ */
+export function stageHeading(stage: HTMLElement): StageHeading | null {
+  if (typeof stage.querySelectorAll !== "function") return null;
+  const all = [...stage.querySelectorAll('svg.cs-svg [data-leaf-id^="card_"][data-leaf-id$="_title"]')].reverse();
+  for (const el of all) {
+    const id = el.getAttribute("data-leaf-id") ?? "";
+    if (!/^card_\d+_title$/.test(id) || !shownOnStage(el)) continue;
+    const t = el.tagName.toLowerCase() === "text" ? el : el.querySelector("text") ?? el;
+    const text = (t.textContent ?? "").replace(/\s+/g, " ").trim();
+    if (text === "") continue;
+    const line = stage.querySelector(`svg.cs-svg [data-leaf-id="${id.replace(/_title$/, "_line")}"]`);
+    return { text, el, line };
+  }
+  return null;
+}
+
+/** The cast's text style on the stage: its font family (the heading's, else
+ *  any text's) and the heading's drawn size (px). */
+function textLook(stage: HTMLElement, headingEl: Element | null): { family?: string; px?: number } {
+  if (typeof stage.querySelector !== "function") return {};
+  const pick = (n: Element | null): Element | null => (n ? (n.tagName.toLowerCase() === "text" ? n : n.querySelector("text")) : null);
+  const t = pick(headingEl) ?? stage.querySelector("svg.cs-svg text[font-family]");
+  if (!t) return {};
+  const family = t.getAttribute("font-family") ?? undefined;
+  let px: number | undefined;
+  const fs = parseFloat(t.getAttribute("font-size") ?? "");
+  const svg = stage.querySelector<SVGSVGElement>("svg.cs-svg");
+  const vbH = svg?.viewBox?.baseVal?.height;
+  const svgH = svg?.getBoundingClientRect().height;
+  if (headingEl && Number.isFinite(fs) && vbH && svgH) px = (fs * svgH) / vbH;
+  return { ...(family ? { family } : {}), ...(px !== undefined ? { px } : {}) };
+}
+
+/**
+ * The heading already asks the question: it stays, and the ask shows only
+ * its task, small, under the heading's underline — in place of the gate's
+ * own hint (which comes back while the gate says something else, a budget
+ * or "then Done"). No task: the gate's hint, there. Takes no height.
+ */
+function mountTaskLine(stage: HTMLElement, head: GateHead, task: string, heading: StageHeading): GateHeadMount {
+  const el = h("div", { class: "cs-gatehead cs-gatehead-task" }, head.how);
+  stage.appendChild(el);
+  // The caption would only repeat the task the line shows (styles.css).
+  stage.classList.add(TASKLINE);
+  const generic = head.how.textContent ?? "";
+  const swap = (): void => {
+    if (task === "" || head.how.textContent !== generic) return;
+    head.how.textContent = task;
+    head.how.setAttribute("title", task);
+  };
+  swap();
+  const mo = task !== "" && typeof MutationObserver === "function" ? new MutationObserver(swap) : null;
+  mo?.observe(head.how, { childList: true, characterData: true, subtree: true });
+  let gone = false;
+  const relayout = (): { how: boolean; overrun: number } => {
+    if (gone) return { how: true, overrun: 0 };
+    if (head.how.parentNode !== el) el.appendChild(head.how);
+    const stageTop = stage.getBoundingClientRect().top;
+    const boxes = [heading.el, heading.line].filter((n): n is Element => n !== null).map((n) => n.getBoundingClientRect()).filter((b) => b.height > 0);
+    let top: number;
+    if (boxes.length > 0) top = Math.max(...boxes.map((b) => b.bottom)) - stageTop + 4;
+    else {
+      const svgBox = stage.querySelector<SVGSVGElement>("svg.cs-svg")?.getBoundingClientRect();
+      top = svgBox ? svgBox.top - stageTop + svgBox.height * UNDER_HEADING : 0;
+    }
+    el.style.top = `${Math.max(0, Math.round(top))}px`;
+    return { how: true, overrun: 0 };
+  };
+  relayout();
+  return {
+    headline: false,
+    relayout,
+    height: () => 0,
+    dispose: () => {
+      if (gone) return;
+      gone = true;
+      mo?.disconnect();
+      const newer = stage.querySelector(".cs-gatehead");
+      if (newer === null || newer === el) stage.classList.remove(TASKLINE);
       el.classList.add("cs-gatehead-out");
       setTimeout(() => el.remove(), HEAD_FADE_MS);
     },
@@ -198,7 +333,7 @@ export function mountGateDock(stage: HTMLElement, gate: HTMLElement, items: HTML
     el.classList.toggle("cs-gatedock-narrow", narrow);
     if (stage.classList.contains(DOCKED_NARROW) !== narrow) stage.classList.toggle(DOCKED_NARROW, narrow);
     const mode = stage.classList.contains("cs-caption-strip") ? "strip" : stage.classList.contains("cs-caption-below") ? "below" : "overlay";
-    // A headline hides the caption (styles.css): it takes no height then.
+    // A headline or a task line hides the caption (styles.css): it takes no height then.
     const captionH = caption && !top ? caption.getBoundingClientRect().height : 0;
     const stageH = stage.getBoundingClientRect().height;
     const svgH = svg ? svg.getBoundingClientRect().height + shrink : 0;

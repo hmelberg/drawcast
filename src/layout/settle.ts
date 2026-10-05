@@ -29,14 +29,24 @@ import type { Drawable, Pt } from "./model";
 import type { Spec } from "../spec/types";
 import type { CardsGeometry } from "../spec/cards";
 import { shiftDrawables } from "./place";
-import { authoredScales } from "../spec/scale";
 
 /** Gaps more uneven than this (logical units) are settled; less is noise.
- *  It is also the "already fills the page" rule: a figure within 60 of the
- *  content area's height (≥ 88 % of it) has no gaps that uneven. A separate
- *  85 % cut was tried and left three quiz pages with their cards touching
- *  the heading (gaps above / below 2 / 69, −13 / 77) as they were. */
-export const SETTLE_SLACK = 60;
+ *  It is also the "already fills the page" rule: a figure within 30 of the
+ *  content area's height (≥ 94 % of its 545) has no gaps that uneven. A
+ *  separate 85 % cut was tried and left three quiz pages with their cards
+ *  touching the heading (gaps above / below 2 / 69, −13 / 77) as they were.
+ *  Was 60 until 2026-10-05: ants-on-earth kept its figure tight under the
+ *  heading with 35 spare below it (+ the caption band) — a visible lean
+ *  that the old slack called noise. 30 is about one line of tick numbers:
+ *  an imbalance under it does not read as one.
+ *
+ *  Centred, not biased: the content area itself already sits high on the
+ *  page (its centre, 382, is 36 above the middle of the room under the
+ *  heading's underline, 693 … 0, because the caption band below is taller
+ *  than the heading's gap above) — that is the optical lift, and the
+ *  overlaid caption fills part of the band while the narration runs. A
+ *  further upward bias would bring back the empty bottom this fixes. */
+export const SETTLE_SLACK = 30;
 /** What the figure keeps between itself and something pinned to the page. */
 const PINNED_GAP = 10;
 
@@ -114,11 +124,9 @@ export function settleBlocker(
     const verb = MOVING_VERBS.find((v) => (cmd as Record<string, unknown>)[v] !== undefined);
     if (verb) return `a ${verb} command`;
   }
-  const scales = new Set(authoredScales(spec).map((sc) => sc.id));
+  // (A guess on a scale settles with the page: its handle carries the line
+  // where the layout drew it — guess/handles.ts scaleHandle, from fit.settle.)
   for (const cmd of commands) {
-    // A guess on a scale reads the scale's line from the spec, not the
-    // layout (guess/handles.ts scaleHandle): it would miss the moved line.
-    if (([] as unknown[]).concat(cmd.ask?.on ?? []).some((id) => typeof id === "string" && scales.has(id))) return "a guess on a scale";
     // Canvas units the plan does not map (`{canvas: [x, y]}`), and a camera
     // aimed at numbers rather than at a part.
     if (JSON.stringify(cmd).includes('"canvas":')) return "canvas coordinates in a command";

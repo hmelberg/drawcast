@@ -8,7 +8,7 @@
 //         │                              │
 //         │   content: the figure        │  x 60 … 940 (MARGIN)
 //         │                              │
-//   y 160 ├──────────────────────────────┤  CAPTION_TOP
+//   y 110 ├──────────────────────────────┤  CAPTION_TOP
 //         │   caption band (narration)   │  HTML captions may lie over it
 //   y   0 └──────────────────────────────┘
 //
@@ -39,8 +39,19 @@ export const CONTENT_TOP = 655;
 /** Top of the content area on a page with no heading. */
 export const CONTENT_TOP_BARE = 700;
 /** Bottom of the content area: below it the narration's captions may lie
- *  over the canvas (render/caption-place.ts strip and overlay modes). */
-export const CAPTION_TOP = 160;
+ *  over the canvas (render/caption-place.ts overlay mode). Sized for TWO
+ *  overlay lines (render/figure-style.ts .cs-caption: 1.15rem × the cast's
+ *  text scale, line-height 1.35, 0.65rem padding, 0.4rem off the floor —
+ *  66 px at text scale 1, 82 px at 1.3) on the stages the player actually
+ *  gets: 750 / stage-px canvas units a px, so 110 holds two lines at scale 1
+ *  on a stage down to 450 px tall and at scale 1.3 down to 560 px (a
+ *  1440 × 860 window gives a 652 px stage: 76 / 94 units). Was 160 until
+ *  2026-10-05 — about a fifth of the page held back for words that take a
+ *  tenth (Hans: "after everything is put on the screen there is still a
+ *  lot" of space at the bottom). A phone held upright puts the words BELOW
+ *  the drawing; text the viewer must read under 85 gets its own strip
+ *  (render/caption-dark.ts CAPTION_STRIP_TWO). */
+export const CAPTION_TOP = 110;
 
 /** Between two figures that share the content area (the named regions'
  *  halves, the code/figure split, a chart beside its drawing). */
@@ -56,6 +67,7 @@ export function contentBox(opts: { heading?: boolean } = {}): BBox {
 /** The band figures are fitted into (regions.ts "full" and its halves, a
  *  chart beside a drawing, the code/figure split, the inset page's main box,
  *  scratch corners): the content area's height, clear of the caption band
- *  below and the heading strip above. Was y 95–655 until 2026-10-04: a
- *  fitted chart's floor sat under the captions. */
+ *  below and the heading strip above. Was y 95–655 until 2026-10-04 (a
+ *  fitted chart's floor sat under the captions), 160–655 until 2026-10-05
+ *  (the caption band right-sized, CAPTION_TOP). */
 export const FIT_BAND: Readonly<{ y: number; h: number }> = Object.freeze({ y: CAPTION_TOP, h: CONTENT_TOP - CAPTION_TOP });

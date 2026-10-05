@@ -943,7 +943,9 @@ export const ACTIVITY_QUESTIONS = 5;
 export const ACTIVITY_IDS = ["square_quiz", "openings_drill", "vs_computer", "note_quiz", "ear_key", "staff_find", "staff_name", "ear_staff", "element_quiz", "group_quiz", "parts_quiz"] as const;
 
 export interface AskArgs {
-  /** The question, spoken aloud and shown as the caption (a paired speak overrides the spoken line). */
+  /** The question, spoken aloud and shown over the figure (a paired speak
+   *  overrides the spoken line). One the page heading or the line before
+   *  already asks shows and says only its task (spec/question-echo.ts). */
   question: string;
   /** Spoken introduction, prepended to the question line — lives INSIDE the
    *  element so skipping the question skips its introduction with it. */

@@ -10,14 +10,15 @@
 // Both are drawn in an overlay of the gate; nothing here touches the figure.
 
 import { CANVAS } from "../layout/canvas";
+import { GUESS_COLOR } from "../guess/color";
 import { scaleGeometry } from "../spec/scale";
 import type { GuessHandle } from "../guess/handles";
 import { pointFor } from "../guess/handles";
 import { clientPointFor } from "./dom";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-/** The scale's own marker colour (spec/scale.ts ACCENT) when it names none. */
-const ACCENT = "#b5482e";
+/** The ghost is where YOUR pin would go: the viewer's colour (guess/color.ts), as the pin is drawn while asked. */
+const ACCENT = GUESS_COLOR;
 
 export interface GuessHover {
   /** The faded marker of a scale handle at the value under logical point `p`. */
@@ -106,7 +107,7 @@ export function mountGuessHover(stage: HTMLElement, host: HTMLElement): GuessHov
       const x = sg.xAt(v);
       // Logical y-up → the svg's y-down, as the figure draws its marker.
       const y = (ly: number): number => CANVAS.h - ly;
-      const color = g.scale.style?.color ?? ACCENT;
+      const color = ACCENT;
       const size = sg.sizes?.answer ?? 28;
       pin.setAttribute("d", `M${x - 10} ${y(sg.y + 30)} L${x + 10} ${y(sg.y + 30)} L${x} ${y(sg.y + 6)} Z`);
       pin.setAttribute("fill", color);
