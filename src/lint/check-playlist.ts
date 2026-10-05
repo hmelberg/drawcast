@@ -6,6 +6,7 @@
 import { itemsOf, type Playlist } from "../playlist/playlist";
 import { validateSpec } from "../spec/schema";
 import { layoutAsSeen } from "./at-scale";
+import { settledIssues } from "./moved";
 import { expandSpec } from "../spec/expand";
 import { heuristicMeasure, type MeasureFn } from "../layout/measure";
 import { lintCommands, questionNames, type LintIssue } from "./lint";
@@ -37,7 +38,7 @@ export function checkPlaylistItems(playlist: Playlist, measure: MeasureFn = heur
     }
     try {
       const expanded = expandSpec(item.spec);
-      const found = [...layoutAsSeen(expanded, measure).issues, ...lintCommands(expanded, { knownVars: known, questionOffset: offset })];
+      const found = [...settledIssues(expanded, measure, layoutAsSeen(expanded, measure)), ...lintCommands(expanded, { knownVars: known, questionOffset: offset })];
       lintIssues.push(...found.map((i) => ({ ...i, item: item.index })));
       for (const q of questionNames(item.spec)) if (q.store) known.add(q.store.toLowerCase());
       offset += questionCount(item.spec);

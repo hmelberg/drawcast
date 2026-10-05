@@ -17,7 +17,7 @@ import type { MeasureFn } from "../layout/measure";
 import type { Turn } from "../render/pose";
 
 /** The rules whose verdict depends on where an element stands. */
-const PLACED = new Set<LintIssue["rule"]>(["out-of-canvas", "overlap-label-label", "overlap-label-stroke", "overlap-math-stroke", "overlap-math-label"]);
+export const PLACED = new Set<LintIssue["rule"]>(["out-of-canvas", "overlap-label-label", "overlap-label-stroke", "overlap-math-stroke", "overlap-math-label"]);
 
 export interface Poses {
   offsets: Record<string, Pt>;
