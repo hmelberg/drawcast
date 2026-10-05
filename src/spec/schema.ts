@@ -1462,6 +1462,11 @@ export const specSchema = {
       description: 'valign: "center" (default) evens the space above and below the figure; "top"; "none". checks: keep or clear every check\'s own visuals after its answer (a quiz keeps).',
     },
     end_page: { type: "boolean", description: "Machine-written; never write it." },
+    role: {
+      type: "string",
+      enum: ["thumbnail"],
+      description: "thumbnail: the cast's listing picture, never played.",
+    },
     zoom_from: {
       type: "string",
       description:

@@ -11,7 +11,7 @@
 import { castCardText } from "../../netlify/lib/share-card.mts";
 import { cornerSlots, kidsByTags, planThumb, type Corner } from "../../netlify/lib/thumb.mts";
 import { leafDrawables, type Drawable } from "../layout/model";
-import { parsePlaylistText, posterItemOf } from "../playlist/playlist";
+import { parsePlaylistText, posterItemOf, thumbnailItemOf } from "../playlist/playlist";
 import { render } from "../render";
 import { iconNameOfHref } from "../spec/icon-data";
 import { decodePts, encodePts } from "./points";
@@ -276,7 +276,9 @@ export function headlineCard(text: string): CardResult {
 export async function compileCard(text: string, opts: { private?: boolean } = {}): Promise<CardResult | null> {
   if (opts.private) return headlineCard(text);
   const playlist = parsePlaylistText(text);
-  const item = posterItemOf(playlist);
+  // A thumbnail page the author (or the AI) wrote wins over the poster frame.
+  const own = thumbnailItemOf(playlist);
+  const item = own ?? posterItemOf(playlist);
   if (!item) return null;
   const host = document.createElement("div");
   host.style.cssText = `position:fixed;left:-10000px;top:0;width:${CARD_W}px;height:${CARD_H}px`;

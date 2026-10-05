@@ -5,7 +5,8 @@
 // roughOpts), so a card looks the same on every visit. The marks over it are
 // thumb.mts's own, so a card matches the server-drawn listing pictures.
 
-import { RoughGenerator } from "roughjs/bin/generator";
+import rough from "roughjs";
+import type { RoughGenerator } from "roughjs/bin/generator";
 import type { Options as RoughOptions } from "roughjs/bin/core";
 import { thumbSvg, type Corner } from "../../netlify/lib/thumb.mts";
 import { decodePts } from "./points";
@@ -15,7 +16,8 @@ const PAPER = "#fffdf7";
 const SKETCH_FONT = "'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive";
 const HEAD = 13;
 
-const gen = new RoughGenerator();
+// roughjs's own entry (as render/svg-backend.ts imports it): it loads in node too.
+const gen: RoughGenerator = rough.generator();
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

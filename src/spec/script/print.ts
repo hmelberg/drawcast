@@ -27,7 +27,7 @@ function phraseRef(ref: string): boolean {
 export const SETTING_ORDER: [keyof Spec, string][] = [
   ["lang", "lang"], ["voice", "voice"], ["level", "level"], ["record", "record"], ["feedback", "feedback"], ["affirm", "affirm"],
   ["heading", "heading"], ["page", "page"], ["canvas", "canvas"], ["domain", "domain"], ["vars", "vars"], ["text", "text"],
-  ["zoom_from", "zoom_from"], ["book", "book"], ["template", "use"], ["params", "with"], ["adjust", "adjust"], ["details", "details"], ["sources", "sources"], ["more", "more"], ["end_page", "end_page"],
+  ["zoom_from", "zoom_from"], ["book", "book"], ["template", "use"], ["params", "with"], ["adjust", "adjust"], ["details", "details"], ["sources", "sources"], ["more", "more"], ["end_page", "end_page"], ["role", "role"],
 ];
 
 /** Written by machines, read by nobody: they print last, so the readable part

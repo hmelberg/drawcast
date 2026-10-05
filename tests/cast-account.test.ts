@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { setPublishesCast } from "../src/cast-file";
-import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist } from "../src/playlist/playlist";
+import { formatPlaylist, itemsOf, parsePlaylistText, singlePlaylist, thumbnailItemOf } from "../src/playlist/playlist";
 import { formatSpec } from "../src/spec/text";
 import {
   boundedFetch,
@@ -724,6 +724,14 @@ describe("packedCastText (2026-10-03): a cast's one-line subtitle reaches its pu
   it("without one (missing, blank, not a string): the bare spec, exactly as before", () => {
     for (const w of [{ spec }, { spec, subtitle: "   " }, { spec, subtitle: 42 }]) {
       expect(packedCastText(w, "yaml", lib)).toBe(formatSpec(spec, "yaml"));
+    }
+  });
+  it("a thumbnail spec beside the cast's becomes its last page, role: thumbnail, never played (2026-10-05)", () => {
+    const thumbnail = { elements: [{ id: "t2", type: "text", text: "Why vaccines work", x: 500, y: 700 }] };
+    for (const format of ["yaml", "script"] as const) {
+      const p = parsePlaylistText(packedCastText({ spec, thumbnail }, format, lib));
+      expect(itemsOf(p)).toHaveLength(1);
+      expect(thumbnailItemOf(p)!.spec.elements![0].id).toBe("t2");
     }
   });
   it("cast.mjs pack writes it", async () => {

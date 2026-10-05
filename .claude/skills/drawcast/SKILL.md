@@ -128,6 +128,25 @@ every working file below is `dev-casts/<slug>…`.
    (`cast.mjs pack` puts them in the published file's header; the line may
    also carry `title "…"`, a listing title of its own). A course needs none per lecture:
    its card's line is the first paragraph under the title in `course.md`.
+
+   **Thumbnail (when the poster frame won't do).** The front page and link
+   previews draw each cast's thumbnail from its poster frame — the finished
+   drawing — under the `thumb` words. When that frame is a poor picture of
+   the cast (a quiz whose figure stays hidden until answered, a photo or a
+   code-made chart, a figure too busy to read at 280 px, or one that does
+   not say what the cast is about), write a `"thumbnail"` beside the spec:
+   ONE still page in the same spec language (`elements`, or `template` +
+   `params`), with no commands and no narration — every element shows unless
+   `hidden`. One idea, readable small: the main diagram simplified, one to
+   three colour icons (`{"type": "icon", "of": "…", "set": "twemoji",
+   "icon_look": "picture", "size": 120…}`), a few big words. Leave a top
+   corner free for a stamp or note and the bottom strip for the band. No
+   photos, code or interactions; at most about 40 elements (a thumbnail is
+   capped at 10 KB). `cast.mjs pack` adds it as a `## Thumbnail` page with
+   `role: thumbnail`, which is never played. Look at it:
+   `node scripts/cast.mjs thumbnail dev-casts/<slug>.json` writes
+   `dev-casts/thumbnail-<slug>.png` (the poster frame's thumbnail when there
+   is no `thumbnail`) — view it like a frame.
 5. **Check it:** `node scripts/cast.mjs check dev-casts/<slug>.json`. Fix
    every INVALID and every `[error]`; warnings are for step 6's eyes — a
    `crowding` warning (too many texts on the page at once, or small print)

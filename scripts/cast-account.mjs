@@ -468,10 +468,15 @@ export function packedCastText(wrapper, format, lib) {
   // a `thumb` object beside the spec goes into the header as its `thumb:` block.
   // A line (`band "…" stamp "…"`), or the first round's object; the app reads either.
   const thumb = typeof wrapper.thumb === "string" && wrapper.thumb.trim() ? wrapper.thumb.trim() : wrapper.thumb && typeof wrapper.thumb === "object" && !Array.isArray(wrapper.thumb) ? wrapper.thumb : null;
-  if (!subtitle && !thumb) return lib.formatSpec(spec, format);
+  // The thumbnail page (2026-10-05): a `thumbnail` spec beside the cast's —
+  // one still picture for the listing — goes in as a last `## Thumbnail` page
+  // with `role: thumbnail`, which is never played.
+  const page = wrapper.thumbnail && typeof wrapper.thumbnail === "object" && !Array.isArray(wrapper.thumbnail) ? wrapper.thumbnail : null;
+  if (!subtitle && !thumb && !page) return lib.formatSpec(spec, format);
   const playlist = lib.singlePlaylist(spec);
   if (typeof spec.title === "string" && spec.title.trim()) playlist.meta.title = spec.title;
   if (subtitle) playlist.meta.subtitle = subtitle;
   if (thumb) playlist.meta.thumb = thumb;
+  if (page) playlist.entries.push({ kind: "item", spec: { title: "Thumbnail", ...page, role: "thumbnail" } });
   return lib.formatPlaylist(playlist, format);
 }

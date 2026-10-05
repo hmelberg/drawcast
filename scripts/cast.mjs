@@ -9,6 +9,7 @@
 //   node scripts/cast.mjs template <id>                  a template's full catalog entry (params, element ids)
 //   node scripts/cast.mjs check <cast.json|cast|yaml>    validation + layout/command lint (the generator's own checks)
 //   node scripts/cast.mjs poster <cast.cast|yaml> <out.png>   the picture the cast's link card shows (drawn as the app draws it)
+//   node scripts/cast.mjs thumbnail <cast.json|cast> [out.png]  the front page's thumbnail (its thumbnail page, else the poster frame)
 //   node scripts/cast.mjs frames <cast.json> [outdir] [--large]   frames after every spoken line, as PNG tiles, plus
 //                                                        the browser-measured lint per frame (--large: one frame per row,
 //                                                        for fine text) — needs the dev server
@@ -832,7 +833,7 @@ const commands = {
       } catch {
         /* not JSON: readCast already refused it above */
       }
-      writeFileSync(out, packedCastText({ spec, subtitle: wrapper?.subtitle, thumb: wrapper?.thumb }, publishFormat(), { singlePlaylist, formatPlaylist, formatSpec }));
+      writeFileSync(out, packedCastText({ spec, subtitle: wrapper?.subtitle, thumb: wrapper?.thumb, thumbnail: wrapper?.thumbnail }, publishFormat(), { singlePlaylist, formatPlaylist, formatSpec }));
       console.log(`${relative(ROOT, out)}: ready for publish-target ${work} <owner/repo>`);
     });
   },
@@ -1641,6 +1642,36 @@ const commands = {
     if (!pictures[0]) throw new Error(`No picture drawn (${note ?? "the drawing failed"})`);
     writeFileSync(resolve(ROOT, out), pictures[0]);
     console.log(`wrote ${out} (${pictures[0].length} bytes)`);
+  },
+
+  // node scripts/cast.mjs thumbnail <cast.json | .cast | .yaml> [out.png] — the listing
+  // thumbnail as the front page draws it (2026-10-05): the cast's thumbnail page
+  // when it has one, else the poster frame; the `thumb:` words on top.
+  async thumbnail([file, out]) {
+    if (!file) throw new Error("usage: cast.mjs thumbnail <cast.json | cast.cast | cast.yaml> [out.png]");
+    const name = basename(file).replace(/\.(json|cast|ya?ml)$/i, "");
+    const target = resolve(ROOT, out ?? `dev-casts/thumbnail-${name}.png`);
+    const raw = readFileSync(resolve(ROOT, file), "utf8");
+    const { svg, card } = await withVite(async (load) => {
+      let text = raw;
+      if (/\.json$/i.test(file)) {
+        const { formatSpec } = await load("/src/spec/text.ts");
+        const { singlePlaylist, formatPlaylist } = await load("/src/playlist/playlist.ts");
+        const wrapper = JSON.parse(raw);
+        text = packedCastText({ spec: wrapper.spec ?? wrapper, subtitle: wrapper.subtitle, thumb: wrapper.thumb, thumbnail: wrapper.thumbnail }, "script", { singlePlaylist, formatPlaylist, formatSpec });
+      }
+      const { drawCards } = await import("./pictures.mjs");
+      const { cards, note } = await drawCards([text], { root: ROOT });
+      if (!cards[0]) throw new Error(`No thumbnail drawn (${note ?? "the drawing failed"})`);
+      const { drawCard, iconNames } = await load("/src/card/draw.ts");
+      const { loadIcons } = await load("/src/card/icons.ts");
+      return { svg: drawCard(cards[0], { icons: await loadIcons(iconNames(cards[0])) }), card: cards[0] };
+    });
+    const { Resvg } = await import("@resvg/resvg-js");
+    const fonts = ["public/fonts/patrickhand/PatrickHand-Regular.ttf", "public/fonts/thumb/PermanentMarker-Regular.ttf", "public/fonts/thumb/Bangers-Regular.ttf"].map((f) => resolve(ROOT, f));
+    const png = new Resvg(svg, { fitTo: { mode: "width", value: 1000 }, font: { fontFiles: fonts, loadSystemFonts: false, defaultFontFamily: "Patrick Hand" } }).render().asPng();
+    writeFileSync(target, png);
+    console.log(`wrote ${relative(ROOT, target)} — ${JSON.stringify(card).length} bytes of card, ${card.items.length} items`);
   },
 
   async frames(args) {

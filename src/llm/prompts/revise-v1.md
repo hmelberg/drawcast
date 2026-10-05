@@ -75,7 +75,8 @@ How to read it, in full:
   (formal details for a template's parts, by id), `sources: [json]` (the
   studies the narration names; an element `cites` them), `more: {json}` (the
   viewer's corner list of sources and links; `false` hides it), `end_page:`
-  (a course's end page), `chapter:`.
+  (a course's end page), `role: thumbnail` (the page is the cast's listing
+  picture, never played), `chapter:`.
 - **When the script has no spelling for what you need, use the escape hatch
   rather than inventing one**: a ` ```yaml ` fence holding a LIST is appended to
   the page's elements, and one holding a MAPPING is merged into the page. Both

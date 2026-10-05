@@ -1237,6 +1237,13 @@ export interface Spec {
    *  makeEndPage) — links to the previous and next lecture. The poster skips it. */
   end_page?: boolean;
   /**
+   * `thumbnail` (2026-10-05): this page is the cast's listing thumbnail, never
+   * played — the picture under the `thumb:` words on the front page and in
+   * link previews, drawn whole (no commands needed: elements show unless
+   * hidden). Absent, the thumbnail is made from the poster frame. src/card.
+   */
+  role?: "thumbnail";
+  /**
    * Global text defaults — CSS property names, CSS keyword values: a base
    * `font_size` (every size in the drawing scales by it / 26), a generic
    * `font_family`, a `font_weight`. The viewer can override size and family

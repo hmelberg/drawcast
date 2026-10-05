@@ -56,6 +56,11 @@ the GitHub one.
    commits each cast's link-card picture (`<file>.png`, drawn the way the app
    draws it); to give an older published repo its pictures, `pull` it and
    `push` again.
+   A cast's front-page thumbnail can be given a page of its own: add a last
+   page `## Thumbnail` with `role: thumbnail` — one still picture, no
+   narration (SKILL.md step 4 says what goes on it) — and check it with
+   `node scripts/cast.mjs thumbnail <workdir>/<file>.cast`. The push
+   registers the new thumbnail.
 
 Report what changed per lecture and the PR link, and say two things when
 they apply:

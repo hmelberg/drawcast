@@ -441,6 +441,8 @@ export function itemsOf(playlist: Playlist): PlaylistItem[] {
   const quiz = playlist.meta?.format === "quiz";
   for (const e of playlist.entries) {
     if (e.kind === "chapter") chapter = e.title;
+    // The thumbnail page (role: thumbnail) is the listing's picture, never played.
+    else if (e.spec.role === "thumbnail") continue;
     else {
       const spec = quiz && e.spec.page?.checks === undefined && (e.spec.commands ?? []).some((c) => c.ask !== undefined) ? { ...e.spec, page: { ...(e.spec.page ?? {}), checks: "keep" as const } } : e.spec;
       items.push({ spec, chapter, index: items.length });
@@ -776,6 +778,12 @@ export function makeEndPage(opts: EndPageOptions): Spec {
 export function posterItemOf(playlist: Playlist): { spec: Spec } | null {
   const content = itemsOf(playlist).filter((i) => !isEndPage(i.spec));
   return content.at(-1) ?? null;
+}
+
+/** The cast's thumbnail page (`role: thumbnail`), which itemsOf leaves out of playback, or null. */
+export function thumbnailItemOf(playlist: Playlist): { spec: Spec } | null {
+  for (const e of playlist.entries) if (e.kind !== "chapter" && e.spec.role === "thumbnail") return { spec: e.spec };
+  return null;
 }
 
 /** True for a lecture's generated last page: the end page, or the legacy drawn Next card. */
