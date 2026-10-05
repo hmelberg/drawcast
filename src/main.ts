@@ -62,6 +62,8 @@ import { fileSafe, openShare, payListedFields, type ShareGroup } from "./ui/shar
 import { castPageHtml } from "./standalone/page";
 import { castFacts, type CastFormat } from "./standalone/transcript";
 import { compileCard } from "./card/convert";
+import { withThumbnailPage } from "./card/page";
+import { askThumbnail } from "./llm/thumbnail";
 import type { CompiledCard } from "./card/types";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
@@ -5208,6 +5210,7 @@ async function publishDrawcast({
   confirmPublic,
   format: formatChoice,
   thumb: thumbChoice,
+  thumbnailPage,
 }: {
   bake: boolean;
   embedImages: boolean;
@@ -5219,6 +5222,8 @@ async function publishDrawcast({
   format?: CastFormat | "auto";
   /** Share's front-page picture: the `thumb:` block to write (null removes it). */
   thumb?: string | null;
+  /** Share's thumbnail page: its lines (null removes it; undefined leaves it). */
+  thumbnailPage?: string | null;
   /** Share's Private checkbox (registry delivery 2, task 9). Private
    *  publishes the cast file locked (task 10) — see privateCastLock. */
   private?: boolean;
@@ -5312,6 +5317,15 @@ async function publishDrawcast({
         else delete meta.thumb;
         doc.playlist = { ...doc.playlist, meta };
         applyPlaylist(doc.playlist);
+      }
+    }
+    // The thumbnail page (2026-10-05): the document's own `## Thumbnail` page, as the panel left it.
+    if (thumbnailPage !== undefined) {
+      try {
+        doc.playlist = withThumbnailPage(doc.playlist, thumbnailPage);
+        applyPlaylist(doc.playlist);
+      } catch (err) {
+        setStatus(`The thumbnail page was not used: ${String((err as Error)?.message ?? err)}`, "error");
       }
     }
     setStatus("Publishing to GitHub…");
@@ -6153,6 +6167,12 @@ function openShareFor(group: ShareGroup): void {
     openSettings,
     embedDeps,
     publish: (choices) => publishDrawcast(choices),
+    // "Ask AI for a thumbnail" (2026-10-05): one request, with the author's own key.
+    askThumbnail: async (castText, thumbLine) => {
+      const key = getApiKey();
+      if (!key) throw new Error("add your Anthropic API key in Settings");
+      return askThumbnail(makeClient(key), settings.model, castText, thumbLine);
+    },
     publishDrive: (choices) => publishDriveCast(choices),
     publishServer: (choices) => publishServerCast(choices),
     buyPrettyLink: (choice) => buyPrettyLink(choice),

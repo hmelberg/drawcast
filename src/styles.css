@@ -3694,6 +3694,9 @@ body.viewer-body.watch-body.watch-theatre {
 .thumb-chip:hover { border-color: var(--ink); }
 .thumb-unknown { color: var(--loss, #b5482e); }
 .thumb-choice .thumb-row { display: block; }
+/* The thumbnail page (2026-10-05): its lines, its buttons, its preview. */
+.thumb-choice .thumb-page { margin-top: 0.6rem; border-top: 1px dashed var(--line); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.thumb-choice #share-thumb-page { width: 100%; box-sizing: border-box; font-family: ui-monospace, Menlo, monospace; font-size: var(--text-sm); }
 
 /* A live number to drag while an explore beat holds (ui/tray.ts ringLiveNumbers,
    2026-10-05): a dashed ring that pulses twice and a small "drag ↔" under it.

@@ -43,6 +43,10 @@ import { quotePrivate, registryItemKey, setListing, startPrivatePayment, type Pr
 import { creditBalance, startCreditPayment } from "../credit";
 import { h } from "./dom";
 import { unembeddedImages } from "./insert";
+import { thumbnailBody, withThumbnailPage } from "../card/page";
+import { compileCard } from "../card/convert";
+import { drawCard, iconNames } from "../card/draw";
+import { loadIcons } from "../card/icons";
 import { createModal, type Modal } from "./modal";
 
 export type { ShareTo };
@@ -247,6 +251,8 @@ export function payListedFields(wantPrivate: boolean, wantListed: boolean): { pr
 }
 
 export interface ShareDeps {
+  /** "Ask AI for a thumbnail" (2026-10-05): the thumbnail page's lines for this cast text, or a thrown reason. Absent, the button is hidden. */
+  askThumbnail?: (castText: string, thumbLine?: string) => Promise<string>;
   subject: "drawcast" | "course";
   /** Which button opened it: ↗ Publish (the default) or ⤓ Export. */
   group?: ShareGroup;
@@ -296,6 +302,8 @@ export interface ShareDeps {
     /** The front-page picture (thumbnail round, 2026-10-04): a drawcast
      *  only; written into the document as its `thumb:` block (null removes it). */
     thumb?: string | null;
+    /** The thumbnail page's lines (2026-10-05): written into the document as its `## Thumbnail` page; null removes it; undefined leaves it. */
+    thumbnailPage?: string | null;
     allowSignup?: boolean;
     folder?: string;
     /** The Private checkbox (registry delivery 2, task 9): a private publish
@@ -923,6 +931,14 @@ function build(): ShareSession {
         format: playlist.meta.format ?? castFormat(itemsOf(playlist).map((i) => i.spec), playlistSpeakLines(playlist).filter((l) => l.text.trim()).length),
         kids: kidsByTags(playlist.meta.tags),
         poster: () => posterForPlaylistText(formatPlaylist(playlist, "yaml")),
+        page: thumbnailBody(playlist),
+        ask: current.askThumbnail ? () => current.askThumbnail!(formatPlaylist(playlist, "script"), playlist.meta.thumb) : undefined,
+        draw: async (page) => {
+          const text = formatPlaylist(withThumbnailPage(playlist, page), "script");
+          const made = await compileCard(text);
+          if (!made) return null;
+          return drawCard(made.card, { icons: await loadIcons(iconNames(made.card)) });
+        },
       });
     }
     if (subject !== "drawcast") return;
@@ -1321,6 +1337,7 @@ function build(): ShareSession {
       countViews: countViewsCb.checked,
       format: deps.subject === "drawcast" ? (formatSel.value as CastFormat | "auto") : undefined,
       thumb: deps.subject === "drawcast" ? (thumbBox.value() ?? null) : undefined,
+      thumbnailPage: deps.subject === "drawcast" ? thumbBox.page() : undefined,
       allowSignup: deps.subject === "course" ? signupCb.checked : undefined,
       private: privateCb.checked,
       confirmPublic: !privateCb.checked && confirmedPublic,

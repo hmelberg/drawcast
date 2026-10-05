@@ -84,10 +84,26 @@ async function busyOf(href: string): Promise<Record<Corner, number> | undefined>
 
 export interface ThumbChoice {
   root: HTMLElement;
-  /** Seed from the open document: its thumb line, title, format and audience, and a way to draw its poster. */
-  refresh(opts: { thumb?: string; title: string; format?: string; kids?: boolean; poster: () => Promise<Uint8Array | null> }): void;
+  /**
+   * Seed from the open document: its thumb line, title, format and audience,
+   * a way to draw its poster — and its thumbnail page (2026-10-05): the
+   * page's lines (null: none), a way to ask the AI for one, and a way to
+   * draw the thumbnail a page would give (null: the automatic one).
+   */
+  refresh(opts: {
+    thumb?: string;
+    title: string;
+    format?: string;
+    kids?: boolean;
+    poster: () => Promise<Uint8Array | null>;
+    page?: string | null;
+    ask?: () => Promise<string>;
+    draw?: (page: string | null) => Promise<string | null>;
+  }): void;
   /** The canonical line to write into the document, or undefined to remove it. */
   value(): string | undefined;
+  /** The thumbnail page to write (its lines), null to remove it, undefined to leave it as it is. */
+  page(): string | null | undefined;
 }
 
 export function thumbChoice(): ThumbChoice {
@@ -121,6 +137,23 @@ export function thumbChoice(): ThumbChoice {
       ),
     ),
   );
+  // The thumbnail page (2026-10-05): a picture of its own, written or asked of the AI.
+  const pageArea = h("textarea", { id: "share-thumb-page", rows: "7", spellcheck: "false", placeholder: "No thumbnail page: the picture is made from the poster frame." }) as HTMLTextAreaElement;
+  const askBtn = h("button", { type: "button", class: "thumb-chip" }, "Ask AI for a thumbnail") as HTMLButtonElement;
+  const showBtn = h("button", { type: "button", class: "thumb-chip" }, "Preview") as HTMLButtonElement;
+  const dropBtn = h("button", { type: "button", class: "thumb-chip" }, "Remove the page") as HTMLButtonElement;
+  const pageNote = h("div", { class: "hint" });
+  const pagePreview = h("div", { class: "thumb-preview" });
+  const pageBox = h(
+    "div",
+    { class: "thumb-page" },
+    h("div", { class: "thumb-chip-label" }, "Thumbnail page"),
+    h("div", { class: "hint" }, "A picture made to draw people in — not necessarily the poster. Written in the cast's own notation; its thumb lines are the band and stickers."),
+    pageArea,
+    h("div", { class: "thumb-chips" }, askBtn, showBtn, dropBtn),
+    pageNote,
+    pagePreview,
+  );
   const root = h(
     "details",
     { class: "thumb-choice" },
@@ -131,7 +164,43 @@ export function thumbChoice(): ThumbChoice {
     chips,
     autoNote,
     preview,
+    pageBox,
   );
+
+  let pageTouched = false;
+  let ask: (() => Promise<string>) | undefined;
+  let drawPage: ((page: string | null) => Promise<string | null>) | undefined;
+  const showPage = async (): Promise<void> => {
+    if (!drawPage) return;
+    pageNote.textContent = "Drawing…";
+    try {
+      const svg = await drawPage(pageArea.value.trim() || null);
+      pagePreview.innerHTML = svg ? svg.replace("<svg ", '<svg class="thumb-svg" ') : "";
+      pageNote.textContent = pageArea.value.trim() ? "The thumbnail this page gives." : "No page: the thumbnail made from the poster frame.";
+    } catch (err) {
+      pageNote.textContent = `Not a thumbnail page: ${String((err as Error)?.message ?? err)}`;
+    }
+  };
+  pageArea.addEventListener("input", () => (pageTouched = true));
+  showBtn.addEventListener("click", () => void showPage());
+  dropBtn.addEventListener("click", () => {
+    pageArea.value = "";
+    pageTouched = true;
+    void showPage();
+  });
+  askBtn.addEventListener("click", () => {
+    if (!ask) return;
+    askBtn.disabled = true;
+    pageNote.textContent = "Asking the AI for a thumbnail…";
+    void ask()
+      .then((body) => {
+        pageArea.value = body;
+        pageTouched = true;
+        return showPage();
+      })
+      .catch((err) => (pageNote.textContent = `The AI could not make one: ${String((err as Error)?.message ?? err)}`))
+      .finally(() => (askBtn.disabled = false));
+  });
 
   let title = "";
   let format: string | undefined;
@@ -176,10 +245,21 @@ export function thumbChoice(): ThumbChoice {
       posterFor = opts.poster;
       input.value = opts.thumb ?? "";
       (root as HTMLDetailsElement).open = false;
+      pageArea.value = opts.page ?? "";
+      pageTouched = false;
+      ask = opts.ask;
+      drawPage = opts.draw;
+      askBtn.hidden = !ask;
+      pageBox.hidden = !drawPage;
+      pageNote.textContent = "";
+      pagePreview.replaceChildren();
       paint();
     },
     value() {
       return readThumb(input.value);
+    },
+    page() {
+      return pageTouched ? pageArea.value.trim() || null : undefined;
     },
   };
 }
