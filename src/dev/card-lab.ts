@@ -2,7 +2,8 @@
 // cast's compiled card (scripts/card-lab.mjs → docs/card-lab/runs/latest/
 // cards.json) beside today's server-drawn card and over its own poster.
 
-import { drawCard } from "../card/draw";
+import { drawCard, iconNames } from "../card/draw";
+import { loadIcons } from "../card/icons";
 import type { CardResult } from "../card/types";
 import { h } from "../ui/dom";
 
@@ -67,12 +68,13 @@ async function main(): Promise<void> {
   const phone = document.getElementById("phone") as HTMLInputElement;
   phone.addEventListener("change", () => document.body.classList.toggle("phone", phone.checked));
 
+  const icons = await loadIcons(rows.flatMap((r) => (r.result ? iconNames(r.result.card) : [])));
   const t0 = performance.now();
   const lines: HTMLElement[] = [h("div", { class: "row head" }, h("div", {}, "Cast"), h("div", {}, "Today (server)"), h("div", {}, "Card: drawing"), h("div", {}, "Card: over the poster"))];
   for (const r of rows) {
     const today = r.name ? h("img", { src: `https://drawcast.app/card/${r.name}.png`, alt: "", loading: "lazy" }) : h("div", { class: "meta" }, "no name");
-    const drawing = r.result ? svgNode(drawCard(r.result.card)) : h("div", { class: "meta" }, r.error ?? "no card");
-    const over = r.result ? svgNode(drawCard(r.result.card, { posterHref: r.poster })) : h("div", {});
+    const drawing = r.result ? svgNode(drawCard(r.result.card, { icons })) : h("div", { class: "meta" }, r.error ?? "no card");
+    const over = r.result ? svgNode(drawCard(r.result.card, { posterHref: r.poster, icons })) : h("div", {});
     const counts = new Map<string, number>();
     for (const d of r.result?.dropped ?? []) counts.set(d, (counts.get(d) ?? 0) + 1);
     const rate = h("div", { class: "rate" });

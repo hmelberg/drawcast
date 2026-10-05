@@ -6,6 +6,7 @@
 
 import { parseCatalogueItem, type CatalogueFilterKind, type CatalogueItem } from "../catalogue";
 import type { RankEntry } from "./model";
+import type { CompiledCard } from "../card/types";
 
 export const FEED_URL = "https://drawcast.app/api/feed";
 const STORE_KEY = "drawcast:feed";
@@ -47,7 +48,15 @@ export function parseFeed(raw: unknown): HomeFeed | null {
       if (x && typeof x.score === "number" && typeof x.month === "number") scores[name] = { score: x.score, month: x.month };
     }
   }
+  for (const i of items) if (i.card) CARDS.set(i.name, i.card);
   return { built: r.built, items, ranks, ...(scores ? { scores } : {}) };
+}
+
+/** Every listed item's card by name, as the feed last gave them (a curated
+ *  featured.json entry has none of its own; a card is looked up here). */
+const CARDS = new Map<string, CompiledCard>();
+export function cardOf(name: string): CompiledCard | undefined {
+  return CARDS.get(name);
 }
 
 /** The copy kept from the last visit, or null (none, or storage refused). */

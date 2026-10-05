@@ -13,13 +13,13 @@ import { cornerSlots, kidsByTags, planThumb, type Corner } from "../../netlify/l
 import { leafDrawables, type Drawable } from "../layout/model";
 import { parsePlaylistText, posterItemOf } from "../playlist/playlist";
 import { render } from "../render";
+import { iconNameOfHref } from "../spec/icon-data";
 import { decodePts, encodePts } from "./points";
 import { CARD_H, CARD_VERSION, CARD_W, type CardItem, type CardResult, type CompiledCard } from "./types";
 
-/** The compiled card's size cap, JSON bytes (round 2: 20 KB — at most about
- *  5 KB sent, since the feed travels compressed; 4 KB cut chess pieces and
- *  cube faces, 12 KB still the pawns of a chess position). */
-export const CARD_CAP = 20480;
+/** The compiled card's size cap, JSON bytes: 10 KB (Hans, 2026-10-05) — about
+ *  3 KB sent, since the feed travels compressed; icons go by name. */
+export const CARD_CAP = 10240;
 /** A label longer than this keeps its first words. */
 const TEXT_MAX = 28;
 /** Point simplification tolerance, canvas units. */
@@ -76,7 +76,9 @@ export function cardItem(d: Leaf, dx = 0, dy = 0): CardItem | string {
   if (d.kind === "image") {
     // An icon is an SVG picture; a photo or portrait (a raster) is left out.
     if (!/^data:image\/svg\+xml/.test(d.href)) return "picture";
-    return { k: "i", x: round(d.pos[0] + dx), y: round(d.pos[1] + dy), w: round(d.w), h: round(d.h), href: d.href, ...(d.style.opacity < 1 ? { o: Number(d.style.opacity.toFixed(2)) } : {}) };
+    // By name when the engine fetched it from Iconify (spec/icon-data.ts), so the card carries a few bytes, not the drawing.
+    const n = iconNameOfHref(d.href);
+    return { k: "i", x: round(d.pos[0] + dx), y: round(d.pos[1] + dy), w: round(d.w), h: round(d.h), ...(n ? { n } : { href: d.href }), ...(d.style.opacity < 1 ? { o: Number(d.style.opacity.toFixed(2)) } : {}) };
   }
   if (d.kind === "text") {
     if (d.font === "mono" || d.font === "c64" || d.runs) return "code";
@@ -172,7 +174,7 @@ function weight(it: CardItem): number {
 
 /** An item as the cap counts it: an icon by its place, its drawing kept apart. */
 function lean(it: CardItem): CardItem {
-  return it.k === "i" ? { ...it, href: "" } : it;
+  return it.k === "i" && it.href ? { ...it, href: "" } : it;
 }
 
 /** Drops the least weighty items until the card's JSON fits the cap. */
@@ -239,11 +241,28 @@ function shown(g: Element, root: Element): boolean {
   });
 }
 
+/** The marks the cast's `thumb:` line and title give (thumb.mts planThumb). */
+function marksOf(text: string): ReturnType<typeof planThumb> {
+  const facts = castCardText(text);
+  return planThumb(facts.thumb, { title: facts.title, format: facts.format, kids: kidsByTags(facts.tags) });
+}
+
+/**
+ * A private cast's card (Hans, 2026-10-05): the headline and marks on plain
+ * paper — nothing of the figure, which a private cast keeps to its readers.
+ */
+export function headlineCard(text: string): CardResult {
+  const card: CompiledCard = { v: CARD_VERSION, items: [], marks: marksOf(text), corners: ["tr", "br", "tl", "bl"] };
+  const bytes = JSON.stringify(card).length;
+  return { card, dropped: [], bytes, iconBytes: 0 };
+}
+
 /**
  * The cast's compiled card, or null when it has no picture to give (no
  * poster item). Needs a document and the engine's packs loaded.
  */
-export async function compileCard(text: string): Promise<CardResult | null> {
+export async function compileCard(text: string, opts: { private?: boolean } = {}): Promise<CardResult | null> {
+  if (opts.private) return headlineCard(text);
   const playlist = parsePlaylistText(text);
   const item = posterItemOf(playlist);
   if (!item) return null;
@@ -273,8 +292,7 @@ export async function compileCard(text: string): Promise<CardResult | null> {
         if (typeof it === "string") dropped.push(it);
         else items.push(it);
       }
-      const facts = castCardText(text);
-      const marks = planThumb(facts.thumb, { title: facts.title, format: facts.format, kids: kidsByTags(facts.tags) });
+      const marks = marksOf(text);
       const capped = capItems(items, JSON.stringify(marks).length);
       for (let i = 0; i < capped.dropped; i++) dropped.push("over the cap");
       const card: CompiledCard = { v: CARD_VERSION, items: capped.items, marks, corners: cornersByInk(capped.items) };

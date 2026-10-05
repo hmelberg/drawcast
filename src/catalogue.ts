@@ -12,6 +12,7 @@
 // reading the source (tests/catalogue.test.ts) — since this suite's vitest
 // environment is plain node, with no jsdom (vite.config.ts).
 
+import type { CompiledCard } from "./card/types";
 import "./styles.css";
 import { apiBase, DEFAULT_ENROLL_API } from "./learn";
 import { h } from "./ui/dom";
@@ -48,6 +49,8 @@ export interface CatalogueItem {
   level?: "basic" | "advanced";
   /** When the item was first registered, ISO (registry, 2026-10-05); absent on an older registry. */
   created?: string;
+  /** The listing card (src/card, 2026-10-05): drawn at once, the poster over it once loaded. */
+  card?: CompiledCard;
 }
 
 export interface CatalogueAnswer {
@@ -91,6 +94,12 @@ export function catalogueQueryString(query: CatalogueQuery): string {
   return s ? `?${s}` : "";
 }
 
+/** Whether a value has a card's shape (card/types.ts): version 1, items, marks, corners. */
+function isCard(v: unknown): v is CompiledCard {
+  const c = v as Partial<CompiledCard> | null;
+  return !!c && typeof c === "object" && c.v === 1 && Array.isArray(c.items) && !!c.marks && typeof c.marks === "object" && Array.isArray(c.corners);
+}
+
 /** One raw item from the server's `items` array, narrowed and defaulted —
  *  never trusts a field's presence or type. A row missing any REQUIRED
  *  field (kind/title/name/owner) is dropped rather than shown half blank;
@@ -116,6 +125,7 @@ export function parseCatalogueItem(raw: unknown): CatalogueItem | null {
     likes: typeof r.likes === "number" && r.likes > 0 ? Math.floor(r.likes) : 0,
     ...(r.level === "basic" || r.level === "advanced" ? { level: r.level } : {}),
     ...(typeof r.created === "string" && r.created ? { created: r.created } : {}),
+    ...(isCard(r.card) ? { card: r.card } : {}),
   };
 }
 

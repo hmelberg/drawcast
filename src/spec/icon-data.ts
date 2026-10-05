@@ -176,7 +176,22 @@ export function iconPictureOf(data: unknown, ink: string): { href: string; aspec
   const [, , w, h] = vb ? vb[1].trim().split(/\s+/).map(Number) : [0, 0, 24, 24];
   const aspect = w > 0 && h > 0 ? h / w : 1;
   const svg = d.svg.replace(/currentColor/g, ink);
-  return { href: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, aspect };
+  const href = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  rememberIconName(href, `${d.set}:${d.name}`);
+  return { href, aspect };
+}
+
+/** Which Iconify icon a picture's `href` was made from (card/convert.ts, 2026-10-05:
+ *  a card names an icon instead of carrying its drawing). The last few hundred only. */
+const NAMES_BY_HREF = new Map<string, string>();
+function rememberIconName(href: string, name: string): void {
+  if (NAMES_BY_HREF.size >= 500) NAMES_BY_HREF.delete(NAMES_BY_HREF.keys().next().value!);
+  NAMES_BY_HREF.set(href, name);
+}
+
+/** `set:name` for a picture href this module made, or undefined. */
+export function iconNameOfHref(href: string): string | undefined {
+  return NAMES_BY_HREF.get(href);
 }
 
 // ---- the offline stores ---------------------------------------------------

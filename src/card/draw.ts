@@ -170,17 +170,34 @@ function text(it: CardText): string {
   return `<text font-family="${SKETCH_FONT}" font-size="${it.s}" fill="${it.c}" text-anchor="${anchor}" dominant-baseline="central" paint-order="stroke" stroke="${PAPER}" stroke-width="${(it.s / 6).toFixed(1)}" stroke-linejoin="round"${rot}>${spans}</text>`;
 }
 
-function icon(it: CardIcon): string {
-  return `<image href="${esc(it.href)}" x="${it.x - it.w / 2}" y="${sy(it.y) - it.h / 2}" width="${it.w}" height="${it.h}"${it.o !== undefined ? ` opacity="${it.o}"` : ""}/>`;
+/** An icon's SVG markup as a picture href. */
+export function svgHref(svg: string): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-function item(it: CardItem): string {
-  return it.k === "s" ? stroke(it) : it.k === "a" ? area(it) : it.k === "i" ? icon(it) : text(it);
+function icon(it: CardIcon, icons: Icons): string {
+  const svg = it.n ? icons[it.n] : undefined;
+  const href = it.href ?? (svg ? svgHref(svg) : undefined);
+  // A named icon whose drawing has not arrived (offline, a slow fetch) is left out; the card still draws.
+  if (!href) return "";
+  return `<image href="${esc(href)}" x="${it.x - it.w / 2}" y="${sy(it.y) - it.h / 2}" width="${it.w}" height="${it.h}"${it.o !== undefined ? ` opacity="${it.o}"` : ""}/>`;
+}
+
+/** Named icons' SVG markup by `set:name` (card/icons.ts fetches them). */
+export type Icons = Record<string, string>;
+
+function item(it: CardItem, icons: Icons): string {
+  return it.k === "s" ? stroke(it) : it.k === "a" ? area(it) : it.k === "i" ? icon(it, icons) : text(it);
+}
+
+/** Every icon name a card uses. */
+export function iconNames(card: CompiledCard): string[] {
+  return [...new Set(card.items.flatMap((it) => (it.k === "i" && it.n ? [it.n] : [])))];
 }
 
 /** The drawing alone, on the 1000 × 750 canvas (no outer <svg>). */
-export function drawingMarkup(card: CompiledCard): string {
-  return `<rect width="${CARD_W}" height="${CARD_H}" fill="${PAPER}"/>` + card.items.map(item).join("");
+export function drawingMarkup(card: CompiledCard, icons: Icons = {}): string {
+  return `<rect width="${CARD_W}" height="${CARD_H}" fill="${PAPER}"/>` + card.items.map((it) => item(it, icons)).join("");
 }
 
 /** The corners in the card's order as thumb.mts's busyness (emptiest first). */
@@ -195,8 +212,8 @@ function busyOf(corners: Corner[]): Record<Corner, number> {
  * poster — under the marks. The marks stand where the card says whichever
  * picture is under them.
  */
-export function drawCard(card: CompiledCard, opts: { posterHref?: string; width?: number } = {}): string {
-  const svg = thumbSvg(card.marks, opts.posterHref ?? "", busyOf(card.corners), opts.posterHref ? undefined : drawingMarkup(card));
+export function drawCard(card: CompiledCard, opts: { posterHref?: string; width?: number; icons?: Icons } = {}): string {
+  const svg = thumbSvg(card.marks, opts.posterHref ?? "", busyOf(card.corners), opts.posterHref ? undefined : drawingMarkup(card, opts.icons));
   if (!opts.width) return svg;
   const h = Math.round((opts.width * CARD_H) / CARD_W);
   return svg.replace(/^<svg ([^>]*?)width="\d+" height="\d+"/, `<svg $1width="${opts.width}" height="${h}"`);

@@ -74,15 +74,20 @@ export interface CardText {
   tl?: number;
 }
 
-/** An icon: its SVG as a data URL (the engine draws icons as pictures), centred at x, y. */
+/**
+ * An icon, centred at x, y. By NAME (`n`, an Iconify `set:name` such as
+ * `twemoji:shark`) — the page fetches the drawings of every named icon on it
+ * in one request (card/icons.ts) — or, for an icon the engine drew from data
+ * of its own, its SVG as a data URL (`href`).
+ */
 export interface CardIcon {
   k: "i";
   x: number;
   y: number;
   w: number;
   h: number;
-  /** data:image/svg+xml… — in production the registry would keep these beside the card, looked up by icon name. */
-  href: string;
+  n?: string;
+  href?: string;
   o?: number;
 }
 
@@ -94,6 +99,8 @@ export interface CompiledCard {
   /** The marks (thumb.mts planThumb) and the corners they take, emptiest first — fixed at publish so they stand still when the poster replaces the drawing. */
   marks: ThumbPlan;
   corners: Corner[];
+  /** The poster beside the cast (GitHub Pages), when public: it replaces the drawing once it has loaded. */
+  poster?: string;
 }
 
 /** What compiling a cast gave: the card, and what it had to leave out (for the lab's coverage table). */

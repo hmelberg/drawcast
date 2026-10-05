@@ -537,7 +537,7 @@ declare global {
   interface Window {
     __stampCode: (index: number) => Promise<Record<string, string>>;
     __poster: (text: string) => Promise<string | null>;
-    __card: (text: string) => Promise<CardResult | null>;
+    __card: (text: string, opts?: { private?: boolean }) => Promise<CardResult | null>;
     __frames: (input?: { index?: number; cast?: string; text?: string; beats?: "all" | "resting" }) => Promise<CastReport>;
   }
 }
@@ -599,7 +599,7 @@ window.__poster = async (text) => {
  * compiled card (src/card/convert.ts) — the poster frame's own drawing,
  * simplified — or null when it has no poster item.
  */
-window.__card = async (text) => {
+window.__card = async (text, opts) => {
   await ensureEnabledPacks(Object.keys(PACK_DEFS));
-  return compileCard(text);
+  return compileCard(text, opts);
 };

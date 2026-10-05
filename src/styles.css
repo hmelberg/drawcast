@@ -3470,6 +3470,13 @@ button.home-more { background: none; border: 0; padding: 0; cursor: pointer; fon
 }
 .home-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s ease; }
 .home-card:hover .home-thumb img { transform: scale(1.03); }
+.home-credit { margin-top: 0.4rem; font-size: var(--text-sm); color: var(--steel); }
+/* The marks' faces on drawn cards (netlify/lib/thumb.mts FONT): fetched only when a card uses them. */
+@font-face { font-family: "Permanent Marker"; src: url(/fonts/thumb/PermanentMarker-Regular.ttf) format("truetype"); font-display: swap; }
+@font-face { font-family: "Bangers"; src: url(/fonts/thumb/Bangers-Regular.ttf) format("truetype"); font-display: swap; }
+/* A card drawn from text (cards round, 2026-10-05): its SVG fills the box. */
+.home-thumb-card svg { width: 100%; height: 100%; display: block; transition: transform 0.2s ease; }
+.home-card:hover .home-thumb-card svg { transform: scale(1.03); }
 /* A card whose picture never came (home-cards round, 2026-10-05): its title, on its format's tint. */
 .home-thumb-empty { display: flex; align-items: center; justify-content: center; padding: 1rem; text-align: center; }
 .home-thumb-title { font: 1.35rem/1.2 var(--sketch-font); color: var(--ink); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }

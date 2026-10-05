@@ -13,6 +13,7 @@
 // caller's job, the same "bounded" fetch the course publish already uses
 // for claimCourse/registerName.
 
+import type { CompiledCard } from "./card/types";
 import { stripDocExt } from "./cast-file";
 import { apiBase } from "./learn";
 import type { PublishFile } from "./publish/github";
@@ -97,6 +98,8 @@ export interface RegisterInput {
   tags?: string[];
   /** The cast's level (the brief's #basic / #advanced; castFacts) — absent is the default viewer. */
   level?: "basic" | "advanced";
+  /** The listing card (src/card): the poster frame as text, with the poster's address when public. */
+  card?: CompiledCard;
 }
 
 export interface RegisterResult {

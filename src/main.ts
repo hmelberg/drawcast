@@ -61,6 +61,8 @@ import { parseCourse, referencedLectureIds } from "./course/document";
 import { fileSafe, openShare, payListedFields, type ShareGroup } from "./ui/share";
 import { castPageHtml } from "./standalone/page";
 import { castFacts, type CastFormat } from "./standalone/transcript";
+import { compileCard } from "./card/convert";
+import type { CompiledCard } from "./card/types";
 import { checkSaveable } from "./ui/save-gate";
 import { authorButtonLabel, authoringMode, promptPlaceholder } from "./ui/author-mode";
 import { openEmbedDialog, openInsertData, openInsertPortrait, unembeddedImages } from "./ui/insert";
@@ -102,7 +104,7 @@ import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "./export/bak
 import { listCloudVoices, runLang, stampedVoice, synthesizeBase64 } from "./export/tts";
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel, creditBakeCost } from "./export/tts-cost";
-import { privateCastTarget, publishCast } from "./publish/cast";
+import { posterPagesUrl, privateCastTarget, publishCast } from "./publish/cast";
 import { LockError, type LectureLock } from "./publish/lock";
 import { isLocked, lockText } from "./crypto/lecture-lock";
 import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
@@ -5321,6 +5323,14 @@ async function publishDrawcast({
       setStatus("Drawing the poster…");
       poster = await publishedPoster(text);
     }
+    // The listing card (cards round, 2026-10-05): the poster frame as text,
+    // drawn instantly on the front page; a private cast's is its headline only.
+    let card: CompiledCard | undefined;
+    try {
+      card = (await compileCard(text, { private: !!lock }))?.card;
+    } catch (err) {
+      console.error("drawcast: no card", err);
+    }
     setStatus("Publishing to GitHub…");
     // The claim file (registry delivery 1) rides in the SAME commit as the
     // cast: Anvil proves ownership by reading it back from GitHub after the
@@ -5371,6 +5381,7 @@ async function publishDrawcast({
         format: publishedFacts.format,
         ...(publishedFacts.tags ? { tags: publishedFacts.tags } : {}),
         ...(publishedFacts.level ? { level: publishedFacts.level } : {}),
+        ...(card ? { card: !lock && poster ? { ...card, poster: posterPagesUrl(repo.owner, repo.repo, castsDir, out.slug) } : card } : {}),
       },
       bounded,
     );

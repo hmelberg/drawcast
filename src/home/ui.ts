@@ -7,12 +7,65 @@ import { DEFAULT_ENROLL_API } from "../learn";
 import { h } from "../ui/dom";
 import { FORMAT_BADGE, FORMAT_CHIPS, homeHref, thumbUrl, type HomeCard } from "./model";
 import { MY_LISTS } from "./my-lists";
+import { cardOf } from "./feed";
+import { drawCard, iconNames, type Icons } from "../card/draw";
+import { loadIcons } from "../card/icons";
+import type { CompiledCard } from "../card/types";
 
 /** Retry waits for a card picture the server was still building (a 503 —
  *  netlify/functions/card.mts finishes it in the background meanwhile). */
 const THUMB_RETRIES_MS = [2500, 7000];
 
-export function card(c: HomeCard, opts: { compact?: boolean } = {}): HTMLElement {
+/**
+ * The listing picture from the cast's card (cards round, 2026-10-05): drawn
+ * at once from text (card/draw.ts), its named icons filled in when they
+ * arrive (card/icons.ts, from Iconify), and the poster from the author's
+ * GitHub Pages site under the same marks once it has loaded — fetched only
+ * when the card nears the screen. drawCard escapes every text it draws.
+ */
+function drawnThumb(card: CompiledCard): HTMLElement {
+  const box = h("div", { class: "home-thumb home-thumb-card" });
+  let icons: Icons = {};
+  let poster: string | undefined;
+  const paint = (): void => {
+    try {
+      box.innerHTML = drawCard(card, { icons, posterHref: poster });
+    } catch {
+      /* a malformed card: the box stays as it was */
+    }
+  };
+  paint();
+  const names = iconNames(card);
+  if (names.length) void loadIcons(names).then((got) => {
+    icons = got;
+    if (!poster) paint();
+  });
+  if (card.poster) {
+    const src = card.poster;
+    const load = (): void => {
+      const img = new Image();
+      img.onload = () => {
+        poster = src;
+        paint();
+      };
+      img.src = src;
+    };
+    if (typeof IntersectionObserver === "undefined") load();
+    else {
+      const io = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          io.disconnect();
+          load();
+        }
+      }, { rootMargin: "300px" });
+      io.observe(box);
+    }
+  }
+  return box;
+}
+
+/** The listing picture drawn by drawcast.app (/card/<name>.png): for items with no card yet. */
+function serverThumb(c: HomeCard): HTMLElement {
   const src = thumbUrl(c.name);
   const img = h("img", { src, alt: "", loading: "lazy", decoding: "async" }) as HTMLImageElement;
   // Past the retries the box shows the title, never an empty box.
@@ -28,6 +81,12 @@ export function card(c: HomeCard, opts: { compact?: boolean } = {}): HTMLElement
     }
     setTimeout(() => (img.src = `${src}?r=${tries}`), wait);
   });
+  return thumb;
+}
+
+export function card(c: HomeCard, opts: { compact?: boolean } = {}): HTMLElement {
+  const own = cardOf(c.name);
+  const thumb = own ? drawnThumb(own) : serverThumb(c);
   const badges: HTMLElement[] = [];
   if (c.format) badges.push(h("span", { class: `home-badge home-badge-${c.format}` }, FORMAT_BADGE[c.format]));
   if (c.private) badges.push(h("span", { class: "home-badge home-badge-private" }, "Private"));
