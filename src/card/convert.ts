@@ -15,7 +15,8 @@ import { parsePlaylistText, posterItemOf } from "../playlist/playlist";
 import { render } from "../render";
 import { iconNameOfHref } from "../spec/icon-data";
 import { decodePts, encodePts } from "./points";
-import { CARD_H, CARD_VERSION, CARD_W, type CardItem, type CardResult, type CompiledCard } from "./types";
+import { STOCK_WHEN_DROPPED, stockFor } from "./stock";
+import { CARD_H, CARD_VERSION, CARD_W, type CardItem, type CardText, type CardResult, type CompiledCard } from "./types";
 
 /** The compiled card's size cap, JSON bytes: 10 KB (Hans, 2026-10-05) — about
  *  3 KB sent, since the feed travels compressed; icons go by name. */
@@ -29,6 +30,17 @@ const SIMPLIFY_GLYPH = 0.6;
 
 type Leaf = Exclude<Drawable, { kind: "group" }>;
 type Pt = [number, number];
+
+/** How closely a non-letter shape keeps its outline: in proportion to its
+ *  size (a chess piece is ~60 units, ~17 px on a card — its fine curves are
+ *  invisible there), never finer than SIMPLIFY. */
+function toleranceFor(pts: Pt[]): number {
+  if (pts.length < 3) return SIMPLIFY;
+  const xs = pts.map((q) => q[0]);
+  const ys = pts.map((q) => q[1]);
+  const diag = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  return Math.max(SIMPLIFY, Math.min(4, diag / 30));
+}
 
 /** Ramer–Douglas–Peucker: the line's shape with fewer points. */
 export function simplify(pts: Pt[], tol = SIMPLIFY): Pt[] {
@@ -103,7 +115,7 @@ export function cardItem(d: Leaf, dx = 0, dy = 0): CardItem | string {
     // all — the engine has already turned the TeX into shapes, so the card
     // needs no maths library to show them.
     const glyph = !!(d.holes?.length || d.tex?.length);
-    const tol = glyph ? SIMPLIFY_GLYPH : SIMPLIFY;
+    const tol = glyph ? SIMPLIFY_GLYPH : toleranceFor(d.pts as Pt[]);
     const pts = simplify(d.pts as Pt[], tol);
     const holes = (d.holes ?? []).map((h) => flat(simplify(h as Pt[], tol), dx, dy));
     return {
@@ -134,7 +146,7 @@ export function cardItem(d: Leaf, dx = 0, dy = 0): CardItem | string {
   };
   if (hint?.type === "circle") return { ...base, p: "", ci: [round(hint.c[0] + dx), round(hint.c[1] + dy), round(hint.r)] };
   if (hint?.type === "rect") return { ...base, p: "", rc: [round(hint.x + dx), round(hint.y + dy), round(hint.w), round(hint.h)] };
-  return { ...base, p: flat(simplify(d.pts as Pt[]), dx, dy) };
+  return { ...base, p: flat(simplify(d.pts as Pt[], toleranceFor(d.pts as Pt[])), dx, dy) };
 }
 
 /** render/svg-backend.ts hashSeed: the engine's own wobble seed for an id. */
@@ -293,8 +305,19 @@ export async function compileCard(text: string, opts: { private?: boolean } = {}
         else items.push(it);
       }
       const marks = marksOf(text);
-      const capped = capItems(items, JSON.stringify(marks).length);
+      let capped = capItems(items, JSON.stringify(marks).length);
       for (let i = 0; i < capped.dropped; i++) dropped.push("over the cap");
+      // Too detailed for a card (a chess position, a skeleton): a stock
+      // picture of its topic under the cast's own heading, when one fits.
+      if (items.length && capped.dropped / items.length > STOCK_WHEN_DROPPED) {
+        const facts = castCardText(text);
+        const stock = stockFor(facts.title ?? "", facts.tags ?? []);
+        if (stock) {
+          const title: CardText = { k: "t", x: CARD_W / 2, y: CARD_H - 34, t: shortText(facts.title ?? "", 60), s: 40, an: "m", c: "#2b2b2b" };
+          capped = { items: [...stock, ...(title.t ? [title] : [])], dropped: capped.dropped };
+          dropped.push("stock picture");
+        }
+      }
       const card: CompiledCard = { v: CARD_VERSION, items: capped.items, marks, corners: cornersByInk(capped.items) };
       const all = JSON.stringify(card).length;
       const bytes = JSON.stringify({ ...card, items: card.items.map(lean) }).length;

@@ -112,8 +112,16 @@ export function runHome(): void {
     h("a", { href: "./help.html" }, "Help"),
     " · ",
     h("a", { href: "#create" }, "Make your own"),
-    // The cards' colour icons (card/icons.ts) are Twemoji, CC-BY 4.0.
-    h("div", { class: "home-credit" }, "Icons on cards: ", h("a", { href: "https://github.com/twitter/twemoji", rel: "noopener" }, "Twemoji"), " by Twitter, CC-BY 4.0"),
+    // The cards' colour icons (card/icons.ts): Twemoji, CC-BY 4.0; the stock chess men (card/stock.ts): OpenMoji, CC BY-SA 4.0.
+    h(
+      "div",
+      { class: "home-credit" },
+      "Icons on cards: ",
+      h("a", { href: "https://github.com/twitter/twemoji", rel: "noopener" }, "Twemoji"),
+      " by Twitter, CC-BY 4.0; ",
+      h("a", { href: "https://openmoji.org", rel: "noopener" }, "OpenMoji"),
+      ", CC BY-SA 4.0",
+    ),
   );
   document.body.append(top, chips, main, foot);
 
