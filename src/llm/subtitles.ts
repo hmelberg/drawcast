@@ -18,6 +18,7 @@ import { callForJson, makeClient, type CallOpts } from "./client";
 import { controlsOfFor, planCommands } from "../render/plan";
 import type { Pt } from "../layout/model";
 import type { SubtitleTrack } from "../spec/subtitles";
+import { splitQuestion } from "../spec/question-echo";
 import type { Spec } from "../spec/types";
 
 /**
@@ -127,6 +128,16 @@ export function captionLines(spec: Spec): string[] {
     }
     // The feedback band's line said after them (spec 2026-10-03 §4.2).
     if ((step.kind === "quiz" || step.kind === "ask") && step.feedback) for (const l of feedbackLines(step.feedback, castLang(spec))) add(l);
+  }
+  // An ask the page's heading already asks says only its task (render/plan.ts,
+  // spec/question-echo.ts) — and the heading is a card this unexpanded plan
+  // does not see: its task line, with the intro the voice puts before it.
+  for (const c of spec.commands ?? []) {
+    const ask = c.ask;
+    if (!ask || typeof ask.question !== "string" || c.speak !== undefined || ask.say_question === false) continue;
+    const task = splitQuestion(ask.question).task;
+    if (task === "") continue;
+    add(ask.intro ? `${ask.intro} ${task}` : task);
   }
   return [...out];
 }

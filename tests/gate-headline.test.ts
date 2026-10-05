@@ -37,6 +37,10 @@ class El {
   get textContent(): string {
     return this.text + this.children.map((c) => c.textContent).join("");
   }
+  set textContent(v: string) {
+    this.children = [];
+    this.text = v;
+  }
   setAttribute(k: string, v: string): void {
     this.attrs[k] = v;
   }
@@ -163,6 +167,61 @@ describe("the headline", () => {
     const b = await mount("Which of these foods are fruit? Tap every fruit.", a.stage);
     expect(b.heads()).toHaveLength(1);
     expect(b.heads()[0].textContent).toContain("Which of these foods");
+  });
+});
+
+describe("the page's heading already asks it (Hans 2026-10-05, ants-on-earth)", () => {
+  async function mountBeside(question: string, heading: string | null, hintText = "Click where you think it is") {
+    const { mountGateDock } = await import("../src/ui/gate-dock");
+    const { h } = await import("../src/ui/dom");
+    const stage = new El("div");
+    const gate = new El("div");
+    stage.appendChild(gate);
+    const how = h("span", { class: "cs-waitgate-pill cs-figgate-hint" }, hintText) as unknown as El;
+    const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip ▸") as unknown as El;
+    const dock = mountGateDock(stage as unknown as HTMLElement, gate as unknown as HTMLElement, [skip] as unknown as HTMLElement[], () => {}, { question, how: how as unknown as HTMLElement, heading });
+    const heads = () => stage.children.filter((c) => c.className.split(" ").includes("cs-gatehead"));
+    return { stage, how, dock, heads };
+  }
+
+  test("the heading stays; only the task stands under it, in place of the hint", async () => {
+    const m = await mountBeside("How many ants live on Earth? Click on the line: each step is ten times the last.", "How many ants are on Earth?");
+    const [head] = m.heads();
+    expect(head.className).toContain("cs-gatehead-task");
+    expect(head.textContent).toBe("Click on the line: each step is ten times the last.");
+    expect(head.children).toEqual([m.how]);
+    // No headline: the heading is not hidden.
+    expect(m.stage.classList.contains("cs-headline")).toBe(false);
+    // The caption would only repeat the task: it steps aside meanwhile.
+    expect(m.stage.classList.contains("cs-gatetask")).toBe(true);
+    m.dock.dispose();
+    expect(m.stage.classList.contains("cs-gatetask")).toBe(false);
+  });
+
+  test("no task: the gate's own hint under the heading", async () => {
+    const m = await mountBeside("How many ants live on Earth?", "How many ants are on Earth?");
+    expect(m.heads()[0].textContent).toBe("Click where you think it is");
+    expect(m.stage.classList.contains("cs-headline")).toBe(false);
+  });
+
+  test("a task-only question under a heading: the task", async () => {
+    const m = await mountBeside("Click on the line where you think it is.", "How many ants are on Earth?");
+    expect(m.heads()[0].textContent).toBe("Click on the line where you think it is.");
+    expect(m.stage.classList.contains("cs-headline")).toBe(false);
+  });
+
+  test("a different question takes the heading's place, as before", async () => {
+    const m = await mountBeside("How much do all the ants weigh? Drag the bar.", "How many ants are on Earth?");
+    const [head] = m.heads();
+    expect(head.className).toBe("cs-gatehead");
+    expect(head.textContent).toContain("How much do all the ants weigh?");
+    expect(m.stage.classList.contains("cs-headline")).toBe(true);
+  });
+
+  test("no heading on the page: the headline, as before", async () => {
+    const m = await mountBeside("How many ants live on Earth? Click on the line.", null);
+    expect(m.heads()[0].className).toBe("cs-gatehead");
+    expect(m.stage.classList.contains("cs-headline")).toBe(true);
   });
 });
 

@@ -3,9 +3,16 @@
 // the task and what counts as right — read without the narration, in two
 // lines at most. And a sort judged card by card leaves no arrows or marks
 // for its wrong line to point at.
+//
+// Under a page heading that already asks the question (Hans 2026-10-05), the
+// heading is the headline and `question` gives the task only: a task-only
+// sentence is fine there, and a question that restates both the heading and
+// the line spoken before it is the same sentence a third time.
 
 import { authoredCards, cardsGeometry, cardsMode, resolveCardsSize, type CardsElementLike } from "../spec/cards";
 import { authoredScales, type ScaleElementLike } from "../spec/scale";
+import { pageHeading } from "../spec/card";
+import { restates, splitQuestion } from "../spec/question-echo";
 import type { Spec } from "../spec/types";
 import type { LintIssue } from "./lint";
 
@@ -25,13 +32,26 @@ export function lintAsks(spec: Spec): LintIssue[] {
   for (const e of spec.elements ?? []) if (e.type === "cards") cards.set(e.id, e as unknown as CardsElementLike);
   for (const c of authoredCards(spec)) cards.set(c.id, c);
   issues.push(...lintCardTexts(spec, [...cards.values()]));
+  // The page's heading as each command finds it: the last card's title, else
+  // the default heading (the title), else an expanded card heading's text.
+  const headings = new Map((spec.elements ?? []).filter((e) => /^card_\d+_title$/.test(e.id) && typeof e.text === "string").map((e) => [e.id, String(e.text)]));
+  let heading: string | null = pageHeading(spec);
+  let lastSpeak: string | null = null;
   (spec.commands ?? []).forEach((c, i) => {
+    if (typeof c.card?.title === "string") heading = c.card.title;
+    for (const id of Array.isArray(c.draw) ? c.draw : typeof c.draw === "string" ? [c.draw] : []) if (typeof id === "string" && headings.has(id)) heading = headings.get(id)!;
     const ask = c.ask;
+    const spokeBefore = lastSpeak;
+    if (typeof c.speak === "string" && c.speak.trim() !== "") lastSpeak = c.speak;
     if (!ask) return;
     const figure = ask.on !== undefined || ask.blanks !== undefined || ask.pick !== undefined || Array.isArray(ask.choose);
     if (!figure) return;
     const q = typeof ask.question === "string" ? ask.question.trim() : "";
-    if (q !== "") {
+    const taskOnly = heading !== null && splitQuestion(q).question === "";
+    if (q !== "" && heading !== null && restates(q, heading) && restates(q, spokeBefore)) {
+      issues.push({ rule: "ask-question", ids: [], severity: "warn", message: `commands[${i}].ask question "${q}" asks again what the heading ("${heading}") and the line before it already ask — give the task only ("Click on the line where you think it is."): the heading stays the headline and the voice asks once` });
+    }
+    if (q !== "" && !taskOnly) {
       const words = q.split(/\s+/).length;
       if (INSTRUCTION_ONLY.test(q) || words < QUESTION_MIN_WORDS) {
         issues.push({ rule: "ask-question", ids: [], severity: "warn", message: `commands[${i}].ask question "${q}" ${words < QUESTION_MIN_WORDS ? `is ${words} words` : "is an instruction with no object"} — it stands over the figure as the headline: a full sentence that names the task and what counts as right ("Which of these animals are mammals? Tap every mammal.")` });

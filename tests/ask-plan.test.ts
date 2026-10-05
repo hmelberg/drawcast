@@ -17,6 +17,30 @@ describe("typed ask planning", () => {
     expect(s.narration).toBe("Symbol for gold?");
   });
 
+  test("said once (ants-on-earth): a question the line before asked says only its task", () => {
+    const plan = planCommands(
+      [
+        { draw: ["count"], speak: "How many ants are alive on Earth right now?" },
+        { ask: { question: "How many ants live on Earth? Click on the line: each step is ten times the last.", on: "count", store: "a" } },
+      ],
+      ["count"],
+    );
+    const s = plan.steps.find((x) => x.kind === "ask");
+    expect(s?.narration).toBe("Click on the line: each step is ten times the last.");
+  });
+
+  test("said once: a question the page's heading asks says only its task, or nothing", () => {
+    const labels: Record<string, string> = { card_0_title: "How many ants are on Earth?" };
+    const opts = { labelOf: (id: string) => labels[id] ?? null };
+    const withTask = planCommands([{ draw: ["card_0_title"] }, { ask: { question: "How many ants live on Earth? Click on the line.", store: "a" } }], ["card_0_title"], opts);
+    expect(withTask.steps.find((x) => x.kind === "ask")?.narration).toBe("Click on the line.");
+    const bare = planCommands([{ draw: ["card_0_title"] }, { ask: { question: "How many ants live on Earth?", store: "a" } }], ["card_0_title"], opts);
+    expect(bare.steps.find((x) => x.kind === "ask")?.narration).toBeUndefined();
+    // A different question is said whole.
+    const other = planCommands([{ draw: ["card_0_title"] }, { ask: { question: "How much do they weigh? Drag.", store: "a" } }], ["card_0_title"], opts);
+    expect(other.steps.find((x) => x.kind === "ask")?.narration).toBe("How much do they weigh? Drag.");
+  });
+
   test("collect-mode carries store and fallback", () => {
     const plan = planCommands([{ ask: { question: "Name?", store: "name", default: "friend" } }], []);
     const s = plan.steps[0];

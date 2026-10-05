@@ -188,6 +188,9 @@ every working file below is `dev-casts/<slug>…`.
 
 - The first spoken line says what question the drawcast answers, while the
   first ink goes down (it may ride the axes); then why it matters.
+- Ask once: when the page heading already asks the question (a one-question
+  cast, a quiz page), the voice asks it once and the ask's `question` gives
+  only the task ("Click on the line where you think it is.").
 - One insight; mechanism, not just result; a concrete example with numbers;
   14–20 short sentences for the ear (the brief's length).
 - **Words on the canvas are cues:** a word or three ("Survives", "Dies");

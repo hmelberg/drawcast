@@ -994,7 +994,7 @@ const commandSchema = {
       description:
         "Pose a question answered by TYPING. Check mode (answer set): the typed reply is judged, with optional retry and reveal. Collect mode (store set): the reply is saved and later speak lines may use {store_name} — e.g. 'Nice to meet you, {name}'. At least one of answer/store/on is required; default is REQUIRED with store, except with `on` (the movie types it). With `on` the viewer instead GUESSES A NUMBER ON THE FIGURE (see `on`). In video export the card types its answer by itself and never waits.",
       properties: {
-        question: { type: "string", description: "The question, spoken aloud and shown as the caption." },
+        question: { type: "string", description: "The question, spoken aloud and shown over the figure. When the page heading already asks it: only the task (\"Click on the line.\")." },
         intro: {
           type: "string",
           description:
