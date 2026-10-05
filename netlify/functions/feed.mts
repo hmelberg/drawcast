@@ -28,6 +28,8 @@ export interface Feed {
   ranks: Array<{ name: string; visits: number }>;
   /** Each listed name's ranking (netlify/lib/rank-score.mts). */
   scores?: Record<string, RankScore>;
+  /** How many items the registry's stats covered: 0 means likes were ranked without their dates. */
+  stats?: number;
 }
 
 /** One day's count under `v/` (visits) or `d/` (watched to the end). */
@@ -78,7 +80,7 @@ export async function buildFeed(deps: FeedDeps): Promise<Feed | null> {
   if (casts === null || courses === null) return null;
   const items = [...casts, ...courses];
   const now = deps.now();
-  return { built: now, items, ranks: visitRanks(days), scores: scoresFor(items, days, stats, now) };
+  return { built: now, items, ranks: visitRanks(days), scores: scoresFor(items, days, stats, now), stats: stats?.length ?? 0 };
 }
 
 /** The older Popular row's list: visits per name (lectures apart) over the days given, most first. */
