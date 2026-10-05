@@ -113,6 +113,7 @@ export function registerFor(origin, lib, courseText, castText) {
     page: pagesUrlFor(origin.owner, origin.repo, origin.castsDir),
     ...(facts?.format ? { format: facts.format } : {}),
     ...(facts?.tags?.length ? { tags: facts.tags } : {}),
+    ...(facts?.level ? { level: facts.level } : {}),
   };
 }
 

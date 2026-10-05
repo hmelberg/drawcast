@@ -95,6 +95,8 @@ export interface RegisterInput {
   format?: "drawcast" | "quiz" | "xplanation";
   /** Topic tags from the cast's `tags:` header. */
   tags?: string[];
+  /** The cast's level (the brief's #basic / #advanced; castFacts) — absent is the default viewer. */
+  level?: "basic" | "advanced";
 }
 
 export interface RegisterResult {

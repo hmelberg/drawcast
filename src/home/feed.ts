@@ -10,10 +10,20 @@ import type { RankEntry } from "./model";
 export const FEED_URL = "https://drawcast.app/api/feed";
 const STORE_KEY = "drawcast:feed";
 
+/** One drawcast's ranking (netlify/lib/rank-score.mts). */
+export interface FeedScore {
+  /** Trending: recent likes, finishes and visits, times quality, plus a new-drawcast boost. */
+  score: number;
+  /** Likes in the last 30 days, times quality. */
+  month: number;
+}
+
 export interface HomeFeed {
   built: number;
   items: CatalogueItem[];
   ranks: RankEntry[];
+  /** Absent from a feed built before the ranking round. */
+  scores?: Record<string, FeedScore>;
 }
 
 /** The server's answer (or a kept copy), narrowed; null when it is not a feed. */
@@ -29,7 +39,15 @@ export function parseFeed(raw: unknown): HomeFeed | null {
   const ranks = Array.isArray(r.ranks)
     ? r.ranks.filter((x): x is RankEntry => !!x && typeof (x as RankEntry).name === "string" && typeof (x as RankEntry).visits === "number")
     : [];
-  return { built: r.built, items, ranks };
+  let scores: Record<string, FeedScore> | undefined;
+  if (r.scores && typeof r.scores === "object") {
+    scores = {};
+    for (const [name, v] of Object.entries(r.scores as Record<string, unknown>)) {
+      const x = v as Partial<FeedScore> | null;
+      if (x && typeof x.score === "number" && typeof x.month === "number") scores[name] = { score: x.score, month: x.month };
+    }
+  }
+  return { built: r.built, items, ranks, ...(scores ? { scores } : {}) };
 }
 
 /** The copy kept from the last visit, or null (none, or storage refused). */
@@ -64,7 +82,7 @@ export async function fetchFeed(fetchImpl: typeof fetch = fetch): Promise<HomeFe
 /** Whether two feeds would draw the same page (the build time aside). */
 export function sameFeed(a: HomeFeed | null, b: HomeFeed | null): boolean {
   if (!a || !b) return a === b;
-  return JSON.stringify(a.items) === JSON.stringify(b.items) && JSON.stringify(a.ranks) === JSON.stringify(b.ranks);
+  return JSON.stringify(a.items) === JSON.stringify(b.items) && JSON.stringify(a.ranks) === JSON.stringify(b.ranks) && JSON.stringify(a.scores) === JSON.stringify(b.scores);
 }
 
 /**
@@ -94,4 +112,28 @@ export function feedQuery(
     return out;
   }
   return items.filter(keep).sort((a, b) => (b.updated > a.updated ? 1 : b.updated < a.updated ? -1 : 0));
+}
+
+/** Highest score first; ties newest first (`created`, else `updated`). */
+export function byScore(items: readonly CatalogueItem[], scores: Record<string, FeedScore>, key: keyof FeedScore = "score"): CatalogueItem[] {
+  const when = (i: CatalogueItem): string => i.created ?? i.updated;
+  return [...items].sort((a, b) => (scores[b.name]?.[key] ?? 0) - (scores[a.name]?.[key] ?? 0) || (when(b) > when(a) ? 1 : when(b) < when(a) ? -1 : 0));
+}
+
+/** Newest first by when each was first registered (`created`, else `updated`). */
+export function byNewest(items: readonly CatalogueItem[]): CatalogueItem[] {
+  const when = (i: CatalogueItem): string => i.created ?? i.updated;
+  return [...items].sort((a, b) => (when(b) > when(a) ? 1 : when(b) < when(a) ? -1 : 0));
+}
+
+/** The topic rows from the whole catalogue: every tag at least `min` items
+ *  share, most shared first, at most `maxRows`, each row's items by score. */
+export function topicRows(items: readonly CatalogueItem[], scores: Record<string, FeedScore>, min = 4, maxRows = 10): { tag: string; items: CatalogueItem[] }[] {
+  const by = new Map<string, CatalogueItem[]>();
+  for (const i of items) for (const t of new Set(i.tags.map((x) => x.trim().toLowerCase()).filter(Boolean))) by.set(t, [...(by.get(t) ?? []), i]);
+  return [...by.entries()]
+    .filter(([, list]) => list.length >= min)
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+    .slice(0, maxRows)
+    .map(([tag, list]) => ({ tag, items: byScore(list, scores) }));
 }

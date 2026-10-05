@@ -16,7 +16,7 @@ import { h } from "./ui/dom";
 import featuredJson from "./home/featured.json";
 import { note, section, topBar } from "./home/ui";
 import { fetchRanks } from "./home/rank";
-import { feedQuery, fetchFeed, sameFeed, storedFeed, type HomeFeed } from "./home/feed";
+import { byNewest, byScore, feedQuery, fetchFeed, sameFeed, storedFeed, topicRows, type FeedScore, type HomeFeed } from "./home/feed";
 import { clearHistory, fetchMyList, MY_LISTS, parseMyList, readHistory, type MyList } from "./home/my-lists";
 import { getToken, setToken, signInUrl } from "./account";
 import {
@@ -37,6 +37,8 @@ const featured = parseFeatured(featuredJson);
 /** How many cards a row shows before "All N" (a row is a glance, not the catalogue). */
 const FEATURED_ROW = 12;
 const TOPIC_ROW = 8;
+/** Fewer than this and a ranked row is left out: a row is a choice, not two cards. */
+const ROW_MIN = 4;
 const featuredByName = new Map(featured.map((e) => [e.name, e]));
 
 /** The front page's data (home-cards round, 2026-10-05): the one feed
@@ -183,6 +185,8 @@ export function runHome(): void {
       const items = await catalogue("cast", "", { format });
       return [section(FORMAT_CHIPS.find((c) => c.id === chip)!.label, byFormat(mergeCards(featuredCards(), fromCatalogue(items))))];
     }
+    const ranked = await currentFeed();
+    if (ranked?.scores) return rankedRows(ranked.items, ranked.scores);
     const [casts, courses, hot] = await Promise.all([catalogue("cast"), catalogue("course"), popular()]);
     // A row needs a few items to be a row; until then the Featured row stands alone.
     const popularCards = fromCatalogue(hot).slice(0, 12);
@@ -202,6 +206,36 @@ export function runHome(): void {
         ),
       ),
       casts === "error" && courses === "error" ? note("The catalogue can't be reached right now.", "error") : null,
+    ];
+  }
+
+  /**
+   * The rows (ranking round, 2026-10-05), from the feed's scores
+   * (netlify/lib/rank-score.mts): the curated Featured row first, then
+   * Trending (recent likes, finishes and visits), New, Top this month, each
+   * format, the levels, and the topics the whole catalogue shares. A row
+   * needs ROW_MIN items to show; a public item only.
+   */
+  function rankedRows(all: CatalogueItem[], scores: Record<string, FeedScore>): (HTMLElement | null)[] {
+    const items = all.filter((i) => !i.private);
+    const casts = items.filter((i) => i.kind === "cast");
+    const cards = (list: CatalogueItem[], n = FEATURED_ROW): HomeCard[] => fromCatalogue(list.slice(0, n));
+    const row = (title: string, list: CatalogueItem[], more?: HTMLElement, n = FEATURED_ROW): HTMLElement | null => (list.length >= ROW_MIN ? section(title, cards(list, n), more) : null);
+    const moreLink = (href: string, text = "More"): HTMLElement => h("a", { class: "home-more", href }, text);
+    const month = byScore(items, scores, "month").filter((i) => (scores[i.name]?.month ?? 0) > 0);
+    return [
+      section("Featured", featuredCards().slice(0, FEATURED_ROW)),
+      row("Trending", byScore(items, scores)),
+      row("New", byNewest(casts), moreLink("#browse&kind=cast")),
+      row("Top this month", month),
+      row("Quizzes", byScore(casts.filter((i) => i.format === "quiz"), scores), moreLink("?f=quiz")),
+      row("Courses", byScore(items.filter((i) => i.kind === "course"), scores), moreLink("#browse&kind=course", "All courses"), 8),
+      row("Xplanations", byScore(casts.filter((i) => i.format === "xplanation"), scores), moreLink("?f=xplanation")),
+      row("Start here", byScore(casts.filter((i) => i.level === "basic"), scores)),
+      row("Going deeper", byScore(casts.filter((i) => i.level === "advanced"), scores)),
+      ...topicRows(items, scores).map((t) =>
+        row(t.tag[0].toUpperCase() + t.tag.slice(1), t.items, t.items.length > TOPIC_ROW ? moreLink(`?q=${encodeURIComponent(t.tag)}`, `All ${t.items.length}`) : undefined, TOPIC_ROW),
+      ),
     ];
   }
 

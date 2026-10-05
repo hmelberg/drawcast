@@ -3,7 +3,7 @@
 // (src/home/feed.ts).
 import { describe, expect, test } from "vitest";
 import { buildFeed, FRESH_MS, handleFeedRequest, type Feed, type FeedDeps } from "../netlify/functions/feed.mts";
-import { feedQuery, parseFeed, sameFeed } from "../src/home/feed";
+import { byNewest, byScore, feedQuery, parseFeed, sameFeed, topicRows } from "../src/home/feed";
 import type { CatalogueItem } from "../src/catalogue";
 
 const item = (name: string, over: Partial<CatalogueItem> = {}) => ({ kind: "cast", title: name, name, owner: "ann", lectures: 1, updated: "2026-10-01", private: false, tags: [], likes: 0, ...over });
@@ -19,7 +19,8 @@ function deps(over: Partial<FeedDeps> = {}): FeedDeps & { saved: Feed[]; asked: 
       if (kind === "course") return { items: [item("qaly", { kind: "course", lectures: 3 })], more: false };
       return page === 0 ? { items: [item("a"), item("b")], more: true } : { items: [item("c")], more: false };
     },
-    ranks: async () => [{ name: "a", visits: 3 }],
+    days: async () => [{ kind: "v", name: "a", day: "1970-01-01", count: 3 }],
+    stats: async () => null,
     load: async () => null,
     save: async (f) => void saved.push(f),
     now: () => 1_000_000,
@@ -32,6 +33,7 @@ describe("the feed function", () => {
     const f = (await buildFeed(deps()))!;
     expect(f.items.map((i) => (i as { name: string }).name)).toEqual(["a", "b", "c", "qaly"]);
     expect(f.ranks).toEqual([{ name: "a", visits: 3 }]);
+    expect(Object.keys(f.scores!)).toEqual(["a", "b", "c", "qaly"]);
   });
   test("no feed when a kind's first page does not answer", async () => {
     expect(await buildFeed(deps({ page: async (k) => (k === "cast" ? null : { items: [], more: false }) }))).toBeNull();
@@ -87,5 +89,32 @@ describe("the client's feed", () => {
   test("two feeds are the same page when only the build time differs", () => {
     expect(sameFeed(feed, { ...feed, built: 9 })).toBe(true);
     expect(sameFeed(feed, { ...feed, ranks: [] })).toBe(false);
+  });
+});
+
+describe("ranked rows (ranking round, 2026-10-05)", () => {
+  const parsed = parseFeed({
+    built: 1,
+    items: [
+      item("a", { tags: ["maths", "x"], created: "2026-10-01" }),
+      item("b", { tags: ["maths"], created: "2026-10-04" }),
+      item("c", { tags: ["maths", "x"], updated: "2026-10-03" }),
+      item("d", { tags: ["Maths"], level: "basic" }),
+    ],
+    ranks: [],
+    scores: { a: { score: 1, month: 0 }, b: { score: 5, month: 2 }, c: { score: 5, month: 1 }, d: { score: 0.5, month: 0 }, bad: { score: "x" } },
+  })!;
+  test("scores and levels are read; bad scores dropped", () => {
+    expect(Object.keys(parsed.scores!)).toEqual(["a", "b", "c", "d"]);
+    expect(parsed.items.find((i) => i.name === "d")!.level).toBe("basic");
+  });
+  test("by score, ties newest first; by month; by newest", () => {
+    expect(byScore(parsed.items, parsed.scores!).map((i) => i.name)).toEqual(["b", "c", "a", "d"]);
+    expect(byScore(parsed.items, parsed.scores!, "month").map((i) => i.name)).toEqual(["b", "c", "a", "d"]);
+    expect(byNewest(parsed.items).map((i) => i.name)).toEqual(["b", "c", "a", "d"]);
+  });
+  test("topic rows: tags shared by at least min items, case-folded, each by score", () => {
+    expect(topicRows(parsed.items, parsed.scores!, 4)).toEqual([{ tag: "maths", items: byScore(parsed.items, parsed.scores!) }]);
+    expect(topicRows(parsed.items, parsed.scores!, 2).map((r) => r.tag)).toEqual(["maths", "x"]);
   });
 });

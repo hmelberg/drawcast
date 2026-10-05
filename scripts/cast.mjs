@@ -422,7 +422,7 @@ async function registerPublished(origin, wd, session, verify) {
     const castMeta = (text) => {
       const p = parsePlaylistText(text);
       const facts = castFacts(text);
-      return { title: p.meta.title ?? itemsOf(p)[0]?.spec.title ?? "", format: facts.format, tags: facts.tags };
+      return { title: p.meta.title ?? itemsOf(p)[0]?.spec.title ?? "", format: facts.format, tags: facts.tags, level: facts.level };
     };
     const reg = registerFor(origin, { parseCourse, courseRegistration, courseTopicTags, castMeta }, courseText, castText);
     const names = origin.kind === "course" ? await load("/src/names.ts") : undefined;

@@ -44,6 +44,10 @@ export interface CatalogueItem {
   tags: string[];
   /** 👍 count (registry, 2026-10-03); dislikes are never public. */
   likes: number;
+  /** The cast's level (registry, 2026-10-05); absent is the default viewer. */
+  level?: "basic" | "advanced";
+  /** When the item was first registered, ISO (registry, 2026-10-05); absent on an older registry. */
+  created?: string;
 }
 
 export interface CatalogueAnswer {
@@ -110,6 +114,8 @@ export function parseCatalogueItem(raw: unknown): CatalogueItem | null {
     ...(r.format === "drawcast" || r.format === "quiz" || r.format === "xplanation" ? { format: r.format } : {}),
     tags: Array.isArray(r.tags) ? r.tags.filter((t): t is string => typeof t === "string") : [],
     likes: typeof r.likes === "number" && r.likes > 0 ? Math.floor(r.likes) : 0,
+    ...(r.level === "basic" || r.level === "advanced" ? { level: r.level } : {}),
+    ...(typeof r.created === "string" && r.created ? { created: r.created } : {}),
   };
 }
 

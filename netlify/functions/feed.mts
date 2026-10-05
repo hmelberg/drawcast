@@ -9,9 +9,13 @@
 // GET -> { built, items: CatalogueItem-shaped[], ranks: [{ name, visits }] }.
 // Public: the same items and totals the front page shows anyway.
 import { getStore } from "@netlify/blobs";
-import { computeRanks, parseVisitKey } from "./rank.mts";
+import { RANK_DAYS, RANK_MAX } from "./rank.mts";
+import { dayString } from "../lib/view-key.mts";
+import { foldDays, parseDayKey, rankScore, type RankScore } from "../lib/rank-score.mts";
 
 const CATALOGUE = "https://drawcast.anvil.app/_/api/catalogue";
+const STATS = "https://drawcast.anvil.app/_/api/catalogue/stats";
+const DAY_MS = 24 * 60 * 60 * 1000;
 /** A kept feed younger than this is served as it is; older, it is served and rebuilt behind. */
 export const FRESH_MS = 5 * 60 * 1000;
 /** Past any real catalogue: a guard against a registry whose `more` never ends. */
@@ -20,13 +24,36 @@ const MAX_PAGES = 40;
 export interface Feed {
   built: number;
   items: unknown[];
+  /** The 30-day visit totals, most visited first (the older Popular row's source). */
   ranks: Array<{ name: string; visits: number }>;
+  /** Each listed name's ranking (netlify/lib/rank-score.mts). */
+  scores?: Record<string, RankScore>;
+}
+
+/** One day's count under `v/` (visits) or `d/` (watched to the end). */
+export interface DayEntry {
+  kind: "v" | "d";
+  name: string;
+  day: string;
+  count: number;
+}
+
+/** The registry's secret-gated GET /catalogue/stats, one listed item. */
+export interface ItemStats {
+  name: string;
+  likes: number;
+  dislikes: number;
+  like_days: Record<string, number>;
+  created: string | null;
 }
 
 export interface FeedDeps {
   /** One catalogue page's body, or null on any failure. */
   page(kind: "cast" | "course", page: number): Promise<{ items?: unknown; more?: unknown } | null>;
-  ranks(): Promise<Array<{ name: string; visits: number }>>;
+  /** Every day count of the last RANK_DAYS days. */
+  days(): Promise<DayEntry[]>;
+  /** The registry's ranking stats, or null when it gave none. */
+  stats(): Promise<ItemStats[] | null>;
   load(): Promise<Feed | null>;
   save(feed: Feed): Promise<void>;
   defer?(work: Promise<unknown>): void;
@@ -47,9 +74,47 @@ export async function buildFeed(deps: FeedDeps): Promise<Feed | null> {
     }
     return out;
   };
-  const [casts, courses, ranks] = await Promise.all([all("cast"), all("course"), deps.ranks().catch(() => [])]);
+  const [casts, courses, days, stats] = await Promise.all([all("cast"), all("course"), deps.days().catch(() => []), deps.stats().catch(() => null)]);
   if (casts === null || courses === null) return null;
-  return { built: deps.now(), items: [...casts, ...courses], ranks };
+  const items = [...casts, ...courses];
+  const now = deps.now();
+  return { built: now, items, ranks: visitRanks(days), scores: scoresFor(items, days, stats, now) };
+}
+
+/** The older Popular row's list: visits per name (lectures apart) over the days given, most first. */
+export function visitRanks(days: DayEntry[]): Array<{ name: string; visits: number }> {
+  const totals = new Map<string, number>();
+  for (const d of days) if (d.kind === "v") totals.set(d.name, (totals.get(d.name) ?? 0) + d.count);
+  return [...totals.entries()]
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, RANK_MAX)
+    .map(([name, visits]) => ({ name, visits }));
+}
+
+/** Every listed item's score: the registry's stats when it gave them, else the catalogue's like count. */
+export function scoresFor(items: unknown[], days: DayEntry[], stats: ItemStats[] | null, now: number): Record<string, RankScore> {
+  const visits = foldDays(days.filter((d) => d.kind === "v"));
+  const done = foldDays(days.filter((d) => d.kind === "d"));
+  const byName = new Map((stats ?? []).map((s) => [s.name, s]));
+  const out: Record<string, RankScore> = {};
+  for (const raw of items) {
+    const i = raw as { name?: unknown; likes?: unknown; created?: unknown };
+    if (typeof i.name !== "string") continue;
+    const st = byName.get(i.name);
+    out[i.name] = rankScore(
+      {
+        likes: st ? st.likes : typeof i.likes === "number" ? i.likes : 0,
+        dislikes: st?.dislikes ?? 0,
+        likeDays: st ? st.like_days : undefined,
+        visits: visits.get(i.name),
+        done: done.get(i.name),
+        created: st?.created ?? (typeof i.created === "string" ? i.created : null),
+      },
+      now,
+    );
+  }
+  return out;
 }
 
 const HEADERS = {
@@ -94,15 +159,37 @@ export default async (req: Request, context?: { waitUntil?: (work: Promise<unkno
   const visits = getStore({ name: "name-visits" });
   return handleFeedRequest(req, {
     page: (kind, page) => json(`${CATALOGUE}?kind=${kind}${page ? `&page=${page}` : ""}`),
-    ranks: () =>
-      computeRanks({
-        listKeys: async () => (await visits.list({ prefix: "v/" })).blobs.map((b) => b.key).filter((k) => parseVisitKey(k) !== null),
-        readCount: async (key) => {
-          const rec = (await visits.get(key, { type: "json" })) as { count?: unknown } | null;
-          return typeof rec?.count === "number" ? rec.count : 0;
-        },
-        now: () => Date.now(),
-      }),
+    days: async () => {
+      const cutoff = dayString(Date.now() - (RANK_DAYS - 1) * DAY_MS);
+      const keys = [...(await visits.list({ prefix: "v/" })).blobs, ...(await visits.list({ prefix: "d/" })).blobs]
+        .map((b) => ({ key: b.key, p: parseDayKey(b.key) }))
+        .filter((x) => x.p && x.p.day >= cutoff);
+      const out: DayEntry[] = [];
+      // In parallel batches: a few thousand small reads at most, a few times an hour.
+      for (let i = 0; i < keys.length; i += 50) {
+        const batch = keys.slice(i, i + 50);
+        const counts = await Promise.all(
+          batch.map(async (x) => {
+            const rec = (await visits.get(x.key, { type: "json" }).catch(() => null)) as { count?: unknown } | null;
+            return typeof rec?.count === "number" ? rec.count : 0;
+          }),
+        );
+        batch.forEach((x, j) => out.push({ ...x.p!, count: counts[j] }));
+      }
+      return out;
+    },
+    stats: async () => {
+      const secret = process.env.NAME_STATS_SECRET ?? "";
+      if (!secret) return null;
+      try {
+        const res = await fetch(STATS, { headers: { "x-drawcast-stats": secret }, signal: AbortSignal.timeout(15000) });
+        if (!res.ok) return null;
+        const body = (await res.json()) as { items?: unknown };
+        return Array.isArray(body.items) ? (body.items as ItemStats[]) : null;
+      } catch {
+        return null;
+      }
+    },
     load: async () => (await feeds.get("feed.json", { type: "json" })) as Feed | null,
     save: async (feed) => {
       await feeds.setJSON("feed.json", feed);

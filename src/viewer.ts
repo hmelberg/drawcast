@@ -1130,11 +1130,17 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
         if (reporter) void report({ kind: "item", cast: reporter.cast, ...view });
       },
       handIn: () => handIn,
-      onDone: reporter
-        ? () => {
-            void report({ kind: "completed", cast: reporter.cast });
-          }
-        : undefined,
+      onDone:
+        reporter || req.watchName
+          ? () => {
+              if (reporter) void report({ kind: "completed", cast: reporter.cast });
+              // Watched to the end (ranking round, 2026-10-05): the front
+              // page ranks a finished drawcast above a glance. Only on
+              // drawcast.app's own watch page; a count, nothing about who.
+              if (req.watchName && req.embedded === undefined && location.hostname === "drawcast.app")
+                void fetch("/api/done", { method: "POST", keepalive: true, headers: { "content-type": "application/json" }, body: JSON.stringify({ name: req.watchName }) }).catch(() => undefined);
+            }
+          : undefined,
       advanceOverride: req.advance,
     });
     status.remove();

@@ -5370,6 +5370,7 @@ async function publishDrawcast({
         // The front page's format and topics, read from what was published.
         format: publishedFacts.format,
         ...(publishedFacts.tags ? { tags: publishedFacts.tags } : {}),
+        ...(publishedFacts.level ? { level: publishedFacts.level } : {}),
       },
       bounded,
     );
