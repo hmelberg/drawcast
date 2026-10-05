@@ -39,6 +39,7 @@ import type { PlayArgs } from "../spec/types";
 import { confidenceBoxes } from "../guess/confidence";
 import { pollPlan } from "../guess/poll";
 import { animatableVars } from "../spec/vars";
+import { foldVerbDuration } from "../spec/verb-duration";
 
 /**
  * One operation on a book's text pane (spec 2026-10-01-book-layout §4.2). The
@@ -663,7 +664,9 @@ const CAMERA_FIT_MARGIN = 1.4;
  *  view's centre — the caption band covers roughly the bottom tenth. */
 const CAMERA_FIT_LIFT = 0.1;
 
-export function planCommands(commands: Command[] | undefined, allIds: string[], opts: PlanOptions = {}): Plan {
+export function planCommands(commandsIn: Command[] | undefined, allIds: string[], opts: PlanOptions = {}): Plan {
+  // `{highlight: …, duration: 2}` holds the highlight 2 s, as validation reads it (spec/verb-duration.ts).
+  const commands = commandsIn?.map(foldVerbDuration);
   /** The camera at rest: the page, or the fit of a template's world. */
   const rest = restView(opts.world);
   /** A question's feedback, resolved with the cast's; plain with no reward (the default) leaves the step as it was. */

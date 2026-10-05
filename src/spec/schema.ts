@@ -26,6 +26,7 @@ import { pictureErrors } from "./places";
 import { spotErrors } from "./spot";
 import { oddErrors } from "./odd-one-out";
 import { elementCites } from "./sequence";
+import { foldVerbDuration } from "./verb-duration";
 
 // ajv ships CJS; depending on the bundler/runtime the class is the module or its .default.
 const AjvCtor = ((AjvModule as unknown as { default?: unknown }).default ?? AjvModule) as typeof AjvModule;
@@ -1759,6 +1760,8 @@ export function normalizeSpec(spec: unknown): unknown {
     // only ever see one shape.
     if (el.type === "annotation" && el.target !== undefined) el.target = toList(el.target);
   }
+  // `{highlight: …, duration: 2}`: the duration is highlight's (spec/verb-duration.ts).
+  if (Array.isArray(clone.commands)) clone.commands = clone.commands.map(foldVerbDuration);
   for (const cmd of clone.commands ?? []) {
     if (!cmd) continue;
     // `soft` left `delivery` on 2026-09-21 (75237fe7) with no migration, and
@@ -2060,7 +2063,7 @@ function semanticErrors(spec: Spec): string[] {
       }
     }
     if (cmd.duration !== undefined && verb !== "animate") {
-      errors.push(`commands[${i}]: duration only applies to animate (other verbs carry their own duration fields)`);
+      errors.push(`commands[${i}]: duration applies to animate and to verbs that take their own (highlight, focus, point, move, arrange, fade, flip, morph, step, flow, camera) — ${verb} takes none`);
     }
     if (cmd.easing !== undefined && verb !== "animate") {
       errors.push(`commands[${i}]: easing only applies to animate (move carries its own nested easing field)`);
