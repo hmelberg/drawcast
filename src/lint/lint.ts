@@ -1697,6 +1697,15 @@ export function lintBook(spec: Spec): LintIssue[] {
   const issues: LintIssue[] = [];
   const cmds = spec.commands ?? [];
   const elementIds = new Set((spec.elements ?? []).map((e) => e.id));
+  // The blocks this part writes (named, or w1, w2, … as the planner numbers
+  // them). Only a mark on one of these is on the text: a template's own parts
+  // (bar_1, cell_0_0) are not in spec.elements either, but they are on the
+  // figure, and counting them flagged a book that marked two bars (2026-10-05).
+  const blockIds = new Set<string>();
+  cmds.filter((c) => c.write !== undefined).forEach((c, i) => {
+    const w = typeof c.write === "string" ? { text: c.write } : c.write!;
+    blockIds.add(w.id ?? `w${i + 1}`);
+  });
   let blocks = 0;
   let marks = 0;
   for (const c of cmds) {
@@ -1713,7 +1722,7 @@ export function lintBook(spec: Spec): LintIssue[] {
     const target = c.highlight?.target ?? c.erase ?? (c.point?.at?.ref !== undefined ? [c.point.at.ref] : undefined);
     const ids = target === undefined ? [] : typeof target === "string" ? [target] : target;
     const text = ids.filter((id) => !elementIds.has(id));
-    if (c.highlight !== undefined && text.length > 0) marks++;
+    if (c.highlight !== undefined && text.some((id) => blockIds.has(id) || /^w\d+$/.test(id))) marks++;
     for (const id of text) {
       if (/^w\d+$/.test(id)) {
         issues.push({ rule: "book-auto-id", ids: [id], message: `"${id}" is a block's automatic id — it changes when a block is added before it; give the block an id (write: {id: …, text: …}) and use that`, severity: "warn" });
