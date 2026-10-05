@@ -61,8 +61,15 @@ export interface GuessHandle {
   paths?: string[];
   /** A population state's count (no var bound): element id + state name. */
   population?: { id: string; state: string };
-  /** A scale's marker: the authored scale element. */
+  /** A scale's marker: the scale element where the page draws it — on a
+   *  settled page (layout/settle.ts) its y is the settled line's, so every
+   *  reader of its geometry (the pointer, the marks, the reveal) meets the
+   *  ink. */
   scale?: ScaleElementLike;
+  /** How far the page's settling moved the scale (0 or absent: not at all).
+   *  patchFor writes the marker at the AUTHORED line, since the preview
+   *  layout settles it again. */
+  scaleSettle?: number;
   /** A pie: the slice values' paths (all of them), the asked slice (0-based)
    *  or null for the whole pie, and the true total. */
   pie?: { paths: string[]; slice: number | null; total: number; shares: number[]; start?: number };
@@ -244,7 +251,7 @@ export function guessSetup(
       else handles.push(pop);
       continue;
     }
-    const sc = scaleHandle(spec, part);
+    const sc = scaleHandle(spec, part, layout.fit?.settle ?? 0);
     if (sc) {
       handles.push(sc);
       continue;
@@ -724,10 +731,13 @@ export function personAt(h: GuessHandle, p: Pt): number {
   return best;
 }
 
-function scaleHandle(spec: Spec, part: string): GuessHandle | null {
+function scaleHandle(spec: Spec, part: string, settle = 0): GuessHandle | null {
   // A scale is sugar (spec/scale.ts): its group keeps the numbers.
-  const sc = authoredScales(spec).find((s) => s.id === part);
-  if (!sc || typeof sc.value !== "number") return null;
+  const authored = authoredScales(spec).find((s) => s.id === part);
+  if (!authored || typeof authored.value !== "number") return null;
+  // On a settled page the line is drawn `settle` higher (or lower) than the
+  // spec says: the handle carries the line where it is drawn.
+  const sc = settle !== 0 ? { ...authored, y: scaleGeometry(authored).y + settle } : authored;
   const g = scaleGeometry(sc);
   // A slider's arrow keys fine-tune (a tenth of the line's step; Shift: ten of them).
   const step = g.kind === "log" ? 0 : sc.slider === true ? niceStep(g.max - g.min) / 10 : niceStep(g.max - g.min);
@@ -744,6 +754,7 @@ function scaleHandle(spec: Spec, part: string): GuessHandle | null {
     format: g.format,
     unit: g.unit,
     scale: sc,
+    ...(settle !== 0 ? { scaleSettle: settle } : {}),
   };
 }
 
@@ -1018,7 +1029,8 @@ export function patchFor(
     }
     if (h.scale) {
       const list = els();
-      const fresh = scaleValueElements(h.scale, v[0]);
+      // The spec's own line: the patched layout settles it with the rest.
+      const fresh = scaleValueElements(h.scaleSettle ? { ...h.scale, y: scaleGeometry(h.scale).y - h.scaleSettle } : h.scale, v[0]);
       const ids = new Set(fresh.map((e) => e.id));
       const at = list.findIndex((e) => ids.has(e.id));
       const kept = list.filter((e) => !ids.has(e.id));

@@ -10,36 +10,40 @@ import { domainMapping, elementBBoxes, layoutSpec } from "../src/layout/layout";
 import { expandSpec } from "../src/spec/expand";
 import { validateSpec } from "../src/spec/schema";
 import { formulaHooksFor } from "../src/render/index";
+import { guessSetup, hitDistance, patchFor, pointFor, valueAt } from "../src/guess/handles";
+import { scaleGeometry } from "../src/spec/scale";
 import { planCommands } from "../src/render/plan";
 import { authoredCards, cardsGeometryIn } from "../src/spec/cards";
 import { parseScript, printScript } from "../src/spec/script";
 import type { BBox } from "../src/layout/geometry";
 import type { Spec } from "../src/spec/types";
 
-const area = contentBox({ heading: true }); // y 160 … 655
+const area = contentBox({ heading: true }); // y 110 … 655
 const quiz = (name: string): Spec => (JSON.parse(readFileSync(new URL(`./fixtures/quiz/${name}.json`, import.meta.url), "utf8")) as { spec: Spec }).spec;
 const centre = (b: BBox): [number, number] => [b.x + b.w / 2, b.y + b.h / 2];
 
 describe("the settle offset", () => {
   it("evens the gaps of a figure squeezed into the top half", () => {
-    // 300 tall, top at 645: 10 above, 185 below.
+    // 300 tall, top at 645: 10 above, 235 below.
     const dy = settleOffset({ x: 100, y: 345, w: 800, h: 300 }, area);
-    expect(dy).toBe(-87); // −87.5, rounded
+    expect(dy).toBe(-112); // −112.5, rounded
     const below = 345 + dy - area.y, above = area.y + area.h - (345 + dy + 300);
     expect(Math.abs(below - above)).toBeLessThanOrEqual(1);
   });
 
   it("lifts a figure sitting low", () => {
-    expect(settleOffset({ x: 100, y: 170, w: 800, h: 200 }, area)).toBe(138);
+    expect(settleOffset({ x: 100, y: 170, w: 800, h: 200 }, area)).toBe(113);
   });
 
   it("leaves nearly even gaps, a full figure and one taller than the area alone", () => {
-    // Uneven by exactly the slack: noise.
-    expect(settleOffset({ x: 0, y: 160 + 100 + SETTLE_SLACK, w: 10, h: 200 }, area)).toBe(0);
-    // 91 % of the height, all of the slack below: too little to be uneven.
-    expect(settleOffset({ x: 0, y: area.y + area.h - 450, w: 10, h: 450 }, area)).toBe(0);
+    // Uneven by exactly the slack (187 below, 157 above): noise; one more is not.
+    expect(SETTLE_SLACK).toBe(30);
+    expect(settleOffset({ x: 0, y: area.y + 187, w: 10, h: 201 }, area)).toBe(0);
+    expect(settleOffset({ x: 0, y: area.y + 188, w: 10, h: 200 }, area)).not.toBe(0);
+    // 95 % of the height, all of the slack below: too little to be uneven.
+    expect(settleOffset({ x: 0, y: area.y + area.h - 520, w: 10, h: 520 }, area)).toBe(0);
     // 86 %, cards touching the heading: moved.
-    expect(settleOffset({ x: 0, y: area.y + area.h - 426, w: 10, h: 426 }, area)).toBe(-34);
+    expect(settleOffset({ x: 0, y: area.y + area.h - 470, w: 10, h: 470 }, area)).toBe(-37);
     expect(settleOffset({ x: 0, y: 100, w: 10, h: 600 }, area)).toBe(0);
   });
 
@@ -49,9 +53,9 @@ describe("the settle offset", () => {
   });
 
   it("stops short of something pinned in its columns, and ignores one beside it", () => {
-    const fig = { x: 300, y: 395, w: 400, h: 250 }; // wants to go down 117
+    const fig = { x: 300, y: 395, w: 400, h: 250 }; // wants to go down 137
     expect(settleOffset(fig, area, { pinned: [{ x: 320, y: 300, w: 100, h: 40 }] })).toBe(-45);
-    expect(settleOffset(fig, area, { pinned: [{ x: 750, y: 300, w: 100, h: 40 }] })).toBe(-112);
+    expect(settleOffset(fig, area, { pinned: [{ x: 750, y: 300, w: 100, h: 40 }] })).toBe(-137);
     // Pinned right under it: no room, no move.
     expect(settleOffset(fig, area, { pinned: [{ x: 320, y: 360, w: 100, h: 40 }] })).toBe(0);
   });
@@ -192,7 +196,33 @@ describe("what counts as the figure's run", () => {
     expect(Math.abs(below - above)).toBeLessThanOrEqual(SETTLE_SLACK);
   });
 
-  it("a guess on a scale leaves the page as laid out", () => {
-    expect(layoutSpec(example("Neurons in a brain")).fit).toBeUndefined();
+  it("a guess on a scale settles, and its handle reads the line where it is drawn", () => {
+    const spec = example("Neurons in a brain");
+    const l = layoutSpec(spec);
+    const dy = l.fit?.settle ?? 0;
+    expect(dy).not.toBe(0);
+    const plain = layoutSpec({ ...spec, page: { valign: "none" } });
+    const line = (x: ReturnType<typeof layoutSpec>): number => elementBBoxes(x).get("n_line")!.y;
+    expect(line(l) - line(plain)).toBeCloseTo(dy, 6);
+    const h = guessSetup(spec, spec.params ?? {}, l, ["n"]).handles[0];
+    const g = scaleGeometry(h.scale!);
+    // The handle's line is the drawn one: a click on it (or anywhere in its
+    // column) maps to the value under the pointer, and the marker stands on it.
+    expect(g.y).toBeCloseTo(line(l), 6);
+    for (const v of [0.01, 1, 86, 500]) {
+      const x = g.xAt(v);
+      expect(valueAt(h, [x, line(l)], [1])[0]).toBeCloseTo(v, 6);
+      expect(hitDistance(h, [x, line(l)], [v])).toBeLessThan(hitDistance(h, [x, line(plain)], [v]));
+    }
+    expect(pointFor(h, [86])![1]).toBeCloseTo(line(l) + 18, 6);
+    // The preview (the marker at a guess) is written at the spec's line and
+    // settled with the page by the same dy: the marker lands on the drawn line.
+    const patch = patchFor(spec, { handles: [h], pin: {} }, [[3]]);
+    const preview = layoutSpec({ ...spec, elements: patch.elements! });
+    expect(preview.fit?.settle).toBe(dy);
+    const pin = elementBBoxes(preview).get("n_answer_pin")!;
+    const truePin = elementBBoxes(l).get("n_answer_pin")!;
+    expect(pin.y).toBeCloseTo(truePin.y, 6);
+    expect(pin.x + pin.w / 2).toBeCloseTo(g.xAt(3), 0);
   });
 });

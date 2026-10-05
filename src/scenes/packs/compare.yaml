@@ -152,7 +152,7 @@ layout: |
   // The page frame's content area (src/layout/page.ts contentBox): a template
   // body cannot import it, so the default is spelled out here.
   const pb = params.box;
-  const B = pb && fin(pb.x) && fin(pb.y) && fin(pb.w) && fin(pb.h) && pb.w > 0 && pb.h > 0 ? { x: pb.x, y: pb.y, w: pb.w, h: pb.h } : { x: 60, y: 160, w: 880, h: 495 };
+  const B = pb && fin(pb.x) && fin(pb.y) && fin(pb.w) && fin(pb.h) && pb.w > 0 && pb.h > 0 ? { x: pb.x, y: pb.y, w: pb.w, h: pb.h } : { x: 60, y: 110, w: 880, h: 545 };
   const NAME_FS = 34, VALUE_FS = 24, RATIO_FS = 50, BIG_NAME_FS = 48, G = 36, BAR_W = 64;
   const showValues = params.show_values !== false;
   // Name to value line: their heights (1.25 em each, the lint's measure) and a clear gap.

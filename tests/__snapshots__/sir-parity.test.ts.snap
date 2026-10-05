@@ -2538,19 +2538,19 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "pts": [
         [
           87.86279683377307,
-          340.39709762532976,
+          315.39709762532976,
         ],
         [
           262.00527704485484,
-          340.39709762532976,
+          315.39709762532976,
         ],
         [
           262.00527704485484,
-          444.88258575197887,
+          419.88258575197887,
         ],
         [
           87.86279683377307,
-          444.88258575197887,
+          419.88258575197887,
         ],
       ],
       "shapeHint": {
@@ -2558,7 +2558,7 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
         "type": "rect",
         "w": 174.1424802110818,
         "x": 87.86279683377307,
-        "y": 340.39709762532976,
+        "y": 315.39709762532976,
       },
       "style": {
         "color": "#3d3833",
@@ -2579,7 +2579,7 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "kind": "text",
       "pos": [
         174.93403693931396,
-        392.6398416886543,
+        367.6398416886543,
       ],
       "style": {
         "color": "#3d3833",
@@ -2602,19 +2602,19 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "pts": [
         [
           412.92875989445906,
-          340.39709762532976,
+          315.39709762532976,
         ],
         [
           587.0712401055408,
-          340.39709762532976,
+          315.39709762532976,
         ],
         [
           587.0712401055408,
-          444.88258575197887,
+          419.88258575197887,
         ],
         [
           412.92875989445906,
-          444.88258575197887,
+          419.88258575197887,
         ],
       ],
       "shapeHint": {
@@ -2622,7 +2622,7 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
         "type": "rect",
         "w": 174.1424802110818,
         "x": 412.92875989445906,
-        "y": 340.39709762532976,
+        "y": 315.39709762532976,
       },
       "style": {
         "color": "#3d3833",
@@ -2643,7 +2643,7 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "kind": "text",
       "pos": [
         500,
-        392.6398416886543,
+        367.6398416886543,
       ],
       "style": {
         "color": "#3d3833",
@@ -2666,19 +2666,19 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "pts": [
         [
           737.9947229551451,
-          340.39709762532976,
+          315.39709762532976,
         ],
         [
           912.1372031662269,
-          340.39709762532976,
+          315.39709762532976,
         ],
         [
           912.1372031662269,
-          444.88258575197887,
+          419.88258575197887,
         ],
         [
           737.9947229551451,
-          444.88258575197887,
+          419.88258575197887,
         ],
       ],
       "shapeHint": {
@@ -2686,7 +2686,7 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
         "type": "rect",
         "w": 174.1424802110818,
         "x": 737.9947229551451,
-        "y": 340.39709762532976,
+        "y": 315.39709762532976,
       },
       "style": {
         "color": "#3d3833",
@@ -2707,7 +2707,7 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "kind": "text",
       "pos": [
         825.0659630606859,
-        392.6398416886543,
+        367.6398416886543,
       ],
       "style": {
         "color": "#3d3833",
@@ -2731,11 +2731,11 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "pts": [
         [
           265.4881266490765,
-          392.6398416886543,
+          367.6398416886543,
         ],
         [
           409.44591029023746,
-          392.6398416886543,
+          367.6398416886543,
         ],
       ],
       "shapeHint": undefined,
@@ -2760,11 +2760,11 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "pts": [
         [
           590.5540897097625,
-          392.6398416886543,
+          367.6398416886543,
         ],
         [
           734.5118733509235,
-          392.6398416886543,
+          367.6398416886543,
         ],
       ],
       "shapeHint": undefined,
@@ -3211,7 +3211,7 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "lines": undefined,
       "pos": [
         174.93403693931396,
-        293.82717678100255,
+        268.8271767810026,
       ],
       "style": {
         "color": "#8f887c",
@@ -3234,7 +3234,7 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "lines": undefined,
       "pos": [
         500,
-        293.82717678100255,
+        268.8271767810026,
       ],
       "style": {
         "color": "#8f887c",
@@ -3257,7 +3257,7 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "lines": undefined,
       "pos": [
         825.0659630606859,
-        293.82717678100255,
+        268.8271767810026,
       ],
       "style": {
         "color": "#8f887c",
@@ -3280,7 +3280,7 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "lines": undefined,
       "pos": [
         337.467018469657,
-        519.7216358839049,
+        494.721635883905,
       ],
       "style": {
         "color": "#8a5fa8",
@@ -3303,7 +3303,7 @@ exports[`sir_compartments: specs without model params paint as before > bundled:
       "lines": undefined,
       "pos": [
         662.5329815303429,
-        519.7216358839049,
+        494.721635883905,
       ],
       "style": {
         "color": "#8a5fa8",

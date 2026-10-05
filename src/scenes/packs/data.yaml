@@ -278,7 +278,7 @@ layout: |
   // (The standard plot area keeps that headroom already: only a box.)
   else if (boxed && str(params.y_label, "") && plot.y1 > 593 && plot.y1 - 62 > plot.y0 + 200) plot.y1 = Math.min(plot.y1, 593);
   // The category row hangs 20 under the axis (and its icons under that): a
-  // box down to the content area's floor (160, CAPTION_TOP — box: full) put
+  // box down to the content area's floor (then 160, CAPTION_TOP — box: full) put
   // the names in the caption band, under a two-line caption (A4). The axis
   // rises until a one-line row clears it.
   if (boxed && plot.y0 < 198 && plot.y1 - 198 > 200) plot.y0 = 198;
@@ -757,9 +757,9 @@ layout: |
 
   const b = params.box;
   const boxed = b && typeof b === "object" && [b.x, b.y, b.w, b.h].every((v) => typeof v === "number" && Number.isFinite(v)) && b.w > 0 && b.h > 0;
-  // Default: the page's content area (src/layout/page.ts — x 60…940, y 160…655,
+  // Default: the page's content area (src/layout/page.ts — x 60…940, y 110…655,
   // clear of the caption band). guess/handles.ts pieGeometry mirrors all of this.
-  const area = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : { x0: 60, y0: 160, x1: 940, y1: 655 };
+  const area = boxed ? { x0: b.x, y0: b.y, x1: b.x + b.w, y1: b.y + b.h } : { x0: 60, y0: 110, x1: 940, y1: 655 };
   const title = str(params.title, "");
   if (title) area.y1 = Math.min(area.y1, 650);
   const showPct = params.percent !== false;
