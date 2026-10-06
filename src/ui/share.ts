@@ -1103,7 +1103,7 @@ function build(): ShareSession {
       if (!token || !item) return;
       listedPayBtn.disabled = true;
       try {
-        const started = await startPrivatePayment(DEFAULT_ENROLL_API, {
+        const body = {
           key: token,
           kind: item.kind,
           target: item.target,
@@ -1112,7 +1112,16 @@ function build(): ShareSession {
           lectures: item.lectures,
           ...payListedFields(privateCb.checked, false),
           return: location.href.split("#")[0],
-        });
+        };
+        // Unlisting alone is paid from credit when it covers the price (credit
+        // plan delivery 3); private is not sold for credit, so it goes to the card.
+        let started = privateCb.checked ? await startPrivatePayment(DEFAULT_ENROLL_API, body) : await startPrivatePayment(DEFAULT_ENROLL_API, { ...body, pay: "credits" });
+        if (started === "credit") started = await startPrivatePayment(DEFAULT_ENROLL_API, body);
+        if (typeof started === "object" && "paidCredits" in started) {
+          listedHint.textContent = `Unlisted — paid ${started.paidCredits.toLocaleString("en-US")} credits.`;
+          listedPayRow.hidden = true;
+          return;
+        }
         if (typeof started === "object") {
           location.href = started.url;
           return;
@@ -1190,6 +1199,13 @@ function build(): ShareSession {
         publishGo.disabled = true;
         return;
       }
+      if (q.subscriptionRequired) {
+        // Credit plan delivery 4: private is part of a subscription, not sold one-off.
+        privateHint.textContent = "Private is part of a subscription (Settings → Credits) — enrolled learners only; you approve who joins";
+        privatePayRow.hidden = true;
+        publishGo.disabled = true;
+        return;
+      }
       if (q.due > 0) {
         privateHint.textContent = `Private: ${formatPrice(q.due, q.currency)} — enrolled learners only; you approve who joins`;
         privatePayBtn.textContent = `Pay ${formatPrice(q.due, q.currency)}`;
@@ -1197,7 +1213,7 @@ function build(): ShareSession {
         publishGo.disabled = true;
         return;
       }
-      privateHint.textContent = "Paid — publish to lock the lectures";
+      privateHint.textContent = q.subscribed ? "Included in your subscription — publish to lock the lectures" : "Paid — publish to lock the lectures";
       publishGo.disabled = false;
     })();
   }
@@ -1295,7 +1311,7 @@ function build(): ShareSession {
           ...payListedFields(true, listedCb.checked),
           return: location.href.split("#")[0],
         });
-        if (typeof started === "object") {
+        if (typeof started === "object" && "url" in started) {
           location.href = started.url;
           return;
         }
@@ -1304,7 +1320,9 @@ function build(): ShareSession {
             ? "Nothing is due — publish to lock the lectures."
             : started === "pending"
               ? "A payment for this item is already open — finish it, or wait an hour and try again."
-              : started === "owner"
+              : started === "subscription"
+                ? "Private is part of a subscription (Settings → Credits)"
+                : started === "owner"
                 ? "Registered to another account — you can't make it private"
                 : started === "key"
                   ? "Sign in to publish privately"

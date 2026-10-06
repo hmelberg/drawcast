@@ -33,7 +33,7 @@ import { runLang, stampedVoice, synthesizeBase64 } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, formatPrice, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
-import { claimFile, ensurePrivateApplied, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
+import { claimFile, ensurePrivateApplied, PRIVATE_NEEDS_SUBSCRIPTION, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
 import { CreditError, serverSynthesize } from "../credit";
 import { getToken } from "../account";
 import { courseLockedInRepo, hasBuiltLecture, privateLectureCount, publishPrivacy } from "../private-doc";
@@ -1286,6 +1286,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
             say("Not published: this course is registered to another account, so it can't be made private.", "error");
             return;
           }
+          if (applied === "subscription") {
+            say(PRIVATE_NEEDS_SUBSCRIPTION, "error");
+            return;
+          }
           if (applied !== "ok") {
             say("Not published: could not check the private course just now — try again in a moment.", "error");
             return;
@@ -1648,8 +1652,15 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           say("That is not a name drawcast can register: at least 3 characters, lower-case letters, digits and dashes.", "error");
           return;
         }
-        say(`Opening the payment for drawcast.app/#${reg.name}…`);
-        const started = await startNamePayment(DEFAULT_ENROLL_API, { key: accountToken, ...reg, return: location.href.split("#")[0] });
+        say(`Buying drawcast.app/#${reg.name}…`);
+        // Credit first when it covers the price (credit plan delivery 3); the card otherwise.
+        const body = { key: accountToken, ...reg, return: location.href.split("#")[0] };
+        let started = await startNamePayment(DEFAULT_ENROLL_API, { ...body, pay: "credits" });
+        if (started === "credit") started = await startNamePayment(DEFAULT_ENROLL_API, body);
+        if (typeof started === "object" && "paidCredits" in started) {
+          say(`drawcast.app/#${reg.name} is yours — paid ${started.paidCredits.toLocaleString("en-US")} credits. Publish again to put the Join door on the page.`, "ok");
+          return;
+        }
         if (typeof started === "object") {
           location.href = started.url;
           return;

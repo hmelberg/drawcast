@@ -178,6 +178,10 @@ export interface PrivateQuote {
   listed?: boolean;
   owner: "you" | "other" | "none";
   name: string | null;
+  /** The caller subscribes: private and unlisted are included (credit plan delivery 4). */
+  subscribed?: boolean;
+  /** Private was asked for and the caller does not subscribe: it is not for sale. */
+  subscriptionRequired?: boolean;
 }
 
 export type PrivateQuoteOutcome = PrivateQuote | "key" | "error";
@@ -212,7 +216,7 @@ export async function quotePrivate(api: string, body: PrivateQuoteInput, fetchIm
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return res.status === 401 ? "key" : "error";
-    const b = (await res.json()) as Partial<{ due: unknown; currency: unknown; paid_lectures: unknown; private: unknown; listed: unknown; owner: unknown; name: unknown }>;
+    const b = (await res.json()) as Partial<{ due: unknown; currency: unknown; paid_lectures: unknown; private: unknown; listed: unknown; owner: unknown; name: unknown; subscribed: unknown; subscription_required: unknown }>;
     if (typeof b.due !== "number") return "error";
     const owner = b.owner === "you" || b.owner === "other" ? b.owner : "none";
     return {
@@ -226,6 +230,8 @@ export async function quotePrivate(api: string, body: PrivateQuoteInput, fetchIm
       listed: typeof b.listed === "boolean" ? b.listed : undefined,
       owner,
       name: typeof b.name === "string" ? b.name : null,
+      subscribed: b.subscribed === true,
+      subscriptionRequired: b.subscription_required === true,
     };
   } catch {
     return "error";
@@ -254,13 +260,18 @@ export interface PrivatePayInput {
   listed?: boolean;
   /** The app URL Stripe sends the browser back to (an allowlisted origin). */
   return: string;
+  /** "credits": pay from the account's credit instead of Stripe — unlisting only (credit plan delivery 3). */
+  pay?: "credits";
 }
 
 export type PrivatePayOutcome =
   | { url: string }
+  | { paidCredits: number } // paid from credit (`pay: "credits"`, unlisting only)
+  | "credit" // 402 — the balance does not cover it
   | "nothing-due" // 409 {error:"nothing-due"} — the quote is already 0
   | "pending" // 409 {error:"pending"} — a checkout for this item is already open
   | "owner" // 403 — registered to someone else
+  | "subscription" // 403 {error:"subscription"} — private needs a subscription (credit plan delivery 4)
   | "key" // 401
   | "error";
 
@@ -278,20 +289,28 @@ export async function startPrivatePayment(api: string, body: PrivatePayInput, fe
       body: JSON.stringify(body),
     });
     if (res.ok) {
-      const b = (await res.json()) as { url?: unknown };
+      const b = (await res.json()) as { url?: unknown; paid?: unknown; credits?: unknown };
+      if (b.paid === "credits") return { paidCredits: typeof b.credits === "number" ? b.credits : 0 };
       return typeof b.url === "string" ? { url: b.url } : "error";
     }
+    if (res.status === 402) return "credit";
     if (res.status === 409) {
       const b = (await res.json().catch(() => ({}))) as { error?: unknown };
       return b.error === "pending" ? "pending" : "nothing-due";
     }
-    if (res.status === 403) return "owner";
+    if (res.status === 403) {
+      const b = (await res.json().catch(() => ({}))) as { error?: unknown };
+      return b.error === "subscription" ? "subscription" : "owner";
+    }
     if (res.status === 401) return "key";
     return "error";
   } catch {
     return "error";
   }
 }
+
+/** What a lock path says when private needs a subscription (credit plan delivery 4). */
+export const PRIVATE_NEEDS_SUBSCRIPTION = "Not published: private is part of a subscription — subscribe under Settings → Credits, or publish publicly.";
 
 /**
  * What every lock path (main.ts's privateCastLock, ui/course.ts's publish,
@@ -308,7 +327,7 @@ export async function startPrivatePayment(api: string, body: PrivatePayInput, fe
  * shapes, which a due-0 quote should never produce, fold into "error" too —
  * this never opens a browser tab on its own).
  */
-export type EnsurePrivateOutcome = "ok" | Exclude<PrivatePayOutcome, "nothing-due">;
+export type EnsurePrivateOutcome = "ok" | Exclude<PrivatePayOutcome, "nothing-due" | "credit" | { paidCredits: number }>;
 
 export async function ensurePrivateApplied(
   api: string,
@@ -317,6 +336,8 @@ export async function ensurePrivateApplied(
   fetchImpl: typeof fetch = fetch,
 ): Promise<EnsurePrivateOutcome> {
   const outcome = await startPrivatePayment(api, { key, ...body }, fetchImpl);
+  // This call never pays from credit, so a 402 is no answer it expects: an error.
+  if (outcome === "credit" || (typeof outcome === "object" && "paidCredits" in outcome)) return "error";
   return outcome === "nothing-due" ? "ok" : outcome;
 }
 

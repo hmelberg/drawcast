@@ -100,7 +100,8 @@ describe("refreshPrivateLine — the line states", () => {
   test("due > 0 shows the price and enables the Pay row; due 0 says paid", () => {
     expect(fn).toMatch(/privateHint\.textContent = `Private: \$\{formatPrice\(q\.due, q\.currency\)\} — enrolled learners only; you approve who joins`/);
     expect(fn).toMatch(/privatePayBtn\.textContent = `Pay \$\{formatPrice\(q\.due, q\.currency\)\}`/);
-    expect(fn).toContain('privateHint.textContent = "Paid — publish to lock the lectures";');
+    expect(fn).toContain('privateHint.textContent = q.subscribed ? "Included in your subscription — publish to lock the lectures" : "Paid — publish to lock the lectures";');
+    expect(fn).toContain("if (q.subscriptionRequired) {");
   });
 
   test("unticking always clears the hint and re-enables Publish, synchronously", () => {
@@ -135,7 +136,7 @@ describe("the Pay button", () => {
   });
 
   test("a returned url navigates the browser there — Stripe Checkout", () => {
-    expect(fn).toMatch(/if \(typeof started === "object"\) \{\s*location\.href = started\.url;/);
+    expect(fn).toMatch(/if \(typeof started === "object" && "url" in started\) \{\s*location\.href = started\.url;/);
   });
 
   test("every refusal is a word, worded on the same hint line, never a throw", () => {

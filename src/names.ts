@@ -10,6 +10,27 @@ export const NAME_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?(?:\/[a-z0-9-]{1,20
 /** May not start a name, with or without a trailing dash: `gh-…` is an alias of `gh=…` in the viewer. */
 export const RESERVED_PREFIXES = ["gh", "gdoc", "gdrive", "url", "anvil", "api", "name", "course", "learner", "me", "browse", "www", "cast", "paste", "create"] as const;
 
+/**
+ * Whole names nobody may register or buy (credit plan, 2026-10-06): academic
+ * subjects kept for drawcast's own subject pages, and the app's own words.
+ * Exact matches only; write gates only (reading is unaffected). Mirrors
+ * drawcast-anvil's RESERVED_NAMES — tests/names-reserved.test.ts pins it.
+ */
+export const RESERVED_NAMES: readonly string[] = [
+  "math", "maths", "mathematics", "physics", "chemistry", "biology", "economics", "history",
+  "geography", "philosophy", "psychology", "sociology", "statistics", "medicine", "law",
+  "literature", "english", "language", "languages", "computing", "programming", "science",
+  "art", "music", "politics", "engineering",
+  "quiz", "quizzes", "test", "tests", "exam", "blog", "help", "about", "faq", "docs", "terms",
+  "privacy", "pricing", "credits", "subscribe", "account", "login", "signin", "settings",
+  "studio", "library", "home", "search", "watch", "saved", "admin", "support", "contact",
+  "new", "feed", "popular", "featured", "courses", "lectures", "books", "my",
+];
+
+export function isReservedName(raw: string): boolean {
+  return RESERVED_NAMES.includes(raw.trim().toLowerCase().split("/", 1)[0]);
+}
+
 export function normalizeName(raw: string | null | undefined): string | null {
   if (typeof raw !== "string") return null;
   const name = raw.trim().toLowerCase();
@@ -44,7 +65,7 @@ export function priceFor(raw: string): number {
 export function isPayable(raw: string | null | undefined): boolean {
   const name = normalizeName(raw);
   if (name === null || name.includes("/")) return false;
-  return name.length >= PAID_MIN_LENGTH;
+  return name.length >= PAID_MIN_LENGTH && !isReservedName(name);
 }
 
 /** "5 USD", "10.50 USD" — whole units where they are whole. */
@@ -334,7 +355,19 @@ export async function checkPaidName(api: string, name: string, token: string, ki
   }
 }
 
-export type PaymentStart = { url: string } | "taken" | "yours" | "owner" | "key" | "invalid" | "rate" | "error";
+export type PaymentStart =
+  | { url: string }
+  /** Paid from credit (`pay: "credits"`): the name is already registered. */
+  | { paidCredits: number }
+  /** 402 — the balance does not cover the price. */
+  | "credit"
+  | "taken"
+  | "yours"
+  | "owner"
+  | "key"
+  | "invalid"
+  | "rate"
+  | "error";
 
 /**
  * Open a Stripe Checkout Session for a course name (POST /_/api/name/pay):
@@ -342,7 +375,7 @@ export type PaymentStart = { url: string } | "taken" | "yours" | "owner" | "key"
  * back to — drawcast.app reads the outcome from the fragment (paidInHash).
  * `{url}` is where the browser goes next; every refusal is a word.
  */
-export async function startNamePayment(api: string, args: Registration & { return: string }, fetchImpl: typeof fetch = fetch): Promise<PaymentStart> {
+export async function startNamePayment(api: string, args: Registration & { return: string; pay?: "credits" }, fetchImpl: typeof fetch = fetch): Promise<PaymentStart> {
   try {
     const res = await fetchImpl(`${apiBase(api)}/_/api/name/pay`, {
       method: "POST",
@@ -350,9 +383,11 @@ export async function startNamePayment(api: string, args: Registration & { retur
       body: JSON.stringify(args),
     });
     if (res.ok) {
-      const body = (await res.json()) as { url?: unknown };
+      const body = (await res.json()) as { url?: unknown; paid?: unknown; credits?: unknown };
+      if (body.paid === "credits") return { paidCredits: typeof body.credits === "number" ? body.credits : 0 };
       return typeof body.url === "string" ? { url: body.url } : "error";
     }
+    if (res.status === 402) return "credit";
     if (res.status === 409) {
       const body = (await res.json().catch(() => ({}))) as { error?: unknown };
       return body.error === "yours" ? "yours" : "taken";

@@ -953,7 +953,10 @@ const commands = {
       if (first === "ok") return console.log(`https://drawcast.app/#${name} now points at ${reg.target}.`);
       if (first !== "pay") return console.log(nameAdvice(first, name, price));
       if (Number(flag("--price")) !== price) throw new Error(`--price must be ${price} (${N.formatPrice(price)}) — say the price to the user and get a yes first`);
-      const pay = await N.startNamePayment(s.api, { ...reg, return: "https://drawcast.app/" });
+      // Credit first when it covers the price (credit plan delivery 3); Stripe otherwise.
+      let pay = await N.startNamePayment(s.api, { ...reg, return: "https://drawcast.app/", pay: "credits" });
+      if (pay === "credit") pay = await N.startNamePayment(s.api, { ...reg, return: "https://drawcast.app/" });
+      if (typeof pay === "object" && "paidCredits" in pay) return console.log(`https://drawcast.app/#${name} is yours — paid ${pay.paidCredits} credits from your balance. It points at ${reg.target}.`);
       if (typeof pay !== "object") return console.log(nameAdvice(pay, name, price));
       origin.pendingName = { name, target: reg.target, started: new Date().toISOString() };
       writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");

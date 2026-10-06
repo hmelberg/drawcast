@@ -145,11 +145,22 @@ describe("publishToServer", () => {
     expect((err as Error).message).toMatch(/200 characters/);
   });
   test("a narration upload the server refuses is reported, never thrown — the spec has already landed", async () => {
-    const { impl } = fetchWith((url) => (isAudio(url) ? refusal(413, "audio") : okJson()));
+    const { impl } = fetchWith((url) => (isAudio(url) ? refusal(500, "audio") : okJson()));
     const out = await publishToServer(ARGS, impl);
     expect(out.cast).toBe("anvil/spanish1/01-intro.yaml");
     expect(out.url).toBe("https://drawcast.app/#anvil=spanish1/01-intro.yaml");
-    expect(out.audio).toEqual({ failed: expect.stringMatching(/HTTP 413/) });
+    expect(out.audio).toEqual({ failed: expect.stringMatching(/HTTP 500/) });
+  });
+  test("narration over the storage quota (413) says the storage is full (credit plan delivery 4)", async () => {
+    const { impl } = fetchWith((url) => (isAudio(url) ? refusal(413, "quota") : okJson()));
+    const out = await publishToServer(ARGS, impl);
+    expect(out.audio).toEqual({ failed: expect.stringMatching(/storage on the drawcast server is full/) });
+  });
+  test("a spec refused for want of a subscription (402) or room (413) says so", async () => {
+    for (const [status, text] of [[402, /part of a subscription/], [413, /storage on the drawcast server is full/]] as const) {
+      const { impl } = fetchWith(() => refusal(status, "x"));
+      await expect(publishToServer(ARGS, impl)).rejects.toThrow(text);
+    }
   });
   test("a narration upload that never connects is reported the same way", async () => {
     const { impl } = fetchWith((url) => {

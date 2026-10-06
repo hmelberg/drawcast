@@ -103,6 +103,11 @@ function refusal(status: number): string {
       return "The drawcast server rejected the document (HTTP 400) — most likely the spec is over its 400 000-character cap (embedded images count towards it: untick Embed images, or embed fewer), or the title is over 200 characters.";
     case 401:
       return "Not signed in — the drawcast server did not accept this browser's session. Sign in again from Settings → Publishing (drawcast account).";
+    case 402:
+      // Credit plan delivery 4: storage on the drawcast server is a subscription's.
+      return SUBSCRIPTION_NEEDED;
+    case 413:
+      return STORAGE_FULL;
     case 403:
       return "That name already belongs to another account on the drawcast server — pick another.";
     case 429:
@@ -111,6 +116,10 @@ function refusal(status: number): string {
       return `The drawcast server refused the publish (HTTP ${status}).`;
   }
 }
+
+export const SUBSCRIPTION_NEEDED =
+  "Storing drawcasts on the drawcast server is part of a subscription (Settings → Credits). Publish to GitHub or Google Drive instead — they stay free.";
+export const STORAGE_FULL = "Your storage on the drawcast server is full — remove a drawcast you stored there, or move up a plan (Settings → Credits).";
 
 export async function publishToServer(args: ServerPublishArgs, fetchImpl: typeof fetch = fetch): Promise<ServerPublishResult> {
   const cast = serverCastKey(args.slug, args.file);
@@ -139,7 +148,11 @@ export async function publishToServer(args: ServerPublishArgs, fetchImpl: typeof
       // why the cast and the token ride the query string here and nowhere else.
       body: audio,
     });
-    return { cast, url, audio: up.ok ? "sent" : { failed: `the server refused the narration (HTTP ${up.status})` } };
+    return {
+      cast,
+      url,
+      audio: up.ok ? "sent" : { failed: up.status === 413 ? "the narration does not fit in your storage — " + STORAGE_FULL : `the server refused the narration (HTTP ${up.status})` },
+    };
   } catch (err) {
     return { cast, url, audio: { failed: `the narration upload did not complete (${(err as Error).message})` } };
   }
