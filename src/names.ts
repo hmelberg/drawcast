@@ -16,11 +16,23 @@ export const RESERVED_PREFIXES = ["gh", "gdoc", "gdrive", "url", "anvil", "api",
  * Exact matches only; write gates only (reading is unaffected). Mirrors
  * drawcast-anvil's RESERVED_NAMES — tests/names-reserved.test.ts pins it.
  */
-export const RESERVED_NAMES: readonly string[] = [
+/** Subjects: reserved, and `drawcast.app/#<subject>` is the subject's page
+ *  (every drawcast tagged with it, home.ts ?topic=) — 2026-10-06. */
+export const SUBJECT_NAMES: readonly string[] = [
   "math", "maths", "mathematics", "physics", "chemistry", "biology", "economics", "history",
   "geography", "philosophy", "psychology", "sociology", "statistics", "medicine", "law",
   "literature", "english", "language", "languages", "computing", "programming", "science",
-  "art", "music", "politics", "engineering",
+  "art", "music", "politics", "engineering", "chess",
+];
+
+/** `#economics` → "economics" when the hash is a bare subject word, else null. */
+export function subjectInHash(hash: string): string | null {
+  const m = /^#([a-z]+)$/.exec(hash.toLowerCase());
+  return m && SUBJECT_NAMES.includes(m[1]) ? m[1] : null;
+}
+
+export const RESERVED_NAMES: readonly string[] = [
+  ...SUBJECT_NAMES,
   "quiz", "quizzes", "test", "tests", "exam", "blog", "help", "about", "faq", "docs", "terms",
   "privacy", "pricing", "credits", "subscribe", "account", "login", "signin", "settings",
   "studio", "library", "home", "search", "watch", "saved", "admin", "support", "contact",

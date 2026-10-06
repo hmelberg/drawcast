@@ -7,7 +7,7 @@ import { ICON_PATHS, type IconName } from "../src/ui/icons";
 
 // `close` is the sidebar search box's clear ×, not a control-bar glyph — it
 // lives in the same inventory so it takes currentColor like the rest.
-const NAMES: IconName[] = ["play", "pause", "replay", "prev", "next", "volume", "muted", "theater", "fullscreen", "more", "share", "check", "close", "book", "thumbUp", "thumbUpFilled", "thumbDown", "thumbDownFilled", "heart", "heartFilled"];
+const NAMES: IconName[] = ["play", "pause", "replay", "prev", "next", "volume", "muted", "theater", "fullscreen", "more", "share", "check", "close", "book", "thumbUp", "thumbUpFilled", "thumbDown", "thumbDownFilled", "bookmark", "bookmarkFilled"];
 
 describe("control-bar icon inventory", () => {
   it("carries a non-empty path for every control the bar builds", () => {

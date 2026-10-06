@@ -51,7 +51,7 @@ import { ensurePacksParallel, packsForSpecs, PACK_DEFS } from "./scenes/packs";
 import { isBlockedCastTemplate, registerCastTemplates } from "./scenes/cast-templates";
 import { gateSpecs, trustKeys } from "./security/code-trust";
 import libraryTrust from "./home/trusted-code.json";
-import { coursePageRedirect, enrollRoute, lockedRoute, mainAppUrl, namedRoute, onViewOrigin, remixUrl } from "./security/view-origin";
+import { coursePageRedirect, enrollRoute, lockedRoute, mainAppUrl, namedRoute, onViewOrigin, ORIGINS, remixUrl } from "./security/view-origin";
 import { installCodeConsent } from "./ui/code-consent";
 import { scenes } from "./scenes/registry";
 import { pickerKey } from "./google/auth";
@@ -449,6 +449,13 @@ export async function runNamed(hash: string, early?: Promise<Resolved | null>): 
   const resolved = name
     ? await (early ?? lookupNamed(hash, DEFAULT_ENROLL_API, fetch, typeof document !== "undefined" ? document.referrer : ""))
     : null;
+  if (name && !resolved && !name.includes("/")) {
+    // No drawcast by that name (2026-10-06): the topic of that word instead —
+    // drawcast.app/#astronomy lists what is tagged astronomy, and says so
+    // when nothing is.
+    location.replace(`${onViewOrigin() ? ORIGINS.main : ""}/?topic=${encodeURIComponent(name)}&missing=1`);
+    return;
+  }
   if (!name || !resolved) {
     status.textContent = `No drawcast called "${name ?? hash}".`;
     status.classList.add("error");

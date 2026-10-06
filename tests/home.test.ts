@@ -184,7 +184,10 @@ describe("the ☰ menu", () => {
     expect(ui).toContain('"aria-label": "Menu"');
   });
   test("it offers only places that exist: home, explore, the formats, topics, create, help — sign in and out are the account button's", () => {
-    for (const s of ['link("./", "Home"', 'link("#browse", "Explore everything")', "`./?f=${c.id}`", "`./?q=${encodeURIComponent(t)}`", 'link("#create", "＋ Create a drawcast")', 'link("./help.html", "Help")']) expect(ui).toContain(s);
+    // 2026-10-06: Random drawcast replaces Explore everything; topics open their own page.
+    expect(ui).toContain('"Random drawcast"');
+    expect(ui).not.toContain('"Explore everything")');
+    for (const s of ['link("./", "Home"', "`./?f=${c.id}`", "`./?topic=${encodeURIComponent(topicSlug(t))}`", 'link("#create", "＋ Create a drawcast")', 'link("./help.html", "Help")']) expect(ui).toContain(s);
     expect(ui).toContain("accountButton({ where: \"home\"");
     expect(ui).not.toContain('"Sign out"');
     // Not yet: those come with the accounts round — no link to a place that does not exist.

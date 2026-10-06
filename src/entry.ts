@@ -11,7 +11,7 @@
 
 import { redeemFromAddress } from "./account";
 import { DEFAULT_ENROLL_API } from "./learn";
-import { isNameHash, lookupNamed, watchPathHash } from "./names";
+import { isNameHash, lookupNamed, subjectInHash, watchPathHash } from "./names";
 import { startGhFetch } from "./links/early-fetch";
 import { bootRoute, onViewOrigin } from "./security/view-origin";
 
@@ -47,6 +47,11 @@ async function boot(): Promise<void> {
       fetch(input, { ...init, signal: AbortSignal.timeout(10_000) }),
     );
   }
+  // drawcast.app/#economics (2026-10-06): a subject word is the subject's
+  // page on the front page — every drawcast tagged with it. The words are
+  // reserved (names.ts SUBJECT_NAMES), so no name can be shadowed.
+  const subject = subjectInHash(location.hash);
+  if (subject) history.replaceState(null, "", `${location.pathname}?topic=${subject}`);
   const hash = location.hash;
   // index.html's pen-stroke loader covers the download; whatever boots now
   // draws its own page (the viewer its own loading line).

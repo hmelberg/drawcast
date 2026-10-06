@@ -1,7 +1,7 @@
 // Like / dislike (open thumbs) on the watch page (2026-10-03, delivery 2): signed-in viewers only,
 // listed items only, stored in Anvil (POST /react, /react/state). The 👍
 // count is public; a 👎 is private — it counts only for the author's
-// signals and is never shown, here or in the catalogue. Beside them the ♡
+// signals and is never shown, here or in the catalogue. Beside them the 🔖
 // Save (save round, 2026-10-04: POST /save) keeps the item on the viewer's
 // Saved list (home/my-lists.ts).
 //
@@ -169,7 +169,7 @@ export function reactionControls(rawName: string): { pill: HTMLElement; menuRow:
     up.append(count);
     const down = h("button", { type: "button", class: "react-btn react-down", title: tip("I don't like this — only the author's signals see it"), "aria-label": "Dislike" }, ...thumbs("thumbDown", "thumbDownFilled")) as HTMLButtonElement;
     const saveLabel = h("span", { class: "react-save-label" }, "Save");
-    const save = h("button", { type: "button", class: "react-btn react-save", title: tip("Keep it on your Saved list"), "aria-label": "Save" }, ...thumbs("heart", "heartFilled"), saveLabel) as HTMLButtonElement;
+    const save = h("button", { type: "button", class: "react-btn react-save", title: tip("Keep it on your Saved list"), "aria-label": "Save" }, ...thumbs("bookmark", "bookmarkFilled"), saveLabel) as HTMLButtonElement;
     up.addEventListener("click", () => void press(1));
     down.addEventListener("click", () => void press(-1));
     save.addEventListener("click", () => void toggleSave());

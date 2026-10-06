@@ -6,9 +6,9 @@ import { getToken } from "../account";
 import { accountButton } from "../account-menu";
 import { YOU_PAGES } from "./you";
 import { h } from "../ui/dom";
-import { FORMAT_BADGE, FORMAT_CHIPS, homeHref, thumbUrl, type HomeCard } from "./model";
+import { FORMAT_BADGE, FORMAT_CHIPS, homeHref, thumbUrl, topicSlug, type HomeCard } from "./model";
 import { MY_LISTS } from "./my-lists";
-import { cardOf, thumbCountsOf } from "./feed";
+import { cardOf, fetchFeed, storedFeed, thumbCountsOf } from "./feed";
 import { chooseVariant, hash32, seeded } from "../card/choose";
 import { countClick, viewerId, watchShown } from "./thumb-count";
 import { drawCard, iconNames, type Icons } from "../card/draw";
@@ -145,13 +145,32 @@ function buildMenu(topics: string[]): { open: () => void } {
     h("div", { class: "home-menu-group" }, ...(title ? [h("div", { class: "home-menu-title" }, title)] : []), ...items);
   const onHome = location.hash === "" && !location.search;
   const signedIn = getToken() !== "";
+  // Topics link to their own page (?topic=, 2026-10-06), and only as many
+  // show as fit, so the whole sidebar is always in view; "More topics" opens
+  // the rest (and the sidebar scrolls then).
+  const currentTopic = new URLSearchParams(location.search).get("topic");
+  const topicLinks = topics.map((t) => link(`./?topic=${encodeURIComponent(topicSlug(t))}`, t[0].toUpperCase() + t.slice(1), currentTopic === topicSlug(t)));
+  const moreTopics = h("button", { type: "button", class: "home-menu-link home-menu-more", hidden: "" }, "More topics") as HTMLButtonElement;
+  let allTopics = false;
+  moreTopics.addEventListener("click", () => {
+    allTopics = true;
+    fitTopics();
+  });
+  function fitTopics(): void {
+    for (const a of topicLinks) a.hidden = false;
+    moreTopics.hidden = true;
+    if (allTopics || panel.scrollHeight <= panel.clientHeight) return;
+    moreTopics.hidden = false;
+    // At least two stay; the rest go from the least used end.
+    for (let i = topicLinks.length - 1; i >= 2 && panel.scrollHeight > panel.clientHeight; i--) topicLinks[i].hidden = true;
+  }
   const panel = h(
     "nav",
     { class: "home-menu", "aria-label": "Main menu" },
     h("div", { class: "home-menu-head" }, closeBtn(), h("a", { class: "home-brand", href: "./" }, h("img", { src: "./mark.svg", alt: "" }), "drawcast")),
-    group("", link("./", "Home", onHome), link("#browse", "Explore everything")),
+    group("", link("./", "Home", onHome), randomLink()),
     group("Formats", ...FORMAT_CHIPS.filter((c) => c.id).map((c) => link(`./?f=${c.id}`, c.label))),
-    ...(topics.length ? [group("Topics", ...topics.map((t) => link(`./?q=${encodeURIComponent(t)}`, t[0].toUpperCase() + t.slice(1))))] : []),
+    ...(topics.length ? [group("Topics", ...topicLinks, moreTopics)] : []),
     // Saved and Liked live with the account; History in this browser (home/my-lists.ts).
     group(
       "You",
@@ -162,6 +181,9 @@ function buildMenu(topics: string[]): { open: () => void } {
       link("./help.html", "Help"),
     ),
   );
+  window.addEventListener("resize", () => {
+    if (!shell.hidden) fitTopics();
+  });
   const backdrop = h("div", { class: "home-menu-backdrop" });
   const shell = h("div", { class: "home-menu-shell", hidden: "" }, backdrop, panel);
   document.body.append(shell);
@@ -184,10 +206,32 @@ function buildMenu(topics: string[]): { open: () => void } {
     open: () => {
       opener = document.activeElement as HTMLElement | null;
       shell.hidden = false;
+      fitTopics();
       document.addEventListener("keydown", onKey);
       (panel.querySelector("a, button") as HTMLElement | null)?.focus();
     },
   };
+}
+
+/**
+ * "Random drawcast" (2026-10-06, where Explore everything was): a listed,
+ * public drawcast picked at random from the front page's feed — the kept one
+ * when there is one, else asked for. Courses are left out: a random lecture
+ * series is a long commitment to land in by chance.
+ */
+function randomLink(): HTMLElement {
+  const b = h("button", { type: "button", class: "home-menu-link" }, "Random drawcast") as HTMLButtonElement;
+  b.addEventListener("click", () => {
+    b.disabled = true;
+    void (async () => {
+      const feed = storedFeed() ?? (await fetchFeed());
+      const here = decodeURIComponent(location.pathname.startsWith("/w/") ? location.pathname.slice(3) : location.hash.slice(1));
+      const pool = (feed?.items ?? []).filter((i) => i.kind === "cast" && !i.private && i.name !== here);
+      b.disabled = false;
+      location.href = pool.length ? homeHref(pool[Math.floor(Math.random() * pool.length)].name) : "#browse";
+    })();
+  });
+  return b;
 }
 
 /**

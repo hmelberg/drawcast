@@ -3669,13 +3669,15 @@ button.home-more { background: none; border: 0; padding: 0; cursor: pointer; fon
 @keyframes home-menu-in { from { transform: translateX(-100%); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .home-menu { animation: none; } }
 .home-menu-head { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.4rem 0.6rem; }
-.home-menu-group { border-top: 1px solid var(--line); padding: 0.5rem 0; }
+.home-menu-group { border-top: 1px solid var(--line); padding: 0.35rem 0; }
 .home-menu-head + .home-menu-group { border-top: 0; }
 .home-menu-title { padding: 0.3rem 0.8rem; font-size: var(--text-sm); color: var(--muted); font-weight: 600; }
 .home-menu-link {
-  display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 0.5rem 0.8rem; border: 0; border-radius: 10px;
+  display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 0.4rem 0.8rem; border: 0; border-radius: 10px;
   background: transparent; color: var(--ink); text-decoration: none; font: inherit; font-size: var(--text); cursor: pointer;
 }
+.home-menu-link[hidden] { display: none; }
+.home-menu-more { color: var(--muted); font-size: var(--text-sm); }
 .home-menu-link:hover, .home-menu-link:focus-visible { background: color-mix(in srgb, var(--ink) 7%, transparent); }
 .home-menu-link.current { background: color-mix(in srgb, var(--ink) 10%, transparent); font-weight: 600; }
 

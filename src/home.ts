@@ -24,12 +24,15 @@ import {
   cardFromCatalogue,
   cardFromFeatured,
   FORMAT_CHIPS,
+  hasTopic,
   matchesSearch,
   mergeCards,
   parseFeatured,
   popularItems,
   rankByBase,
   tagRows,
+  topicLabel,
+  topicOf,
   type HomeCard,
   type HomeFormat,
 } from "./home/model";
@@ -86,6 +89,10 @@ export function runHome(): void {
   let list: MyList | null = parseMyList(params.get("list"));
   // ?you=content|courses|credit (account round delivery 2): your own pages.
   let you: YouPage | null = parseYou(params.get("you"));
+  // ?topic=chess (2026-10-06; drawcast.app/#chess lands here): everything
+  // tagged with it. `missing` says the word was asked for as a name first.
+  let topic = params.get("topic") ? topicOf(params.get("topic")!) : "";
+  const missing = params.has("missing");
   // Stripe comes back to ?you=credit with the outcome in the fragment
   // (entry.ts routes it here); render() rewrites the address, so take it now.
   let returned = you ? location.hash : "";
@@ -139,9 +146,13 @@ export function runHome(): void {
     // The address keeps what is shown, so a reload or a shared link reopens it.
     const next = new URLSearchParams();
     // A search leaves the list for the front page's own views (a chip does, on its click).
-    if (q) list = you = null;
+    if (q) {
+      list = you = null;
+      topic = "";
+    }
     if (list) next.set("list", list);
     if (you) next.set("you", you);
+    if (topic) next.set("topic", topic);
     if (q) next.set("q", q);
     if (chip) next.set("f", chip);
     history.replaceState(null, "", `${location.pathname}${next.toString() ? `?${next}` : ""}`);
@@ -185,6 +196,21 @@ export function runHome(): void {
     return [section(meta.label, fromCatalogue(items)) ?? h("div", {}, h("h2", { class: "home-list-title" }, meta.label), note(meta.empty))];
   }
 
+  async function topicView(t: string): Promise<(HTMLElement | null)[]> {
+    const label = topicLabel(t);
+    const f = await currentFeed();
+    const items = f ? f.items.filter((i) => !i.private && hasTopic(i.tags, t)) : await catalogue("", t.replace(/-/g, " "));
+    const tagged = items === "error" ? "error" : items.filter((i) => hasTopic(i.tags, t));
+    const cards = byFormat(mergeCards(featuredCards().filter((c) => hasTopic(c.tags, t)), fromCatalogue(tagged)));
+    if (!cards.length)
+      return [
+        h("h2", { class: "home-list-title" }, label),
+        note(missing ? `No drawcast is called “#${t}”, and nothing is tagged “${label.toLowerCase()}” yet.` : `Nothing is tagged “${label.toLowerCase()}” yet.`),
+        h("a", { class: "home-more", href: "#browse" }, "Browse everything"),
+      ];
+    return [section(`${label} · ${cards.length.toLocaleString("en-US")}`, cards), tagged === "error" ? note("The catalogue can't be reached right now.", "error") : null];
+  }
+
   async function view(): Promise<(HTMLElement | null)[]> {
     if (you) {
       const r = returned;
@@ -192,6 +218,7 @@ export function runHome(): void {
       return youView(you, () => void render(), r);
     }
     if (list) return listView(list);
+    if (topic) return topicView(topic);
     const format = chip && chip !== "course" ? chip : undefined;
     if (q) {
       const items = await catalogue(chip === "course" ? "course" : format ? "cast" : "", q, format ? { format } : {});

@@ -147,6 +147,32 @@ export function matchesSearch(card: HomeCard, q: string): boolean {
   return words.every((w) => hay.includes(w));
 }
 
+// ---- Topics (2026-10-06): drawcast.app/#chess, ?topic=chess ----
+
+/** A tag as a link word: "History of science" → "history-of-science". */
+export function topicSlug(tag: string): string {
+  return tag.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+/** Words that mean another topic. */
+export const TOPIC_ALIASES: Readonly<Record<string, string>> = { math: "mathematics", maths: "mathematics" };
+
+/** The topic a link word asks for: its slug, through the aliases. */
+export function topicOf(word: string): string {
+  const slug = topicSlug(word);
+  return TOPIC_ALIASES[slug] ?? slug;
+}
+
+export function hasTopic(tags: readonly string[], topic: string): boolean {
+  return tags.some((t) => topicSlug(t) === topic);
+}
+
+/** "history-of-science" → "History of science", for a page title. */
+export function topicLabel(topic: string): string {
+  const words = topic.replace(/-/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 /** The topic rows: every tag two or more curated drawcasts share, most used first. */
 export function tagRows(featured: FeaturedEntry[], min = 2): { tag: string; entries: FeaturedEntry[] }[] {
   const by = new Map<string, FeaturedEntry[]>();
