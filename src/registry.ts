@@ -271,6 +271,7 @@ export type PrivatePayOutcome =
   | "nothing-due" // 409 {error:"nothing-due"} — the quote is already 0
   | "pending" // 409 {error:"pending"} — a checkout for this item is already open
   | "owner" // 403 — registered to someone else
+  | "subscription" // 403 {error:"subscription"} — private needs a subscription (credit plan delivery 4)
   | "key" // 401
   | "error";
 
@@ -297,13 +298,19 @@ export async function startPrivatePayment(api: string, body: PrivatePayInput, fe
       const b = (await res.json().catch(() => ({}))) as { error?: unknown };
       return b.error === "pending" ? "pending" : "nothing-due";
     }
-    if (res.status === 403) return "owner";
+    if (res.status === 403) {
+      const b = (await res.json().catch(() => ({}))) as { error?: unknown };
+      return b.error === "subscription" ? "subscription" : "owner";
+    }
     if (res.status === 401) return "key";
     return "error";
   } catch {
     return "error";
   }
 }
+
+/** What a lock path says when private needs a subscription (credit plan delivery 4). */
+export const PRIVATE_NEEDS_SUBSCRIPTION = "Not published: private is part of a subscription — subscribe under Settings → Credits, or publish publicly.";
 
 /**
  * What every lock path (main.ts's privateCastLock, ui/course.ts's publish,

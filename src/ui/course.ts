@@ -33,7 +33,7 @@ import { runLang, stampedVoice, synthesizeBase64 } from "../export/tts";
 import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, formatPrice, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
-import { claimFile, ensurePrivateApplied, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
+import { claimFile, ensurePrivateApplied, PRIVATE_NEEDS_SUBSCRIPTION, quotePrivate, registerItem, registryNote, verifyClaim } from "../registry";
 import { CreditError, serverSynthesize } from "../credit";
 import { getToken } from "../account";
 import { courseLockedInRepo, hasBuiltLecture, privateLectureCount, publishPrivacy } from "../private-doc";
@@ -1284,6 +1284,10 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           }
           if (applied === "owner") {
             say("Not published: this course is registered to another account, so it can't be made private.", "error");
+            return;
+          }
+          if (applied === "subscription") {
+            say(PRIVATE_NEEDS_SUBSCRIPTION, "error");
             return;
           }
           if (applied !== "ok") {

@@ -296,6 +296,7 @@ export function privateQuoteAdvice(quote, work) {
   if (quote === "key") return "not signed in to drawcast (or signed out from the account page) — run: node scripts/cast.mjs login";
   if (quote === "error") return "the drawcast server did not answer — try again in a minute";
   if (quote.owner === "other") return "this is registered to another drawcast account — private is only for its own owner";
+  if (quote.subscriptionRequired) return "private is part of a drawcast subscription — subscribe under Settings → Credits in drawcast, then run this again";
   return privateDueMessage(quote, work) ?? "Private is paid — push to publish locked.";
 }
 
@@ -309,6 +310,8 @@ export function privatePayAdvice(pay) {
       return "a checkout for this is already open — finish that one, then run private again";
     case "owner":
       return "this is registered to another drawcast account — private is only for its own owner";
+    case "subscription":
+      return "private is part of a drawcast subscription — subscribe under Settings → Credits in drawcast, then run this again";
     case "key":
       return "not signed in to drawcast (or signed out from the account page) — run: node scripts/cast.mjs login";
     default:

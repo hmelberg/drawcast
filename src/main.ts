@@ -111,7 +111,7 @@ import { isLocked, lockText } from "./crypto/lecture-lock";
 import { publishToServer, serverCastKey, type ServerAccess } from "./publish/server";
 import { formatPrice, isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
-import { claimFile, ensurePrivateApplied, privateInHash, quotePrivate, registerItem, registryNote, verifyClaim } from "./registry";
+import { claimFile, ensurePrivateApplied, PRIVATE_NEEDS_SUBSCRIPTION, privateInHash, quotePrivate, registerItem, registryNote, verifyClaim } from "./registry";
 import { CREDIT_CLOSED, CreditError, creditBalance, creditInHash, creditStatement, describeRow, serverSynthesize, startCreditPayment } from "./credit";
 import { onJobStatus, runChargedCredits, setCreditTokenSource, type JobStatus } from "./llm/job-transport";
 import { castUsd, creditRange, shortfall } from "./llm/credit-estimate";
@@ -5733,6 +5733,7 @@ async function privateCastLock(
     );
     if (applied === "key") return "Not published: sign in again to publish privately (Settings → Publishing).";
     if (applied === "owner") return "Not published: this drawcast is registered to another account, so it can't be made private.";
+    if (applied === "subscription") return PRIVATE_NEEDS_SUBSCRIPTION;
     if (applied !== "ok") return "Not published: could not check the private drawcast just now — try again in a moment.";
   }
   const got = await fetchItemKey(DEFAULT_ENROLL_API, accountToken, item, bounded, liveKeyStorage());
