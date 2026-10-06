@@ -3456,3 +3456,45 @@ by `card/draw.ts`, with picture cards from `/card` (built once, CDN-cached).
 Unlisted and private items are not in the public feed, so `/my/items` would
 send each item's card along. Private cards stay in the owner's own list,
 never a public page. Small to medium; waiting until it is clearly wanted.
+
+## Brands on other domains (fact.games, xplainer.app) — noted 2026-10-07, Hans investigating
+
+One app served from several domains, each a "brand": `fact.games` with a
+quizzes-only front page, `xplainer.app` for Xplanations and books, later
+perhaps more, each possibly with its own subdomains (`chess.fact.games`).
+
+**Shape (discussed 2026-10-07):** one repo, one build; the app reads the host
+and picks a brand config (name, logo, colours, which formats the front page
+shows, small behaviour switches over time). Content belongs to a brand by
+format to begin with (Quiz → fact.games, Xplanation → xplainer.app); a
+per-item brand tag only if hand-picked collections are wanted.
+
+**Follows from several domains, wherever hosted:**
+- Browser data is per domain: sign in once per brand (one Anvil account);
+  library and keys are separate.
+- Each domain goes into Anvil's RETURN_ALLOWLIST (sign-in, Stripe returns),
+  the CSP, and Google's OAuth origins. Stripe itself needs nothing.
+- `src/site.ts` SITE becomes the current brand's address, so links made on
+  a brand stay on it.
+- One canonical address per item (its home brand) in the watch page's head,
+  against duplicate content.
+- `netlify/lib/name-host.mts` learns the brand apexes for NAME.brand subdomains.
+
+**Hosting options:**
+1. Same Netlify site, brands as extra domains: least work; certificates
+   and DNS automatic. Open question for Netlify support: can one site carry
+   wildcards for several domains? (The wildcard ties to the primary domain,
+   www.drawcast.app since 2026-10-06.)
+2. One Netlify site per brand from the same repo (a BRAND setting): each its
+   own primary and wildcard; more builds per push, no code split.
+3. Vercel or Cloudflare: simpler multi-domain wildcards, but a port of the
+   Netlify functions, Blobs and edge functions. Only if Netlify cannot serve
+   brand wildcards and those subdomains matter.
+
+**Suggested order:** ask Netlify; build the brand layer with fact.games as a
+plain extra domain (no wildcard); add xplainer.app the same way; decide on
+separate sites or another host only when a brand needs its subdomains.
+
+**To decide early:** is drawcast the main identity, or should a brand never
+show "drawcast" (editor, help, emails)? Shared catalogue and ranking, or per
+brand? Do creators publish "to" a brand, or does the format decide?
