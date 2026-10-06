@@ -71,6 +71,12 @@ import { h } from "./dom";
 import { createModal } from "./modal";
 import { openShare, payListedFields, type ShareDeps } from "./share";
 import { NO_LLM_KEY, usingCredit } from "../llm/key";
+import { runChargedCredits } from "../llm/job-transport";
+
+/** A narration projection as the author will pay it: credits on credit (4x, a cent a credit), dollars on their own Google key. */
+function narrationWord(p: BakeCost): string {
+  return usingCredit() ? `${Math.max(1, Math.ceil(p.usd * 4 * 100)).toLocaleString("en-US")} credits` : costLabel(p);
+}
 import { creditRange, formatCreditRange } from "../llm/credit-estimate";
 
 export function lectureRowLabel(lecture: CourseLecture): string {
@@ -879,7 +885,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // lecture when none exist yet.
       const projection = courseNarrationProjection(doneLectureCosts(course), course.lectures.length, loadSettings().cloudVoices);
       const narrationNote = projection.chars > 0
-        ? `\nNarration, if you later publish with “Embed narration”: roughly ${costLabel(projection)} for all ${course.lectures.length} lectures with the current voice.`
+        ? `\nNarration, if you later publish with “Embed narration”: roughly ${narrationWord(projection)} for all ${course.lectures.length} lectures with the current voice.`
         : "";
       if (!confirm(`${costPreview(course)}${costNote}${narrationNote}\n\nGenerate now?`)) return;
     }
@@ -961,7 +967,11 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       ]
         .filter(Boolean)
         .join("; ");
-      const costSuffix = costs.calls > 0 ? ` · ${formatCost(costs)}` : "";
+      // On credit, what the account was charged — not Anthropic's own price.
+      const charged = Math.round(runChargedCredits());
+      const costSuffix = usingCredit()
+        ? charged > 0 ? ` · charged ${charged.toLocaleString("en-US")} credit${charged === 1 ? "" : "s"}` : ""
+        : costs.calls > 0 ? ` · ${formatCost(costs)}` : "";
       const teachingSuffix =
         result.teachingPass.runs > 0 ? ` · teaching pass changed ${result.teachingPass.adopted} of ${result.teachingPass.runs}` : "";
       say(

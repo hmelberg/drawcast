@@ -536,23 +536,11 @@ function toggleTheater(): void {
 // ---------- editor mode ----------
 
 const statusEl = h("div", { class: "editor-status hint" });
-// The live tail of what the model is writing, under the status line — the
-// spec pane streams the whole text too, but that pane is inside the editor,
-// which is usually closed while one waits. A few lines here prove the model
-// is writing and show WHAT (Hans, 2026-09-07).
-const liveEl = h("pre", { class: "editor-live", hidden: "" });
-const LIVE_TAIL = 420;
 // What a call on credit is doing and what it cost (credit plan delivery 1):
 // its own line, so the generation's own status messages are never overwritten.
+// The model's text itself shows only in the spec pane (Hans 2026-10-06: the
+// spec belongs in its container, messages above it).
 const creditMeterEl = h("div", { class: "editor-credit hint", hidden: "" });
-function renderLive(text: string): void {
-  if (!text) {
-    liveEl.hidden = true;
-    return;
-  }
-  liveEl.textContent = (text.length > LIVE_TAIL ? "…" : "") + text.slice(-LIVE_TAIL);
-  liveEl.hidden = false;
-}
 
 function setStatus(text: string, kind: "info" | "error" | "ok" = "info"): void {
   statusEl.textContent = text;
@@ -1466,7 +1454,6 @@ const editorWrap = h(
   ),
   statusEl,
   creditMeterEl,
-  liveEl,
   h(
     "div",
     { class: "editor-split" },
@@ -3657,7 +3644,6 @@ function startAiStatus(label: string, phase = ""): void {
 function stopAiStatus(): void {
   if (aiTicker !== null) window.clearInterval(aiTicker);
   aiTicker = null;
-  renderLive("");
 }
 
 /**
@@ -3675,6 +3661,12 @@ function routeText(template: string | undefined, route: RouteInfo | undefined): 
 
 /** What this generation cost, from the client's call ledger — "" when nothing was called. */
 function costText(): string {
+  // On credit, what the account was charged — never Anthropic's own price,
+  // which is not what the author pays (credit plan, Hans 2026-10-06).
+  if (usingCredit()) {
+    const charged = runChargedCredits();
+    return charged > 0 ? ` · charged ${Math.round(charged).toLocaleString("en-US")} credit${Math.round(charged) === 1 ? "" : "s"}` : "";
+  }
   const s = costSummary(callLedger());
   return s.calls > 0 ? ` · ${formatCost(s)}` : "";
 }
@@ -3703,14 +3695,12 @@ function streamIntoSpec(text: string): void {
   }
   specArea.value = text;
   specArea.scrollTop = specArea.scrollHeight;
-  renderLive(text);
 }
 
 /** `restore` puts the pre-call text back — for a cancel or a failure, not a success. */
 function endSpecStream(restore: boolean): void {
   if (specBeforeStream !== null && restore) specArea.value = specBeforeStream;
   specBeforeStream = null;
-  renderLive("");
   specArea.classList.remove("streaming");
   applyHistoryUi(); // owns readOnly (it is also the version-viewing lock)
 }
