@@ -14,7 +14,7 @@ or your own elements) and a storyboard of `commands` (one verb each, with the
 spoken line on it). The player at drawcast.app lays everything out, draws it
 and speaks it; you never compute pixel geometry.
 
-You deliver a **link** that plays it: `https://drawcast.app/#cast=<data>`.
+You deliver a **link** that plays it: `https://www.drawcast.app/#cast=<data>`.
 
 ## Which file to read when
 
@@ -153,13 +153,13 @@ the bundled script — both print the same link:
 python3 scripts/make_link.py cast.yaml      # or: node scripts/make_link.mjs cast.yaml
 ```
 
-(The link is `https://drawcast.app/#cast=` + base64url, without `=` padding,
+(The link is `https://www.drawcast.app/#cast=` + base64url, without `=` padding,
 of the raw DEFLATE — no zlib or gzip header — of the UTF-8 YAML; any language
 can make it.) **Never write a link by hand or guess one**: a single wrong
 character breaks it.
 
 Without code execution: give the YAML in one ```yaml block and tell the user
-to open **https://drawcast.app/#paste** and paste it there.
+to open **https://www.drawcast.app/#paste** and paste it there.
 
 When you deliver, write exactly these, in this order:
 - the link (or the YAML + paste link);

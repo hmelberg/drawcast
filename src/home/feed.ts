@@ -4,11 +4,12 @@
 // draws at once from it and redraws only if the new answer differs. The
 // catalogue's own filters are answered here, from the whole list.
 
+import { liveUrl } from "../site";
 import { parseCatalogueItem, type CatalogueFilterKind, type CatalogueItem } from "../catalogue";
 import type { RankEntry } from "./model";
 import type { CompiledCard } from "../card/types";
 
-export const FEED_URL = "https://drawcast.app/api/feed";
+export const FEED_URL = "https://www.drawcast.app/api/feed";
 const STORE_KEY = "drawcast:feed";
 
 /** One drawcast's ranking (netlify/lib/rank-score.mts). */
@@ -88,7 +89,7 @@ export function storedFeed(): HomeFeed | null {
 /** The feed from the server, kept for next time; null on any failure. */
 export async function fetchFeed(fetchImpl: typeof fetch = fetch): Promise<HomeFeed | null> {
   try {
-    const res = await fetchImpl(FEED_URL, { signal: AbortSignal.timeout(15_000) });
+    const res = await fetchImpl(liveUrl("/api/feed"), { signal: AbortSignal.timeout(15_000) });
     if (!res.ok) return null;
     const feed = parseFeed(await res.json());
     if (feed) {

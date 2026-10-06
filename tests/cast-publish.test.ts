@@ -20,7 +20,7 @@ const base = {
   text: "title: DiD\ncommands: []\n",
   repo,
   castsDir: "casts",
-  viewerBase: "https://drawcast.app",
+  viewerBase: "https://www.drawcast.app",
   index: emptyCastIndex(),
 };
 
@@ -41,7 +41,7 @@ describe("buildCastPlan", () => {
   });
 
   test("the viewer link points at the published file", () => {
-    expect(buildCastPlan(base).castUrl).toBe("https://drawcast.app/#gh=hmelberg/kurs/casts/difference-in-differences.yaml");
+    expect(buildCastPlan(base).castUrl).toBe("https://www.drawcast.app/#gh=hmelberg/kurs/casts/difference-in-differences.yaml");
   });
 
   test("a recorded slug is permanent — retitling must not orphan a shared link", () => {
@@ -146,7 +146,7 @@ describe("the cast's own page (standalone/page.ts)", () => {
     expect(page!.content).toContain('<link rel="preload" href="difference-in-differences.yaml" as="fetch" crossorigin>');
     expect(page!.content).not.toContain(base.text);
     expect(page!.content).toContain('data-gh="hmelberg/kurs/casts/difference-in-differences.yaml"');
-    expect(page!.content).toContain('<script type="module" src="https://drawcast.app/play.js" crossorigin>');
+    expect(page!.content).toContain('<script type="module" src="https://www.drawcast.app/play.js" crossorigin>');
     expect(page!.content).toContain('content="https://hmelberg.github.io/kurs/casts/difference-in-differences.png"');
     expect(plan.pageUrl).toBe("https://hmelberg.github.io/kurs/casts/difference-in-differences.html");
   });

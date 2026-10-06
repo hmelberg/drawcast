@@ -1285,7 +1285,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           const applied = await ensurePrivateApplied(
             DEFAULT_ENROLL_API,
             accountToken,
-            { kind: "course", target: item, title: course.title, page: `https://${repo.owner}.github.io/${repo.repo}/${dir}/`, lectures, ...payListedFields(true, quote.listed ?? true), return: "https://drawcast.app/" },
+            { kind: "course", target: item, title: course.title, page: `https://${repo.owner}.github.io/${repo.repo}/${dir}/`, lectures, ...payListedFields(true, quote.listed ?? true), return: "https://www.drawcast.app/" },
             bounded,
           );
           if (applied === "key") {

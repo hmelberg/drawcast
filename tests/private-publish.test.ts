@@ -81,7 +81,7 @@ const courseArgs = (over: Partial<PublishArgs> = {}): PublishArgs => ({
   repo: { owner: "o", repo: "r" },
   token: "t",
   coursesDir: "courses",
-  viewerBase: "https://drawcast.app/",
+  viewerBase: "https://www.drawcast.app/",
   lectureYaml: (i: number) => `title: lecture ${i}\n`,
   poster: async () => new Uint8Array([1, 2, 3]),
   ...over,
@@ -92,7 +92,7 @@ describe("a private course publish", () => {
     const { seen, fetchImpl } = fakeGithub();
     const args = courseArgs({ fetchImpl, lock: fakeLock });
     const prepared = await preparePublish(args);
-    await commitPublish(args, prepared, { name: "causal-free", app: "https://drawcast.app/" });
+    await commitPublish(args, prepared, { name: "causal-free", app: "https://www.drawcast.app/" });
     const files = committed(seen);
     const lectures = ["courses/causal-inference/potential-outcomes.yaml", "courses/causal-inference/did.yaml", "courses/causal-inference/regression-discontinuity.yaml"];
     for (const p of lectures) expect(files.get(p)?.startsWith(LOCK_HEADER)).toBe(true);
@@ -138,7 +138,7 @@ const castArgs = {
   repo: { owner: "o", repo: "r" },
   token: "t",
   castsDir: "casts",
-  viewerBase: "https://drawcast.app",
+  viewerBase: "https://www.drawcast.app",
   poster: new Uint8Array([1, 2, 3]),
 };
 
@@ -289,7 +289,7 @@ describe("a private publish removes posters an earlier public publish left", () 
   it("course: a lecture's .png in the repo is deleted; one that is not there is not asked for", async () => {
     const { seen, fetchImpl } = fakeGithub(["courses/causal-inference/did.png", "courses/causal-inference/other.png"]);
     const args = courseArgs({ fetchImpl, lock: fakeLock });
-    await commitPublish(args, await preparePublish(args), { name: "causal-free", app: "https://drawcast.app/" });
+    await commitPublish(args, await preparePublish(args), { name: "causal-free", app: "https://www.drawcast.app/" });
     expect(removed(seen)).toContain("courses/causal-inference/did.png");
     expect(removed(seen)).not.toContain("courses/causal-inference/potential-outcomes.png");
     expect(removed(seen)).not.toContain("courses/causal-inference/other.png");

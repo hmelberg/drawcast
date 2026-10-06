@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://drawcast.app/sitemap.xml
+Sitemap: https://www.drawcast.app/sitemap.xml

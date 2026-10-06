@@ -128,7 +128,7 @@ describe("a hoisted linked picture (final fix minors)", () => {
 });
 
 describe("a CORS-refusing picture goes through the picture proxy before it is linked", () => {
-  const endpoints = ["/.netlify/functions/picture", "https://drawcast.app/.netlify/functions/picture"];
+  const endpoints = ["/.netlify/functions/picture", "https://www.drawcast.app/.netlify/functions/picture"];
   test("the direct read fails, the proxied one succeeds: embedded, source stays the original url, credit kept", async () => {
     const url = "https://cors-refusing.example/shot.png?x=1&y=2";
     const tried: string[] = [];
@@ -160,12 +160,12 @@ describe("a CORS-refusing picture goes through the picture proxy before it is li
       pictureEndpoints: endpoints,
       loadRaster: async (u: string) => {
         tried.push(u);
-        if (!u.startsWith("https://drawcast.app/")) throw new Error("no");
+        if (!u.startsWith("https://www.drawcast.app/")) throw new Error("no");
         return raster(240, 120);
       },
     };
     await resolveImages(spec as never, deps as never);
-    expect(tried).toEqual([url, `/.netlify/functions/picture?url=${encodeURIComponent(url)}`, `https://drawcast.app/.netlify/functions/picture?url=${encodeURIComponent(url)}`]);
+    expect(tried).toEqual([url, `/.netlify/functions/picture?url=${encodeURIComponent(url)}`, `https://www.drawcast.app/.netlify/functions/picture?url=${encodeURIComponent(url)}`]);
     const el = spec.elements[0] as unknown as { strokes: string; source: string };
     expect(decodePicture(el.strokes)).toMatchObject({ linked: false, href: "data:image/jpeg;base64,GREY" });
     expect(el.source).toBe(url);

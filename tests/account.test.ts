@@ -15,21 +15,21 @@ describe("the token in the address", () => {
     expect(tokenInHash("#spanish1&t=%zz")).toBeNull();
   });
   test("is stripped without disturbing the rest", () => {
-    expect(stripToken("https://drawcast.app/#spanish1&t=abc&mode=silent")).toBe("https://drawcast.app/#spanish1&mode=silent");
-    expect(stripToken("https://drawcast.app/#spanish1&t=abc")).toBe("https://drawcast.app/#spanish1");
-    expect(stripToken("https://drawcast.app/#spanish1")).toBe("https://drawcast.app/#spanish1");
+    expect(stripToken("https://www.drawcast.app/#spanish1&t=abc&mode=silent")).toBe("https://www.drawcast.app/#spanish1&mode=silent");
+    expect(stripToken("https://www.drawcast.app/#spanish1&t=abc")).toBe("https://www.drawcast.app/#spanish1");
+    expect(stripToken("https://www.drawcast.app/#spanish1")).toBe("https://www.drawcast.app/#spanish1");
   });
 });
 
 describe("signInUrl", () => {
   test("sends the return address, encoded", () => {
-    expect(signInUrl("https://drawcast.app/#spanish1", "https://drawcast.anvil.app")).toBe(
-      "https://drawcast.anvil.app/#signin?return=https%3A%2F%2Fdrawcast.app%2F%23spanish1",
+    expect(signInUrl("https://www.drawcast.app/#spanish1", "https://drawcast.anvil.app")).toBe(
+      "https://drawcast.anvil.app/#signin?return=https%3A%2F%2Fwww.drawcast.app%2F%23spanish1",
     );
   });
   test("goes to the drawcast server by default, whatever slash the base carries", () => {
-    expect(signInUrl("https://drawcast.app/")).toBe("https://drawcast.anvil.app/#signin?return=https%3A%2F%2Fdrawcast.app%2F");
-    expect(signInUrl("https://drawcast.app/", "https://drawcast.anvil.app/")).toBe("https://drawcast.anvil.app/#signin?return=https%3A%2F%2Fdrawcast.app%2F");
+    expect(signInUrl("https://www.drawcast.app/")).toBe("https://drawcast.anvil.app/#signin?return=https%3A%2F%2Fwww.drawcast.app%2F");
+    expect(signInUrl("https://www.drawcast.app/", "https://drawcast.anvil.app/")).toBe("https://drawcast.anvil.app/#signin?return=https%3A%2F%2Fwww.drawcast.app%2F");
   });
 });
 
@@ -90,32 +90,32 @@ describe("redeemFromAddress", () => {
 
   test("exchanges a token, stores it, strips it from the address and reports true", async () => {
     const f = vi.fn(async () => new Response(JSON.stringify({ key: "sess" }), { status: 200 })) as unknown as typeof fetch;
-    expect(await redeemFromAddress("#spanish1&t=once", "https://drawcast.app/#spanish1&t=once", "https://a", f)).toBe(true);
+    expect(await redeemFromAddress("#spanish1&t=once", "https://www.drawcast.app/#spanish1&t=once", "https://a", f)).toBe(true);
     expect(calls(f).length).toBe(1);
     expect((JSON.parse(calls(f)[0][1].body as string) as { token: string }).token).toBe("once");
     // The address loses the token and keeps the page the visitor asked for.
     expect(replaceState).toHaveBeenCalledTimes(1);
-    expect(replaceState).toHaveBeenCalledWith(null, "", "https://drawcast.app/#spanish1");
+    expect(replaceState).toHaveBeenCalledWith(null, "", "https://www.drawcast.app/#spanish1");
     const written = replaceState.mock.calls[0][2] as string;
     expect(written).not.toMatch(/[#&]t=/);
     expect(written).toContain("#spanish1");
   });
   test("does nothing at all when the address carries no token", async () => {
     const f = vi.fn() as unknown as typeof fetch;
-    expect(await redeemFromAddress("#spanish1", "https://drawcast.app/#spanish1", "https://a", f)).toBe(false);
+    expect(await redeemFromAddress("#spanish1", "https://www.drawcast.app/#spanish1", "https://a", f)).toBe(false);
     expect((f as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0);
     expect(replaceState).not.toHaveBeenCalled();
   });
   test("a refused exchange still strips the token — a dead token must not survive in a copied address — and reports that one was found", async () => {
     const bad = vi.fn(async () => new Response("{}", { status: 400 })) as unknown as typeof fetch;
-    expect(await redeemFromAddress("#spanish1&t=once", "https://drawcast.app/#spanish1&t=once", "https://a", bad)).toBe(true);
-    expect(replaceState).toHaveBeenCalledWith(null, "", "https://drawcast.app/#spanish1");
+    expect(await redeemFromAddress("#spanish1&t=once", "https://www.drawcast.app/#spanish1&t=once", "https://a", bad)).toBe(true);
+    expect(replaceState).toHaveBeenCalledWith(null, "", "https://www.drawcast.app/#spanish1");
   });
   test("an outage strips too, and keeps the parameters after the token", async () => {
     const dead = vi.fn(async () => {
       throw new Error("offline");
     }) as unknown as typeof fetch;
-    expect(await redeemFromAddress("#gh=o/r/p.yaml&t=once&mode=silent", "https://drawcast.app/#gh=o/r/p.yaml&t=once&mode=silent", "https://a", dead)).toBe(true);
-    expect(replaceState).toHaveBeenCalledWith(null, "", "https://drawcast.app/#gh=o/r/p.yaml&mode=silent");
+    expect(await redeemFromAddress("#gh=o/r/p.yaml&t=once&mode=silent", "https://www.drawcast.app/#gh=o/r/p.yaml&t=once&mode=silent", "https://a", dead)).toBe(true);
+    expect(replaceState).toHaveBeenCalledWith(null, "", "https://www.drawcast.app/#gh=o/r/p.yaml&mode=silent");
   });
 });

@@ -26,7 +26,7 @@ function deps(over: Partial<NameDeps> = {}): NameDeps & { writes: Array<{ key: s
 }
 
 const get = (query: string, headers: Record<string, string> = {}) =>
-  new Request(`https://drawcast.app/.netlify/functions/name${query}`, { headers });
+  new Request(`https://www.drawcast.app/.netlify/functions/name${query}`, { headers });
 
 describe("a lookup", () => {
   test("a 200 answer is passed through, with the right headers, and recorded once with country/source/ref", async () => {
@@ -108,7 +108,7 @@ describe("a lookup", () => {
 
   test("only GET is accepted", async () => {
     const res = await handleNameRequest(
-      new Request("https://drawcast.app/.netlify/functions/name?n=x", { method: "POST" }),
+      new Request("https://www.drawcast.app/.netlify/functions/name?n=x", { method: "POST" }),
       deps(),
     );
     expect(res.status).toBe(405);

@@ -91,7 +91,7 @@ export function homeHref(name: string, host: string = typeof location !== "undef
  *  function (CDN-cached; the generic card when there is no poster).
  *  Absolute, so local dev and deploy previews show the real pictures too. */
 export function thumbUrl(name: string): string {
-  return `https://drawcast.app/card/${name}.png`;
+  return `https://www.drawcast.app/card/${name}.png`;
 }
 
 function lecturesText(n: number): string {

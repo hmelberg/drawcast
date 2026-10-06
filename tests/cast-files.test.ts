@@ -186,7 +186,7 @@ describe("publishing under the switch (src/cast-file.ts publishesCast)", async (
   const { parseCourse } = await import("../src/course/document");
   const { emptyManifest, upsertCourse } = await import("../src/publish/github");
   const repo = { owner: "hmelberg", repo: "kurs" };
-  const castArgs = { title: "Difference-in-differences", text: "# DiD\n\nHei.\n", repo, castsDir: "casts", viewerBase: "https://drawcast.app", index: emptyCastIndex() };
+  const castArgs = { title: "Difference-in-differences", text: "# DiD\n\nHei.\n", repo, castsDir: "casts", viewerBase: "https://www.drawcast.app", index: emptyCastIndex() };
   const withSwitch = <T>(on: boolean, f: () => T): T => {
     setPublishesCast(on);
     try {
@@ -212,7 +212,7 @@ describe("publishing under the switch (src/cast-file.ts publishesCast)", async (
     withSwitch(true, () => {
       const plan = buildCastPlan(castArgs);
       expect(plan.files.some((f) => f.path === "casts/difference-in-differences.cast")).toBe(true);
-      expect(plan.castUrl).toBe("https://drawcast.app/#gh=hmelberg/kurs/casts/difference-in-differences.cast");
+      expect(plan.castUrl).toBe("https://www.drawcast.app/#gh=hmelberg/kurs/casts/difference-in-differences.cast");
       const index = JSON.parse(plan.files.find((f) => f.path === "casts/casts.json")!.content);
       expect(index.casts[0].file).toBe("difference-in-differences.cast");
       expect(castRegistration("difference-in-differences", repo, "casts", "p").target).toBe("hmelberg/kurs/casts/difference-in-differences.cast");
@@ -227,7 +227,7 @@ describe("publishing under the switch (src/cast-file.ts publishesCast)", async (
       const course = parseCourse(text);
       // The repo's manifest still lists the .yaml from the last publish.
       const manifest = upsertCourse(emptyManifest(), { slug: "t", title: "T", files: ["t/01-a.yaml", "t/course.md"], updated: "2026-10-01" });
-      const plan = buildPublishPlan({ course, text, repo, coursesDir: "", viewerBase: "https://drawcast.app/", manifest, lectureYaml: () => "title: One\nelements: []\ncommands: []\n" });
+      const plan = buildPublishPlan({ course, text, repo, coursesDir: "", viewerBase: "https://www.drawcast.app/", manifest, lectureYaml: () => "title: One\nelements: []\ncommands: []\n" });
       expect(plan.fileOf.get(0)).toBe("01-a.cast");
       expect(plan.fileOf.get(1)!.endsWith(".cast")).toBe(true);
       expect(plan.files.some((f) => f.path === "t/01-a.cast")).toBe(true);

@@ -17,7 +17,7 @@ const YAML = "title: One\nelements: []\ncommands: []\n";
 
 function plan(text: string, door?: Door) {
   const course = parseCourse(text);
-  return buildPublishPlan({ course, text, repo: REPO, coursesDir: "", viewerBase: "https://drawcast.app/", manifest: emptyManifest(), lectureYaml: () => YAML, door });
+  return buildPublishPlan({ course, text, repo: REPO, coursesDir: "", viewerBase: "https://www.drawcast.app/", manifest: emptyManifest(), lectureYaml: () => YAML, door });
 }
 const pageOf = (p: ReturnType<typeof plan>, slug: string) => p.files.find((f) => f.path === `${slug}/index.html`)!.content;
 // hasDoor (tests/helpers/course-door.ts) looks for the door itself, never for
@@ -25,7 +25,7 @@ const pageOf = (p: ReturnType<typeof plan>, slug: string) => p.files.find((f) =>
 
 describe("publishing a course with enroll", () => {
   const text = "# Learn Russian\nslug: learn-russian\nenroll: https://drawcast.anvil.app/\n\n## Cases\nq\n\n## Verbs\nq\n";
-  const DOOR: Door = { name: "learn-russian", app: "https://drawcast.app/" };
+  const DOOR: Door = { name: "learn-russian", app: "https://www.drawcast.app/" };
 
   test("every lecture's published copy carries meta.enroll, normalised", () => {
     const p = plan(text, DOOR);
@@ -36,7 +36,7 @@ describe("publishing a course with enroll", () => {
   test("with a registered name the page is a door: one link to that name in the app, no script, and nothing for one to read", () => {
     const html = pageOf(plan(text, DOOR), "learn-russian");
     // &join (Task 8): coursePage's escapeHtml turns the `&` into `&amp;`.
-    expect(html).toContain('href="https://drawcast.app/#learn-russian&amp;join"');
+    expect(html).toContain('href="https://www.drawcast.app/#learn-russian&amp;join"');
     expect(html).toMatch(/Join this course/i);
     expect(html).not.toContain("<script");
     expect(html).not.toContain("data-enroll");
@@ -46,7 +46,7 @@ describe("publishing a course with enroll", () => {
   test("the door is the name the caller registered, whatever the document says — the page never guesses", () => {
     const named = "# Learn Russian\nslug: learn-russian\nname: russian-for-all\nenroll: https://drawcast.anvil.app/\n\n## Cases\nq\n";
     // The registration named it russian-for-all and came back ok:
-    expect(pageOf(plan(named, { name: "russian-for-all", app: "https://drawcast.app/" }), "learn-russian")).toContain('href="https://drawcast.app/#russian-for-all&amp;join"');
+    expect(pageOf(plan(named, { name: "russian-for-all", app: "https://www.drawcast.app/" }), "learn-russian")).toContain('href="https://www.drawcast.app/#russian-for-all&amp;join"');
     // …but had the caller registered nothing, neither name: nor the slug becomes a link.
     const html = pageOf(plan(named), "learn-russian");
     expect(html).not.toContain("#russian-for-all");
@@ -57,7 +57,7 @@ describe("publishing a course with enroll", () => {
     expect(html).toMatch(/Joining is not open yet/);
     expect(hasDoor(html)).toBe(false);
     expect(html).not.toMatch(/Join this course/i);
-    expect(html).toMatch(/href="https:\/\/drawcast\.app\/#gh=hmelberg\/dcast\/learn-russian\/[^"]+\.yaml"/); // the lectures are still linked
+    expect(html).toMatch(/href="https:\/\/www\.drawcast\.app\/#gh=hmelberg\/dcast\/learn-russian\/[^"]+\.yaml"/); // the lectures are still linked
     const taken = pageOf(plan(text, { name: null, why: "taken" }), "learn-russian");
     expect(taken).toMatch(/belongs to someone else/);
     expect(hasDoor(taken)).toBe(false);
@@ -70,10 +70,10 @@ describe("publishing a course with enroll", () => {
     const html = pageOf(p, "learn-russian");
     expect(html).toMatch(/Joining is not open yet/);
     expect(html).toMatch(/drawcast server only/);
-    expect(html).not.toContain('href="https://drawcast.app/#learn-russian"');
+    expect(html).not.toContain('href="https://www.drawcast.app/#learn-russian"');
   });
   test("without enroll there is no join section, and the lectures carry no server", () => {
-    const p = plan("# Plain\nslug: plain\n\n## L\nq\n", { name: "plain-course", app: "https://drawcast.app/" });
+    const p = plan("# Plain\nslug: plain\n\n## L\nq\n", { name: "plain-course", app: "https://www.drawcast.app/" });
     expect(parsePlaylistText(p.files.find((f) => f.path.endsWith(".yaml"))!.content).meta.enroll).toBeUndefined();
     const html = pageOf(p, "plain");
     expect(html).not.toMatch(/Join this course|Joining is not open/);

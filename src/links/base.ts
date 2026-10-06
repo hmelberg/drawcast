@@ -26,7 +26,7 @@ export function setViewerBase(url: string | null): void {
 
 export function viewerBase(): string {
   if (base) return base;
-  if (typeof location === "undefined") return "https://drawcast.app";
+  if (typeof location === "undefined") return "https://www.drawcast.app";
   return `${location.origin}${location.pathname.replace(/index\.html$/, "")}`.replace(/\/+$/, "");
 }
 

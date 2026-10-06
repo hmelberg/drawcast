@@ -110,6 +110,6 @@ describe("the paths that carry it", () => {
 });
 
 test("castLinkFor builds the one fixed shape", () => {
-  expect(castLinkFor("abc")).toBe("https://drawcast.app/#cast=abc");
+  expect(castLinkFor("abc")).toBe("https://www.drawcast.app/#cast=abc");
   expect(castLinkFor("abc", "http://localhost:5221/#paste")).toBe("http://localhost:5221/#cast=abc");
 });

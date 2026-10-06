@@ -6,8 +6,8 @@ import { startPrivatePayment } from "../src/registry";
 
 const replying = (status: number, body: unknown) =>
   (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
-const reg = { key: "k", name: "my-course", kind: "course" as const, target: "o/r/c", return: "https://drawcast.app/" };
-const unlist = { key: "k", kind: "cast" as const, target: "o/r/c.cast", title: "T", lectures: 1, private: false, listed: false, return: "https://drawcast.app/" };
+const reg = { key: "k", name: "my-course", kind: "course" as const, target: "o/r/c", return: "https://www.drawcast.app/" };
+const unlist = { key: "k", kind: "cast" as const, target: "o/r/c.cast", title: "T", lectures: 1, private: false, listed: false, return: "https://www.drawcast.app/" };
 
 describe("paying from credit", () => {
   test("a name paid from credit answers what it cost; 402 says the balance is short", async () => {

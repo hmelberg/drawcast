@@ -2117,7 +2117,7 @@ function build(): ShareSession {
     prettyFolderLine.hidden = !doc.folder;
     freeNameHint.hidden = !doc.freeName;
     if (doc.freeName) {
-      freeNameLink.href = `https://drawcast.app/#${doc.freeName}`;
+      freeNameLink.href = `https://www.drawcast.app/#${doc.freeName}`;
       freeNameLink.textContent = `drawcast.app/#${doc.freeName}`;
     }
     prettyNameInput.value = doc.publishedAs ?? slugify(doc.title);

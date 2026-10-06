@@ -150,7 +150,7 @@ export interface Resolved {
  * JSON answer of any status from either one is authoritative — see
  * resolveName below.
  */
-export const NAME_ENDPOINTS = ["/.netlify/functions/name", "https://drawcast.app/.netlify/functions/name"];
+export const NAME_ENDPOINTS = ["/.netlify/functions/name", "https://www.drawcast.app/.netlify/functions/name"];
 
 function toResolved(body: unknown): Resolved | null {
   const b = body as Partial<Resolved>;
@@ -281,7 +281,7 @@ export async function registerName(api: string, reg: Registration, fetchImpl: ty
 export function nameNote(outcome: RegisterOutcome, name: string): string {
   switch (outcome) {
     case "ok":
-      return ` · also at https://drawcast.app/#${name}`;
+      return ` · also at https://www.drawcast.app/#${name}`;
     case "pay":
       return ` · the name "${name}" is not registered — buy it under Share → Pretty link (${formatPrice(priceFor(name))})`;
     case "taken":

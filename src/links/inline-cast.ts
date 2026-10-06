@@ -1,4 +1,4 @@
-// A cast carried INSIDE its link: https://drawcast.app/#cast=<data>.
+// A cast carried INSIDE its link: https://www.drawcast.app/#cast=<data>.
 //
 // For people who use the drawcast skill in their own LLM (claude.ai, ChatGPT,
 // …) with no repo, no GitHub and no account: the LLM writes the cast and a
@@ -119,6 +119,6 @@ export async function decodeCast(data: string): Promise<string> {
 }
 
 /** A full link for this data: `<base>#cast=<data>`. */
-export function castLinkFor(data: string, base = "https://drawcast.app/"): string {
+export function castLinkFor(data: string, base = "https://www.drawcast.app/"): string {
   return `${base.replace(/#.*$/, "")}#cast=${data}`;
 }

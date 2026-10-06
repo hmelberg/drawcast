@@ -82,7 +82,7 @@ describe("publishToServer", () => {
     expect(calls()[0][0]).toBe("https://a/_/api/cast");
     expect(calls()[1][0]).toContain("/_/api/cast/audio?");
     expect(out.cast).toBe("anvil/spanish1/01-intro.yaml");
-    expect(out.url).toBe("https://drawcast.app/#anvil=spanish1/01-intro.yaml");
+    expect(out.url).toBe("https://www.drawcast.app/#anvil=spanish1/01-intro.yaml");
     expect(out.audio).toBe("sent");
   });
   test("the spec write is a text/plain JSON body: key, cast, title, the spec ALONE, and the access", async () => {
@@ -148,7 +148,7 @@ describe("publishToServer", () => {
     const { impl } = fetchWith((url) => (isAudio(url) ? refusal(500, "audio") : okJson()));
     const out = await publishToServer(ARGS, impl);
     expect(out.cast).toBe("anvil/spanish1/01-intro.yaml");
-    expect(out.url).toBe("https://drawcast.app/#anvil=spanish1/01-intro.yaml");
+    expect(out.url).toBe("https://www.drawcast.app/#anvil=spanish1/01-intro.yaml");
     expect(out.audio).toEqual({ failed: expect.stringMatching(/HTTP 500/) });
   });
   test("narration over the storage quota (413) says the storage is full (credit plan delivery 4)", async () => {
@@ -168,7 +168,7 @@ describe("publishToServer", () => {
       return okJson();
     });
     const out = await publishToServer(ARGS, impl);
-    expect(out.url).toBe("https://drawcast.app/#anvil=spanish1/01-intro.yaml");
+    expect(out.url).toBe("https://www.drawcast.app/#anvil=spanish1/01-intro.yaml");
     expect(out.audio).toEqual({ failed: expect.stringMatching(/offline/) });
   });
 });

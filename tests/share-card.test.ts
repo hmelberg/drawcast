@@ -144,7 +144,7 @@ describe("courseCardText", () => {
 });
 
 describe("cardHtml", () => {
-  const card = { title: 'A "quoted" <title> & more', description: "</title><script>x()</script>", url: "https://drawcast.app/c/vaccines", image: "https://drawcast.app/card/vaccines.png", playUrl: "https://drawcast.app/#vaccines" };
+  const card = { title: 'A "quoted" <title> & more', description: "</title><script>x()</script>", url: "https://www.drawcast.app/c/vaccines", image: "https://www.drawcast.app/card/vaccines.png", playUrl: "https://www.drawcast.app/#vaccines" };
   test("every value is escaped", () => {
     const html = cardHtml(card);
     expect(html).not.toContain("<script>");
@@ -152,7 +152,7 @@ describe("cardHtml", () => {
   });
   test("the Open Graph and X tags, the refresh and the link are there", () => {
     const html = cardHtml(card);
-    for (const tag of ['property="og:title"', 'property="og:description"', 'property="og:image"', 'property="og:url" content="https://drawcast.app/c/vaccines"', 'name="twitter:card" content="summary_large_image"', 'http-equiv="refresh" content="0; url=https://drawcast.app/#vaccines"', 'href="https://drawcast.app/#vaccines"']) {
+    for (const tag of ['property="og:title"', 'property="og:description"', 'property="og:image"', 'property="og:url" content="https://www.drawcast.app/c/vaccines"', 'name="twitter:card" content="summary_large_image"', 'http-equiv="refresh" content="0; url=https://www.drawcast.app/#vaccines"', 'href="https://www.drawcast.app/#vaccines"']) {
       expect(html).toContain(tag);
     }
   });

@@ -19,7 +19,7 @@ export const ICONIFY = "https://api.iconify.design/";
 
 /** Iconify refuses some default client headers (Python's urllib got a 403
  *  where curl got a 200): say who is asking. */
-const HEADERS = { "user-agent": "drawcast-scripts/1 (+https://drawcast.app)", accept: "*/*" };
+const HEADERS = { "user-agent": "drawcast-scripts/1 (+https://www.drawcast.app)", accept: "*/*" };
 
 const MAX_AGE_MS = 30 * 24 * 3600 * 1000;
 

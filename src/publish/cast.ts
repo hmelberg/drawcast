@@ -234,7 +234,7 @@ export function castsPage(casts: CastEntry[], viewerBase: string, repo: RepoRef,
 <ol>
 ${items}
 </ol>
-<footer>Made with <a href="https://drawcast.app/">drawcast</a></footer>
+<footer>Made with <a href="https://www.drawcast.app/">drawcast</a></footer>
 </html>
 `;
 }
@@ -271,7 +271,7 @@ export function castsReadme(casts: CastEntry[], viewerBase: string, repo: RepoRe
   for (const c of [...casts].sort((a, b) => b.updated.localeCompare(a.updated))) {
     out.push(`- [${escapeMd(c.title)}](${castHref(viewerBase, repo.owner, repo.repo, joinPath(castsDir, c.file))}) — ${c.updated}`);
   }
-  out.push("", "---", "", "Made with [drawcast](https://drawcast.app/).");
+  out.push("", "---", "", "Made with [drawcast](https://www.drawcast.app/).");
   return out.join("\n") + "\n";
 }
 

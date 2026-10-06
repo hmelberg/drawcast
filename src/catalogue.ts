@@ -161,7 +161,7 @@ export async function fetchCatalogue(api: string, query: CatalogueQuery, fetchIm
  *  checked without a DOM: nothing about `name` is trusted to be safe markup
  *  either way, since h() only ever sets attributes/text. */
 export function catalogueHref(item: Pick<CatalogueItem, "name">): string {
-  return `https://drawcast.app/#${item.name}`;
+  return `https://www.drawcast.app/#${item.name}`;
 }
 
 /** The one meta line under a card's title — "Course · 6 lectures · updated

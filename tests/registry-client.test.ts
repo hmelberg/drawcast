@@ -265,7 +265,7 @@ describe("quotePrivate", () => {
 });
 
 describe("startPrivatePayment", () => {
-  const body = { key: "k", kind: "cast" as const, target: "o/r/casts/x.yaml", title: "T", lectures: 1, return: "https://drawcast.app/" };
+  const body = { key: "k", kind: "cast" as const, target: "o/r/casts/x.yaml", title: "T", lectures: 1, return: "https://www.drawcast.app/" };
 
   test("POSTs text/plain JSON and returns the Checkout url", async () => {
     const f = fetchReturning(200, { url: "https://checkout.stripe.com/pay/cs_test_1" });
@@ -299,7 +299,7 @@ describe("startPrivatePayment", () => {
 // never flipped the lock) is settled through the SAME /register/pay a Pay
 // click hits — 409 nothing-due IS success here, never an error.
 describe("ensurePrivateApplied", () => {
-  const body = { kind: "cast" as const, target: "o/r/casts/x.yaml", title: "T", lectures: 1, private: true, listed: true, return: "https://drawcast.app/" };
+  const body = { kind: "cast" as const, target: "o/r/casts/x.yaml", title: "T", lectures: 1, private: true, listed: true, return: "https://www.drawcast.app/" };
 
   test("POSTs the SAME body startPrivatePayment would, key assembled in", async () => {
     const f = fetchReturning(409, { error: "nothing-due" });
@@ -359,7 +359,7 @@ describe("quotePrivate/startPrivatePayment carry the optional listed/private fie
       lectures: 3,
       private: false,
       listed: false,
-      return: "https://drawcast.app/",
+      return: "https://www.drawcast.app/",
     };
     const f = fetchReturning(200, { url: "https://checkout.stripe.com/pay/cs_1" });
     await startPrivatePayment("https://a", body, f);

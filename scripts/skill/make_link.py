@@ -5,7 +5,7 @@
     python3 make_link.py < cast.yaml
     python3 make_link.py --base http://localhost:5199/ cast.yaml   (another player)
 
-The link is https://drawcast.app/#cast=<data>: <data> is the UTF-8 text of the
+The link is https://www.drawcast.app/#cast=<data>: <data> is the UTF-8 text of the
 YAML, compressed with raw DEFLATE (level 9, no zlib/gzip header) and written as
 base64url without padding. Standard library only. make_link.mjs (Node) prints
 the same link for the same file.
@@ -15,7 +15,7 @@ import re
 import sys
 import zlib
 
-BASE = "https://drawcast.app/"
+BASE = "https://www.drawcast.app/"
 
 
 def make_link(data: bytes, base: str = BASE) -> str:
@@ -52,7 +52,7 @@ def main(argv):
     print(f"{n} spoken lines (the default brief is 14–20; a length the user asked for wins)", file=sys.stderr)
     if len(link) > 16000:
         print(
-            f"note: the link is {len(link)} characters; if the chat cuts it, give the YAML and https://drawcast.app/#paste instead",
+            f"note: the link is {len(link)} characters; if the chat cuts it, give the YAML and https://www.drawcast.app/#paste instead",
             file=sys.stderr,
         )
 

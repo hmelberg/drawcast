@@ -49,7 +49,7 @@ describe("link element", () => {
   test("fallback titles", () => {
     expect(linkFallbackTitle("lecture:3")).toBe("Lecture 3");
     expect(linkFallbackTitle("./03-what-theory-holds.yaml")).toBe("What theory holds");
-    expect(linkFallbackTitle("https://drawcast.app/#gh=o/r/c/intro_part.yaml")).toBe("Intro part");
+    expect(linkFallbackTitle("https://www.drawcast.app/#gh=o/r/c/intro_part.yaml")).toBe("Intro part");
   });
 
   test("lint warns on an unreadable href, not on a good one", () => {

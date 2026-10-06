@@ -291,7 +291,7 @@ export const DEFAULT_SETTINGS: Settings = {
   contactEmail: "",
   githubRepo: "",
   coursesDir: "",
-  viewerBase: "https://drawcast.app/",
+  viewerBase: "https://www.drawcast.app/",
   giscusRepoId: "",
   giscusCategory: "Announcements",
   giscusCategoryId: "",

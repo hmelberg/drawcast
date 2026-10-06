@@ -17,7 +17,7 @@
 import type { GhRef } from "../viewer";
 
 /** Where a page loads the player from: stable name, the newest player. */
-export const PLAYER_URL = "https://drawcast.app/play.js";
+export const PLAYER_URL = "https://www.drawcast.app/play.js";
 /** The element id the player looks for. */
 export const CAST_BLOCK_ID = "drawcast-cast";
 
@@ -162,7 +162,7 @@ ${a.transcript.map((l) => `<p>${esc(l)}</p>`).join("\n")}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
 ${meta}
-<link rel="icon" href="https://drawcast.app/mark.svg">
+<link rel="icon" href="https://www.drawcast.app/mark.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">${preload}

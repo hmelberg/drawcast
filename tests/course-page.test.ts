@@ -21,7 +21,7 @@ const LINKS = [
   {
     title: "Potential outcomes",
     questions: ["What is a counterfactual outcome?"],
-    href: "https://drawcast.app/#gh=o/r/courses/c/potential-outcomes.yaml",
+    href: "https://www.drawcast.app/#gh=o/r/courses/c/potential-outcomes.yaml",
   },
   { title: "Difference-in-differences", questions: ["What breaks parallel trends?"], href: null },
 ];
@@ -41,7 +41,7 @@ describe("coursePage", () => {
 
   it("links a published lecture and lists its questions", () => {
     const html = coursePage(COURSE, LINKS);
-    expect(html).toContain('href="https://drawcast.app/#gh=o/r/courses/c/potential-outcomes.yaml"');
+    expect(html).toContain('href="https://www.drawcast.app/#gh=o/r/courses/c/potential-outcomes.yaml"');
     expect(html).toContain("What is a counterfactual outcome?");
   });
 
@@ -77,7 +77,7 @@ describe("coursePage", () => {
 // minted lived in an inline script the page no longer carries.
 describe("the door", () => {
   const SPANISH = { title: "Spanish", context: {}, lectures: [], warnings: [] };
-  const DOOR = { name: "spanish-for-all", app: "https://drawcast.app/" };
+  const DOOR = { name: "spanish-for-all", app: "https://www.drawcast.app/" };
 
   test("the published page carries no script at all", () => {
     const html = coursePage(SPANISH, [], DOOR);
@@ -89,10 +89,10 @@ describe("the door", () => {
   test("it points at the app rather than trying to be one", () => {
     const html = coursePage(SPANISH, [], DOOR);
     expect(html).toMatch(/Join this course/i);
-    expect(html).toContain("https://drawcast.app/#");
+    expect(html).toContain("https://www.drawcast.app/#");
     // …&join (Task 8): the door reaches the app's join step directly, rather
     // than bouncing to this very page (runNamed's page redirect, viewer.ts).
-    expect(html).toContain('href="https://drawcast.app/#spanish-for-all&amp;join"');
+    expect(html).toContain('href="https://www.drawcast.app/#spanish-for-all&amp;join"');
   });
   test("the privacy line says what is stored and no more: the users table has no name column", () => {
     // A data-collection statement that overstates is still a false one. The
@@ -112,12 +112,12 @@ describe("the door", () => {
     // A `name:` in the document, or the slug, is not a door on its own: only
     // a registration that came back ok is (see course-enroll-publish tests).
     const html = coursePage({ ...SPANISH, name: "Something-Else", context: { slug: "spanish" } }, [], DOOR);
-    expect(html).toContain('href="https://drawcast.app/#spanish-for-all&amp;join"');
+    expect(html).toContain('href="https://www.drawcast.app/#spanish-for-all&amp;join"');
     expect(html).not.toContain("#something-else");
-    expect(html).not.toContain('href="https://drawcast.app/#spanish&amp;join"');
+    expect(html).not.toContain('href="https://www.drawcast.app/#spanish&amp;join"');
   });
   test("the door follows the app base the lecture links use, without a doubled slash, and its href ends &join", () => {
-    expect(courseHref("https://drawcast.app/", "spanish")).toBe("https://drawcast.app/#spanish&join");
+    expect(courseHref("https://www.drawcast.app/", "spanish")).toBe("https://www.drawcast.app/#spanish&join");
     expect(courseHref("https://my.site", "spanish")).toBe("https://my.site/#spanish&join");
     expect(coursePage(SPANISH, [], { ...DOOR, app: "https://my.site/" })).toContain('href="https://my.site/#spanish-for-all&amp;join"');
   });
@@ -140,7 +140,7 @@ describe("the door", () => {
       expect(html).toMatch(/Joining is not open yet/);
       expect(html).toContain(escapeHtml(doorlessNote(why)));
       expect(hasDoor(html)).toBe(false);
-      expect(html).toContain('href="https://drawcast.app/#gh=o/r/courses/c/potential-outcomes.yaml"'); // the lectures are still linked
+      expect(html).toContain('href="https://www.drawcast.app/#gh=o/r/courses/c/potential-outcomes.yaml"'); // the lectures are still linked
       expect(html).not.toContain("<script");
     }
     expect(hasDoor(coursePage(SPANISH, LINKS, DOOR))).toBe(true); // …and the same detector sees the door when there is one
@@ -161,12 +161,12 @@ describe("repoIndexPage", () => {
 
 describe("lectureHref", () => {
   it("joins the viewer base and the #gh= path", () => {
-    expect(lectureHref("https://drawcast.app/", "o", "r", "courses/c/a.yaml")).toBe(
-      "https://drawcast.app/#gh=o/r/courses/c/a.yaml",
+    expect(lectureHref("https://www.drawcast.app/", "o", "r", "courses/c/a.yaml")).toBe(
+      "https://www.drawcast.app/#gh=o/r/courses/c/a.yaml",
     );
   });
 
   it("tolerates a base without a trailing slash", () => {
-    expect(lectureHref("https://drawcast.app", "o", "r", "a.yaml")).toBe("https://drawcast.app/#gh=o/r/a.yaml");
+    expect(lectureHref("https://www.drawcast.app", "o", "r", "a.yaml")).toBe("https://www.drawcast.app/#gh=o/r/a.yaml");
   });
 });

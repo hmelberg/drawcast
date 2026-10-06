@@ -346,7 +346,7 @@ function findViewerBase(clone, folder) {
     const f = resolve(clone, dir, "README.md");
     const m = existsSync(f) && /\((https?:\/\/[^)\s]*?)\/?#gh=/.exec(readFileSync(f, "utf8"));
     if (m) return m[1] + "/";
-    if (!dir) return "https://drawcast.app/";
+    if (!dir) return "https://www.drawcast.app/";
   }
 }
 
@@ -950,13 +950,13 @@ const commands = {
       }
       // Already yours: POST /name repoints it, free. A free name answers "pay".
       const first = await N.registerName(s.api, reg);
-      if (first === "ok") return console.log(`https://drawcast.app/#${name} now points at ${reg.target}.`);
+      if (first === "ok") return console.log(`https://www.drawcast.app/#${name} now points at ${reg.target}.`);
       if (first !== "pay") return console.log(nameAdvice(first, name, price));
       if (Number(flag("--price")) !== price) throw new Error(`--price must be ${price} (${N.formatPrice(price)}) — say the price to the user and get a yes first`);
       // Credit first when it covers the price (credit plan delivery 3); Stripe otherwise.
-      let pay = await N.startNamePayment(s.api, { ...reg, return: "https://drawcast.app/", pay: "credits" });
-      if (pay === "credit") pay = await N.startNamePayment(s.api, { ...reg, return: "https://drawcast.app/" });
-      if (typeof pay === "object" && "paidCredits" in pay) return console.log(`https://drawcast.app/#${name} is yours — paid ${pay.paidCredits} credits from your balance. It points at ${reg.target}.`);
+      let pay = await N.startNamePayment(s.api, { ...reg, return: "https://www.drawcast.app/", pay: "credits" });
+      if (pay === "credit") pay = await N.startNamePayment(s.api, { ...reg, return: "https://www.drawcast.app/" });
+      if (typeof pay === "object" && "paidCredits" in pay) return console.log(`https://www.drawcast.app/#${name} is yours — paid ${pay.paidCredits} credits from your balance. It points at ${reg.target}.`);
       if (typeof pay !== "object") return console.log(nameAdvice(pay, name, price));
       origin.pendingName = { name, target: reg.target, started: new Date().toISOString() };
       writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
@@ -979,11 +979,11 @@ const commands = {
     origin.registered = p.name;
     delete origin.pendingName;
     writeFileSync(resolve(wd, "origin.json"), JSON.stringify(origin, null, 1) + "\n");
-    if (origin.kind !== "course") return console.log(`https://drawcast.app/#${p.name} is yours and plays the drawcast.`);
+    if (origin.kind !== "course") return console.log(`https://www.drawcast.app/#${p.name} is yours and plays the drawcast.`);
     const { setCourseOption } = await withVite((load) => load("/src/course/document.ts"));
     const f = resolve(wd, "course.md");
     writeFileSync(f, setCourseOption(readFileSync(f, "utf8"), "name", p.name));
-    console.log(`https://drawcast.app/#${p.name} is yours and plays the course. Push once more (cast.mjs push ${work} --direct) so the course page carries the name.`);
+    console.log(`https://www.drawcast.app/#${p.name} is yours and plays the course. Push once more (cast.mjs push ${work} --direct) so the course page carries the name.`);
   },
 
   /**
@@ -1049,7 +1049,7 @@ const commands = {
 
       const pay = await startPrivatePayment(
         session.api,
-        { key: session.key, kind: origin.kind, target, title: reg.title, page: reg.page, lectures, ...payListedFields(true, !unlisted), return: "https://drawcast.app/" },
+        { key: session.key, kind: origin.kind, target, title: reg.title, page: reg.page, lectures, ...payListedFields(true, !unlisted), return: "https://www.drawcast.app/" },
         boundedFetch(),
       );
       if (typeof pay !== "object") throw new Error(privatePayAdvice(pay));
@@ -1129,7 +1129,7 @@ const commands = {
       // invariant: never omit `private` either way).
       const pay = await startPrivatePayment(
         session.api,
-        { key: session.key, kind: origin.kind, target, title: reg.title, page: reg.page, lectures, ...payListedFields(false, false), return: "https://drawcast.app/" },
+        { key: session.key, kind: origin.kind, target, title: reg.title, page: reg.page, lectures, ...payListedFields(false, false), return: "https://www.drawcast.app/" },
         boundedFetch(),
       );
       if (typeof pay !== "object") throw new Error(privatePayAdvice(pay));
@@ -1164,7 +1164,7 @@ const commands = {
       // Never assumed 0 — a failed read is retried once, then the purchase
       // stops here, before Checkout opens (task 10 review).
       const startMicro = await creditBaseline({ api: session.api, key: session.key, creditBalance, fetchImpl: boundedFetch() });
-      const pay = await startCreditPayment(session.api, { key: session.key, cents, return: "https://drawcast.app/" }, boundedFetch());
+      const pay = await startCreditPayment(session.api, { key: session.key, cents, return: "https://www.drawcast.app/" }, boundedFetch());
       if (typeof pay !== "object") throw new Error(creditPayAdvice(pay));
       spawnSync("open", [pay.url]);
       console.log(`Opened Stripe Checkout for ${dollars(cents)} of narration credit in the browser:\n  ${pay.url}\nPay there — waiting…`);
@@ -1318,7 +1318,7 @@ const commands = {
           const applied = await ensurePrivateApplied(
             session.api,
             session.key,
-            { kind: origin.kind, target: reg.target, title: reg.title, page: reg.page, lectures, ...payListedFields(true, quote.listed ?? true), return: "https://drawcast.app/" },
+            { kind: origin.kind, target: reg.target, title: reg.title, page: reg.page, lectures, ...payListedFields(true, quote.listed ?? true), return: "https://www.drawcast.app/" },
             boundedFetch(),
           );
           if (applied !== "ok") throw new Error(privatePayAdvice(applied));
@@ -1418,7 +1418,7 @@ const commands = {
         },
         // A name bought here (name-wait) is the door's; otherwise the page keeps the door it had.
         door: origin.registered
-          ? { name: origin.registered, app: "https://drawcast.app/" }
+          ? { name: origin.registered, app: "https://www.drawcast.app/" }
           : pageDoor(readAtCommit(clone, upstream, joinRepo(origin.path, "index.html")), doorlessNote),
       });
       let plan = planWith(course, text);

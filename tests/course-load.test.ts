@@ -57,7 +57,7 @@ const SUPPLY_YAML = `playlist:
   title: Micro I
   next:
     title: Demand
-    href: https://drawcast.app/#gh=hm/casts/courses/micro-i/demand.yaml
+    href: https://www.drawcast.app/#gh=hm/casts/courses/micro-i/demand.yaml
   prompt: Why does the curve slope up?
 ---
 title: Supply curve

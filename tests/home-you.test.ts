@@ -9,7 +9,7 @@ function fake(status: number, body: unknown, seen: { url?: string; body?: unknow
     return new Response(JSON.stringify(body), { status });
   }) as typeof fetch;
 }
-const ITEM = { key: "hmelberg/kurs/moon", kind: "cast", title: "Moon", link: "https://drawcast.app/#moon", names: [{ name: "moon", free: true }], private: false, listed: true, updated: "2026-10-01", proven: true };
+const ITEM = { key: "hmelberg/kurs/moon", kind: "cast", title: "Moon", link: "https://www.drawcast.app/#moon", names: [{ name: "moon", free: true }], private: false, listed: true, updated: "2026-10-01", proven: true };
 
 describe("you pages", () => {
   test("only the three pages parse", () => {
@@ -21,8 +21,8 @@ describe("you pages", () => {
 
   test("items: the server's rows, a title even when blank, junk rows dropped", () => {
     expect(parseItems({ items: [ITEM, { nope: 1 }, { ...ITEM, key: "k2", title: "" }] })).toEqual([
-      { key: "hmelberg/kurs/moon", kind: "cast", title: "Moon", link: "https://drawcast.app/#moon", names: [{ name: "moon", free: true }], private: false, listed: true, updated: "2026-10-01" },
-      { key: "k2", kind: "cast", title: "k2", link: "https://drawcast.app/#moon", names: [{ name: "moon", free: true }], private: false, listed: true, updated: "2026-10-01" },
+      { key: "hmelberg/kurs/moon", kind: "cast", title: "Moon", link: "https://www.drawcast.app/#moon", names: [{ name: "moon", free: true }], private: false, listed: true, updated: "2026-10-01" },
+      { key: "k2", kind: "cast", title: "k2", link: "https://www.drawcast.app/#moon", names: [{ name: "moon", free: true }], private: false, listed: true, updated: "2026-10-01" },
     ]);
     expect(parseItems({})).toBeNull();
   });

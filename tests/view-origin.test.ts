@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { bootRoute, coursePageRedirect, enrollRoute, lockedRoute, namedRoute, ORIGINS, onViewOrigin, remixSource, remixUrl, withStayMarker, type OriginConfig } from "../src/security/view-origin";
 import { hostToHash, viewFramePolicy, viewHostOf } from "../netlify/lib/name-host.mts";
 
-const MAIN = "https://drawcast.app";
+const MAIN = "https://www.drawcast.app";
 const VIEW = "https://drawcast-view.example";
 const cfg: OriginConfig = { view: VIEW, main: MAIN };
 const on = (origin: string, hash: string) => bootRoute({ origin, hash }, cfg).go;
@@ -196,7 +196,7 @@ describe("edge function", () => {
   test("the view host is never taken for a name", () => {
     expect(viewHostOf("https://view.drawcast.app")).toBe("view.drawcast.app");
     expect(hostToHash("view.drawcast.app", "drawcast.app", "view.drawcast.app")).toBeNull();
-    expect(hostToHash("view.drawcast.app")).toBe("https://drawcast.app/#view");
+    expect(hostToHash("view.drawcast.app")).toBe("https://www.drawcast.app/#view");
     expect(viewHostOf("")).toBe("");
     expect(viewHostOf("not a url")).toBe("");
   });
@@ -214,11 +214,11 @@ describe("edge function", () => {
       const page = () => Promise.resolve(new Response("<html>", { headers: { "content-security-policy": "default-src 'self'; frame-ancestors 'self'" } }));
       const onView = await nameHost(new Request("https://view.drawcast.app/"), { next: page });
       expect(onView.headers.get("content-security-policy")).toBe("default-src 'self'; frame-ancestors *");
-      const onMain = await nameHost(new Request("https://drawcast.app/"), { next: page });
+      const onMain = await nameHost(new Request("https://www.drawcast.app/"), { next: page });
       expect(onMain.headers.get("content-security-policy")).toBe("default-src 'self'; frame-ancestors 'self'");
       const named = await nameHost(new Request("https://micro-i.drawcast.app/"), { next: page });
       expect(named.status).toBe(302);
-      expect(named.headers.get("location")).toBe("https://drawcast.app/#micro-i");
+      expect(named.headers.get("location")).toBe("https://www.drawcast.app/#micro-i");
     } finally {
       vi.unstubAllGlobals();
     }

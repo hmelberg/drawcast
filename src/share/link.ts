@@ -31,7 +31,7 @@ function cardableGh(path: string): boolean {
   return parts.length >= 3 && parts.every((p) => GH_PART_RE.test(p) && p !== "." && p !== "..");
 }
 
-export function shareLinkFor(hash: string, origin = "https://drawcast.app"): ShareLink | null {
+export function shareLinkFor(hash: string, origin = "https://www.drawcast.app"): ShareLink | null {
   const head = hash.replace(/^#/, "").split("&", 1)[0];
   if (!head) return null;
   const gh = /^gh[=-](.+)$/i.exec(head);

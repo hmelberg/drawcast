@@ -12,7 +12,7 @@ function deps(listed: string[] | null = ["moon", "spanish"]): DoneDeps & { store
     now: () => Date.parse("2026-10-05T12:00:00Z"),
   };
 }
-const post = (body: unknown) => new Request("https://drawcast.app/api/done", { method: "POST", body: JSON.stringify(body) });
+const post = (body: unknown) => new Request("https://www.drawcast.app/api/done", { method: "POST", body: JSON.stringify(body) });
 
 test("counts a listed name by day; a lecture counts for its course", async () => {
   const d = deps();
@@ -29,5 +29,5 @@ test("an unlisted or made-up name, or no feed yet, is not counted", async () => 
   }
   expect((await handleDoneRequest(post({ name: "../x" }), deps())).status).toBe(400);
   expect((await handleDoneRequest(post({}), deps())).status).toBe(400);
-  expect((await handleDoneRequest(new Request("https://drawcast.app/api/done"), deps())).status).toBe(405);
+  expect((await handleDoneRequest(new Request("https://www.drawcast.app/api/done"), deps())).status).toBe(405);
 });

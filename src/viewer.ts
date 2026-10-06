@@ -568,7 +568,7 @@ export function courseDoor(
       return;
     }
     button.disabled = true;
-    void deps.join(key, { course: resolved.target, title, page: resolved.page ?? `https://drawcast.app/#${name}` }).then((outcome) => {
+    void deps.join(key, { course: resolved.target, title, page: resolved.page ?? `https://www.drawcast.app/#${name}` }).then((outcome) => {
       note.textContent = joinNote(outcome);
       // Pending is not an error: the teachers decide, and the door has said
       // what happens next. Rejected is, and so is every refusal.
@@ -711,7 +711,7 @@ export function lockedDoor(door: KeyDenial & { item: string }, deps: DoorDeps = 
 function shareButton(meta: () => { title: string; subtitle?: string }): HTMLButtonElement {
   const btn = h("button", { class: "cs-bar-btn viewer-share", title: "Share this drawcast" }, icon("share")) as HTMLButtonElement;
   btn.addEventListener("click", () => {
-    const link = shareLinkFor(location.hash, "https://drawcast.app");
+    const link = shareLinkFor(location.hash, "https://www.drawcast.app");
     if (link) {
       const { title, subtitle } = meta();
       openShareBox({ link, title, subtitle, image: cardImageUrl(link) });
@@ -797,7 +797,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
   // action, and the editor puts its code through the trust gate like any
   // upload. A private server cast has no public copy to fetch.
   // A page of its own lives on someone else's site: the app is at drawcast.app.
-  const made = h("a", { class: "viewer-made", href: req.embedded !== undefined ? "https://drawcast.app/" : onViewOrigin() ? mainAppUrl() : location.pathname, title: "Open the drawcast app" }, "Made with drawcast");
+  const made = h("a", { class: "viewer-made", href: req.embedded !== undefined ? "https://www.drawcast.app/" : onViewOrigin() ? mainAppUrl() : location.pathname, title: "Open the drawcast app" }, "Made with drawcast");
   const remix = onViewOrigin() && !req.anvil ? h("a", { class: "viewer-made viewer-remix", href: remixUrl(location.hash), title: "Open a copy of this drawcast in the drawcast editor" }, "Edit a copy") : null;
   const meta = playerMeta(viewsEl, noteEl, remix ? h("span", { class: "viewer-made" }, remix, " · ", made) : made);
   // Problems (a cast inside its link only): the person holding the link

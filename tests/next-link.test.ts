@@ -38,7 +38,7 @@ function plan(lectureYaml: (i: number) => string | null) {
     text: COURSE,
     repo: { owner: "o", repo: "r" },
     coursesDir: "courses",
-    viewerBase: "https://drawcast.app/",
+    viewerBase: "https://www.drawcast.app/",
     manifest: { courses: [] },
     lectureYaml,
   });
@@ -63,7 +63,7 @@ describe("publishCourse writes the link", () => {
   it("each lecture points at the NEXT published one; none points at an ungenerated page", () => {
     const out = plan((i) => (i < 2 ? LECTURE : null));
     const lecture0 = parsePlaylistText(out.files.find((f) => f.path.endsWith("/one.yaml"))!.content);
-    expect(lecture0.meta.next).toEqual({ title: "Two", href: "https://drawcast.app/#gh=o/r/courses/c/two.yaml" });
+    expect(lecture0.meta.next).toEqual({ title: "Two", href: "https://www.drawcast.app/#gh=o/r/courses/c/two.yaml" });
     // Two's successor (Three) has no page — no link to a 404.
     const lecture1 = parsePlaylistText(out.files.find((f) => f.path.endsWith("/two.yaml"))!.content);
     expect(lecture1.meta.next).toBeUndefined();
@@ -73,7 +73,7 @@ describe("publishCourse writes the link", () => {
     const withStale = formatPlaylist(
       (() => {
         const p = parsePlaylistText(LECTURE);
-        p.meta.next = { title: "Gone", href: "https://drawcast.app/#gh=o/r/courses/c/gone.yaml" };
+        p.meta.next = { title: "Gone", href: "https://www.drawcast.app/#gh=o/r/courses/c/gone.yaml" };
         return p;
       })(),
       "yaml",

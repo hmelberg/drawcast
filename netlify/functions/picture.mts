@@ -37,8 +37,8 @@ const TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 3;
 const BUDGET = { windowMs: 60 * 60 * 1000, maxFailures: 300 };
 /** Sent upstream on every hop — and refused on the way IN, so no chain of proxies (any host, any path) can loop. */
-export const PROXY_USER_AGENT = "drawcast-picture-proxy (+https://drawcast.app)";
-const ALLOWED_ORIGINS = ["https://drawcast.app", "https://hmelberg.github.io", "http://localhost:5173", "http://localhost:8888"];
+export const PROXY_USER_AGENT = "drawcast-picture-proxy (+https://www.drawcast.app)";
+const ALLOWED_ORIGINS = ["https://www.drawcast.app", "https://drawcast.app", "https://hmelberg.github.io", "http://localhost:5173", "http://localhost:8888"];
 
 export interface PictureDeps {
   /** Must not follow redirects on its own (it is called with redirect: "manual"). */

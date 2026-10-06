@@ -133,7 +133,7 @@ export async function publishToServer(args: ServerPublishArgs, fetchImpl: typeof
     body: JSON.stringify({ key: args.token, cast, title: args.title, spec, ...(args.access === undefined ? {} : { access: args.access }) }),
   });
   if (!res.ok) throw new Error(refusal(res.status));
-  const url = `${(args.viewerBase ?? "https://drawcast.app").replace(/\/+$/, "")}/#anvil=${args.slug}/${args.file}`;
+  const url = `${(args.viewerBase ?? "https://www.drawcast.app").replace(/\/+$/, "")}/#anvil=${args.slug}/${args.file}`;
   // Past this line the spec has LANDED — and its write cleared the stored
   // narration, so "no audio to send" is itself an outcome worth reporting.
   // Nothing below may throw: a failure here is a fact about the audio,

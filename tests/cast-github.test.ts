@@ -23,7 +23,7 @@ import { parseCourse } from "../src/course/document";
 describe("parseGithubTarget (cast.mjs pull)", () => {
   const at = (owner: string, repo: string, branch: string | null, path: string) => ({ owner, repo, branch, path });
   it.each([
-    ["https://drawcast.app/#gh=hmelberg/dcast/casts/twenty-players.yaml", at("hmelberg", "dcast", null, "casts/twenty-players.yaml")],
+    ["https://www.drawcast.app/#gh=hmelberg/dcast/casts/twenty-players.yaml", at("hmelberg", "dcast", null, "casts/twenty-players.yaml")],
     ["https://github.com/hmelberg/dcast/tree/main/understanding-the-qaly", at("hmelberg", "dcast", "main", "understanding-the-qaly")],
     ["https://github.com/hmelberg/dcast/blob/main/understanding-the-qaly/a.yaml", at("hmelberg", "dcast", "main", "understanding-the-qaly/a.yaml")],
     ["https://github.com/hmelberg/dcast", at("hmelberg", "dcast", null, "")],
@@ -44,17 +44,17 @@ describe("pageDoor reads back the door coursePage wrote (a push must not change 
   const reasons: DoorlessReason[] = ["signed-out", "taken", "short", "invalid", "owner", "elsewhere", "unreachable", "unregistered"];
 
   it("a door to a registered name", () => {
-    const door = { name: "qaly", app: "https://drawcast.app/" };
+    const door = { name: "qaly", app: "https://www.drawcast.app/" };
     expect(pageDoor(coursePage(course, links, door), doorlessNote)).toEqual(door);
   });
   it("the name comes back clean even though coursePage's door link now ends &join (Task 8)", () => {
-    const html = coursePage(course, links, { name: "qaly", app: "https://drawcast.app/" });
-    expect(html).toContain('href="https://drawcast.app/#qaly&amp;join"');
-    expect(pageDoor(html, doorlessNote)).toEqual({ name: "qaly", app: "https://drawcast.app/" });
+    const html = coursePage(course, links, { name: "qaly", app: "https://www.drawcast.app/" });
+    expect(html).toContain('href="https://www.drawcast.app/#qaly&amp;join"');
+    expect(pageDoor(html, doorlessNote)).toEqual({ name: "qaly", app: "https://www.drawcast.app/" });
   });
   it("still reads an OLDER page whose door link has no &join suffix", () => {
-    const html = '<a class="door" href="https://drawcast.app/#qaly">Join this course in drawcast →</a>';
-    expect(pageDoor(html, doorlessNote)).toEqual({ name: "qaly", app: "https://drawcast.app/" });
+    const html = '<a class="door" href="https://www.drawcast.app/#qaly">Join this course in drawcast →</a>';
+    expect(pageDoor(html, doorlessNote)).toEqual({ name: "qaly", app: "https://www.drawcast.app/" });
   });
   it.each(reasons)("doorless: %s", (why) => {
     expect(pageDoor(coursePage(course, links, { name: null, why }), doorlessNote)).toEqual({ name: null, why });
@@ -68,7 +68,7 @@ describe("pageDoor reads back the door coursePage wrote (a push must not change 
 });
 
 describe("publishOrigin (cast.mjs publish-target)", () => {
-  const common = { owner: "ann", repo: "casts", branch: "main", base: "abc123", clone: "dev-casts/repos/ann__casts", viewerBase: "https://drawcast.app/", slugFor };
+  const common = { owner: "ann", repo: "casts", branch: "main", base: "abc123", clone: "dev-casts/repos/ann__casts", viewerBase: "https://www.drawcast.app/", slugFor };
 
   it("a course goes in <dir>/<slug> with the pull shape", () => {
     const { origin, slug } = publishOrigin({ ...common, kind: "course", dir: "courses", slug: "qaly-basics", takenSlugs: [] });
@@ -149,7 +149,7 @@ describe("fileChanges (cast.mjs push)", () => {
 // .cast files (2026-10-03): the skill's tooling reads both generations and
 // writes what the app's switch (src/cast-file.ts publishesCast) says.
 describe(".cast files in the skill's tooling (cast.mjs)", () => {
-  const common = { owner: "ann", repo: "casts", branch: "main", base: "abc123", clone: "dev-casts/repos/ann__casts", viewerBase: "https://drawcast.app/", slugFor };
+  const common = { owner: "ann", repo: "casts", branch: "main", base: "abc123", clone: "dev-casts/repos/ann__casts", viewerBase: "https://www.drawcast.app/", slugFor };
   afterEach(() => setPublishesCast(false));
 
   it("its extension rule is the app's own", () => {

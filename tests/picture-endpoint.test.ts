@@ -39,7 +39,7 @@ function deps(over: Partial<PictureDeps> = {}): PictureDeps & { fetched: string[
 }
 
 const get = (target: string | null, headers: Record<string, string> = {}) =>
-  new Request(`https://drawcast.app/.netlify/functions/picture${target === null ? "" : `?url=${encodeURIComponent(target)}`}`, { headers });
+  new Request(`https://www.drawcast.app/.netlify/functions/picture${target === null ? "" : `?url=${encodeURIComponent(target)}`}`, { headers });
 
 describe("refusals before any fetch", () => {
   test("an http url, a missing url, credentials, a port: 400", async () => {
@@ -60,7 +60,7 @@ describe("refusals before any fetch", () => {
     }
   });
   test("the proxy itself (a nested ?url= chain): 403", async () => {
-    for (const t of ["https://drawcast.app/.netlify/functions/picture?url=https%3A%2F%2Fa.example%2Fb.png", "https://name.drawcast.app/x.png"]) {
+    for (const t of ["https://www.drawcast.app/.netlify/functions/picture?url=https%3A%2F%2Fa.example%2Fb.png", "https://name.drawcast.app/x.png"]) {
       const d = deps();
       const res = await handlePictureRequest(get(t), d);
       expect(res.status, t).toBe(403);
@@ -91,7 +91,7 @@ describe("refusals before any fetch", () => {
     expect(new Headers(init?.headers).get("user-agent")).toBe(PROXY_USER_AGENT);
   });
   test("not GET: 405", async () => {
-    const res = await handlePictureRequest(new Request("https://drawcast.app/.netlify/functions/picture?url=https%3A%2F%2Fa.example%2Fb.png", { method: "POST" }), deps());
+    const res = await handlePictureRequest(new Request("https://www.drawcast.app/.netlify/functions/picture?url=https%3A%2F%2Fa.example%2Fb.png", { method: "POST" }), deps());
     expect(res.status).toBe(405);
   });
 });

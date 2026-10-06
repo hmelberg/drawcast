@@ -45,7 +45,7 @@ describe("creditBalance", () => {
 });
 
 describe("startCreditPayment", () => {
-  const body = { key: "k", cents: 500 as const, return: "https://drawcast.app/" };
+  const body = { key: "k", cents: 500 as const, return: "https://www.drawcast.app/" };
 
   test("POSTs text/plain JSON and returns the Checkout url", async () => {
     const f = fetchReturning(200, { url: "https://checkout.stripe.com/pay/cs_test_credit" });

@@ -8,10 +8,10 @@ import { NAME_RE, RESERVED_PREFIXES } from "../src/names";
 
 describe("hostToHash", () => {
   test("a single label under drawcast.app redirects to the hash form", () => {
-    expect(hostToHash("micro-i.drawcast.app")).toBe("https://drawcast.app/#micro-i");
+    expect(hostToHash("micro-i.drawcast.app")).toBe("https://www.drawcast.app/#micro-i");
   });
   test("the label is lower-cased and a port is ignored", () => {
-    expect(hostToHash("Micro-I.drawcast.app:443")).toBe("https://drawcast.app/#micro-i");
+    expect(hostToHash("Micro-I.drawcast.app:443")).toBe("https://www.drawcast.app/#micro-i");
   });
   test("the apex and www pass through (null)", () => {
     expect(hostToHash("drawcast.app")).toBeNull();

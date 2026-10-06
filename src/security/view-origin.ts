@@ -48,7 +48,7 @@ const env = (import.meta as unknown as { env?: Record<string, string | undefined
 
 export const ORIGINS: OriginConfig = {
   view: normalizeOrigin(env.VITE_VIEW_ORIGIN),
-  main: normalizeOrigin(env.VITE_MAIN_ORIGIN) || "https://drawcast.app",
+  main: normalizeOrigin(env.VITE_MAIN_ORIGIN) || "https://www.drawcast.app",
 };
 
 function here(): string {

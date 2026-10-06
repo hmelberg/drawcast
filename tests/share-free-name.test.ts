@@ -35,7 +35,7 @@ describe("the free link hint in the Pretty link panel", () => {
   test("refreshPretty hides it when the document carries no freeName, and fills drawcast.app/#<freeName> when it does", () => {
     const fn = share.slice(share.indexOf("function refreshPretty("), share.indexOf("prettyGo.addEventListener("));
     expect(fn).toContain("freeNameHint.hidden = !doc.freeName;");
-    expect(fn).toMatch(/freeNameLink\.href = `https:\/\/drawcast\.app\/#\$\{doc\.freeName\}`;/);
+    expect(fn).toMatch(/freeNameLink\.href = `https:\/\/www\.drawcast\.app\/#\$\{doc\.freeName\}`;/);
     expect(fn).toMatch(/freeNameLink\.textContent = `drawcast\.app\/#\$\{doc\.freeName\}`;/);
   });
 

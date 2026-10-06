@@ -1,4 +1,4 @@
-// NAME.drawcast.app → https://drawcast.app/#name (name-host round,
+// NAME.drawcast.app → https://www.drawcast.app/#name (name-host round,
 // 2026-09-17). Pure: the edge function (netlify/edge-functions/name-host.mts)
 // hands the request's host in and gets a redirect target or null.
 //
@@ -60,5 +60,6 @@ export function hostToHash(host: string, apex: string = APEX, viewHost: string =
   if (label === "" || label.includes(".")) return null;
   if (!NAME_LABEL_RE.test(label)) return null;
   for (const p of RESERVED_LABELS) if (label === p || label.startsWith(`${p}-`)) return null;
-  return `https://${apex}/#${label}`;
+  // To www: the primary domain since 2026-10-06 (the apex redirects there).
+  return `https://www.${apex}/#${label}`;
 }

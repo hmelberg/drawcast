@@ -21,16 +21,16 @@ function deps(over: Partial<ViewsDeps> = {}): ViewsDeps & { recorded: string[]; 
   };
 }
 
-function post(body: string, origin = "https://drawcast.app") {
-  return new Request("https://drawcast.app/.netlify/functions/views", {
+function post(body: string, origin = "https://www.drawcast.app") {
+  return new Request("https://www.drawcast.app/.netlify/functions/views", {
     method: "POST",
     headers: { "content-type": "text/plain", origin },
     body,
   });
 }
 
-const get = (query: string, origin = "https://drawcast.app") =>
-  new Request(`https://drawcast.app/.netlify/functions/views${query}`, { headers: { origin } });
+const get = (query: string, origin = "https://www.drawcast.app") =>
+  new Request(`https://www.drawcast.app/.netlify/functions/views${query}`, { headers: { origin } });
 
 describe("recording a view", () => {
   test("records the key and answers with the new count", async () => {
@@ -64,7 +64,7 @@ describe("recording a view", () => {
   test("a preflight is answered without touching storage", async () => {
     const d = deps();
     const res = await handleViewsRequest(
-      new Request("https://drawcast.app/.netlify/functions/views", { method: "OPTIONS", headers: { origin: "https://hmelberg.github.io" } }),
+      new Request("https://www.drawcast.app/.netlify/functions/views", { method: "OPTIONS", headers: { origin: "https://hmelberg.github.io" } }),
       d,
     );
     expect(res.status).toBe(204);
@@ -166,11 +166,11 @@ describe("the per-IP write budget", () => {
   });
 
   test("the client IP comes from the platform header, never a spoofable one — same rule as the retired keys.mts", () => {
-    const real = new Request("https://drawcast.app/x", {
+    const real = new Request("https://www.drawcast.app/x", {
       headers: { "x-nf-client-connection-ip": "9.9.9.9", "x-forwarded-for": "1.1.1.1" },
     });
     expect(defaultClientIp(real)).toBe("9.9.9.9");
-    const spoof = new Request("https://drawcast.app/x", { headers: { "x-forwarded-for": "1.1.1.1" } });
+    const spoof = new Request("https://www.drawcast.app/x", { headers: { "x-forwarded-for": "1.1.1.1" } });
     expect(defaultClientIp(spoof)).toBe("");
   });
 });
@@ -214,7 +214,7 @@ describe("localhost origins are a dev convenience, not a production hole", () =>
 
   test("the real, non-localhost origins are unaffected by CONTEXT either way", () =>
     withEnv({ CONTEXT: "production" }, async () => {
-      const res = await handleViewsRequest(post(KEY, "https://drawcast.app"), deps());
+      const res = await handleViewsRequest(post(KEY, "https://www.drawcast.app"), deps());
       expect(res.status).toBe(200);
     }));
 });
@@ -258,7 +258,7 @@ describe("reading counts", () => {
 
   test("reads are public: no origin at all is fine", async () => {
     const res = await handleViewsRequest(
-      new Request(`https://drawcast.app/.netlify/functions/views?repo=hmelberg/kurs`),
+      new Request(`https://www.drawcast.app/.netlify/functions/views?repo=hmelberg/kurs`),
       deps(),
     );
     expect(res.status).toBe(200);
@@ -280,7 +280,7 @@ describe("reading counts", () => {
 
   test("other methods are refused", async () => {
     const res = await handleViewsRequest(
-      new Request("https://drawcast.app/.netlify/functions/views", { method: "DELETE" }),
+      new Request("https://www.drawcast.app/.netlify/functions/views", { method: "DELETE" }),
       deps(),
     );
     expect(res.status).toBe(405);
@@ -299,9 +299,9 @@ describe("reading counts", () => {
   test("POST ignores any query string in the URL", async () => {
     const d = deps();
     const res = await handleViewsRequest(
-      new Request("https://drawcast.app/.netlify/functions/views?ignored=param", {
+      new Request("https://www.drawcast.app/.netlify/functions/views?ignored=param", {
         method: "POST",
-        headers: { "content-type": "text/plain", origin: "https://drawcast.app" },
+        headers: { "content-type": "text/plain", origin: "https://www.drawcast.app" },
         body: KEY,
       }),
       d,

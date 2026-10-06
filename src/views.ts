@@ -28,7 +28,7 @@ function countable(key: string): boolean {
  */
 export const VIEW_ENDPOINTS = [
   "/.netlify/functions/views",
-  "https://drawcast.app/.netlify/functions/views",
+  "https://www.drawcast.app/.netlify/functions/views",
 ];
 
 const SESSION_PREFIX = "drawcast.viewed:";

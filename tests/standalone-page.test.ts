@@ -43,7 +43,7 @@ describe("embedding", () => {
 describe("castPageHtml", () => {
   const html = castPageHtml({ text: "title: x\n", title: 'Prices & "markets" <today>', subtitle: "Why", url: "https://a.github.io/r/x.html", image: "https://a.github.io/r/x.png", from: { owner: "a", repo: "r", path: "x.cast" } });
   test("loads the player from drawcast.app", () => {
-    expect(PLAYER_URL).toBe("https://drawcast.app/play.js");
+    expect(PLAYER_URL).toBe("https://www.drawcast.app/play.js");
     expect(html).toContain(`<script type="module" src="${PLAYER_URL}" crossorigin></script>`);
   });
   test("escapes the title everywhere it appears", () => {

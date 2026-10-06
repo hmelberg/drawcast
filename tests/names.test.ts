@@ -55,7 +55,7 @@ describe("hash helpers", () => {
 
 describe("resolveName", () => {
   test("the endpoint order is the Netlify functions first, Anvil last", () => {
-    expect(NAME_ENDPOINTS).toEqual(["/.netlify/functions/name", "https://drawcast.app/.netlify/functions/name"]);
+    expect(NAME_ENDPOINTS).toEqual(["/.netlify/functions/name", "https://www.drawcast.app/.netlify/functions/name"]);
   });
 
   test("uses the first endpoint that answers, and carries src/ref in the query", async () => {
@@ -88,7 +88,7 @@ describe("resolveName", () => {
     const result = await resolveName("https://x", "learn-russian", f);
     expect(result).toEqual({ kind: "cast", target: "o/r/p.yaml", page: null });
     expect(calls(f).length).toBe(2);
-    expect(calls(f)[1][0]).toBe("https://drawcast.app/.netlify/functions/name?n=learn-russian&src=name&ref=");
+    expect(calls(f)[1][0]).toBe("https://www.drawcast.app/.netlify/functions/name?n=learn-russian&src=name&ref=");
   });
 
   test("a JSON 429 from an endpoint is the SHARED egress budget, not Anvil's answer about the name — moves on (final review I2)", async () => {
@@ -312,7 +312,7 @@ describe("where a resolved target plays", () => {
 });
 
 describe("startNamePayment", () => {
-  const pay = { key: "tok", name: "micro-i", kind: "course" as const, target: "o/r/courses/micro-i", title: "Micro I", return: "https://drawcast.app/" };
+  const pay = { key: "tok", name: "micro-i", kind: "course" as const, target: "o/r/courses/micro-i", title: "Micro I", return: "https://www.drawcast.app/" };
   test("POSTs the registration plus the return address and hands back Stripe's url", async () => {
     const f = fetchReturning(200, { url: "https://checkout.stripe.com/c/pay/cs_1" });
     expect(await startNamePayment("https://drawcast.anvil.app", pay, f)).toEqual({ url: "https://checkout.stripe.com/c/pay/cs_1" });

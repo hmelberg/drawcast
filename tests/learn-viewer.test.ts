@@ -77,8 +77,8 @@ describe("course progress in the viewer", () => {
     expect(parseViewerHash("#gh=hmelberg/dcast/learn-russian/01.yaml&join=2027")?.join).toBe("2027");
     expect(parseViewerHash("#gh=hmelberg/dcast/learn-russian/01.yaml&join")?.join).toBe("");
     expect(parseViewerHash("#gh=hmelberg/dcast/learn-russian/01.yaml")).not.toHaveProperty("join");
-    expect(stripJoin("https://drawcast.app/#gh=a/b/c.yaml&join=2027&mode=silent")).toBe("https://drawcast.app/#gh=a/b/c.yaml&mode=silent");
-    expect(stripJoin("https://drawcast.app/#gh=a/b/c.yaml&join")).toBe("https://drawcast.app/#gh=a/b/c.yaml");
+    expect(stripJoin("https://www.drawcast.app/#gh=a/b/c.yaml&join=2027&mode=silent")).toBe("https://www.drawcast.app/#gh=a/b/c.yaml&mode=silent");
+    expect(stripJoin("https://www.drawcast.app/#gh=a/b/c.yaml&join")).toBe("https://www.drawcast.app/#gh=a/b/c.yaml");
     // signed out: the handshake keeps the whole address; signed in: joinCourse, then replaceState with the parameter gone
     expect(src).toMatch(/if \(key === ""\) \{\s*location\.href = signInUrl\(location\.href\);\s*return;/);
     expect(src).toMatch(/history\.replaceState\(null, "", stripJoin\(location\.href\)\)/);

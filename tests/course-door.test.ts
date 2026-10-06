@@ -131,7 +131,7 @@ describe("the door, signed in", () => {
     expect(d.links()).toHaveLength(0);
     d.button.click();
     await tick();
-    expect(d.deps.join).toHaveBeenCalledWith("tok", { course: RESOLVED.target, title: "Learn russian", page: "https://drawcast.app/#learn-russian" });
+    expect(d.deps.join).toHaveBeenCalledWith("tok", { course: RESOLVED.target, title: "Learn russian", page: "https://www.drawcast.app/#learn-russian" });
     expect(d.links().map((a) => a.getAttribute("href"))).toEqual(["#learn-russian/1"]);
     expect(d.links()[0].textContent).toMatch(/first lecture/);
   });
@@ -217,7 +217,7 @@ describe("the door on a refused server cast", () => {
     expect(d.button.textContent).toBe("Join this course");
     d.button.click();
     await tick();
-    expect(d.deps.join).toHaveBeenCalledWith("tok", { course: "anvil/spanish1", title: "Spanish1", page: "https://drawcast.app/#spanish1" });
+    expect(d.deps.join).toHaveBeenCalledWith("tok", { course: "anvil/spanish1", title: "Spanish1", page: "https://www.drawcast.app/#spanish1" });
     expect(d.onJoined).toHaveBeenCalledTimes(1);
   });
   test("403, pending: the note says the teachers decide and nothing reloads", async () => {

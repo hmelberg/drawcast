@@ -49,7 +49,7 @@ describe("counting", () => {
       now: () => Date.parse("2026-10-06T12:00:00Z"),
     };
   }
-  const post = (body: unknown) => new Request("https://drawcast.app/api/thumbs", { method: "POST", body: JSON.stringify(body) });
+  const post = (body: unknown) => new Request("https://www.drawcast.app/api/thumbs", { method: "POST", body: JSON.stringify(body) });
   test("what was seen counts once per beacon; a click counts; unlisted names and bad entries are ignored", async () => {
     const d = deps();
     await handleThumbsRequest(post({ seen: ["moon:0", "moon:0", "sharks:2", "nobody:0", "moon:9", 42] }), d);
@@ -63,7 +63,7 @@ describe("counting", () => {
     const d = deps(null);
     await handleThumbsRequest(post({ seen: ["moon:0"] }), d);
     expect(d.store.size).toBe(0);
-    expect((await handleThumbsRequest(new Request("https://drawcast.app/api/thumbs"), d)).status).toBe(405);
+    expect((await handleThumbsRequest(new Request("https://www.drawcast.app/api/thumbs"), d)).status).toBe(405);
   });
   test("keys and entries parse", () => {
     expect(parseThumbKey("t/moon/1/all/2026-10-06")).toEqual({ name: "moon", variant: 1, seg: "all", day: "2026-10-06" });

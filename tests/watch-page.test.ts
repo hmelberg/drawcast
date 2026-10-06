@@ -26,14 +26,14 @@ describe("watch address", () => {
     const out = watchHead(INDEX, "moon", meta);
     expect(out).toMatch(/<head>\s*<base href="\/" \/>/);
     expect(out).toContain("<title>Why the &lt;Moon&gt; has phases · drawcast</title>");
-    expect(out).toContain('<meta property="og:image" content="https://drawcast.app/card/moon.png" />');
+    expect(out).toContain('<meta property="og:image" content="https://www.drawcast.app/card/moon.png" />');
     expect(out).toContain('<link rel="canonical" href="https://hmelberg.github.io/drawcast-library/casts/moon.html" />');
-    expect(out).toContain('content="https://drawcast.app/w/moon"');
+    expect(out).toContain('content="https://www.drawcast.app/w/moon"');
     expect(out).toContain("About astronomy.");
     expect(out.match(/<title>/g)).toHaveLength(1);
     // A folder or index page is a listing, never the canonical.
     for (const page of ["https://hmelberg.github.io/drawcast-library/casts/", "https://x.github.io/r/index.html"]) {
-      expect(watchHead(INDEX, "moon", { title: "M", page })).toContain('<link rel="canonical" href="https://drawcast.app/w/moon" />');
+      expect(watchHead(INDEX, "moon", { title: "M", page })).toContain('<link rel="canonical" href="https://www.drawcast.app/w/moon" />');
     }
     expect(out.match(/name="description"/g)).toHaveLength(1);
   });
@@ -42,7 +42,7 @@ describe("watch address", () => {
     const out = watchHead(INDEX, "spanish/2", null);
     expect(out).toContain('<base href="/" />');
     expect(out).toContain("<title>spanish · drawcast</title>");
-    expect(out).toContain('<link rel="canonical" href="https://drawcast.app/w/spanish/2" />');
+    expect(out).toContain('<link rel="canonical" href="https://www.drawcast.app/w/spanish/2" />');
   });
   test("sitemap: the front page and every listed public name, pages followed", async () => {
     const pages = [
@@ -53,8 +53,8 @@ describe("watch address", () => {
     const names = await listedNames((async () => new Response(JSON.stringify(pages[n++]))) as typeof fetch);
     expect(names).toEqual([{ name: "a", updated: "2026-10-01T10:00:00" }, { name: "b", updated: null }]);
     const xml = sitemapXml(names);
-    expect(xml).toContain("<loc>https://drawcast.app/</loc>");
-    expect(xml).toContain("<loc>https://drawcast.app/w/a</loc><lastmod>2026-10-01</lastmod>");
+    expect(xml).toContain("<loc>https://www.drawcast.app/</loc>");
+    expect(xml).toContain("<loc>https://www.drawcast.app/w/a</loc><lastmod>2026-10-01</lastmod>");
     expect(xml).not.toContain("/w/p");
   });
 });

@@ -29,7 +29,7 @@ const args = (over: Partial<PlanArgs> = {}): PlanArgs => ({
   text: TEXT,
   repo: { owner: "o", repo: "r" },
   coursesDir: "courses",
-  viewerBase: "https://drawcast.app/",
+  viewerBase: "https://www.drawcast.app/",
   manifest: emptyManifest(),
   lectureYaml: (i: number) => (i < 2 ? `title: lecture ${i}` : null),
   ...over,
@@ -76,7 +76,7 @@ describe("buildPublishPlan", () => {
 
   it("points a published link at the viewer base", () => {
     const page = buildPublishPlan(args()).files.find((f) => f.path.endsWith("causal-inference/index.html"))!;
-    expect(page.content).toContain("https://drawcast.app/#gh=o/r/courses/causal-inference/did.yaml");
+    expect(page.content).toContain("https://www.drawcast.app/#gh=o/r/courses/causal-inference/did.yaml");
   });
 
   it("deletes a file the course used to publish and no longer does", () => {
@@ -131,7 +131,7 @@ function fakeGithub(opts: { manifest?: string; branch?: string } = {}): {
   return { seen, fetchImpl };
 }
 
-const publishArgs = { text: TEXT, repo: { owner: "o", repo: "r" }, token: "t", coursesDir: "courses", viewerBase: "https://drawcast.app/", lectureYaml: (i: number) => (i < 2 ? `title: ${i}` : null) };
+const publishArgs = { text: TEXT, repo: { owner: "o", repo: "r" }, token: "t", coursesDir: "courses", viewerBase: "https://www.drawcast.app/", lectureYaml: (i: number) => (i < 2 ? `title: ${i}` : null) };
 
 describe("publishCourse", () => {
   it("records each published file name back into the document", async () => {
@@ -212,13 +212,13 @@ describe("preparePublish, then commitPublish", () => {
   it("committing with the registered name puts the door on the page; without one the page says why", async () => {
     const withDoor = fakeGithub();
     const prepared = await preparePublish({ ...enrolling, fetchImpl: withDoor.fetchImpl });
-    const out = await commitPublish({ ...enrolling, fetchImpl: withDoor.fetchImpl }, prepared, { name: "causal-inference", app: "https://drawcast.app/" });
+    const out = await commitPublish({ ...enrolling, fetchImpl: withDoor.fetchImpl }, prepared, { name: "causal-inference", app: "https://www.drawcast.app/" });
     expect(withDoor.seen.some((s) => isWrite(s.url))).toBe(true);
     expect(out.text).toContain("file: did.yaml");
     const blobs = withDoor.seen.filter((s) => s.url.includes("/git/blobs")).map((s) => Buffer.from(s.body!.content as string, "base64").toString("utf8"));
     const page = blobs.find((b) => b.includes("<h1>Causal Inference</h1>"))!;
     // &join (Task 8): coursePage's escapeHtml turns the `&` into `&amp;`.
-    expect(page).toContain('href="https://drawcast.app/#causal-inference&amp;join"');
+    expect(page).toContain('href="https://www.drawcast.app/#causal-inference&amp;join"');
 
     const doorless = fakeGithub();
     await commitPublish({ ...enrolling, fetchImpl: doorless.fetchImpl }, await preparePublish({ ...enrolling, fetchImpl: doorless.fetchImpl }), { name: null, why: "taken" });
@@ -228,7 +228,7 @@ describe("preparePublish, then commitPublish", () => {
     expect(page2).toMatch(/belongs to someone else/);
     expect(hasDoor(page2)).toBe(false);
     expect(hasDoor(page)).toBe(true); // …and the same detector sees the door when there is one
-    expect(page2).toContain('href="https://drawcast.app/#gh=o/r/courses/causal-inference/did.yaml"'); // the lectures are still linked
+    expect(page2).toContain('href="https://www.drawcast.app/#gh=o/r/courses/causal-inference/did.yaml"'); // the lectures are still linked
   });
 
   it("publishCourse is the two in one, and without a door decision an enrolling course ships doorless", async () => {
@@ -309,7 +309,7 @@ describe("the folder name", () => {
 describe("the README GitHub renders itself", () => {
   it("links each published lecture", () => {
     const readme = buildPublishPlan(args()).files.find((f) => f.path.endsWith("causal-inference/README.md"))!;
-    expect(readme.content).toContain("[Difference-in-differences](https://drawcast.app/#gh=o/r/courses/causal-inference/did.yaml)");
+    expect(readme.content).toContain("[Difference-in-differences](https://www.drawcast.app/#gh=o/r/courses/causal-inference/did.yaml)");
   });
 
   it("marks an ungenerated lecture instead of linking it", () => {

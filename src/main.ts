@@ -5714,7 +5714,7 @@ async function privateCastLock(
     const applied = await ensurePrivateApplied(
       DEFAULT_ENROLL_API,
       accountToken,
-      { kind: "cast", target, title: doc.title, lectures: 1, ...payListedFields(true, quote.listed ?? true), return: "https://drawcast.app/" },
+      { kind: "cast", target, title: doc.title, lectures: 1, ...payListedFields(true, quote.listed ?? true), return: "https://www.drawcast.app/" },
       bounded,
     );
     if (applied === "key") return "Not published: sign in again to publish privately (Sign in, top right).";

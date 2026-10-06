@@ -129,7 +129,7 @@ describe("the link scripts", () => {
 
   test("make_link.mjs round-trips (file and stdin)", () => {
     const fromFile = run("node", [join(SKILL, "scripts/make_link.mjs"), "scripts/skill/skeleton.yaml"]);
-    expect(fromFile.startsWith("https://drawcast.app/#cast=")).toBe(true);
+    expect(fromFile.startsWith("https://www.drawcast.app/#cast=")).toBe(true);
     expect(fromFile.split("#cast=")[1]).toMatch(/^[A-Za-z0-9_-]+$/); // base64url, no padding
     expect(decode(fromFile)).toBe(sample);
     const fromStdin = run("node", [join(SKILL, "scripts/make_link.mjs")], unicode);

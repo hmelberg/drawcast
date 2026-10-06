@@ -29,15 +29,15 @@ describe("rank", () => {
   test("?all=1 answers every visited name, not only the top 50, cached apart", async () => {
     const records: Record<string, number> = {};
     for (let i = 0; i < 60; i++) records[`v/n${i}/2026-10-03`] = 1;
-    const top = await handleRankRequest(new Request("https://drawcast.app/.netlify/functions/rank"), deps(records));
+    const top = await handleRankRequest(new Request("https://www.drawcast.app/.netlify/functions/rank"), deps(records));
     expect(((await top.json()) as { ranks: unknown[] }).ranks).toHaveLength(50);
-    const all = await handleRankRequest(new Request("https://drawcast.app/.netlify/functions/rank?all=1"), deps(records));
+    const all = await handleRankRequest(new Request("https://www.drawcast.app/.netlify/functions/rank?all=1"), deps(records));
     expect(((await all.json()) as { ranks: unknown[] }).ranks).toHaveLength(60);
     expect(all.headers.get("netlify-vary")).toBe("query=all");
   });
   test("?all=1 adds each name's all-time total; a name with only old visits is kept", async () => {
     const all = await handleRankRequest(
-      new Request("https://drawcast.app/.netlify/functions/rank?all=1"),
+      new Request("https://www.drawcast.app/.netlify/functions/rank?all=1"),
       deps({ "v/moon/2026-10-03": 5, "v/moon/2026-08-01": 7, "v/old/2026-08-01": 4 }),
     );
     expect(((await all.json()) as { ranks: unknown[] }).ranks).toEqual([
@@ -50,11 +50,11 @@ describe("rank", () => {
     expect(parseVisitKey("v/x")).toBeNull();
   });
   test("the response is public and CDN-cached for an hour; a failure is an empty list, not cached", async () => {
-    const ok = await handleRankRequest(new Request("https://drawcast.app/.netlify/functions/rank"), deps({ "v/a/2026-10-03": 2 }));
+    const ok = await handleRankRequest(new Request("https://www.drawcast.app/.netlify/functions/rank"), deps({ "v/a/2026-10-03": 2 }));
     expect(await ok.json()).toEqual({ days: 30, ranks: [{ name: "a", visits: 2 }] });
     expect(ok.headers.get("netlify-cdn-cache-control")).toContain("max-age=3600");
     expect(ok.headers.get("access-control-allow-origin")).toBe("*");
-    const bad = await handleRankRequest(new Request("https://drawcast.app/.netlify/functions/rank"), { ...deps({}), listKeys: async () => { throw new Error("blobs down"); } });
+    const bad = await handleRankRequest(new Request("https://www.drawcast.app/.netlify/functions/rank"), { ...deps({}), listKeys: async () => { throw new Error("blobs down"); } });
     expect(await bad.json()).toEqual({ days: 30, ranks: [] });
     expect(bad.headers.get("cache-control")).toBe("no-store");
   });

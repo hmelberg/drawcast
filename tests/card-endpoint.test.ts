@@ -32,14 +32,14 @@ function deps(over: Partial<CardDeps> = {}): CardDeps & { fetched: string[]; sig
     ...over,
   };
 }
-const get = (path: string, ua: string) => new Request(`https://drawcast.app${path}`, { headers: { "user-agent": ua } });
+const get = (path: string, ua: string) => new Request(`https://www.drawcast.app${path}`, { headers: { "user-agent": ua } });
 
 describe("a person", () => {
   test("is sent to the # link at once, with no lookup", async () => {
     const d = deps();
     const res = await handleCardRequest(get("/c/vaccines", CHROME), d);
     expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("https://drawcast.app/#vaccines");
+    expect(res.headers.get("location")).toBe("https://www.drawcast.app/#vaccines");
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(d.fetched).toEqual([]);
   });
@@ -54,7 +54,7 @@ describe("a person", () => {
     expect((await handleCardRequest(get("/c/nobody", FB), deps())).headers.get("cache-control")).toBe("public, max-age=600");
   });
   test("a gh path and a sub-name keep their shape; the origin is the request's own", async () => {
-    expect((await handleCardRequest(get("/c/gh/ann/casts/casts/herd.yaml", CHROME), deps())).headers.get("location")).toBe("https://drawcast.app/#gh=ann/casts/casts/herd.yaml");
+    expect((await handleCardRequest(get("/c/gh/ann/casts/casts/herd.yaml", CHROME), deps())).headers.get("location")).toBe("https://www.drawcast.app/#gh=ann/casts/casts/herd.yaml");
     const preview = new Request("https://deploy-preview-9--drawcast.netlify.app/c/learn-russian/3", { headers: { "user-agent": CHROME } });
     expect((await handleCardRequest(preview, deps())).headers.get("location")).toBe("https://deploy-preview-9--drawcast.netlify.app/#learn-russian/3");
   });
@@ -62,7 +62,7 @@ describe("a person", () => {
     for (const p of ["/c/", "/c/api", "/c/gh/ann/casts/%2e%2e/x.yaml", "/c/a/b/c"]) {
       const res = await handleCardRequest(get(p, CHROME), deps());
       expect(res.status, p).toBe(302);
-      expect(res.headers.get("location"), p).toBe("https://drawcast.app/");
+      expect(res.headers.get("location"), p).toBe("https://www.drawcast.app/");
     }
   });
 });
@@ -76,8 +76,8 @@ describe("a crawler", () => {
     const html = await res.text();
     expect(html).toContain('og:title" content="Why vaccines work"');
     expect(html).toContain('og:description" content="Herd immunity."');
-    expect(html).toContain('og:image" content="https://drawcast.app/card/vaccines.png"');
-    expect(html).toContain('og:url" content="https://drawcast.app/c/vaccines"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/card/vaccines.png"');
+    expect(html).toContain('og:url" content="https://www.drawcast.app/c/vaccines"');
     expect(html).toContain('og:image:width" content="1000"');
     expect(html).toContain('og:image:height" content="750"');
   });
@@ -85,7 +85,7 @@ describe("a crawler", () => {
     const d = deps({ fetchImage: async () => null });
     const html = await (await handleCardRequest(get("/c/gh/ann/casts/casts/herd.yaml", FB), d)).text();
     expect(html).toContain('og:title" content="Why vaccines work"');
-    expect(html).toContain('og:image" content="https://drawcast.app/share-card.png"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/share-card.png"');
     expect(html).toContain('og:image:width" content="1200"');
     expect(html).toContain('og:image:height" content="630"');
   });
@@ -94,7 +94,7 @@ describe("a crawler", () => {
     const d = deps({ exists: async (url) => (asked.push(url), true), fetchImage: async () => { throw new Error("not this"); } });
     const html = await (await handleCardRequest(get("/c/gh/ann/casts/casts/herd.yaml", FB), d)).text();
     expect(asked).toEqual(["https://raw.githubusercontent.com/ann/casts/HEAD/casts/herd.png"]);
-    expect(html).toContain('og:image" content="https://drawcast.app/card/gh/ann/casts/casts/herd.png"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/card/gh/ann/casts/casts/herd.png"');
   });
   test("every fetch in a request shares one deadline signal", async () => {
     const d = deps();
@@ -110,23 +110,23 @@ describe("a crawler", () => {
   test("a gh path: no lookup, own text", async () => {
     const html = await (await handleCardRequest(get("/c/gh/ann/casts/casts/herd.yaml", FB), deps())).text();
     expect(html).toContain('og:title" content="Why vaccines work"');
-    expect(html).toContain('og:image" content="https://drawcast.app/card/gh/ann/casts/casts/herd.png"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/card/gh/ann/casts/casts/herd.png"');
   });
   test("a server cast: own text, generic picture", async () => {
     const html = await (await handleCardRequest(get("/c/srv", FB), deps())).text();
     expect(html).toContain('og:title" content="Why vaccines work"');
-    expect(html).toContain('og:image" content="https://drawcast.app/share-card.png"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/share-card.png"');
   });
   test("a course: the course.md heading, generic picture", async () => {
     const html = await (await handleCardRequest(get("/c/qaly", FB), deps())).text();
     expect(html).toContain('og:title" content="QALY basics"');
-    expect(html).toContain('og:image" content="https://drawcast.app/share-card.png"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/share-card.png"');
   });
   test("a private course: the generic card, no trace of its title", async () => {
     const md = "# Secret course\nprivate: true\nslug: secret\n\nA hidden intro.\n";
     const html = await (await handleCardRequest(get("/c/qaly", FB), deps({ fetchText: async () => md }))).text();
     expect(html).toContain('og:title" content="drawcast"');
-    expect(html).toContain('og:image" content="https://drawcast.app/share-card.png"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/share-card.png"');
     expect(html).not.toContain("Secret");
     expect(html).not.toContain("hidden intro");
     expect(html).not.toContain("private");
@@ -145,10 +145,10 @@ describe("a crawler", () => {
       expect(res.status, p).toBe(200);
       const html = await res.text();
       expect(html, p).toContain('og:title" content="drawcast"');
-      expect(html, p).toContain('og:image" content="https://drawcast.app/share-card.png"');
+      expect(html, p).toContain('og:image" content="https://www.drawcast.app/share-card.png"');
       expect(html, p).toContain('og:image:width" content="1200"');
       // The /c/ link itself, when it parsed; the front page only when it did not.
-      expect(html, p).toContain(p === "/c/api" ? 'og:url" content="https://drawcast.app/"' : `og:url" content="https://drawcast.app${p}"`);
+      expect(html, p).toContain(p === "/c/api" ? 'og:url" content="https://www.drawcast.app/"' : `og:url" content="https://www.drawcast.app${p}"`);
     }
   });
   test("a course whose first lecture is locked is private, whatever course.md says", async () => {
@@ -171,7 +171,7 @@ describe("a crawler", () => {
   test("a known cast with no title keeps its own picture and says A drawcast", async () => {
     const html = await (await handleCardRequest(get("/c/vaccines", FB), deps({ fetchText: async () => "items: []\n" }))).text();
     expect(html).toContain('og:title" content="A drawcast"');
-    expect(html).toContain('og:image" content="https://drawcast.app/card/vaccines.png"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/card/vaccines.png"');
   });
 });
 
@@ -188,7 +188,7 @@ describe("a course's picture is its first lecture's", () => {
   test("the card names the course and shows the lecture's picture", async () => {
     const html = await (await handleCardRequest(get("/c/qaly", FB), course())).text();
     expect(html).toContain('og:title" content="QALY basics"');
-    expect(html).toContain('og:image" content="https://drawcast.app/card/qaly.png"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/card/qaly.png"');
     expect(html).toContain('og:image:width" content="1000"');
   });
   test("/card/qaly.png streams the first lecture's picture", async () => {
@@ -198,18 +198,18 @@ describe("a course's picture is its first lecture's", () => {
   });
   test("no picture beside the lecture: the generic picture, not a broken one", async () => {
     const html = await (await handleCardRequest(get("/c/qaly", FB), course({ fetchImage: async () => null }))).text();
-    expect(html).toContain('og:image" content="https://drawcast.app/share-card.png"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/share-card.png"');
   });
   test("a lecture with no file yet: the generic picture", async () => {
     const html = await (await handleCardRequest(get("/c/qaly", FB), course({ fetchText: async (url) => (url.endsWith("course.md") ? "# QALY basics\n\nWhat a QALY is.\n\n---\n## Lecture one\nstatus: pending\n" : null) }))).text();
     expect(html).toContain('og:title" content="QALY basics"');
-    expect(html).toContain('og:image" content="https://drawcast.app/share-card.png"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/share-card.png"');
   });
   test("a lecture whose text can't be read: no picture streamed", async () => {
     const d = course({ fetchText: async (url) => (url.endsWith("course.md") ? MD : null) });
     const res = await handleCardRequest(get("/card/qaly.png", FB), d);
     expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("https://drawcast.app/share-card.png");
+    expect(res.headers.get("location")).toBe("https://www.drawcast.app/share-card.png");
     expect(d.fetched.some((u) => u.endsWith(".png"))).toBe(false);
   });
 });
@@ -219,7 +219,7 @@ describe("/card/ pictures", () => {
     const d = deps({ fetchText: async () => null });
     const res = await handleCardRequest(get("/card/vaccines.png", FB), d);
     expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("https://drawcast.app/share-card.png");
+    expect(res.headers.get("location")).toBe("https://www.drawcast.app/share-card.png");
     expect(d.fetched.some((u) => u.endsWith(".png"))).toBe(false);
   });
   test("the poster beside a GitHub cast, streamed with a cache header", async () => {
@@ -238,7 +238,7 @@ describe("/card/ pictures", () => {
       const res = await handleCardRequest(get(p, CHROME), deps());
       expect(res.status, p).toBe(302);
       expect(res.headers.get("access-control-allow-origin"), p).toBe("*");
-      expect(res.headers.get("location"), p).toBe("https://drawcast.app/share-card.png");
+      expect(res.headers.get("location"), p).toBe("https://www.drawcast.app/share-card.png");
       // A miss may be a timed-out lookup: never kept by the CDN, a minute in the browser.
       expect(res.headers.get("cache-control"), p).toBe("public, max-age=60");
       expect(res.headers.get("netlify-cdn-cache-control"), p).toBe("no-store");
@@ -253,7 +253,7 @@ test("the poster rule is the publisher's own", () => {
 });
 
 test("anything but GET or HEAD is refused", async () => {
-  const res = await handleCardRequest(new Request("https://drawcast.app/c/vaccines", { method: "POST" }), deps());
+  const res = await handleCardRequest(new Request("https://www.drawcast.app/c/vaccines", { method: "POST" }), deps());
   expect(res.status).toBe(405);
 });
 
@@ -270,7 +270,7 @@ test("the app's own page carries the generic Open Graph card", async () => {
   for (const tag of [
     '<meta property="og:title" content="drawcast"',
     '<meta property="og:description" content="Drawn explanations you can watch and play with"',
-    '<meta property="og:image" content="https://drawcast.app/share-card.png"',
+    '<meta property="og:image" content="https://www.drawcast.app/share-card.png"',
     '<meta property="og:image:width" content="1200"',
     '<meta property="og:image:height" content="630"',
     '<meta property="og:type" content="website"',
@@ -292,7 +292,7 @@ describe(".cast casts (published since 2026-10-03)", () => {
     const html = await (await handleCardRequest(get("/c/herd", FB), dotCast())).text();
     expect(html).toContain('og:title" content="Why vaccines work"');
     expect(html).toContain('og:description" content="Herd immunity, drawn."');
-    expect(html).toContain('og:image" content="https://drawcast.app/card/herd.png"');
+    expect(html).toContain('og:image" content="https://www.drawcast.app/card/herd.png"');
   });
   test("/card/<name>.png streams the .cast's poster", async () => {
     const res = await handleCardRequest(get("/card/herd.png", FB), dotCast());

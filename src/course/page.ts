@@ -106,7 +106,7 @@ function page(title: string, body: string): string {
 <title>${escapeHtml(title)}</title>
 <style>${STYLE}</style>
 ${body}
-<footer>Made with <a href="https://drawcast.app/">drawcast</a></footer>
+<footer>Made with <a href="https://www.drawcast.app/">drawcast</a></footer>
 </html>
 `;
 }
@@ -177,13 +177,13 @@ export function courseReadme(course: Course, links: PageLink[]): string {
     out.push(link.href ? `${i + 1}. [${title}](${link.href})` : `${i + 1}. ${title} — *not published yet*`);
     for (const q of link.questions) out.push(`   - ${escapeMd(q)}`);
   });
-  out.push("", "---", "", "Made with [drawcast](https://drawcast.app/).");
+  out.push("", "---", "", "Made with [drawcast](https://www.drawcast.app/).");
   return out.join("\n") + "\n";
 }
 
 export function repoReadme(courses: CourseEntry[]): string {
   const out = ["# Courses", ""];
   for (const c of courses) out.push(`- [${escapeMd(c.title)}](${c.slug}/) — updated ${c.updated}`);
-  out.push("", "---", "", "Made with [drawcast](https://drawcast.app/).");
+  out.push("", "---", "", "Made with [drawcast](https://www.drawcast.app/).");
   return out.join("\n") + "\n";
 }

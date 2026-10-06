@@ -72,7 +72,7 @@ describe("catalogueQueryString — pure query building", () => {
 
 describe("catalogueHref — the pretty link a card points at", () => {
   test("drawcast.app/#<name>, exactly what a bought/free name already resolves at", () => {
-    expect(catalogueHref({ name: "micro-i" })).toBe("https://drawcast.app/#micro-i");
+    expect(catalogueHref({ name: "micro-i" })).toBe("https://www.drawcast.app/#micro-i");
   });
 });
 

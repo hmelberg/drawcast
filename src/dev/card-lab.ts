@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   const t0 = performance.now();
   const lines: HTMLElement[] = [h("div", { class: "row head" }, h("div", {}, "Cast"), h("div", {}, "Today (server)"), h("div", {}, "Card: drawing"), h("div", {}, "Card: over the poster"))];
   for (const r of rows) {
-    const today = r.name ? h("img", { src: `https://drawcast.app/card/${r.name}.png`, alt: "", loading: "lazy" }) : h("div", { class: "meta" }, "no name");
+    const today = r.name ? h("img", { src: `https://www.drawcast.app/card/${r.name}.png`, alt: "", loading: "lazy" }) : h("div", { class: "meta" }, "no name");
     const drawing = r.result ? svgNode(drawCard(r.result.card, { icons })) : h("div", { class: "meta" }, r.error ?? "no card");
     const over = r.result ? svgNode(drawCard(r.result.card, { posterHref: r.poster, icons })) : h("div", {});
     const counts = new Map<string, number>();

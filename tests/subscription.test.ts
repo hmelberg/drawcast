@@ -15,7 +15,7 @@ describe("subscription client", () => {
   });
 
   test("start: a checkout url, or a word for each refusal", async () => {
-    const body = { key: "k", plan: "pro", return: "https://drawcast.app/" };
+    const body = { key: "k", plan: "pro", return: "https://www.drawcast.app/" };
     expect(await startSubscription("https://a", body, replying(200, { url: "https://stripe" }))).toEqual({ url: "https://stripe" });
     expect(await startSubscription("https://a", body, replying(409, {}))).toBe("subscribed");
     expect(await startSubscription("https://a", body, replying(403, {}))).toBe("closed");

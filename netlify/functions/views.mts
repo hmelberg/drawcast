@@ -54,7 +54,7 @@ export interface ViewsDeps {
  * counting off for everyone.
  */
 function allowedOrigins(): string[] {
-  const base = ["https://drawcast.app", "https://hmelberg.github.io"];
+  const base = ["https://www.drawcast.app", "https://drawcast.app", "https://hmelberg.github.io"];
   if (process.env.CONTEXT === "production") return base;
   return [...base, "http://localhost:5173", "http://localhost:8888"];
 }

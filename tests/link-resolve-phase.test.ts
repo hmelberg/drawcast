@@ -18,7 +18,7 @@ function deps(files: Record<string, string>, pictures: string[]): LinkDeps & { l
     },
     encode: () => "data:image/png;base64,AAAA",
     base: () => gh,
-    viewerBase: () => "https://drawcast.app",
+    viewerBase: () => "https://www.drawcast.app",
   };
 }
 

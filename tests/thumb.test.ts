@@ -109,7 +109,7 @@ describe("/card/ draws the line", () => {
     fetchImage: async () => new Response(POSTER, { headers: { "content-type": "image/png" } }),
     draw: (plan) => (drawn.push(plan.words), new Uint8Array([1, 2, 3])),
   });
-  const get = (p: string) => new Request(`https://drawcast.app${p}`);
+  const get = (p: string) => new Request(`https://www.drawcast.app${p}`);
   test("a line: drawn; none: the poster as published", async () => {
     const drawn: string[] = [];
     const a = await handleCardRequest(get("/card/c.png"), deps('# T\nthumb: band "Hey"\n\n## T\n', drawn));

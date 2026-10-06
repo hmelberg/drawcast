@@ -31,7 +31,7 @@ const HALO = [
 export const C64_FONT_URLS = [
   "/fonts/c64/C64_Pro_Mono-STYLE.woff2", // the app at its root (drawcast.app, netlify dev)
   "fonts/c64/C64_Pro_Mono-STYLE.woff2", // a build under a subpath (hmelberg.github.io/drawcast/)
-  "https://drawcast.app/fonts/c64/C64_Pro_Mono-STYLE.woff2", // a page embedding the engine (CORS is on for /fonts/* in netlify.toml)
+  "https://www.drawcast.app/fonts/c64/C64_Pro_Mono-STYLE.woff2", // a page embedding the engine (CORS is on for /fonts/* in netlify.toml)
 ] as const;
 
 /** Where the handwriting face lives, for a page that has not loaded it
@@ -46,7 +46,7 @@ export const C64_FONT_URLS = [
 export const PATRICK_HAND_URLS = [
   "/fonts/patrickhand/PatrickHand-Regular.ttf",
   "fonts/patrickhand/PatrickHand-Regular.ttf",
-  "https://drawcast.app/fonts/patrickhand/PatrickHand-Regular.ttf",
+  "https://www.drawcast.app/fonts/patrickhand/PatrickHand-Regular.ttf",
 ] as const;
 
 const FIGURE_CSS = `

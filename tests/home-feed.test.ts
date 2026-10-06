@@ -41,22 +41,22 @@ describe("the feed function", () => {
   test("a fresh kept feed is served with no registry call; a stale one is served and rebuilt behind", async () => {
     const kept: Feed = { built: 1_000_000 - 1000, items: [item("old")], ranks: [] };
     const d = deps({ load: async () => kept });
-    const res = await handleFeedRequest(new Request("https://drawcast.app/api/feed"), d);
+    const res = await handleFeedRequest(new Request("https://www.drawcast.app/api/feed"), d);
     expect((await res.json()).items[0].name).toBe("old");
     expect(res.headers.get("netlify-cdn-cache-control")).toContain("durable");
     expect(d.asked).toEqual([]);
     const later: Promise<unknown>[] = [];
     const s = deps({ load: async () => ({ ...kept, built: 1_000_000 - FRESH_MS - 1 }), defer: (w) => void later.push(w) });
-    expect((await (await handleFeedRequest(new Request("https://drawcast.app/api/feed"), s)).json()).items[0].name).toBe("old");
+    expect((await (await handleFeedRequest(new Request("https://www.drawcast.app/api/feed"), s)).json()).items[0].name).toBe("old");
     await Promise.all(later);
     expect(s.saved).toHaveLength(1);
   });
   test("nothing kept: built, saved and served; nothing buildable: a 503 the CDN does not keep", async () => {
     const d = deps();
-    const res = await handleFeedRequest(new Request("https://drawcast.app/api/feed"), d);
+    const res = await handleFeedRequest(new Request("https://www.drawcast.app/api/feed"), d);
     expect(res.status).toBe(200);
     expect(d.saved).toHaveLength(1);
-    const down = await handleFeedRequest(new Request("https://drawcast.app/api/feed"), deps({ page: async () => null }));
+    const down = await handleFeedRequest(new Request("https://www.drawcast.app/api/feed"), deps({ page: async () => null }));
     expect(down.status).toBe(503);
     expect(down.headers.get("netlify-cdn-cache-control")).toBe("no-store");
   });

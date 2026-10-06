@@ -35,7 +35,7 @@ if (!existsSync(LIBRARY)) {
 /** Free names by title, from the live feed (today's card is drawn by name). */
 async function namesByTitle() {
   try {
-    const feed = await (await fetch("https://drawcast.app/api/feed")).json();
+    const feed = await (await fetch("https://www.drawcast.app/api/feed")).json();
     return new Map(feed.items.map((i) => [i.title.trim().toLowerCase(), i.name]));
   } catch {
     return new Map();

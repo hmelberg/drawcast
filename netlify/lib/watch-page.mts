@@ -14,7 +14,7 @@
 
 import { NAME_LABEL_RE, RESERVED_LABELS } from "./name-host.mts";
 
-export const APEX_ORIGIN = "https://drawcast.app";
+export const APEX_ORIGIN = "https://www.drawcast.app";
 
 /** `/w/<name>` or `/w/<name>/<lecture>` → the name (`spanish/3`); null otherwise. */
 export function watchName(pathname: string): string | null {

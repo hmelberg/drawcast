@@ -18,7 +18,7 @@ describe("name visits", () => {
   });
   it("refDomain", () => {
     expect(refDomain("https://www.facebook.com/x?y")).toBe("www.facebook.com");
-    expect(refDomain("https://drawcast.app/#x")).toBe("");
+    expect(refDomain("https://www.drawcast.app/#x")).toBe("");
     expect(refDomain("nonsense")).toBe("");
     expect(visitKey("qaly", "2026-09-29")).toBe("v/qaly/2026-09-29");
   });

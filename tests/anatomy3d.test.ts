@@ -126,7 +126,7 @@ describe("names and urls", () => {
     expect(partName({ ...all.liver, name: { en: "Liver" } }, "nb")).toBe("Liver");
   });
   test("packUrl resolves against the document base", () => {
-    expect(packUrl("liver.bin", "https://drawcast.app/")).toBe("https://drawcast.app/anatomy3d/liver.bin");
+    expect(packUrl("liver.bin", "https://www.drawcast.app/")).toBe("https://www.drawcast.app/anatomy3d/liver.bin");
     expect(packUrl("index.json", "http://localhost:5173/some/page")).toBe("http://localhost:5173/some/anatomy3d/index.json");
   });
 });

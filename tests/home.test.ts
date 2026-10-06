@@ -85,7 +85,7 @@ describe("cards", () => {
     expect(homeHref("qaly-intro", "localhost")).toBe("#qaly-intro");
     expect(homeHref("qaly-intro", "drawcast.app")).toBe("/w/qaly-intro");
     expect(homeHref("spanish/3", "deploy-preview-9--drawcast.netlify.app")).toBe("/w/spanish/3");
-    expect(thumbUrl("qaly-intro")).toBe("https://drawcast.app/card/qaly-intro.png");
+    expect(thumbUrl("qaly-intro")).toBe("https://www.drawcast.app/card/qaly-intro.png");
   });
   test("merging keeps the first card for a name — curated wording wins", () => {
     const a = cardFromFeatured({ name: "x", title: "Curated", format: "drawcast", tags: [] });

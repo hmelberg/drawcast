@@ -149,7 +149,7 @@ describe("lockedDoor", () => {
     expect(r.h1.textContent).toBe("Learn russian");
     r.button!.click();
     await tick();
-    expect(d.join).toHaveBeenCalledWith("tok", { course: ITEM, title: "Learn russian", page: "https://drawcast.app/#russian" });
+    expect(d.join).toHaveBeenCalledWith("tok", { course: ITEM, title: "Learn russian", page: "https://www.drawcast.app/#russian" });
   });
 
   test("403 none: an empty title falls back to the item as the name", () => {
