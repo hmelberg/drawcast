@@ -1103,7 +1103,7 @@ function build(): ShareSession {
       if (!token || !item) return;
       listedPayBtn.disabled = true;
       try {
-        const started = await startPrivatePayment(DEFAULT_ENROLL_API, {
+        const body = {
           key: token,
           kind: item.kind,
           target: item.target,
@@ -1112,7 +1112,16 @@ function build(): ShareSession {
           lectures: item.lectures,
           ...payListedFields(privateCb.checked, false),
           return: location.href.split("#")[0],
-        });
+        };
+        // Unlisting alone is paid from credit when it covers the price (credit
+        // plan delivery 3); private is not sold for credit, so it goes to the card.
+        let started = privateCb.checked ? await startPrivatePayment(DEFAULT_ENROLL_API, body) : await startPrivatePayment(DEFAULT_ENROLL_API, { ...body, pay: "credits" });
+        if (started === "credit") started = await startPrivatePayment(DEFAULT_ENROLL_API, body);
+        if (typeof started === "object" && "paidCredits" in started) {
+          listedHint.textContent = `Unlisted — paid ${started.paidCredits.toLocaleString("en-US")} credits.`;
+          listedPayRow.hidden = true;
+          return;
+        }
         if (typeof started === "object") {
           location.href = started.url;
           return;
@@ -1295,7 +1304,7 @@ function build(): ShareSession {
           ...payListedFields(true, listedCb.checked),
           return: location.href.split("#")[0],
         });
-        if (typeof started === "object") {
+        if (typeof started === "object" && "url" in started) {
           location.href = started.url;
           return;
         }

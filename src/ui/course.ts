@@ -1648,8 +1648,15 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           say("That is not a name drawcast can register: at least 3 characters, lower-case letters, digits and dashes.", "error");
           return;
         }
-        say(`Opening the payment for drawcast.app/#${reg.name}…`);
-        const started = await startNamePayment(DEFAULT_ENROLL_API, { key: accountToken, ...reg, return: location.href.split("#")[0] });
+        say(`Buying drawcast.app/#${reg.name}…`);
+        // Credit first when it covers the price (credit plan delivery 3); the card otherwise.
+        const body = { key: accountToken, ...reg, return: location.href.split("#")[0] };
+        let started = await startNamePayment(DEFAULT_ENROLL_API, { ...body, pay: "credits" });
+        if (started === "credit") started = await startNamePayment(DEFAULT_ENROLL_API, body);
+        if (typeof started === "object" && "paidCredits" in started) {
+          say(`drawcast.app/#${reg.name} is yours — paid ${started.paidCredits.toLocaleString("en-US")} credits. Publish again to put the Join door on the page.`, "ok");
+          return;
+        }
         if (typeof started === "object") {
           location.href = started.url;
           return;

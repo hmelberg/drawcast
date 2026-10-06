@@ -135,7 +135,7 @@ describe("the Pay button", () => {
   });
 
   test("a returned url navigates the browser there — Stripe Checkout", () => {
-    expect(fn).toMatch(/if \(typeof started === "object"\) \{\s*location\.href = started\.url;/);
+    expect(fn).toMatch(/if \(typeof started === "object" && "url" in started\) \{\s*location\.href = started\.url;/);
   });
 
   test("every refusal is a word, worded on the same hint line, never a throw", () => {

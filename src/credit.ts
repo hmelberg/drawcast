@@ -185,7 +185,7 @@ export async function serverSynthesize(
 
 export interface StatementRow {
   at: string | null;
-  /** purchase, llm (an AI call), llm_hold (one still running), tts, refund, grant. */
+  /** purchase, llm (an AI call), llm_hold (one still running), tts, refund, grant, name, unlisted. */
   reason: string;
   /** Signed: positive in, negative out. */
   credits: number;
@@ -225,6 +225,10 @@ export function describeRow(row: StatementRow, modelLabel: (id: string) => strin
       return "Narration line";
     case "refund":
       return "Refund";
+    case "name":
+      return `Name drawcast.app/#${(row.note as { name?: string } | null)?.name ?? ""}`;
+    case "unlisted":
+      return "Unlisted";
     case "llm_hold":
       return `AI call running${row.note?.model ? ` · ${modelLabel(row.note.model)}` : ""} (most it can cost)`;
     case "llm": {

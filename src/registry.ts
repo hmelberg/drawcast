@@ -254,10 +254,14 @@ export interface PrivatePayInput {
   listed?: boolean;
   /** The app URL Stripe sends the browser back to (an allowlisted origin). */
   return: string;
+  /** "credits": pay from the account's credit instead of Stripe — unlisting only (credit plan delivery 3). */
+  pay?: "credits";
 }
 
 export type PrivatePayOutcome =
   | { url: string }
+  | { paidCredits: number } // paid from credit (`pay: "credits"`, unlisting only)
+  | "credit" // 402 — the balance does not cover it
   | "nothing-due" // 409 {error:"nothing-due"} — the quote is already 0
   | "pending" // 409 {error:"pending"} — a checkout for this item is already open
   | "owner" // 403 — registered to someone else
@@ -278,9 +282,11 @@ export async function startPrivatePayment(api: string, body: PrivatePayInput, fe
       body: JSON.stringify(body),
     });
     if (res.ok) {
-      const b = (await res.json()) as { url?: unknown };
+      const b = (await res.json()) as { url?: unknown; paid?: unknown; credits?: unknown };
+      if (b.paid === "credits") return { paidCredits: typeof b.credits === "number" ? b.credits : 0 };
       return typeof b.url === "string" ? { url: b.url } : "error";
     }
+    if (res.status === 402) return "credit";
     if (res.status === 409) {
       const b = (await res.json().catch(() => ({}))) as { error?: unknown };
       return b.error === "pending" ? "pending" : "nothing-due";
@@ -308,7 +314,7 @@ export async function startPrivatePayment(api: string, body: PrivatePayInput, fe
  * shapes, which a due-0 quote should never produce, fold into "error" too —
  * this never opens a browser tab on its own).
  */
-export type EnsurePrivateOutcome = "ok" | Exclude<PrivatePayOutcome, "nothing-due">;
+export type EnsurePrivateOutcome = "ok" | Exclude<PrivatePayOutcome, "nothing-due" | "credit" | { paidCredits: number }>;
 
 export async function ensurePrivateApplied(
   api: string,
@@ -317,6 +323,8 @@ export async function ensurePrivateApplied(
   fetchImpl: typeof fetch = fetch,
 ): Promise<EnsurePrivateOutcome> {
   const outcome = await startPrivatePayment(api, { key, ...body }, fetchImpl);
+  // This call never pays from credit, so a 402 is no answer it expects: an error.
+  if (outcome === "credit" || (typeof outcome === "object" && "paidCredits" in outcome)) return "error";
   return outcome === "nothing-due" ? "ok" : outcome;
 }
 

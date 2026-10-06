@@ -6186,9 +6186,16 @@ async function buyPrettyLink(choice: { name: string; target: string }): Promise<
     setStatus("That is not a name drawcast can register: at least 3 characters, lower-case letters, digits and dashes.", "error");
     return;
   }
-  setStatus(`Opening the payment for drawcast.app/#${name}…`);
+  setStatus(`Buying drawcast.app/#${name}…`);
   const reg = { key: accountToken, name, kind: "cast" as const, target: choice.target, title: doc.title };
-  const started = await startNamePayment(DEFAULT_ENROLL_API, { ...reg, return: location.href.split("#")[0] });
+  // Credit first when it covers the price (credit plan delivery 3); the card otherwise.
+  let started = await startNamePayment(DEFAULT_ENROLL_API, { ...reg, return: location.href.split("#")[0], pay: "credits" });
+  if (started === "credit") started = await startNamePayment(DEFAULT_ENROLL_API, { ...reg, return: location.href.split("#")[0] });
+  if (typeof started === "object" && "paidCredits" in started) {
+    setStatus(`drawcast.app/#${name} is yours — paid ${started.paidCredits.toLocaleString("en-US")} credits.`, "ok");
+    void refreshCreditLeft();
+    return;
+  }
   if (typeof started === "object") {
     location.href = started.url;
     return;
