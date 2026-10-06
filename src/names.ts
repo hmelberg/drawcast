@@ -282,7 +282,7 @@ export function nameNote(outcome: RegisterOutcome, name: string): string {
       // 401: no session token, or one the server no longer knows (signed out
       // from the dashboard, or the row revoked). The cure is the same either
       // way, and it lives in one place.
-      return " · name not registered: not signed in — sign in again from Settings → Publishing (drawcast account)";
+      return " · name not registered: not signed in — sign in again at the top right";
     case "invalid":
       return ` · "${name}" is not a valid name`;
     case "rate":
@@ -449,7 +449,7 @@ export function claimNote(outcome: ClaimOutcome): string {
     case "owner":
       return " · this course is owned by another author — not claimed";
     case "key":
-      return " · course not claimed: not signed in — sign in again from Settings → Publishing (drawcast account)";
+      return " · course not claimed: not signed in — sign in again at the top right";
     case "invalid":
       return " · course not claimed (the registry rejected the request)";
     case "rate":

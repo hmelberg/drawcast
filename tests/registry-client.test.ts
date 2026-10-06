@@ -154,7 +154,7 @@ describe("registryNote", () => {
     expect(registryNote("rate", "x", "try `cast.mjs register w` in up to an hour")).toBe(" · not registered (rate limited — try `cast.mjs register w` in up to an hour)");
   });
   test("M5: key (a 401) says to sign in again — the app's wording by default, the caller's own when given", () => {
-    expect(registryNote("key")).toBe(" · not registered — sign in again (Settings → Publishing)");
+    expect(registryNote("key")).toBe(" · not registered — sign in again (Sign in, top right)");
     expect(registryNote("key", "run: node scripts/cast.mjs login")).toBe(" · not registered — run: node scripts/cast.mjs login");
   });
 });

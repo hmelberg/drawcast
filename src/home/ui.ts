@@ -2,8 +2,9 @@
 // the top bar (brand, search, Create), a card, a titled grid of cards. Text
 // and attributes only through h() — never innerHTML with catalogue text.
 
-import { getToken, setToken, signInUrl, signOut } from "../account";
-import { DEFAULT_ENROLL_API } from "../learn";
+import { getToken } from "../account";
+import { accountButton } from "../account-menu";
+import { apiBase, DEFAULT_ENROLL_API } from "../learn";
 import { h } from "../ui/dom";
 import { FORMAT_BADGE, FORMAT_CHIPS, homeHref, thumbUrl, type HomeCard } from "./model";
 import { MY_LISTS } from "./my-lists";
@@ -134,7 +135,8 @@ export function note(text: string, kind = ""): HTMLElement {
 /**
  * The ☰ menu's sidebar (YouTube's guide): every place the site has, in one
  * column that slides in over the page. Only what works today: Saved, Liked
- * and History (2026-10-04); Subscriptions are still to come. Built once per page.
+ * and History (2026-10-04); Subscriptions are still to come. Signing in and
+ * out is the account button's (account-menu.ts). Built once per page.
  */
 function buildMenu(topics: string[]): { open: () => void } {
   const link = (href: string, text: string, current = false): HTMLElement =>
@@ -143,17 +145,6 @@ function buildMenu(topics: string[]): { open: () => void } {
     h("div", { class: "home-menu-group" }, ...(title ? [h("div", { class: "home-menu-title" }, title)] : []), ...items);
   const onHome = location.hash === "" && !location.search;
   const signedIn = getToken() !== "";
-  const account = signedIn
-    ? (() => {
-        const b = h("button", { type: "button", class: "home-menu-link" }, "Sign out") as HTMLButtonElement;
-        b.addEventListener("click", () => {
-          const token = getToken();
-          setToken("");
-          void signOut(DEFAULT_ENROLL_API, token).finally(() => location.reload());
-        });
-        return b;
-      })()
-    : link(signInUrl(location.href), "Sign in");
   const panel = h(
     "nav",
     { class: "home-menu", "aria-label": "Main menu" },
@@ -165,8 +156,9 @@ function buildMenu(topics: string[]): { open: () => void } {
     group(
       "You",
       ...MY_LISTS.filter((l) => signedIn || l.id === "history").map((l) => link(`./?list=${l.id}`, l.label, new URLSearchParams(location.search).get("list") === l.id)),
+      // Sign in and out live on the account button (top right) now.
+      ...(signedIn ? [link(`${apiBase(DEFAULT_ENROLL_API)}/`, "Your drawcasts & courses")] : []),
       link("#create", "＋ Create a drawcast"),
-      account,
       link("./help.html", "Help"),
     ),
   );
@@ -221,7 +213,12 @@ export function topBar(q = "", onSearch?: (q: string) => void, opts: { topics?: 
     { class: "home-top" },
     h("div", { class: "home-top-left" }, menuBtn, h("a", { class: "home-brand", href: "./" }, h("img", { src: "./mark.svg", alt: "" }), "drawcast")),
     form,
-    h("a", { class: "home-create", href: "#create", title: "Make a drawcast: the editor" }, "＋ Create"),
+    h(
+      "div",
+      { class: "home-top-right" },
+      h("a", { class: "home-create", href: "#create", title: "Make a drawcast: the editor" }, "＋ Create"),
+      accountButton({ where: "home", onSignOut: () => location.reload() }),
+    ),
   );
   return { root, input };
 }

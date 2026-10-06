@@ -102,7 +102,7 @@ function refusal(status: number): string {
       // title at 200. Named here because the bare status was an excavation.
       return "The drawcast server rejected the document (HTTP 400) — most likely the spec is over its 400 000-character cap (embedded images count towards it: untick Embed images, or embed fewer), or the title is over 200 characters.";
     case 401:
-      return "Not signed in — the drawcast server did not accept this browser's session. Sign in again from Settings → Publishing (drawcast account).";
+      return "Not signed in — the drawcast server did not accept this browser's session. Sign in again at the top right.";
     case 402:
       // Credit plan delivery 4: storage on the drawcast server is a subscription's.
       return SUBSCRIPTION_NEEDED;

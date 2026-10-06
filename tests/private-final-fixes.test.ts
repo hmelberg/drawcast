@@ -241,7 +241,7 @@ describe("I1b round 2: the repo's own locked files decide, whatever the quote sa
     expect(readAt).toBeGreaterThan(0);
     expect(body.indexOf("publishPrivacy(")).toBeGreaterThan(readAt);
     expect(body.indexOf("publishPrivacy(")).toBeLessThan(body.indexOf("const text = isPrivate"));
-    expect(body).toContain('say("Not published: sign in to publish privately (Settings → Publishing).", "error");');
+    expect(body).toContain('say("Not published: sign in to publish privately (Sign in, top right).", "error");');
   });
   it("…reading the SAME folder the private target predicts — a slug-less course falls back to its title's slug, never skipped", () => {
     const body = between(read("src/ui/course.ts"), "async function publish(", "\n  }\n");

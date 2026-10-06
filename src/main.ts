@@ -118,7 +118,8 @@ import { castUsd, creditRange, shortfall } from "./llm/credit-estimate";
 import { meterText } from "./ui/credit-meter";
 import { openPortal, startSubscription, subLine, subscribedInHash, subStatus as fetchSubStatus, SUB_BENEFITS, type SubStatus } from "./subscription";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
-import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
+import { getToken } from "./account";
+import { accountButton, forgetMe } from "./account-menu";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "./item-key";
 import { castLockedInRepo, inPrivateCourse, isPrivateDrawing, keptRowFields, publishPrivacy } from "./private-doc";
 import { embeddedPlaylist, withAuthoredTemplates, type EmbedDeps } from "./publish/embed";
@@ -504,11 +505,20 @@ app.appendChild(
       h(
         "div",
         { class: "wordmark-block" },
-        h("div", { class: "wordmark" }, "drawcast"),
+        // The way home (account round, 2026-10-06): the front page, in its
+        // own tab so the open drawing is never left behind.
+        h("a", { class: "wordmark", href: "./", target: "_blank", rel: "noopener", title: "drawcast home — opens in a new tab" }, "drawcast"),
         // Until credit and subscriptions open (credit plan, 2026-10-06): the
         // credit road is live for testing only, so the editor says so.
         h("div", { class: "testing-note" }, "Testing mode — not open for subscriptions and credits yet. Use your own LLM keys."),
       ),
+    ),
+    // The account button, as on the front page (account-menu.ts). Its
+    // callbacks run only on a click, long after the declarations they name.
+    h(
+      "div",
+      { class: "topbar-right" },
+      accountButton({ where: "editor", openSettings: (tab) => openSettings(tab), onSignOut: () => refreshSignIn() }),
     ),
   ),
 );
@@ -1488,10 +1498,10 @@ const sidebarSearch = h("input", { type: "text", class: "sidebar-search", placeh
 const sidebarSearchClear = h("button", { type: "button", class: "sidebar-search-clear", "aria-label": "Clear search", title: "Clear search", hidden: "" }, icon("close"));
 const sidebarSearchWrap = h("div", { class: "sidebar-search-wrap" }, sidebarSearch, sidebarSearchClear);
 const dataRow = h("button", { class: "sidebar-row" }, "Data");
-// Declared here, ABOVE the sidebar, not near refreshAccountRow(): the IIFE
-// below that assigns it runs during module initialisation, before a `let`
-// declared further down in the file would leave its temporal dead zone.
-let accountRow: HTMLButtonElement | null = null;
+// Settings → Publishing's Google row (Drive and YouTube — not the drawcast
+// account). Declared here, above everything that refreshes it.
+const accountRow = h("button", { class: "small" }, "Connect Google") as HTMLButtonElement;
+accountRow.addEventListener("click", () => void toggleAccount());
 const sidebar = h(
   "aside",
   { class: "sidebar" },
@@ -1520,17 +1530,8 @@ const sidebar = h(
     })(),
     dataRow,
     h("a", { class: "sidebar-row", href: "./help.html", target: "_blank", rel: "noopener" }, "Help"),
-    // The front page (2026-10-03): drawcasts to watch and find, in its own
-    // tab like Help — bare drawcast.app, which entry.ts routes there before
-    // it ever reaches this editor (the editor itself is #create).
-    h("a", { class: "sidebar-row", href: "./", target: "_blank", rel: "noopener" }, "Browse drawcasts"),
-    (() => {
-      const b = h("button", { class: "sidebar-row" }, "Sign in with Google");
-      accountRow = b;
-      b.addEventListener("click", () => void toggleAccount());
-      b.hidden = !googleConfigured();
-      return b;
-    })(),
+    // The front page is the wordmark's link now, and the Google connection
+    // lives in Settings → Publishing (account round, 2026-10-06).
     (() => {
       const b = h("button", { class: "sidebar-row" }, "Settings");
       b.addEventListener("click", () => openSettings());
@@ -1975,30 +1976,15 @@ githubTokenInput.addEventListener("change", () => {
   // convention), so it never goes through persist() — refresh explicitly.
   refreshCredentialMenus();
 });
-// The drawcast server account (spec §1): a button pair, not a field to paste
-// into. Sign in leaves for drawcast.anvil.app and comes straight back to this
-// address with a one-time token that entry.ts has already exchanged and
-// stripped by the time this module runs — so getToken() here is fresh.
-const signInBtn = h("button", { class: "small" }, "Sign in") as HTMLButtonElement;
-const signOutBtn = h("button", { class: "small" }, "Sign out") as HTMLButtonElement;
+// The drawcast server account (spec §1). Signing in and out is the account
+// button's, top right (account-menu.ts); Settings only says where things stand.
 const signInState = h("span", { class: "settings-inline" });
 function refreshSignIn(): void {
-  const on = getToken() !== "";
-  signInState.textContent = on ? "Signed in to the drawcast server." : "Not signed in.";
-  signInBtn.hidden = on;
-  signOutBtn.hidden = !on;
+  signInState.textContent =
+    getToken() !== ""
+      ? "Signed in. The round button at the top right has your account menu."
+      : "Not signed in. Use Sign in at the top right.";
 }
-signInBtn.addEventListener("click", () => {
-  // Back to exactly where we are, so a sign-in never costs the page.
-  location.href = signInUrl(location.href);
-});
-signOutBtn.addEventListener("click", () => {
-  // The server row first, while the token is still here to name it; the
-  // local sign-out is what the person sees and must not wait on the network.
-  void signOutServer(DEFAULT_ENROLL_API, getToken());
-  setToken("");
-  refreshSignIn();
-});
 refreshSignIn();
 
 // ---------- credit (credit plan delivery 1, 2026-10-06) ----------
@@ -2064,7 +2050,7 @@ window.setInterval(() => {
 async function creditPreflight(usd: number): Promise<string | null> {
   if (!usingCredit()) return null;
   const bal = await creditBalance(DEFAULT_ENROLL_API, getToken());
-  if (bal === "key") return "Sign in again to use credit (Settings → Publishing).";
+  if (bal === "key") return "Sign in again to use credit (Sign in, top right).";
   if (bal === "error") return null; // the server's own 402 still guards each call
   creditLeft = bal.credits;
   // A subscriber pays half (2x instead of 4x); unknown counts as not.
@@ -2081,14 +2067,14 @@ const creditPackBtns = ([500, 1000, 2000] as const).map((cents) => {
     void (async () => {
       const token = getToken();
       if (!token) {
-        creditStatusEl.textContent = "Sign in first (Publishing tab).";
+        creditStatusEl.textContent = "Sign in first (Sign in, top right).";
         return;
       }
       btn.disabled = true;
       const out = await startCreditPayment(DEFAULT_ENROLL_API, { key: token, cents, return: location.origin + location.pathname });
       btn.disabled = false;
       if (typeof out === "object") location.href = out.url;
-      else creditStatusEl.textContent = out === "closed" ? CREDIT_CLOSED : out === "pending" ? "A checkout is already open — finish or close it first." : out === "key" ? "Sign in again (Publishing tab)." : "Could not open the checkout — try again.";
+      else creditStatusEl.textContent = out === "closed" ? CREDIT_CLOSED : out === "pending" ? "A checkout is already open — finish or close it first." : out === "key" ? "Sign in again (Sign in, top right)." : "Could not open the checkout — try again.";
     })();
   });
   return btn;
@@ -2105,7 +2091,7 @@ async function refreshCreditTab(): Promise<void> {
   creditBalanceEl.textContent = "…";
   const st = await creditStatement(DEFAULT_ENROLL_API, token);
   if (typeof st !== "object") {
-    creditBalanceEl.textContent = st === "key" ? "Sign in again (Publishing tab)." : "Could not load the balance.";
+    creditBalanceEl.textContent = st === "key" ? "Sign in again (Sign in, top right)." : "Could not load the balance.";
     return;
   }
   creditLeft = st.credits;
@@ -2144,7 +2130,7 @@ subManageBtn.addEventListener("click", () => {
 async function subscribeTo(plan: string, btn: HTMLButtonElement): Promise<void> {
   const token = getToken();
   if (!token) {
-    subStatusEl.textContent = "Sign in first (Publishing tab).";
+    subStatusEl.textContent = "Sign in first (Sign in, top right).";
     return;
   }
   btn.disabled = true;
@@ -2153,7 +2139,7 @@ async function subscribeTo(plan: string, btn: HTMLButtonElement): Promise<void> 
   if (typeof out === "object") location.href = out.url;
   else
     subStatusEl.textContent =
-      out === "closed" ? "Subscriptions are not open yet — drawcast is in testing mode." : out === "subscribed" ? "You already subscribe — change plan under Manage subscription." : out === "key" ? "Sign in again (Publishing tab)." : "Could not open the checkout — try again.";
+      out === "closed" ? "Subscriptions are not open yet — drawcast is in testing mode." : out === "subscribed" ? "You already subscribe — change plan under Manage subscription." : out === "key" ? "Sign in again (Sign in, top right)." : "Could not open the checkout — try again.";
 }
 async function refreshSubscription(): Promise<void> {
   const token = getToken();
@@ -2165,7 +2151,7 @@ async function refreshSubscription(): Promise<void> {
   }
   const st = await fetchSubStatus(DEFAULT_ENROLL_API, token);
   if (typeof st !== "object") {
-    subLineEl.textContent = st === "key" ? "Sign in again (Publishing tab)." : "Could not load the subscription.";
+    subLineEl.textContent = st === "key" ? "Sign in again (Sign in, top right)." : "Could not load the subscription.";
     return;
   }
   subKnown = st;
@@ -2371,17 +2357,33 @@ const settingsBlocks = new Map<string, HTMLElement>([
       h(
         "div",
         { class: "settings-row" },
-        signInBtn,
-        signOutBtn,
         signInState,
         h("a", { href: `${DEFAULT_ENROLL_API}/`, target: "_blank", rel: "noopener" }, "Your account"),
       ),
       h(
         "div",
         { class: "settings-note" },
-        "Signing in lets you publish to the drawcast server, register drawcast.app/#<name> links, and own your courses in the teacher dashboard. It opens drawcast.anvil.app and comes straight back. Nothing is stored but a token for this browser — sign out here, or from the dashboard for every browser at once. Your account page on the server shows the courses you follow, your progress, and the way out of a course.",
+        "Signing in lets you publish to the drawcast server, register drawcast.app/#<name> links, use credit, and own your courses in the teacher dashboard. It opens drawcast.anvil.app and comes straight back. Nothing is stored but a token for this browser — sign out from the account menu, or from the dashboard for every browser at once. Your account page on the server shows the courses you follow, your progress, and the way out of a course.",
       ),
     ),
+  ],
+  [
+    "google",
+    (() => {
+      const f = h(
+        "div",
+        { class: "settings-field" },
+        h("label", {}, "Google Drive & YouTube"),
+        h("div", { class: "settings-row" }, accountRow),
+        h(
+          "div",
+          { class: "settings-note" },
+          "Not your drawcast account: this only lets drawcast open and save files in your Google Drive and upload videos to YouTube. Drive and YouTube ask for it by themselves when you first use them.",
+        ),
+      );
+      f.hidden = !googleConfigured();
+      return f;
+    })(),
   ],
   [
     "coursesDir",
@@ -4459,18 +4461,16 @@ promoteBtn.addEventListener("click", () => {
 // ---------- account ----------
 
 function refreshAccountRow(): void {
-  if (!accountRow) return;
   // No email is shown: reading one needs an `openid`/`email` scope this app
   // never asks for. What the row must guarantee is that a live grant always
-  // offers sign-out.
-  accountRow.textContent = signedIn() ? "Signed in — sign out" : "Sign in with Google";
-  accountRow.hidden = !googleConfigured();
+  // offers to disconnect.
+  accountRow.textContent = signedIn() ? "Connected — disconnect" : "Connect Google";
 }
 
 async function toggleAccount(): Promise<void> {
   if (signedIn()) {
     signOut();
-    setStatus("Signed out of Google.", "ok");
+    setStatus("Disconnected from Google.", "ok");
   } else {
     const token = await requireScope(DRIVE_SCOPE);
     setStatus(token ? "Signed in to Google." : "Google sign-in was cancelled.", token ? "ok" : "error");
@@ -4766,13 +4766,24 @@ if (privReturn) {
 // Stripe's return from a narration-credit purchase (registry delivery 3) —
 // creditInHash's own fragment shape (src/credit.ts), same "reopen nothing,
 // just say what happened" contract as privReturn above.
+// "#settings=<tab>" (account round, 2026-10-06): the account menu on the
+// front page opens this dialog on a tab — Credit & plan, Keys & settings.
+// The fragment is spent at once, so a reload lands on the plain editor.
+const settingsAsked = /^#settings=(\w+)$/.exec(location.hash);
+if (settingsAsked) {
+  if (SETTINGS_TABS.some((t) => t.id === settingsAsked[1])) openSettings(settingsAsked[1]);
+  history.replaceState(null, "", location.pathname + location.search + "#create");
+}
+
 const subReturn = subscribedInHash(location.hash);
 if (subReturn) {
+  forgetMe(); // the account menu's plan line is out of date
   history.replaceState(null, "", location.pathname + location.search);
   setStatus(subReturn.plan ? `Subscribed — thank you. Settings → Credits shows your plan.` : "Not subscribed — nothing was charged.", subReturn.plan ? "ok" : "info");
 }
 const creditReturn = creditInHash(location.hash);
 if (creditReturn) {
+  forgetMe(); // the account menu's balance is out of date
   history.replaceState(null, "", location.pathname + location.search);
   if (creditReturn.outcome === "creditpaid") {
     setStatus(`Credit added — ${creditReturn.cents.toLocaleString("en-US")} credits.`, "ok");
@@ -5702,11 +5713,11 @@ async function privateCastLock(
   slug: string | undefined,
   bounded: typeof fetch,
 ): Promise<LectureLock | string> {
-  if (!accountToken) return "Not published: sign in to publish privately (Settings → Publishing).";
+  if (!accountToken) return "Not published: sign in to publish privately (Sign in, top right).";
   // One prediction, shared with Share's quote (privateRequest).
   const { target, item } = privateCastTarget(parseRepo(repoStr)!, castsDir, slug, doc.publishedAs, doc.title);
   const quote = await quotePrivate(DEFAULT_ENROLL_API, { key: accountToken, kind: "cast", target, lectures: 1, private: true }, bounded);
-  if (quote === "key") return "Not published: sign in again to publish privately (Settings → Publishing).";
+  if (quote === "key") return "Not published: sign in again to publish privately (Sign in, top right).";
   if (quote === "error") return "Not published: could not check the private drawcast just now — try again in a moment.";
   if (quote.owner === "other") return "Not published: this drawcast is registered to another account, so it can't be made private.";
   if (quote.due > 0) return `Not published: private isn't paid for yet — pay ${formatPrice(quote.due, quote.currency)} under Share → Private first.`;
@@ -5721,7 +5732,7 @@ async function privateCastLock(
       { kind: "cast", target, title: doc.title, lectures: 1, ...payListedFields(true, quote.listed ?? true), return: "https://drawcast.app/" },
       bounded,
     );
-    if (applied === "key") return "Not published: sign in again to publish privately (Settings → Publishing).";
+    if (applied === "key") return "Not published: sign in again to publish privately (Sign in, top right).";
     if (applied === "owner") return "Not published: this drawcast is registered to another account, so it can't be made private.";
     if (applied === "subscription") return PRIVATE_NEEDS_SUBSCRIPTION;
     if (applied !== "ok") return "Not published: could not check the private drawcast just now — try again in a moment.";
@@ -5760,7 +5771,7 @@ async function publishServerCast({ bake, embedImages, name, access }: { bake: bo
   }
   const accountToken = getToken();
   if (!accountToken) {
-    setStatus("Not signed in — sign in from Settings → Publishing (drawcast account) to publish to the drawcast server.", "error");
+    setStatus("Not signed in — sign in at the top right to publish to the drawcast server.", "error");
     return;
   }
   if (itemsOf(doc.playlist).length === 0) {
@@ -6241,7 +6252,7 @@ async function openSourceFromGithub(): Promise<void> {
 async function buyPrettyLink(choice: { name: string; target: string }): Promise<void> {
   const accountToken = getToken();
   if (!accountToken) {
-    setStatus("Sign in first (Settings → Publishing) — a pretty link belongs to an account.", "error");
+    setStatus("Sign in first (Sign in, top right) — a pretty link belongs to an account.", "error");
     return;
   }
   const name = normalizeName(choice.name);
@@ -6275,7 +6286,7 @@ async function buyPrettyLink(choice: { name: string; target: string }): Promise<
     started === "taken"
       ? `"${name}" belongs to someone else — pick another.`
       : started === "key"
-        ? "Sign in first (Settings → Publishing)."
+        ? "Sign in first (Sign in, top right)."
         : `Could not start the payment (${started}) — try again in a moment.`,
     "error",
   );

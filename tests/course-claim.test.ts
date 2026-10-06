@@ -99,7 +99,7 @@ describe("claimNote", () => {
   test("the spec's three notes, the registry's own two, and the rate limit", () => {
     expect(claimNote("ok")).toBe(" · you own this course");
     expect(claimNote("owner")).toBe(" · this course is owned by another author — not claimed");
-    expect(claimNote("key")).toBe(" · course not claimed: not signed in — sign in again from Settings → Publishing (drawcast account)");
+    expect(claimNote("key")).toBe(" · course not claimed: not signed in — sign in again at the top right");
     expect(claimNote("invalid")).toBe(" · course not claimed (the registry rejected the request)");
     expect(claimNote("rate")).toBe(" · course not claimed: too many were made in the last hour — try again later");
     expect(claimNote("error")).toBe(" · course not claimed (registry unreachable)");
@@ -248,8 +248,8 @@ describe("the Join-door checkbox and the claim are wired (source guards — no j
     // longer there.
     const names = readFileSync(new URL("../src/names.ts", import.meta.url), "utf8");
     expect(names).not.toMatch(/author key/i);
-    expect(nameNote("key", "learn-russian")).toMatch(/sign in again from Settings → Publishing/);
-    expect(claimNote("key")).toMatch(/sign in again from Settings → Publishing/);
+    expect(nameNote("key", "learn-russian")).toMatch(/sign in again at the top right/);
+    expect(claimNote("key")).toMatch(/sign in again at the top right/);
   });
 });
 

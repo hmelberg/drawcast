@@ -51,7 +51,8 @@ describe("markSvg — the hand-drawn play", () => {
     const src = await readFile(new URL("../src/main.ts", import.meta.url), "utf8");
     const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
     expect(src).not.toMatch(/markSvg|class:\s*"mark"/);
-    expect(src).toMatch(/class: "wordmark" \}, "drawcast"/);
+    // A link home since the account round (2026-10-06), still the word alone.
+    expect(src).toMatch(/class: "wordmark", href: "\.\/"[^}]*\}, "drawcast"/);
     expect(css).not.toMatch(/^\.mark\s*\{/m);
   });
 

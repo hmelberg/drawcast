@@ -176,7 +176,7 @@ export async function serverSynthesize(
     const b = (await res.json().catch(() => ({}))) as Partial<{ needed_micro: unknown; balance_micro: unknown }>;
     throw new CreditError(typeof b.needed_micro === "number" ? b.needed_micro : null, typeof b.balance_micro === "number" ? b.balance_micro : null);
   }
-  if (res.status === 401) throw new Error("Sign in again to publish with narration credit (Settings → Publishing).");
+  if (res.status === 401) throw new Error("Sign in again to publish with narration credit (Sign in, top right).");
   if (!res.ok) throw new Error("Narration credit synthesis failed — try again in a moment.");
   const b = (await res.json()) as { audio?: unknown };
   if (typeof b.audio !== "string") throw new Error("the credit TTS response carried no audio");

@@ -1258,7 +1258,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         const item = courseKeyFor(repo, dir);
         privateItem = item;
         if (!accountToken) {
-          say("Not published: sign in to publish privately (Settings → Publishing).", "error");
+          say("Not published: sign in to publish privately (Sign in, top right).", "error");
           return;
         }
         working("Checking the private course…");
@@ -1266,7 +1266,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         const lectures = privateLectureCount(course, library);
         const quote = await quotePrivate(DEFAULT_ENROLL_API, { key: accountToken, kind: "course", target: item, lectures, private: true }, bounded);
         if (quote === "key" || quote === "error") {
-          say(quote === "key" ? "Not published: sign in again to publish privately (Settings → Publishing)." : "Not published: could not check the private course just now — try again in a moment.", "error");
+          say(quote === "key" ? "Not published: sign in again to publish privately (Sign in, top right)." : "Not published: could not check the private course just now — try again in a moment.", "error");
           return;
         }
         if (quote.owner === "other") {
@@ -1289,7 +1289,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
             bounded,
           );
           if (applied === "key") {
-            say("Not published: sign in again to publish privately (Settings → Publishing).", "error");
+            say("Not published: sign in again to publish privately (Sign in, top right).", "error");
             return;
           }
           if (applied === "owner") {
@@ -1641,7 +1641,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       buyPrettyLink: async ({ name }) => {
         const accountToken = getToken();
         if (!accountToken) {
-          say("Sign in first (Settings → Publishing) — a pretty link belongs to an account.", "error");
+          say("Sign in first (Sign in, top right) — a pretty link belongs to an account.", "error");
           return;
         }
         const repo = parseRepo(deps.settings.githubRepo);

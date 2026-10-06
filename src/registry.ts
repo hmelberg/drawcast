@@ -146,7 +146,7 @@ export async function registerItem(api: string, reg: RegisterInput, fetchImpl: t
  * `"key"`/`"rate"`/a network failure all say the publish is fine, only the
  * registry step did not happen — each with its own cure.
  */
-export function registryNote(out: RegistryOutcome, signIn = "sign in again (Settings → Publishing)", retry = "try again within the hour"): string {
+export function registryNote(out: RegistryOutcome, signIn = "sign in again (Sign in, top right)", retry = "try again within the hour"): string {
   // A 401 is a stale or missing session, not an unreachable server — the
   // cure is signing in; the skill passes its own "run: … login" (M5).
   if (out === "key") return ` · not registered — ${signIn}`;

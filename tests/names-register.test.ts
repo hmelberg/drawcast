@@ -39,12 +39,13 @@ describe("the account lives beside the GitHub token", () => {
     expect(fields).toContain("account");
     expect(fields).not.toContain("authorKey");
   });
-  test("Sign in returns to the very address it left from; Sign out tells the server before forgetting the token", () => {
-    const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
-    expect(main).toMatch(/location\.href = signInUrl\(location\.href\)/);
-    const signOut = main.slice(main.indexOf("signOutBtn.addEventListener("));
-    expect(signOut.indexOf("signOutServer(DEFAULT_ENROLL_API, getToken())")).toBeGreaterThan(0);
-    expect(signOut.indexOf("signOutServer(DEFAULT_ENROLL_API, getToken())")).toBeLessThan(signOut.indexOf('setToken("")'));
+  test("Sign in returns to the very address it left from; Sign out names the token to the server after forgetting it here", () => {
+    // The account button (src/account-menu.ts) is the one place for both now.
+    const menu = readFileSync(new URL("../src/account-menu.ts", import.meta.url), "utf8");
+    expect(menu).toContain("href: signInUrl(location.href)");
+    const signOut = menu.slice(menu.indexOf('"Sign out");'));
+    expect(signOut.indexOf("const t = getToken();")).toBeLessThan(signOut.indexOf('setToken("")'));
+    expect(signOut).toContain("signOut(DEFAULT_ENROLL_API, t)");
   });
   test("a cast registers a name only from Share → Pretty link (re-pointing one already owned); a course still registers BEFORE its commit", () => {
     const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");

@@ -156,14 +156,14 @@ async function post(deps: JobDeps, path: string, body: unknown, signal?: AbortSi
 async function attempt(request: Record<string, unknown>, betas: string[], opts: JobOpts, deps: JobDeps, t0: number): Promise<Anthropic.Message> {
   const model = String(request.model ?? "");
   const key = deps.token();
-  if (!key) throw new Error("Sign in to use credit (Settings → Publishing), or add your own Anthropic API key.");
+  if (!key) throw new Error("Sign in to use credit (top right), or add your own Anthropic API key.");
   emit({ job: "", model, phase: "starting", elapsedMs: deps.now() - t0, chars: 0 });
   const res = await post(deps, "/llm/start", { key, request, betas }, opts.signal);
   if (res.status === 402) {
     const b = (await res.json().catch(() => ({}))) as { needed_micro?: unknown; balance_micro?: unknown };
     throw new LlmCreditError(typeof b.needed_micro === "number" ? b.needed_micro : null, typeof b.balance_micro === "number" ? b.balance_micro : null);
   }
-  if (res.status === 401) throw new Error("Sign in again to use credit (Settings → Publishing).");
+  if (res.status === 401) throw new Error("Sign in again to use credit (Sign in, top right).");
   if (res.status === 400) {
     const b = (await res.json().catch(() => ({}))) as { field?: unknown };
     throw apiError(400, "invalid_request_error", `drawcast refused this request (${String(b.field ?? "bad")})`);
