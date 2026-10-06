@@ -30,7 +30,8 @@ import { kidsByTags } from "../../netlify/lib/thumb.mts";
 import { playlistSpeakLines } from "../playlist/session";
 import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
-import { downloadBlob, getApiKey, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
+import { downloadBlob, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
+import { llmKey, NO_LLM_KEY } from "../llm/key";
 import { DEFAULT_ENROLL_API } from "../learn";
 import { getToken, signInUrl } from "../account";
 import { checkNote, checkPaidName, driveTarget, formatPrice, priceFor } from "../names";
@@ -534,10 +535,10 @@ export function fileSafe(name: string, fallback = "drawcast"): string {
   return safe || fallback;
 }
 
-/** The server's own markup on a credit-synthesized line (registry delivery
- *  3, plan ruling 3) — the app never applies it, only estimates against it so
- *  the Share hint is not silently 3x cheaper than what /tts will actually charge. */
-export const CREDIT_MARKUP = 3;
+/** The server's own markup on a credit-synthesized line (4x since the credit
+ *  plan, 2026-10-06; 3x before) — the app never applies it, only estimates
+ *  against it so the Share hint is not cheaper than what /tts will charge. */
+export const CREDIT_MARKUP = 4;
 
 /**
  * The Embed-narration hint text once no TTS key is set but the author is
@@ -548,13 +549,15 @@ export const CREDIT_MARKUP = 3;
  * its wording is a real test rather than a source-text match alone.
  */
 export function creditBakeHint(neededUsd: number, balanceUsd: number | null | "key" | "error"): string {
-  const needed = `$${neededUsd.toFixed(2)}`;
+  // A credit is a cent: what is needed rounds up, what is held rounds down.
+  const n = Math.max(1, Math.ceil(neededUsd * 100));
+  const needed = `${n.toLocaleString("en-US")} credit${n === 1 ? "" : "s"}`;
   const tail =
     balanceUsd === null ? "checking balance…"
     : balanceUsd === "key" ? "sign in again to see your balance"
     : balanceUsd === "error" ? "balance unavailable"
-    : `you have $${balanceUsd.toFixed(2)}`;
-  return `uses narration credit — about ${needed} (${tail})`;
+    : `you have ${Math.max(0, Math.floor(balanceUsd * 100)).toLocaleString("en-US")}`;
+  return `uses credit — about ${needed} (${tail})`;
 }
 
 function titleOf(playlist: Playlist, fallback: string): string {
@@ -675,9 +678,9 @@ function build(): ShareSession {
     // against prepaid credit (CREDIT_MARKUP over Google's own list price).
     // Short on balance, three fixed packs (plan ruling 5) open the same
     // Checkout door Private's Pay button does.
-    const creditBuy5 = h("button", { class: "small", type: "button" }, "Buy $5") as HTMLButtonElement;
-    const creditBuy10 = h("button", { class: "small", type: "button" }, "Buy $10") as HTMLButtonElement;
-    const creditBuy20 = h("button", { class: "small", type: "button" }, "Buy $20") as HTMLButtonElement;
+    const creditBuy5 = h("button", { class: "small", type: "button" }, "500 credits ($5)") as HTMLButtonElement;
+    const creditBuy10 = h("button", { class: "small", type: "button" }, "1,000 credits ($10)") as HTMLButtonElement;
+    const creditBuy20 = h("button", { class: "small", type: "button" }, "2,000 credits ($20)") as HTMLButtonElement;
     const creditBuyRow = h("div", { class: "hint" }, "Buy credit: ", creditBuy5, creditBuy10, creditBuy20);
     creditBuyRow.hidden = true;
     async function buyCredit(cents: 500 | 1000 | 2000): Promise<void> {
@@ -694,7 +697,7 @@ function build(): ShareSession {
           started === "pending"
             ? "A credit purchase is already open — finish it, or wait an hour and try again."
             : started === "key"
-              ? "Sign in to buy narration credit"
+              ? "Sign in to buy credit"
               : "Could not start the purchase — try again in a moment.";
       } finally {
         creditBuy5.disabled = creditBuy10.disabled = creditBuy20.disabled = false;
@@ -1785,9 +1788,9 @@ function build(): ShareSession {
     const source = sourceLanguage(playlist);
     const missing = codes.filter((c) => c !== source && !ytTranslations.has(c));
     if (missing.length === 0) return { ok: true, cancelled: false, message: "" };
-    const apiKey = getApiKey();
+    const apiKey = llmKey();
     if (!apiKey) {
-      return { ok: false, cancelled: false, message: "Translating needs your Anthropic API key — add it in Settings." };
+      return { ok: false, cancelled: false, message: `Translating needs AI: ${NO_LLM_KEY}` };
     }
     const cfg = { apiKey, model: current.settings.model };
     const problems: string[] = [];
@@ -1874,11 +1877,11 @@ function build(): ShareSession {
     const single = targets.length === 1;
     // Fail before consent, not after (finding 2): OAuth costs the author a
     // popup and a click, and dying only once phase 1 runs strands them with
-    // the modal already closed and the chips gone. getApiKey() is the same
+    // the modal already closed and the chips gone. llmKey() is the same
     // getter ensureTranslations spends its own key check on — ask it now,
     // while the modal is still open to fix it in Settings.
-    if (targets.some((c) => c !== source) && !getApiKey()) {
-      ytStatus.textContent = "Translating needs your Anthropic API key — add it in Settings.";
+    if (targets.some((c) => c !== source) && !llmKey()) {
+      ytStatus.textContent = `Translating needs AI: ${NO_LLM_KEY}`;
       return;
     }
     ytGo.disabled = true;

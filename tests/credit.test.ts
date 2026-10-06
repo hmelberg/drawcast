@@ -19,7 +19,7 @@ describe("creditBalance", () => {
   test("POSTs text/plain JSON, bounded, and maps the 200 shape", async () => {
     const f = fetchReturning(200, { balance_micro: 4_500_000, balance_usd: "4.50" });
     const out = await creditBalance(API, "k", f);
-    expect(out).toEqual({ balanceMicro: 4_500_000, balanceUsd: "4.50" });
+    expect(out).toEqual({ balanceMicro: 4_500_000, credits: 450, balanceUsd: "4.50" });
     const [url, init] = calls(f)[0];
     expect(url).toBe("https://drawcast.anvil.app/_/api/credit/balance");
     expect((init.headers as Record<string, string>)["content-type"]).toBe("text/plain");
@@ -29,7 +29,7 @@ describe("creditBalance", () => {
 
   test("a missing balance_usd is derived from the micro amount", async () => {
     const out = await creditBalance(API, "k", fetchReturning(200, { balance_micro: 1_000_000 }));
-    expect(out).toEqual({ balanceMicro: 1_000_000, balanceUsd: "1.00" });
+    expect(out).toEqual({ balanceMicro: 1_000_000, credits: 100, balanceUsd: "1.00" });
   });
 
   test("401 -> key, a malformed 200 (no balance_micro) -> error, anything else non-2xx -> error", async () => {
@@ -87,25 +87,25 @@ describe("creditInHash — Stripe's return for a credit purchase", () => {
 describe("CreditError", () => {
   test("formats both dollar amounts to 2 decimals in its own message", () => {
     const e = new CreditError(3_450_000, 1_000_000);
-    expect(e.message).toBe("Not enough narration credit — about $3.45 needed, $1.00 left. Buy credit in the Share panel.");
+    expect(e.message).toBe("Not enough credit for narration — about 345 credits needed, 100 credits left. Buy credit under Settings → Credits.");
     expect(e.neededMicro).toBe(3_450_000);
     expect(e.balanceMicro).toBe(1_000_000);
     expect(e.name).toBe("CreditError");
   });
 
-  test("a zero balance still formats as $0.00", () => {
-    expect(new CreditError(120_000, 0).message).toContain("$0.00 left");
+  test("a zero balance still says 0 credits left", () => {
+    expect(new CreditError(120_000, 0).message).toContain("0 credits left");
   });
 
   test("fix round 1: a malformed 402 (no numbers at all) is a plain sentence, never a fabricated $0.00 needed/left", () => {
     const e = new CreditError(null, null);
-    expect(e.message).toBe("Not enough narration credit. Buy credit in the Share panel.");
+    expect(e.message).toBe("Not enough credit for narration. Buy credit under Settings → Credits.");
     expect(e.neededMicro).toBeNull();
     expect(e.balanceMicro).toBeNull();
   });
 
   test("one real number and one missing still uses the precise sentence (only BOTH missing falls back)", () => {
-    expect(new CreditError(3_450_000, null).message).toBe("Not enough narration credit — about $3.45 needed, $0.00 left. Buy credit in the Share panel.");
+    expect(new CreditError(3_450_000, null).message).toBe("Not enough credit for narration — about 345 credits needed, 0 credits left. Buy credit under Settings → Credits.");
   });
 });
 
@@ -137,7 +137,7 @@ describe("serverSynthesize", () => {
       expect(err).toBeInstanceOf(CreditError);
       expect((err as CreditError).neededMicro).toBe(300);
       expect((err as CreditError).balanceMicro).toBe(100);
-      expect((err as CreditError).message).toContain("Buy credit in the Share panel.");
+      expect((err as CreditError).message).toContain("about 1 credit needed");
     }
   });
 
@@ -154,7 +154,7 @@ describe("serverSynthesize", () => {
         expect(err).toBeInstanceOf(CreditError);
         expect((err as CreditError).neededMicro).toBeNull();
         expect((err as CreditError).balanceMicro).toBeNull();
-        expect((err as CreditError).message).toBe("Not enough narration credit. Buy credit in the Share panel.");
+        expect((err as CreditError).message).toBe("Not enough credit for narration. Buy credit under Settings → Credits.");
       }
     }
   });

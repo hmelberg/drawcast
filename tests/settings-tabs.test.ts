@@ -4,8 +4,8 @@ import { SETTINGS_TABS } from "../src/store";
 const tabOf = (field: string) => SETTINGS_TABS.find((t) => t.fields.includes(field))?.id;
 
 describe("SETTINGS_TABS", () => {
-  it("has four tabs, keys first", () => {
-    expect(SETTINGS_TABS.map((t) => t.id)).toEqual(["keys", "playback", "publishing", "advanced"]);
+  it("has five tabs, keys first and credits beside them", () => {
+    expect(SETTINGS_TABS.map((t) => t.id)).toEqual(["keys", "credits", "playback", "publishing", "advanced"]);
   });
 
   it("files skip-questions and burn-captions under playback, not under the\n     text-to-speech KEY they were nested beneath", () => {

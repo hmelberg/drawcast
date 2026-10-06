@@ -51,8 +51,8 @@ describe("TTS_PRICE_PER_MILLION mirrors the server's credit.py", () => {
   // "if present": credit.py's MARKUP is the server's own constant (the app
   // never applies the markup itself, so nothing here mirrors it) — absence
   // is not a failure, a mismatch is.
-  test.skipIf(!HAS_MARKUP)("MARKUP is pinned to 3", () => {
+  test.skipIf(!HAS_MARKUP)("MARKUP is pinned to 4 (credit plan 2026-10-06; 3 before)", () => {
     const markupMatch = /^MARKUP\s*=\s*(\d+)/m.exec(SERVER_CREDIT_PY_TEXT!);
-    expect(Number(markupMatch![1])).toBe(3);
+    expect(Number(markupMatch![1])).toBe(4);
   });
 });

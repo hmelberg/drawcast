@@ -228,11 +228,11 @@ describe("the title field trusts the author over the auto-fill (finding 1, final
 });
 
 describe("a missing Anthropic key is caught before consent, not after (finding 2, final review)", () => {
-  it("checks getApiKey() for a queued translation before requireScope, so the modal never closes on a dead end", async () => {
+  it("checks llmKey() (own key, else credit) for a queued translation before requireScope, so the modal never closes on a dead end", async () => {
     const yt = await ytRegion();
     const run = yt.slice(yt.indexOf("async function runYoutubeUpload"), yt.indexOf("function reportUploads"));
     expect(run.length).toBeGreaterThan(600);
-    const order = ["targets.some((c) => c !== source) && !getApiKey()", "requireScope(YOUTUBE_SCOPE)", "modal.dialog.close()"];
+    const order = ["targets.some((c) => c !== source) && !llmKey()", "requireScope(YOUTUBE_SCOPE)", "modal.dialog.close()"];
     let at = -1;
     for (const step of order) {
       const next = run.indexOf(step);
@@ -242,7 +242,7 @@ describe("a missing Anthropic key is caught before consent, not after (finding 2
     // Same wording as the other two dead ends in this panel (the cancelled
     // sign-in, and ensureTranslations' own key check) — one sentence, not
     // three ways of saying it.
-    expect(run).toContain('ytStatus.textContent = "Translating needs your Anthropic API key — add it in Settings.";');
+    expect(run).toContain("ytStatus.textContent = `Translating needs AI: ${NO_LLM_KEY}`;");
   });
 });
 

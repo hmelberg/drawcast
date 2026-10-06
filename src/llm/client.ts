@@ -6,6 +6,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { extractJson } from "../spec/extract";
 import { addAnthropicTokens, anthropicBudgetError } from "../store";
+import { CREDIT_KEY, LlmCreditError, resetRunCharges, runJob } from "./job-transport";
 
 export const MODELS = [
   { id: "claude-opus-5-5", label: "Opus 5.5 — best quality" },
@@ -25,7 +26,20 @@ export const LAB_MODELS = [
 
 export const DEFAULT_MODEL = "claude-opus-5-5";
 
+// Clients made with CREDIT_KEY spend the signed-in author's credit: their
+// calls go to Anvil as jobs (job-transport.ts), never to api.anthropic.com.
+const creditClients = new WeakSet<Anthropic>();
+
+export function isCreditClient(client: Anthropic): boolean {
+  return creditClients.has(client);
+}
+
 export function makeClient(apiKey: string): Anthropic {
+  if (apiKey === CREDIT_KEY) {
+    const client = new Anthropic({ apiKey: "credit", dangerouslyAllowBrowser: true });
+    creditClients.add(client);
+    return client;
+  }
   return new Anthropic({
     apiKey,
     // A course batch puts GENERATION_LIMIT calls in flight at once, so a 429
@@ -83,6 +97,7 @@ const ledger: CallUsage[] = [];
 
 export function resetCallLedger(): void {
   ledger.length = 0;
+  resetRunCharges();
 }
 
 export function callLedger(): readonly CallUsage[] {
@@ -102,7 +117,8 @@ function recordCall(model: string, usage: Anthropic.Usage | undefined, ms: numbe
 
 /**
  * List prices, USD per million tokens, from Anthropic's table as cached in
- * June 2026 (input, output); cache reads are a tenth of the input price,
+ * September 2026 (input, output; Opus 5.5 is cheaper than the Opus before it,
+ * so it has its own row ahead of the prefix that would match it); cache reads are a tenth of the input price,
  * cache writes 1.25×. A model no row knows is priced as Opus — an estimate
  * that errs high is the honest one. Matched by prefix so dated ids and
  * fallbacks (`servedBy`) still price.
@@ -110,13 +126,14 @@ function recordCall(model: string, usage: Anthropic.Usage | undefined, ms: numbe
 const PRICES: readonly [prefix: string, input: number, output: number][] = [
   ["claude-fable", 10, 50],
   ["claude-mythos", 10, 50],
+  ["claude-opus-5-5", 4, 20],
   ["claude-opus", 5, 25],
   ["claude-sonnet", 2, 10],
   ["claude-haiku", 1, 5],
 ];
 
 export function priceFor(model: string): { input: number; output: number } {
-  const row = PRICES.find(([prefix]) => model.startsWith(prefix)) ?? PRICES[2];
+  const row = PRICES.find(([prefix]) => model.startsWith(prefix)) ?? PRICES.find(([prefix]) => prefix === "claude-opus")!;
   return { input: row[1], output: row[2] };
 }
 
@@ -351,6 +368,18 @@ async function createMessage(
     }
   }
   const release = await joinPrefix(prefixKey(model, system));
+  if (creditClients.has(client)) {
+    try {
+      const fallbacks = useFallbacks && opusTier(model);
+      return await runJob(
+        { ...base, ...(fallbacks ? { fallbacks: "default" } : {}) },
+        fallbacks ? ["server-side-fallback-2026-07-01"] : [],
+        { signal: opts.signal, onDelta: opts.onDelta, onFirstEvent: release },
+      );
+    } finally {
+      release?.();
+    }
+  }
   try {
     // The two branches are kept apart rather than joined into one `stream`
     // variable: MessageStream and BetaMessageStream have incompatible `.on`
@@ -562,6 +591,7 @@ export function isOutputLimitError(err: unknown): boolean {
 
 export function describeApiError(err: unknown): string {
   if (err instanceof RefusalError) return `Refused: ${err.message}`;
+  if (err instanceof LlmCreditError) return err.message;
   // Before the APIError checks below — a user abort is one of them, and it is
   // not a failure to report as one.
   if (err instanceof Anthropic.APIUserAbortError) return "Cancelled.";

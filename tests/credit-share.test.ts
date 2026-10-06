@@ -14,22 +14,22 @@ const share = readFileSync(new URL("../src/ui/share.ts", import.meta.url), "utf8
 
 describe("creditBakeHint — the exact wording the Embed-narration hint shows", () => {
   test("a failed balance check says so instead of waiting forever", () => {
-    expect(creditBakeHint(3.45, "key")).toBe("uses narration credit — about $3.45 (sign in again to see your balance)");
-    expect(creditBakeHint(3.45, "error")).toBe("uses narration credit — about $3.45 (balance unavailable)");
+    expect(creditBakeHint(3.45, "key")).toBe("uses credit — about 345 credits (sign in again to see your balance)");
+    expect(creditBakeHint(3.45, "error")).toBe("uses credit — about 345 credits (balance unavailable)");
   });
   test("before the balance arrives: the estimate alone, marked as checking", () => {
-    expect(creditBakeHint(3.45, null)).toBe("uses narration credit — about $3.45 (checking balance…)");
+    expect(creditBakeHint(3.45, null)).toBe("uses credit — about 345 credits (checking balance…)");
   });
 
   test("once the balance arrives: both dollar amounts, 2 decimals", () => {
-    expect(creditBakeHint(3.45, 1)).toBe("uses narration credit — about $3.45 (you have $1.00)");
-    expect(creditBakeHint(0, 12.5)).toBe("uses narration credit — about $0.00 (you have $12.50)");
+    expect(creditBakeHint(3.45, 1)).toBe("uses credit — about 345 credits (you have 100)");
+    expect(creditBakeHint(0, 12.5)).toBe("uses credit — about 1 credit (you have 1,250)");
   });
 });
 
 describe("CREDIT_MARKUP", () => {
-  test("is 3 — the server's own markup (plan ruling 3), estimated here so the hint is never quietly cheaper than what /tts will charge", () => {
-    expect(CREDIT_MARKUP).toBe(3);
+  test("is 4 — the server's own markup (credit plan 2026-10-06), estimated here so the hint is never quietly cheaper than what /tts will charge", () => {
+    expect(CREDIT_MARKUP).toBe(4);
   });
 });
 
@@ -72,9 +72,9 @@ describe("the Embed-narration box — three states through buildEmbedChoices", (
   });
 
   test("three fixed packs — 5/10/20 USD, plan ruling 5 — wired to startCreditPayment with the app's own return origin", () => {
-    expect(fn).toContain('"Buy $5"');
-    expect(fn).toContain('"Buy $10"');
-    expect(fn).toContain('"Buy $20"');
+    expect(fn).toContain('"500 credits ($5)"');
+    expect(fn).toContain('"1,000 credits ($10)"');
+    expect(fn).toContain('"2,000 credits ($20)"');
     expect(fn).toContain("void buyCredit(500)");
     expect(fn).toContain("void buyCredit(1000)");
     expect(fn).toContain("void buyCredit(2000)");
@@ -87,7 +87,7 @@ describe("the Embed-narration box — three states through buildEmbedChoices", (
 
   test("every refusal is a word on the hint line, never a throw", () => {
     expect(fn).toContain('"A credit purchase is already open — finish it, or wait an hour and try again."');
-    expect(fn).toContain('"Sign in to buy narration credit"');
+    expect(fn).toContain('"Sign in to buy credit"');
     expect(fn).toContain('"Could not start the purchase — try again in a moment."');
   });
 

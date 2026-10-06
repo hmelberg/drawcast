@@ -113,7 +113,10 @@ import { publishToServer, serverCastKey, type ServerAccess } from "./publish/ser
 import { formatPrice, isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
 import { claimFile, ensurePrivateApplied, privateInHash, quotePrivate, registerItem, registryNote, verifyClaim } from "./registry";
-import { CreditError, creditInHash, serverSynthesize } from "./credit";
+import { CreditError, creditBalance, creditInHash, creditStatement, describeRow, serverSynthesize, startCreditPayment } from "./credit";
+import { onJobStatus, runChargedCredits, setCreditTokenSource, type JobStatus } from "./llm/job-transport";
+import { castUsd, creditRange, shortfall } from "./llm/credit-estimate";
+import { meterText } from "./ui/credit-meter";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "./item-key";
@@ -192,6 +195,7 @@ import bundledExamples from "./examples.json";
 import { gateSpecs, migrateOnce, trustDerived, trustSpecs } from "./security/code-trust";
 import { remixSource } from "./security/view-origin";
 import { installCodeConsent } from "./ui/code-consent";
+import { llmKey, NO_LLM_KEY, usingCredit } from "./llm/key";
 
 const settings = loadSettings();
 /**
@@ -529,6 +533,9 @@ const statusEl = h("div", { class: "editor-status hint" });
 // is writing and show WHAT (Hans, 2026-09-07).
 const liveEl = h("pre", { class: "editor-live", hidden: "" });
 const LIVE_TAIL = 420;
+// What a call on credit is doing and what it cost (credit plan delivery 1):
+// its own line, so the generation's own status messages are never overwritten.
+const creditMeterEl = h("div", { class: "editor-credit hint", hidden: "" });
 function renderLive(text: string): void {
   if (!text) {
     liveEl.hidden = true;
@@ -1449,6 +1456,7 @@ const editorWrap = h(
     genChoices,
   ),
   statusEl,
+  creditMeterEl,
   liveEl,
   h(
     "div",
@@ -1997,6 +2005,118 @@ signOutBtn.addEventListener("click", () => {
   refreshSignIn();
 });
 refreshSignIn();
+
+// ---------- credit (credit plan delivery 1, 2026-10-06) ----------
+// Without an own Anthropic key, a signed-in author's AI calls spend credit
+// (src/llm/key.ts). The meter line says what each call is doing while it
+// runs and what the run was charged; the Credits tab shows the balance, the
+// recent statement and the packs.
+
+setCreditTokenSource(getToken);
+const modelLabelOf = (id: string): string =>
+  ([...MODELS, ...LAB_MODELS].find((m) => id.startsWith(m.id))?.label ?? id).split(" — ")[0];
+const activeJobs = new Map<string, JobStatus>();
+let creditLeft: number | null = null;
+let meterIdle: number | null = null;
+function renderMeter(): void {
+  const text = meterText([...activeJobs.values()], runChargedCredits(), creditLeft, modelLabelOf);
+  creditMeterEl.textContent = text;
+  creditMeterEl.hidden = text === "";
+}
+async function refreshCreditLeft(): Promise<void> {
+  const token = getToken();
+  if (!token) return;
+  const bal = await creditBalance(DEFAULT_ENROLL_API, token);
+  if (typeof bal === "object") {
+    creditLeft = bal.credits;
+    renderMeter();
+    creditBalanceEl.textContent = `${bal.credits.toLocaleString("en-US")} credits`;
+  }
+}
+onJobStatus((st) => {
+  const id = st.job || "starting";
+  if (st.phase === "done" || st.phase === "failed") {
+    activeJobs.delete(id);
+    activeJobs.delete("starting");
+  } else {
+    if (st.job) activeJobs.delete("starting");
+    activeJobs.set(id, st);
+  }
+  renderMeter();
+  if (meterIdle !== null) window.clearTimeout(meterIdle);
+  if (activeJobs.size === 0) {
+    // Settled: ask once what is left, a moment after the last call ends.
+    meterIdle = window.setTimeout(() => void refreshCreditLeft(), 800);
+  }
+});
+// The elapsed seconds keep moving while a call thinks (the server goes quiet then).
+window.setInterval(() => {
+  if (activeJobs.size === 0) return;
+  for (const st of activeJobs.values()) st.elapsedMs += 1000;
+  renderMeter();
+}, 1000);
+
+/** Before a run on credit: the sentence that stops it, or null to go on. */
+async function creditPreflight(usd: number): Promise<string | null> {
+  if (!usingCredit()) return null;
+  const bal = await creditBalance(DEFAULT_ENROLL_API, getToken());
+  if (bal === "key") return "Sign in again to use credit (Settings → Publishing).";
+  if (bal === "error") return null; // the server's own 402 still guards each call
+  creditLeft = bal.credits;
+  return shortfall(bal.credits, creditRange(usd));
+}
+
+const creditBalanceEl = h("span", { class: "settings-inline" }, "—");
+const creditRefreshBtn = h("button", { class: "small" }, "Refresh") as HTMLButtonElement;
+const creditStatusEl = h("div", { class: "settings-note" });
+const creditRowsEl = h("div", { class: "credit-rows" });
+const creditPackBtns = ([500, 1000, 2000] as const).map((cents) => {
+  const btn = h("button", { class: "small" }, `${cents.toLocaleString("en-US")} credits — $${cents / 100}`) as HTMLButtonElement;
+  btn.addEventListener("click", () => {
+    void (async () => {
+      const token = getToken();
+      if (!token) {
+        creditStatusEl.textContent = "Sign in first (Publishing tab).";
+        return;
+      }
+      btn.disabled = true;
+      const out = await startCreditPayment(DEFAULT_ENROLL_API, { key: token, cents, return: location.origin + location.pathname });
+      btn.disabled = false;
+      if (typeof out === "object") location.href = out.url;
+      else creditStatusEl.textContent = out === "pending" ? "A checkout is already open — finish or close it first." : out === "key" ? "Sign in again (Publishing tab)." : "Could not open the checkout — try again.";
+    })();
+  });
+  return btn;
+});
+async function refreshCreditTab(): Promise<void> {
+  const token = getToken();
+  creditPackBtns.forEach((b) => (b.disabled = !token));
+  if (!token) {
+    creditBalanceEl.textContent = "Not signed in — sign in under Publishing to buy and use credit.";
+    creditRowsEl.replaceChildren();
+    return;
+  }
+  creditBalanceEl.textContent = "…";
+  const st = await creditStatement(DEFAULT_ENROLL_API, token);
+  if (typeof st !== "object") {
+    creditBalanceEl.textContent = st === "key" ? "Sign in again (Publishing tab)." : "Could not load the balance.";
+    return;
+  }
+  creditLeft = st.credits;
+  creditBalanceEl.textContent = `${st.credits.toLocaleString("en-US")} credits`;
+  creditRowsEl.replaceChildren(
+    ...st.rows.map((r) =>
+      h(
+        "div",
+        { class: "credit-row" },
+        h("span", { class: "credit-when" }, r.at ? new Date(r.at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : ""),
+        h("span", { class: "credit-what" }, describeRow(r, modelLabelOf)),
+        h("span", { class: `credit-amount${r.credits < 0 ? " out" : ""}` }, `${r.credits > 0 ? "+" : ""}${r.credits.toLocaleString("en-US", { maximumFractionDigits: 2 })}`),
+      ),
+    ),
+  );
+}
+creditRefreshBtn.addEventListener("click", () => void refreshCreditTab());
 const coursesDirInput = h("input", { type: "text", placeholder: "(repository root)", autocomplete: "off" }) as HTMLInputElement;
 coursesDirInput.value = settings.coursesDir;
 
@@ -2049,6 +2169,24 @@ backupBtn.addEventListener("click", () => {
 // these blocks — that mapping is what lets a tab list settings.ts owns
 // determine where each field's markup actually lands.
 const settingsBlocks = new Map<string, HTMLElement>([
+  [
+    "credits",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Credit"),
+      h("div", { class: "row" }, creditBalanceEl, creditRefreshBtn),
+      h("div", { class: "row credit-packs" }, ...creditPackBtns),
+      creditStatusEl,
+      h(
+        "div",
+        { class: "settings-note" },
+        "Without your own Anthropic key, AI generation runs on drawcast's key and is paid from credit; so is narration without your own Google key. Each call costs four times what it actually costs drawcast, counted when it ends — estimates are shown as ranges beforehand. 100 credits = $1. With your own keys, nothing is charged here.",
+      ),
+      h("label", {}, "Recent use"),
+      creditRowsEl,
+    ),
+  ],
   ["style", h("div", { class: "settings-field" }, h("label", {}, "Drawing style"), styleSel)],
   ["textSize", h("div", { class: "settings-field" }, h("label", {}, "Text size"), textSizeSel)],
   ["textFamily", h("div", { class: "settings-field" }, h("label", {}, "Font"), textFamilySel)],
@@ -2279,7 +2417,7 @@ const settingsTabs = createTabs(
 settingsModal.body.appendChild(settingsTabs.el);
 app.appendChild(dialog);
 
-function openSettings(): void {
+function openSettings(tab?: string): void {
   // These four are set once at construction and otherwise read-only from the
   // dialog's own "change" listeners — but Share's Video panel now writes
   // settings.burnCaptions from outside this dialog, so the checkbox must be
@@ -2300,6 +2438,8 @@ function openSettings(): void {
   lookPassCb.checked = settings.lookPass;
   usageNote.textContent = usageSummary();
   usageNote.hidden = usageNote.textContent === "";
+  void refreshCreditTab();
+  if (typeof tab === "string") settingsTabs.show(tab);
   dialog.showModal();
 }
 
@@ -2771,10 +2911,10 @@ function openSubtitleDialog(): void {
 
 async function addSubtitleTrack(): Promise<void> {
   const target = LANGUAGES.find((l) => l.code === subLangSel.value);
-  const apiKey = getApiKey();
+  const apiKey = llmKey();
   if (!target) return;
   if (!apiKey) {
-    subStatus.textContent = "Subtitles need your Anthropic API key — add it in Settings.";
+    subStatus.textContent = `Subtitles need AI: ${NO_LLM_KEY}`;
     return;
   }
   const budget = anthropicBudgetError();
@@ -3324,9 +3464,9 @@ function showMode(mode: "player" | "editor"): void {
 // ---------- editor actions ----------
 
 function requireKey(): string | null {
-  const key = getApiKey();
+  const key = llmKey();
   if (!key) {
-    setStatus("Add your Anthropic API key in Settings to generate with AI. Everything else works without one.", "error");
+    setStatus(`To generate with AI: ${NO_LLM_KEY} Everything else works without either.`, "error");
     openSettings();
     return null;
   }
@@ -3527,6 +3667,13 @@ async function generate(): Promise<void> {
   }
   const apiKey = requireKey();
   if (!apiKey) return;
+  // On credit, the balance must cover the top of the estimate before a call
+  // starts — a run that starts must be able to finish (credit plan).
+  const blocked = await creditPreflight(castUsd(settings.model, settings.effort, settings.lookPass, parsed.parts ?? (parsed.playlist ? 3 : 1)));
+  if (blocked) {
+    setStatusAction(blocked, "Buy credit", () => openSettings("credits"), "error");
+    return;
+  }
   const brief = buildBrief(parsed.tags);
   // Computed once, before the playlist branch: an explicit selection (the
   // #template= tag or the toolbar picker) applies to every part of a
@@ -4150,7 +4297,7 @@ function mapAutoInEditor(playlist: Playlist): void {
     .flatMap((it) => (Array.isArray(it.spec.elements) ? autoImages(it.spec) : []))
     .filter((w) => !autoInFlight.has(w.picture) && !autoFailed.has(w.picture) && !autoNoParts.has(w.picture));
   if (wanted.length === 0) return;
-  const apiKey = getApiKey();
+  const apiKey = llmKey();
   if (!apiKey) {
     if (!autoNoKeySaid) setStatus("Parts are found while authoring with a key — regions: auto left as it is.", "info");
     autoNoKeySaid = true;
@@ -4377,15 +4524,16 @@ function refreshCourses(): void {
  *  which leaves the panel wherever it already was. */
 function openCourse(id?: string, opts: { fresh?: boolean } = {}): void {
   openCoursePanel({
-    apiKey: () => getApiKey(),
+    apiKey: () => llmKey(),
+    creditPreflight,
     model: () => settings.model,
     variant: () => currentVariant(),
     styleText: () => activeStyleText(),
     exemplars: () => usableExemplars(loadExemplars(), isReadyTemplate),
     bundledExemplars: () => bundledExemplarPool(),
-    route: (req, sig) => routeTemplates(req, { apiKey: getApiKey(), signal: sig }),
-    mapPictures: () => makeMapPictures(pictureDeps(getApiKey())),
-    mapAuto: () => makeMapAuto(pictureDeps(getApiKey())),
+    route: (req, sig) => routeTemplates(req, { apiKey: llmKey(), signal: sig }),
+    mapPictures: () => makeMapPictures(pictureDeps(llmKey())),
+    mapAuto: () => makeMapAuto(pictureDeps(llmKey())),
     onTemplateAuthored: keepAuthoredTemplate,
     look: beatSheets,
     setStatus,
@@ -4557,7 +4705,7 @@ const creditReturn = creditInHash(location.hash);
 if (creditReturn) {
   history.replaceState(null, "", location.pathname + location.search);
   if (creditReturn.outcome === "creditpaid") {
-    setStatus(`Narration credit added — ${creditReturn.cents / 100} USD.`, "ok");
+    setStatus(`Credit added — ${creditReturn.cents.toLocaleString("en-US")} credits.`, "ok");
   } else {
     setStatus("Credit was not bought — nothing was charged.");
   }
@@ -6179,8 +6327,8 @@ function openShareFor(group: ShareGroup): void {
     publish: (choices) => publishDrawcast(choices),
     // "Ask AI for a thumbnail" (2026-10-05): one request, with the author's own key.
     askThumbnail: async (castText, thumbLine) => {
-      const key = getApiKey();
-      if (!key) throw new Error("add your Anthropic API key in Settings");
+      const key = llmKey();
+      if (!key) throw new Error(NO_LLM_KEY);
       return askThumbnail(makeClient(key), settings.model, castText, thumbLine, undefined, getToken() ? THUMBNAIL_VARIANTS : 1);
     },
     publishDrive: (choices) => publishDriveCast(choices),
