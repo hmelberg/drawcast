@@ -95,6 +95,7 @@ export async function creditBalance(api: string, key: string, fetchImpl: typeof 
 export type CreditPayOutcome =
   | { url: string }
   | "pending" // 409 — a checkout for this account's credit purchase is already open
+  | "closed" // 403 — credit is not on sale yet (Stripe in test mode; admins only)
   | "key" // 401
   | "error";
 
@@ -122,11 +123,15 @@ export async function startCreditPayment(
     }
     if (res.status === 409) return "pending";
     if (res.status === 401) return "key";
+    if (res.status === 403) return "closed";
     return "error";
   } catch {
     return "error";
   }
 }
+
+/** What a refused checkout says, everywhere a Buy button lives. */
+export const CREDIT_CLOSED = "Credit is not on sale yet — drawcast is in testing mode. Use your own keys for now.";
 
 /**
  * Stripe's return for a credit purchase, read from the URL fragment —

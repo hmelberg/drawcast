@@ -41,7 +41,7 @@ import { castRegistration, privateCastTarget } from "../publish/cast";
 import { courseKeyFor, joinPath } from "../course/publish";
 import type { ServerAccess } from "../publish/server";
 import { quotePrivate, registryItemKey, setListing, startPrivatePayment, type PrivateQuoteOutcome } from "../registry";
-import { creditBalance, startCreditPayment } from "../credit";
+import { CREDIT_CLOSED, creditBalance, startCreditPayment } from "../credit";
 import { h } from "./dom";
 import { unembeddedImages } from "./insert";
 import { thumbnailBody, withThumbnailPage } from "../card/page";
@@ -694,7 +694,9 @@ function build(): ShareSession {
           return;
         }
         bakeHint.textContent =
-          started === "pending"
+          started === "closed"
+            ? CREDIT_CLOSED
+            : started === "pending"
             ? "A credit purchase is already open — finish it, or wait an hour and try again."
             : started === "key"
               ? "Sign in to buy credit"

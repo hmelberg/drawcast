@@ -37,7 +37,7 @@ describe("the Embed-narration box — three states through buildEmbedChoices", (
   const fn = share.slice(share.indexOf("function buildEmbedChoices("), share.indexOf("// ---- Link panel ----"));
 
   test("imports the credit client functions", () => {
-    expect(share).toContain('import { creditBalance, startCreditPayment } from "../credit";');
+    expect(share).toContain('import { CREDIT_CLOSED, creditBalance, startCreditPayment } from "../credit";');
   });
 
   test("an own/vended key: unchanged from before — enabled, checked by default, no Buy-credit row", () => {

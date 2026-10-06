@@ -112,7 +112,7 @@ import { publishToServer, serverCastKey, type ServerAccess } from "./publish/ser
 import { formatPrice, isPayable, normalizeName, paidInHash, registerName, startNamePayment } from "./names";
 import { DEFAULT_ENROLL_API } from "./learn";
 import { claimFile, ensurePrivateApplied, privateInHash, quotePrivate, registerItem, registryNote, verifyClaim } from "./registry";
-import { CreditError, creditBalance, creditInHash, creditStatement, describeRow, serverSynthesize, startCreditPayment } from "./credit";
+import { CREDIT_CLOSED, CreditError, creditBalance, creditInHash, creditStatement, describeRow, serverSynthesize, startCreditPayment } from "./credit";
 import { onJobStatus, runChargedCredits, setCreditTokenSource, type JobStatus } from "./llm/job-transport";
 import { castUsd, creditRange, shortfall } from "./llm/credit-estimate";
 import { meterText } from "./ui/credit-meter";
@@ -2099,7 +2099,7 @@ const creditPackBtns = ([500, 1000, 2000] as const).map((cents) => {
       const out = await startCreditPayment(DEFAULT_ENROLL_API, { key: token, cents, return: location.origin + location.pathname });
       btn.disabled = false;
       if (typeof out === "object") location.href = out.url;
-      else creditStatusEl.textContent = out === "pending" ? "A checkout is already open — finish or close it first." : out === "key" ? "Sign in again (Publishing tab)." : "Could not open the checkout — try again.";
+      else creditStatusEl.textContent = out === "closed" ? CREDIT_CLOSED : out === "pending" ? "A checkout is already open — finish or close it first." : out === "key" ? "Sign in again (Publishing tab)." : "Could not open the checkout — try again.";
     })();
   });
   return btn;

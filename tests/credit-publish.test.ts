@@ -18,7 +18,7 @@ describe("main.ts publishTextFor — key order (ruling 1: own/vended key, then c
   const fn = main.slice(main.indexOf("async function publishTextFor("), main.indexOf("const size = bakeSize(track);"));
 
   test("imports the credit synthesizer and its error", () => {
-    expect(main).toMatch(/import \{ CreditError, creditBalance, creditInHash, creditStatement, describeRow, serverSynthesize, startCreditPayment \} from "\.\/credit";/);
+    expect(main).toMatch(/import \{ CREDIT_CLOSED, CreditError, creditBalance, creditInHash, creditStatement, describeRow, serverSynthesize, startCreditPayment \} from "\.\/credit";/);
   });
 
   test("getTtsKey() (own or vended — store.ts conflates the two) is read before getToken()", () => {
