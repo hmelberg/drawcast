@@ -75,7 +75,7 @@ const REPO_RE = /^([\w.-]+)\/([\w.-]+)$/;
 /**
  * Netlify sets x-nf-client-connection-ip itself and a client cannot forge
  * it — identical rule and reasoning to defaultClientIp in
- * netlify/functions/keys.mts; x-forwarded-for is deliberately not a
+ * netlify/functions/the retired keys.mts; x-forwarded-for is deliberately not a
  * fallback, since honouring it would let one caller dodge the budget by
  * rotating through fake IPs.
  */
@@ -87,14 +87,14 @@ export function defaultClientIp(req: Request): string {
  * A per-IP cap on POST, since allowedOrigins() above is only a speed bump —
  * a forged or script-driven Origin from an allowed host sails past it. This
  * reuses netlify/lib/rate-limit.mts, the same sliding-window limiter
- * keys.mts guards the password endpoint with. Despite that module's
+ * the retired keys.mts guards the password endpoint with. Despite that module's
  * password-flavoured naming (checkFailureBudget/recordFailure), the
  * mechanism is a generic "at most N events per window" counter; here it
  * counts successful writes, never failures — a bad request is refused by
  * validation below and never reaches recordWrite.
  *
  * "views:" prefixes the id passed to the limiter so this budget's Blobs keys
- * never collide with keys.mts's password-failure keys, even though both run
+ * never collide with the retired keys.mts's password-failure keys, even though both run
  * through the very same rate-limits store under the very same client IPs.
  *
  * This exists to bound per-IP KEY GROWTH in Blobs — one address hammering
@@ -140,7 +140,7 @@ export async function handleViewsRequest(req: Request, deps: ViewsDeps): Promise
     const owner = pagesOwner(origin);
     if (!allowedOrigins().includes(origin) && !owner) return json({ error: "origin" }, 403, headers);
 
-    // Checked before touching the body, exactly like keys.mts checks its
+    // Checked before touching the body, exactly like the retired keys.mts checks its
     // password-failure budget before comparing the password: a throttled
     // caller never reaches storage.
     const ip = deps.clientIp(req);

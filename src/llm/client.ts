@@ -5,7 +5,6 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { extractJson } from "../spec/extract";
-import { addAnthropicTokens, anthropicBudgetError } from "../store";
 import { CREDIT_KEY, LlmCreditError, resetRunCharges, runJob } from "./job-transport";
 
 export const MODELS = [
@@ -443,9 +442,6 @@ export async function callForJson(
   outputSchema: object,
   opts: CallOpts = {},
 ): Promise<{ json: unknown; raw: string; meta: JsonCallMeta }> {
-  // Soft monthly cap — applies only when the stored key was vended (shared).
-  const budget = anthropicBudgetError();
-  if (budget) throw new Error(budget);
   const t0 = performance.now();
   let response: Anthropic.Message | null = null;
   let structured = true;
@@ -494,7 +490,6 @@ export async function callForJson(
     throw new RefusalError(details?.explanation);
   }
 
-  addAnthropicTokens((response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0));
   recordCall(response.model ?? model, response.usage, performance.now() - t0);
 
   // A cut-off reply is broken JSON by construction; name the real cause. The
@@ -527,7 +522,6 @@ export async function callForJson(
       !fallbacksBroken,
       { ...opts, effort: "low", jsonReply: true },
     );
-    addAnthropicTokens((retry.usage?.input_tokens ?? 0) + (retry.usage?.output_tokens ?? 0));
     recordCall(retry.model ?? model, retry.usage, performance.now() - t0);
     const raw2 = textOf(retry);
     try {
@@ -565,8 +559,6 @@ export async function callForText(
   messages: Anthropic.MessageParam[],
   opts: CallOpts = {},
 ): Promise<{ text: string; ms: number }> {
-  const budget = anthropicBudgetError();
-  if (budget) throw new Error(budget);
   const t0 = performance.now();
   const response = await createMessage(client, model, system, messages, null, true, opts).catch((err) => {
     if (err instanceof Anthropic.BadRequestError) return createMessage(client, model, system, messages, null, false, opts);
@@ -576,7 +568,6 @@ export async function callForText(
     const details = (response as unknown as { stop_details?: { explanation?: string } }).stop_details;
     throw new RefusalError(details?.explanation);
   }
-  addAnthropicTokens((response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0));
   recordCall(response.model ?? model, response.usage, performance.now() - t0);
   return { text: textOf(response), ms: performance.now() - t0 };
 }

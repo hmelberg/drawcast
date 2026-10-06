@@ -121,7 +121,7 @@ describe("the drawcast server's private store is refused at every door", () => {
 describe("the per-IP write budget", () => {
   // Origin is caller-supplied and forgeable (see the comment on
   // ALLOWED_ORIGINS in views.mts), so it stops idle curl at best. This is the
-  // actual guard: a per-IP cap, backed by the same limiter keys.mts uses for
+  // actual guard: a per-IP cap, backed by the same limiter the retired keys.mts uses for
   // the password endpoint (netlify/lib/rate-limit.mts), wired the same way
   // (checkBudget-shaped deps, clientIp reading the platform header).
 
@@ -165,7 +165,7 @@ describe("the per-IP write budget", () => {
     expect(viewBudgetId("1.2.3.4")).not.toBe("1.2.3.4");
   });
 
-  test("the client IP comes from the platform header, never a spoofable one — same rule as keys.mts", () => {
+  test("the client IP comes from the platform header, never a spoofable one — same rule as the retired keys.mts", () => {
     const real = new Request("https://drawcast.app/x", {
       headers: { "x-nf-client-connection-ip": "9.9.9.9", "x-forwarded-for": "1.1.1.1" },
     });

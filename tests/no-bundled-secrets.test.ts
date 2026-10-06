@@ -1,9 +1,10 @@
 import { describe, expect, test } from "vitest";
 
 // Vite inlines every VITE_* var into the client bundle as a literal string, so
-// a secret behind that prefix is published, not configured. The Anthropic and
-// TTS keys are vended by netlify/functions/keys.mts precisely to avoid that —
-// setting the VITE_ fallbacks in a build environment would silently defeat it.
+// a secret behind that prefix is published, not configured. drawcast's own
+// Anthropic and TTS keys live on the server (Anvil secrets; credit pays for
+// their use) precisely to avoid that — setting the VITE_ fallbacks in a build
+// environment would silently publish them.
 //
 // This is a build gate, not just a unit test, so it has to run on every path
 // that builds: `npm test` precedes `npm run build` in both

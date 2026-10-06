@@ -49,7 +49,7 @@ export interface PictureDeps {
   clientIp: (req: Request) => string;
 }
 
-/** Netlify sets x-nf-client-connection-ip and a client cannot forge it; x-forwarded-for can be, so it is not a fallback (as keys.mts). */
+/** Netlify sets x-nf-client-connection-ip and a client cannot forge it; x-forwarded-for can be, so it is not a fallback (as the retired keys.mts). */
 export function defaultClientIp(req: Request): string {
   return req.headers.get("x-nf-client-connection-ip") ?? "";
 }
