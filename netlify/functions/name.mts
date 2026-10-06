@@ -85,7 +85,7 @@ function json(body: unknown, status: number): Response {
 
 /**
  * Constant-time compare via digest, exactly like passwordMatches in
- * keys.mts: hides both the difference and the length of the two strings. An
+ * the retired keys.mts: hides both the difference and the length of the two strings. An
  * empty expected secret always refuses — "wrong or missing secret" must
  * include "no secret configured at all", not turn into "anything goes".
  */

@@ -1,5 +1,5 @@
 // The counting client. Every network call is injected, exactly as
-// tests/keys.test.ts drives redeemPassword.
+// (the retired tests/keys.test.ts drove redeemPassword the same way).
 import { describe, expect, test, vi } from "vitest";
 import { PRIVATE_OWNERS as SERVER_PRIVATE_OWNERS } from "../netlify/lib/view-key.mts";
 import { castKeyFor, countingEnabled, firstViewInSession, PRIVATE_OWNERS, readViewCount, recordView } from "../src/views";

@@ -6,7 +6,6 @@
 import { DELIVERY, effectiveGender, speechKey, type SpeakLine, type SpeakOpts } from "../render/delivery";
 import { SpeechManager, detectLang } from "../render/speech";
 import { sayable } from "../render/pronounce";
-import { addTtsChars, ttsBudgetError } from "../store";
 import type { ClipStore } from "./bake-cache";
 
 export interface TtsConfig {
@@ -354,9 +353,6 @@ export function ttsRequestBody(cfg: TtsBodyConfig, text: string, opts?: SpeakOpt
  * browser to get back what the API already sent.
  */
 export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: SpeakOpts): Promise<string> {
-  // Soft monthly cap — applies only when the stored key was vended (shared).
-  const budget = ttsBudgetError();
-  if (budget) throw new Error(budget);
   const lang = runLang({ text, lang: opts?.lang }, cfg.lang);
   const pref = preferredVoice(cfg.voices, lang, opts?.speaker);
   const call = (withName: boolean) =>
@@ -383,7 +379,6 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
   if (!res.ok) throw await ttsError(res);
   const { audioContent } = (await res.json()) as { audioContent?: string };
   if (!audioContent) throw new Error("the TTS response carried no audio");
-  addTtsChars(text.length);
   return audioContent;
 }
 

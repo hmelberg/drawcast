@@ -31,7 +31,6 @@ import { withNotes } from "./llm/hoist";
 import { atNewest, currentVersion, emptyStack, pushManualEdit, pushVersion, restoreViewed, seedStack, viewAt, type Stack } from "./history";
 import { myTemplateDoc, registerMyTemplatesAtStartup, registerUserTemplateYaml, unregisterUserTemplate } from "./scenes/my-templates";
 import { PACK_DEFS, ensureEnabledPacks, packTemplateIds, parsePack, unregisterPack } from "./scenes/packs";
-import { looksLikeAnthropicKey, redeemPassword } from "./keys";
 import {
   fetchOfficialIndex,
   fetchRemotePackYaml,
@@ -175,10 +174,7 @@ import {
   saveStyle,
   saveUserPrompt,
   setApiKey,
-  loadVendedFlags,
-  setVendedFlags,
-  usageSummary,
-  anthropicBudgetError,
+  purgeVendedKeys,
   updateLog,
   worstLoggedCases,
   type LogEntry,
@@ -1900,7 +1896,6 @@ dataRow.addEventListener("click", () => {
 const keyInput = h("input", { type: "password", placeholder: "sk-ant-…", autocomplete: "off" }) as HTMLInputElement;
 keyInput.value = getApiKey();
 const clearKeyBtn = h("button", { class: "small" }, "Clear key");
-const usageNote = h("div", { class: "settings-note" });
 const ttsKeyInput = h("input", { type: "password", placeholder: "AIza…", autocomplete: "off" }) as HTMLInputElement;
 ttsKeyInput.value = getTtsKey();
 const clearTtsKeyBtn = h("button", { class: "small" }, "Clear key");
@@ -2025,6 +2020,15 @@ refreshSignIn();
 // recent statement and the packs.
 
 setCreditTokenSource(getToken);
+{
+  // A key the retired password handed out is removed, once; own keys stay.
+  const purged = purgeVendedKeys();
+  if (purged.anthropic || purged.tts) {
+    if (purged.anthropic) keyInput.value = "";
+    if (purged.tts) ttsKeyInput.value = "";
+    setStatus("The shared keys this browser was given have been removed — sign in to use credit, or add your own keys in Settings.");
+  }
+}
 const modelLabelOf = (id: string): string =>
   ([...MODELS, ...LAB_MODELS].find((m) => id.startsWith(m.id))?.label ?? id).split(" — ")[0];
 const activeJobs = new Map<string, JobStatus>();
@@ -2214,7 +2218,6 @@ const settingsBlocks = new Map<string, HTMLElement>([
       keyInput,
       h("div", {}, clearKeyBtn),
       h("div", { class: "settings-note" }, "Stored in this browser's localStorage only. It never leaves the browser except in requests to api.anthropic.com."),
-      usageNote,
     ),
   ],
   [
@@ -2448,8 +2451,6 @@ function openSettings(tab?: string): void {
   developerCb.checked = settings.developerMode;
   visualRepairCb.checked = settings.visualRepair;
   lookPassCb.checked = settings.lookPass;
-  usageNote.textContent = usageSummary();
-  usageNote.hidden = usageNote.textContent === "";
   void refreshCreditTab();
   if (typeof tab === "string") settingsTabs.show(tab);
   dialog.showModal();
@@ -2927,11 +2928,6 @@ async function addSubtitleTrack(): Promise<void> {
   if (!target) return;
   if (!apiKey) {
     subStatus.textContent = `Subtitles need AI: ${NO_LLM_KEY}`;
-    return;
-  }
-  const budget = anthropicBudgetError();
-  if (budget) {
-    subStatus.textContent = budget;
     return;
   }
   subGo.disabled = true;
@@ -6483,40 +6479,15 @@ async function improveActivePrompt(): Promise<void> {
 
 // ---------- settings + misc wiring ----------
 
-keyInput.addEventListener("change", () => void handleKeyEntry(keyInput.value.trim()));
-
-/**
- * The key field also accepts the shared password (deliberately unadvertised).
- * Anything that doesn't look like an Anthropic key is TRIED against the
- * vending endpoint — the server decides; on failure the text is stored
- * as-entered, exactly like before. On success BOTH keys are filled at once.
- */
-async function handleKeyEntry(text: string): Promise<void> {
-  if (text && !looksLikeAnthropicKey(text)) {
-    const vended = await redeemPassword(text);
-    if (vended) {
-      setApiKey(vended.anthropicKey);
-      keyInput.value = vended.anthropicKey;
-      if (vended.googleKey) {
-        setTtsKey(vended.googleKey);
-        ttsKeyInput.value = vended.googleKey;
-      }
-      setVendedFlags({ anthropic: true, tts: vended.googleKey.length > 0 });
-      setStatus("Keys unlocked.", "ok");
-      return;
-    }
-  }
-  setApiKey(text);
-  setVendedFlags({ ...loadVendedFlags(), anthropic: false });
-}
+// The field holds the author's own key only: the shared password that once
+// unlocked drawcast's keys here is retired (credit plan delivery 2).
+keyInput.addEventListener("change", () => setApiKey(keyInput.value.trim()));
 clearKeyBtn.addEventListener("click", () => {
   setApiKey("");
   keyInput.value = "";
-  setVendedFlags({ ...loadVendedFlags(), anthropic: false });
 });
 ttsKeyInput.addEventListener("change", () => {
   setTtsKey(ttsKeyInput.value.trim());
-  setVendedFlags({ ...loadVendedFlags(), tts: false });
 });
 burnCaptionsCb.addEventListener("change", () => {
   settings.burnCaptions = burnCaptionsCb.checked;
@@ -6534,7 +6505,6 @@ cloudPlaybackCb.addEventListener("change", () => {
 clearTtsKeyBtn.addEventListener("click", () => {
   setTtsKey("");
   ttsKeyInput.value = "";
-  setVendedFlags({ ...loadVendedFlags(), tts: false });
 });
 voiceSel.addEventListener("change", () => {
   settings.voiceURI = voiceSel.value || null;

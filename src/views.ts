@@ -22,7 +22,7 @@ function countable(key: string): boolean {
 
 /**
  * Endpoints tried in order, the same shape as VENDING_ENDPOINTS in
- * src/keys.ts: same-origin first for the Netlify deploy and `netlify dev`,
+ * the retired src/keys.ts did the same: same-origin first for the Netlify deploy and `netlify dev`,
  * then the absolute URL for the GitHub Pages deploy, which calls the
  * drawcast.app function cross-origin.
  */
