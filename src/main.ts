@@ -116,6 +116,7 @@ import { CREDIT_CLOSED, CreditError, creditBalance, creditInHash, creditStatemen
 import { onJobStatus, runChargedCredits, setCreditTokenSource, type JobStatus } from "./llm/job-transport";
 import { castUsd, creditRange, shortfall } from "./llm/credit-estimate";
 import { meterText } from "./ui/credit-meter";
+import { openPortal, startSubscription, subLine, subscribedInHash, subStatus as fetchSubStatus, SUB_BENEFITS, type SubStatus } from "./subscription";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken, setToken, signInUrl, signOut as signOutServer } from "./account";
 import { fetchItemKey, liveKeyStorage, unlockForAuthor } from "./item-key";
@@ -2079,7 +2080,8 @@ async function creditPreflight(usd: number): Promise<string | null> {
   if (bal === "key") return "Sign in again to use credit (Settings → Publishing).";
   if (bal === "error") return null; // the server's own 402 still guards each call
   creditLeft = bal.credits;
-  return shortfall(bal.credits, creditRange(usd));
+  // A subscriber pays half (2x instead of 4x); unknown counts as not.
+  return shortfall(bal.credits, creditRange(usd, subKnown?.active ? 2 : 4));
 }
 
 const creditBalanceEl = h("span", { class: "settings-inline" }, "—");
@@ -2105,6 +2107,7 @@ const creditPackBtns = ([500, 1000, 2000] as const).map((cents) => {
   return btn;
 });
 async function refreshCreditTab(): Promise<void> {
+  void refreshSubscription();
   const token = getToken();
   creditPackBtns.forEach((b) => (b.disabled = !token));
   if (!token) {
@@ -2133,6 +2136,64 @@ async function refreshCreditTab(): Promise<void> {
   );
 }
 creditRefreshBtn.addEventListener("click", () => void refreshCreditTab());
+
+// The subscription (credit plan delivery 4): the plan line, a button per plan
+// while not subscribed, and Stripe's Customer Portal once there is one.
+let subKnown: SubStatus | null = null;
+const subLineEl = h("div", { class: "settings-inline" }, "—");
+const subStatusEl = h("div", { class: "settings-note" });
+const subPlanBtns = h("div", { class: "row credit-packs" });
+const subManageBtn = h("button", { class: "small" }, "Manage subscription") as HTMLButtonElement;
+subManageBtn.hidden = true;
+subManageBtn.addEventListener("click", () => {
+  void (async () => {
+    const token = getToken();
+    if (!token) return;
+    const out = await openPortal(DEFAULT_ENROLL_API, { key: token, return: location.origin + location.pathname });
+    if (typeof out === "object") location.href = out.url;
+    else subStatusEl.textContent = out === "none" ? "No subscription to manage yet." : "Could not open the subscription page — try again.";
+  })();
+});
+async function subscribeTo(plan: string, btn: HTMLButtonElement): Promise<void> {
+  const token = getToken();
+  if (!token) {
+    subStatusEl.textContent = "Sign in first (Publishing tab).";
+    return;
+  }
+  btn.disabled = true;
+  const out = await startSubscription(DEFAULT_ENROLL_API, { key: token, plan, return: location.origin + location.pathname });
+  btn.disabled = false;
+  if (typeof out === "object") location.href = out.url;
+  else
+    subStatusEl.textContent =
+      out === "closed" ? "Subscriptions are not open yet — drawcast is in testing mode." : out === "subscribed" ? "You already subscribe — change plan under Manage subscription." : out === "key" ? "Sign in again (Publishing tab)." : "Could not open the checkout — try again.";
+}
+async function refreshSubscription(): Promise<void> {
+  const token = getToken();
+  if (!token) {
+    subLineEl.textContent = "Sign in to subscribe.";
+    subPlanBtns.replaceChildren();
+    subManageBtn.hidden = true;
+    return;
+  }
+  const st = await fetchSubStatus(DEFAULT_ENROLL_API, token);
+  if (typeof st !== "object") {
+    subLineEl.textContent = st === "key" ? "Sign in again (Publishing tab)." : "Could not load the subscription.";
+    return;
+  }
+  subKnown = st;
+  subLineEl.textContent = subLine(st);
+  subManageBtn.hidden = !st.manageable;
+  subPlanBtns.replaceChildren(
+    ...(st.active
+      ? []
+      : Object.entries(st.plans).map(([id, p]) => {
+          const b = h("button", { class: "small" }, `${p.label} — $${p.cents / 100}/month · ${p.quotaMb} MB`) as HTMLButtonElement;
+          b.addEventListener("click", () => void subscribeTo(id, b));
+          return b;
+        })),
+  );
+}
 const coursesDirInput = h("input", { type: "text", placeholder: "(repository root)", autocomplete: "off" }) as HTMLInputElement;
 coursesDirInput.value = settings.coursesDir;
 
@@ -2201,6 +2262,12 @@ const settingsBlocks = new Map<string, HTMLElement>([
       ),
       h("label", {}, "Recent use"),
       creditRowsEl,
+      h("label", {}, "Subscription"),
+      subLineEl,
+      subPlanBtns,
+      h("div", {}, subManageBtn),
+      subStatusEl,
+      h("div", { class: "settings-note" }, SUB_BENEFITS),
     ),
   ],
   ["style", h("div", { class: "settings-field" }, h("label", {}, "Drawing style"), styleSel)],
@@ -4709,6 +4776,11 @@ if (privReturn) {
 // Stripe's return from a narration-credit purchase (registry delivery 3) —
 // creditInHash's own fragment shape (src/credit.ts), same "reopen nothing,
 // just say what happened" contract as privReturn above.
+const subReturn = subscribedInHash(location.hash);
+if (subReturn) {
+  history.replaceState(null, "", location.pathname + location.search);
+  setStatus(subReturn.plan ? `Subscribed — thank you. Settings → Credits shows your plan.` : "Not subscribed — nothing was charged.", subReturn.plan ? "ok" : "info");
+}
 const creditReturn = creditInHash(location.hash);
 if (creditReturn) {
   history.replaceState(null, "", location.pathname + location.search);

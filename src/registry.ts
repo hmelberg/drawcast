@@ -178,6 +178,10 @@ export interface PrivateQuote {
   listed?: boolean;
   owner: "you" | "other" | "none";
   name: string | null;
+  /** The caller subscribes: private and unlisted are included (credit plan delivery 4). */
+  subscribed?: boolean;
+  /** Private was asked for and the caller does not subscribe: it is not for sale. */
+  subscriptionRequired?: boolean;
 }
 
 export type PrivateQuoteOutcome = PrivateQuote | "key" | "error";
@@ -212,7 +216,7 @@ export async function quotePrivate(api: string, body: PrivateQuoteInput, fetchIm
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return res.status === 401 ? "key" : "error";
-    const b = (await res.json()) as Partial<{ due: unknown; currency: unknown; paid_lectures: unknown; private: unknown; listed: unknown; owner: unknown; name: unknown }>;
+    const b = (await res.json()) as Partial<{ due: unknown; currency: unknown; paid_lectures: unknown; private: unknown; listed: unknown; owner: unknown; name: unknown; subscribed: unknown; subscription_required: unknown }>;
     if (typeof b.due !== "number") return "error";
     const owner = b.owner === "you" || b.owner === "other" ? b.owner : "none";
     return {
@@ -226,6 +230,8 @@ export async function quotePrivate(api: string, body: PrivateQuoteInput, fetchIm
       listed: typeof b.listed === "boolean" ? b.listed : undefined,
       owner,
       name: typeof b.name === "string" ? b.name : null,
+      subscribed: b.subscribed === true,
+      subscriptionRequired: b.subscription_required === true,
     };
   } catch {
     return "error";

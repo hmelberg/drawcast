@@ -20,8 +20,9 @@ export interface CreditRange {
   high: number;
 }
 
-export function creditRange(usd: number): CreditRange {
-  const credits = usd * MARKUP * CREDITS_PER_USD;
+/** `markup`: 4, or 2 for a subscriber (credit plan delivery 4). */
+export function creditRange(usd: number, markup: number = MARKUP): CreditRange {
+  const credits = usd * markup * CREDITS_PER_USD;
   return { low: Math.max(1, Math.floor(credits * RANGE_LOW)), high: Math.max(1, Math.ceil(credits * RANGE_HIGH)) };
 }
 

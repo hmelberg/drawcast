@@ -221,7 +221,7 @@ describe("quotePrivate", () => {
   test("POSTs text/plain JSON, bounded, and maps the 200 shape (snake_case paid_lectures)", async () => {
     const f = fetchReturning(200, { due: 300, currency: "usd", paid_lectures: 0, private: true, owner: "you", name: "x" });
     const out = await quotePrivate("https://drawcast.anvil.app", body, f);
-    expect(out).toEqual({ due: 300, currency: "usd", paidLectures: 0, private: true, owner: "you", name: "x" });
+    expect(out).toEqual({ due: 300, currency: "usd", paidLectures: 0, private: true, owner: "you", name: "x", subscribed: false, subscriptionRequired: false });
     const [url, init] = calls(f)[0];
     expect(url).toBe("https://drawcast.anvil.app/_/api/register/quote");
     expect((init.headers as Record<string, string>)["content-type"]).toBe("text/plain");
@@ -231,7 +231,7 @@ describe("quotePrivate", () => {
 
   test("due 0, owner other/none, missing name — every field is normalised", async () => {
     const out = (await quotePrivate("https://a", body, fetchReturning(200, { due: 0, paid_lectures: 3, owner: "??" }))) as PrivateQuote;
-    expect(out).toEqual({ due: 0, currency: "usd", paidLectures: 3, private: false, owner: "none", name: null });
+    expect(out).toEqual({ due: 0, currency: "usd", paidLectures: 3, private: false, owner: "none", name: null, subscribed: false, subscriptionRequired: false });
     const other = (await quotePrivate("https://a", body, fetchReturning(200, { due: 100, owner: "other" }))) as PrivateQuote;
     expect(other.owner).toBe("other");
   });

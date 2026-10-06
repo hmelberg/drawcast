@@ -1199,6 +1199,13 @@ function build(): ShareSession {
         publishGo.disabled = true;
         return;
       }
+      if (q.subscriptionRequired) {
+        // Credit plan delivery 4: private is part of a subscription, not sold one-off.
+        privateHint.textContent = "Private is part of a subscription (Settings → Credits) — enrolled learners only; you approve who joins";
+        privatePayRow.hidden = true;
+        publishGo.disabled = true;
+        return;
+      }
       if (q.due > 0) {
         privateHint.textContent = `Private: ${formatPrice(q.due, q.currency)} — enrolled learners only; you approve who joins`;
         privatePayBtn.textContent = `Pay ${formatPrice(q.due, q.currency)}`;
@@ -1206,7 +1213,7 @@ function build(): ShareSession {
         publishGo.disabled = true;
         return;
       }
-      privateHint.textContent = "Paid — publish to lock the lectures";
+      privateHint.textContent = q.subscribed ? "Included in your subscription — publish to lock the lectures" : "Paid — publish to lock the lectures";
       publishGo.disabled = false;
     })();
   }

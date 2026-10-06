@@ -305,3 +305,15 @@ describe("unlockForAuthor", () => {
     await expect(unlockForAuthor("title: A\n")).resolves.toEqual({ text: "title: A\n" });
   });
 });
+
+describe("a lapsed owner (credit plan delivery 4)", () => {
+  it("403 lapsed is its own denial, with the title, and no kept key survives it", async () => {
+    const { fetchItemKey } = await import("../src/item-key");
+    const { itemKeyStorageKey } = await import("../src/item-key");
+    const kept = new Map<string, string>([[itemKeyStorageKey("o/r/c"), "old"]]);
+    const storage = { getItem: (k: string) => kept.get(k) ?? null, setItem: (k: string, v: string) => void kept.set(k, v), removeItem: (k: string) => void kept.delete(k) };
+    const f = (async () => new Response(JSON.stringify({ error: "lapsed", title: "My course", page: null }), { status: 403 })) as unknown as typeof fetch;
+    expect(await fetchItemKey("https://a", "tok", "o/r/c", f, storage)).toEqual({ denied: "lapsed", title: "My course" });
+    expect([...kept.values()]).toEqual([]);
+  });
+});

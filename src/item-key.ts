@@ -97,6 +97,8 @@ function guarded(s: KeyStorage | null): KeyStorage | null {
 export type KeyDenial =
   | { denied: 401 }
   | { denied: 403; standing: "none" | "pending" | "rejected"; title: string; page: string | null; name?: string }
+  /** The owner's subscription has ended (credit plan delivery 4): nobody gets the key until they subscribe again. */
+  | { denied: "lapsed"; title: string }
   | { denied: 404 }
   | { denied: "offline" };
 
@@ -161,7 +163,8 @@ export async function fetchItemKey(
   }
   if (res.status === 403) {
     storage?.removeItem(storageKey);
-    const body = (await res.json().catch(() => ({}))) as { standing?: unknown; title?: unknown; page?: unknown; name?: unknown };
+    const body = (await res.json().catch(() => ({}))) as { error?: unknown; standing?: unknown; title?: unknown; page?: unknown; name?: unknown };
+    if (body.error === "lapsed") return { denied: "lapsed", title: typeof body.title === "string" && body.title ? body.title : item };
     const standing = body.standing === "pending" || body.standing === "rejected" ? body.standing : "none";
     // `name` is the item's free drawcast.app name (final review M3), when it
     // has one — what the locked door links to, never the spaced title.

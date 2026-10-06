@@ -654,6 +654,14 @@ export function lockedDoor(door: KeyDenial & { item: string }, deps: DoorDeps = 
       h("p", {}, button),
     );
   }
+  if (door.denied === "lapsed") {
+    return h(
+      "div",
+      { class: "viewer-wrap" },
+      h("h1", { class: "viewer-title" }, "This lecture is not available"),
+      h("p", { class: "viewer-status error" }, "It is private, and its owner's drawcast subscription has ended — it opens again when they subscribe."),
+    );
+  }
   if (door.denied === 404) {
     return h(
       "div",
