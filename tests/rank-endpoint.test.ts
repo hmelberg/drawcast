@@ -35,6 +35,16 @@ describe("rank", () => {
     expect(((await all.json()) as { ranks: unknown[] }).ranks).toHaveLength(60);
     expect(all.headers.get("netlify-vary")).toBe("query=all");
   });
+  test("?all=1 adds each name's all-time total; a name with only old visits is kept", async () => {
+    const all = await handleRankRequest(
+      new Request("https://drawcast.app/.netlify/functions/rank?all=1"),
+      deps({ "v/moon/2026-10-03": 5, "v/moon/2026-08-01": 7, "v/old/2026-08-01": 4 }),
+    );
+    expect(((await all.json()) as { ranks: unknown[] }).ranks).toEqual([
+      { name: "moon", visits: 5, total: 12 },
+      { name: "old", visits: 0, total: 4 },
+    ]);
+  });
   test("a lecture name keeps its slash; malformed keys are ignored", () => {
     expect(parseVisitKey("v/spanish/2026-10-03")).toEqual({ name: "spanish", day: "2026-10-03" });
     expect(parseVisitKey("v/x")).toBeNull();

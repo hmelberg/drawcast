@@ -29,21 +29,29 @@ export function parseVisitKey(key: string): { name: string; day: string } | null
   return m ? { name: m[1], day: m[2] } : null;
 }
 
-export async function computeRanks(deps: RankDeps, days = RANK_DAYS, max = RANK_MAX): Promise<Array<{ name: string; visits: number }>> {
+export async function computeRanks(deps: RankDeps, days = RANK_DAYS, max = RANK_MAX, withTotal = false): Promise<Array<{ name: string; visits: number; total?: number }>> {
   const cutoff = dayString(deps.now() - (days - 1) * DAY_MS);
-  const recent = (await deps.listKeys()).map((k) => ({ k, p: parseVisitKey(k) })).filter((x) => x.p && x.p.day >= cutoff);
-  const totals = new Map<string, number>();
+  // withTotal (?all=1): every day ever kept counts toward `total` — records
+  // are never deleted, so that is since counting began (2026-09-29).
+  const wanted = (await deps.listKeys()).map((k) => ({ k, p: parseVisitKey(k) })).filter((x) => x.p && (withTotal || x.p.day >= cutoff));
+  const recent = new Map<string, number>();
+  const total = new Map<string, number>();
   // In parallel batches: a few thousand small reads at most, once an hour.
-  for (let i = 0; i < recent.length; i += 50) {
-    const batch = recent.slice(i, i + 50);
+  for (let i = 0; i < wanted.length; i += 50) {
+    const batch = wanted.slice(i, i + 50);
     const counts = await Promise.all(batch.map((x) => deps.readCount(x.k).catch(() => 0)));
-    batch.forEach((x, j) => totals.set(x.p!.name, (totals.get(x.p!.name) ?? 0) + counts[j]));
+    batch.forEach((x, j) => {
+      const name = x.p!.name;
+      if (x.p!.day >= cutoff) recent.set(name, (recent.get(name) ?? 0) + counts[j]);
+      total.set(name, (total.get(name) ?? 0) + counts[j]);
+    });
   }
-  return [...totals.entries()]
-    .filter(([, v]) => v > 0)
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, max)
-    .map(([name, visits]) => ({ name, visits }));
+  const names = withTotal ? [...total.keys()] : [...recent.keys()];
+  return names
+    .map((name) => ({ name, visits: recent.get(name) ?? 0, ...(withTotal ? { total: total.get(name) ?? 0 } : {}) }))
+    .filter((r) => r.visits > 0 || (r.total ?? 0) > 0)
+    .sort((a, b) => b.visits - a.visits || (b.total ?? 0) - (a.total ?? 0) || a.name.localeCompare(b.name))
+    .slice(0, max);
 }
 
 export async function handleRankRequest(req: Request, deps: RankDeps): Promise<Response> {
@@ -58,7 +66,7 @@ export async function handleRankRequest(req: Request, deps: RankDeps): Promise<R
   if (req.method !== "GET") return new Response(JSON.stringify({ error: "method" }), { status: 405, headers });
   try {
     const all = new URL(req.url).searchParams.get("all") === "1";
-    return new Response(JSON.stringify({ days: RANK_DAYS, ranks: await computeRanks(deps, RANK_DAYS, all ? Infinity : RANK_MAX) }), { status: 200, headers });
+    return new Response(JSON.stringify({ days: RANK_DAYS, ranks: await computeRanks(deps, RANK_DAYS, all ? Infinity : RANK_MAX, all) }), { status: 200, headers });
   } catch (e) {
     console.warn("rank failed:", e instanceof Error ? e.message : String(e));
     // An empty list is a quiet front page, never a broken one; and not cached long.

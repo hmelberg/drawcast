@@ -237,7 +237,7 @@ describe("the Join-door checkbox and the claim are wired (source guards — no j
   });
 
   test("Settings → Publishing says what signing in does now, and no longer speaks of an author key", () => {
-    expect(main).toMatch(/own your courses in the teacher dashboard/);
+    expect(main).toMatch(/own your courses \(see them under Your courses/);
     expect(main).not.toMatch(/author key/i);
   });
 

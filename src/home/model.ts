@@ -178,6 +178,8 @@ export function upNext(current: string | undefined, featured: FeaturedEntry[], n
 export interface RankEntry {
   name: string;
   visits: number;
+  /** Every visit since counting began (2026-09-29); only from rank?all=1. */
+  total?: number;
 }
 
 /** What one 👍 is worth against visits in the Popular order: a like is a

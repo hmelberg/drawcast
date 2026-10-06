@@ -2342,12 +2342,13 @@ const settingsBlocks = new Map<string, HTMLElement>([
         "div",
         { class: "settings-row" },
         signInState,
-        h("a", { href: `${DEFAULT_ENROLL_API}/`, target: "_blank", rel: "noopener" }, "Your account"),
+        // The account home is the front page's now (account round, 2026-10-06).
+        h("a", { href: "./?you=account", target: "_blank", rel: "noopener" }, "Your account"),
       ),
       h(
         "div",
         { class: "settings-note" },
-        "Signing in lets you publish to the drawcast server, register drawcast.app/#<name> links, use credit, and own your courses in the teacher dashboard. It opens drawcast.anvil.app and comes straight back. Nothing is stored but a token for this browser — sign out from the account menu, or from the dashboard for every browser at once. Your account page on the server shows the courses you follow, your progress, and the way out of a course.",
+        "Signing in lets you publish to the drawcast server, register drawcast.app/#<name> links, use credit, and own your courses (see them under Your courses, where you also follow learners in the teacher dashboard). It opens drawcast.anvil.app and comes straight back. Nothing is stored but a token for this browser. Your content, courses, credit and signed-in browsers are on the front page: the round button at the top right.",
       ),
     ),
   ],

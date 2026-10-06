@@ -255,7 +255,7 @@ describe("the drawcast server in Share", () => {
   test("says before the click that as-before keeps the server's door, and that a choice is the course's, live", () => {
     const panel = share.slice(share.indexOf("// ---- drawcast server panel"), share.indexOf("// ---- Drive panel"));
     expect(panel).toContain("As before keeps what the server has");
-    expect(panel).toContain("same door the dashboard edits");
+    expect(panel).toContain("same door Your courses and the dashboard edit");
     expect(panel).not.toContain("Every publish sets this anew");
   });
   test("says before the click what unticked narration does, and that plays are not counted here", () => {
@@ -331,9 +331,8 @@ describe("publishServerCast — main.ts's wiring", () => {
     expect(serverCast).toMatch(/`Published to \$\{address\}\$\{door\}, but WITHOUT its narration/);
     expect(serverCast).not.toMatch(/api\/cast\?cast=.*access/);
   });
-  test("Settings links the account home on the server", () => {
-    expect(main).toContain('"Your account"');
-    expect(main).toMatch(/href: `\$\{DEFAULT_ENROLL_API\}\/`/);
+  test("Settings links the account home — the front page's Account tab since 2026-10-06", () => {
+    expect(main).toContain('h("a", { href: "./?you=account", target: "_blank", rel: "noopener" }, "Your account")');
   });
   test("the course panel passes a loud stub, like Drive's", () => {
     expect(course).toMatch(/publishServer: async \(\) => shareStatus\(/);

@@ -3553,7 +3553,7 @@ th[aria-sort="ascending"] .you-sort, th[aria-sort="descending"] .you-sort { colo
    editor alike. They differ in price and storage; the rest is said once. */
 .plans { margin: 0.3rem 0; }
 .plan-intro { margin: 0 0 0.7rem; }
-.plan-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 0.7rem; max-width: 40rem; }
+.plan-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); gap: 0.7rem; max-width: 46rem; }
 .plan-card {
   display: flex; flex-direction: column; gap: 0.25rem; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: 12px;
   background: var(--surface); color: var(--ink);
@@ -3562,7 +3562,11 @@ th[aria-sort="ascending"] .you-sort, th[aria-sort="descending"] .you-sort { colo
 .plan-name { font-weight: 700; }
 .plan-price { font: 1.8rem var(--sketch-font); line-height: 1.1; }
 .plan-price span { font: var(--text-sm) var(--ui-font); color: var(--muted); }
-.plan-store { font-size: var(--text-sm); color: var(--muted); flex: 1; }
+.plan-for { font-size: var(--text-sm); color: var(--muted); margin-bottom: 0.2rem; }
+.plan-gives { list-style: none; margin: 0.3rem 0 0; padding: 0; font-size: var(--text-sm); flex: 1; display: flex; flex-direction: column; gap: 0.2rem; }
+.plan-gives li { padding-left: 1.2rem; position: relative; }
+.plan-gives li::before { content: "✓"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
+.plan-gives li.plan-store { font-weight: 600; }
 .plan-go, .plan-manage {
   margin-top: 0.5rem; align-self: flex-start; padding: 0.35rem 0.9rem; border-radius: 999px; border: 1px solid var(--line);
   background: var(--surface); color: var(--ink); font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer;

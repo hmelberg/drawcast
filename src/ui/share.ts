@@ -976,7 +976,7 @@ function build(): ShareSession {
     signupHint,
   );
   const SIGNUP_HINT_DEFAULT =
-    "the course page gets a Join link: learners sign in to join, and their progress and answers go to the drawcast server, where you see them in the teacher dashboard";
+    "the course page gets a Join link: learners sign in to join, and their progress and answers go to the drawcast server, where you see them under Your courses (the round button at the top right)";
   function refreshSignupChoice(doc: ShareDoc, subject: "drawcast" | "course"): void {
     signupLabel.hidden = subject !== "course";
     signupCb.checked = doc.joinDoor === true;
@@ -1423,7 +1423,7 @@ function build(): ShareSession {
     h(
       "div",
       { class: "hint" },
-      "As before keeps what the server has — enrolled learners and you, on a first publish. A choice here is the course's door, the same door the dashboard edits: it applies at once to every lecture published under this name.",
+      "As before keeps what the server has — enrolled learners and you, on a first publish. A choice here is the course's door, the same door Your courses and the dashboard edit: it applies at once to every lecture published under this name.",
     ),
   );
   // Narration defaults ON here too (spec §4, after round 0's quota
@@ -1440,7 +1440,7 @@ function build(): ShareSession {
   // every anvil/ key (views.ts PRIVATE_OWNERS — a private cast's views are
   // not the public's), so a checkbox would promise something that cannot
   // happen. Enrolled learners' progress is the dashboard's, not a counter's.
-  const serverViewsHint = h("div", { class: "hint" }, "Plays of a cast stored here are not counted publicly; enrolled learners' progress shows in the teacher dashboard.");
+  const serverViewsHint = h("div", { class: "hint" }, "Plays of a cast stored here are not counted publicly; enrolled learners' progress shows under Your courses.");
   const serverSignInHint = h("div", { class: "hint" }, "Publishing here needs your drawcast account. The button below signs you in and brings you straight back.");
   const serverPanel = h(
     "div",

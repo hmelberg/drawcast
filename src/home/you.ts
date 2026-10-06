@@ -189,6 +189,9 @@ export function modelName(id: string): string {
   return m ? `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}.${m[3]}` : id;
 }
 
+/** When the visit counts begin (netlify/lib/name-visits.mts, first deployed). */
+export const COUNTING_SINCE = "29 September 2026";
+
 // ---------- sortable tables ----------
 // Click a heading to sort by it; click again to turn the order round (as in
 // YouTube Studio). Text sorts A→Z first, numbers and dates biggest first.
@@ -196,6 +199,8 @@ export function modelName(id: string): string {
 export type SortValue = string | number;
 export interface Col<T> {
   label: string;
+  /** A tooltip on the heading. */
+  title?: string;
   /** Absent: the column does not sort (an actions column). */
   key?: (t: T) => SortValue;
   cls?: string;
@@ -222,7 +227,8 @@ function sortableTable<T>(cols: Col<T>[], items: T[], rowOf: (t: T) => HTMLTable
   const body = h("tbody", {});
   let { col, dir } = start;
   const ths = cols.map((c, i) => {
-    if (!c.key) return h("th", c.cls ? { class: c.cls } : {}, c.label);
+    const attrs = { ...(c.cls ? { class: c.cls } : {}), ...(c.title ? { title: c.title } : {}) };
+    if (!c.key) return h("th", attrs, c.label);
     const b = h("button", { type: "button", class: "you-sort" }, c.label, h("span", { class: "you-arrow", "aria-hidden": "true" }));
     b.addEventListener("click", () => {
       if (col === i) dir = dir === 1 ? -1 : 1;
@@ -232,7 +238,7 @@ function sortableTable<T>(cols: Col<T>[], items: T[], rowOf: (t: T) => HTMLTable
       }
       draw();
     });
-    return h("th", c.cls ? { class: c.cls } : {}, b);
+    return h("th", attrs, b);
   });
   function draw(): void {
     ths.forEach((th, i) => {
@@ -310,10 +316,12 @@ function contentTable(items: MyItem[], key: string): HTMLElement[] {
   // Views: the public 30-day visit counts (the Popular row's), summed over
   // the item's names — a lecture's visits already count toward its course.
   const views = new Map<MyItem, number | null>(items.map((i) => [i, null]));
-  const cells = new Map<MyItem, HTMLElement>();
+  const totals = new Map<MyItem, number | null>(items.map((i) => [i, null]));
+  const cells = new Map<MyItem, [HTMLElement, HTMLElement]>();
   const rowOf = (i: MyItem): HTMLTableRowElement => {
     const viewsCell = h("td", { class: "you-num", "data-label": "views" }, "…");
-    cells.set(i, viewsCell);
+    const totalCell = h("td", { class: "you-num", "data-label": "all time" }, "…");
+    cells.set(i, [viewsCell, totalCell]);
     const vis = h("span", { class: `you-vis you-vis-${visibility(i).toLowerCase()}` }, visibility(i));
     const acts = h("div", { class: "you-acts" });
     acts.append(
@@ -376,6 +384,7 @@ function contentTable(items: MyItem[], key: string): HTMLElement[] {
       h("td", {}, vis),
       h("td", { class: "you-date" }, i.updated),
       viewsCell,
+      totalCell,
       h("td", { class: "you-acts-cell" }, acts),
     );
   };
@@ -383,16 +392,22 @@ function contentTable(items: MyItem[], key: string): HTMLElement[] {
     { label: "Title", key: (i) => i.title },
     { label: "Visibility", key: (i) => visibility(i) },
     { label: "Updated", key: (i) => i.updated },
-    { label: "Views (30 days)", key: (i) => views.get(i) ?? -1, cls: "you-num" },
+    { label: "Views, 30 days", key: (i) => views.get(i) ?? -1, cls: "you-num" },
+    { label: "All time", key: (i) => totals.get(i) ?? -1, cls: "you-num", title: `Every view since counting began, ${COUNTING_SINCE}` },
     { label: "" },
   ];
   const { table, resort } = sortableTable(cols, items, rowOf, { col: 2, dir: -1 }, "you-table you-content");
   void fetchRanks(fetch, true).then((ranks) => {
     const byName = new Map(ranks.map((r) => [r.name, r.visits]));
+    const totalOf = new Map(ranks.map((r) => [r.name, r.total ?? r.visits]));
+    const sum = (i: MyItem, m: Map<string, number>): number | null => (ranks.length ? i.names.reduce((n, x) => n + (m.get(x.name) ?? 0), 0) : null);
+    const show = (n: number | null): string => (n === null ? "—" : n.toLocaleString("en-US"));
     for (const i of items) {
-      const n = ranks.length ? i.names.reduce((sum, x) => sum + (byName.get(x.name) ?? 0), 0) : null;
-      views.set(i, n);
-      cells.get(i)!.textContent = n === null ? "—" : n.toLocaleString("en-US");
+      views.set(i, sum(i, byName));
+      totals.set(i, sum(i, totalOf));
+      const [v, t] = cells.get(i)!;
+      v.textContent = show(views.get(i)!);
+      t.textContent = show(totals.get(i)!);
     }
     resort();
   });

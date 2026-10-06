@@ -120,7 +120,17 @@ export function planStatus(s: SubStatus): string {
 }
 
 /** Above the cards: why subscribe at all. */
-export const PLAN_INTRO = "Subscribers pay half price for AI and narration: twice what it costs drawcast, instead of four times when you pay with credit alone.";
+export const PLAN_INTRO = "Subscribers pay half price for AI and narration.";
 
-/** Below the cards: what every plan gives besides storage. */
-export const PLAN_EVERY = "Every plan also gives private drawcasts, free unlisting and names at half price. A plan includes no credit; buy that separately.";
+/** Below the cards. */
+export const PLAN_EVERY = "A plan includes no credit; buy that separately.";
+
+/** What each card says it is for (the plans differ only in storage). */
+export const PLAN_FOR: Record<string, string> = {
+  basic: "For trying it out: a few private drawcasts.",
+  pro: "For teaching: a course or two, with narration.",
+  business: "For many courses, or a whole department.",
+};
+
+/** What every plan gives, listed on each card. */
+export const PLAN_GIVES = ["AI and narration at half price", "Private drawcasts and courses", "Unlisting for free", "drawcast.app/#names at half price"];

@@ -6,7 +6,7 @@
 // The plans differ only in price and storage; what every plan gives is said
 // once, under the cards. Light: subscription.ts and ui/dom.ts only.
 
-import { PLAN_INTRO, PLAN_EVERY, planStatus, type SubStatus } from "./subscription";
+import { PLAN_EVERY, PLAN_FOR, PLAN_GIVES, PLAN_INTRO, planStatus, type SubStatus } from "./subscription";
 import { h } from "./ui/dom";
 
 export interface PlanActions {
@@ -32,7 +32,13 @@ export function planCards(sub: SubStatus, act: PlanActions): HTMLElement {
       { class: current ? "plan-card current" : "plan-card" },
       h("div", { class: "plan-name" }, p.label),
       h("div", { class: "plan-price" }, `$${p.cents / 100}`, h("span", {}, " / month")),
-      h("div", { class: "plan-store" }, `${p.quotaMb.toLocaleString("en-US")} MB on the drawcast server`),
+      ...(PLAN_FOR[id] ? [h("div", { class: "plan-for" }, PLAN_FOR[id])] : []),
+      h(
+        "ul",
+        { class: "plan-gives" },
+        h("li", { class: "plan-store" }, `${p.quotaMb.toLocaleString("en-US")} MB stored on the drawcast server`),
+        ...PLAN_GIVES.map((g) => h("li", {}, g)),
+      ),
       foot,
     );
   });
