@@ -131,10 +131,10 @@ export interface AccountOpts {
 /**
  * What the signed-in menu lists, in order: the front page's own pages
  * (?you=, ?list=), credit (the editor's tab inside the editor), keys (the
- * editor's Settings), and the server's account page for what is still only
- * there — signed-in browsers, the teacher's run view.
+ * editor's Settings) and Account (signed-in browsers). The teacher's run
+ * view, still on the server, opens from Your courses.
  */
-export function menuItems(opts: AccountOpts, api: string = DEFAULT_ENROLL_API): MenuItem[] {
+export function menuItems(opts: AccountOpts, _api: string = DEFAULT_ENROLL_API): MenuItem[] {
   const editor = opts.where === "editor";
   const front = (href: string, label: string): MenuItem => ({ label, href, newTab: editor });
   const settings = (tab: string, label: string): MenuItem =>
@@ -150,7 +150,7 @@ export function menuItems(opts: AccountOpts, api: string = DEFAULT_ENROLL_API): 
     // page everywhere else.
     editor && opts.openSettings ? settings("credits", "Credit & plan") : front("./?you=credit", "Credit & plan"),
     settings("keys", "Keys & settings"),
-    { label: "Account on the server", href: `${apiBase(api)}/`, newTab: true },
+    front("./?you=account", "Account"),
   ];
 }
 

@@ -9,7 +9,7 @@
 // Server calls: POST /_/api/my/* (drawcast-anvil server_code/you.py). Text
 // only through h() — every title here is the author's own, but still text.
 
-import { getToken, setToken, signInUrl } from "../account";
+import { getToken, setToken, signInUrl, signOut } from "../account";
 import { forgetMe } from "../account-menu";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
 import { formatPrice } from "../names";
@@ -24,6 +24,7 @@ export const YOU_PAGES = [
   { id: "content", label: "Your content" },
   { id: "courses", label: "Your courses" },
   { id: "credit", label: "Credit & plan" },
+  { id: "account", label: "Account" },
 ] as const;
 export type YouPage = (typeof YOU_PAGES)[number]["id"];
 
@@ -133,6 +134,40 @@ export function parseCourses(b: unknown): { following: Following[]; teaching: Te
 
 export const fetchCourses = (key: string, f?: typeof fetch) => post("/my/courses", { key }, (b, s) => (s === 200 ? parseCourses(b) : null), f);
 export const leaveCourse = (key: string, id: string, f?: typeof fetch) => post("/my/leave", { key, id }, (_b, s) => (s === 200 ? true : null), f);
+export interface Session {
+  label: string;
+  lastUsed: string;
+  current: boolean;
+}
+
+export function parseSessions(b: unknown): { email: string; sessions: Session[] } | null {
+  const o = b as { email?: unknown; sessions?: unknown } | null;
+  if (!o || typeof o.email !== "string" || !Array.isArray(o.sessions)) return null;
+  return {
+    email: o.email,
+    sessions: (o.sessions as Record<string, unknown>[]).map((r) => ({
+      label: typeof r?.label === "string" ? r.label : "a browser",
+      lastUsed: typeof r?.last_used === "string" ? r.last_used : "",
+      current: r?.current === true,
+    })),
+  };
+}
+
+export const fetchSessions = (key: string, f?: typeof fetch) => post("/my/sessions", { key }, (b, s) => (s === 200 ? parseSessions(b) : null), f);
+export const signOutEverywhere = (key: string, f?: typeof fetch) => post("/my/signout-all", { key }, (_b, s) => (s === 200 ? true : null), f);
+
+/** "Mozilla/5.0 (Macintosh; …) … Safari/605" → "Safari on Mac": the label is
+ *  the first 60 characters of the browser's user agent (account.ts redeemToken). */
+export function browserName(label: string): string {
+  const os = /iPhone|iPad/.test(label) ? "iPhone/iPad" : /Android/.test(label) ? "Android" : /Mac/.test(label) ? "Mac" : /Windows/.test(label) ? "Windows" : /Linux/.test(label) ? "Linux" : "";
+  const br = /Edg\//.test(label) ? "Edge" : /Firefox\//.test(label) ? "Firefox" : /Chrome\//.test(label) ? "Chrome" : /Safari\//.test(label) ? "Safari" : /node|curl|skill/i.test(label) ? "A terminal" : "";
+  // The label is cut at 60 characters, often before the browser's own name:
+  // then only the system is known.
+  if (br && os) return `${br} on ${os}`;
+  if (os) return `A browser on ${os}`;
+  return br || label || "A browser";
+}
+
 export const setCourseAccess = (key: string, course: string, access: string, f?: typeof fetch) =>
   post("/my/course-access", { key, course, access }, (_b, s) => (s === 200 ? true : null), f);
 
@@ -258,6 +293,11 @@ export async function youView(which: YouPage, rerender: () => void, returned = "
     const c = await fetchCourses(key);
     if (c === "signin") return ended();
     return [tabs, ...(c === "error" ? [say("Your courses can't be reached right now.", "error")] : coursesPage(c, key, rerender))];
+  }
+  if (which === "account") {
+    const a = await fetchSessions(key);
+    if (a === "signin") return ended();
+    return [tabs, ...(a === "error" ? [say("Your account can't be reached right now.", "error")] : accountPage(a, key))];
   }
   return [tabs, ...(await creditPage(key, returned))];
 }
@@ -438,6 +478,55 @@ function coursesPage(c: { following: Following[]; teaching: Teaching[] }, key: s
     h("h3", { class: "you-h" }, "Teaching"),
     ...(teaching.length ? teaching : [say("Publish a course from the editor while signed in and it shows here.")]),
     status,
+  ];
+}
+
+// ---------- Account ----------
+
+function accountPage(a: { email: string; sessions: Session[] }, key: string): HTMLElement[] {
+  const status = say("");
+  const leaveHere = (): void => {
+    setToken("");
+    forgetMe();
+    location.href = "./";
+  };
+  const thisOne = action("Sign out of this browser", async () => {
+    await signOut(DEFAULT_ENROLL_API, key);
+    leaveHere();
+  });
+  let armed = false;
+  const everywhere = action("Sign out everywhere", async (b) => {
+    // Two presses, not a browser dialog: every other device signs out too.
+    if (!armed) {
+      armed = true;
+      b.textContent = "Sign out every browser, this one too";
+      setTimeout(() => {
+        armed = false;
+        b.textContent = "Sign out everywhere";
+      }, 4000);
+      return;
+    }
+    const out = await signOutEverywhere(key);
+    if (out === true || out === "signin") leaveHere();
+    else status.textContent = "Could not sign out everywhere — try again.";
+  });
+  return [
+    h("div", { class: "you-balance" }, h("div", { class: "you-sub" }, "Signed in as"), h("div", { class: "you-email" }, a.email)),
+    h("h3", { class: "you-h" }, "Signed-in browsers"),
+    ...(a.sessions.length
+      ? a.sessions.map((s) =>
+          h(
+            "div",
+            { class: "you-course" },
+            h("div", {}, h("span", { class: "you-course-title" }, browserName(s.label)), h("div", { class: "you-sub" }, [s.current ? "This browser" : "", s.lastUsed ? `last used ${s.lastUsed}` : ""].filter(Boolean).join(" · "))),
+          ),
+        )
+      : [say("No other browser is signed in.")]),
+    h("div", { class: "you-acts" }, thisOne, everywhere),
+    status,
+    h("h3", { class: "you-h" }, "On the drawcast server"),
+    say("Teachers: a run's learners, answers and settings open from Your courses. The server's own account page is here:"),
+    h("a", { class: "you-btn", href: `${apiBase(DEFAULT_ENROLL_API)}/`, target: "_blank", rel: "noopener" }, "drawcast.anvil.app"),
   ];
 }
 

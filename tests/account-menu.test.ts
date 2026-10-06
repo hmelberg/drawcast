@@ -40,7 +40,7 @@ describe("account menu", () => {
 
   test("on the front page, items are its own pages; only keys open the editor's Settings by hash", () => {
     const items = menuItems({ where: "home" }, API);
-    expect(items.map((i) => i.label)).toEqual(["Your content", "Your courses", "Saved", "Liked", "Watch history", "Credit & plan", "Keys & settings", "Account on the server"]);
+    expect(items.map((i) => i.label)).toEqual(["Your content", "Your courses", "Saved", "Liked", "Watch history", "Credit & plan", "Keys & settings", "Account"]);
     expect(items.find((i) => i.label === "Credit & plan")).toEqual({ label: "Credit & plan", href: "./?you=credit", newTab: false });
     expect(items.find((i) => i.label === "Keys & settings")).toEqual({ label: "Keys & settings", href: "./#settings=keys" });
     expect(items.find((i) => i.label === "Your content")).toEqual({ label: "Your content", href: "./?you=content", newTab: false });
@@ -51,7 +51,7 @@ describe("account menu", () => {
     const items = menuItems({ where: "editor", openSettings: (t) => opened.push(t) }, API);
     expect(items.find((i) => i.label === "Saved")?.newTab).toBe(true);
     expect(items[0]).toEqual({ label: "Your content", href: "./?you=content", newTab: true });
-    expect(items.at(-1)).toEqual({ label: "Account on the server", href: `${API}/`, newTab: true });
+    expect(items.at(-1)).toEqual({ label: "Account", href: "./?you=account", newTab: true });
     items.find((i) => i.label === "Credit & plan")!.run!();
     expect(opened).toEqual(["credits"]);
   });

@@ -1,6 +1,6 @@
 // The front page's "You" pages: the client half (src/home/you.ts).
 import { describe, expect, test } from "vitest";
-import { firstDir, sortBy, modelName, fetchCourses, fetchItemKey, fetchItems, fetchVisits, leaveCourse, parseItems, parseYou, setCourseAccess, visibility, type MyItem } from "../src/home/you";
+import { browserName, parseSessions, firstDir, sortBy, modelName, fetchCourses, fetchItemKey, fetchItems, fetchVisits, leaveCourse, parseItems, parseYou, setCourseAccess, visibility, type MyItem } from "../src/home/you";
 
 const API = "https://drawcast.anvil.app";
 function fake(status: number, body: unknown, seen: { url?: string; body?: unknown }[] = []): typeof fetch {
@@ -96,5 +96,20 @@ describe("you pages", () => {
     expect(firstDir("Moon")).toBe(1);
     expect(firstDir("2026-10-04")).toBe(-1);
     expect(firstDir(12)).toBe(-1);
+  });
+
+  test("sessions: the asking browser marked, nothing else read", () => {
+    expect(parseSessions({ email: "a@b", sessions: [{ label: "x", last_used: "2026-10-06", current: true, secret: "never" }] })).toEqual({
+      email: "a@b",
+      sessions: [{ label: "x", lastUsed: "2026-10-06", current: true }],
+    });
+    expect(parseSessions({ sessions: [] })).toBeNull();
+  });
+  test("a browser label reads as a browser and a system", () => {
+    expect(browserName("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18 Safari/605")).toBe("Safari on Mac");
+    // cut at 60 characters, as the server keeps it: only the system is known
+    expect(browserName("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit")).toBe("A browser on Mac");
+    expect(browserName("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130")).toBe("Chrome on Windows");
+    expect(browserName("a browser")).toBe("a browser");
   });
 });
