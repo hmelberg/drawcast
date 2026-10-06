@@ -404,6 +404,7 @@ export function saveSettings(s: Settings): void {
  */
 export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
   { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
+  { id: "credits", label: "Credits", fields: ["credits"] },
   { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "mathFont", "mathHand", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "questionMode", "burnCaptions"] },
   { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "account", "coursesDir", "giscus"] },
   { id: "advanced", label: "Advanced", fields: ["contactEmail", "developerMode", "visualRepair", "backup"] },

@@ -18,7 +18,7 @@ describe("main.ts publishTextFor — key order (ruling 1: own/vended key, then c
   const fn = main.slice(main.indexOf("async function publishTextFor("), main.indexOf("const size = bakeSize(track);"));
 
   test("imports the credit synthesizer and its error", () => {
-    expect(main).toContain('import { CreditError, creditInHash, serverSynthesize } from "./credit";');
+    expect(main).toMatch(/import \{ CreditError, creditBalance, creditInHash, creditStatement, describeRow, serverSynthesize, startCreditPayment \} from "\.\/credit";/);
   });
 
   test("getTtsKey() (own or vended — store.ts conflates the two) is read before getToken()", () => {
@@ -129,7 +129,7 @@ describe("the Stripe return for a credit purchase (registry delivery 3) — cred
   test("reads location.hash, clears it, and reports the outcome — never reopening Share", () => {
     expect(fn).toContain("history.replaceState(null, \"\", location.pathname + location.search);");
     expect(fn).toContain('creditReturn.outcome === "creditpaid"');
-    expect(fn).toMatch(/Narration credit added — \$\{creditReturn\.cents \/ 100\} USD\./);
+    expect(fn).toContain('Credit added — ${creditReturn.cents.toLocaleString("en-US")} credits.');
     expect(fn).toContain('setStatus("Credit was not bought — nothing was charged.");');
   });
 

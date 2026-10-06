@@ -8,6 +8,7 @@ const call = (model: string, input: number, cacheRead: number, cacheWrite: numbe
 describe("priceFor", () => {
   test("matches by prefix, dated ids and fallbacks included; unknown is priced as Opus", () => {
     expect(priceFor("claude-opus-5")).toEqual({ input: 5, output: 25 });
+    expect(priceFor("claude-opus-5-5")).toEqual({ input: 4, output: 20 });
     expect(priceFor("claude-sonnet-5")).toEqual({ input: 2, output: 10 });
     expect(priceFor("claude-haiku-4-5-20251001")).toEqual({ input: 1, output: 5 });
     expect(priceFor("claude-fable-5-1")).toEqual({ input: 10, output: 50 });

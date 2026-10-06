@@ -70,6 +70,8 @@ import { SPEC_VERSION } from "../spec/schema";
 import { h } from "./dom";
 import { createModal } from "./modal";
 import { openShare, payListedFields, type ShareDeps } from "./share";
+import { NO_LLM_KEY, usingCredit } from "../llm/key";
+import { creditRange, formatCreditRange } from "../llm/credit-estimate";
 
 export function lectureRowLabel(lecture: CourseLecture): string {
   const status = lecture.status;
@@ -118,6 +120,8 @@ export interface CoursePanelDeps extends CourseShareDeps {
   /** The look pass's eyes (export/beat-sheet.ts); used when Settings.lookPass is on, as for a single figure. */
   look?: GenerateConfig["look"];
   setStatus: (text: string, kind?: "ok" | "error") => void;
+  /** On credit: the sentence that stops a run the balance cannot cover (main.ts creditPreflight), or null. */
+  creditPreflight?: (usd: number) => Promise<string | null>;
   /** Load a saved drawcast into the main editor/player. */
   openDrawing: (id: string) => void;
   /**
@@ -560,7 +564,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   async function reviseLecture(id: string, instruction: string, note: HTMLInputElement): Promise<void> {
     const key = deps.apiKey();
     if (!key) {
-      say("Add an API key in Settings first.", "error");
+      say(NO_LLM_KEY, "error");
       return;
     }
     const saved = loadLibrary().find((d) => d.id === id);
@@ -701,7 +705,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   async function plan(): Promise<void> {
     const key = deps.apiKey();
     if (!key) {
-      say("Add an API key in Settings first.", "error");
+      say(NO_LLM_KEY, "error");
       return;
     }
     const request = ask.value.trim();
@@ -750,7 +754,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   async function revise(): Promise<void> {
     const key = deps.apiKey();
     if (!key) {
-      say("Add an API key in Settings first.", "error");
+      say(NO_LLM_KEY, "error");
       return;
     }
     if (!doc.value.trim()) {
@@ -836,7 +840,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
   async function run(opts: { only?: number } = {}): Promise<void> {
     const key = deps.apiKey();
     if (!key) {
-      say("Add an API key in Settings first.", "error");
+      say(NO_LLM_KEY, "error");
       return;
     }
     if (runsActive > 0) {
@@ -861,7 +865,14 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       // measured one (Settings.costPerPart), from a rough prior until then.
       const modelLabel = (MODELS.find((m) => m.id === deps.model())?.label ?? deps.model()).split(" — ")[0];
       const costEstimate = estimateCourseUsd(course, deps.model(), deps.settings.effort, deps.settings.costPerPart, deps.settings.lookPass);
-      const costNote = `\n${formatCourseEstimate(costEstimate, modelLabel, deps.settings.effort)}`;
+      const costNote = usingCredit()
+        ? `\nOn credit: ${formatCreditRange(creditRange(costEstimate.usd))} for the AI calls with ${modelLabel} — charged at what they actually cost, when each ends.`
+        : `\n${formatCourseEstimate(costEstimate, modelLabel, deps.settings.effort)}`;
+      const blocked = await deps.creditPreflight?.(costEstimate.usd);
+      if (blocked) {
+        say(blocked, "error");
+        return;
+      }
       // Narration is paid LATER (Publish → Embed narration), but the size of
       // that later bill belongs in this confirm (Hans 2026-09-02): projected
       // from the lectures generated so far, or from a measured typical
