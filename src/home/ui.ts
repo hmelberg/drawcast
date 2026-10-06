@@ -4,7 +4,7 @@
 
 import { getToken } from "../account";
 import { accountButton } from "../account-menu";
-import { apiBase, DEFAULT_ENROLL_API } from "../learn";
+import { YOU_PAGES } from "./you";
 import { h } from "../ui/dom";
 import { FORMAT_BADGE, FORMAT_CHIPS, homeHref, thumbUrl, type HomeCard } from "./model";
 import { MY_LISTS } from "./my-lists";
@@ -157,7 +157,7 @@ function buildMenu(topics: string[]): { open: () => void } {
       "You",
       ...MY_LISTS.filter((l) => signedIn || l.id === "history").map((l) => link(`./?list=${l.id}`, l.label, new URLSearchParams(location.search).get("list") === l.id)),
       // Sign in and out live on the account button (top right) now.
-      ...(signedIn ? [link(`${apiBase(DEFAULT_ENROLL_API)}/`, "Your drawcasts & courses")] : []),
+      ...(signedIn ? YOU_PAGES.map((p) => link(`./?you=${p.id}`, p.label, new URLSearchParams(location.search).get("you") === p.id)) : []),
       link("#create", "＋ Create a drawcast"),
       link("./help.html", "Help"),
     ),

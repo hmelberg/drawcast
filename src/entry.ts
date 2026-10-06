@@ -64,7 +64,11 @@ async function boot(): Promise<void> {
   // Bare drawcast.app (2026-10-03): the front page — drawcasts to see and
   // find. The editor is #create (a reserved name, so it falls through to the
   // app below, like every hash no branch here claims).
-  if (hash === "" || hash === "#") {
+  // Stripe's way back to the front page's Credit & plan (?you=credit with
+  // #creditpaid= / #creditunpaid= / #subscribed=, account round delivery 2):
+  // the front page says how it went, not the editor.
+  const youReturn = /^#(creditpaid|creditunpaid|subscribed)=/.test(hash) && new URLSearchParams(location.search).has("you");
+  if (hash === "" || hash === "#" || youReturn) {
     const { runHome } = await import("./home");
     doneBooting();
     runHome();

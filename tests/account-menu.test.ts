@@ -38,18 +38,20 @@ describe("account menu", () => {
     expect(planText({ ...ME, plan: null, planLabel: null })).toBe("No plan");
   });
 
-  test("on the front page, items are links; credit and keys open the editor's Settings by hash", () => {
+  test("on the front page, items are its own pages; only keys open the editor's Settings by hash", () => {
     const items = menuItems({ where: "home" }, API);
-    expect(items.map((i) => i.label)).toEqual(["Your drawcasts & courses", "Saved", "Liked", "Watch history", "Credit & plan", "Keys & settings"]);
-    expect(items.find((i) => i.label === "Credit & plan")).toEqual({ label: "Credit & plan", href: "./#settings=credits" });
-    expect(items.find((i) => i.label === "Saved")?.newTab).toBe(false);
+    expect(items.map((i) => i.label)).toEqual(["Your content", "Your courses", "Saved", "Liked", "Watch history", "Credit & plan", "Keys & settings", "Account on the server"]);
+    expect(items.find((i) => i.label === "Credit & plan")).toEqual({ label: "Credit & plan", href: "./?you=credit", newTab: false });
+    expect(items.find((i) => i.label === "Keys & settings")).toEqual({ label: "Keys & settings", href: "./#settings=keys" });
+    expect(items.find((i) => i.label === "Your content")).toEqual({ label: "Your content", href: "./?you=content", newTab: false });
   });
 
   test("in the editor, front-page items open a new tab and Settings is this page's dialog", () => {
     const opened: (string | undefined)[] = [];
     const items = menuItems({ where: "editor", openSettings: (t) => opened.push(t) }, API);
     expect(items.find((i) => i.label === "Saved")?.newTab).toBe(true);
-    expect(items[0]).toEqual({ label: "Your drawcasts & courses", href: `${API}/`, newTab: true });
+    expect(items[0]).toEqual({ label: "Your content", href: "./?you=content", newTab: true });
+    expect(items.at(-1)).toEqual({ label: "Account on the server", href: `${API}/`, newTab: true });
     items.find((i) => i.label === "Credit & plan")!.run!();
     expect(opened).toEqual(["credits"]);
   });

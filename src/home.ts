@@ -19,6 +19,7 @@ import { fetchRanks } from "./home/rank";
 import { byNewest, byScore, feedQuery, fetchFeed, sameFeed, storedFeed, topicRows, type FeedScore, type HomeFeed } from "./home/feed";
 import { clearHistory, fetchMyList, MY_LISTS, parseMyList, readHistory, type MyList } from "./home/my-lists";
 import { getToken, setToken, signInUrl } from "./account";
+import { parseYou, youView, type YouPage } from "./home/you";
 import {
   cardFromCatalogue,
   cardFromFeatured,
@@ -83,6 +84,11 @@ export function runHome(): void {
   let chip = (FORMAT_CHIPS.some((c) => c.id === params.get("f")) ? params.get("f") : "") as "" | HomeFormat;
   // ?list=saved|liked|history (save round, 2026-10-04): the viewer's own list instead of the rows.
   let list: MyList | null = parseMyList(params.get("list"));
+  // ?you=content|courses|credit (account round delivery 2): your own pages.
+  let you: YouPage | null = parseYou(params.get("you"));
+  // Stripe comes back to ?you=credit with the outcome in the fragment
+  // (entry.ts routes it here); render() rewrites the address, so take it now.
+  let returned = you ? location.hash : "";
 
   const { root: top } = topBar(
     q,
@@ -93,10 +99,11 @@ export function runHome(): void {
     { topics: tagRows(featured).map((r) => r.tag) },
   );
   const chipButtons = FORMAT_CHIPS.map((c) => {
-    const b = h("button", { type: "button", class: "home-chip", "aria-pressed": String(!list && c.id === chip) }, c.label) as HTMLButtonElement;
+    const b = h("button", { type: "button", class: "home-chip", "aria-pressed": String(!list && !you && c.id === chip) }, c.label) as HTMLButtonElement;
     b.addEventListener("click", () => {
       chip = c.id;
       list = null;
+      you = null;
       for (const [i, x] of chipButtons.entries()) x.setAttribute("aria-pressed", String(FORMAT_CHIPS[i].id === chip));
       void render();
     });
@@ -132,11 +139,13 @@ export function runHome(): void {
     // The address keeps what is shown, so a reload or a shared link reopens it.
     const next = new URLSearchParams();
     // A search leaves the list for the front page's own views (a chip does, on its click).
-    if (q) list = null;
+    if (q) list = you = null;
     if (list) next.set("list", list);
+    if (you) next.set("you", you);
     if (q) next.set("q", q);
     if (chip) next.set("f", chip);
     history.replaceState(null, "", `${location.pathname}${next.toString() ? `?${next}` : ""}`);
+    chips.hidden = you !== null; // your own pages are not the catalogue
     // From a kept feed the page is drawn at once: no "Loading…" flash.
     if (!feed) main.replaceChildren(note("Loading…"));
     const parts = await view();
@@ -177,6 +186,11 @@ export function runHome(): void {
   }
 
   async function view(): Promise<(HTMLElement | null)[]> {
+    if (you) {
+      const r = returned;
+      returned = "";
+      return youView(you, () => void render(), r);
+    }
     if (list) return listView(list);
     const format = chip && chip !== "course" ? chip : undefined;
     if (q) {

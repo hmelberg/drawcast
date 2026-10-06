@@ -121,7 +121,8 @@ describe("routing", () => {
   const main = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
   const home = readFileSync(new URL("../src/home.ts", import.meta.url), "utf8");
   test("bare drawcast.app is the front page, checked before every other route", () => {
-    const at = entry.indexOf('if (hash === "" || hash === "#") {');
+    // …and Stripe's way back to ?you=credit (account round delivery 2).
+    const at = entry.indexOf('if (hash === "" || hash === "#" || youReturn) {');
     expect(at).toBeGreaterThan(0);
     expect(entry.slice(at, at + 200)).toContain('await import("./home")');
     expect(at).toBeLessThan(entry.indexOf('hash === "#browse"'));

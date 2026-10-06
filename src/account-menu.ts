@@ -129,9 +129,10 @@ export interface AccountOpts {
 }
 
 /**
- * What the signed-in menu lists, in order. Your content and courses still
- * live on the server's account page (drawcast.anvil.app) until the front
- * page has its own; credit and keys are the editor's Settings.
+ * What the signed-in menu lists, in order: the front page's own pages
+ * (?you=, ?list=), credit (the editor's tab inside the editor), keys (the
+ * editor's Settings), and the server's account page for what is still only
+ * there — signed-in browsers, the teacher's run view.
  */
 export function menuItems(opts: AccountOpts, api: string = DEFAULT_ENROLL_API): MenuItem[] {
   const editor = opts.where === "editor";
@@ -139,12 +140,17 @@ export function menuItems(opts: AccountOpts, api: string = DEFAULT_ENROLL_API): 
   const settings = (tab: string, label: string): MenuItem =>
     editor && opts.openSettings ? { label, run: () => opts.openSettings!(tab) } : { label, href: `./#settings=${tab}` };
   return [
-    { label: "Your drawcasts & courses", href: `${apiBase(api)}/`, newTab: true },
+    front("./?you=content", "Your content"),
+    front("./?you=courses", "Your courses"),
     front("./?list=saved", "Saved"),
     front("./?list=liked", "Liked"),
     front("./?list=history", "Watch history"),
-    settings("credits", "Credit & plan"),
+    // Credit in both places, one code (2026-10-06): the editor's own tab, so
+    // running out mid-generation never leaves the page; the front page's
+    // page everywhere else.
+    editor && opts.openSettings ? settings("credits", "Credit & plan") : front("./?you=credit", "Credit & plan"),
     settings("keys", "Keys & settings"),
+    { label: "Account on the server", href: `${apiBase(api)}/`, newTab: true },
   ];
 }
 
