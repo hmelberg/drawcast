@@ -3542,6 +3542,37 @@ input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; b
 .you-runs { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .you-balance { margin: 0.4rem 0 0.6rem; }
 .you-big { font: 2rem var(--sketch-font); }
+/* Sortable headings (click to sort, again to reverse). */
+.you-sort { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; white-space: nowrap; }
+.you-sort:hover { color: var(--ink); }
+th[aria-sort="ascending"] .you-sort, th[aria-sort="descending"] .you-sort { color: var(--ink); }
+.you-table th.you-num { text-align: right; }
+
+/* The plans as three cards side by side (plan-cards.ts): front page and
+   editor alike. They differ in price and storage; the rest is said once. */
+.plans { margin: 0.3rem 0; }
+.plan-intro { margin: 0 0 0.7rem; }
+.plan-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 0.7rem; max-width: 40rem; }
+.plan-card {
+  display: flex; flex-direction: column; gap: 0.25rem; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--ink);
+}
+.plan-card.current { border: 2px solid var(--steel); padding: calc(0.9rem - 1px) calc(1rem - 1px); }
+.plan-name { font-weight: 700; }
+.plan-price { font: 1.8rem var(--sketch-font); line-height: 1.1; }
+.plan-price span { font: var(--text-sm) var(--ui-font); color: var(--muted); }
+.plan-store { font-size: var(--text-sm); color: var(--muted); flex: 1; }
+.plan-go, .plan-manage {
+  margin-top: 0.5rem; align-self: flex-start; padding: 0.35rem 0.9rem; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); font: inherit; font-size: var(--text-sm); font-weight: 600; cursor: pointer;
+}
+.plan-go { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.plan-go:hover, .plan-manage:hover { opacity: 0.88; }
+.plan-go:disabled, .plan-manage:disabled { opacity: 0.6; cursor: wait; }
+.plan-mine { margin-top: 0.5rem; font-size: var(--text-sm); font-weight: 700; color: var(--steel); }
+.plan-every { font-size: var(--text-sm); color: var(--muted); margin: 0.7rem 0 0.3rem; }
+.plan-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; font-size: var(--text-sm); }
+.plan-status .plan-manage { margin-top: 0; }
 /* Phones: each item a card (YouTube Studio's mobile list) — title, then
    visibility · date · views on one line, then the actions. */
 @media (max-width: 600px) {

@@ -14,8 +14,11 @@ import { forgetMe } from "../account-menu";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
 import { formatPrice } from "../names";
 import { setListing } from "../registry";
-import { openPortal, startSubscription, subLine, subStatus, subscribedInHash, SUB_BENEFITS } from "../subscription";
+import type { StatementRow } from "../credit";
+import { planCards } from "../plan-cards";
+import { openPortal, startSubscription, subStatus, subscribedInHash } from "../subscription";
 import { h } from "../ui/dom";
+import { fetchRanks } from "./rank";
 
 export const YOU_PAGES = [
   { id: "content", label: "Your content" },
@@ -151,6 +154,64 @@ export function modelName(id: string): string {
   return m ? `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}.${m[3]}` : id;
 }
 
+// ---------- sortable tables ----------
+// Click a heading to sort by it; click again to turn the order round (as in
+// YouTube Studio). Text sorts A→Z first, numbers and dates biggest first.
+
+export type SortValue = string | number;
+export interface Col<T> {
+  label: string;
+  /** Absent: the column does not sort (an actions column). */
+  key?: (t: T) => SortValue;
+  cls?: string;
+}
+
+/** `items` ordered by `key`, `dir` 1 ascending, -1 descending; stable. */
+export function sortBy<T>(items: T[], key: (t: T) => SortValue, dir: 1 | -1): T[] {
+  return items
+    .map((t, i) => ({ t, i, v: key(t) }))
+    .sort((a, b) => {
+      const c = typeof a.v === "number" && typeof b.v === "number" ? a.v - b.v : String(a.v).localeCompare(String(b.v), undefined, { sensitivity: "base", numeric: true });
+      return c * dir || a.i - b.i;
+    })
+    .map((x) => x.t);
+}
+
+/** The first click's direction: A→Z for text, biggest first otherwise. */
+export function firstDir(sample: SortValue | undefined): 1 | -1 {
+  return typeof sample === "string" && !/^\d{4}-\d\d-\d\d/.test(sample) ? 1 : -1;
+}
+
+function sortableTable<T>(cols: Col<T>[], items: T[], rowOf: (t: T) => HTMLTableRowElement, start: { col: number; dir: 1 | -1 }, cls = "you-table"): { table: HTMLElement; resort: () => void } {
+  const rows = new Map(items.map((t) => [t, rowOf(t)]));
+  const body = h("tbody", {});
+  let { col, dir } = start;
+  const ths = cols.map((c, i) => {
+    if (!c.key) return h("th", c.cls ? { class: c.cls } : {}, c.label);
+    const b = h("button", { type: "button", class: "you-sort" }, c.label, h("span", { class: "you-arrow", "aria-hidden": "true" }));
+    b.addEventListener("click", () => {
+      if (col === i) dir = dir === 1 ? -1 : 1;
+      else {
+        col = i;
+        dir = firstDir(items.length ? c.key!(items[0]) : undefined);
+      }
+      draw();
+    });
+    return h("th", c.cls ? { class: c.cls } : {}, b);
+  });
+  function draw(): void {
+    ths.forEach((th, i) => {
+      if (!cols[i].key) return;
+      th.setAttribute("aria-sort", i === col ? (dir === 1 ? "ascending" : "descending") : "none");
+      const arrow = th.querySelector(".you-arrow");
+      if (arrow) arrow.textContent = i === col ? (dir === 1 ? " ▲" : " ▼") : "";
+    });
+    body.replaceChildren(...sortBy(items, cols[col].key!, dir).map((t) => rows.get(t)!));
+  }
+  draw();
+  return { table: h("div", { class: "you-table-wrap" }, h("table", { class: cls }, h("thead", {}, h("tr", {}, ...ths)), body)), resort: draw };
+}
+
 // ---------- pages ----------
 
 const title = (text: string): HTMLElement => h("h2", { class: "home-list-title" }, text);
@@ -206,11 +267,13 @@ export async function youView(which: YouPage, rerender: () => void, returned = "
 function contentTable(items: MyItem[], key: string): HTMLElement[] {
   if (!items.length) return [say("Nothing published yet. Publish from the editor while signed in and it shows here."), h("a", { class: "home-create", href: "#create" }, "＋ Create")];
   const status = say("");
-  const rows = items.map((i) => {
-    const views = h("td", { class: "you-num", "data-label": "views" }, "…");
-    const name = i.names.find((n) => n.free)?.name ?? i.names[0]?.name;
-    if (name) void fetchVisits(key, name).then((n) => (views.textContent = typeof n === "number" ? n.toLocaleString("en-US") : "—"));
-    else views.textContent = "—";
+  // Views: the public 30-day visit counts (the Popular row's), summed over
+  // the item's names — a lecture's visits already count toward its course.
+  const views = new Map<MyItem, number | null>(items.map((i) => [i, null]));
+  const cells = new Map<MyItem, HTMLElement>();
+  const rowOf = (i: MyItem): HTMLTableRowElement => {
+    const viewsCell = h("td", { class: "you-num", "data-label": "views" }, "…");
+    cells.set(i, viewsCell);
     const vis = h("span", { class: `you-vis you-vis-${visibility(i).toLowerCase()}` }, visibility(i));
     const acts = h("div", { class: "you-acts" });
     acts.append(
@@ -272,21 +335,29 @@ function contentTable(items: MyItem[], key: string): HTMLElement[] {
       ),
       h("td", {}, vis),
       h("td", { class: "you-date" }, i.updated),
-      views,
+      viewsCell,
       h("td", { class: "you-acts-cell" }, acts),
     );
+  };
+  const cols: Col<MyItem>[] = [
+    { label: "Title", key: (i) => i.title },
+    { label: "Visibility", key: (i) => visibility(i) },
+    { label: "Updated", key: (i) => i.updated },
+    { label: "Views (30 days)", key: (i) => views.get(i) ?? -1, cls: "you-num" },
+    { label: "" },
+  ];
+  const { table, resort } = sortableTable(cols, items, rowOf, { col: 2, dir: -1 }, "you-table you-content");
+  void fetchRanks(fetch, true).then((ranks) => {
+    const byName = new Map(ranks.map((r) => [r.name, r.visits]));
+    for (const i of items) {
+      const n = ranks.length ? i.names.reduce((sum, x) => sum + (byName.get(x.name) ?? 0), 0) : null;
+      views.set(i, n);
+      cells.get(i)!.textContent = n === null ? "—" : n.toLocaleString("en-US");
+    }
+    resort();
   });
   return [
-    h(
-      "div",
-      { class: "you-table-wrap" },
-      h(
-        "table",
-        { class: "you-table you-content" },
-        h("thead", {}, h("tr", {}, h("th", {}, "Title"), h("th", {}, "Visibility"), h("th", {}, "Updated"), h("th", { class: "you-num" }, "Views (30 days)"), h("th", {}, ""))),
-        h("tbody", {}, ...rows),
-      ),
-    ),
+    table,
     status,
   ];
 }
@@ -395,58 +466,50 @@ async function creditPage(key: string, returned: string): Promise<HTMLElement[]>
     }),
   );
   const balance = typeof st === "object" ? `${st.credits.toLocaleString("en-US")} credits` : "—";
+  const stmtRow = (r: StatementRow): HTMLTableRowElement =>
+    h(
+      "tr",
+      {},
+      h("td", { class: "you-date" }, r.at ? new Date(r.at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : ""),
+      h("td", {}, describeRow(r, modelName)),
+      h("td", { class: `you-num${r.credits < 0 ? " out" : ""}` }, `${r.credits > 0 ? "+" : ""}${r.credits.toLocaleString("en-US", { maximumFractionDigits: 2 })}`),
+    );
   const rows =
     typeof st === "object" && st.rows.length
-      ? h(
-          "div",
-          { class: "you-table-wrap" },
-          h(
-            "table",
-            { class: "you-table" },
-            h("thead", {}, h("tr", {}, h("th", {}, "When"), h("th", {}, "What"), h("th", { class: "you-num" }, "Credits"))),
-            h(
-              "tbody",
-              {},
-              ...st.rows.map((r) =>
-                h(
-                  "tr",
-                  {},
-                  h("td", { class: "you-date" }, r.at ? new Date(r.at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : ""),
-                  h("td", {}, describeRow(r, modelName)),
-                  h("td", { class: `you-num${r.credits < 0 ? " out" : ""}` }, `${r.credits > 0 ? "+" : ""}${r.credits.toLocaleString("en-US", { maximumFractionDigits: 2 })}`),
-                ),
-              ),
-            ),
-          ),
-        )
+      ? sortableTable<StatementRow>(
+          [
+            { label: "When", key: (r) => r.at ?? "" },
+            { label: "What", key: (r) => describeRow(r, modelName) },
+            { label: "Credits", key: (r) => r.credits, cls: "you-num" },
+          ],
+          st.rows,
+          stmtRow,
+          { col: 0, dir: -1 },
+        ).table
       : say(typeof st === "object" ? "No credit used yet." : "The statement can't be reached right now.", typeof st === "object" ? "" : "error");
-  const plan: HTMLElement[] = [];
-  if (typeof sub === "object") {
-    plan.push(say(subLine(sub)));
-    if (!sub.active)
-      plan.push(
-        h(
-          "div",
-          { class: "you-acts" },
-          ...Object.entries(sub.plans).map(([id, p]) =>
-            action(`${p.label} — $${p.cents / 100}/month · ${p.quotaMb} MB`, async () => {
-              const out = await startSubscription(DEFAULT_ENROLL_API, { key, plan: id, return: here });
-              if (typeof out === "object") location.href = out.url;
-              else status.textContent = out === "closed" ? "Subscriptions are not open yet — drawcast is in testing mode." : out === "subscribed" ? "You already subscribe — change plan under Manage." : "Could not open the checkout — try again.";
-            }),
-          ),
-        ),
-      );
-    if (sub.manageable)
-      plan.push(
-        action("Manage subscription", async () => {
-          const out = await openPortal(DEFAULT_ENROLL_API, { key, return: here });
-          if (typeof out === "object") location.href = out.url;
-          else status.textContent = "Could not open the subscription page — try again.";
-        }),
-      );
-    plan.push(say(SUB_BENEFITS));
-  } else plan.push(say("Your plan can't be reached right now.", "error"));
+  const plan: HTMLElement[] =
+    typeof sub === "object"
+      ? [
+          planCards(sub, {
+            subscribe: (id, b) => {
+              b.disabled = true;
+              void startSubscription(DEFAULT_ENROLL_API, { key, plan: id, return: here }).then((out) => {
+                b.disabled = false;
+                if (typeof out === "object") location.href = out.url;
+                else status.textContent = out === "closed" ? "Subscriptions are not open yet — drawcast is in testing mode." : out === "subscribed" ? "You already subscribe — change plan under Manage subscription." : "Could not open the checkout — try again.";
+              });
+            },
+            manage: (b) => {
+              b.disabled = true;
+              void openPortal(DEFAULT_ENROLL_API, { key, return: here }).then((out) => {
+                b.disabled = false;
+                if (typeof out === "object") location.href = out.url;
+                else status.textContent = "Could not open the subscription page — try again.";
+              });
+            },
+          }),
+        ]
+      : [say("Your plan can't be reached right now.", "error")];
   return [
     status,
     h("div", { class: "you-balance" }, h("div", { class: "you-big" }, balance), h("div", { class: "you-sub" }, "100 credits = $1. Credit pays for AI and narration when you don't use your own keys.")),

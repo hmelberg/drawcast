@@ -5,7 +5,8 @@
 // an hour, so a busy front page costs one count an hour.
 //
 // GET -> { days: 30, ranks: [{ name, visits }] } — at most 50, most visited
-// first, names with no visit left out. Public: the totals are what the
+// first, names with no visit left out. GET ?all=1 -> the same for EVERY name
+// with a visit (the front page's Your content, 2026-10-06: views per item). Public: the totals are what the
 // front page shows anyway; nothing per visitor is in them.
 import { getStore } from "@netlify/blobs";
 import { dayString } from "../lib/view-key.mts";
@@ -51,10 +52,13 @@ export async function handleRankRequest(req: Request, deps: RankDeps): Promise<R
     "access-control-allow-origin": "*",
     "cache-control": "public, max-age=600",
     "netlify-cdn-cache-control": "public, durable, max-age=3600, stale-while-revalidate=3600",
+    // ?all=1 is its own answer: cached apart from the plain top 50.
+    "netlify-vary": "query=all",
   };
   if (req.method !== "GET") return new Response(JSON.stringify({ error: "method" }), { status: 405, headers });
   try {
-    return new Response(JSON.stringify({ days: RANK_DAYS, ranks: await computeRanks(deps) }), { status: 200, headers });
+    const all = new URL(req.url).searchParams.get("all") === "1";
+    return new Response(JSON.stringify({ days: RANK_DAYS, ranks: await computeRanks(deps, RANK_DAYS, all ? Infinity : RANK_MAX) }), { status: 200, headers });
   } catch (e) {
     console.warn("rank failed:", e instanceof Error ? e.message : String(e));
     // An empty list is a quiet front page, never a broken one; and not cached long.

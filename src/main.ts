@@ -116,7 +116,8 @@ import { CREDIT_CLOSED, CreditError, creditBalance, creditInHash, creditStatemen
 import { onJobStatus, runChargedCredits, setCreditTokenSource, type JobStatus } from "./llm/job-transport";
 import { castUsd, creditRange, shortfall } from "./llm/credit-estimate";
 import { meterText } from "./ui/credit-meter";
-import { openPortal, startSubscription, subLine, subscribedInHash, subStatus as fetchSubStatus, SUB_BENEFITS, type SubStatus } from "./subscription";
+import { openPortal, startSubscription, subscribedInHash, subStatus as fetchSubStatus, type SubStatus } from "./subscription";
+import { planCards } from "./plan-cards";
 // google/auth already exports a signOut (Drive); this one is the drawcast server's.
 import { getToken } from "./account";
 import { accountButton, forgetMe } from "./account-menu";
@@ -2110,23 +2111,21 @@ async function refreshCreditTab(): Promise<void> {
 }
 creditRefreshBtn.addEventListener("click", () => void refreshCreditTab());
 
-// The subscription (credit plan delivery 4): the plan line, a button per plan
-// while not subscribed, and Stripe's Customer Portal once there is one.
+// The subscription (credit plan delivery 4): the plans as three cards
+// (plan-cards.ts, the same as the front page's Credit & plan), and Stripe's
+// Customer Portal once there is a subscription.
 let subKnown: SubStatus | null = null;
-const subLineEl = h("div", { class: "settings-inline" }, "—");
+const subBox = h("div", {}, "—");
 const subStatusEl = h("div", { class: "settings-note" });
-const subPlanBtns = h("div", { class: "row credit-packs" });
-const subManageBtn = h("button", { class: "small" }, "Manage subscription") as HTMLButtonElement;
-subManageBtn.hidden = true;
-subManageBtn.addEventListener("click", () => {
-  void (async () => {
-    const token = getToken();
-    if (!token) return;
-    const out = await openPortal(DEFAULT_ENROLL_API, { key: token, return: location.origin + location.pathname });
-    if (typeof out === "object") location.href = out.url;
-    else subStatusEl.textContent = out === "none" ? "No subscription to manage yet." : "Could not open the subscription page — try again.";
-  })();
-});
+async function openManage(btn: HTMLButtonElement): Promise<void> {
+  const token = getToken();
+  if (!token) return;
+  btn.disabled = true;
+  const out = await openPortal(DEFAULT_ENROLL_API, { key: token, return: location.origin + location.pathname });
+  btn.disabled = false;
+  if (typeof out === "object") location.href = out.url;
+  else subStatusEl.textContent = out === "none" ? "No subscription to manage yet." : "Could not open the subscription page — try again.";
+}
 async function subscribeTo(plan: string, btn: HTMLButtonElement): Promise<void> {
   const token = getToken();
   if (!token) {
@@ -2144,28 +2143,16 @@ async function subscribeTo(plan: string, btn: HTMLButtonElement): Promise<void> 
 async function refreshSubscription(): Promise<void> {
   const token = getToken();
   if (!token) {
-    subLineEl.textContent = "Sign in to subscribe.";
-    subPlanBtns.replaceChildren();
-    subManageBtn.hidden = true;
+    subBox.textContent = "Sign in to subscribe.";
     return;
   }
   const st = await fetchSubStatus(DEFAULT_ENROLL_API, token);
   if (typeof st !== "object") {
-    subLineEl.textContent = st === "key" ? "Sign in again (Sign in, top right)." : "Could not load the subscription.";
+    subBox.textContent = st === "key" ? "Sign in again (Sign in, top right)." : "Could not load the subscription.";
     return;
   }
   subKnown = st;
-  subLineEl.textContent = subLine(st);
-  subManageBtn.hidden = !st.manageable;
-  subPlanBtns.replaceChildren(
-    ...(st.active
-      ? []
-      : Object.entries(st.plans).map(([id, p]) => {
-          const b = h("button", { class: "small" }, `${p.label} — $${p.cents / 100}/month · ${p.quotaMb} MB`) as HTMLButtonElement;
-          b.addEventListener("click", () => void subscribeTo(id, b));
-          return b;
-        })),
-  );
+  subBox.replaceChildren(planCards(st, { subscribe: (id, b) => void subscribeTo(id, b), manage: (b) => void openManage(b) }));
 }
 const coursesDirInput = h("input", { type: "text", placeholder: "(repository root)", autocomplete: "off" }) as HTMLInputElement;
 coursesDirInput.value = settings.coursesDir;
@@ -2235,12 +2222,9 @@ const settingsBlocks = new Map<string, HTMLElement>([
       ),
       h("label", {}, "Recent use"),
       creditRowsEl,
-      h("label", {}, "Subscription"),
-      subLineEl,
-      subPlanBtns,
-      h("div", {}, subManageBtn),
+      h("label", {}, "Plans"),
+      subBox,
       subStatusEl,
-      h("div", { class: "settings-note" }, SUB_BENEFITS),
     ),
   ],
   ["style", h("div", { class: "settings-field" }, h("label", {}, "Drawing style"), styleSel)],

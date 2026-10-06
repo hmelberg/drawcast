@@ -26,6 +26,15 @@ describe("rank", () => {
   test("ties by name; at most `max`", async () => {
     expect((await computeRanks(deps({ "v/b/2026-10-03": 3, "v/a/2026-10-03": 3, "v/c/2026-10-03": 1 }), 30, 2)).map((r) => r.name)).toEqual(["a", "b"]);
   });
+  test("?all=1 answers every visited name, not only the top 50, cached apart", async () => {
+    const records: Record<string, number> = {};
+    for (let i = 0; i < 60; i++) records[`v/n${i}/2026-10-03`] = 1;
+    const top = await handleRankRequest(new Request("https://drawcast.app/.netlify/functions/rank"), deps(records));
+    expect(((await top.json()) as { ranks: unknown[] }).ranks).toHaveLength(50);
+    const all = await handleRankRequest(new Request("https://drawcast.app/.netlify/functions/rank?all=1"), deps(records));
+    expect(((await all.json()) as { ranks: unknown[] }).ranks).toHaveLength(60);
+    expect(all.headers.get("netlify-vary")).toBe("query=all");
+  });
   test("a lecture name keeps its slash; malformed keys are ignored", () => {
     expect(parseVisitKey("v/spanish/2026-10-03")).toEqual({ name: "spanish", day: "2026-10-03" });
     expect(parseVisitKey("v/x")).toBeNull();

@@ -1,6 +1,6 @@
 // Subscriptions client (credit plan delivery 4).
 import { describe, expect, test } from "vitest";
-import { openPortal, startSubscription, subLine, subscribedInHash, subStatus } from "../src/subscription";
+import { openPortal, startSubscription, planStatus, subscribedInHash, subStatus } from "../src/subscription";
 
 const replying = (status: number, body: unknown) =>
   (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
@@ -30,9 +30,10 @@ describe("subscription client", () => {
 
   test("the plan line says what the account has", () => {
     const base = { plan: null, active: false, grace: false, admin: false, until: null, quotaBytes: 0, usedBytes: 0, manageable: false, plans: { pro: { cents: 900, quotaMb: 50, label: "Pro" } }, onSale: true };
-    expect(subLine(base)).toBe("No subscription.");
-    expect(subLine({ ...base, admin: true })).toMatch(/^Admin — counts as Business/);
-    expect(subLine({ ...base, plan: "pro", active: true, until: "2026-11-06T00:00:00Z", quotaBytes: 50 * 1048576, usedBytes: 1048576 })).toMatch(/^Subscribed: Pro, paid until .* Storage 1\.0 of 50 MB used\.$/);
-    expect(subLine({ ...base, plan: "pro", grace: true, until: "2026-10-01T00:00:00Z" })).toMatch(/has ended/);
+    expect(planStatus(base)).toBe("");
+    // Hans 2026-10-06: no "Admin — counts as Business…" line; the card says it.
+    expect(planStatus({ ...base, admin: true })).toBe("");
+    expect(planStatus({ ...base, plan: "pro", active: true, until: "2026-11-06T00:00:00Z", quotaBytes: 50 * 1048576, usedBytes: 1048576 })).toMatch(/^Paid until .* · 1\.0 of 50 MB used\.$/);
+    expect(planStatus({ ...base, plan: "pro", grace: true, until: "2026-10-01T00:00:00Z" })).toMatch(/ended/);
   });
 });

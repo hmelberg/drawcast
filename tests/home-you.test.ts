@@ -1,6 +1,6 @@
 // The front page's "You" pages: the client half (src/home/you.ts).
 import { describe, expect, test } from "vitest";
-import { modelName, fetchCourses, fetchItemKey, fetchItems, fetchVisits, leaveCourse, parseItems, parseYou, setCourseAccess, visibility, type MyItem } from "../src/home/you";
+import { firstDir, sortBy, modelName, fetchCourses, fetchItemKey, fetchItems, fetchVisits, leaveCourse, parseItems, parseYou, setCourseAccess, visibility, type MyItem } from "../src/home/you";
 
 const API = "https://drawcast.anvil.app";
 function fake(status: number, body: unknown, seen: { url?: string; body?: unknown }[] = []): typeof fetch {
@@ -84,5 +84,17 @@ describe("you pages", () => {
     expect(modelName("claude-opus-5-5")).toBe("Opus 5.5");
     expect(modelName("claude-haiku-4-5-20251001")).toBe("Haiku 4.5");
     expect(modelName("gpt-x")).toBe("gpt-x");
+  });
+
+  test("sorting: text A→Z ignoring case, numbers by size, stable, reversible", () => {
+    const rows = [{ t: "bayes", v: 3 }, { t: "Moon", v: 10 }, { t: "apple", v: 3 }];
+    expect(sortBy(rows, (r) => r.t, 1).map((r) => r.t)).toEqual(["apple", "bayes", "Moon"]);
+    expect(sortBy(rows, (r) => r.v, -1).map((r) => r.t)).toEqual(["Moon", "bayes", "apple"]);
+    expect(sortBy(rows, (r) => r.v, 1).map((r) => r.t)).toEqual(["bayes", "apple", "Moon"]);
+  });
+  test("a first click sorts text A→Z, dates and numbers biggest first", () => {
+    expect(firstDir("Moon")).toBe(1);
+    expect(firstDir("2026-10-04")).toBe(-1);
+    expect(firstDir(12)).toBe(-1);
   });
 });

@@ -109,17 +109,18 @@ export function subscribedInHash(hash: string): { plan: string | null } | null {
 
 const mb = (bytes: number): string => (bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0);
 
-/** One line for the Credits tab. */
-export function subLine(s: SubStatus): string {
-  if (s.admin) return "Admin — counts as Business: half price, private, unlisted free and 500 MB of storage.";
+/** Under the plan cards: where the subscription stands, or "" when there
+ *  is nothing to say (no plan, or an admin — whose card says "Your plan"). */
+export function planStatus(s: SubStatus): string {
+  if (s.admin) return "";
   const until = s.until ? new Date(s.until).toLocaleDateString(undefined, { dateStyle: "medium" }) : "";
-  if (s.active && s.plan) {
-    return `Subscribed: ${s.plans[s.plan]?.label ?? s.plan}, paid until ${until}. Storage ${mb(s.usedBytes)} of ${mb(s.quotaBytes)} MB used.`;
-  }
-  if (s.grace) return `Your subscription has ended — your stored drawcasts are kept for 30 days after ${until}, then deleted. Subscribe again to keep them.`;
-  return "No subscription.";
+  if (s.active && s.plan) return `Paid until ${until} · ${mb(s.usedBytes)} of ${mb(s.quotaBytes)} MB used.`;
+  if (s.grace) return `Your plan ended ${until}. Your stored drawcasts are kept 30 days, then deleted — subscribe again to keep them.`;
+  return "";
 }
 
-/** What every plan gives — the plans differ only in storage. */
-export const SUB_BENEFITS =
-  "Every plan: AI and narration at half price (2× actual cost instead of 4×), names at half price, unlisted free, private drawcasts, and storage on the drawcast server. A subscription carries no credit — buy credit for AI and narration separately.";
+/** Above the cards: why subscribe at all. */
+export const PLAN_INTRO = "Subscribers pay half price for AI and narration: twice what it costs drawcast, instead of four times when you pay with credit alone.";
+
+/** Below the cards: what every plan gives besides storage. */
+export const PLAN_EVERY = "Every plan also gives private drawcasts, free unlisting and names at half price. A plan includes no credit; buy that separately.";
