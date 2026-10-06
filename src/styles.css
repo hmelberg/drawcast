@@ -3542,6 +3542,13 @@ input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; b
 .you-runs { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .you-balance { margin: 0.4rem 0 0.6rem; }
 .you-big { font: 2rem var(--sketch-font); }
+/* Your content's bar (long lists, 2026-10-06): search, then the filters. */
+.you-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; margin: 0 0 0.5rem; }
+.you-search { flex: 1 1 14rem; max-width: 24rem; }
+.you-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.you-count { margin: 0.2rem 0 0.4rem; }
+.you-more { display: block; margin: 0.8rem auto 0; }
+.you-more[hidden] { display: none; }
 .you-email { font-weight: 700; font-size: 1.15rem; overflow-wrap: anywhere; }
 /* Sortable headings (click to sort, again to reverse). */
 .you-sort { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; white-space: nowrap; }

@@ -222,8 +222,28 @@ export function firstDir(sample: SortValue | undefined): 1 | -1 {
   return typeof sample === "string" && !/^\d{4}-\d\d-\d\d/.test(sample) ? 1 : -1;
 }
 
-function sortableTable<T>(cols: Col<T>[], items: T[], rowOf: (t: T) => HTMLTableRowElement, start: { col: number; dir: 1 | -1 }, cls = "you-table"): { table: HTMLElement; resort: () => void } {
-  const rows = new Map(items.map((t) => [t, rowOf(t)]));
+interface TableView<T> {
+  /** Only rows this keeps are shown (search, filters). */
+  keep?: (t: T) => boolean;
+  /** At most this many, after sorting ("Show 25 more" raises it). */
+  limit?: () => number;
+  /** After each draw: how many matched, how many are shown. */
+  onDraw?: (matched: number, shown: number) => void;
+  /** The heading clicked, so a redrawn page keeps the order. */
+  onSort?: (col: number, dir: 1 | -1) => void;
+}
+
+function sortableTable<T>(
+  cols: Col<T>[],
+  items: T[],
+  rowOf: (t: T) => HTMLTableRowElement,
+  start: { col: number; dir: 1 | -1 },
+  cls = "you-table",
+  view: TableView<T> = {},
+): { table: HTMLElement; resort: () => void } {
+  // Rows are built when first shown: a long list costs only what is on screen.
+  const rows = new Map<T, HTMLTableRowElement>();
+  const rowFor = (t: T): HTMLTableRowElement => rows.get(t) ?? (rows.set(t, rowOf(t)), rows.get(t)!);
   const body = h("tbody", {});
   let { col, dir } = start;
   const ths = cols.map((c, i) => {
@@ -236,6 +256,7 @@ function sortableTable<T>(cols: Col<T>[], items: T[], rowOf: (t: T) => HTMLTable
         col = i;
         dir = firstDir(items.length ? c.key!(items[0]) : undefined);
       }
+      view.onSort?.(col, dir);
       draw();
     });
     return h("th", attrs, b);
@@ -247,7 +268,10 @@ function sortableTable<T>(cols: Col<T>[], items: T[], rowOf: (t: T) => HTMLTable
       const arrow = th.querySelector(".you-arrow");
       if (arrow) arrow.textContent = i === col ? (dir === 1 ? " ▲" : " ▼") : "";
     });
-    body.replaceChildren(...sortBy(items, cols[col].key!, dir).map((t) => rows.get(t)!));
+    const matched = sortBy(view.keep ? items.filter(view.keep) : items, cols[col].key!, dir);
+    const shown = view.limit ? matched.slice(0, view.limit()) : matched;
+    body.replaceChildren(...shown.map(rowFor));
+    view.onDraw?.(matched.length, shown.length);
   }
   draw();
   return { table: h("div", { class: "you-table-wrap" }, h("table", { class: cls }, h("thead", {}, h("tr", {}, ...ths)), body)), resort: draw };
@@ -291,9 +315,25 @@ export async function youView(which: YouPage, rerender: () => void, returned = "
     return signInFirst(label, true);
   };
   if (which === "content") {
-    const items = await fetchItems(key);
+    const fresh = fetchItems(key);
+    const kept = cachedItems(key);
+    if (kept) {
+      // The last list at once; the fresh one replaces it if it changed.
+      const page = contentPage(kept, key);
+      void fresh.then((items) => {
+        if (items === "signin") {
+          ended();
+          rerender();
+        } else if (Array.isArray(items) && JSON.stringify(items) !== JSON.stringify(kept)) page.update(items);
+      });
+      return [tabs, page.el];
+    }
+    const items = await fresh;
     if (items === "signin") return ended();
-    return [tabs, ...(items === "error" ? [say("Your content can't be reached right now.", "error")] : contentTable(items, key))];
+    if (items === "error") return [tabs, say("Your content can't be reached right now.", "error")];
+    const page = contentPage([], key);
+    page.update(items);
+    return [tabs, page.el];
   }
   if (which === "courses") {
     const c = await fetchCourses(key);
@@ -309,112 +349,217 @@ export async function youView(which: YouPage, rerender: () => void, returned = "
 }
 
 // ---------- Your content ----------
+// Long lists (2026-10-06): the whole list comes in one request (the server
+// answers fast and up to 2000 items), so search, filters and sorting are
+// instant and cover everything; 25 rows show at a time. The last list is kept
+// in this browser and drawn at once, then refreshed behind it.
 
-function contentTable(items: MyItem[], key: string): HTMLElement[] {
-  if (!items.length) return [say("Nothing published yet. Publish from the editor while signed in and it shows here."), h("a", { class: "home-create", href: "#create" }, "＋ Create")];
-  const status = say("");
-  // Views: the public 30-day visit counts (the Popular row's), summed over
-  // the item's names — a lecture's visits already count toward its course.
-  const views = new Map<MyItem, number | null>(items.map((i) => [i, null]));
-  const totals = new Map<MyItem, number | null>(items.map((i) => [i, null]));
-  const cells = new Map<MyItem, [HTMLElement, HTMLElement]>();
-  const rowOf = (i: MyItem): HTMLTableRowElement => {
-    const viewsCell = h("td", { class: "you-num", "data-label": "views" }, "…");
-    const totalCell = h("td", { class: "you-num", "data-label": "all time" }, "…");
-    cells.set(i, [viewsCell, totalCell]);
-    const vis = h("span", { class: `you-vis you-vis-${visibility(i).toLowerCase()}` }, visibility(i));
-    const acts = h("div", { class: "you-acts" });
-    acts.append(
-      action("Copy link", async (b) => {
-        try {
-          await navigator.clipboard.writeText(i.link);
-          b.textContent = "Copied";
-          setTimeout(() => (b.textContent = "Copy link"), 1500);
-        } catch {
-          status.textContent = i.link;
+const ITEMS_KEY = "drawcast.my-items";
+export const PAGE_ROWS = 25;
+
+export function cachedItems(token: string): MyItem[] | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(ITEMS_KEY) ?? "null") as { tag?: string; items?: unknown } | null;
+    return v && v.tag === token.slice(-8) ? parseItems({ items: v.items }) : null;
+  } catch {
+    return null;
+  }
+}
+
+function keepItems(token: string, items: MyItem[]): void {
+  try {
+    localStorage.setItem(ITEMS_KEY, JSON.stringify({ tag: token.slice(-8), items }));
+  } catch {
+    /* no storage: the list is fetched each time */
+  }
+}
+
+/** Search: every word must be in the title or one of the names. */
+export function matchesQuery(i: MyItem, q: string): boolean {
+  const hay = `${i.title} ${i.names.map((n) => n.name).join(" ")}`.toLowerCase();
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
+}
+
+export type KindFilter = "" | "cast" | "course";
+export type VisFilter = "" | "Public" | "Unlisted" | "Private";
+
+/** "142 drawcasts · 12 courses · 9 private". */
+export function countLine(items: MyItem[]): string {
+  const courses = items.filter((i) => i.kind === "course").length;
+  const casts = items.length - courses;
+  const priv = items.filter((i) => i.private).length;
+  const plural = (n: number, one: string, many: string): string => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
+  return [plural(casts, "drawcast", "drawcasts"), plural(courses, "course", "courses"), ...(priv ? [`${priv.toLocaleString("en-US")} private`] : [])].join(" · ");
+}
+
+function contentPage(first: MyItem[], key: string): { el: HTMLElement; update: (items: MyItem[]) => void } {
+  const el = h("div", { class: "you-content-page" });
+  const state = { q: "", kind: "" as KindFilter, vis: "" as VisFilter, limit: PAGE_ROWS, sort: { col: 2, dir: -1 as 1 | -1 } };
+  // Views: the public visit counts (the Popular row's), summed over an
+  // item's names — a lecture's visits already count toward its course.
+  const ranks = fetchRanks(fetch, true);
+  let redraw = (): void => {};
+
+  function build(items: MyItem[]): void {
+    if (!items.length) {
+      el.replaceChildren(say("Nothing published yet. Publish from the editor while signed in and it shows here."), h("a", { class: "home-create", href: "#create" }, "＋ Create"));
+      return;
+    }
+    const status = say("");
+    const views = new Map<MyItem, number | null>();
+    const totals = new Map<MyItem, number | null>();
+    const cells = new Map<MyItem, [HTMLElement, HTMLElement]>();
+    const show = (n: number | null | undefined): string => (n === undefined ? "…" : n === null ? "—" : n.toLocaleString("en-US"));
+    const rowOf = (i: MyItem): HTMLTableRowElement => {
+      const viewsCell = h("td", { class: "you-num", "data-label": "views" }, show(views.get(i)));
+      const totalCell = h("td", { class: "you-num", "data-label": "all time" }, show(totals.get(i)));
+      cells.set(i, [viewsCell, totalCell]);
+      const vis = h("span", { class: `you-vis you-vis-${visibility(i).toLowerCase()}` }, visibility(i));
+      const acts = h("div", { class: "you-acts" });
+      acts.append(
+        action("Copy link", async (b) => {
+          try {
+            await navigator.clipboard.writeText(i.link);
+            b.textContent = "Copied";
+            setTimeout(() => (b.textContent = "Copy link"), 1500);
+          } catch {
+            status.textContent = i.link;
+          }
+        }),
+      );
+      if (!i.private) {
+        acts.append(
+          action(i.listed ? "Unlist" : "List", async (b) => {
+            const out = await setListing(DEFAULT_ENROLL_API, key, i.key, !i.listed);
+            if (out === "ok") {
+              i.listed = !i.listed;
+              vis.textContent = visibility(i);
+              vis.className = `you-vis you-vis-${visibility(i).toLowerCase()}`;
+              b.textContent = i.listed ? "Unlist" : "List";
+              keepItems(key, items);
+              status.textContent = i.listed ? `“${i.title}” is in the catalogue again.` : `“${i.title}” is unlisted — only people with the link find it.`;
+            } else if (typeof out === "object") {
+              status.textContent = `Unlisting “${i.title}” costs ${formatPrice(out.due, "usd")}, one time — or nothing with a subscription (Credit & plan). Pay for it from the editor's Publish.`;
+            } else {
+              status.textContent = out === "key" ? "Sign in again to change this." : "Could not change the listing — try again.";
+            }
+          }),
+        );
+      } else {
+        const shown = h("input", { class: "you-key", readonly: "", "aria-label": "Private key", hidden: "" }) as HTMLInputElement;
+        acts.append(
+          action("Show key", async (b) => {
+            if (!shown.hidden) {
+              shown.hidden = true;
+              b.textContent = "Show key";
+              return;
+            }
+            const k = await fetchItemKey(key, i.key);
+            if (typeof k === "string" && k) {
+              shown.value = k;
+              shown.hidden = false;
+              shown.select();
+              b.textContent = "Hide key";
+            } else status.textContent = "The key can't be shown right now.";
+          }),
+          shown,
+        );
+      }
+      return h(
+        "tr",
+        {},
+        h(
+          "td",
+          { class: "you-title" },
+          h("a", { href: i.link, target: "_blank", rel: "noopener" }, i.title),
+          h("div", { class: "you-sub" }, [i.kind === "course" ? "Course" : "Drawcast", ...i.names.map((n) => `#${n.name}`)].join(" · ")),
+        ),
+        h("td", {}, vis),
+        h("td", { class: "you-date" }, i.updated),
+        viewsCell,
+        totalCell,
+        h("td", { class: "you-acts-cell" }, acts),
+      );
+    };
+
+    // The bar above the table: search, then the two filters.
+    const search = h("input", { type: "search", class: "home-q you-search", placeholder: `Search ${items.length.toLocaleString("en-US")} items`, "aria-label": "Search your content" }) as HTMLInputElement;
+    search.value = state.q;
+    search.addEventListener("input", () => {
+      state.q = search.value.trim();
+      state.limit = PAGE_ROWS;
+      resort();
+    });
+    const chipGroup = <V extends string>(label: string, options: [V, string][], get: () => V, set: (v: V) => void): HTMLElement => {
+      const buttons = options.map(([v, text]) => {
+        const b = h("button", { type: "button", class: "home-chip", "aria-pressed": String(get() === v) }, text) as HTMLButtonElement;
+        b.addEventListener("click", () => {
+          set(v);
+          state.limit = PAGE_ROWS;
+          for (const [j, x] of buttons.entries()) x.setAttribute("aria-pressed", String(options[j][0] === v));
+          resort();
+        });
+        return b;
+      });
+      return h("div", { class: "you-chips", role: "group", "aria-label": label }, ...buttons);
+    };
+    const kinds = chipGroup<KindFilter>("Kind", [["", "All"], ["cast", "Drawcasts"], ["course", "Courses"]], () => state.kind, (v) => (state.kind = v));
+    const viss = chipGroup<VisFilter>("Visibility", [["", "Any"], ["Public", "Public"], ["Unlisted", "Unlisted"], ["Private", "Private"]], () => state.vis, (v) => (state.vis = v));
+    const counts = h("div", { class: "you-sub you-count" });
+    const more = h("button", { type: "button", class: "you-btn you-more" }, "") as HTMLButtonElement;
+    more.addEventListener("click", () => {
+      state.limit += PAGE_ROWS;
+      resort();
+    });
+
+    const cols: Col<MyItem>[] = [
+      { label: "Title", key: (i) => i.title },
+      { label: "Visibility", key: (i) => visibility(i) },
+      { label: "Updated", key: (i) => i.updated },
+      { label: "Views, 30 days", key: (i) => views.get(i) ?? -1, cls: "you-num" },
+      { label: "All time", key: (i) => totals.get(i) ?? -1, cls: "you-num", title: `Every view since counting began, ${COUNTING_SINCE}` },
+      { label: "" },
+    ];
+    const all = countLine(items);
+    const { table, resort } = sortableTable(cols, items, rowOf, state.sort, "you-table you-content", {
+      keep: (i) => (!state.kind || (state.kind === "course") === (i.kind === "course")) && (!state.vis || visibility(i) === state.vis) && (!state.q || matchesQuery(i, state.q)),
+      limit: () => state.limit,
+      onSort: (col, dir) => (state.sort = { col, dir }),
+      onDraw: (matched, shown) => {
+        counts.textContent = matched === items.length ? all : `${matched.toLocaleString("en-US")} of ${items.length.toLocaleString("en-US")} match`;
+        more.hidden = shown >= matched;
+        more.textContent = `Show ${Math.min(PAGE_ROWS, matched - shown)} more`;
+      },
+    });
+    redraw = resort;
+    void ranks.then((r) => {
+      const recent = new Map(r.map((x) => [x.name, x.visits]));
+      const ever = new Map(r.map((x) => [x.name, x.total ?? x.visits]));
+      const sum = (i: MyItem, m: Map<string, number>): number | null => (r.length ? i.names.reduce((n, x) => n + (m.get(x.name) ?? 0), 0) : null);
+      for (const i of items) {
+        views.set(i, sum(i, recent));
+        totals.set(i, sum(i, ever));
+        const c = cells.get(i);
+        if (c) {
+          c[0].textContent = show(views.get(i));
+          c[1].textContent = show(totals.get(i));
         }
-      }),
-    );
-    if (!i.private) {
-      acts.append(
-        action(i.listed ? "Unlist" : "List", async () => {
-          const out = await setListing(DEFAULT_ENROLL_API, key, i.key, !i.listed);
-          if (out === "ok") {
-            i.listed = !i.listed;
-            vis.textContent = visibility(i);
-            vis.className = `you-vis you-vis-${visibility(i).toLowerCase()}`;
-            (acts.children[1] as HTMLButtonElement).textContent = i.listed ? "Unlist" : "List";
-            status.textContent = i.listed ? `“${i.title}” is in the catalogue again.` : `“${i.title}” is unlisted — only people with the link find it.`;
-          } else if (typeof out === "object") {
-            status.textContent = `Unlisting “${i.title}” costs ${formatPrice(out.due, "usd")}, one time — or nothing with a subscription (Credit & plan). Pay for it from the editor's Publish.`;
-          } else {
-            status.textContent = out === "key" ? "Sign in again to change this." : "Could not change the listing — try again.";
-          }
-        }),
-      );
-    } else {
-      const shown = h("input", { class: "you-key", readonly: "", "aria-label": "Private key", hidden: "" }) as HTMLInputElement;
-      acts.append(
-        action("Show key", async (b) => {
-          if (!shown.hidden) {
-            shown.hidden = true;
-            b.textContent = "Show key";
-            return;
-          }
-          const k = await fetchItemKey(key, i.key);
-          if (typeof k === "string" && k) {
-            shown.value = k;
-            shown.hidden = false;
-            shown.select();
-            b.textContent = "Hide key";
-          } else status.textContent = "The key can't be shown right now.";
-        }),
-        shown,
-      );
-    }
-    return h(
-      "tr",
-      {},
-      h(
-        "td",
-        { class: "you-title" },
-        h("a", { href: i.link, target: "_blank", rel: "noopener" }, i.title),
-        h("div", { class: "you-sub" }, [i.kind === "course" ? "Course" : "Drawcast", ...i.names.map((n) => `#${n.name}`)].join(" · ")),
-      ),
-      h("td", {}, vis),
-      h("td", { class: "you-date" }, i.updated),
-      viewsCell,
-      totalCell,
-      h("td", { class: "you-acts-cell" }, acts),
-    );
+      }
+      redraw();
+    });
+    const hadFocus = document.activeElement?.classList.contains("you-search");
+    el.replaceChildren(h("div", { class: "you-bar" }, search, kinds, viss), counts, table, more, status);
+    if (hadFocus) search.focus();
+  }
+
+  build(first);
+  return {
+    el,
+    update: (items) => {
+      keepItems(key, items);
+      build(items);
+    },
   };
-  const cols: Col<MyItem>[] = [
-    { label: "Title", key: (i) => i.title },
-    { label: "Visibility", key: (i) => visibility(i) },
-    { label: "Updated", key: (i) => i.updated },
-    { label: "Views, 30 days", key: (i) => views.get(i) ?? -1, cls: "you-num" },
-    { label: "All time", key: (i) => totals.get(i) ?? -1, cls: "you-num", title: `Every view since counting began, ${COUNTING_SINCE}` },
-    { label: "" },
-  ];
-  const { table, resort } = sortableTable(cols, items, rowOf, { col: 2, dir: -1 }, "you-table you-content");
-  void fetchRanks(fetch, true).then((ranks) => {
-    const byName = new Map(ranks.map((r) => [r.name, r.visits]));
-    const totalOf = new Map(ranks.map((r) => [r.name, r.total ?? r.visits]));
-    const sum = (i: MyItem, m: Map<string, number>): number | null => (ranks.length ? i.names.reduce((n, x) => n + (m.get(x.name) ?? 0), 0) : null);
-    const show = (n: number | null): string => (n === null ? "—" : n.toLocaleString("en-US"));
-    for (const i of items) {
-      views.set(i, sum(i, byName));
-      totals.set(i, sum(i, totalOf));
-      const [v, t] = cells.get(i)!;
-      v.textContent = show(views.get(i)!);
-      t.textContent = show(totals.get(i)!);
-    }
-    resort();
-  });
-  return [
-    table,
-    status,
-  ];
 }
 
 // ---------- Your courses ----------

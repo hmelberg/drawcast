@@ -3446,3 +3446,13 @@ guess, lecture titles read from the course.md beside a lecture.
 Also still open from the plan: completion tracking (how far people watch, for
 ranking), autoplay next (off by default), chapters on the progress bar,
 continue where you stopped, a link that starts at a given moment.
+
+## Your content: thumbnails — noted 2026-10-06, maybe
+
+A picture per row in the front page's Your content (`?you=content`,
+`src/home/you.ts`), as YouTube Studio has. The cards exist: compiled at
+publish and stored on the registry row (`courses.card`), drawn in the browser
+by `card/draw.ts`, with picture cards from `/card` (built once, CDN-cached).
+Unlisted and private items are not in the public feed, so `/my/items` would
+send each item's card along. Private cards stay in the owner's own list,
+never a public page. Small to medium; waiting until it is clearly wanted.

@@ -270,6 +270,8 @@ export function runHome(): void {
     void freshFeed.then((fresh) => {
       if (!fresh || sameFeed(kept, fresh)) return;
       feed = fresh;
-      void render();
+      // Your own pages do not draw from the feed: redrawing them would ask
+      // the server again and lose what was typed in their search box.
+      if (!you) void render();
     });
 }

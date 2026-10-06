@@ -101,6 +101,7 @@ function keepMe(token: string, me: Me): void {
 export function forgetMe(): void {
   try {
     sessionStorage.removeItem(ME_KEY);
+    localStorage.removeItem("drawcast.my-items"); // Your content's kept list (home/you.ts)
   } catch {
     /* nothing kept */
   }
