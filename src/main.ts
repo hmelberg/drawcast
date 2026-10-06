@@ -500,7 +500,19 @@ app.appendChild(
   h(
     "header",
     { class: "topbar" },
-    h("div", { class: "topbar-left" }, menuBtn, h("div", { class: "wordmark" }, "drawcast")),
+    h(
+      "div",
+      { class: "topbar-left" },
+      menuBtn,
+      h(
+        "div",
+        { class: "wordmark-block" },
+        h("div", { class: "wordmark" }, "drawcast"),
+        // Until credit and subscriptions open (credit plan, 2026-10-06): the
+        // credit road is live for testing only, so the editor says so.
+        h("div", { class: "testing-note" }, "Testing mode — not open for subscriptions and credits yet. Use your own LLM keys."),
+      ),
+    ),
   ),
 );
 

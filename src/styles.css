@@ -91,6 +91,9 @@ body {
   font-size: 2rem;
   letter-spacing: 0.01em;
 }
+.wordmark-block { display: flex; flex-direction: column; line-height: 1.1; }
+.testing-note { font-size: var(--text-xs); color: var(--muted); }
+body:not(.mode-editor) .testing-note { display: none; }
 
 /* Phones: the ☰ menu button needs the full width. */
 @media (max-width: 560px) {
