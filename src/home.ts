@@ -93,17 +93,33 @@ export function runHome(): void {
   // tagged with it. `missing` says the word was asked for as a name first.
   let topic = params.get("topic") ? topicOf(params.get("topic")!) : "";
   const missing = params.has("missing");
+  // ?sort=recent (2026-10-07): everything public, newest first (the sidebar's "Most recent").
+  let recent = params.get("sort") === "recent";
   // Stripe comes back to ?you=credit with the outcome in the fragment
   // (entry.ts routes it here); render() rewrites the address, so take it now.
   let returned = you ? location.hash : "";
 
-  const { root: top } = topBar(
+  const { root: top, syncClear } = topBar(
     q,
     (value) => {
       q = value;
       void render();
     },
-    { topics: tagRows(featured).map((r) => r.tag) },
+    {
+      topics: tagRows(featured).map((r) => r.tag),
+      // ✕: no search, no format, no topic or list — the front page as it opens.
+      onClear: () => {
+        q = "";
+        chip = "";
+        topic = "";
+        list = null;
+        you = null;
+        recent = false;
+        for (const [i, x] of chipButtons.entries()) x.setAttribute("aria-pressed", String(FORMAT_CHIPS[i].id === chip));
+        void render();
+      },
+      filtered: () => q !== "" || chip !== "" || topic !== "" || list !== null || recent,
+    },
   );
   const chipButtons = FORMAT_CHIPS.map((c) => {
     const b = h("button", { type: "button", class: "home-chip", "aria-pressed": String(!list && !you && c.id === chip) }, c.label) as HTMLButtonElement;
@@ -149,13 +165,16 @@ export function runHome(): void {
     if (q) {
       list = you = null;
       topic = "";
+      recent = false;
     }
     if (list) next.set("list", list);
     if (you) next.set("you", you);
     if (topic) next.set("topic", topic);
+    if (recent && !q) next.set("sort", "recent");
     if (q) next.set("q", q);
     if (chip) next.set("f", chip);
     history.replaceState(null, "", `${location.pathname}${next.toString() ? `?${next}` : ""}`);
+    syncClear();
     chips.hidden = you !== null; // your own pages are not the catalogue
     // From a kept feed the page is drawn at once: no "Loading…" flash.
     if (!feed) main.replaceChildren(note("Loading…"));
@@ -211,6 +230,15 @@ export function runHome(): void {
     return [section(`${label} · ${cards.length.toLocaleString("en-US")}`, cards), tagged === "error" ? note("The catalogue can't be reached right now.", "error") : null];
   }
 
+  /** Every public drawcast and course, newest first (a format chip narrows it). */
+  async function recentView(): Promise<(HTMLElement | null)[]> {
+    const f = await currentFeed();
+    const items = f ? f.items.filter((i) => !i.private) : await catalogue("");
+    if (items === "error") return [h("h2", { class: "home-list-title" }, "Most recent"), note("The catalogue can't be reached right now.", "error")];
+    const cards = byFormat(fromCatalogue(byNewest(items)));
+    return [section(`Most recent · ${cards.length.toLocaleString("en-US")}`, cards) ?? h("div", {}, h("h2", { class: "home-list-title" }, "Most recent"), note("Nothing published here yet."))];
+  }
+
   async function view(): Promise<(HTMLElement | null)[]> {
     if (you) {
       const r = returned;
@@ -219,6 +247,7 @@ export function runHome(): void {
     }
     if (list) return listView(list);
     if (topic) return topicView(topic);
+    if (recent) return recentView();
     const format = chip && chip !== "course" ? chip : undefined;
     if (q) {
       const items = await catalogue(chip === "course" ? "course" : format ? "cast" : "", q, format ? { format } : {});

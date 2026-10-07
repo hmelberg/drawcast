@@ -6,7 +6,7 @@
 
 import { liveUrl } from "../site";
 import { parseCatalogueItem, type CatalogueFilterKind, type CatalogueItem } from "../catalogue";
-import type { RankEntry } from "./model";
+import { matchesWords, type RankEntry } from "./model";
 import type { CompiledCard } from "../card/types";
 
 export const FEED_URL = "https://www.drawcast.app/api/feed";
@@ -121,13 +121,13 @@ export function feedQuery(
   items: readonly CatalogueItem[],
   query: { kind?: CatalogueFilterKind; q?: string; format?: CatalogueItem["format"]; tag?: string; names?: string[] },
 ): CatalogueItem[] {
-  const needle = (query.q ?? "").trim().toLowerCase();
+  const needle = (query.q ?? "").trim();
   const tag = (query.tag ?? "").trim().toLowerCase();
   const keep = (i: CatalogueItem): boolean =>
     (!query.kind || i.kind === query.kind) &&
     (!query.format || i.format === query.format) &&
     (!tag || i.tags.includes(tag)) &&
-    (!needle || i.title.toLowerCase().includes(needle) || i.tags.some((t) => t.toLowerCase().includes(needle)));
+    (!needle || matchesWords(i.title, i.tags, needle));
   if (query.names) {
     const byName = new Map(items.map((i) => [i.name, i]));
     const out: CatalogueItem[] = [];

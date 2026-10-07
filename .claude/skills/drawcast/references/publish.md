@@ -21,7 +21,14 @@ public repo the user chooses; after that it is revised like anything published.
    — `--create` only when the user said to make the repo (public). It switches Pages on,
    picks a slug no other cast or course in the repo has (rewriting `slug:` in course.md),
    and writes `origin.json`.
-3. `push <workdir> --dry-run`, show the file list, and on a yes `push <workdir> --direct`
+   `--dir` is a folder INSIDE the repo's casts folder (`--dir casts` gives `casts/casts/`): leave
+   it out to publish beside the other casts.
+3. **Record the narration** (studio voices, both speakers of a dialogue), or the cast plays in
+   the browser's own voice: `node scripts/bake-narration.mjs <workdir>/<file>.cast` prints the
+   cost (nothing spent); on the user's yes to it (a few dimes a cast, their own Google key in
+   `.env` — a worktree links the main checkout's), add `--apply`, which writes the recordings
+   into the file. Unchanged lines keep their recordings on later bakes.
+4. `push <workdir> --dry-run`, show the file list, and on a yes `push <workdir> --direct`
    (it is the user's own repo; a PR to themselves is noise — unless they want one, or the
    repo is someone else's: then plain `push` opens a PR from a fork).
    A public push also commits each cast's link-card picture (`<file>.png`, drawn the way
@@ -35,9 +42,8 @@ public repo the user chooses; after that it is revised like anything published.
    The folder's `index.html` links the pages and a `sitemap.xml` lists them: to be found in
    Google, the user submits `https://<owner>.github.io/<repo>/<dir>/sitemap.xml` once in
    Google Search Console (Sitemaps). Say so when they ask how to be found.
-4. Report the player link (`drawcast.app/#gh=…`), for a single cast its own page, and, for a course, the course page (Pages
-   can take a minute the first time). Narration is the browser's voice until the course is
-   published with narration from the app. Later revisions: references/revise.md from its step 2 (unpack), on the same workdir — no new pull.
+5. Report the player link (`drawcast.app/#gh=…`), for a single cast its own page, and, for a course, the course page (Pages
+   can take a minute the first time). Without step 3 the narration is the browser's voice. Later revisions: references/revise.md from its step 2 (unpack), on the same workdir — no new pull.
    `push --direct` now also registers the item with Anvil (drawcast's backend at drawcast.anvil.app — the registry behind names and the catalogue) and prints its free link
    (`drawcast.app/#<name>`) itself; a PR push instead prints when to run
    `node scripts/cast.mjs register <workdir>`, which does the same once the PR is merged.

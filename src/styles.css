@@ -3471,6 +3471,9 @@ input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; b
 .home-brand img { width: 28px; height: 28px; }
 .home-search { flex: 1 1 16rem; display: flex; gap: 0.4rem; min-width: 0; max-width: 40rem; margin: 0 auto; }
 .home-q { flex: 1; min-width: 0; padding: 0.5rem 0.8rem; border: 1px solid var(--line); border-radius: 999px; background: var(--field); color: var(--ink); font-size: var(--text); }
+.home-search-clear { flex: none; width: 2.2rem; padding: 0; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted, var(--ink)); font-size: var(--text); cursor: pointer; }
+.home-search-clear:hover { color: var(--ink); }
+.home-search-clear[hidden] { display: none; }
 .home-search-btn { padding: 0.5rem 1rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: var(--text); cursor: pointer; }
 .home-create {
   padding: 0.5rem 1rem; border-radius: 999px; background: var(--ink); color: var(--paper);

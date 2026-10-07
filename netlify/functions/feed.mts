@@ -19,6 +19,8 @@ const STATS = "https://drawcast.anvil.app/_/api/catalogue/stats";
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** A kept feed younger than this is served as it is; older, it is served and rebuilt behind. */
 export const FRESH_MS = 5 * 60 * 1000;
+/** ?refresh (a registration just landed, 2026-10-07) rebuilds at once — but never more often than this. */
+export const REFRESH_MIN_MS = 20 * 1000;
 /** Past any real catalogue: a guard against a registry whose `more` never ends. */
 const MAX_PAGES = 40;
 
@@ -149,8 +151,11 @@ const HEADERS = {
   "content-type": "application/json",
   "access-control-allow-origin": "*",
   "cache-control": "public, max-age=60",
-  "netlify-cdn-cache-control": "public, durable, max-age=300, stale-while-revalidate=3600",
+  // A minute at the edge: revalidating only reads the kept feed, and a
+  // registration's ?refresh has rebuilt that by then.
+  "netlify-cdn-cache-control": "public, durable, max-age=60, stale-while-revalidate=600",
 };
+const NO_STORE = { ...HEADERS, "cache-control": "no-store", "netlify-cdn-cache-control": "no-store" };
 
 export async function handleFeedRequest(req: Request, deps: FeedDeps): Promise<Response> {
   if (req.method !== "GET") return new Response(JSON.stringify({ error: "method" }), { status: 405, headers: HEADERS });
@@ -160,6 +165,11 @@ export async function handleFeedRequest(req: Request, deps: FeedDeps): Promise<R
     if (feed) await deps.save(feed);
     return feed;
   };
+  if (new URL(req.url).searchParams.has("refresh")) {
+    const fresh = kept && deps.now() - kept.built < REFRESH_MIN_MS ? kept : await rebuild().catch(() => null);
+    const body = fresh ?? kept;
+    return body ? new Response(JSON.stringify(body), { status: 200, headers: NO_STORE }) : new Response(JSON.stringify({ error: "unavailable" }), { status: 503, headers: NO_STORE });
+  }
   if (kept) {
     if (deps.now() - kept.built > FRESH_MS) {
       const work = rebuild().catch((e) => console.warn("feed: rebuild failed", e));
@@ -170,7 +180,7 @@ export async function handleFeedRequest(req: Request, deps: FeedDeps): Promise<R
   const fresh = await rebuild().catch(() => null);
   if (fresh) return new Response(JSON.stringify(fresh), { status: 200, headers: HEADERS });
   // No feed at all: the front page falls back to asking the registry itself.
-  return new Response(JSON.stringify({ error: "unavailable" }), { status: 503, headers: { ...HEADERS, "cache-control": "no-store", "netlify-cdn-cache-control": "no-store" } });
+  return new Response(JSON.stringify({ error: "unavailable" }), { status: 503, headers: NO_STORE });
 }
 
 async function json(url: string): Promise<{ items?: unknown; more?: unknown } | null> {

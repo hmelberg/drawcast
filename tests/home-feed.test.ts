@@ -2,7 +2,7 @@
 // function (netlify/functions/feed.mts) and the client's reading of it
 // (src/home/feed.ts).
 import { describe, expect, test } from "vitest";
-import { buildFeed, FRESH_MS, handleFeedRequest, type Feed, type FeedDeps } from "../netlify/functions/feed.mts";
+import { buildFeed, FRESH_MS, handleFeedRequest, REFRESH_MIN_MS, type Feed, type FeedDeps } from "../netlify/functions/feed.mts";
 import { byNewest, byScore, feedQuery, parseFeed, sameFeed, topicRows } from "../src/home/feed";
 import type { CatalogueItem } from "../src/catalogue";
 
@@ -59,6 +59,29 @@ describe("the feed function", () => {
     const down = await handleFeedRequest(new Request("https://www.drawcast.app/api/feed"), deps({ page: async () => null }));
     expect(down.status).toBe(503);
     expect(down.headers.get("netlify-cdn-cache-control")).toBe("no-store");
+  });
+  test("?refresh (after a registration) rebuilds at once, uncached — but not twice within REFRESH_MIN_MS", async () => {
+    const old: Feed = { built: 1_000_000 - 60_000, items: [item("old")], ranks: [] };
+    const d = deps({ load: async () => old });
+    const res = await handleFeedRequest(new Request("https://www.drawcast.app/api/feed?refresh=1"), d);
+    expect(res.headers.get("netlify-cdn-cache-control")).toBe("no-store");
+    expect(d.saved).toHaveLength(1);
+    expect(d.asked.length).toBeGreaterThan(0);
+    const just = deps({ load: async () => ({ ...old, built: 1_000_000 - REFRESH_MIN_MS + 1 }) });
+    expect((await (await handleFeedRequest(new Request("https://www.drawcast.app/api/feed?refresh=1"), just)).json()).items[0].name).toBe("old");
+    expect(just.asked).toEqual([]);
+  });
+});
+
+describe("search words (2026-10-07)", () => {
+  const items = [item("fermat", { title: "Fermat's Last Theorem" }), item("pnp", { title: "P vs NP: checking versus finding", tags: ["mathematics"] })] as CatalogueItem[];
+  test("every word, in any order, ignoring case, apostrophes and punctuation, in the title or a tag", () => {
+    expect(feedQuery(items, { q: "fermat" }).map((i) => i.name)).toEqual(["fermat"]);
+    expect(feedQuery(items, { q: "fermats last" }).map((i) => i.name)).toEqual(["fermat"]);
+    expect(feedQuery(items, { q: "theorem FERMAT" }).map((i) => i.name)).toEqual(["fermat"]);
+    expect(feedQuery(items, { q: "p vs. np" }).map((i) => i.name)).toEqual(["pnp"]);
+    expect(feedQuery(items, { q: "np mathematics" }).map((i) => i.name)).toEqual(["pnp"]);
+    expect(feedQuery(items, { q: "fermat np" })).toEqual([]);
   });
 });
 

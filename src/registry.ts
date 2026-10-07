@@ -16,6 +16,7 @@
 import type { CompiledCard } from "./card/types";
 import { stripDocExt } from "./cast-file";
 import { apiBase } from "./learn";
+import { liveUrl } from "./site";
 import type { PublishFile } from "./publish/github";
 
 /**
@@ -126,6 +127,9 @@ export async function registerItem(api: string, reg: RegisterInput, fetchImpl: t
       body: JSON.stringify(reg),
     });
     if (res.ok) {
+      // The front page's feed rebuilds now, not in its next few minutes (2026-10-07):
+      // a new or changed item shows within about a minute. Never waited on.
+      void fetchImpl(liveUrl("/api/feed?refresh=1"), { method: "GET" }).catch(() => undefined);
       const body = (await res.json()) as Partial<RegisterResult>;
       const owner = body.owner === "you" || body.owner === "other" ? body.owner : "none";
       return { item: body.item, name: typeof body.name === "string" ? body.name : null, owner, proven: body.proven === true };

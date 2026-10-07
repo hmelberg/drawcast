@@ -178,7 +178,7 @@ function buildMenu(topics: string[]): { open: () => void } {
     "nav",
     { class: "home-menu", "aria-label": "Main menu" },
     h("div", { class: "home-menu-head" }, closeBtn(), h("a", { class: "home-brand", href: "./" }, h("img", { src: "./mark.svg", alt: "" }), "drawcast")),
-    group("", link("./", "Home", onHome), randomLink()),
+    group("", link("./", "Home", onHome), link("./?sort=recent", "Most recent", new URLSearchParams(location.search).get("sort") === "recent"), randomLink()),
     group("Formats", ...FORMAT_CHIPS.filter((c) => c.id).map((c) => link(`./?f=${c.id}`, c.label))),
     ...(topics.length ? [group("Topics", ...topicLinks, moreTopics)] : []),
     // Saved and Liked live with the account; History in this browser (home/my-lists.ts).
@@ -249,19 +249,45 @@ function randomLink(): HTMLElement {
  * it a search goes to the front page's results (`./?q=…`), which is what the
  * watch page wants.
  */
-export function topBar(q = "", onSearch?: (q: string) => void, opts: { topics?: string[] } = {}): { root: HTMLElement; input: HTMLInputElement } {
+export function topBar(q = "", onSearch?: (q: string) => void, opts: { topics?: string[]; onClear?: () => void; filtered?: () => boolean } = {}): { root: HTMLElement; input: HTMLInputElement; syncClear: () => void } {
   const menu = buildMenu(opts.topics ?? []);
   const menuBtn = h("button", { type: "button", class: "home-menu-btn", "aria-label": "Menu", title: "Menu" }, "☰");
   menuBtn.addEventListener("click", () => menu.open());
   const input = h("input", { type: "search", class: "home-q", placeholder: "Search drawcasts", "aria-label": "Search drawcasts" }) as HTMLInputElement;
   input.value = q;
-  const form = h("form", { class: "home-search", role: "search" }, input, h("button", { type: "submit", class: "home-search-btn" }, "Search"));
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const value = input.value.trim();
+  // ✕ empties the box and, with it, every filter the page shows (2026-10-07).
+  const clear = h("button", { type: "button", class: "home-search-clear", "aria-label": "Clear search and filters", title: "Clear search and filters" }, "✕") as HTMLButtonElement;
+  const showClear = (): void => {
+    clear.hidden = input.value === "" && !(opts.filtered?.() ?? false);
+  };
+  const form = h("form", { class: "home-search", role: "search" }, input, clear, h("button", { type: "submit", class: "home-search-btn" }, "Search"));
+  const search = (value: string): void => {
     if (onSearch) onSearch(value);
     else location.href = value ? `./?q=${encodeURIComponent(value)}` : "./";
+  };
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    search(input.value.trim());
   });
+  // A box emptied by hand (or by the browser's own ×) ends the search at once.
+  let last = q.trim();
+  input.addEventListener("input", () => {
+    showClear();
+    if (input.value.trim() === "" && last !== "") {
+      last = "";
+      if (onSearch) onSearch("");
+    }
+  });
+  form.addEventListener("submit", () => (last = input.value.trim()));
+  clear.addEventListener("click", () => {
+    input.value = "";
+    last = "";
+    showClear();
+    if (opts.onClear) opts.onClear();
+    else search("");
+    input.focus();
+  });
+  showClear();
   const root = h(
     "header",
     { class: "home-top" },
@@ -274,5 +300,5 @@ export function topBar(q = "", onSearch?: (q: string) => void, opts: { topics?: 
       accountButton({ where: "home", onSignOut: () => location.reload() }),
     ),
   );
-  return { root, input };
+  return { root, input, syncClear: showClear };
 }

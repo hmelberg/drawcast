@@ -138,13 +138,29 @@ export function mergeCards(...lists: HomeCard[][]): HomeCard[] {
   return out;
 }
 
-/** A search over the curated list (the catalogue searches titles on the
- *  server): every word must appear in the title or a tag. */
-export function matchesSearch(card: HomeCard, q: string): boolean {
-  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+/** Text as search sees it (2026-10-07): lower case, accents and apostrophes
+ *  gone, every other mark a space — "Fermat's" is "fermats", "P vs. NP" is "p vs np". */
+export function searchText(s: string): string {
+  return s
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['’‘`´]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+/** Whether every word of `q` appears in the title or a tag, in any order. */
+export function matchesWords(title: string, tags: readonly string[], q: string): boolean {
+  const words = searchText(q).split(" ").filter(Boolean);
   if (words.length === 0) return true;
-  const hay = `${card.title} ${card.tags.join(" ")}`.toLowerCase();
+  const hay = searchText(`${title} ${tags.join(" ")}`);
   return words.every((w) => hay.includes(w));
+}
+
+/** A search over the curated list, as feedQuery's over the catalogue. */
+export function matchesSearch(card: HomeCard, q: string): boolean {
+  return matchesWords(card.title, card.tags, q);
 }
 
 // ---- Topics (2026-10-06): drawcast.app/#chess, ?topic=chess ----
