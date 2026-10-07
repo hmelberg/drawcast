@@ -57,6 +57,19 @@ describe("voice specs", () => {
     setGeminiKeySource(() => "");
     expect(geminiKeyFor({ apiKey: "CLOUD" })).toBe("CLOUD");
   });
+  test("a rate limit is waited out and retried, as long as the answer says", async () => {
+    let calls = 0;
+    const waits: number[] = [];
+    const fetchImpl = (async () => {
+      calls++;
+      if (calls === 1) return new Response(JSON.stringify({ error: { message: "Rate limit exceeded. Please retry in 3s." } }), { status: 429 });
+      return new Response(JSON.stringify({ steps: [{ content: [{ data: Buffer.from(wav()).toString("base64") }] }] }), { status: 200 });
+    }) as typeof fetch;
+    const mp3 = await geminiSynthesizeBase64("KEY", { model: "m", voice: "Puck" }, "Hi", undefined, fetchImpl, async (ms) => void waits.push(ms));
+    expect(calls).toBe(2);
+    expect(waits).toEqual([4000]);
+    expect(mp3.length).toBeGreaterThan(10);
+  });
   test("a refused key says what to enable", async () => {
     const fetchImpl = (async () => new Response(JSON.stringify({ error: { message: "blocked" } }), { status: 403 })) as typeof fetch;
     await expect(geminiSynthesizeBase64("KEY", { model: "m", voice: "Puck" }, "Hi", undefined, fetchImpl)).rejects.toThrow(/Gemini API/);

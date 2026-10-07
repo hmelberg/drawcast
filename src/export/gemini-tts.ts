@@ -154,12 +154,30 @@ export function geminiKeyFor(cfg: { apiKey: string; geminiKey?: string }): strin
 }
 
 /** One line spoken by a Gemini voice, as base64 MP3 (what Cloud TTS returns too). */
-export async function geminiSynthesizeBase64(apiKey: string, v: GeminiVoice, text: string, delivery?: string, fetchImpl: typeof fetch = fetch): Promise<string> {
-  const res = await fetchImpl(ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-    body: JSON.stringify(geminiRequestBody(v, text, delivery)),
-  });
+export async function geminiSynthesizeBase64(
+  apiKey: string,
+  v: GeminiVoice,
+  text: string,
+  delivery?: string,
+  fetchImpl: typeof fetch = fetch,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<string> {
+  const send = (): Promise<Response> =>
+    fetchImpl(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify(geminiRequestBody(v, text, delivery)),
+    });
+  let res = await send();
+  // A key's requests-per-minute limit (10 on the first tier, 2026-10-07):
+  // wait as long as the answer says ("retry in 44s"), then try again — a
+  // cast's lines arrive faster than the limit, and failing would lose them all.
+  for (let tries = 0; res.status === 429 && tries < 12; tries++) {
+    const said = await res.clone().text().catch(() => "");
+    const secs = Number(/retry in ([\d.]+)\s*s/i.exec(said)?.[1] ?? res.headers.get("retry-after") ?? 20);
+    await sleep(Math.min(90, Math.max(2, secs + 1)) * 1000);
+    res = await send();
+  }
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
