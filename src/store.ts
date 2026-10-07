@@ -37,6 +37,9 @@ const KEYS = {
   styles: "drawcast.styles.v1",
   apiKey: "drawcast.apikey",
   ttsKey: "drawcast.ttskey",
+  // The Gemini API key (2026-10-07): Google will not put the Gemini API on
+  // the same key as Cloud Text-to-Speech, so Gemini voices have their own.
+  geminiKey: "drawcast.geminikey",
   githubToken: "drawcast.githubtoken",
   // The viewer's OWN 1541 ROM (code/c64-drive-rom.ts). Their file, their
   // browser: drawcast neither ships one nor knows where they got it.
@@ -403,7 +406,7 @@ export function saveSettings(s: Settings): void {
  * longer lives under the text-to-speech KEY it had been nested beneath.
  */
 export const SETTINGS_TABS: { id: string; label: string; fields: string[] }[] = [
-  { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey"] },
+  { id: "keys", label: "Keys", fields: ["apiKey", "ttsKey", "geminiKey"] },
   { id: "credits", label: "Credits", fields: ["credits"] },
   { id: "playback", label: "Playback", fields: ["style", "textSize", "textFamily", "mathFont", "mathHand", "theme", "voice", "rate", "cloudPlayback", "cloudVoice", "questionMode", "burnCaptions"] },
   { id: "publishing", label: "Publishing", fields: ["githubRepo", "githubToken", "account", "google", "coursesDir", "giscus"] },
@@ -468,6 +471,18 @@ export function setDriveRom(rom: StoredDriveRom | null): void {
 export function getTtsKey(): string {
   if (onViewOrigin()) return "";
   return localStorage.getItem(KEYS.ttsKey) || (import.meta.env.VITE_GOOGLE_TTS_KEY ?? "");
+}
+
+/** The Gemini API key for Gemini voices (export/gemini-tts.ts); empty when none. */
+export function getGeminiKey(): string {
+  if (onViewOrigin()) return "";
+  return localStorage.getItem(KEYS.geminiKey) || (import.meta.env.VITE_GEMINI_API_KEY ?? "");
+}
+
+export function setGeminiKey(key: string): void {
+  if (onViewOrigin()) return;
+  if (key) localStorage.setItem(KEYS.geminiKey, key);
+  else localStorage.removeItem(KEYS.geminiKey);
 }
 
 export function setTtsKey(key: string): void {

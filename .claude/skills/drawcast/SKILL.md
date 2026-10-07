@@ -119,8 +119,8 @@ every working file below is `dev-casts/<slug>…`.
      firm, Fenrir excitable, Leda youthful, Aoede breezy, Sulafat warm,
      Gacrux mature, Achird friendly, Sadaltager knowledgeable, Algenib
      gravelly, Zubenelgenubi casual, and more (src/export/gemini-tts.ts
-     GEMINI_VOICES). Gemini needs the user's own Google key with the Gemini
-     API allowed; narration credit speaks Studio only.
+     GEMINI_VOICES). Gemini needs its own key, `GEMINI_API_KEY` in `.env` (Google keeps the Gemini
+     API off Cloud TTS keys; made at aistudio.google.com/apikey); narration credit speaks Studio only.
    - **Subtitle:** write one yourself: a single sentence in the narration's
      language saying what the viewer gets ("How herd immunity protects
      people who can't be vaccinated"), not "a drawcast about…". It is the

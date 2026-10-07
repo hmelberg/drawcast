@@ -7,7 +7,7 @@ import { DELIVERY, effectiveGender, speechKey, type SpeakLine, type SpeakOpts } 
 import { SpeechManager, detectLang } from "../render/speech";
 import { sayable } from "../render/pronounce";
 import type { ClipStore } from "./bake-cache";
-import { geminiSynthesizeBase64, geminiVoice, splitVoiceSpec } from "./gemini-tts";
+import { geminiKeyFor, geminiSynthesizeBase64, geminiVoice, splitVoiceSpec } from "./gemini-tts";
 
 export interface TtsConfig {
   apiKey: string;
@@ -26,6 +26,8 @@ export interface TtsConfig {
    * would collapse into one.
    */
   voices?: Record<string, string>;
+  /** The Gemini API key, when it is not the Cloud key (gemini-tts.ts geminiKeyFor). */
+  geminiKey?: string;
   // A cast's own voices (its `voices:` header, 2026-10-07) ride in the same
   // map as "@a" / "@b" (gemini-tts.ts castVoiceMap): every caller already
   // passes it, and preferredVoice reads them first, for either speaker.
@@ -376,7 +378,7 @@ export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: Spea
   const lang = runLang({ text, lang: opts?.lang }, cfg.lang);
   const pref = preferredVoice(cfg.voices, lang, opts?.speaker);
   const gem = geminiVoice(pref);
-  if (gem) return geminiSynthesizeBase64(cfg.apiKey, gem, sayable(text), opts?.delivery);
+  if (gem) return geminiSynthesizeBase64(geminiKeyFor(cfg), gem, sayable(text), opts?.delivery);
   const call = (withName: boolean) =>
     fetch(`${ENDPOINT}?key=${encodeURIComponent(cfg.apiKey)}`, {
       method: "POST",

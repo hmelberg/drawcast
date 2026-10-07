@@ -17,7 +17,7 @@ import type { LinkBase } from "./links/resolve";
 import "./styles.css";
 import { type RenderStyle } from "./render";
 import { CloudSpeech } from "./export/tts";
-import { withCastVoices } from "./export/gemini-tts";
+import { setGeminiKeySource, withCastVoices } from "./export/gemini-tts";
 import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
 import { posterPathFor } from "./publish/cast";
@@ -47,7 +47,7 @@ import { checkPlaylistItems } from "./lint/check-playlist";
 import { makeBrowserMeasure } from "./render/svg-backend";
 import { ensureEnginesForSpecs } from "./scenes/engines";
 import { emptyProblems, problemsBox, type CastProblems } from "./ui/problems-box";
-import { getTtsKey, loadSettings, saveSettings } from "./store";
+import { getGeminiKey, getTtsKey, loadSettings, saveSettings } from "./store";
 import { ensurePacksParallel, packsForSpecs, PACK_DEFS } from "./scenes/packs";
 import { isBlockedCastTemplate, registerCastTemplates } from "./scenes/cast-templates";
 import { gateSpecs, trustKeys } from "./security/code-trust";
@@ -1085,6 +1085,7 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
       sweep();
     }
     const settings = loadSettings();
+    setGeminiKeySource(getGeminiKey);
     const speech = new CloudSpeech(
       () => (settings.cloudPlayback ? getTtsKey() : ""),
       // The cast's own voices (its `voices:` header) on top of the viewer's picks.

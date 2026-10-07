@@ -49,6 +49,14 @@ describe("voice specs", () => {
     expect(mp3.length).toBeGreaterThan(100);
     expect([...mp3.subarray(0, 4)].some((b, i) => b === 0xff && (mp3[i + 1] & 0xe0) === 0xe0)).toBe(true);
   });
+  test("a Gemini line uses its own key: the config's, else the app's, else the Cloud key", async () => {
+    const { geminiKeyFor, setGeminiKeySource } = await import("../src/export/gemini-tts");
+    expect(geminiKeyFor({ apiKey: "CLOUD", geminiKey: "GEM" })).toBe("GEM");
+    setGeminiKeySource(() => "APP");
+    expect(geminiKeyFor({ apiKey: "CLOUD" })).toBe("APP");
+    setGeminiKeySource(() => "");
+    expect(geminiKeyFor({ apiKey: "CLOUD" })).toBe("CLOUD");
+  });
   test("a refused key says what to enable", async () => {
     const fetchImpl = (async () => new Response(JSON.stringify({ error: { message: "blocked" } }), { status: 403 })) as typeof fetch;
     await expect(geminiSynthesizeBase64("KEY", { model: "m", voice: "Puck" }, "Hi", undefined, fetchImpl)).rejects.toThrow(/Gemini API/);

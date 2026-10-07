@@ -137,7 +137,7 @@ import { importCourse, lectureFilesOf, planCourseLoad } from "./course/load";
 import { translateSubtitles, withSubtitles } from "./llm/subtitles";
 import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
 import { CloudSpeech } from "./export/tts";
-import { withCastVoices, type CastVoices } from "./export/gemini-tts";
+import { setGeminiKeySource, withCastVoices, type CastVoices } from "./export/gemini-tts";
 import type { SpeakLine } from "./render/delivery";
 import {
   addExemplar,
@@ -156,7 +156,9 @@ import {
   getApiKey,
   getGithubToken,
   setGithubToken,
+  getGeminiKey,
   getTtsKey,
+  setGeminiKey,
   hydrateStore,
   setTtsKey,
   isMultiPart,
@@ -1892,6 +1894,9 @@ const clearKeyBtn = h("button", { class: "small" }, "Clear key");
 const ttsKeyInput = h("input", { type: "password", placeholder: "AIza…", autocomplete: "off" }) as HTMLInputElement;
 ttsKeyInput.value = getTtsKey();
 const clearTtsKeyBtn = h("button", { class: "small" }, "Clear key");
+const geminiKeyInput = h("input", { type: "password", placeholder: "AIza…", autocomplete: "off" }) as HTMLInputElement;
+geminiKeyInput.value = getGeminiKey();
+setGeminiKeySource(getGeminiKey);
 const cloudPlaybackCb = h("input", { type: "checkbox" }) as HTMLInputElement;
 cloudPlaybackCb.checked = settings.cloudPlayback;
 
@@ -2259,6 +2264,20 @@ const settingsBlocks = new Map<string, HTMLElement>([
         "div",
         { class: "settings-note" },
         "Video export narrates with Google's neural voices (browser speech cannot be recorded). Stored in localStorage only; sent only to texttospeech.googleapis.com. Costs are per character and per voice family — the default narrator (Studio) bills at Google's premium rate, and the Publish dialog's Embed-narration box shows the estimate before you spend.",
+      ),
+    ),
+  ],
+  [
+    "geminiKey",
+    h(
+      "div",
+      { class: "settings-field" },
+      h("label", {}, "Gemini API key (for Gemini voices)"),
+      geminiKeyInput,
+      h(
+        "div",
+        { class: "settings-note" },
+        "Only for a cast whose Narration voices are Gemini ones (Publish → Narration voices). Google keeps the Gemini API on a key of its own: make one at aistudio.google.com/apikey. Stored in localStorage only; sent only to generativelanguage.googleapis.com.",
       ),
     ),
   ],
@@ -6599,6 +6618,9 @@ clearKeyBtn.addEventListener("click", () => {
 });
 ttsKeyInput.addEventListener("change", () => {
   setTtsKey(ttsKeyInput.value.trim());
+});
+geminiKeyInput.addEventListener("change", () => {
+  setGeminiKey(geminiKeyInput.value.trim());
 });
 burnCaptionsCb.addEventListener("change", () => {
   settings.burnCaptions = burnCaptionsCb.checked;

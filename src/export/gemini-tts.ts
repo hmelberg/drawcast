@@ -143,6 +143,16 @@ export async function pcmToMp3Base64(pcm: { samples: Int16Array; rate: number; c
   return bytesToB64(out);
 }
 
+/** Where the app keeps its Gemini key (set once at start-up: main.ts, viewer.ts). */
+let geminiKeySource: () => string = () => "";
+export function setGeminiKeySource(get: () => string): void {
+  geminiKeySource = get;
+}
+/** The key a Gemini line is spoken with: the config's own, else the app's Gemini key, else the Cloud key (one key allowed for both also works). */
+export function geminiKeyFor(cfg: { apiKey: string; geminiKey?: string }): string {
+  return cfg.geminiKey || geminiKeySource() || cfg.apiKey;
+}
+
 /** One line spoken by a Gemini voice, as base64 MP3 (what Cloud TTS returns too). */
 export async function geminiSynthesizeBase64(apiKey: string, v: GeminiVoice, text: string, delivery?: string, fetchImpl: typeof fetch = fetch): Promise<string> {
   const res = await fetchImpl(ENDPOINT, {

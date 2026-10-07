@@ -41,6 +41,8 @@ const env = Object.fromEntries(
     .map((m) => [m[1], m[2].replace(/^["']|["']$/g, "")]),
 );
 const apiKey = env.GOOGLE_API_KEY;
+// Gemini voices speak with their own key when there is one (Google keeps the Gemini API off Cloud TTS keys).
+const geminiKey = env.GEMINI_API_KEY;
 if (apply && !apiKey) {
   console.error("No GOOGLE_API_KEY in .env");
   process.exit(2);
@@ -83,7 +85,7 @@ for (const file of files) {
     {
       lang: declaredLang ?? "en",
       existing,
-      synthesize: (line) => synthesizeBase64({ apiKey, rate: 1, voices, lang: declaredLang }, line.text, line),
+      synthesize: (line) => synthesizeBase64({ apiKey, geminiKey, rate: 1, voices, lang: declaredLang }, line.text, line),
       voiceOf,
     },
     (done, total) => process.stdout.write(`\r${file}: ${done}/${total}   `),
