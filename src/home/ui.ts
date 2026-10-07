@@ -28,7 +28,7 @@ const THUMB_RETRIES_MS = [2500, 7000];
  * marks once it has loaded, fetched when the card nears the screen.
  * drawCard escapes every text it draws.
  */
-function drawnThumb(name: string, own: CompiledCard): { box: HTMLElement; variant: number } {
+function drawnThumb(name: string, own: CompiledCard, title?: string): { box: HTMLElement; variant: number } {
   // A cast with several thumbnails shows one of them (card/choose.ts): mostly
   // the one clicked most, the same one all day for this viewer.
   const all = [own, ...(own.variants ?? [])];
@@ -39,7 +39,7 @@ function drawnThumb(name: string, own: CompiledCard): { box: HTMLElement; varian
   let poster: string | undefined;
   const paint = (): void => {
     try {
-      box.innerHTML = drawCard(card, { icons, posterHref: poster });
+      box.innerHTML = drawCard(card, { icons, posterHref: poster, seed: title ?? name });
     } catch {
       /* a malformed card: the box stays as it was */
     }
@@ -99,7 +99,7 @@ function serverThumb(c: HomeCard): HTMLElement {
 
 export function card(c: HomeCard, opts: { compact?: boolean } = {}): HTMLElement {
   const own = cardOf(c.name);
-  const drawn = own ? drawnThumb(c.name, own) : null;
+  const drawn = own ? drawnThumb(c.name, own, c.title) : null;
   const thumb = drawn ? drawn.box : serverThumb(c);
   const badges: HTMLElement[] = [];
   if (c.format) badges.push(h("span", { class: `home-badge home-badge-${c.format}` }, FORMAT_BADGE[c.format]));

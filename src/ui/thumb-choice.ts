@@ -5,7 +5,7 @@
 // drawn here with the same three faces and the same emptiest-corner rule.
 // What it returns is written into the document's `thumb:` line at publish.
 
-import { cornerBusyness, KID_FIGURES, MARK_WORDS, parseThumbLine, planThumb, readThumb, thumbSvg, THUMB_H, THUMB_W, type Corner } from "../../netlify/lib/thumb.mts";
+import { BG_PRESET_NAMES, cornerBusyness, KID_FIGURES, MARK_WORDS, parseThumbLine, planThumb, readThumb, thumbSvg, THUMB_H, THUMB_W, type Corner } from "../../netlify/lib/thumb.mts";
 import { h } from "./dom";
 
 /** The clickable words, in groups: what each inserts. */
@@ -36,6 +36,24 @@ const CHIPS: { group: string; words: { label: string; insert: string; title: str
       { label: "bang", insert: "bang", title: "a red !!" },
       { label: "seal", insert: "seal", title: "a “not clickbait” seal" },
       { label: "arrow", insert: "arrow", title: "a big red arrow" },
+    ],
+  },
+  {
+    group: "Background",
+    words: [
+      ...BG_PRESET_NAMES.map((b) => ({ label: b, insert: b, title: "a soft gradient (the default is one of these, picked by the title)" })),
+      { label: "solid", insert: "solid yellow", title: "one colour: yellow orange red pink purple blue teal green grey, or #hex" },
+      { label: "gradient", insert: "gradient blue pink", title: "a diagonal gradient between one or two colours" },
+      { label: "glow", insert: "glow yellow", title: "a light centre fading to the colour" },
+      { label: "paper", insert: "paper", title: "plain off-white" },
+    ],
+  },
+  {
+    group: "Person",
+    words: [
+      { label: "person", insert: "person", title: "a photo person beside the picture; add words to choose one" },
+      ...["man", "woman", "child", "teen", "old"].map((w) => ({ label: w, insert: w, title: "after person: who" })),
+      ...["surprised", "puzzled", "annoyed", "laughing"].map((w) => ({ label: w, insert: w, title: "after person: the face (the nearest picture is used)" })),
     ],
   },
   { group: "Listing", words: [{ label: "title", insert: 'title "', title: "a listing title of its own" }] },

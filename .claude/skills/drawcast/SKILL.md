@@ -90,6 +90,19 @@ every working file below is `dev-casts/<slug>…`.
      `band` + `star`, `bang` or `eyes`; adults — `band` + `note` (a
      surprising fact) or `stamp` (a myth or verdict: "MYTH?", "PLOT
      TWIST"); advanced — `band` alone or `question`.
+     Background (optional; the default is a soft gradient the title picks):
+     a preset `sky` `sunset` `mint` `lilac` `peach` `lemon` `blush` `sand`,
+     or `solid <colour>`, `gradient <colour> [<colour>]`, `glow <colour>`
+     (yellow orange red pink purple blue teal green grey, or `#hex`, kept
+     light), or `paper` for plain off-white. Pick one that suits the topic's
+     mood, or leave it out.
+     Person (optional, never by default): `person` and plain words — sex
+     (`man` `woman`), age (`45`, `40s`, `child`, `teen`, `old`), looks
+     (`bald` `beard` `glasses` `grey` `curly` …) and a face (`surprised`
+     `puzzled`, more to come) — a photo of a person reacting, beside the
+     picture, e.g. `person man 45 bald surprised`. The nearest picture is
+     used. Suggest it for youths' and adults' casts with a surprising
+     payoff; for children's casts, only `child` or `teen`.
    - **Subtitle:** write one yourself: a single sentence in the narration's
      language saying what the viewer gets ("How herd immunity protects
      people who can't be vaccinated"), not "a drawcast about…". It is the

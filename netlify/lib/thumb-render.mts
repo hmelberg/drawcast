@@ -22,17 +22,21 @@ export function posterBusyness(poster: Uint8Array): Record<Corner, number> | und
 
 const FACES = ["public/fonts/thumb/PermanentMarker-Regular.ttf", "public/fonts/thumb/Bangers-Regular.ttf", "public/fonts/patrickhand/PatrickHand-Regular.ttf"];
 
-/** The faces' paths: the function's bundle keeps them where the repo has them. */
-function fontFiles(): string[] {
-  // The working directory (the repo locally, /var/task in the function), or up from this file.
-  const roots = [process.cwd(), join(process.cwd(), ".."), "/var/task"];
+/** Where the bundle's files may be: the working directory (the repo locally, /var/task in the function), or up from this file. */
+function roots(): string[] {
+  const out = [process.cwd(), join(process.cwd(), ".."), "/var/task"];
   try {
     let d = dirname(fileURLToPath(import.meta.url));
-    for (let i = 0; i < 6; i++, d = dirname(d)) roots.push(d);
+    for (let i = 0; i < 6; i++, d = dirname(d)) out.push(d);
   } catch {
     /* no file URL in a bundle: the roots above */
   }
-  for (const r of roots) {
+  return out;
+}
+
+/** The faces' paths: the function's bundle keeps them where the repo has them. */
+function fontFiles(): string[] {
+  for (const r of roots()) {
     const files = FACES.map((f) => join(r, f));
     if (files.every((f) => existsSync(f))) return files;
   }
@@ -41,12 +45,21 @@ function fontFiles(): string[] {
 
 let fonts: string[] | null = null;
 
+/** A photo person (people.mts) as a data: URL, from public/thumb-people (netlify.toml included_files). */
+function personHref(id: string): string {
+  for (const r of roots()) {
+    const f = join(r, "public/thumb-people", `${id}.png`);
+    if (existsSync(f)) return `data:image/png;base64,${readFileSync(f).toString("base64")}`;
+  }
+  throw new Error(`thumb person ${id} not found`);
+}
+
 /** The PNG for `plan` over `poster` (PNG bytes). Throws when it cannot draw — the caller then serves the poster as it is. */
 export function renderThumb(plan: ThumbPlan, poster: Uint8Array): Uint8Array {
   fonts ??= fontFiles();
   if (fonts.length === 0) throw new Error("thumb fonts not found");
   const href = `data:image/png;base64,${Buffer.from(poster).toString("base64")}`;
-  const svg = thumbSvg(plan, href, posterBusyness(poster));
+  const svg = thumbSvg(plan, href, posterBusyness(poster), undefined, personHref);
   const r = new Resvg(svg, {
     fitTo: { mode: "width", value: THUMB_W },
     font: { fontFiles: fonts, loadSystemFonts: false, defaultFontFamily: "Patrick Hand" },

@@ -21,6 +21,16 @@
 //           seal (not clickbait) · arrow — any number, combined
 //   title "…"  the listing title, when it should differ from the title card's
 //   poster · image "https://…"  the picture under the words (default: the drawing)
+//   background (2026-10-07)  paper · a preset (sky sunset mint lilac peach
+//           lemon blush sand) · solid <colour> · gradient <colour> [<colour>] ·
+//           glow <colour> [<colour>] — colours by name (yellow orange red pink
+//           purple blue teal green grey) or #hex, kept light; default: a soft
+//           preset gradient the title picks. The picture is multiplied onto
+//           it, so its paper takes the colour and its ink stays dark.
+//   person … (2026-10-07)  a photo person beside the picture (people.mts):
+//           person man 45 bald surprised · person woman 19 puzzled · person
+
+import { hashOf, isPersonWord, personById, pickPerson, printPerson, readPersonWords, type Person } from "./people.mts";
 
 export const WORD_STYLES = ["band", "burst", "question", "none"] as const;
 export type WordStyle = (typeof WORD_STYLES)[number];
@@ -62,6 +72,10 @@ export interface ThumbParts {
    * poster; or an image's https address (pictureAllowed says which hosts).
    */
   picture?: "poster" | string;
+  /** The background as canonical words: paper, a preset, `solid …`, `gradient …`, `glow …`. */
+  bg?: string;
+  /** A photo person, by plain words (people.mts); [] for anyone. */
+  person?: string[];
 }
 
 /**
@@ -89,6 +103,11 @@ export interface ThumbPlan {
   question?: string;
   figure: Figure;
   marks: Mark[];
+  /** The background (canonical words, as ThumbParts.bg); absent on cards
+   *  compiled before backgrounds — they take the default for their name. */
+  bg?: string;
+  /** The photo person's id (people.mts). */
+  person?: string;
 }
 
 const clean = (v: unknown, max: number): string | undefined => {
@@ -135,9 +154,23 @@ export function parseThumbLine(line: string): { parts: ThumbParts; unknown: stri
       else if (text) parts.headline = text;
     } else if ((FIGURES as readonly string[]).includes(w) || w === "noface") {
       parts.figure = w === "noface" ? "none" : (w as Figure);
+      if (parts.figure !== "none") delete parts.person;
     } else if ((MARKS as readonly string[]).includes(w)) {
       const words = MARK_WORDS[w as MarkKind] !== undefined ? take(WORDS_MAX) : undefined;
       parts.marks.push({ kind: w as MarkKind, ...(words ? { words } : {}) });
+    } else if (w === "paper" || w in BG_PRESETS) {
+      parts.bg = w;
+    } else if (w === "solid" || w === "gradient" || w === "glow") {
+      const cs: string[] = [];
+      while (cs.length < (w === "solid" ? 1 : 2) && ts[i + 1]?.word !== undefined && colourOf(ts[i + 1].word!)) cs.push(ts[++i].word!);
+      if (cs.length) parts.bg = [w, ...cs].join(" ");
+      else if (w === "solid") parts.bg = "solid yellow";
+      else if (w === "glow") parts.bg = "glow yellow";
+    } else if (w === "person") {
+      const ws: string[] = [];
+      while (ts[i + 1]?.word !== undefined && isPersonWord(ts[i + 1].word!)) ws.push(ts[++i].word!);
+      parts.person = printPerson(readPersonWords(ws));
+      if (parts.figure !== undefined && parts.figure !== "none") delete parts.figure;
     } else if (w === "title") {
       const text = take(LISTING_TITLE_MAX);
       if (text) parts.title = text;
@@ -161,6 +194,8 @@ export function printThumbLine(p: ThumbParts): string {
   if (p.words === "question" && p.question) out.push(q(p.question));
   else if (p.headline && p.words !== "none" && p.words !== "question") out.push(q(p.headline));
   if (p.figure) out.push(p.figure === "none" ? "noface" : p.figure);
+  if (p.person) out.push(["person", ...p.person].join(" "));
+  if (p.bg) out.push(p.bg);
   for (const m of p.marks) out.push(m.words ? `${m.kind} ${q(m.words)}` : m.kind);
   if (p.title) out.push(`title ${q(p.title)}`);
   if (p.picture === "poster") out.push("poster");
@@ -217,15 +252,82 @@ export function planThumb(line: string | undefined, ctx: { title?: string; forma
   let words: WordStyle = p.words ?? (headline ? "band" : "none");
   if ((words === "band" || words === "burst") && !headline) words = "none";
   if (words === "question" && !question) words = "none";
-  let figure: Figure = p.figure ?? (ctx.kids && ctx.format === "quiz" && words === "band" ? "thinking" : "none");
+  const seed = ctx.title ?? headline ?? question ?? "";
+  const person = p.person ? pickPerson(readPersonWords(p.person), seed).id : undefined;
+  let figure: Figure = person ? "none" : (p.figure ?? (ctx.kids && ctx.format === "quiz" && words === "band" ? "thinking" : "none"));
   if (figure === "eyes" && words !== "band") figure = "none";
   const marks = p.marks.map((m) => (MARK_WORDS[m.kind] !== undefined ? { kind: m.kind, words: m.words ?? MARK_WORDS[m.kind] } : { kind: m.kind }));
-  return { words, ...(words === "band" || words === "burst" ? { headline } : {}), ...(words === "question" ? { question } : {}), figure, marks };
+  const bg = p.bg ?? defaultBackground(seed);
+  return { words, ...(words === "band" || words === "burst" ? { headline } : {}), ...(words === "question" ? { question } : {}), figure, marks, bg, ...(person ? { person } : {}) };
 }
 
 /** Nothing to draw over the poster: the card serves it as published. */
 export function isPlain(plan: ThumbPlan): boolean {
-  return plan.words === "none" && plan.figure === "none" && plan.marks.length === 0;
+  return plan.words === "none" && plan.figure === "none" && plan.marks.length === 0 && !plan.person && (plan.bg ?? "paper") === "paper";
+}
+
+// ---------------------------------------------------------------------------
+// Backgrounds (2026-10-07). Light colours only: the picture is multiplied
+// onto them, and a dark one would hide its ink.
+
+/** The presets: two stops each, top left to bottom right. */
+export const BG_PRESETS: Record<string, [string, string]> = {
+  sky: ["#e3f2ff", "#b7d9ff"],
+  sunset: ["#ffe4c4", "#ffbfd3"],
+  mint: ["#e4f8ec", "#bde9d1"],
+  lilac: ["#efe6ff", "#d0c2ff"],
+  peach: ["#ffeedd", "#ffcbab"],
+  lemon: ["#fffad2", "#ffe680"],
+  blush: ["#ffe9f0", "#ffc4d8"],
+  sand: ["#f8f1e4", "#e6d6b8"],
+};
+export const BG_PRESET_NAMES = Object.keys(BG_PRESETS);
+
+/** Named colours, as the light tints a background uses. */
+export const BG_COLOURS: Record<string, string> = {
+  yellow: "#ffe680", orange: "#ffcc99", red: "#ffb2a6", pink: "#ffc2d6", purple: "#d8c6ff",
+  blue: "#b7d9ff", teal: "#b2e8e0", green: "#c6ebbd", grey: "#e2dfda", gray: "#e2dfda", white: "#fffdf7",
+};
+
+const hexRgb = (h: string): [number, number, number] => {
+  const x = h.length === 4 ? h.slice(1).split("").map((c) => c + c).join("") : h.slice(1);
+  return [0, 2, 4].map((i) => parseInt(x.slice(i, i + 2), 16)) as [number, number, number];
+};
+const rgbHex = (c: number[]): string => "#" + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
+/** `c` moved a share `t` of the way to white. */
+const lighten = (c: string, t: number): string => rgbHex(hexRgb(c).map((v) => v + (255 - v) * t));
+const lum = (c: string): number => {
+  const [r, g, b] = hexRgb(c);
+  return (0.3 * r + 0.59 * g + 0.11 * b) / 255;
+};
+
+/** A colour word as a light hex, or undefined when it is not one. A dark #hex is lightened until ink reads on it. */
+export function colourOf(w: string): string | undefined {
+  if (w in BG_COLOURS) return BG_COLOURS[w];
+  if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(w)) return undefined;
+  let c = w.length === 4 ? rgbHex(hexRgb(w)) : w;
+  for (let i = 0; i < 12 && lum(c) < 0.74; i++) c = lighten(c, 0.2);
+  return c;
+}
+
+/** The background a title gets when its cast names none: one of the presets, always the same for that title. */
+export function defaultBackground(seed: string): string {
+  return BG_PRESET_NAMES[hashOf(seed) % BG_PRESET_NAMES.length];
+}
+
+/** A background's SVG: its defs (a gradient) and the full-canvas rect that paints it. */
+export function backgroundSvg(bg: string | undefined): string {
+  const [kind, ...cs] = (bg ?? "paper").split(" ");
+  const cols = cs.map(colourOf).filter((c): c is string => !!c);
+  const rect = (fill: string): string => `<rect width="${THUMB_W}" height="${THUMB_H}" fill="${fill}"/>`;
+  const linear = (a: string, b: string): string =>
+    `<defs><linearGradient id="thumb-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs>${rect("url(#thumb-bg)")}`;
+  if (kind in BG_PRESETS) return linear(...BG_PRESETS[kind]);
+  if (kind === "solid" && cols[0]) return rect(cols[0]);
+  if (kind === "gradient" && cols[0]) return linear(cols[1] ? cols[0] : lighten(cols[0], 0.6), cols[1] ?? cols[0]);
+  if (kind === "glow" && cols[0])
+    return `<defs><radialGradient id="thumb-bg" cx="0.5" cy="0.45" r="0.75"><stop offset="0" stop-color="${cols[1] ? cols[0] : lighten(cols[0], 0.75)}"/><stop offset="1" stop-color="${cols[1] ?? cols[0]}"/></radialGradient></defs>${rect("url(#thumb-bg)")}`;
+  return rect("#fffdf7");
 }
 
 // ---------------------------------------------------------------------------
@@ -270,15 +372,18 @@ export function fitText(text: string, face: keyof typeof FONT, width: number, ma
 
 const BAND_CY = 588;
 
-function band(headline: string): string {
+/** The band; its words between `x0` and `x1` (a person beside them takes the rest). */
+function band(headline: string, x0 = 70, x1 = 930): string {
   const up = headline.toUpperCase();
+  const width = x1 - x0;
+  const cx = (x0 + x1) / 2;
   // One line while it reads at 52 or more; two lines only for a longer headline.
-  const one = fitText(up, "marker", 860, 1, 70, 52);
-  const { size, lines } = one.lines.length === 1 && wrapWords(up, one.size, 860, EM.marker)?.length === 1 ? one : fitText(up, "marker", 860, 2, 70, 38);
+  const one = fitText(up, "marker", width, 1, 70, 52);
+  const { size, lines } = one.lines.length === 1 && wrapWords(up, one.size, width, EM.marker)?.length === 1 ? one : fitText(up, "marker", width, 2, 70, width < 700 ? 32 : 38);
   const lh = size * 1.12;
   const h = lines.length * lh + 34;
   const y0 = BAND_CY - h / 2;
-  const text = lines.map((l, i) => `<text x="500" y="${(y0 + 22 + size * 0.86 + i * lh).toFixed(1)}" text-anchor="middle" font-family="${FONT.marker}" font-size="${size}" fill="${INK}">${esc(l)}</text>`).join("");
+  const text = lines.map((l, i) => `<text x="${cx}" y="${(y0 + 22 + size * 0.86 + i * lh).toFixed(1)}" text-anchor="middle" font-family="${FONT.marker}" font-size="${size}" fill="${INK}">${esc(l)}</text>`).join("");
   return (
     `<g transform="rotate(-3.5 500 ${BAND_CY})">` +
     `<rect x="-40" y="${(y0 + 8).toFixed(1)}" width="1080" height="${h.toFixed(1)}" fill="rgba(0,0,0,0.18)"/>` +
@@ -310,7 +415,9 @@ function burst(headline: string): { art: string; bottom: number } {
  *  drawn from its own compiled drawing (src/card, 2026-10-05) — that drawing
  *  as inline SVG markup on the same 1000 × 750 canvas. */
 function pictureLayer(posterHref: string, picture?: string): string {
-  return picture !== undefined ? `<g>${picture}</g>` : `<image href="${esc(posterHref)}" width="1000" height="750"/>`;
+  // Multiplied onto the background: the picture's paper takes its colour, the ink stays dark.
+  const blend = `style="mix-blend-mode:multiply"`;
+  return picture !== undefined ? `<g ${blend}>${picture}</g>` : `<image href="${esc(posterHref)}" width="1000" height="750" ${blend}/>`;
 }
 
 /** The corners' slots (left, top, width, height) the marks stand in — for a
@@ -326,7 +433,6 @@ function questionCard(text: string, posterHref: string, picture?: string): strin
   const lh = size * 1.1;
   const top = THUMB_H / 2 - (lines.length * lh) / 2 + size * 0.8;
   return (
-    `<rect width="${THUMB_W}" height="${THUMB_H}" fill="#fffdf7"/>` +
     `<svg x="460" y="0" width="540" height="750" viewBox="270 80 460 640" preserveAspectRatio="xMidYMid slice">${pictureLayer(posterHref, picture)}</svg>` +
     `<rect width="460" height="750" fill="#2f5d8a"/>` +
     lines.map((l, i) => `<text x="52" y="${(top + i * lh).toFixed(1)}" font-family="${FONT.hand}" font-size="${size}" fill="#fffdf7">${esc(l)}</text>`).join("")
@@ -488,6 +594,38 @@ function sealArt(): string {
 
 const kidArt = (c: (typeof KID_FIGURES)[number]): string => `<g transform="translate(10 0) scale(1.3)">${characterArt(c)}</g>`;
 
+// ---- The photo person (people.mts): chest-up, bottom-anchored on one side,
+// a little past the edge, facing the middle, cut out with a white outline.
+const PERSON_H = 600;
+const PERSON_OVER = 50;
+
+/** The side the person stands: the emptier one, or the right when the words need the left. */
+function personSide(words: WordStyle, busy?: Record<Corner, number>): "left" | "right" {
+  if (words === "burst" || words === "question" || !busy) return "right";
+  return busy.tl + busy.bl < busy.tr + busy.br ? "left" : "right";
+}
+
+/** The width the person covers on the canvas. */
+const personCover = (p: Person): number => Math.round((p.w / p.h) * PERSON_H) - PERSON_OVER;
+
+function personArt(p: Person, side: "left" | "right", href: string): string {
+  const w = Math.round((p.w / p.h) * PERSON_H);
+  const x = side === "right" ? THUMB_W - w + PERSON_OVER : -PERSON_OVER;
+  const y = THUMB_H - PERSON_H;
+  const toward = side === "right" ? "left" : "right";
+  const place = p.faces === toward ? `translate(${x} ${y})` : `translate(${x + w} ${y}) scale(-1 1)`;
+  return (
+    `<defs><filter id="thumb-cut" x="-10%" y="-10%" width="120%" height="120%">` +
+    `<feMorphology in="SourceAlpha" operator="dilate" radius="7" result="grow"/><feFlood flood-color="#ffffff"/><feComposite in2="grow" operator="in" result="edge"/>` +
+    `<feMerge result="cut"><feMergeNode in="edge"/><feMergeNode in="SourceGraphic"/></feMerge>` +
+    `<feDropShadow in="cut" dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity="0.35"/></filter></defs>` +
+    `<g transform="${place}"><image href="${esc(href)}" width="${w}" height="${PERSON_H}" filter="url(#thumb-cut)"/></g>`
+  );
+}
+
+/** Where the photo people are served (the site's own files). */
+export const personHrefDefault = (id: string): string => `/thumb-people/${id}.png`;
+
 /** The big red arrow: from under burst's lettering (or the upper middle), down and to the right. */
 function arrowArt(fromY: number): string {
   return `<g transform="translate(330 ${Math.min(fromY, 420).toFixed(0)}) scale(2.1)"><path d="M10 18c40 6 82 28 110 74" fill="none" stroke="#e8302a" stroke-width="12" stroke-linecap="round"/><path d="M96 84l30 18 4-34" fill="none" stroke="#e8302a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></g>`;
@@ -499,10 +637,13 @@ function arrowArt(fromY: number): string {
  * first; the figure takes the emptiest, then each mark the next (a corner
  * takes a second, smaller item nearer the middle when items outnumber corners).
  */
-export function thumbSvg(plan: ThumbPlan, posterHref: string, busy?: Record<Corner, number>, picture?: string): string {
-  let base = `<rect width="${THUMB_W}" height="${THUMB_H}" fill="#fffdf7"/>${pictureLayer(posterHref, picture)}`;
+export function thumbSvg(plan: ThumbPlan, posterHref: string, busy?: Record<Corner, number>, picture?: string, personHref: (id: string) => string = personHrefDefault): string {
+  const bg = backgroundSvg(plan.bg ?? defaultBackground(plan.headline ?? plan.question ?? ""));
+  let base = bg + pictureLayer(posterHref, picture);
   let arrowFrom = 300;
-  if (plan.words === "question" && plan.question) base = questionCard(plan.question, posterHref, picture);
+  if (plan.words === "question" && plan.question) base = bg + questionCard(plan.question, posterHref, picture);
+  const person = personById(plan.person);
+  const side = person ? personSide(plan.words, busy) : undefined;
   if (plan.words === "burst" && plan.headline) {
     const b = burst(plan.headline);
     base += b.art;
@@ -523,6 +664,11 @@ export function thumbSvg(plan: ThumbPlan, posterHref: string, busy?: Record<Corn
     else if (m.kind === "seal") items.push(sealArt);
   }
   let corners = freeCorners(plan.words);
+  // The person's side is theirs: the marks take the other corners.
+  if (side) {
+    const rest = corners.filter((c) => c[1] !== side[0]);
+    corners = rest.length ? rest : [side === "right" ? "tl" : "tr"];
+  }
   if (busy) corners = [...corners].sort((a, b) => busy[a] - busy[b]);
   // A corner a placed mark stands in comes last: the corner marks go elsewhere first.
   const covered = (c: Corner): boolean =>
@@ -550,7 +696,10 @@ export function thumbSvg(plan: ThumbPlan, posterHref: string, busy?: Record<Corn
     const y = k === 0 ? y0 : c[0] === "t" ? y0 + 190 : y0 - 170;
     over += k === 0 ? `<g transform="translate(${x} ${y})">${art(inward)}</g>` : `<g transform="translate(${x + 40} ${y}) scale(0.7)">${art(inward)}</g>`;
   });
-  if (plan.marks.some((m) => m.kind === "arrow")) over += arrowArt(arrowFrom);
-  const body = plan.words === "band" && plan.headline ? base + (plan.figure === "eyes" ? eyes() : "") + over + band(plan.headline) : base + over;
+  const cover = person ? personCover(person) + 16 : 0;
+  const strip = plan.words === "band" && plan.headline ? band(plan.headline, side === "left" ? Math.max(70, cover) : 70, side === "right" ? Math.min(930, THUMB_W - cover) : 930) : "";
+  const front = person ? personArt(person, side!, personHref(person.id)) : "";
+  const arrow = plan.marks.some((m) => m.kind === "arrow") ? arrowArt(arrowFrom) : "";
+  const body = base + (strip && plan.figure === "eyes" ? eyes() : "") + over + strip + front + arrow;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${THUMB_W}" height="${THUMB_H}" viewBox="0 0 ${THUMB_W} ${THUMB_H}">${body}</svg>`;
 }

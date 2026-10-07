@@ -120,7 +120,8 @@
 
 # The listing picture (thumbnail round, 2026-10-04): /card/<name>.png draws
 # the cast's style over its poster with resvg, a native module esbuild must
-# not bundle, and with these three faces read from disk.
+# not bundle, and with these three faces read from disk — and the photo
+# people a thumbnail may show (netlify/lib/people.mts, 2026-10-07).
 [functions.card]
   external_node_modules = ["@resvg/resvg-js"]
-  included_files = ["public/fonts/thumb/*.ttf", "public/fonts/patrickhand/*.ttf"]
+  included_files = ["public/fonts/thumb/*.ttf", "public/fonts/patrickhand/*.ttf", "public/thumb-people/*.png"]
