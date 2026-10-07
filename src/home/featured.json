@@ -1081,5 +1081,546 @@
       "economics"
     ],
     "owner": "hmelberg"
+  },
+  {
+    "name": "guinea-worm-infected-millions-a-year-how",
+    "title": "Guinea worm infected millions a year. How many human cases were there in 2025?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "epidemiology",
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-source-of-electricity-is-the",
+    "title": "Which source of electricity is the deadliest?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "earth",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "of-all-the-mammals-on-earth-by-weight",
+    "title": "Of all the mammals on Earth, by weight, what share is wild?",
+    "format": "quiz",
+    "tags": [
+      "biology",
+      "earth",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-many-whales-were-killed-in-the-20th",
+    "title": "How many whales were killed in the 20th century?",
+    "format": "quiz",
+    "tags": [
+      "biology",
+      "history",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-country-puts-the-most-plastic-into",
+    "title": "Which country puts the most plastic into the ocean?",
+    "format": "quiz",
+    "tags": [
+      "earth",
+      "geography",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "the-dutch-are-the-world-s-tallest-men",
+    "title": "The Dutch are the world's tallest men. How tall were they a century earlier?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "history",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-many-people-are-alive-thanks-to",
+    "title": "How many people are alive thanks to synthetic fertilizer?",
+    "format": "quiz",
+    "tags": [
+      "food",
+      "chemistry",
+      "history of science"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-many-chickens-are-slaughtered-for",
+    "title": "How many chickens are slaughtered for meat each year?",
+    "format": "quiz",
+    "tags": [
+      "food",
+      "biology",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-country-tops-the-world-happiness",
+    "title": "Which country tops the World Happiness Report?",
+    "format": "quiz",
+    "tags": [
+      "psychology",
+      "economics",
+      "geography"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-much-of-beef-s-carbon-footprint-is",
+    "title": "How much of beef's carbon footprint is transport?",
+    "format": "quiz",
+    "tags": [
+      "food",
+      "earth",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-country-drinks-the-most-alcohol",
+    "title": "Which country drinks the most alcohol per adult?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "geography",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "battery-prices-since-1991-true-or-myth",
+    "title": "Battery prices since 1991: true or myth?",
+    "format": "quiz",
+    "tags": [
+      "economics",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "do-we-need-bees-to-eat-four-claims-true",
+    "title": "Do we need bees to eat? Four claims: true or myth?",
+    "format": "quiz",
+    "tags": [
+      "biology",
+      "food",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "in-1800-how-many-children-died-before",
+    "title": "In 1800, how many children died before their fifth birthday?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "history",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-country-emits-the-most-co-per",
+    "title": "Which country emits the most CO₂ per person?",
+    "format": "quiz",
+    "tags": [
+      "earth",
+      "geography",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-country-has-emitted-the-most-co",
+    "title": "Which country has emitted the most CO₂ since 1750?",
+    "format": "quiz",
+    "tags": [
+      "earth",
+      "history",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "do-natural-disasters-kill-more-people",
+    "title": "Do natural disasters kill more people than a century ago?",
+    "format": "quiz",
+    "tags": [
+      "earth",
+      "history",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-much-of-the-world-s-seafood-is",
+    "title": "How much of the world's seafood is farmed?",
+    "format": "quiz",
+    "tags": [
+      "food",
+      "earth",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-many-children-does-the-average-woman",
+    "title": "How many children does the average woman in the world have today?",
+    "format": "quiz",
+    "tags": [
+      "data",
+      "economics",
+      "geography"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-much-of-the-world-s-forest-have-we",
+    "title": "How much of the world's forest have we lost since the last ice age?",
+    "format": "quiz",
+    "tags": [
+      "earth",
+      "history",
+      "geography"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-much-of-the-world-s-energy-still",
+    "title": "How much of the world's energy still comes from fossil fuels?",
+    "format": "quiz",
+    "tags": [
+      "earth",
+      "economics",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-does-it-cost-to-read-a-human-genome",
+    "title": "What does it cost to read a human genome now?",
+    "format": "quiz",
+    "tags": [
+      "biology",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "in-what-year-did-half-of-the-world-s",
+    "title": "In what year did half of the world's people first use the internet?",
+    "format": "quiz",
+    "tags": [
+      "computing",
+      "data",
+      "geography"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "when-did-the-last-country-stop-selling",
+    "title": "When did the last country stop selling leaded petrol?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "history",
+      "chemistry"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "in-1820-what-share-of-the-world-could",
+    "title": "In 1820, what share of the world could read?",
+    "format": "quiz",
+    "tags": [
+      "history",
+      "language",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "livestock-uses-most-farmland-how-much-of",
+    "title": "Livestock uses most farmland. How much of our food does it give?",
+    "format": "quiz",
+    "tags": [
+      "food",
+      "earth",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-of-these-countries-still-had",
+    "title": "Which of these countries still had malaria around 1900?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "history",
+      "geography"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-fast-have-measles-deaths-fallen",
+    "title": "How fast have measles deaths fallen since 1980?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "epidemiology",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-old-is-the-typical-person-niger",
+    "title": "How old is the typical person? Niger, Brazil, the US, Italy and Japan",
+    "format": "quiz",
+    "tags": [
+      "geography",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "does-the-news-cover-what-actually-kills",
+    "title": "Does the news cover what actually kills us?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "data",
+      "psychology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-many-people-still-live-without",
+    "title": "How many people still live without electricity?",
+    "format": "quiz",
+    "tags": [
+      "geography",
+      "economics",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-share-of-new-cars-sold-in-norway",
+    "title": "What share of new cars sold in Norway are fully electric?",
+    "format": "quiz",
+    "tags": [
+      "economics",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-many-nuclear-warheads-are-left-in",
+    "title": "How many nuclear warheads are left in the world?",
+    "format": "quiz",
+    "tags": [
+      "history",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "are-there-more-obese-or-more-underweight",
+    "title": "Are there more obese or more underweight adults in the world?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "what-happened-to-ozone-destroying-gases",
+    "title": "What happened to ozone-destroying gases after the world agreed to ban them?",
+    "format": "quiz",
+    "tags": [
+      "earth",
+      "chemistry",
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "are-there-more-mobile-phone",
+    "title": "Are there more mobile phone subscriptions than people on Earth?",
+    "format": "quiz",
+    "tags": [
+      "computing",
+      "data",
+      "culture"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-much-of-the-world-s-plastic-waste",
+    "title": "How much of the world's plastic waste gets recycled?",
+    "format": "quiz",
+    "tags": [
+      "earth",
+      "chemistry",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "when-will-the-world-s-population-peak",
+    "title": "When will the world's population peak, and at what size?",
+    "format": "quiz",
+    "tags": [
+      "geography",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-many-people-left-extreme-poverty",
+    "title": "How many people left extreme poverty every day since 1990?",
+    "format": "quiz",
+    "tags": [
+      "economics",
+      "data",
+      "history"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-much-work-buys-an-hour-of-light-then",
+    "title": "How much work buys an hour of light, then and now?",
+    "format": "quiz",
+    "tags": [
+      "economics",
+      "history",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-many-times-richer-is-the-richest",
+    "title": "How many times richer is the richest country than the poorest?",
+    "format": "quiz",
+    "tags": [
+      "economics",
+      "history",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-country-has-the-most-women-in",
+    "title": "Which country has the most women in parliament?",
+    "format": "quiz",
+    "tags": [
+      "geography",
+      "history",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-killed-more-in-the-20th-century",
+    "title": "Which killed more in the 20th century: smallpox or the World Wars?",
+    "format": "quiz",
+    "tags": [
+      "history",
+      "medicine",
+      "epidemiology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-sent-more-into-space-one-year-or",
+    "title": "Which sent more into space: one year, or the whole space age?",
+    "format": "quiz",
+    "tags": [
+      "astronomy",
+      "data",
+      "history of science"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-takes-more-lives-worldwide-suicide",
+    "title": "Which takes more lives worldwide: suicide or homicide?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "epidemiology"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "which-infectious-disease-kills-the-most",
+    "title": "Which infectious disease kills the most people today?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "epidemiology",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "as-americans-grow-older-how-much-of-the",
+    "title": "As Americans grow older, how much of the day do they spend alone?",
+    "format": "quiz",
+    "tags": [
+      "psychology",
+      "data",
+      "culture"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "one-chip-against-the-planet-which-is",
+    "title": "One chip against the planet: which is bigger?",
+    "format": "quiz",
+    "tags": [
+      "computing",
+      "data"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "in-how-many-countries-do-women-live",
+    "title": "In how many countries do women live longer than men?",
+    "format": "quiz",
+    "tags": [
+      "health",
+      "data",
+      "geography"
+    ],
+    "owner": "hmelberg"
+  },
+  {
+    "name": "how-many-hours-did-a-german-work-in-1870",
+    "title": "How many hours did a German work in 1870, compared with today?",
+    "format": "quiz",
+    "tags": [
+      "economics",
+      "history",
+      "data"
+    ],
+    "owner": "hmelberg"
   }
 ]
