@@ -1723,7 +1723,7 @@ const commands = {
         if (m && Number(m[1]) > tiles.length) unlinkSync(`${out}/${old}`);
       }
       writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 1));
-      console.log(`${tiles.length} tile(s): ${tiles.join(", ")} — one frame per spoken line (mid-gesture where the line highlights, focuses, points or flows); each question twice: before the answer (its gate open) and after the reveal`);
+      console.log(`${tiles.length} tile(s): ${tiles.join(", ")} — one frame per spoken line (mid-gesture where the line highlights, focuses, points or flows); each question twice: before the answer (its gate open) and after the reveal (a stand-in viewer's wrong-ish answer beside the truth, the feedback line captioned)`);
       for (const part of report.parts ?? []) {
         const bad = [...part.validationErrors, ...(part.iconIssues ?? []), ...part.planWarnings, ...part.commandIssues, ...part.playbackErrors];
         if (bad.length) console.log("  " + bad.join("\n  "));
