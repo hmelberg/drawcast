@@ -40,7 +40,7 @@ test("role: thumbnail survives printing the page back", () => {
   expect(thumbnailItemOf(parsePlaylistText(text))).not.toBeNull();
 });
 
-import { marksOfPage } from "../src/card/convert";
+import { marksOfPage, withLineLayers } from "../src/card/convert";
 import { thumbSvg } from "../netlify/lib/thumb.mts";
 import { validateSpec } from "../src/spec/schema";
 
@@ -75,6 +75,14 @@ test("a thumbnail page's thumb elements are its marks: words, figure, placed and
     ],
   });
   expect(marksOfPage({ elements: [] })).toBeNull();
+});
+
+test("a thumbnail page keeps the line's background, and its person unless the page draws a figure", () => {
+  const page = { words: "band" as const, headline: "H", figure: "none" as const, marks: [] };
+  const line = { words: "none" as const, figure: "none" as const, marks: [], bg: "notebook", person: "m45-surprised" };
+  expect(withLineLayers(page, line)).toEqual({ ...page, bg: "notebook", person: "m45-surprised" });
+  expect(withLineLayers({ ...page, figure: "eyes" }, line)).toEqual({ ...page, figure: "eyes", bg: "notebook" });
+  expect(withLineLayers(page, { words: "none", figure: "none", marks: [] })).toEqual(page);
 });
 
 test("a placed mark stands where it was put; a corner mark avoids the corner it covers", () => {

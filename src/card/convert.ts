@@ -290,6 +290,15 @@ export function marksOfPage(spec: Spec, title?: string): ThumbPlan | null {
 }
 
 /**
+ * A thumbnail page's marks with what only the cast's `thumb:` line can say
+ * (2026-10-07): its background, and its photo person unless the page draws
+ * a figure of its own.
+ */
+export function withLineLayers(page: ThumbPlan, line: ThumbPlan): ThumbPlan {
+  return { ...page, ...(line.bg ? { bg: line.bg } : {}), ...(line.person && page.figure === "none" ? { person: line.person } : {}) };
+}
+
+/**
  * A private cast's card (Hans, 2026-10-05): the headline and marks on plain
  * paper — nothing of the figure, which a private cast keeps to its readers.
  */
@@ -362,7 +371,9 @@ async function compileOne(text: string, own: { spec: Spec } | null, item: { spec
         if (typeof it === "string") dropped.push(it);
         else items.push(it);
       }
-      const marks = (own && marksOfPage(own.spec, castCardText(text).title)) || marksOf(text);
+      const line = marksOf(text);
+      const page = own && marksOfPage(own.spec, castCardText(text).title);
+      const marks = page ? withLineLayers(page, line) : line;
       let capped = capItems(items, JSON.stringify(marks).length);
       for (let i = 0; i < capped.dropped; i++) dropped.push("over the cap");
       // Too detailed for a card (a chess position, a skeleton): a stock
