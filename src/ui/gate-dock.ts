@@ -17,11 +17,14 @@
 //
 // The question itself stands over the figure as a headline while it is open
 // (round 7 §8.1), the gate's hint under it as the how line; the dock keeps
-// only buttons. A title card's heading stands aside meanwhile (styles.css,
-// .cs-stage.cs-headline) and comes back when the headline fades.
+// only buttons. That is a page WITHOUT a heading: on a page with one the
+// heading stays on top through every ask (house rule 2026-10-07), and the
+// ask's task — or its whole question, when the heading does not ask it —
+// stands under the underline as a task line, in the band the layout keeps
+// free there (layout/page.ts reservesTaskLine, TASK_LINE_H).
 
 import { h } from "./dom";
-import { CONTENT_TOP, PAGE_H } from "../layout/page";
+import { CONTENT_TOP, PAGE_H, TASK_LINE_H } from "../layout/page";
 import { taskBeside } from "../spec/question-echo";
 
 export interface GateDock {
@@ -94,9 +97,14 @@ export interface GateHeadMount {
    *  for it now (px). Returns whether the how line stays in it, and how far
    *  (px) it overruns the strip even at its least size. */
   relayout(over?: boolean, shift?: number): { how: boolean; overrun: number };
-  /** False: the page's heading asks the question and stays; only the task
-   *  line stands under it (no headline; the heading stays). */
+  /** False: the page has a heading and it stays; the ask's task line
+   *  stands under it (no headline). */
   headline: boolean;
+  /** The mount does not hold the gate's how line (a task line with its own
+   *  text): the caller keeps it — the dock's first item, the gate's own
+   *  status — shown only while it says something the task does not (a
+   *  budget's "Stories left: 90"). */
+  howOut?: boolean;
   height(): number;
   dispose(): void;
 }
@@ -111,15 +119,14 @@ export function mountGateHead(stage: HTMLElement, head: GateHead): GateHeadMount
   if (head.question.trim() === "") return null;
   head.how.classList.remove("cs-waitgate-pill");
   head.how.classList.add("cs-gatehead-how");
-  // The page's heading is the one stable headline (Hans 2026-10-05): a
-  // question it already asks adds only its task, under it.
   const heading = head.heading === undefined ? stageHeading(stage) : head.heading === null ? null : { text: head.heading, el: null, line: null };
-  const task = heading ? taskBeside(head.question, heading.text) : null;
-  if (heading && task !== null) return mountTaskLine(stage, head, task, heading);
+  // The heading stays on top through every ask (house rule, 2026-10-07): a
+  // question it already asks adds only its task; any other question stands
+  // whole under it — never in its place.
+  if (heading) return mountTaskLine(stage, head, taskBeside(head.question, heading.text) ?? head.question.trim(), heading);
   const q = h("div", { class: "cs-gatehead-q", title: head.question }, head.question);
-  // In the cast's own hand, at the heading's size: the heading line changes
-  // its words, not its style.
-  const look = textLook(stage, heading?.el ?? null);
+  // In the cast's own hand.
+  const look = textLook(stage, null);
   if (look.family) q.style.fontFamily = look.family;
   const el = h("div", { class: "cs-gatehead" }, q, head.how);
   stage.appendChild(el);
@@ -148,14 +155,12 @@ export function mountGateHead(stage: HTMLElement, head: GateHead): GateHeadMount
     const top = svgBox ? svgBox.top - stage.getBoundingClientRect().top - shift : 0;
     el.style.top = `${Math.max(0, top) + 6}px`;
     const room = svgBox && svgBox.height > 0 ? svgBox.height * HEAD_STRIP - 6 + shift : Infinity;
-    // A heading on the page: the question takes its size (it stands in its place).
-    const max = heading?.el ? Math.max(HEAD_FONT_MIN, Math.min(HEAD_FONT_TOP, textLook(stage, heading.el).px ?? HEAD_FONT_MAX)) : HEAD_FONT_MAX;
     const fit = fitHeadline(room, (f, how) => {
       q.style.fontSize = `${f}px`;
       if (how && head.how.parentNode !== el) el.appendChild(head.how);
       if (!how && head.how.parentNode === el) head.how.remove();
       return el.offsetHeight;
-    }, max);
+    });
     q.style.fontSize = `${fit.fontPx}px`;
     if (!fit.how && head.how.parentNode === el) head.how.remove();
     setHow(fit.how);
@@ -178,8 +183,6 @@ export function mountGateHead(stage: HTMLElement, head: GateHead): GateHeadMount
   };
 }
 
-/** The headline's largest size beside a heading: about a heading's own. */
-const HEAD_FONT_TOP = 34;
 /** Under the heading's underline, as a share of the drawing's height from its
  *  top (no heading box to read): the underline sits near y 695 (spec/card.ts). */
 const UNDER_HEADING = (PAGE_H - 690) / PAGE_H;
@@ -241,49 +244,77 @@ function textLook(stage: HTMLElement, headingEl: Element | null): { family?: str
 }
 
 /**
- * The heading already asks the question: it stays, and the ask shows only
- * its task, small, under the heading's underline — in place of the gate's
- * own hint (which comes back while the gate says something else, a budget
- * or "then Done"). No task: the gate's hint, there. Takes no height.
+ * The task line's font (px) on a drawing `svgH` px tall: the gate's own
+ * size (`cssPx`), smaller when one line of it (line height 1.25, 4 px under
+ * the underline) would not fit the band the layout keeps free for it under
+ * the heading (layout/page.ts TASK_LINE_H) — a small player. Never under 11 px.
+ * Pure, for the tests.
+ */
+export function taskLineFont(svgH: number, cssPx: number): number {
+  const band = (TASK_LINE_H * svgH) / PAGE_H - 4;
+  return Math.round(Math.max(11, Math.min(cssPx, band / 1.25)) * 10) / 10;
+}
+
+/**
+ * The page's heading stays: the ask's task stands under its underline,
+ * small — in the band the layout keeps free there (layout/page.ts
+ * reservesTaskLine). `task` is what the ask adds beside the heading: only
+ * its task when the heading already asks the question, else the whole
+ * question; "" — nothing: the gate's own hint stands there instead. With a
+ * task of its own the line never shows the gate's hint: the caller keeps
+ * that (howOut), seen only while it says something else — a budget's
+ * account, "then Done". Takes no height.
  */
 function mountTaskLine(stage: HTMLElement, head: GateHead, task: string, heading: StageHeading): GateHeadMount {
-  const el = h("div", { class: "cs-gatehead cs-gatehead-task" }, head.how);
+  const own = task !== "";
+  const text = own ? h("div", { class: "cs-gatehead-how cs-gatehead-tasktext", title: task }, task) : null;
+  const el = h("div", { class: "cs-gatehead cs-gatehead-task" }, text ?? head.how);
   stage.appendChild(el);
   // The caption would only repeat the task the line shows (styles.css).
   stage.classList.add(TASKLINE);
   const generic = head.how.textContent ?? "";
-  const swap = (): void => {
-    if (task === "" || head.how.textContent !== generic) return;
-    head.how.textContent = task;
-    head.how.setAttribute("title", task);
+  /** The gate's hint, kept by the caller: seen only while it is not the generic one. */
+  const syncHow = (): void => {
+    if (!own) return;
+    const hide = (head.how.textContent ?? "") === generic;
+    if (head.how.hidden !== hide) head.how.hidden = hide;
   };
-  swap();
-  const mo = task !== "" && typeof MutationObserver === "function" ? new MutationObserver(swap) : null;
+  syncHow();
+  const mo = own && typeof MutationObserver === "function" ? new MutationObserver(syncHow) : null;
   mo?.observe(head.how, { childList: true, characterData: true, subtree: true });
   let gone = false;
   const relayout = (): { how: boolean; overrun: number } => {
-    if (gone) return { how: true, overrun: 0 };
-    if (head.how.parentNode !== el) el.appendChild(head.how);
+    if (gone) return { how: !own, overrun: 0 };
+    syncHow();
+    if (!own && head.how.parentNode !== el) el.appendChild(head.how);
     const stageTop = stage.getBoundingClientRect().top;
+    const svgBox = stage.querySelector<SVGSVGElement>("svg.cs-svg")?.getBoundingClientRect();
     const boxes = [heading.el, heading.line].filter((n): n is Element => n !== null).map((n) => n.getBoundingClientRect()).filter((b) => b.height > 0);
     let top: number;
     if (boxes.length > 0) top = Math.max(...boxes.map((b) => b.bottom)) - stageTop + 4;
-    else {
-      const svgBox = stage.querySelector<SVGSVGElement>("svg.cs-svg")?.getBoundingClientRect();
-      top = svgBox ? svgBox.top - stageTop + svgBox.height * UNDER_HEADING : 0;
-    }
+    else top = svgBox ? svgBox.top - stageTop + svgBox.height * UNDER_HEADING : 0;
     el.style.top = `${Math.max(0, Math.round(top))}px`;
-    return { how: true, overrun: 0 };
+    // Sized to the band under the heading (a phone's drawing is small).
+    const line = text ?? head.how;
+    if (svgBox && svgBox.height > 0) {
+      line.style.removeProperty("font-size");
+      const css = typeof getComputedStyle === "function" ? parseFloat(getComputedStyle(line).fontSize) : NaN;
+      const px = taskLineFont(svgBox.height, Number.isFinite(css) && css > 0 ? css : 14);
+      if (!Number.isFinite(css) || px < css) line.style.fontSize = `${px}px`;
+    }
+    return { how: !own, overrun: 0 };
   };
   relayout();
   return {
     headline: false,
+    ...(own ? { howOut: true } : {}),
     relayout,
     height: () => 0,
     dispose: () => {
       if (gone) return;
       gone = true;
       mo?.disconnect();
+      head.how.hidden = false;
       const newer = stage.querySelector(".cs-gatehead");
       if (newer === null || newer === el) stage.classList.remove(TASKLINE);
       el.classList.add("cs-gatehead-out");
@@ -304,10 +335,10 @@ export function dockShrink(m: { mode: "overlay" | "below" | "strip"; stageH: num
 export function mountGateDock(stage: HTMLElement, gate: HTMLElement, items: HTMLElement[], onLayout: () => void, head?: GateHead): GateDock {
   const top = head ? mountGateHead(stage, head) : null;
   // No headline (no question): the how line stays in the dock, first.
-  const inBar = head && !top ? [head.how, ...items] : items;
+  const inBar = head && (!top || top.howOut) ? [head.how, ...items] : items;
   const el = h("div", { class: "cs-gatedock" }, ...inBar);
   // Nothing to press (a required choose): no empty bar.
-  el.hidden = inBar.length === 0;
+  el.hidden = items.length === 0 && (!head || !inBar.includes(head.how) || head.how.hidden === true);
   gate.appendChild(el);
   // A dock opening while the last one's drawing still eases back: instant.
   stage.classList.remove(UNDOCKING);
@@ -317,10 +348,12 @@ export function mountGateDock(stage: HTMLElement, gate: HTMLElement, items: HTML
   /** How far the drawing stands lowered under the headline now (px). */
   let headShift = 0;
   /** The how line: in the headline, or (it did not fit there) first in the dock. */
-  const placeHow = (inHead: boolean): void => {
+  const placeHow = (asked: boolean): void => {
     if (!head || !top) return;
+    // A task line with its own text never holds the how line: the bar does.
+    const inHead = asked && !top.howOut;
     if (!inHead && head.how.parentNode !== el) el.insertBefore(head.how, el.firstChild);
-    el.hidden = !inHead ? false : items.length === 0;
+    el.hidden = items.length === 0 && (inHead || head.how.hidden);
   };
 
   const relayout = (): void => {

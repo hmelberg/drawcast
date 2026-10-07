@@ -71,3 +71,82 @@ export function contentBox(opts: { heading?: boolean } = {}): BBox {
  *  fitted chart's floor sat under the captions), 160–655 until 2026-10-05
  *  (the caption band right-sized, CAPTION_TOP). */
 export const FIT_BAND: Readonly<{ y: number; h: number }> = Object.freeze({ y: CAPTION_TOP, h: CONTENT_TOP - CAPTION_TOP });
+
+/** Under a heading, the line an ask's task stands on while the viewer
+ *  answers (ui/gate-dock.ts mountTaskLine). The heading stays the page's one
+ *  headline through every ask (house rule, 2026-10-07: an estimate's or a
+ *  guess's question once took its place, or lay over the axis caption under
+ *  it); a page that asks on its figure under a heading keeps this much
+ *  height free under the underline — its heading floor drops by it, so
+ *  plots, axis captions and what is placed above something start lower. */
+export const TASK_LINE_H = 36;
+/** What the task line itself takes under the underline, at most: one line
+ *  of it (ui/gate-dock.ts taskLineFont sizes it to fit) and its gap. Axis
+ *  captions — which rise above their arrow, past the floor — keep under
+ *  this, across the page's width (the line may be as wide). */
+export const TASK_LINE_BAND = 28;
+
+/** The ask fields reservesTaskLine reads (spec/types.ts AskArgs). */
+export interface AskLike {
+  question?: string;
+  on?: unknown;
+  estimate?: unknown;
+  choose?: unknown;
+  blanks?: unknown;
+  pick?: unknown;
+  spot?: unknown;
+  widget?: string;
+  poll?: unknown;
+  say_question?: boolean;
+}
+
+/** Does this ask open a gate ON the figure that stands its question as a
+ *  task line under the page's heading (the guess, cards, choose, tree,
+ *  formula, spot, poll and drag gates)? A typed answer or answer buttons
+ *  do not; nor does a quiet one (say_question: false) or one with no question. */
+export function opensFigureGate(ask: AskLike): boolean {
+  if (ask.say_question === false || !ask.question || ask.question.trim() === "") return false;
+  return [ask.on, ask.estimate, ask.choose, ask.blanks, ask.pick, ask.spot, ask.poll].some((v) => v !== undefined) || ask.widget === "drag";
+}
+
+/** The commands reservesTaskLine reads: what goes on and off the screen, and the asks. */
+export interface PageCommandLike {
+  ask?: AskLike;
+  draw?: unknown;
+  show?: unknown;
+  erase?: unknown;
+  hide?: unknown;
+  clear?: { keep?: unknown } | unknown;
+  card?: unknown;
+}
+
+const idsOf = (raw: unknown): string[] => (typeof raw === "string" ? [raw] : Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : []);
+
+/**
+ * Does a page keep the task line free under its heading? Only with a
+ * heading — a bare page's ask may use the top slot as before — and an ask
+ * that opens a gate on the figure. `figure` names the ids whose place the
+ * reserve moves (the template's own ink, which the heading floor positions):
+ * with it, only an ask that stands WITH some of that ink on screen (or that
+ * draws a part of it, a guess on bar_2) reserves — a chart drawn after a
+ * cards question keeps its place, and the author's notes beside it theirs.
+ */
+export function reservesTaskLine(page: { heading: boolean; commands?: readonly PageCommandLike[]; figure?: (id: string) => boolean }): boolean {
+  if (!page.heading) return false;
+  const figure = page.figure;
+  const visible = new Set<string>();
+  for (const c of page.commands ?? []) {
+    if (c.ask !== undefined && opensFigureGate(c.ask)) {
+      if (!figure) return true;
+      if ([...visible, ...idsOf(c.ask.on)].some(figure)) return true;
+    }
+    for (const id of [...idsOf(c.draw), ...idsOf(c.show)]) visible.add(id);
+    for (const id of [...idsOf(c.erase), ...idsOf(c.hide)]) visible.delete(id);
+    if (c.card !== undefined) visible.clear();
+    if (c.clear !== undefined) {
+      const keep = new Set(idsOf((c.clear as { keep?: unknown } | null)?.keep));
+      for (const id of [...visible]) if (!keep.has(id)) visible.delete(id);
+    }
+  }
+  return false;
+}

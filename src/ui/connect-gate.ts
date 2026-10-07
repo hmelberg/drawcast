@@ -452,7 +452,7 @@ export function connectGateFor(stage: HTMLElement, hd: RenderHandle): (signal: A
       stage.appendChild(gate);
       head = mountGateHead(stage, { question: step.question, how: hint });
       // No question: the hint stays in the status stack, over the counter.
-      if (!head) status.insertBefore(hint, summary);
+      if (!head || head.howOut) status.insertBefore(hint, summary);
       positionStars();
       renderMarks();
     });

@@ -22,7 +22,7 @@ import { usesDecimalComma } from "./measures";
 import { detectLang } from "../render/speech";
 import { setFigureLocale, withTextFit } from "../scenes/kit";
 import { clearAxisCaptions, setHeadingBox } from "./axes";
-import { contentBox, FIT_BAND, GUTTER, HEADING_FONT_MAX, HEADING_Y, MARGIN, PAGE_H, PAGE_W } from "./page";
+import { contentBox, FIT_BAND, GUTTER, HEADING_FONT_MAX, HEADING_Y, MARGIN, PAGE_H, PAGE_W, reservesTaskLine, TASK_LINE_BAND, TASK_LINE_H } from "./page";
 import { pageVAlign, pinnedIds, settleBlocker, settleOffset, shiftAll } from "./settle";
 import type { MeasureSpec } from "./measures";
 import type { CodeWindow } from "./code";
@@ -216,8 +216,24 @@ export function layoutSpec(
       const line = (spec.elements ?? []).find((e) => e.id === title.id.replace(/_title$/, "_line"));
       const ys = Array.isArray(line?.points) ? (line.points as unknown[]).flatMap((p) => (Array.isArray(p) && typeof p[1] === "number" ? [p[1] as number] : [])) : [];
       const underline = ys.length > 0 ? Math.min(...ys) : HEADING_Y - font * 0.82;
-      setHeadingBox({ x: PAGE_W / 2 - w / 2, y: underline, w, h: PAGE_H - underline });
-      setHeadingFloor(underline, effectiveTextStyle(spec).scale);
+      // An ask on the figure under this heading stands its task line under
+      // the underline (ui/gate-dock.ts mountTaskLine): the page keeps that
+      // line free — the floor drops by it.
+      // Only for an ask that stands with the template's ink (ids no spec
+      // element has: the chart a heading floor places) — what an author
+      // placed stays where it was put either way.
+      const own = new Set((spec.elements ?? []).map((e) => e.id));
+      if (reservesTaskLine({ heading: true, commands: spec.commands, figure: (id) => !own.has(id) && !/^card_\d+_/.test(id) })) {
+        const floor = underline - TASK_LINE_H;
+        // Axis captions keep under the line as it is drawn — one line of the
+        // task, the full width (the task line may be wide): TASK_LINE_BAND.
+        const band = underline - TASK_LINE_BAND;
+        setHeadingBox({ x: 0, y: band, w: PAGE_W, h: PAGE_H - band });
+        setHeadingFloor(floor, effectiveTextStyle(spec).scale);
+      } else {
+        setHeadingBox({ x: PAGE_W / 2 - w / 2, y: underline, w, h: PAGE_H - underline });
+        setHeadingFloor(underline, effectiveTextStyle(spec).scale);
+      }
     } else {
       setHeadingBox(null);
       setHeadingFloor(null);

@@ -181,7 +181,8 @@ describe("the page's heading already asks it (Hans 2026-10-05, ants-on-earth)", 
     const skip = h("button", { class: "cs-cardgate-pill skip cs-figgate-skip" }, "Skip ▸") as unknown as El;
     const dock = mountGateDock(stage as unknown as HTMLElement, gate as unknown as HTMLElement, [skip] as unknown as HTMLElement[], () => {}, { question, how: how as unknown as HTMLElement, heading });
     const heads = () => stage.children.filter((c) => c.className.split(" ").includes("cs-gatehead"));
-    return { stage, how, dock, heads };
+    const bar = gate.children.find((c) => c.className === "cs-gatedock")!;
+    return { stage, how, dock, heads, bar };
   }
 
   test("the heading stays; only the task stands under it, in place of the hint", async () => {
@@ -189,7 +190,9 @@ describe("the page's heading already asks it (Hans 2026-10-05, ants-on-earth)", 
     const [head] = m.heads();
     expect(head.className).toContain("cs-gatehead-task");
     expect(head.textContent).toBe("Click on the line: each step is ten times the last.");
-    expect(head.children).toEqual([m.how]);
+    // The task in its own line; the gate's generic hint waits in the bar, unseen.
+    expect(head.children).not.toContain(m.how);
+    expect(m.how.parent).toBe(m.bar);
     // No headline: the heading is not hidden.
     expect(m.stage.classList.contains("cs-headline")).toBe(false);
     // The caption would only repeat the task: it steps aside meanwhile.
@@ -210,12 +213,43 @@ describe("the page's heading already asks it (Hans 2026-10-05, ants-on-earth)", 
     expect(m.stage.classList.contains("cs-headline")).toBe(false);
   });
 
-  test("a different question takes the heading's place, as before", async () => {
+  test("a different question never takes the heading's place: the whole question stands under it (2026-10-07)", async () => {
     const m = await mountBeside("How much do all the ants weigh? Drag the bar.", "How many ants are on Earth?");
     const [head] = m.heads();
-    expect(head.className).toBe("cs-gatehead");
-    expect(head.textContent).toContain("How much do all the ants weigh?");
-    expect(m.stage.classList.contains("cs-headline")).toBe(true);
+    expect(head.className).toContain("cs-gatehead-task");
+    expect(head.textContent).toBe("How much do all the ants weigh? Drag the bar.");
+    // The heading stays: no headline over it.
+    expect(m.stage.classList.contains("cs-headline")).toBe(false);
+    expect(m.stage.classList.contains("cs-gatetask")).toBe(true);
+  });
+
+  test("a gate's live readout (a budget) never replaces the task: it goes to the bar", async () => {
+    const m = await mountBeside("You are the editor: share out a hundred stories between these causes.", "Does the news cover what kills us?", "Drag the bars, then Done");
+    const [head] = m.heads();
+    expect(head.textContent).toBe("You are the editor: share out a hundred stories between these causes.");
+    // The generic hint says less than the task: it stays out of sight.
+    expect(m.how.parent).toBe(m.bar);
+    expect((m.how as unknown as { hidden?: boolean }).hidden).toBe(true);
+    m.how.textContent = "Stories left: 90";
+    m.dock.relayout();
+    expect(head.textContent).toBe("You are the editor: share out a hundred stories between these causes.");
+    expect((m.how as unknown as { hidden?: boolean }).hidden).toBe(false);
+    expect(m.bar.children[0]).toBe(m.how);
+    m.how.textContent = "Drag the bars, then Done";
+    m.dock.relayout();
+    expect((m.how as unknown as { hidden?: boolean }).hidden).toBe(true);
+  });
+
+  test("the task line sits under the heading's underline, sized to the band the layout keeps free", async () => {
+    const { taskLineFont } = await import("../src/ui/gate-dock");
+    // A 600 px drawing: the band (TASK_LINE_H, in units) is ≈ 29 px — one
+    // 14 px line fits at full size.
+    expect(taskLineFont(600, 14)).toBe(14);
+    // A 400 px drawing: the font shrinks toward the band; a phone's stops at 11 px.
+    const small = taskLineFont(400, 14);
+    expect(small).toBeLessThan(14);
+    expect(small).toBeGreaterThanOrEqual(11);
+    expect(taskLineFont(260, 14)).toBe(11);
   });
 
   test("no heading on the page: the headline, as before", async () => {
