@@ -985,6 +985,9 @@ export function planCommands(commandsIn: Command[] | undefined, allIds: string[]
     };
     for (const r of [...q.on, ...q.others, ...q.choose]) rooted(r);
     for (const id of q.parts) out.add(id);
+    // The page's heading stays on top through every ask (2026-10-07): it
+    // never fades with the rest — the task line stands under it.
+    for (const id of known) if (/^card_\d+_(title|line)$/.test(id)) out.add(id);
     if (q.tree) {
       for (const r of q.tree) rooted(r);
       for (const id of opts.templateIds ?? []) if (known.has(id)) out.add(id);

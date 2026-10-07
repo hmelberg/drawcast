@@ -364,8 +364,12 @@ export function accountMarks(handles: GuessHandle[], values: number[][], budget:
   // The words: centred on the bar, pulled in to the room right of the last bar.
   const roomL = lastEdge + 6, roomR = CANVAS.w - 2;
   const words = wrapLabel(label, roomR - roomL);
-  // The bar's top leaves room above it for the number and the label's lines.
-  const ceil = ACCOUNT_TOP - ACCOUNT_LINE * (1 + words.length);
+  // The bar's top leaves room above it for the number and the label's lines;
+  // with plenty left it stops at the plot's top (the bars' own max), its words
+  // just over it — never up through the heading strip and the task line an
+  // ask stands under the heading (2026-10-07: it reached the canvas top).
+  const plotTop = h0.toLogical!([0, h0.max])[1];
+  const ceil = Math.min(ACCOUNT_TOP - ACCOUNT_LINE * (1 + words.length), plotTop);
   const end = Math.max(ACCOUNT_FLOOR, Math.min(ceil, want));
   const cut = Math.abs(want - end) > 0.5;
   const x0 = cx - halfW, x1 = cx + halfW;

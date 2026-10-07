@@ -343,6 +343,15 @@ describe("the account bar on a real chart", () => {
     for (const t of m.texts) expect(t.at[1]).toBeLessThanOrEqual(CANVAS.h - 10);
   });
 
+  test("plenty left: the bar stops at the plot's top, its words just over it — never up in the heading strip (2026-10-07)", () => {
+    const hs = handlesOf(hours);
+    const plotTop = hs[0].toLogical!([0, hs[0].max])[1];
+    const m = accountMarks(hs, hs.map(startValues), 24, "Hours left");
+    for (const l of m.lines) for (const [, y] of l.pts) expect(y).toBeLessThanOrEqual(plotTop + 0.5);
+    const words = m.texts.length;
+    for (const t of m.texts) expect(t.at[1]).toBeLessThanOrEqual(plotTop + 24 * words + 0.5);
+  });
+
   test("overspent past the room below the baseline: cut, with a break mark, the number still shown", () => {
     const hs = handlesOf(health);
     const m = accountMarks(hs, hs.map((h) => [h.max]), 100);

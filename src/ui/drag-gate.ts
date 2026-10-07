@@ -145,6 +145,6 @@ export function dragGateFor(stage: HTMLElement, hd: RenderHandle): (signal: Abor
       signal.addEventListener("abort", onAbort);
       stage.appendChild(gate);
       head = mountGateHead(stage, { question: step.question, how: hint });
-      if (!head) gate.appendChild(hint);
+      if (!head || head.howOut) gate.appendChild(hint);
     });
 }

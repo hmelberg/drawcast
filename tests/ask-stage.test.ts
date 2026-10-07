@@ -104,6 +104,13 @@ describe("the plan: what a staged question keeps at full strength", () => {
     expect(plain?.kind === "ask" && plain.stage).toBeUndefined();
   });
 
+  test("the page's heading never fades: it stays on top through the ask (2026-10-07)", () => {
+    const ids = [...IDS, "card_1_title", "card_1_line"];
+    const plan = planCommands([{ draw: ids }, { ask: { question: "Which door?", choose: ["door_1", "door_2"], answer: "door_2", stage: "own" } } as Command], ids, { bboxOf: (id) => BOXES[id] ?? null });
+    const ask = plan.steps.find((s) => s.kind === "ask");
+    expect(ask?.kind === "ask" && ask.stage?.sort()).toEqual(["card_1_line", "card_1_title", "door_1", "door_2"]);
+  });
+
   test("a guess: the parts it paints and shows", () => {
     const plan = planCommands([{ draw: ["axes", "bar_1"] }, { ask: { question: "How tall?", on: "bar_2", stage: "own" } } as Command], ["axes", "bar_1", "bar_2", "value_2"], {
       guessParts: () => ({ parts: ["bar_2"], shows: ["bar_2", "value_2"] }),
