@@ -19,7 +19,7 @@ import type { SpeechManager } from "../render/speech";
 import { attachPlayerControls, clickGate, type ControlsOptions, type PlaybackPrefs } from "../ui/controls";
 import { h } from "../ui/dom";
 import { collectSpeakLines } from "../export/video";
-import { affirmLines } from "../render/affirm";
+import { liveSpeakLines } from "../export/live-lines";
 import { AnswerCarry, questionOffsets } from "./carry";
 import { ItemTimer, type ItemView } from "./item-timer";
 import { edgeStep, replayTarget } from "./nav-model";
@@ -154,23 +154,18 @@ export function playlistSpeakLines(playlist: Playlist): SpeakLine[] {
 /**
  * What a bake records (and its cost estimate counts): the movie's lines
  * (playlistSpeakLines) plus what only a LIVE viewer hears that the cast can
- * know ahead — the affirmations a right quiz answer picks from
- * (render/affirm.ts), in the voice its quiz speaks with — so a baked cast
- * never drops to a browser voice for "Spot on." Not the transcript's lines.
+ * know ahead (export/live-lines.ts) — `wrong` lines, feedback band lines,
+ * a cards ask's count lines for every score, the affirmations a right answer
+ * picks from — each in the voice its question speaks with, so a baked cast
+ * never drops to a browser voice for "Spot on." or "Not quite: look east."
+ * Not the transcript's lines.
  */
 export function playlistBakeLines(playlist: Playlist): SpeakLine[] {
   const seen = new Map<string, SpeakLine>(playlistSpeakLines(playlist).map((l) => [speechKey(l), l]));
   for (const spec of exportSequence(playlist)) {
-    const pool = affirmLines(spec);
-    if (pool.length === 0) continue;
-    const voices = new Map<string, Pick<SpeakLine, "speaker" | "delivery">>([["|", {}]]);
-    for (const c of spec.commands ?? []) if (c.quiz || c.ask) voices.set(`${c.voice ?? ""}|${c.delivery ?? ""}`, { speaker: c.voice, delivery: c.delivery });
-    for (const text of pool) {
-      for (const v of voices.values()) {
-        const line: SpeakLine = { text, ...v, gender: spec.voice };
-        const key = speechKey(line);
-        if (!seen.has(key)) seen.set(key, line);
-      }
+    for (const line of liveSpeakLines(spec)) {
+      const key = speechKey(line);
+      if (!seen.has(key)) seen.set(key, line);
     }
   }
   return [...seen.values()];

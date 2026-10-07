@@ -256,7 +256,9 @@ describe("the stamp lands WITH the reveal line", () => {
     await player.play();
     const i = log.indexOf("land: reveal_1_stamp");
     expect(i).toBeGreaterThan(-1);
-    expect(log[i + 1]).toMatch(/Myth: months\.$/);
+    // The affirmation, then the explanation — two utterances (each its own baked clip).
+    expect(log[i + 1]).toMatch(/^say: /);
+    expect(log[i + 2]).toBe("say: Myth: months.");
     expect(log.filter((l) => l.startsWith("land:"))).toHaveLength(1);
   });
 

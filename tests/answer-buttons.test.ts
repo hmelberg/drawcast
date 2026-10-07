@@ -94,13 +94,19 @@ describe("where the buttons go", () => {
 globalThis.requestAnimationFrame ??= ((cb: FrameRequestCallback) =>
   setTimeout(() => cb(performance.now()), 5) as unknown as number) as typeof requestAnimationFrame;
 
+/** A stand-in caption element: what the viewer reads while each line is spoken. */
+const captionEl = () => ({ textContent: "", classList: { toggle() {} }, parentElement: null }) as unknown as HTMLElement;
+
 class RecordingSpeech extends SpeechManager {
   spoken: string[] = [];
+  captions: string[] = [];
+  caption: HTMLElement | null = null;
   override get available(): boolean {
     return false;
   }
   override speak(text: string): Promise<void> {
     this.spoken.push(text);
+    this.captions.push(this.caption?.textContent ?? "");
     return Promise.resolve();
   }
   override cancel(): void {}
@@ -120,7 +126,8 @@ function playerOf(spec: Spec, speech: RecordingSpeech) {
   const ids = (ex.elements ?? []).map((e) => e.id);
   const labels = new Map((ex.elements ?? []).map((e) => [e.id, (e as { text?: string }).text ?? null]));
   const plan = planCommands(ex.commands ?? [], ids, { labelOf: (id) => labels.get(id) ?? null, bboxOf: () => ({ x: 0, y: 0, w: 10, h: 10 }) });
-  return { plan, player: new Player(plan, new Map(), speech, null, { mode: "narrated", breath: false }) };
+  speech.caption = captionEl();
+  return { plan, player: new Player(plan, new Map(), speech, speech.caption, { mode: "narrated", breath: false }) };
 }
 
 describe("answering on the buttons", () => {
@@ -154,9 +161,14 @@ describe("answering on the buttons", () => {
     await player.play();
     expect(gated!.quiet).toBe(true);
     expect(speech.spoken).not.toContain("Goldfish memory: true or myth?");
-    // A varied affirmation, then the explanation (Hans 2026-10-04).
-    const right = speech.spoken.find((l) => l.endsWith("Myth: months."));
-    expect(right).toMatch(/^\S.*\S Myth: months\.$/);
+    // A varied affirmation, then the explanation (Hans 2026-10-04) — two
+    // utterances, so each is its own baked clip (2026-10-07), under one caption.
+    const at = speech.spoken.indexOf("Myth: months.");
+    expect(at).toBeGreaterThan(0);
+    const nod = speech.spoken[at - 1];
+    expect(nod).not.toBe("A goldfish forgets in three seconds.");
+    expect(speech.captions[at - 1]).toBe(`${nod} Myth: months.`);
+    expect(speech.captions[at]).toBe(`${nod} Myth: months.`);
     expect(speech.spoken.at(-1)).toBe("You got 1 of 1; you said Myth.");
     expect(player.vars.get("g.ok")).toBe("true");
   });
@@ -168,7 +180,8 @@ describe("answering on the buttons", () => {
     player.affirmer.configure(spec);
     player.askGate = async () => "quiz_1_btn_2";
     await player.play();
-    expect(speech.spoken).toContain("Correct. Myth: months.");
+    const at = speech.spoken.indexOf("Correct.");
+    expect(speech.spoken.slice(at, at + 2)).toEqual(["Correct.", "Myth: months."]);
   });
 
   it("a wrong tap: wrong, then the reveal; score 0", async () => {

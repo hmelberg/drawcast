@@ -797,6 +797,15 @@ export function planCommands(commandsIn: Command[] | undefined, allIds: string[]
         narrationSpeaker: currentNarrationSpeaker,
         narrationDelivery: currentNarrationDelivery,
       };
+    } else if ((step.kind === "quiz" || step.kind === "ask") && (currentNarrationSpeaker !== undefined || currentNarrationDelivery !== undefined)) {
+      // A question with no line of its own to read (an on-canvas quiz, a
+      // quiet ask) still says its right/wrong/feedback in its command's
+      // voice — the voice a bake records them in (export/live-lines.ts).
+      step = {
+        ...step,
+        ...(currentNarrationSpeaker !== undefined ? { narrationSpeaker: currentNarrationSpeaker } : {}),
+        ...(currentNarrationDelivery !== undefined ? { narrationDelivery: currentNarrationDelivery } : {}),
+      };
     }
     // A cue belongs to the action whether or not THIS command carries the
     // line: an action cued inside a sentence spoken by an earlier command
