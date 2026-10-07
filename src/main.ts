@@ -94,7 +94,7 @@ import { isBook, mountBookPlaylist } from "./book/shell";
 import { stampBook } from "./book/stamp";
 import { appendRecord, localRecordStorage } from "./render/record";
 import { applyViewsFlag } from "./views";
-import { exportVideo, narrationLanguage, type ExportResult } from "./export/video";
+import { exportVideo, type ExportResult } from "./export/video";
 import { snapshotPng, posterForPlaylistText } from "./export/snapshot";
 import { thumbTitle } from "../netlify/lib/thumb.mts";
 import { beatSheets } from "./export/beat-sheet";
@@ -6311,12 +6311,28 @@ function endExport(): void {
  * line already says why, so callers just return.
  */
 async function renderVideo(specs: Spec[], burnCaptions: boolean, of = "", siblings?: readonly Spec[]): Promise<ExportResult | null> {
+  // Browser speech cannot be recorded, so a video narrates with Google's
+  // voices: the author's own key when there is one, else — signed in and
+  // only then — narration credit, exactly as a publish bakes (publishTextFor).
   const ttsKey = getTtsKey();
-  if (!ttsKey) {
-    setStatus("Video export needs a Google Cloud Text-to-Speech API key — add it in Settings.", "error");
+  const accountToken = getToken();
+  if (!ttsKey && !accountToken) {
+    setStatus("Video export needs a Google Cloud Text-to-Speech key, or sign in to narrate with credit.", "error");
     openSettings();
     return null;
   }
+  // Voice and cache key exactly as the publish bake and live playback have
+  // them — the author's voice picks and the DECLARED language (undefined when
+  // none; a guessed one would re-key every line) — so a line already heard
+  // with cloud voices or already published is replayed from the clip cache,
+  // free, and only new lines are bought. A cancelled or failed export keeps
+  // what it bought too.
+  const declaredLang = specs.find((s) => s.lang)?.lang;
+  const ttsCfg = { rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang };
+  const synthesizeLine = ttsKey
+    ? (line: SpeakLine) => synthesizeBase64({ apiKey: ttsKey, ...ttsCfg }, line.text, line)
+    : (line: SpeakLine) => serverSynthesize(DEFAULT_ENROLL_API, accountToken, ttsCfg, line.text, line);
+  const synthesize = cachingSynthesizer(bakeClipStore, (line) => clipCacheKey(settings.rate, settings.cloudVoices, line, declaredLang), synthesizeLine);
   const controller = new AbortController();
   exportAbort = controller;
   exportStage.replaceChildren();
@@ -6329,7 +6345,7 @@ async function renderVideo(specs: Spec[], burnCaptions: boolean, of = "", siblin
   try {
     return await exportVideo(
       specs,
-      { ttsKey, style: settings.style, rate: settings.rate, questions: questionsOption(settings.questionMode), burnCaptions, lang: narrationLanguage(specs), siblings },
+      { synthesize, style: settings.style, rate: settings.rate, questions: questionsOption(settings.questionMode), burnCaptions, siblings },
       {
         onStatus: (t) => (exportChipText.textContent = of ? `${t.replace(/…$/, "")}${of}…` : t),
         canvas: exportCanvas,
@@ -6340,7 +6356,7 @@ async function renderVideo(specs: Spec[], burnCaptions: boolean, of = "", siblin
     );
   } catch (err) {
     if (controller.signal.aborted) setStatus("Video export cancelled.");
-    else setStatus(`Export failed: ${(err as Error).message}`, "error");
+    else setStatus(err instanceof CreditError ? err.message : `Export failed: ${(err as Error).message}`, "error");
     return null;
   } finally {
     clock?.stop();

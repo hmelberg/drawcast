@@ -425,14 +425,16 @@ export function visibilityPauser(
 }
 
 export interface ExportConfig {
-  ttsKey: string;
+  /**
+   * One narration line → its MP3 as base64: the author's own Google key, or
+   * narration credit for a signed-in author without one (the caller decides).
+   */
+  synthesize: (line: SpeakLine) => Promise<string>;
   style: RenderStyle;
   /** Skip quiz/ask questions in the recording too (the viewer preference). */
   questions?: "on" | "skip";
   /** Narration rate (maps to the TTS speakingRate); the animation runs at 1×. */
   rate: number;
-  /** The narration's language, so the voice is chosen rather than guessed. */
-  lang?: string;
   /**
    * Paint the caption into the frame. Off leaves the text band empty paper —
    * the layout does not move, so a burnt-in and a clean export are the same
@@ -495,7 +497,7 @@ export async function exportVideo(authoredItems: Spec[], cfg: ExportConfig, hook
   const playCarry = new AnswerCarry();
   try {
     const buffers = await synthesizeAll(
-      { apiKey: cfg.ttsKey, rate: cfg.rate, lang: cfg.lang },
+      cfg.synthesize,
       items.flatMap((spec, i) => collectSpeakLines(spec, { vars: lineVars, questionOffset: offsets[i] })),
       audioCtx,
       (done, total) => hooks.onStatus(`Synthesizing narration ${done}/${total}…`),

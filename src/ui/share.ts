@@ -57,7 +57,10 @@ export interface ShareCaps {
   github: boolean;
   /** Google is configured (client id present). */
   google: boolean;
-  /** A Google Cloud TTS key is set — recording needs a voice it can capture. */
+  /**
+   * Narration a recording can capture: a Google Cloud TTS key is set, or the
+   * author is signed in and narrates with credit.
+   */
   tts: boolean;
 }
 
@@ -445,10 +448,10 @@ const DESTS: DestRow[] = [
   // player from drawcast.app. Needs nothing — no key, no account — so it is
   // first, and Export always has a row that works.
   { id: "page", group: "export", label: "Web page", action: "Download", offered: () => true, ready: () => true, reason: "", courses: false },
-  { id: "video", group: "export", label: "Video file", action: "Export", offered: () => true, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
+  { id: "video", group: "export", label: "Video file", action: "Export", offered: () => true, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings, or sign in to use credit", courses: false },
   // YouTube is a place with a link, but what lands there is a video copy
   // that never changes with the cast — an export, beside the video file.
-  { id: "youtube", group: "export", label: "YouTube", action: "Upload", offered: (c) => c.google, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings", courses: false },
+  { id: "youtube", group: "export", label: "YouTube", action: "Upload", offered: (c) => c.google, ready: (c) => c.tts, reason: "Add a Google TTS key in Settings, or sign in to use credit", courses: false },
 ];
 
 /** One destination as Share's rail offers it: shown, and either ready to
@@ -510,7 +513,7 @@ function currentCaps(settings: Settings): ShareCaps {
   return {
     github: Boolean(getGithubToken() && parseRepo(settings.githubRepo)),
     google: googleConfigured(),
-    tts: Boolean(getTtsKey()),
+    tts: Boolean(getTtsKey() || getToken()),
   };
 }
 
@@ -2214,7 +2217,14 @@ function build(): ShareSession {
     const playlist = doc.playlist;
     videoBurnCb.checked = current.settings.burnCaptions;
     videoCardCb.checked = current.settings.titleCard;
-    videoLangHint.textContent = `Renders in ${languageLabel(sourceLanguage(playlist))}.`;
+    // Without a key of their own, a signed-in author's video narrates with
+    // credit — real money, so the panel says so before Export (no balance
+    // fetch: the narration's own error says when credit runs short).
+    const renders = `Renders in ${languageLabel(sourceLanguage(playlist))}.`;
+    const credits = Math.max(1, Math.ceil(CREDIT_MARKUP * (doc.narrationUsd ?? 0) * 100));
+    videoLangHint.textContent = getTtsKey()
+      ? renders
+      : `${renders} Narration uses credit — about ${credits.toLocaleString("en-US")} credit${credits === 1 ? "" : "s"}.`;
     const lectures = doc.lectureCount ?? 0;
     linkSubjectLine.textContent = current.subject === "course" ? `Course — ${lectures} lecture${lectures === 1 ? "" : "s"}` : "";
     linkSubjectLine.hidden = current.subject !== "course";

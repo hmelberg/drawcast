@@ -387,9 +387,13 @@ export async function synthesizeOne(cfg: TtsConfig, text: string, audioCtx: Audi
   return audioCtx.decodeAudioData(bytes.buffer as ArrayBuffer);
 }
 
-/** Synthesize every distinct narration line (keyed by speechKey); sequential to stay far from rate limits. */
+/**
+ * Synthesize every distinct narration line (keyed by speechKey); sequential to
+ * stay far from rate limits. `synthesize` returns a line's MP3 as base64 — the
+ * author's own key (synthesizeBase64) or narration credit (serverSynthesize).
+ */
 export async function synthesizeAll(
-  cfg: TtsConfig,
+  synthesize: (line: SpeakLine) => Promise<string>,
   lines: SpeakLine[],
   audioCtx: AudioContext,
   onProgress: (done: number, total: number) => void,
@@ -402,7 +406,8 @@ export async function synthesizeAll(
   for (const [i, [key, line]] of entries.entries()) {
     if (signal.aborted) throw new Error("export cancelled");
     onProgress(i, entries.length);
-    buffers.set(key, await synthesizeOne(cfg, line.text, audioCtx, line));
+    const bytes = base64ToBytes(await synthesize(line));
+    buffers.set(key, await audioCtx.decodeAudioData(bytes.buffer as ArrayBuffer));
   }
   onProgress(entries.length, entries.length);
   return buffers;
