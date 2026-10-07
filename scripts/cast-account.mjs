@@ -477,11 +477,14 @@ export function packedCastText(wrapper, format, lib) {
   // Several (2026-10-06): `thumbnails`, a list — the front page shows them in turn and learns which is clicked.
   const isPage = (p) => p && typeof p === "object" && !Array.isArray(p);
   const pages = [...(Array.isArray(wrapper.thumbnails) ? wrapper.thumbnails.filter(isPage) : []), ...(isPage(wrapper.thumbnail) ? [wrapper.thumbnail] : [])].slice(0, 5);
-  if (!subtitle && !thumb && !pages.length) return lib.formatSpec(spec, format);
+  // The cast's own narration voices (2026-10-07): `voices: {a, b}` beside the spec.
+  const voices = wrapper.voices && typeof wrapper.voices === "object" && !Array.isArray(wrapper.voices) ? wrapper.voices : null;
+  if (!subtitle && !thumb && !voices && !pages.length) return lib.formatSpec(spec, format);
   const playlist = lib.singlePlaylist(spec);
   if (typeof spec.title === "string" && spec.title.trim()) playlist.meta.title = spec.title;
   if (subtitle) playlist.meta.subtitle = subtitle;
   if (thumb) playlist.meta.thumb = thumb;
+  if (voices) playlist.meta.voices = voices;
   for (const page of pages) playlist.entries.push({ kind: "item", spec: { title: "Thumbnail", commands: [], ...page, role: "thumbnail" } });
   return lib.formatPlaylist(playlist, format);
 }

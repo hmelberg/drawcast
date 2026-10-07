@@ -137,6 +137,7 @@ import { importCourse, lectureFilesOf, planCourseLoad } from "./course/load";
 import { translateSubtitles, withSubtitles } from "./llm/subtitles";
 import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
 import { CloudSpeech } from "./export/tts";
+import { withCastVoices, type CastVoices } from "./export/gemini-tts";
 import type { SpeakLine } from "./render/delivery";
 import {
   addExemplar,
@@ -213,9 +214,11 @@ function applyTheme(): void {
 applyTheme();
 // Cloud voices for live playback when a TTS key is set (and the toggle is on);
 // falls back to the browser's speechSynthesis otherwise, per line.
+// The open document's own voices (its `voices:` header, 2026-10-07), on top of the author's picks.
+let castVoicesNow: CastVoices | undefined;
 const speech = new CloudSpeech(
   () => (settings.cloudPlayback ? getTtsKey() : ""),
-  () => settings.cloudVoices,
+  () => withCastVoices(settings.cloudVoices, castVoicesNow),
   bakeClipStore,
 );
 /** Baked narration for the document on screen; replaced on every mount. */
@@ -3140,6 +3143,7 @@ async function present(andPlay = false): Promise<void> {
   // A declared language picks the narrator's voice; without one the old
   // per-line sniff stands, which only ever tells English from Norwegian.
   speech.setLangHint(itemsOf(doc.playlist).find((i) => i.spec.lang)?.spec.lang ?? null);
+  castVoicesNow = doc.playlist.meta.voices;
   // Narration baked into the document plays from there; the live manager stays
   // behind it for anything the bake does not cover. Released before the next
   // mount, since the clips hold object URLs.
@@ -5380,11 +5384,13 @@ async function publishTextFor(
   // re-charge its whole narration. Live playback reads the same tag through
   // speech.setLangHint, so a line previewed in the editor is still free here.
   const declaredLang = itemsOf(source).find((i) => i.spec.lang)?.spec.lang;
-  const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, runLang(line, declaredLang), line);
+  // The author's picks with the document's own voices on top (its `voices:` header).
+  const voices = withCastVoices(settings.cloudVoices, source.meta.voices);
+  const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(voices, runLang(line, declaredLang), line);
   const stats: SynthStats = { cached: 0, synthesized: 0 };
   const synthesizeLine = apiKey
-    ? (line: SpeakLine) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line)
-    : (line: SpeakLine) => serverSynthesize(DEFAULT_ENROLL_API, accountToken, { rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line);
+    ? (line: SpeakLine) => synthesizeBase64({ apiKey, rate: settings.rate, voices, lang: declaredLang }, line.text, line)
+    : (line: SpeakLine) => serverSynthesize(DEFAULT_ENROLL_API, accountToken, { rate: settings.rate, voices, lang: declaredLang }, line.text, line);
   const track = await bakeNarration(
     bakeLines,
     {
@@ -5397,7 +5403,7 @@ async function publishTextFor(
       // a line this attempt already bought.
       synthesize: cachingSynthesizer(
         bakeClipStore,
-        (line) => clipCacheKey(settings.rate, settings.cloudVoices, line, declaredLang),
+        (line) => clipCacheKey(settings.rate, voices, line, declaredLang),
         synthesizeLine,
         stats,
       ),
@@ -6328,11 +6334,12 @@ async function renderVideo(specs: Spec[], burnCaptions: boolean, of = "", siblin
   // free, and only new lines are bought. A cancelled or failed export keeps
   // what it bought too.
   const declaredLang = specs.find((s) => s.lang)?.lang;
-  const ttsCfg = { rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang };
+  const videoVoices = withCastVoices(settings.cloudVoices, doc.playlist.meta.voices);
+  const ttsCfg = { rate: settings.rate, voices: videoVoices, lang: declaredLang };
   const synthesizeLine = ttsKey
     ? (line: SpeakLine) => synthesizeBase64({ apiKey: ttsKey, ...ttsCfg }, line.text, line)
     : (line: SpeakLine) => serverSynthesize(DEFAULT_ENROLL_API, accountToken, ttsCfg, line.text, line);
-  const synthesize = cachingSynthesizer(bakeClipStore, (line) => clipCacheKey(settings.rate, settings.cloudVoices, line, declaredLang), synthesizeLine);
+  const synthesize = cachingSynthesizer(bakeClipStore, (line) => clipCacheKey(settings.rate, videoVoices, line, declaredLang), synthesizeLine);
   const controller = new AbortController();
   exportAbort = controller;
   exportStage.replaceChildren();
@@ -6396,14 +6403,14 @@ function openShareFor(group: ShareGroup): void {
       // narrationCost (the "own key" hint) keeps bakeCost's own estimate —
       // an own key is billed by Google directly, at whatever it actually
       // picks for an unnamed voice (neural-class in practice).
-      const cost = bakeCost(lines, settings.cloudVoices);
+      const cost = bakeCost(lines, withCastVoices(settings.cloudVoices, playlist.meta.voices));
       // narrationUsd (registry delivery 3, fix round 1): what /tts will
       // ACTUALLY charge against credit — creditBakeCost, not bakeCost, so an
       // unnamed voice prices at the server's own unnamed tier (chirp) rather
       // than under-estimating at neural2, and the same declared-language
       // decision publishTextFor's own bake makes (never a per-line sniff).
       const declaredLang = itemsOf(playlist).find((i) => i.spec.lang)?.spec.lang;
-      const creditCost = creditBakeCost(lines, settings.cloudVoices, declaredLang);
+      const creditCost = creditBakeCost(lines, withCastVoices(settings.cloudVoices, playlist.meta.voices), declaredLang);
       return { ...doc, playlist, narrationCost: costLabel(cost), narrationUsd: creditCost.usd, private: isPrivateDoc() || undefined };
     },
     settings,
@@ -6416,6 +6423,28 @@ function openShareFor(group: ShareGroup): void {
     embedDeps,
     publish: (choices) => publishDrawcast(choices),
     // "Ask AI for a thumbnail" (2026-10-05): one request, with the author's own key.
+    setVoices: (voices) => {
+      if (JSON.stringify(doc.playlist.meta.voices ?? null) === JSON.stringify(voices)) return;
+      const meta = { ...doc.playlist.meta };
+      if (voices) meta.voices = voices;
+      else delete meta.voices;
+      doc.playlist = { ...doc.playlist, meta };
+      applyPlaylist(doc.playlist);
+      castVoicesNow = doc.playlist.meta.voices;
+    },
+    listenVoice: async (spec, text) => {
+      const apiKey = getTtsKey();
+      if (!apiKey) {
+        setStatus("Listening needs your own Google TTS key — add one in Settings.", "error");
+        return;
+      }
+      try {
+        const b64 = await synthesizeBase64({ apiKey, rate: settings.rate, voices: { "@a": spec } }, text, { speaker: "a" });
+        await new Audio(`data:audio/mp3;base64,${b64}`).play();
+      } catch (err) {
+        setStatus(`That voice could not speak: ${String((err as Error)?.message ?? err)}`, "error");
+      }
+    },
     askThumbnail: async (castText, thumbLine) => {
       const key = llmKey();
       if (!key) throw new Error(NO_LLM_KEY);

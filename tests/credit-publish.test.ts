@@ -34,7 +34,7 @@ describe("main.ts publishTextFor — key order (ruling 1: own/vended key, then c
 
   test("a key present picks the local synthesizer; none present (but signed in) picks the server one, over the SAME cachingSynthesizer/clip-cache seam", () => {
     expect(fn).toMatch(
-      /const synthesizeLine = apiKey\s*\?\s*\(line: SpeakLine\) => synthesizeBase64\(\{ apiKey, rate: settings\.rate, voices: settings\.cloudVoices, lang: declaredLang \}, line\.text, line\)\s*:\s*\(line: SpeakLine\) => serverSynthesize\(DEFAULT_ENROLL_API, accountToken, \{ rate: settings\.rate, voices: settings\.cloudVoices, lang: declaredLang \}, line\.text, line\);/,
+      /const synthesizeLine = apiKey\s*\?\s*\(line: SpeakLine\) => synthesizeBase64\(\{ apiKey, rate: settings\.rate, voices, lang: declaredLang \}, line\.text, line\)\s*:\s*\(line: SpeakLine\) => serverSynthesize\(DEFAULT_ENROLL_API, accountToken, \{ rate: settings\.rate, voices, lang: declaredLang \}, line\.text, line\);/,
     );
     // Both branches feed the one cachingSynthesizer — reuse (the clip cache)
     // works identically whichever path paid for a line.
@@ -64,7 +64,7 @@ describe("ui/course.ts bakeLectures — the same key order", () => {
 
   test("per-lecture synthesizeLine picks local vs. server the same way as main.ts, inside the per-lecture loop (declaredLang varies per lecture)", () => {
     expect(fn).toMatch(
-      /const synthesizeLine = apiKey\s*\?\s*\(line: SpeakLine\) => synthesizeBase64\(\{ apiKey, rate: settings\.rate, voices: settings\.cloudVoices, lang: declaredLang \}, line\.text, line\)\s*:\s*\(line: SpeakLine\) => serverSynthesize\(DEFAULT_ENROLL_API, accountToken, \{ rate: settings\.rate, voices: settings\.cloudVoices, lang: declaredLang \}, line\.text, line\);/,
+      /const synthesizeLine = apiKey\s*\?\s*\(line: SpeakLine\) => synthesizeBase64\(\{ apiKey, rate: settings\.rate, voices, lang: declaredLang \}, line\.text, line\)\s*:\s*\(line: SpeakLine\) => serverSynthesize\(DEFAULT_ENROLL_API, accountToken, \{ rate: settings\.rate, voices, lang: declaredLang \}, line\.text, line\);/,
     );
     // Declared per iteration of the numbered-lectures loop, after `existing`
     // is read back — a lecture's own declared language governs its voice.
@@ -101,8 +101,8 @@ describe("fix round 1: doc().narrationUsd is priced by creditBakeCost, not bakeC
   test("main.ts's Share doc() builder", () => {
     expect(main).toContain('import { bakeCost, costLabel, creditBakeCost } from "./export/tts-cost";');
     const fn = main.slice(main.indexOf("doc: () => {"), main.indexOf("private: isPrivateDoc() || undefined };"));
-    expect(fn).toContain("const cost = bakeCost(lines, settings.cloudVoices);");
-    expect(fn).toContain("const creditCost = creditBakeCost(lines, settings.cloudVoices, declaredLang);");
+    expect(fn).toContain("const cost = bakeCost(lines, withCastVoices(settings.cloudVoices, playlist.meta.voices));");
+    expect(fn).toContain("const creditCost = creditBakeCost(lines, withCastVoices(settings.cloudVoices, playlist.meta.voices), declaredLang);");
     expect(fn).toContain("narrationCost: costLabel(cost)");
     expect(fn).toContain("narrationUsd: creditCost.usd");
     // The SAME declared-language decision publishTextFor's own bake makes
@@ -115,11 +115,11 @@ describe("fix round 1: doc().narrationUsd is priced by creditBakeCost, not bakeC
     expect(course).toContain("narrationCost: costLabel(addCosts(doneLectureCosts(course)))");
     expect(course).toContain("narrationUsd: addCosts(doneLectureCreditCosts(course)).usd");
     const fn = course.slice(course.indexOf("function doneLectureCreditCosts("), course.indexOf("function syncBusy("));
-    expect(fn).toContain("creditBakeCost(playlistBakeLines(playlist), settings.cloudVoices, declaredLang)");
+    expect(fn).toContain("creditBakeCost(playlistBakeLines(playlist), withCastVoices(settings.cloudVoices, playlist.meta.voices), declaredLang)");
     // doneLectureCosts itself (the own-key basis, and the Generate
     // projection's) is untouched — still bakeCost, still no declaredLang.
     const untouched = course.slice(course.indexOf("function doneLectureCosts("), course.indexOf("function doneLectureCreditCosts("));
-    expect(untouched).toContain("bakeCost(playlistBakeLines(parsePlaylistText(text)), settings.cloudVoices)");
+    expect(untouched).toContain("bakeCost(playlistBakeLines(pl), withCastVoices(settings.cloudVoices, pl.meta.voices))");
   });
 });
 

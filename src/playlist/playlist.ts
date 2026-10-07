@@ -7,6 +7,7 @@
 // pre-playlist behavior, so every existing drawcast keeps working.
 
 import { readThumb } from "../../netlify/lib/thumb.mts";
+import { readCastVoices, type CastVoices } from "../export/gemini-tts";
 import { leftoverFoldMarker, leftoverFoldMessage } from "../ui/spec-fold";
 import { CORE_SCHEMA, dump, load, loadAll } from "js-yaml";
 import { cardElements, titleFont } from "../spec/card";
@@ -72,6 +73,9 @@ export interface PlaylistMeta {
   /** The listing picture's words and style (thumbnail round, 2026-10-04 —
    *  netlify/lib/thumb.mts): drawn by the site over the poster, never in the player. */
   thumb?: string;
+  /** The cast's own narration voices, per speaker (2026-10-07; export/gemini-tts.ts):
+   *  `a: gemini:Charon | dry, warm historian`, `b: en-US-Studio-O`. Absent: the defaults. */
+  voices?: CastVoices;
   /** How playback continues after an item: wait for a click, or auto after gap seconds. */
   advance: "click" | "auto";
   gap: number;
@@ -195,6 +199,8 @@ function readMeta(raw: Record<string, unknown>, warnings: string[]): PlaylistMet
   if (typeof raw.poster === "string") meta.poster = raw.poster;
   const thumb = readThumb(raw.thumb);
   if (thumb) meta.thumb = thumb;
+  const voices = readCastVoices(raw.voices);
+  if (voices) meta.voices = voices;
   if (isPlainObject(raw.comments)) {
     const c = raw.comments;
     if (typeof c.repoId === "string" && typeof c.categoryId === "string") {
@@ -327,6 +333,11 @@ function parsePlaylistBody(text: string): Playlist {
       }
       if (meta.format !== undefined && meta.format !== "drawcast" && meta.format !== "quiz" && meta.format !== "xplanation") delete playlist.meta.format;
       // The listing picture's block (thumbnail round): validated as in YAML, or gone.
+      if (meta.voices !== undefined) {
+        const voices = readCastVoices(meta.voices);
+        if (voices) playlist.meta.voices = voices;
+        else delete playlist.meta.voices;
+      }
       if (meta.thumb !== undefined) {
         const thumb = readThumb(meta.thumb);
         if (thumb) playlist.meta.thumb = thumb;
@@ -493,6 +504,7 @@ export function isSingle(playlist: Playlist): boolean {
     playlist.meta.enroll === undefined &&
     playlist.meta.poster === undefined &&
     playlist.meta.thumb === undefined &&
+    playlist.meta.voices === undefined &&
     playlist.meta.advance === DEFAULT_META.advance &&
     playlist.meta.gap === DEFAULT_META.gap &&
     playlist.meta.transitions === DEFAULT_META.transitions
@@ -538,6 +550,7 @@ export function formatPlaylist(playlist: Playlist, format: SpecFormat): string {
   if (playlist.meta.enroll !== undefined) header.enroll = playlist.meta.enroll;
   if (playlist.meta.poster !== undefined) header.poster = playlist.meta.poster;
   if (playlist.meta.thumb !== undefined) header.thumb = playlist.meta.thumb;
+  if (playlist.meta.voices !== undefined) header.voices = playlist.meta.voices;
   if (playlist.meta.advance !== DEFAULT_META.advance) header.advance = playlist.meta.advance;
   if (playlist.meta.gap !== DEFAULT_META.gap) header.gap = playlist.meta.gap;
   if (playlist.meta.transitions !== DEFAULT_META.transitions) header.transitions = playlist.meta.transitions;

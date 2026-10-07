@@ -106,6 +106,21 @@ every working file below is `dev-casts/<slug>…`.
      or `quirky` (a little odd or eccentric): `person everyday woman 50
      talking`. The nearest picture is used. Suggest it for youths' and adults' casts with a surprising
      payoff; for children's casts, only `child` or `teen`.
+   - **Voices** (optional; the default is Google Studio: a = Studio-Q,
+     male, and in a dialogue b = Studio-O, female): the cast's own voice per
+     speaker, kept in the cast (`"voices": {"a": …, "b": …}` beside the
+     spec; its header's `voices:`). A voice is a Cloud name
+     (`en-US-Studio-O`) or a Gemini 3.8 Flash TTS voice, `gemini:<Name>`
+     (`gemini-lite:<Name>` is cheaper), with a style after `|` that it acts
+     on: `"a": "gemini:Charon | dry, warm historian"`, `"b": "gemini:Puck |
+     cheerful sceptic"`. Gemini costs about a tenth of Studio and suits
+     dialogue and character; Studio is the safe, even narrator. Voices
+     (Google's own word for each): Charon informative, Puck upbeat, Kore
+     firm, Fenrir excitable, Leda youthful, Aoede breezy, Sulafat warm,
+     Gacrux mature, Achird friendly, Sadaltager knowledgeable, Algenib
+     gravelly, Zubenelgenubi casual, and more (src/export/gemini-tts.ts
+     GEMINI_VOICES). Gemini needs the user's own Google key with the Gemini
+     API allowed; narration credit speaks Studio only.
    - **Subtitle:** write one yourself: a single sentence in the narration's
      language saying what the viewer gets ("How herd immunity protects
      people who can't be vaccinated"), not "a drawcast about…". It is the

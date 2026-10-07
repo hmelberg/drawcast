@@ -6,6 +6,11 @@
 //
 //   node scripts/bake-narration.mjs <cast.json|.yaml|.cast> [...]          estimate only (no cost)
 //   node scripts/bake-narration.mjs --apply <cast> [...]                    record, and write the file back
+//   … --a "gemini:Charon | dry, warm historian" --b "gemini:Puck | cheerful sceptic"
+//        the cast's own voices (its `voices:` header; written into the file with --apply).
+//        A voice is a Cloud name (en-US-Studio-O) or gemini:<Voice> / gemini-lite:<Voice>
+//        (export/gemini-tts.ts GEMINI_VOICES), after "|" a style the Gemini voice acts on.
+//        Without them the header's own voices, else the defaults.
 //
 // Default voices (Settings' cloudVoices empty), rate 1.0, the declared
 // language. Lines already recorded with the same voice are reused, never
@@ -17,7 +22,13 @@ import { createServer } from "vite";
 
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
-const files = args.filter((a) => !a.startsWith("--"));
+const flag = (name) => {
+  const i = args.indexOf(name);
+  return i >= 0 ? args[i + 1] : undefined;
+};
+const voiceFlags = { a: flag("--a"), b: flag("--b") };
+const flagValues = new Set(Object.values(voiceFlags).filter(Boolean));
+const files = args.filter((a) => !a.startsWith("--") && !flagValues.has(a));
 if (files.length === 0) {
   console.error("usage: node scripts/bake-narration.mjs [--apply] <cast> [...]");
   process.exit(2);
@@ -41,14 +52,20 @@ const { playlistBakeLines } = await vite.ssrLoadModule("/src/playlist/session.ts
 const { bakeNarration } = await vite.ssrLoadModule("/src/export/bake.ts");
 const { synthesizeBase64, stampedVoice, runLang } = await vite.ssrLoadModule("/src/export/tts.ts");
 const { bakeCost } = await vite.ssrLoadModule("/src/export/tts-cost.ts");
+const { withCastVoices, readCastVoices } = await vite.ssrLoadModule("/src/export/gemini-tts.ts");
 
-const voices = {};
 let totalUsd = 0;
 let totalChars = 0;
 for (const file of files) {
   const raw = readFileSync(file, "utf8");
   const isJson = file.endsWith(".json");
   const playlist = P.parsePlaylistText(isJson ? JSON.stringify(JSON.parse(raw).spec) : raw);
+  if (voiceFlags.a || voiceFlags.b) {
+    const merged = readCastVoices({ ...(playlist.meta.voices ?? {}), ...(voiceFlags.a ? { a: voiceFlags.a } : {}), ...(voiceFlags.b ? { b: voiceFlags.b } : {}) });
+    if (merged) playlist.meta.voices = merged;
+  }
+  // The cast's own voices ride as "@a"/"@b" in the voice map (export/tts.ts preferredVoice).
+  const voices = withCastVoices({}, playlist.meta.voices);
   const lines = playlistBakeLines(playlist);
   const declaredLang = P.itemsOf(playlist).find((i) => i.spec.lang)?.spec.lang;
   const existing = playlist.audio?.lines ?? {};
@@ -57,7 +74,8 @@ for (const file of files) {
   totalUsd += cost.usd;
   totalChars += cost.chars;
   if (!apply) {
-    console.log(`${file}: ${lines.length} lines, ${cost.chars} chars, ≈ $${cost.usd.toFixed(2)}${Object.keys(existing).length ? ` (${Object.keys(existing).length} clips already recorded)` : ""}`);
+    const who = playlist.meta.voices ? ` [voices: ${JSON.stringify(playlist.meta.voices)}]` : "";
+    console.log(`${file}: ${lines.length} lines, ${cost.chars} chars, ≈ $${cost.usd.toFixed(2)}${Object.keys(existing).length ? ` (${Object.keys(existing).length} clips already recorded)` : ""}${who}`);
     continue;
   }
   const track = await bakeNarration(
@@ -76,5 +94,5 @@ for (const file of files) {
   writeFileSync(target, out);
   console.log(`\n${file} → ${target}: ${Object.keys(track.lines).length} clips`);
 }
-if (!apply) console.log(`TOTAL ≈ $${totalUsd.toFixed(2)} for ${totalChars} characters (default voices).`);
+if (!apply) console.log(`TOTAL ≈ $${totalUsd.toFixed(2)} for ${totalChars} characters (lines already recorded in the same voice are free).`);
 await vite.close();

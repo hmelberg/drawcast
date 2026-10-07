@@ -7,6 +7,7 @@ import { DELIVERY, effectiveGender, speechKey, type SpeakLine, type SpeakOpts } 
 import { SpeechManager, detectLang } from "../render/speech";
 import { sayable } from "../render/pronounce";
 import type { ClipStore } from "./bake-cache";
+import { geminiSynthesizeBase64, geminiVoice, splitVoiceSpec } from "./gemini-tts";
 
 export interface TtsConfig {
   apiKey: string;
@@ -25,6 +26,9 @@ export interface TtsConfig {
    * would collapse into one.
    */
   voices?: Record<string, string>;
+  // A cast's own voices (its `voices:` header, 2026-10-07) ride in the same
+  // map as "@a" / "@b" (gemini-tts.ts castVoiceMap): every caller already
+  // passes it, and preferredVoice reads them first, for either speaker.
 }
 
 /** The languageCode a Google voice name implies ("nb-NO-Wavenet-C" → "nb-NO"). */
@@ -62,7 +66,10 @@ export function voiceLanguageCode(name: string): string {
  * properly means sending the model name, and is its own piece of work.
  */
 export function isUsableVoice(name: string): boolean {
-  return /^[a-z]{2,3}-[A-Z]{2}-/.test(name);
+  // A Gemini voice (2026-10-07) is named by its engine, "gemini:Charon" —
+  // synthesized through the Gemini API (gemini-tts.ts), not text:synthesize.
+  if (geminiVoice(name)) return true;
+  return /^[a-z]{2,3}-[A-Z]{2}-/.test(splitVoiceSpec(name).voice);
 }
 
 /**
@@ -94,7 +101,13 @@ export function audioLimits(voiceName: string | undefined): { pitch: boolean; ga
  * — the two must never drift, or a republished line keeps the wrong voice.
  */
 export function preferredVoice(voices: Record<string, string> | undefined, lang: string, speaker?: string): string | undefined {
-  if (!voices || (speaker ?? "a") !== "a") return undefined;
+  if (!voices) return undefined;
+  // The cast's own voice for this speaker first (its `voices:` header). A
+  // Gemini voice speaks any language; a Cloud voice only its own, so a
+  // foreign run under it keeps the language's default.
+  const own = voices[`@${speaker ?? "a"}`];
+  if (own && isUsableVoice(own) && (geminiVoice(own) || voiceLanguageCode(splitVoiceSpec(own).voice).split("-")[0].toLowerCase() === lang)) return own;
+  if ((speaker ?? "a") !== "a") return undefined;
   const name = voices[lang];
   // A stored name this client cannot synthesize with is not a preference,
   // it is a value an older build let through: obeying it fails the whole
@@ -219,7 +232,11 @@ export function runLang(line: SpeakLine, declared: string | undefined): string {
  */
 export function narrationVoice(voices: Record<string, string> | undefined, lang: string, opts?: SpeakOpts): VoiceChoice {
   const pref = preferredVoice(voices, lang, opts?.speaker);
-  if (pref) return { languageCode: voiceLanguageCode(pref), name: pref };
+  if (pref && geminiVoice(pref)) return { languageCode: LANGUAGES.find((l) => l.code === lang)?.languageCode ?? lang, name: pref };
+  if (pref) {
+    const name = splitVoiceSpec(pref).voice;
+    return { languageCode: voiceLanguageCode(name), name };
+  }
   const eff = effectiveGender(opts);
   if (eff === null && DEFAULT_VOICES[lang]) return DEFAULT_VOICES[lang];
   // A foreign RUN under a narrator nobody declared a sex for: match the
@@ -358,6 +375,8 @@ export function ttsRequestBody(cfg: TtsBodyConfig, text: string, opts?: SpeakOpt
 export async function synthesizeBase64(cfg: TtsConfig, text: string, opts?: SpeakOpts): Promise<string> {
   const lang = runLang({ text, lang: opts?.lang }, cfg.lang);
   const pref = preferredVoice(cfg.voices, lang, opts?.speaker);
+  const gem = geminiVoice(pref);
+  if (gem) return geminiSynthesizeBase64(cfg.apiKey, gem, sayable(text), opts?.delivery);
   const call = (withName: boolean) =>
     fetch(`${ENDPOINT}?key=${encodeURIComponent(cfg.apiKey)}`, {
       method: "POST",

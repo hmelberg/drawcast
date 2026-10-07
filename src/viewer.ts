@@ -17,6 +17,7 @@ import type { LinkBase } from "./links/resolve";
 import "./styles.css";
 import { type RenderStyle } from "./render";
 import { CloudSpeech } from "./export/tts";
+import { withCastVoices } from "./export/gemini-tts";
 import { bakeClipStore } from "./export/bake-cache";
 import { h } from "./ui/dom";
 import { posterPathFor } from "./publish/cast";
@@ -1086,7 +1087,8 @@ export async function runViewer(req: ViewerRequest): Promise<void> {
     const settings = loadSettings();
     const speech = new CloudSpeech(
       () => (settings.cloudPlayback ? getTtsKey() : ""),
-      () => settings.cloudVoices,
+      // The cast's own voices (its `voices:` header) on top of the viewer's picks.
+      () => withCastVoices(settings.cloudVoices, playlist.meta.voices),
       bakeClipStore,
     );
     speech.setVoice(settings.voiceURI);

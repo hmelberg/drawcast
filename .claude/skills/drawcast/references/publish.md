@@ -27,7 +27,10 @@ public repo the user chooses; after that it is revised like anything published.
    the browser's own voice: `node scripts/bake-narration.mjs <workdir>/<file>.cast` prints the
    cost (nothing spent); on the user's yes to it (a few dimes a cast, their own Google key in
    `.env` — a worktree links the main checkout's), add `--apply`, which writes the recordings
-   into the file. Unchanged lines keep their recordings on later bakes.
+   into the file. Unchanged lines keep their recordings on later bakes. It records in the
+   cast's own `voices:` (SKILL.md's brief); `--a "<voice | style>"` / `--b "…"` set them
+   from here and write them into the file. Changing a voice or its style re-records that
+   speaker's lines; a Gemini voice needs the Gemini API allowed on the key.
 4. `push <workdir> --dry-run`, show the file list, and on a yes `push <workdir> --direct`
    (it is the user's own repo; a PR to themselves is noise — unless they want one, or the
    repo is someone else's: then plain `push` opens a PR from a fork).

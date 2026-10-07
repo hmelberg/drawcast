@@ -628,7 +628,7 @@ const SETTING_FIELD: Record<string, string> = { use: "template", with: "params" 
  * `prompt` on a page spec is what made a revised single-page drawcast
  * unrunnable ("(root) must NOT have additional properties: prompt").
  */
-const META_SETTINGS = new Set(["subtitle", "advance", "gap", "transitions", "next", "enroll", "prompt", "comments", "views", "poster", "tags", "format", "thumb"]);
+const META_SETTINGS = new Set(["subtitle", "advance", "gap", "transitions", "next", "enroll", "prompt", "comments", "views", "poster", "tags", "format", "thumb", "voices"]);
 
 /**
  * `openPage` is a THUNK, and that is the whole point: opening a page is what a

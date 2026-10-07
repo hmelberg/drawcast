@@ -19,11 +19,24 @@ export const TTS_PRICE_PER_MILLION: Record<string, number> = {
   standard: 4,
 };
 
+/**
+ * Voices only an own key speaks (the credit server prices the table above
+ * and nothing else — tests/tts-cost-pin.test.ts keeps the two equal).
+ * Gemini 3.8 Flash TTS bills audio, not text: $9 per 1M audio tokens at
+ * 25 tokens a second (2026 rate; doubles 2027-01-01), and speech runs about
+ * 15 characters a second — ≈ $15 per 1M characters. Flash-Lite is priced
+ * the same here, an upper bound until its rate is known.
+ */
+export const OWN_KEY_PRICE_PER_MILLION: Record<string, number> = { gemini: 15 };
+
+const priceOf = (tier: string): number => TTS_PRICE_PER_MILLION[tier] ?? OWN_KEY_PRICE_PER_MILLION[tier] ?? TTS_PRICE_PER_MILLION.neural2;
+
 export function voiceTier(name: string | undefined): string {
   // A gendered fallback with no name lets Google choose — neural-class in
   // practice, so price it as such rather than pretending it is free.
   if (!name) return "neural2";
   const n = name.toLowerCase();
+  if (n.startsWith("gemini")) return "gemini";
   for (const tier of ["studio", "chirp", "neural2", "wavenet", "standard"]) {
     if (n.includes(tier)) return tier;
   }
@@ -43,7 +56,7 @@ export function bakeCost(lines: SpeakLine[], voices: Record<string, string> | un
     if (line.text.trim().length === 0) continue;
     const tier = voiceTier(narrationVoice(voices, detectLang(line.text), line).name);
     chars += line.text.length;
-    usd += (line.text.length * (TTS_PRICE_PER_MILLION[tier] ?? TTS_PRICE_PER_MILLION.neural2)) / 1_000_000;
+    usd += (line.text.length * priceOf(tier)) / 1_000_000;
   }
   return { chars, usd };
 }
@@ -79,7 +92,7 @@ export function creditBakeCost(lines: SpeakLine[], voices: Record<string, string
     const tier = voice.name ? voiceTier(voice.name) : "chirp";
     const text = sayable(line.text);
     chars += text.length;
-    usd += (text.length * (TTS_PRICE_PER_MILLION[tier] ?? TTS_PRICE_PER_MILLION.neural2)) / 1_000_000;
+    usd += (text.length * priceOf(tier)) / 1_000_000;
   }
   return { chars, usd };
 }

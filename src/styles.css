@@ -3081,6 +3081,14 @@ input.cs-numedit[aria-invalid="true"] { color: #3d3833; border-color: #b5482e; b
   color: var(--ink);
 }
 .share-panel .publish-choice .hint { grid-column: 2; }
+/* Narration voices (2026-10-07): a details block of one row per speaker. */
+.share-panel .publish-voices { display: block; }
+.share-panel .publish-voices summary { cursor: pointer; }
+.share-panel .publish-voices .hint { margin-top: 0.3rem; }
+.share-panel .publish-voice-row { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr) minmax(0, 1fr) auto; gap: 0.4rem; align-items: center; margin-top: 0.35rem; }
+.share-panel .publish-voice-row[hidden] { display: none; }
+.share-panel .publish-voice-row select, .share-panel .publish-voice-row input { min-width: 0; }
+@media (max-width: 640px) { .share-panel .publish-voice-row { grid-template-columns: 1fr 1fr; } }
 /* A choice that cannot be made (nothing to embed; no TTS key) reads muted,
    and its hint says which of the two it is. */
 .share-panel .publish-choice input:disabled ~ * { color: var(--muted); }

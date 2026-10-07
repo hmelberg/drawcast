@@ -25,6 +25,8 @@ import type { ExportResult } from "../export/video";
 import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, sourceLanguage, type Playlist } from "../playlist/playlist";
 import { castFormat, type CastFormat } from "../standalone/transcript";
 import { thumbChoice } from "./thumb-choice";
+import { voicesChoice } from "./voices-choice";
+import type { CastVoices } from "../export/gemini-tts";
 import { posterForPlaylistText } from "../export/snapshot";
 import { kidsByTags } from "../../netlify/lib/thumb.mts";
 import { playlistSpeakLines } from "../playlist/session";
@@ -257,6 +259,10 @@ export function payListedFields(wantPrivate: boolean, wantListed: boolean): { pr
 export interface ShareDeps {
   /** "Ask AI for a thumbnail" (2026-10-05): the thumbnail page's lines for this cast text, or a thrown reason. Absent, the button is hidden. */
   askThumbnail?: (castText: string, thumbLine?: string) => Promise<string>;
+  /** Plays a voice spec saying `text` (the Narration voices' Listen, 2026-10-07). */
+  listenVoice?: (spec: string, text: string) => Promise<void>;
+  /** Writes the cast's own voices into the document (its `voices:` header; null removes it). */
+  setVoices?: (voices: CastVoices | null) => void;
   subject: "drawcast" | "course";
   /** Which button opened it: ↗ Publish (the default) or ⤓ Export. */
   group?: ShareGroup;
@@ -716,9 +722,16 @@ function build(): ShareSession {
     // panels (or documents) mid-fetch never lets a stale answer land on a
     // hint that has already moved on.
     let creditToken = 0;
+    // The cast's own narration voices (2026-10-07), beside Embed narration on every panel.
+    const voicesBox = voicesChoice({
+      listen: (spec, text) => (current.listenVoice ? current.listenVoice(spec, text) : Promise.resolve()),
+      onChange: (voices) => current.setVoices?.(voices),
+    });
     return {
-      rows: [embedImagesLabel, bakeLabel, creditBuyRow],
+      rows: [embedImagesLabel, bakeLabel, creditBuyRow, voicesBox.root],
       refresh(doc, subject) {
+        voicesBox.root.hidden = subject !== "drawcast";
+        if (subject === "drawcast") voicesBox.refresh({ voices: doc.playlist.meta.voices, dialogue: playlistSpeakLines(doc.playlist).some((l) => l.speaker === "b") });
         // A course has no playlist of its own to count (its lectures live in
         // the library — see course.ts's doc()), so it gets the choice without
         // a number rather than a confident, wrong "(0)".

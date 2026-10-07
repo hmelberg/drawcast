@@ -872,7 +872,8 @@ const BASELINE_SCHEMA_CHARS = 122141;
 // Raised with headroom 2026-09-26 (same reason): measured 5451.
 // Re-pinned UP 2026-10-04 (thumbnail round): `thumb:` joined the document settings. 6000 -> 6010.
 // Re-pinned UP 2026-10-05 (thumbnail page): role: thumbnail among the page settings. +72. -> 6082.
-const BASELINE_REVISE_CHARS = 6082;
+// +11 (2026-10-07): the header list names `voices:`, the cast's own narration voices.
+const BASELINE_REVISE_CHARS = 6093;
 
 const system = (code: boolean, sound = false) =>
   buildSystemPrompt(promptVariants()[0].source, {

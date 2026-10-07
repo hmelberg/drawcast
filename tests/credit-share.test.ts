@@ -92,7 +92,7 @@ describe("the Embed-narration box — three states through buildEmbedChoices", (
   });
 
   test("still exactly one copy of the rows — creditBuyRow rides in the SAME builder as embedImages/bake, not duplicated per panel", () => {
-    expect(fn).toContain("rows: [embedImagesLabel, bakeLabel, creditBuyRow]");
+    expect(fn).toContain("rows: [embedImagesLabel, bakeLabel, creditBuyRow, voicesBox.root]");
   });
 });
 

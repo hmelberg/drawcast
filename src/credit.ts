@@ -166,6 +166,11 @@ export async function serverSynthesize(
   fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
   const body = ttsRequestBody(cfg, text, opts);
+  // The server speaks Cloud Text-to-Speech only (2026-10-07): a cast's Gemini
+  // voice needs the author's own Google key, said plainly rather than a 400.
+  if (body.voice && "name" in body.voice && body.voice.name.startsWith("gemini")) {
+    throw new Error("Gemini voices need your own Google key (Settings → Playback); narration credit speaks the Studio voices.");
+  }
   const res = await fetchImpl(`${apiBase(api)}/_/api/tts`, {
     method: "POST",
     headers: { "content-type": "text/plain" },

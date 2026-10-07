@@ -30,6 +30,7 @@ import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "../export/ba
 import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "../export/bake-cache";
 import { addCosts, bakeCost, costLabel, courseNarrationProjection, creditBakeCost, type BakeCost } from "../export/tts-cost";
 import { runLang, stampedVoice, synthesizeBase64 } from "../export/tts";
+import { withCastVoices } from "../export/gemini-tts";
 import { joinPath } from "../course/publish";
 import { claimCourse, claimNote, courseClaim, formatPrice, isPayable, nameNote, normalizeName, registerName, startNamePayment } from "../names";
 import { apiBase, DEFAULT_ENROLL_API } from "../learn";
@@ -363,7 +364,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       const text = saved?.playlist ?? (saved ? formatPlaylist(singlePlaylist(saved.spec), "yaml") : null);
       if (text === null) continue;
       try {
-        costs.push(bakeCost(playlistBakeLines(parsePlaylistText(text)), settings.cloudVoices));
+        const pl = parsePlaylistText(text);
+        costs.push(bakeCost(playlistBakeLines(pl), withCastVoices(settings.cloudVoices, pl.meta.voices)));
       } catch {
         /* an unparsable lecture prices as nothing rather than blocking */
       }
@@ -393,7 +395,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         const playlist = parsePlaylistText(text);
         // Undefined when nothing declares one — the same decision bakeLectures makes per lecture.
         const declaredLang = playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0];
-        costs.push(creditBakeCost(playlistBakeLines(playlist), settings.cloudVoices, declaredLang));
+        costs.push(creditBakeCost(playlistBakeLines(playlist), withCastVoices(settings.cloudVoices, playlist.meta.voices), declaredLang));
       } catch {
         /* an unparsable lecture prices as nothing rather than blocking */
       }
@@ -1044,7 +1046,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
       const lines = playlistBakeLines(playlist);
       // Undefined when nothing declares one — see the same decision in main.ts.
       const declaredLang = playlist.entries.flatMap((e) => (e.kind === "item" && e.spec.lang ? [e.spec.lang] : []))[0];
-      const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(settings.cloudVoices, runLang(line, declaredLang), line);
+      const voices = withCastVoices(settings.cloudVoices, playlist.meta.voices);
+      const voiceOf = (line: SpeakLine): string | undefined => stampedVoice(voices, runLang(line, declaredLang), line);
       // What this lecture already published, so unchanged lines are free.
       let existing: AudioTrack["lines"] = {};
       const file = course.lectures[index].status?.file;
@@ -1064,8 +1067,8 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
         }
       }
       const synthesizeLine = apiKey
-        ? (line: SpeakLine) => synthesizeBase64({ apiKey, rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line)
-        : (line: SpeakLine) => serverSynthesize(DEFAULT_ENROLL_API, accountToken, { rate: settings.rate, voices: settings.cloudVoices, lang: declaredLang }, line.text, line);
+        ? (line: SpeakLine) => synthesizeBase64({ apiKey, rate: settings.rate, voices, lang: declaredLang }, line.text, line)
+        : (line: SpeakLine) => serverSynthesize(DEFAULT_ENROLL_API, accountToken, { rate: settings.rate, voices, lang: declaredLang }, line.text, line);
       const track = await bakeNarration(
         lines,
         {
@@ -1077,7 +1080,7 @@ export function openCoursePanel(deps: CoursePanelDeps, openId?: string, opts: { 
           // after buying more credit never re-pays for an already-baked lecture.
           synthesize: cachingSynthesizer(
             bakeClipStore,
-            (line) => clipCacheKey(settings.rate, settings.cloudVoices, line, declaredLang),
+            (line) => clipCacheKey(settings.rate, voices, line, declaredLang),
             synthesizeLine,
             bakeStats,
           ),
