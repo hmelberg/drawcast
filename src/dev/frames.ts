@@ -32,7 +32,10 @@
 // before the answer, with the player's own gate opened on the figure
 // (openQuestion: headline, dock, quiz card, cards at home, buttons), and
 // after the reveal. The after-state alone showed reviewers answers a live
-// viewer never sees while answering, and none of the question.
+// viewer never sees while answering, and none of the question. The reveal
+// is played, not posed (answerQuestion): a stand-in viewer answers wrong-ish
+// (dev/wrong-answer.ts), so the tile keeps the viewer's guess beside the
+// truth and captions the right/wrong line, as the player does.
 
 import bundledExamples from "../examples.json";
 import { setTrustPolicy } from "../security/code-trust";
@@ -74,6 +77,10 @@ import type { CardResult } from "../card/types";
 import { posterForPlaylistText } from "../export/snapshot";
 import { attachPlayerControls } from "../ui/controls";
 import { frameLabel, frameList } from "./frame-list";
+import { wrongArrangement, wrongChoice, wrongGuess, wrongQuiz, wrongTyped } from "./wrong-answer";
+import { decodeGuess } from "../guess/handles";
+import { decodeArrangement, positions } from "../cards/model";
+import type { CardsSession, GuessSession } from "../render/player";
 // The gates' own look (the headline, the dock, the quiz card): a question
 // frame opens the real gate on the figure, as the player does.
 import "../styles.css";
@@ -387,6 +394,110 @@ async function openQuestion(hd: RenderHandle, canvas: HTMLElement, at: number): 
   return ok ? null : `the question's gate did not open in 15 s — this is the boundary before it, without the gate`;
 }
 
+/**
+ * Stand a mount at the reveal of the question at step `at - 1`, as a viewer
+ * who answered it sees it: the player's own controls attached, the cast
+ * played from the start at speed with every gate answered by a stand-in
+ * viewer (dev/wrong-answer.ts) — a plausible WRONG-ish answer, resolved as
+ * the question's gate would resolve it, so the player decodes, scores and
+ * reveals it as for anyone: the viewer's guess stays beside the truth (the
+ * "You" pin, the drawn line, the guessed bar, ✓/✗ on the cards). Played
+ * from the start, not the boundary before: a revise needs the first guess
+ * (guessMemory), a line its earlier {store}.
+ *
+ * The playhead is held when the question's step has finished (a predict:
+ * once the animate that reveals it has), and the caption put back to the
+ * question's first feedback line — the right/wrong line the player captions
+ * as the reveal runs (speakLine shows it before speaking). Returns that line
+ * (null: none spoken) and a note when the reveal could not be reached, in
+ * which case the mount is left at the plan's boundary, as before.
+ */
+async function answerQuestion(hd: RenderHandle, canvas: HTMLElement, at: number): Promise<{ trouble: string | null; caption: string | null }> {
+  attachPlayerControls(canvas, hd, { mode: "silent", speed: 2, questions: "interactive" });
+  const tl = hd.timeline;
+  const q = at - 1;
+  // The stand-in viewer: every gate answered at once.
+  tl.inputGate = async () => undefined;
+  tl.confidenceGate = async () => 1;
+  tl.quizGate = async (_signal, step) => wrongQuiz(step);
+  type Sessions = { guess?: GuessSession; cardsSession?: CardsSession; treeSession?: unknown; formulaSession?: unknown };
+  tl.askGate = async (_signal, raw) => {
+    const step = raw as typeof raw & Sessions;
+    if (step.guess) {
+      const s = step.guess;
+      const typed = wrongGuess(s.setup.handles, { tolerance: step.tolerance, relative: step.relative, check: step.check, fallback: step.fallback, ...(s.account ? { budget: s.account.budget } : {}) });
+      // As the viewer's drag leaves it: painted on the figure first.
+      const v = decodeGuess(typed, s.setup.handles);
+      if (v) s.paint(v);
+      return typed;
+    }
+    if (step.cardsSession) {
+      const s = step.cardsSession;
+      const g = s.geometry;
+      const typed = wrongArrangement(g);
+      const a = decodeArrangement(g, typed);
+      // Where the viewer's drops leave the cards.
+      if (a) positions(g, a).forEach((p, i) => s.place(g.cards[i], p[0] - g.home[i][0], p[1] - g.home[i][1]));
+      return typed;
+    }
+    if (step.choose) return wrongChoice(step);
+    // Worked on the figure with no stand-in here (a tree, a formula, a
+    // template's widget, a spot, a drag…): skipped, so the truth is revealed.
+    if (step.treeSession || step.formulaSession || step.widget !== undefined || step.spot !== undefined) return null;
+    return wrongTyped(step);
+  };
+
+  // Reach into the player (a dev page, as paintGesture does): hold the run
+  // once the question is revealed, and note its first feedback line.
+  const p = tl as unknown as {
+    runStep(i: number, signal: AbortSignal): Promise<void>;
+    speakLine(source: string, step: unknown, signal: AbortSignal): Promise<void>;
+    showCaption(source: string): void;
+    line(source: string): string;
+    predictCarry: unknown;
+  };
+  const runStep = p.runStep.bind(tl);
+  const speakLine = p.speakLine.bind(tl);
+  let current = -1;
+  let ranQuestion = false;
+  let caption: string | null = null;
+  let reached = (_ok: boolean): void => undefined;
+  const done = new Promise<boolean>((r) => (reached = r));
+  p.speakLine = (source, step, signal) => {
+    if (current === q && caption === null) caption = source;
+    return speakLine(source, step, signal);
+  };
+  p.runStep = async (i, signal) => {
+    current = i;
+    // Jumped past the question (an earlier answer's goto): it is never asked.
+    if (i > q && !ranQuestion) {
+      reached(false);
+      return new Promise<void>(() => undefined);
+    }
+    await runStep(i, signal);
+    if (i === q) ranQuestion = true;
+    // A predict reveals in the animate after it: hold once that has run too.
+    if (ranQuestion && !p.predictCarry) {
+      reached(true);
+      return new Promise<void>(() => undefined);
+    }
+  };
+  tl.setSpeed(10);
+  tl.renderUpTo(0);
+  void tl.play().catch(() => undefined);
+  const ok = await Promise.race([done, sleep(45_000).then(() => false)]);
+  if (!ok) {
+    tl.pause();
+    tl.renderUpTo(at);
+    return { trouble: "the stand-in viewer never reached this question's reveal — this is the boundary after it, with no answer on it", caption: null };
+  }
+  if (caption !== null) p.showCaption(caption);
+  // The last glide and the caption settle.
+  await sleep(600);
+  // As the viewer reads it: its {vars} filled in.
+  return { trouble: null, caption: caption !== null ? p.line(caption) : null };
+}
+
 // ---- the page ----
 
 const app = document.getElementById("frames-app")!;
@@ -482,8 +593,12 @@ async function show(cast: Cast): Promise<CastReport> {
       const hd = await render(spec, canvas, { mode: "silent" });
       // A question frame: the viewer's turn, as the player stands it — the
       // real gate opened on the boundary before the question.
-      const gateTrouble = frame.before ? await openQuestion(hd, canvas, frame.at) : null;
-      if (!frame.before) hd.timeline.renderUpTo(frame.at);
+      // A question's answer frame: the reveal as a viewer who answered (wrong-ish) sees it.
+      const answered = frame.ask !== undefined && !frame.before ? await answerQuestion(hd, canvas, frame.at) : null;
+      const gateTrouble = frame.before ? await openQuestion(hd, canvas, frame.at) : (answered?.trouble ?? null);
+      if (!frame.before && !answered) hd.timeline.renderUpTo(frame.at);
+      // The caption under the tile (and in report.json): the feedback line on screen.
+      if (answered?.caption) frame.speak = [answered.caption];
       // Only with &beats=all: a resting frame stays the after-state it always was.
       const gesture = everyBeat() && !frame.before ? gestureAt(hd.plan, frame.at) : null;
       if (gesture) paintGesture(hd, frame.at, gesture, canvas);

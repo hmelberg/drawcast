@@ -15,7 +15,9 @@
 //   "@N question (before the answer)"  the boundary BEFORE the step — the
 //        figure as it stands when the gate opens (the harness then opens the
 //        real gate on it: the headline, the cards at home, the buttons);
-//   "@N answer (after the reveal)"     the boundary after it, as before.
+//   "@N answer (after the reveal)"     the boundary after it — played to,
+//        with a stand-in viewer's wrong-ish answer kept beside the truth
+//        and the feedback line captioned (dev/frames.ts answerQuestion).
 //
 // N is the question's own step number (1-based), the same in both labels.
 
