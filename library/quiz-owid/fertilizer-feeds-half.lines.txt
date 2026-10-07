@@ -1,0 +1,13 @@
+(a) Imagine these hundred people stand for everyone alive. How many of them owe their food to fertilizer made in a factory?
+[ASK] Sweep across the people it feeds.
+  [right] Close: you said {g}, and it is about {g.true}.
+  [wrong] You said {g}. It is about {g.true} in a hundred.
+(a) About forty-eight in a hundred: across the world, roughly four billion people.
+(b) Half of us? Fed by a sack of fertilizer?
+(a) By the nitrogen in it. Crops need nitrogen, and the air is mostly nitrogen, but in a form no plant can use.
+(a) In 1909 the German chemist Fritz Haber found how to pull it out of the air as ammonia, and by 1913 Carl Bosch had it running in a factory.
+(b) So half of us eat bread made from thin air.
+(a) Pretty much. Haber won the Nobel Prize for it in 1918.
+(b) Wait, Haber? Isn't he the man behind the poison gas of the First World War?
+(a) He is. He oversaw the first chlorine gas attack, at Ypres in 1915.
+(b) The father of chemical warfare, and the reason billions of people are fed. Quite a legacy.

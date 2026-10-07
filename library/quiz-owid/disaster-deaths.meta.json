@@ -1,0 +1,20 @@
+{
+ "file": "disaster-deaths.json",
+ "title": "Do natural disasters kill more people than a century ago?",
+ "subtitle": "Today disasters kill about 45,000 people a year. Guess the 1920s toll, then see why the risk per person fell by about 98 percent.",
+ "format": "quiz",
+ "tags": [
+  "earth",
+  "history",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "2",
+ "form": "ask on bar (drag the 1920s bar)",
+ "owid": "https://ourworldindata.org/natural-disasters",
+ "notes": "Now asks for the 1920s bar (2010s shown first) so the starting bar (4 % of the axis) sits far from the truth; axis 0–800, relative tolerance 25 %. EM-DAT decadal averages: 1920s about 524,000 a year (droughts about 472,000, marked by a dashed line), 2010s about 45,400; then the same bars animate to deaths per million people (266 vs 6; population averages 1.97 bn and 7.42 bn) for the −98 %. 2004 (about 246,000) is a label, not a highlight of the 2010s bar. No people/text column any more. The bar chart's y label stays small (engine)."
+}

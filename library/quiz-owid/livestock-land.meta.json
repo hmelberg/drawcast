@@ -1,0 +1,20 @@
+{
+ "file": "livestock-land.json",
+ "title": "Livestock uses most farmland. How much of our food does it give?",
+ "subtitle": "Guess how much farmland goes to livestock, then how much of the world's food it gives back: four fifths of the land, under a fifth of the calories.",
+ "format": "quiz",
+ "tags": [
+  "food",
+  "earth",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "7",
+ "form": "pie slice guess, then predict on the same pie (animate stage)",
+ "owid": "https://ourworldindata.org/global-land-for-agriculture",
+ "notes": "Fix round: pie unboxed so the guess pie is full size (with a box the ask draws the pie ~1/4 size: engine bug); slice names blanked (labels ' ') and numbers drawn on the slices; twist drawn as squares to scale (beef 119 m² vs wheat 1.4 m² per 1,000 kcal, OWID land-use-kcal-poore, ~80× — review's '30×' was wrong, '100×' holds vs rice/maize, now said as 'about eighty times' vs wheat); 'the other fifth, crops' instead of the undrawn 16%; no closing ellipse. OWID: 80% land, 17% calories, 38% protein (brief said 77/18). Unboxed pie's bottom edge dips into the caption band."
+}

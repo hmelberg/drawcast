@@ -1,0 +1,463 @@
+{
+ "request": "Which country has emitted the most CO2 since 1750? A two-voice podcast where I rank five countries. #interactive #short",
+ "subtitle": "Rank five countries by all the CO₂ they have ever emitted, then rewind to 1850 to see who started it all, as two hosts argue it out.",
+ "thumb": "band \"Not who you'd blame\" note \"All-time CO₂\"",
+ "spec": {
+  "title": "Which country has emitted the most CO₂ since 1750?",
+  "text": {
+   "font_size": 34
+  },
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "UK",
+    "Germany",
+    "Russia",
+    "China",
+    "USA"
+   ],
+   "values": [
+    [
+     4,
+     5,
+     7,
+     15,
+     24
+    ],
+    [
+     78,
+     5,
+     0,
+     0,
+     4
+    ]
+   ],
+   "stage": 0,
+   "value_labels": true,
+   "ylim": [
+    0,
+    80
+   ],
+   "y_label": "% of all CO₂",
+   "bar_colors": "same",
+   "label_size": 34,
+   "icons": [
+    {
+     "of": "flag united kingdom",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag germany",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag russia",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag china",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag united states",
+     "set": "twemoji"
+    }
+   ]
+  },
+  "sources": [
+   {
+    "id": "owid_cum",
+    "title": "Cumulative CO₂ emissions",
+    "authors": "Our World in Data, from the Global Carbon Budget (2025)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/cumulative-co-emissions",
+    "finding": "fossil and industry CO₂ since 1750, to 2024: USA 435, China 285, Russia 123, Germany 95, UK 80 billion tonnes, of a world total of 1,849 (23.5%, 15.4%, 6.6%, 5.1%, 4.3%); the UK held 99% of the total in 1800 and 78% in 1850; the US total passed the UK's in 1911"
+   },
+   {
+    "id": "owid_annual",
+    "title": "Annual CO₂ emissions",
+    "authors": "Our World in Data, from the Global Carbon Budget (2025)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/annual-co2-emissions-per-country",
+    "finding": "in 2024 China emitted 12.3 billion tonnes and the US 4.9 billion"
+   }
+  ],
+  "elements": [
+   {
+    "id": "rank",
+    "type": "cards",
+    "ends": [
+     "most",
+     "least"
+    ],
+    "items": [
+     {
+      "text": "USA",
+      "icon": {
+       "of": "flag united states",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "China",
+      "icon": {
+       "of": "flag china",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Russia",
+      "icon": {
+       "of": "flag russia",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "GER",
+      "icon": {
+       "of": "flag germany",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "UK",
+      "icon": {
+       "of": "flag united kingdom",
+       "set": "twemoji"
+      }
+     }
+    ],
+    "cites": [
+     "owid_cum"
+    ],
+    "size": 2
+   },
+   {
+    "id": "yesterday",
+    "type": "text",
+    "text": "per year: China ×2.5 USA",
+    "x": 420,
+    "y": 600,
+    "font_size": 42,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_annual"
+    ]
+   },
+   {
+    "id": "y2024",
+    "type": "text",
+    "text": "by 2024",
+    "x": 330,
+    "y": 500,
+    "font_size": 60,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "y1850",
+    "type": "text",
+    "text": "by 1850",
+    "x": 560,
+    "y": 560,
+    "font_size": 60,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "us1911",
+    "type": "text",
+    "text": "1911: passed UK ↘",
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_cum"
+    ],
+    "x": 700,
+    "y": 300
+   },
+   {
+    "id": "loco",
+    "type": "icon",
+    "of": "locomotive",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170,
+    "x": 820,
+    "y": 470
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Most CO₂ since 1750?"
+    }
+   },
+   {
+    "draw": [
+     "rank"
+    ],
+    "voice": "a",
+    "speak": "Since 1750, which country has put the most carbon dioxide into the air? Five suspects."
+   },
+   {
+    "highlight": {
+     "target": [
+      "rank"
+     ]
+    },
+    "voice": "b",
+    "speak": "That's easy. China, with all those coal plants. Britain is a tiny island, so last."
+   },
+   {
+    "ask": {
+     "question": "Least to most, then Done.",
+     "on": "rank",
+     "store": "r",
+     "right": "You got {r}. America tops the list, and China is second.",
+     "wrong": "You got {r}. America comes first, then China, Russia, Germany and Britain."
+    }
+   },
+   {
+    "erase": [
+     "rank"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "bar_1",
+     "bar_2",
+     "bar_3",
+     "bar_4",
+     "bar_5",
+     "y2024"
+    ],
+    "voice": "a",
+    "speak": "Here is each country's share of all the carbon dioxide from fossil fuels so far. America alone: almost a quarter."
+   },
+   {
+    "draw": [
+     "yesterday"
+    ],
+    "voice": "b",
+    "speak": "Hold on. China burns far more than America these days."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_4"
+     ]
+    },
+    "voice": "a",
+    "speak": "It does, about two and a half times as much a year. But it started late, so its total is about fifteen percent."
+   },
+   {
+    "erase": [
+     "yesterday"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1"
+     ]
+    },
+    "voice": "b",
+    "speak": "Fine. And Britain, four percent. Told you: nothing to see there."
+   },
+   {
+    "erase": [
+     "y2024"
+    ]
+   },
+   {
+    "draw": [
+     "y1850"
+    ]
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 2.5,
+    "voice": "a",
+    "speak": "Now wind the clock back to 1850. By then, Britain had made almost four fifths of all the carbon dioxide ever."
+   },
+   {
+    "voice": "a",
+    "speak": "And in 1800, nearly all the carbon dioxide on record came from Britain.",
+    "highlight": {
+     "target": [
+      "bar_1"
+     ]
+    }
+   },
+   {
+    "voice": "b",
+    "speak": "All of it? Oh. The steam engines, the coal mines, the mills. Britain was the industrial revolution.",
+    "draw": [
+     "loco"
+    ]
+   },
+   {
+    "draw": [
+     "us1911"
+    ],
+    "voice": "a",
+    "speak": "Exactly. America's running total only overtook Britain's in 1911."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1"
+     ]
+    },
+    "voice": "b",
+    "speak": "So the tiny island I put last is where the whole thing started. Noted."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "f1",
+     "type": "icon",
+     "of": "flag united states",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 190,
+     "x": 170,
+     "y": 520
+    },
+    {
+     "id": "f2",
+     "type": "icon",
+     "of": "flag china",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 190,
+     "x": 390,
+     "y": 520
+    },
+    {
+     "id": "f3",
+     "type": "icon",
+     "of": "flag russia",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 190,
+     "x": 610,
+     "y": 520
+    },
+    {
+     "id": "f4",
+     "type": "icon",
+     "of": "flag united kingdom",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 190,
+     "x": 830,
+     "y": 520
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "#1 since 1750?",
+     "x": 500,
+     "y": 360,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Who emitted the most CO2?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "loco",
+     "type": "icon",
+     "of": "locomotive",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 300,
+     "y": 430
+    },
+    {
+     "id": "y",
+     "type": "text",
+     "text": "1850",
+     "x": 720,
+     "y": 520,
+     "font_size": 140,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "p",
+     "type": "text",
+     "text": "who led?",
+     "x": 720,
+     "y": 360,
+     "font_size": 80,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Rewind the CO2 clock"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "fac",
+     "type": "icon",
+     "of": "factory",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 500,
+     "y": 470
+    },
+    {
+     "id": "c",
+     "type": "text",
+     "text": "China? USA? UK?",
+     "x": 500,
+     "y": 260,
+     "font_size": 64,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Most CO2 ever?"
+    }
+   ]
+  }
+ ]
+}

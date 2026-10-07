@@ -1,0 +1,13 @@
+How long must you work to pay for an hour of light, the glow of one low-energy bulb?
+In 1800, by candlelight, it cost over five hours of work. Each step on this line is ten times the last.
+[ASK] Click the line.
+  [right] Close: you said {g} seconds, and it was about {g.true}.
+  [wrong] You said {g} seconds. It was about {g.true}.
+By 1992, less than half a second of work, for the same hour of light.
+On the way down, kerosene lamps cut it to about twenty minutes by the 1870s,
+and electric bulbs to under a minute by 1920.
+Five hours to half a second: about forty-five thousand times less work.
+Turn it around. In 1800, an hour of work bought about eleven minutes of candlelight.
+By 1992, the same hour bought a bulb burning day and night for most of a year.
+And price statistics missed most of it: they tracked candles and lamps, not light itself, as the economist William Nordhaus showed.
+So the light your ancestors saved candle stubs for had become almost free.

@@ -1,0 +1,20 @@
+{
+ "file": "news-vs-deaths.json",
+ "title": "Does the news cover what actually kills us?",
+ "subtitle": "Play newspaper editor and share out a hundred stories on causes of death, then watch the bars turn into what Americans actually died of.",
+ "format": "quiz",
+ "tags": [
+  "health",
+  "data",
+  "psychology"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "1",
+ "form": "allocate (split 100 stories over the bars, judge: false)",
+ "owid": "https://ourworldindata.org/does-the-news-reflect-what-we-die-from",
+ "notes": "b is the skeptic; a closes. Coverage and death shares from OWID's stacked chart (NYT 2023; 15 causes), rounded to whole numbers: coverage 3, 4, 42, 18, 33; deaths 29, 27, 1, 0 (16 deaths), 43. One bar_chart with two stages; the news values stay as dashed caps when the bars grow into deaths. The 18,000x is OWID's own published ratio (18,240x, shares within the 15 causes); the rounded stacked-chart shares (18 % of coverage, 16 of ~2.3 million deaths) don't reproduce it exactly, so it is said as 'about eighteen thousand times' and cited to OWID. Engine: the allocate's 'Stories left' readout replaces the task under the heading and the account bar label is tiny; terrorism's death bar reads 0 (no '<1' label option)."
+}

@@ -1,0 +1,20 @@
+{
+ "file": "bee-colonies.json",
+ "title": "Do we need bees to eat? Four claims: true or myth?",
+ "subtitle": "Vanishing hives, wheat, chocolate: four claims about bees and our food, true or myth, and how much of our plate really needs pollinators.",
+ "format": "quiz",
+ "tags": [
+  "biology",
+  "food",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "3",
+ "form": "quiz on_canvas True/Myth over a sequence",
+ "owid": "https://ourworldindata.org/pollinator-dependence",
+ "notes": "OWID has no beehive chart: the hive claim (+85 % managed colonies, 1961→2017) is FAOSTAT via Phiri et al. 2022 (Sci Rep). Claims 2–4 and the payoff (≈35 % of food by weight, −5 to 8 % production without pollinators) from OWID's pollinator-dependence article; 'three in four of the leading food crops' and 'wind or themselves' worded per review. Cocoa midges: Wikipedia/literature. Buttons placed with buttons_at; payoff is a plate drawn as a pie (sectors)."
+}

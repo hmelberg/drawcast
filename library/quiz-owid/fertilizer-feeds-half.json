@@ -1,0 +1,584 @@
+{
+ "request": "How many people are alive thanks to synthetic nitrogen fertilizer? A two-voice podcast where the co-host knows the dark twist; let me sweep across a crowd of 100. #interactive #short",
+ "subtitle": "Sweep across a crowd of a hundred to guess how many owe their food to factory fertilizer, then two hosts unmask the chemist behind it.",
+ "thumb": "band \"Air into bread\" note \"1 in 2?\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "p0",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 110,
+     "y": 480
+    },
+    {
+     "id": "p1",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 196,
+     "y": 480
+    },
+    {
+     "id": "p2",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 282,
+     "y": 480
+    },
+    {
+     "id": "p3",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 368,
+     "y": 480
+    },
+    {
+     "id": "p4",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 454,
+     "y": 480
+    },
+    {
+     "id": "p5",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 540,
+     "y": 480
+    },
+    {
+     "id": "p6",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 626,
+     "y": 480
+    },
+    {
+     "id": "p7",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 712,
+     "y": 480
+    },
+    {
+     "id": "p8",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 798,
+     "y": 480
+    },
+    {
+     "id": "p9",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 884,
+     "y": 480
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "how many fed by a factory?",
+     "x": 500,
+     "y": 330,
+     "font_size": 52,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "s",
+     "type": "thumb",
+     "kind": "star",
+     "text": "?",
+     "x": 860,
+     "y": 620
+    },
+    {
+     "id": "t1",
+     "type": "thumb",
+     "kind": "band",
+     "text": "How many of us does it feed?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "wind",
+     "type": "icon",
+     "of": "wind face",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 230,
+     "y": 470
+    },
+    {
+     "id": "ar",
+     "type": "arrow",
+     "from": {
+      "x": 380,
+      "y": 470
+     },
+     "to": {
+      "x": 580,
+      "y": 470
+     },
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "bread",
+     "type": "icon",
+     "of": "bread",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 760,
+     "y": 470
+    },
+    {
+     "id": "t2",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Bread made from thin air"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "sci",
+     "type": "icon",
+     "of": "scientist",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 320,
+     "y": 460
+    },
+    {
+     "id": "skull",
+     "type": "icon",
+     "of": "skull",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 220,
+     "x": 720,
+     "y": 470
+    },
+    {
+     "id": "s",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "HERO? VILLAIN?",
+     "x": 700,
+     "y": 640,
+     "angle": 6
+    },
+    {
+     "id": "t3",
+     "type": "thumb",
+     "kind": "band",
+     "text": "One chemist, two legacies"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "How many people are alive thanks to synthetic fertilizer?",
+  "sources": [
+   {
+    "id": "owid",
+    "title": "How many people does synthetic fertilizer feed?",
+    "authors": "Hannah Ritchie (Our World in Data)",
+    "year": 2017,
+    "url": "https://ourworldindata.org/how-many-people-does-synthetic-fertilizer-feed",
+    "finding": "around half of the global population depends on synthetic nitrogen fertilizer; the Haber-Bosch process has enabled the lives of around 4 billion people today"
+   },
+   {
+    "id": "owid_chart",
+    "title": "World population with and without synthetic nitrogen fertilizers",
+    "authors": "Our World in Data, from Erisman et al. (2008) and Rosa & Gabrielli (2023)",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/world-population-with-and-without-fertilizer",
+    "finding": "2023: about 3.9 billion of 8.1 billion people (48%) fed by synthetic nitrogen fertilizer"
+   },
+   {
+    "id": "erisman",
+    "title": "How a century of ammonia synthesis changed the world",
+    "authors": "J. W. Erisman, M. A. Sutton, J. Galloway, Z. Klimont, W. Winiwarter",
+    "year": 2008,
+    "finding": "synthetic nitrogen fertilizer fed about 48% of the world's population in 2008"
+   },
+   {
+    "id": "haber",
+    "title": "Fritz Haber",
+    "authors": "Wikipedia",
+    "year": 2026,
+    "url": "https://en.wikipedia.org/wiki/Fritz_Haber",
+    "finding": "Haber demonstrated ammonia synthesis in 1909; BASF's first plant under Carl Bosch opened in 1913; Nobel Prize in Chemistry 1918; oversaw the first chlorine gas attack, at Ypres in 1915"
+   }
+  ],
+  "elements": [
+   {
+    "id": "crowd0",
+    "type": "population",
+    "count": 100,
+    "states": {
+     "people": 100
+    },
+    "colors": {
+     "people": "#8f887c"
+    },
+    "legend": false,
+    "fit": {
+     "x": 40,
+     "y": 175,
+     "w": 920,
+     "h": 400
+    }
+   },
+   {
+    "id": "crowd",
+    "type": "population",
+    "count": 100,
+    "states": {
+     "other": 52,
+     "fed": 48
+    },
+    "order": "rows",
+    "colors": {
+     "other": "#8f887c",
+     "fed": "#87a878"
+    },
+    "labels": {
+     "other": "other",
+     "fed": "fed by fertilizer"
+    },
+    "fit": {
+     "x": 40,
+     "y": 175,
+     "w": 920,
+     "h": 400
+    },
+    "cites": [
+     "owid_chart"
+    ],
+    "legend": false
+   },
+   {
+    "id": "n48",
+    "type": "text",
+    "text": "48 in 100",
+    "x": 500,
+    "y": 612,
+    "font_size": 60,
+    "style": {
+     "color": "#5d8a52"
+    },
+    "cites": [
+     "owid_chart"
+    ]
+   },
+   {
+    "id": "air",
+    "type": "icon",
+    "of": "wind face",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 170,
+    "y": 470
+   },
+   {
+    "id": "n78",
+    "type": "text",
+    "text": "78% nitrogen",
+    "x": 170,
+    "y": 320,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "a1",
+    "type": "arrow",
+    "from": {
+     "x": 285,
+     "y": 470
+    },
+    "to": {
+     "x": 385,
+     "y": 470
+    },
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "hb",
+    "type": "icon",
+    "of": "factory",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 500,
+    "y": 470
+   },
+   {
+    "id": "hb_l",
+    "type": "text",
+    "text": "Haber–Bosch",
+    "x": 500,
+    "y": 320,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "a2",
+    "type": "arrow",
+    "from": {
+     "x": 615,
+     "y": 470
+    },
+    "to": {
+     "x": 715,
+     "y": 470
+    },
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "bread",
+    "type": "icon",
+    "of": "bread",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 830,
+    "y": 470
+   },
+   {
+    "id": "bread_l",
+    "type": "text",
+    "text": "4 billion fed",
+    "x": 830,
+    "y": 320,
+    "font_size": 40,
+    "style": {
+     "color": "#5d8a52"
+    }
+   },
+   {
+    "id": "nobel",
+    "type": "icon",
+    "of": "1st place medal",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 220,
+    "x": 280,
+    "y": 470
+   },
+   {
+    "id": "nobel_l",
+    "type": "text",
+    "text": "Nobel, 1918",
+    "x": 280,
+    "y": 300,
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "haber"
+    ]
+   },
+   {
+    "id": "gas",
+    "type": "icon",
+    "of": "skull",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 220,
+    "x": 720,
+    "y": 470
+   },
+   {
+    "id": "gas_l",
+    "type": "text",
+    "text": "Ypres gas, 1915",
+    "x": 720,
+    "y": 300,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "haber"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How many of us does fertilizer feed?"
+    }
+   },
+   {
+    "draw": [
+     "crowd0"
+    ],
+    "voice": "a",
+    "speak": "Imagine these hundred people stand for everyone alive. How many of them owe their food to fertilizer made in a factory?"
+   },
+   {
+    "hide": [
+     "crowd0"
+    ]
+   },
+   {
+    "ask": {
+     "question": "Sweep across the people it feeds.",
+     "on": "crowd_fed",
+     "store": "g",
+     "default": "10",
+     "right": "Close: you said {g}, and it is about {g.true}.",
+     "wrong": "You said {g}. It is about {g.true} in a hundred."
+    }
+   },
+   {
+    "draw": [
+     "n48"
+    ],
+    "voice": "a",
+    "speak": "About forty-eight in a hundred: across the world, roughly four billion people."
+   },
+   {
+    "highlight": {
+     "target": [
+      "crowd_fed"
+     ]
+    },
+    "voice": "b",
+    "speak": "Half of us? Fed by a sack of fertilizer?"
+   },
+   {
+    "erase": [
+     "crowd",
+     "n48"
+    ]
+   },
+   {
+    "draw": [
+     "air",
+     "n78"
+    ],
+    "voice": "a",
+    "speak": "By the nitrogen in it. Crops need nitrogen, and the air is mostly nitrogen, but in a form no plant can use."
+   },
+   {
+    "draw": [
+     "a1",
+     "hb",
+     "hb_l"
+    ],
+    "voice": "a",
+    "speak": "In 1909 the German chemist Fritz Haber found how to pull it out of the air as ammonia, and by 1913 Carl Bosch had it running in a factory."
+   },
+   {
+    "draw": [
+     "a2",
+     "bread",
+     "bread_l"
+    ],
+    "voice": "b",
+    "speak": "So half of us eat bread made from thin air."
+   },
+   {
+    "erase": [
+     "air",
+     "n78",
+     "a1",
+     "hb",
+     "hb_l",
+     "a2",
+     "bread",
+     "bread_l"
+    ]
+   },
+   {
+    "draw": [
+     "nobel",
+     "nobel_l"
+    ],
+    "voice": "a",
+    "speak": "Pretty much. Haber won the Nobel Prize for it in 1918."
+   },
+   {
+    "draw": [
+     "gas",
+     "gas_l"
+    ],
+    "voice": "b",
+    "speak": "Wait, Haber? Isn't he the man behind the poison gas of the First World War?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "gas_l"
+     ]
+    },
+    "voice": "a",
+    "speak": "He is. He oversaw the first chlorine gas attack, at Ypres in 1915.",
+    "delivery": "grave"
+   },
+   {
+    "highlight": {
+     "target": [
+      "nobel_l",
+      "gas_l"
+     ]
+    },
+    "voice": "b",
+    "speak": "The father of chemical warfare, and the reason billions of people are fed. Quite a legacy."
+   }
+  ]
+ }
+}

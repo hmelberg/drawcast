@@ -1,0 +1,11 @@
+Of all the plastic the world throws away, about three hundred and fifty million tonnes a year, how much actually gets recycled?
+[ASK] Split 100 percent between the four bars, then press Done.
+  [right] Close: you were {g.off} points off on average.
+  [wrong] You were {g.off} points off on average.
+Recycled: about nine percent. Fewer than one piece in ten.
+Half goes into landfill, and a fifth is burned.
+And over a fifth is mismanaged: dumped, burned in open pits or left to blow away. That's the plastic that can reach rivers and the sea.
+But here's the twist. Of every hundred pieces thrown out, nine get recycled.
+And of all plastic ever recycled, only about one in ten has been recycled a second time. So: about one piece in a hundred.
+Each melt weakens it, so most recycled plastic becomes something lower-grade, and then waste. Recycling delays the bin more than it avoids it.
+So recycle what you can, but the plastic that never ends up anywhere is the plastic never made.

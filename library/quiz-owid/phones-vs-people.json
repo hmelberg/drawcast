@@ -1,0 +1,515 @@
+{
+ "request": "Are there more mobile phone subscriptions than people? A true-or-myth chain of three connectivity claims, as a two-voice podcast. #interactive #short",
+ "subtitle": "Three claims about phones and the internet, true or myth, with two hosts arguing, then how rare a mobile was in 1990.",
+ "thumb": "stamp \"TRUE OR MYTH?\" band \"More phones than people\"",
+ "spec": {
+  "title": "Are there more mobile phone subscriptions than people on Earth?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "1990",
+    "2025"
+   ],
+   "values": [
+    0.2,
+    111
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    130
+   ],
+   "y_label": "Mobile subscriptions per 100 people",
+   "bar_colors": "same",
+   "icons": [
+    {
+     "of": "telephone receiver",
+     "set": "twemoji"
+    },
+    {
+     "of": "mobile phone",
+     "set": "twemoji"
+    }
+   ],
+   "label_size": 40
+  },
+  "sources": [
+   {
+    "id": "owid_mob",
+    "title": "Mobile phone subscriptions per 100 people",
+    "authors": "Our World in Data, from the International Telecommunication Union (ITU) via the World Bank",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/mobile-cellular-subscriptions-per-100-people",
+    "finding": "world: 111.5 subscriptions per 100 people in 2025, 0.2 in 1990; low-income countries: 69 per 100 in 2025"
+   },
+   {
+    "id": "owid_net",
+    "title": "Share of the population using the Internet",
+    "authors": "Our World in Data, from the International Telecommunication Union (ITU) via the World Bank",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/share-of-individuals-using-the-internet",
+    "finding": "low-income countries: 23 % used the internet in 2025; world 74 %"
+   }
+  ],
+  "elements": [
+   {
+    "id": "i1",
+    "type": "icon",
+    "of": "mobile phone",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 320,
+    "x": 320,
+    "y": 380
+   },
+   {
+    "id": "l1",
+    "type": "text",
+    "text": "Claim 1 of 3",
+    "x": 320,
+    "y": 195,
+    "font_size": 54,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "i1b",
+    "type": "icon",
+    "of": "people holding hands",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 260,
+    "x": 700,
+    "y": 380
+   },
+   {
+    "id": "v1",
+    "type": "text",
+    "text": "more phones than people?",
+    "x": 500,
+    "y": 590,
+    "font_size": 50,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "i2",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 320,
+    "x": 320,
+    "y": 380
+   },
+   {
+    "id": "l2",
+    "type": "text",
+    "text": "Claim 2 of 3",
+    "x": 320,
+    "y": 195,
+    "font_size": 54,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "v2",
+    "type": "text",
+    "text": "poorest countries: few phones?",
+    "x": 500,
+    "y": 590,
+    "font_size": 50,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "i3",
+    "type": "icon",
+    "of": "globe with meridians",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 320,
+    "x": 320,
+    "y": 380
+   },
+   {
+    "id": "l3",
+    "type": "text",
+    "text": "Claim 3 of 3",
+    "x": 320,
+    "y": 195,
+    "font_size": 54,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "v3",
+    "type": "text",
+    "text": "poorest countries: mostly online?",
+    "x": 500,
+    "y": 590,
+    "font_size": 50,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "n1",
+    "type": "text",
+    "text": "111 per 100",
+    "x": 720,
+    "y": 210,
+    "font_size": 60,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_mob"
+    ]
+   },
+   {
+    "id": "n2",
+    "type": "text",
+    "text": "69 per 100",
+    "x": 720,
+    "y": 380,
+    "font_size": 72,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_mob"
+    ]
+   },
+   {
+    "id": "n3",
+    "type": "text",
+    "text": "1 in 4",
+    "x": 720,
+    "y": 380,
+    "font_size": 80,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_net"
+    ]
+   },
+   {
+    "id": "x500",
+    "type": "text",
+    "text": "1 in 500",
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "bar_1",
+     "side": "above",
+     "gap": 40
+    },
+    "cites": [
+     "owid_mob"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "More phones than people?"
+    }
+   },
+   {
+    "draw": [
+     "i1",
+     "i1b",
+     "v1"
+    ],
+    "voice": "a",
+    "speak": "Are there more mobile phone subscriptions than people on Earth? That's the first of three claims."
+   },
+   {
+    "draw": [
+     "l1"
+    ],
+    "voice": "b",
+    "speak": "Myth, surely. My grandmother doesn't have one."
+   },
+   {
+    "quiz": {
+     "question": "True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 1,
+     "right": "True. About a hundred and eleven for every hundred people, because many of us carry two SIMs, a work one and a private one."
+    }
+   },
+   {
+    "draw": [
+     "n1"
+    ]
+   },
+   {
+    "pause": 0.8
+   },
+   {
+    "erase": [
+     "i1",
+     "i1b",
+     "v1",
+     "l1",
+     "n1"
+    ]
+   },
+   {
+    "draw": [
+     "i2",
+     "l2",
+     "v2"
+    ],
+    "voice": "a",
+    "speak": "Claim two: in the poorest countries, few people have a mobile subscription."
+   },
+   {
+    "voice": "b",
+    "speak": "That one's true. No money, no phone.",
+    "highlight": {
+     "target": [
+      "i2"
+     ]
+    }
+   },
+   {
+    "quiz": {
+     "question": "True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "right": "Myth. Even in low-income countries there are about sixty-nine subscriptions for every hundred people."
+    }
+   },
+   {
+    "draw": [
+     "n2"
+    ]
+   },
+   {
+    "pause": 0.8
+   },
+   {
+    "erase": [
+     "i2",
+     "l2",
+     "v2",
+     "n2"
+    ]
+   },
+   {
+    "draw": [
+     "i3",
+     "l3",
+     "v3"
+    ],
+    "voice": "b",
+    "speak": "Sixty-nine! Then surely most people there are online, too. That's claim three."
+   },
+   {
+    "quiz": {
+     "question": "True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "right": "Myth. Only about one in four is online there. A phone that calls and texts is not a phone on the internet."
+    }
+   },
+   {
+    "draw": [
+     "n3"
+    ],
+    "voice": "b",
+    "speak": "Two wrong out of three. I need a better phone."
+   },
+   {
+    "erase": [
+     "i3",
+     "l3",
+     "v3",
+     "n3"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "bar_2"
+    ],
+    "voice": "a",
+    "speak": "And look how fast it happened. Today, a hundred and eleven per hundred people."
+   },
+   {
+    "draw": [
+     "bar_1",
+     "x500"
+    ],
+    "voice": "b",
+    "speak": "And in 1990? That bar barely leaves the floor."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    },
+    "voice": "a",
+    "speak": "About one in five hundred had one. From a rare brick to more phones than people, in thirty-five years."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "ph",
+     "type": "icon",
+     "of": "mobile phone",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 300,
+     "y": 430
+    },
+    {
+     "id": "gt",
+     "type": "text",
+     "text": "?",
+     "x": 520,
+     "y": 440,
+     "font_size": 160,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "pp",
+     "type": "icon",
+     "of": "people holding hands",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 750,
+     "y": 430
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "TRUE OR MYTH?",
+     "x": 500,
+     "y": 220,
+     "angle": 6
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "coin",
+     "type": "icon",
+     "of": "coin",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 420,
+     "y": 420
+    },
+    {
+     "id": "ph",
+     "type": "icon",
+     "of": "mobile phone",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 600,
+     "y": 420
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Poor countries, few phones?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "brick",
+     "type": "icon",
+     "of": "telephone receiver",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 220,
+     "x": 300,
+     "y": 470
+    },
+    {
+     "id": "y",
+     "type": "text",
+     "text": "1990",
+     "x": 300,
+     "y": 300,
+     "font_size": 80,
+     "style": {
+      "color": "#5e584e"
+     }
+    },
+    {
+     "id": "ph",
+     "type": "icon",
+     "of": "mobile phone",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 220,
+     "x": 720,
+     "y": 470
+    },
+    {
+     "id": "y2",
+     "type": "text",
+     "text": "today",
+     "x": 720,
+     "y": 300,
+     "font_size": 80,
+     "style": {
+      "color": "#5e584e"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "3 claims",
+     "x": 510,
+     "y": 620,
+     "angle": -6
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Phones vs people"
+    }
+   ]
+  }
+ ]
+}

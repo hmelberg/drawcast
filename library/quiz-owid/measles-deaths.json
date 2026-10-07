@@ -1,0 +1,614 @@
+{
+ "request": "How fast have measles deaths fallen since 1980? Let me draw the rest of the line. #interactive #short",
+ "subtitle": "Draw how measles deaths changed after 1985, then see the fall of about 90 percent, what drove it, and why the line turned up again.",
+ "thumb": "band \"Draw the line\" note \"1980 to now\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "ax",
+     "type": "path",
+     "points": [
+      [
+       120,
+       640
+      ],
+      [
+       120,
+       230
+      ],
+      [
+       900,
+       230
+      ]
+     ],
+     "style": {
+      "color": "#2f2b26",
+      "stroke_width": 4
+     }
+    },
+    {
+     "id": "ln",
+     "type": "path",
+     "points": [
+      [
+       130,
+       580
+      ],
+      [
+       230,
+       560
+      ],
+      [
+       330,
+       510
+      ]
+     ],
+     "style": {
+      "color": "#b5482e",
+      "stroke_width": 9
+     }
+    },
+    {
+     "id": "g2",
+     "type": "path",
+     "points": [
+      [
+       330,
+       510
+      ],
+      [
+       860,
+       270
+      ]
+     ],
+     "style": {
+      "color": "#8f887c",
+      "dash": true,
+      "stroke_width": 4
+     }
+    },
+    {
+     "id": "g1",
+     "type": "path",
+     "points": [
+      [
+       330,
+       510
+      ],
+      [
+       840,
+       500
+      ]
+     ],
+     "style": {
+      "color": "#8f887c",
+      "dash": true,
+      "stroke_width": 4
+     }
+    },
+    {
+     "id": "g0",
+     "type": "path",
+     "points": [
+      [
+       330,
+       510
+      ],
+      [
+       820,
+       610
+      ]
+     ],
+     "style": {
+      "color": "#8f887c",
+      "dash": true,
+      "stroke_width": 4
+     }
+    },
+    {
+     "id": "a",
+     "type": "text",
+     "text": "1980",
+     "x": 180,
+     "y": 630,
+     "font_size": 56,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?",
+     "x": 900,
+     "y": 420,
+     "font_size": 200,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Where did it go?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "n",
+     "type": "text",
+     "text": "1,400,000",
+     "x": 500,
+     "y": 500,
+     "font_size": 150,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "y",
+     "type": "text",
+     "text": "measles deaths, 1980",
+     "x": 500,
+     "y": 380,
+     "font_size": 56,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "now",
+     "type": "text",
+     "text": "Today: ?",
+     "x": 500,
+     "y": 260,
+     "font_size": 90,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "GUESS",
+     "x": 850,
+     "y": 640,
+     "angle": 10
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "syr",
+     "type": "icon",
+     "of": "syringe",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 260,
+     "y": 440
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "Gone for good?",
+     "x": 690,
+     "y": 470,
+     "font_size": 96,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "The line that turned"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "How fast have measles deaths fallen since 1980?",
+  "template": "line_chart",
+  "params": {
+   "x": [
+    1980,
+    1985,
+    1990,
+    1995,
+    2000,
+    2005,
+    2010,
+    2015,
+    2019,
+    2021,
+    2023
+   ],
+   "series": [
+    {
+     "name": "Measles",
+     "values": [
+      1386,
+      1290,
+      1103,
+      955,
+      763,
+      461,
+      285,
+      173,
+      127,
+      71,
+      144
+     ]
+    },
+    {
+     "name": "​",
+     "values": [
+      1386,
+      1290,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    }
+   ],
+   "ylim": [
+    0,
+    1500
+   ],
+   "xlim": [
+    1980,
+    2023
+   ],
+   "y_label": "Deaths a year (thousands)",
+   "points": true,
+   "x_ticks": false,
+   "label_size": 30
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Deaths due to measles",
+    "authors": "Our World in Data, from IHME Global Burden of Disease (2025)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/deaths-due-to-measles-gbd",
+    "finding": "IHME estimates: world measles deaths about 1.39 million in 1980, 763,000 in 2000, 127,000 in 2019, 71,000 in 2021 and 144,000 in 2023 (WHO's often-quoted figure for the pre-vaccination era is higher, about 2.6 million a year)"
+   },
+   {
+    "id": "owid_vax",
+    "title": "Measles vaccines save millions of lives each year",
+    "authors": "Saloni Dattani and Fiona Spooner (Our World in Data)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/measles-vaccines-save-lives",
+    "finding": "measles vaccines have saved about 94 million lives in the last 50 years; over 80 percent of infants are now vaccinated, against very low coverage in the 1980s"
+   },
+   {
+    "id": "gbd",
+    "title": "Global Burden of Disease Study 2023",
+    "authors": "Institute for Health Metrics and Evaluation (IHME)",
+    "year": 2025,
+    "finding": "annual deaths from measles by country and year, 1980–2023 (model estimates; lower than WHO's estimates for the early years)"
+   }
+  ],
+  "elements": [
+   {
+    "id": "startpt",
+    "type": "point",
+    "at": {
+     "data": [
+      1980,
+      1386
+     ]
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "start",
+    "type": "text",
+    "text": "1980: 1.4 M",
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "ref": "startpt",
+     "side": "right",
+     "gap": 40
+    }
+   },
+   {
+    "id": "endpt",
+    "type": "point",
+    "at": {
+     "data": [
+      2023,
+      144
+     ]
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "end",
+    "type": "text",
+    "text": "144,000",
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "ref": "endpt",
+     "side": "above",
+     "gap": 45
+    }
+   },
+   {
+    "id": "drop",
+    "type": "text",
+    "text": "−90%",
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "ref": "end",
+     "side": "above",
+     "gap": 20
+    }
+   },
+   {
+    "id": "syr",
+    "type": "icon",
+    "of": "syringe",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 800,
+    "y": 560
+   },
+   {
+    "id": "vax",
+    "type": "text",
+    "text": "8 in 10 babies",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_vax"
+    ],
+    "x": 800,
+    "y": 460
+   },
+   {
+    "id": "saved",
+    "type": "text",
+    "text": "94 M lives saved",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_vax"
+    ],
+    "x": 800,
+    "y": 460
+   },
+   {
+    "id": "lowpt",
+    "type": "point",
+    "at": {
+     "data": [
+      2021,
+      71
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "low",
+    "type": "text",
+    "text": "71,000",
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "data": [
+      2011,
+      80
+     ]
+    }
+   },
+   {
+    "id": "rise",
+    "type": "arrow",
+    "from": {
+     "ref": "lowpt"
+    },
+    "to": {
+     "ref": "endpt"
+    },
+    "style": {
+     "color": "#b5482e",
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "twice",
+    "type": "text",
+    "text": "about ×2",
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "ref": "end",
+     "side": "above",
+     "gap": 20
+    }
+   },
+   {
+    "id": "slip",
+    "type": "text",
+    "text": "missed shots",
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 800,
+    "y": 460
+   },
+   {
+    "id": "lowlead",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      2015.2,
+      80
+     ],
+     [
+      2020.5,
+      72
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true,
+     "stroke_width": 2
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Where did measles deaths go?"
+    }
+   },
+   {
+    "draw": [
+     "axes",
+     "line_2",
+     "startpt",
+     "start"
+    ],
+    "speak": "How many people die of measles each year, and how has that changed since 1980? By one major estimate, in 1980 it killed about one point four million, most of them small children."
+   },
+   {
+    "ask": {
+     "intro": "Five years later, it was still almost one point three million.",
+     "question": "Draw the line on from 1985 to 2023.",
+     "on": "line_1",
+     "from": 1985,
+     "store": "g",
+     "default": "1250,1200,1150,1100,1050,1000,950,900,880",
+     "tolerance": 0.08,
+     "right": "Close: you were {g.off} thousand off on average. Deaths fell, and kept on falling.",
+     "wrong": "You were {g.off} thousand off on average. The fall was steep, and it lasted for decades."
+    }
+   },
+   {
+    "draw": [
+     "endpt",
+     "end",
+     "drop"
+    ],
+    "speak": "By 2023, about a hundred and forty-four thousand people died of measles: around ninety percent fewer than in 1980."
+   },
+   {
+    "erase": [
+     "drop",
+     "start"
+    ]
+   },
+   {
+    "draw": [
+     "syr",
+     "vax"
+    ],
+    "speak": "The reason is a vaccine. In the early 1980s few children got it; today more than eight in ten babies do."
+   },
+   {
+    "erase": [
+     "vax"
+    ]
+   },
+   {
+    "draw": [
+     "saved"
+    ],
+    "cue": 0.3,
+    "speak": "Over fifty years, measles vaccines have saved an estimated ninety-four million lives."
+   },
+   {
+    "erase": [
+     "saved"
+    ]
+   },
+   {
+    "draw": [
+     "lowpt",
+     "low",
+     "lowlead"
+    ],
+    "speak": "But look at the very end of the line. In 2021, deaths had fallen to about seventy-one thousand."
+   },
+   {
+    "draw": [
+     "rise",
+     "twice"
+    ],
+    "speak": "Two years later, by this estimate, they had roughly doubled."
+   },
+   {
+    "draw": [
+     "slip"
+    ],
+    "speak": "During the pandemic, vaccination slipped in many countries, and measles, one of the most contagious diseases there is, found the gaps."
+   },
+   {
+    "highlight": {
+     "target": [
+      "rise",
+      "twice"
+     ]
+    },
+    "speak": "So the fall only lasts while the vaccinations keep up."
+   }
+  ]
+ }
+}

@@ -1,0 +1,20 @@
+{
+ "file": "ocean-plastic-country.json",
+ "title": "Which country puts the most plastic into the ocean?",
+ "subtitle": "Pick the country that puts the most plastic into the ocean, then see why it is a nation of islands and small city rivers, not the biggest user.",
+ "format": "quiz",
+ "tags": [
+  "earth",
+  "geography",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "4",
+ "form": "choose on the figure (tap a flag)",
+ "owid": "https://ourworldindata.org/ocean-plastics",
+ "notes": "Fix round: five suspects (Malaysia added, 7.5%, ahead of China); reveal stamp '✓ 36%' on the Philippines flag at the answer; shares beside their flags; flags rescaled to their shares; island outline with river lines and Manila/Pasig arrow, '1,000+ rivers'. b bets on America (not China), then asks the why-questions. OWID Meijer 2021 / 2019 chart."
+}

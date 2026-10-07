@@ -1,0 +1,15 @@
+a: How much cheaper have lithium-ion batteries, the ones in our phones and cars, become since 1991? Four claims: true or myth?
+b: First: they're about ten times cheaper than in 1991. Sounds right to me.
+[ASK] Lithium-ion batteries are about ten times cheaper than in 1991. True or myth?
+  [right] Myth: more than a hundred times cheaper, from about nine thousand two hundred dollars per kilowatt-hour in 1991 to seventy-eight in 2024.
+b: Fine. Second: they got cheaper because we made so many of them.
+[ASK] Batteries got cheaper mainly because the world made more of them. True or myth?
+  [right] True. Production grew twenty-seven million times, and the more the world made, the cheaper each one got.
+b: Then the price must have crashed fastest at the start, in the early nineties.
+[ASK] Battery prices fell fastest in the early 1990s. True or myth?
+  [right] Myth. The early years were slow: the market was tiny, and one company, Sony, held most of the technology.
+b: Last one: the battery cells in an electric car cost about five thousand dollars today.
+[ASK] The battery cells in a standard electric car cost about $5,000 today. True or myth?
+  [right] True. Only ten years ago, the same cells cost over twenty thousand.
+b: You got {score} of {score_total}. So what would my car's battery have cost in 1991?
+a: Close to six hundred thousand dollars, more than the car itself. That's what a ninety-nine percent fall buys you.

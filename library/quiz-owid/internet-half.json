@@ -1,0 +1,342 @@
+{
+ "request": "In what year did half the world get online? Let me click my guess on a timeline, then show how many are still offline. #interactive #short",
+ "subtitle": "Guess the year half of humanity first got online, then see the hundred-person world: who is still offline, and where.",
+ "thumb": "band \"Half the world online. When?\" stamp \"Which year?\"",
+ "spec": {
+  "title": "In what year did half of the world's people first use the internet?",
+  "sources": [
+   {
+    "id": "owid_net",
+    "title": "Share of the population using the Internet",
+    "authors": "Our World in Data, from the International Telecommunication Union (ITU) via the World Bank",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/share-of-individuals-using-the-internet",
+    "finding": "world: 15.6 % in 2005, 22.8 % in 2008, 49.4 % in 2018, 53.9 % in 2019, 73.6 % in 2025; high-income countries 94 % and low-income countries 23 % in 2025"
+   }
+  ],
+  "elements": [
+   {
+    "id": "yr",
+    "type": "scale",
+    "min": 1990,
+    "max": 2025,
+    "value": 2019,
+    "ticks": 7,
+    "tick_format": "numerals",
+    "era": "none",
+    "x": 70,
+    "y": 420,
+    "width": 860,
+    "markers": [
+     {
+      "value": 2005,
+      "label": "2005: 1 in 6"
+     }
+    ],
+    "cites": [
+     "owid_net"
+    ]
+   },
+   {
+    "id": "crowd",
+    "type": "population",
+    "count": 100,
+    "states": {
+     "online": 74,
+     "offline": 26
+    },
+    "order": "rows",
+    "colors": {
+     "online": "#2f6b8f",
+     "offline": "#b5482e"
+    },
+    "labels": {
+     "online": "online",
+     "offline": "offline"
+    },
+    "fit": {
+     "x": 100,
+     "y": 200,
+     "w": 800,
+     "h": 390
+    },
+    "cites": [
+     "owid_net"
+    ]
+   },
+   {
+    "id": "rich",
+    "type": "population",
+    "count": 100,
+    "states": {
+     "online": 94,
+     "offline": 6
+    },
+    "order": "rows",
+    "colors": {
+     "online": "#2f6b8f",
+     "offline": "#b5482e"
+    },
+    "labels": {
+     "online": "online",
+     "offline": "offline"
+    },
+    "fit": {
+     "x": 40,
+     "y": 250,
+     "w": 420,
+     "h": 300
+    },
+    "cites": [
+     "owid_net"
+    ]
+   },
+   {
+    "id": "rich_t",
+    "type": "text",
+    "text": "Rich countries: 94",
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 250,
+    "y": 605,
+    "cites": [
+     "owid_net"
+    ]
+   },
+   {
+    "id": "poor",
+    "type": "population",
+    "count": 100,
+    "states": {
+     "online": 23,
+     "offline": 77
+    },
+    "order": "rows",
+    "colors": {
+     "online": "#2f6b8f",
+     "offline": "#b5482e"
+    },
+    "labels": {
+     "online": "online",
+     "offline": "offline"
+    },
+    "fit": {
+     "x": 540,
+     "y": 250,
+     "w": 420,
+     "h": 300
+    },
+    "cites": [
+     "owid_net"
+    ]
+   },
+   {
+    "id": "poor_t",
+    "type": "text",
+    "text": "Poorest: 23",
+    "font_size": 46,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 750,
+    "y": 605,
+    "cites": [
+     "owid_net"
+    ]
+   },
+   {
+    "id": "echo",
+    "type": "text",
+    "text": "= the world in 2008",
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 750,
+    "y": 205,
+    "cites": [
+     "owid_net"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "When did half the world get online?"
+    }
+   },
+   {
+    "draw": [
+     "yr"
+    ],
+    "speak": "In what year did half of the world's people first use the internet?"
+   },
+   {
+    "ask": {
+     "question": "Click on the line where you think it is.",
+     "on": "yr",
+     "store": "y",
+     "default": "2008",
+     "after": "keep",
+     "right": "Close: you said {y}, and it was {y.true}.",
+     "wrong": "You said {y}; it was {y.true}."
+    }
+   },
+   {
+    "draw": [
+     "yr_marker_1"
+    ],
+    "speak": "Only in 2019. As late as 2005, it was about one person in six."
+   },
+   {
+    "erase": [
+     "yr",
+     "yr_answer",
+     "yr_marker_1"
+    ]
+   },
+   {
+    "draw": [
+     "crowd"
+    ],
+    "speak": "And today? Picture the world as a hundred people. About seventy-four are online."
+   },
+   {
+    "highlight": {
+     "target": [
+      "crowd_offline"
+     ]
+    },
+    "speak": "Which leaves the second question: who are the other twenty-six? More than two billion people."
+   },
+   {
+    "erase": [
+     "crowd"
+    ]
+   },
+   {
+    "draw": [
+     "rich",
+     "rich_t"
+    ],
+    "speak": "They are not spread evenly. In rich countries, ninety-four in a hundred are online."
+   },
+   {
+    "draw": [
+     "poor",
+     "poor_t"
+    ],
+    "speak": "In the poorest countries, twenty-three."
+   },
+   {
+    "draw": [
+     "echo"
+    ],
+    "cue": 0.2,
+    "speak": "That is where the whole world stood in 2008. The second half of the internet is still arriving."
+   },
+   {
+    "highlight": {
+     "target": [
+      "poor_offline"
+     ]
+    },
+    "speak": "And these seventy-seven are the people it's arriving for."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "globe",
+     "type": "icon",
+     "of": "globe with meridians",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 500,
+     "y": 440
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "Which year?",
+     "x": 800,
+     "y": 620,
+     "angle": 10
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Half of us online"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "cal",
+     "type": "icon",
+     "of": "calendar",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 220,
+     "x": 330,
+     "y": 300
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "20??",
+     "x": 690,
+     "y": 300,
+     "font_size": 170,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "The year we hit 50 %"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "lap",
+     "type": "icon",
+     "of": "laptop",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 220,
+     "x": 420,
+     "y": 440
+    },
+    {
+     "id": "no",
+     "type": "icon",
+     "of": "prohibited",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 160,
+     "x": 590,
+     "y": 330
+    },
+    {
+     "id": "q",
+     "type": "thumb",
+     "kind": "question",
+     "text": "How many are still offline?"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,15 @@
+a: Are there more mobile phone subscriptions than people on Earth? That's the first of three claims.
+b: Myth, surely. My grandmother doesn't have one.
+[ASK] True or myth?
+  [right] True. About a hundred and eleven for every hundred people, because many of us carry two SIMs, a work one and a private one.
+a: Claim two: in the poorest countries, few people have a mobile subscription.
+b: That one's true. No money, no phone.
+[ASK] True or myth?
+  [right] Myth. Even in low-income countries there are about sixty-nine subscriptions for every hundred people.
+b: Sixty-nine! Then surely most people there are online, too. That's claim three.
+[ASK] True or myth?
+  [right] Myth. Only about one in four is online there. A phone that calls and texts is not a phone on the internet.
+b: Two wrong out of three. I need a better phone.
+a: And look how fast it happened. Today, a hundred and eleven per hundred people.
+b: And in 1990? That bar barely leaves the floor.
+a: About one in five hundred had one. From a rare brick to more phones than people, in thirty-five years.

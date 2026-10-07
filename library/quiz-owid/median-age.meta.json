@@ -1,0 +1,19 @@
+{
+  "file": "median-age.json",
+  "title": "How old is the typical person? Niger, Brazil, the US, Italy and Japan",
+  "subtitle": "Place five countries on a line by the age of their middle person, then see why Japan, the oldest, was younger in 1950 than Brazil is today.",
+  "format": "quiz",
+  "tags": [
+    "geography",
+    "data"
+  ],
+  "level": "standard",
+  "lang": "en",
+  "score": 4,
+  "verdict": "keep",
+  "shape": "1",
+  "form": "cards along a scale",
+  "owid": "https://ourworldindata.org/grapher/median-age",
+  "notes": "Swapped India for Brazil (near-identical flags). Niger is one of the youngest (CAR 14.3 is youngest, 2023). Niger passing 30 in 2082 is the OWID/WPP medium projection (30.16 in 2082). True ages drawn as points + numbers after the ask; page valign none so labels clear the caption. Along-scale cards stay small and their row sits below the axis during the ask.",
+  "dialogue": false
+}

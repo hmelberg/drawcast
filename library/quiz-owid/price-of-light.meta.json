@@ -1,0 +1,20 @@
+{
+ "file": "price-of-light.json",
+ "title": "How much work buys an hour of light, then and now?",
+ "subtitle": "In 1800 an hour of bulb-bright light cost over five hours of work. Guess what it costs now, and see light become history's great bargain.",
+ "format": "quiz",
+ "tags": [
+  "economics",
+  "history",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "9",
+ "form": "ask on a log scale (guess on a number line)",
+ "owid": "https://ourworldindata.org/grapher/hours-of-work-per-1000-lumen-hours",
+ "notes": "Nordhaus series ends in 1992: the voice says 'by 1992'. Scale markers 2–3 hidden at the start, drawn after the reveal. Ask 'keep': true does not keep the viewer's 'You' marker after the reveal in frames (engine). Scale ticks only grow via the global text font_size (30 here). The answer pin is always red (engine colour), so 1992 is blue elsewhere. Ending: two clock faces (sectors) — 11 minutes vs ~350 days per hour of work."
+}

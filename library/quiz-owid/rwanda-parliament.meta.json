@@ -1,0 +1,20 @@
+{
+ "file": "rwanda-parliament.json",
+ "title": "Which country has the most women in parliament?",
+ "subtitle": "Two clues, four flags: find the country whose parliament is nearly two-thirds women, then learn how it got there and what seats can't tell you.",
+ "format": "quiz",
+ "tags": [
+  "geography",
+  "history",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "4 (mystery country, clues) + 6 (a quizzes b and viewer; b guesses Sweden, then plays the sceptic; a closes)",
+ "form": "choose on the figure (tap a drawn flag)",
+ "owid": "https://ourworldindata.org/data-insights/five-countries-had-more-women-than-men-in-parliament-in-2025",
+ "notes": "OWID (V-Dem) 2025: Rwanda 63.8 %, Cuba 55.7 %, Iceland 46 %, Sweden 45 %, world 27 %. Twist from OWID's political-regime chart (V-Dem Regimes of the World): Rwanda electoral autocracy, Cuba closed autocracy. Quota fact from UN Women. Two 100-seat populations side by side (Rwanda 64, world 27). Population of 100 lays out 15 per row with a short last row."
+}

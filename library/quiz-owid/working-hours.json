@@ -1,0 +1,374 @@
+{
+ "request": "How many hours a year did a German worker work in 1870, compared with today? A two-voice dialogue; let me drag the 1870 bar. #interactive #short",
+ "subtitle": "Two hosts, one bar to drag: guess how long Germans worked in 1870, then see what cut the hours by sixty percent, and who works least today.",
+ "thumb": "band \"Land of hard work?\" stamp \"PLOT TWIST\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "t_fac",
+     "type": "icon",
+     "of": "factory",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 280,
+     "y": 450,
+     "size": 280
+    },
+    {
+     "id": "t_yr",
+     "type": "text",
+     "text": "1870",
+     "x": 680,
+     "y": 560,
+     "font_size": 110,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "t_h",
+     "type": "text",
+     "text": "? hours",
+     "x": 680,
+     "y": 380,
+     "font_size": 110,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "How long was a work year?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t2_de",
+     "type": "icon",
+     "of": "flag germany",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 260,
+     "y": 340,
+     "size": 190
+    },
+    {
+     "id": "t2_us",
+     "type": "icon",
+     "of": "flag united states",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 560,
+     "y": 340,
+     "size": 190
+    },
+    {
+     "id": "t2_kr",
+     "type": "icon",
+     "of": "flag south korea",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 860,
+     "y": 340,
+     "size": 190
+    },
+    {
+     "id": "t2_band",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Who works least?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t3_clock",
+     "type": "icon",
+     "of": "alarm clock",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 300,
+     "y": 440,
+     "size": 260
+    },
+    {
+     "id": "t3_a",
+     "type": "text",
+     "text": "6 days",
+     "x": 690,
+     "y": 540,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t3_b",
+     "type": "text",
+     "text": "? hours",
+     "x": 690,
+     "y": 390,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t3_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Great-great-grandpa's week"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "How many hours did a German work in 1870, compared with today?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "1870",
+    "1913",
+    "1960",
+    "1990",
+    "2023"
+   ],
+   "values": [
+    3284,
+    2723,
+    2181,
+    1583,
+    1335
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    5000
+   ],
+   "y_label": "Hours worked a year",
+   "box": "full",
+   "label_size": 30
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Annual working hours per worker",
+    "authors": "Our World in Data, from Huberman & Minns (2007) and the Penn World Table",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/annual-working-hours-per-worker",
+    "finding": "Germany: 3,284 hours in 1870, 2,723 in 1913, 2,181 in 1960, 1,583 in 1990, 1,335 in 2023, the lowest of all countries in the data that year; 2023: South Korea 1,910, United States 1,789"
+   },
+   {
+    "id": "owid_wh",
+    "title": "Working Hours",
+    "authors": "Charlie Giattino, Esteban Ortiz-Ospina and Max Roser",
+    "year": 2020,
+    "url": "https://ourworldindata.org/working-hours",
+    "finding": "working hours have fallen dramatically over the last 150 years; workers in richer, more productive countries tend to work fewer hours"
+   }
+  ],
+  "elements": [
+   {
+    "id": "wk26",
+    "type": "text",
+    "text": "≈ 26 h/week",
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "bar_5",
+     "side": "above",
+     "gap": 55
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "wk63",
+    "type": "text",
+    "text": "≈ 63 h/week",
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      2.15,
+      4000
+     ]
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "prod",
+    "type": "text",
+    "text": "more output per hour",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      2.9,
+      4100
+     ]
+    },
+    "cites": [
+     "owid_wh"
+    ]
+   },
+   {
+    "id": "cmp",
+    "type": "scratch",
+    "work": [
+     "Hours a year, 2023",
+     "South Korea  1,910",
+     "USA  1,789",
+     "Germany  1,335: lowest"
+    ],
+    "at": {
+     "place": "top_right"
+    },
+    "font_size": 30,
+    "cites": [
+     "owid"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How long did a German work in 1870?"
+    }
+   },
+   {
+    "draw": [
+     "axes",
+     "bar_5"
+    ],
+    "voice": "a",
+    "speak": "How many hours a year did a German worker put in back in 1870? Start with today: about thirteen hundred hours."
+   },
+   {
+    "draw": [
+     "wk26"
+    ],
+    "voice": "a",
+    "speak": "That sounds like a lot, but spread over the year, holidays and part-timers included, it's about twenty-six hours a week."
+   },
+   {
+    "erase": [
+     "wk26"
+    ]
+   },
+   {
+    "ask": {
+     "question": "Drag the 1870 bar to your guess.",
+     "on": "bar_1",
+     "store": "g",
+     "default": "2000",
+     "relative": true,
+     "tolerance": 0.1,
+     "right": "Close: you said {g} hours, and it was about {g.true}.",
+     "wrong": "You said {g} hours; it was about {g.true}."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1"
+     ]
+    },
+    "voice": "b",
+    "speak": "Wait. Over three thousand? That's more than double!"
+   },
+   {
+    "draw": [
+     "wk63"
+    ],
+    "voice": "a",
+    "speak": "About sixty-three hours a week: long days, six days a week, almost no holidays."
+   },
+   {
+    "draw": [
+     "bar_2",
+     "bar_3",
+     "bar_4"
+    ],
+    "voice": "a",
+    "speak": "And then it fell, decade after decade."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_3"
+     ]
+    },
+    "voice": "b",
+    "speak": "So what brought it down? Strikes?"
+   },
+   {
+    "erase": [
+     "wk63"
+    ]
+   },
+   {
+    "draw": [
+     "prod"
+    ],
+    "voice": "a",
+    "speak": "Unions and laws helped. But mostly productivity: each hour made far more, so people could buy back their time."
+   },
+   {
+    "erase": [
+     "prod"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_5"
+     ]
+    },
+    "voice": "b",
+    "speak": "Still, Germans are the hard workers of Europe, right?"
+   },
+   {
+    "draw": [
+     "cmp"
+    ],
+    "voice": "a",
+    "speak": "Funny you say that. In this data, Germany now has the fewest working hours of any country."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_5"
+     ],
+     "effect": "circle"
+    },
+    "voice": "b",
+    "speak": "So the famously hard-working Germans work the least?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_5"
+     ]
+    },
+    "voice": "a",
+    "speak": "Fewest hours, lots made in each one. Rich countries tend to work less, not more."
+   }
+  ]
+ }
+}

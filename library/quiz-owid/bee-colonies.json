@@ -1,0 +1,562 @@
+{
+ "request": "Do we need bees to eat? Four claims about bees and our food: true or myth, one at a time. #interactive #short",
+ "subtitle": "Vanishing hives, wheat, chocolate: four claims about bees and our food, true or myth, and how much of our plate really needs pollinators.",
+ "thumb": "band \"Save the bees, save the bread?\" stamp \"MYTH?\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "bee",
+     "type": "icon",
+     "of": "honeybee",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 330,
+     "x": 330,
+     "y": 430
+    },
+    {
+     "id": "bread",
+     "type": "icon",
+     "of": "bread",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 760,
+     "y": 400
+    },
+    {
+     "id": "eq",
+     "type": "text",
+     "text": "→",
+     "x": 560,
+     "y": 420,
+     "font_size": 120,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "MYTH?",
+     "x": 780,
+     "y": 620,
+     "angle": 10
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "No bees, no bread?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "hive",
+     "type": "icon",
+     "of": "honeybee",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 500,
+     "y": 430
+    },
+    {
+     "id": "a",
+     "type": "text",
+     "text": "1961",
+     "x": 170,
+     "y": 430,
+     "font_size": 100,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "b",
+     "type": "text",
+     "text": "now?",
+     "x": 840,
+     "y": 430,
+     "font_size": 100,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "more hives, or fewer?",
+     "x": 500,
+     "y": 200,
+     "font_size": 70,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "Vanishing?",
+     "x": 800,
+     "y": 650,
+     "angle": -8
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "fly",
+     "type": "icon",
+     "of": "fly",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 250,
+     "y": 420
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "Your dessert",
+     "x": 690,
+     "y": 500,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "n",
+     "type": "text",
+     "text": "depends on this?",
+     "x": 690,
+     "y": 380,
+     "font_size": 64,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "TRUE OR MYTH?",
+     "x": 690,
+     "y": 200,
+     "angle": -6
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "Do we need bees to eat? Four claims: true or myth?",
+  "feedback": {
+   "style": "warm",
+   "perfect": "A beekeeper's eye.",
+   "good": "Most of the hive is with you.",
+   "poor": "These four fool almost everyone.",
+   "none": "The bees fooled you this time."
+  },
+  "affirm": "playful",
+  "sources": [
+   {
+    "id": "owid",
+    "title": "How much of the world's food production is dependent on pollinators?",
+    "authors": "Hannah Ritchie, Our World in Data",
+    "year": 2021,
+    "url": "https://ourworldindata.org/pollinator-dependence",
+    "finding": "75 % of crop types depend on pollinators to some extent, but only about 35 % of global food production by weight comes from pollinator-dependent crops; without pollinators, production would fall about 5 % in high-income and 8 % in low-to-middle-income countries; cereals (wheat, rice, maize) are wind-pollinated; cocoa is fully dependent"
+   },
+   {
+    "id": "fao",
+    "title": "Uptrend in global managed honey bee colonies and production based on a six-decade viewpoint, 1961–2017",
+    "authors": "B. J. Phiri, D. Fèvre, A. Hidano (Scientific Reports), from FAOSTAT",
+    "year": 2022,
+    "doi": "10.1038/s41598-022-25290-3",
+    "finding": "the number of managed honey bee colonies rose about 85 % between 1961 and 2017, driven mainly by Asia"
+   },
+   {
+    "id": "midge",
+    "title": "Theobroma cacao: pollination",
+    "authors": "Wikipedia, citing studies of Ceratopogonidae midges",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/Theobroma_cacao",
+    "finding": "cacao flowers are pollinated mainly by tiny biting midges (Forcipomyia), not bees"
+   }
+  ],
+  "elements": [
+   {
+    "id": "claims",
+    "type": "sequence",
+    "items": [
+     {
+      "icon": {
+       "of": "honeybee",
+       "set": "twemoji"
+      },
+      "label": "Hives vanishing?",
+      "mark": {
+       "text": "Myth",
+       "color": "#b5482e"
+      }
+     },
+     {
+      "icon": {
+       "of": "sheaf of rice",
+       "set": "twemoji",
+       "or": [
+        "ear of rice",
+        "bread"
+       ]
+      },
+      "label": "Grain needs bees?",
+      "mark": {
+       "text": "Myth",
+       "color": "#b5482e"
+      }
+     },
+     {
+      "icon": {
+       "of": "red apple",
+       "set": "twemoji"
+      },
+      "label": "3 in 4 food crops?",
+      "mark": {
+       "text": "True",
+       "color": "#2f6b8f"
+      }
+     },
+     {
+      "icon": {
+       "of": "chocolate bar",
+       "set": "twemoji"
+      },
+      "label": "Chocolate at risk?",
+      "mark": {
+       "text": "True",
+       "color": "#2f6b8f"
+      }
+     }
+    ],
+    "size": 480,
+    "show_upcoming": "dots",
+    "cites": [
+     "owid",
+     "fao"
+    ],
+    "recap": false
+   },
+   {
+    "id": "plate",
+    "type": "ellipse",
+    "x": 330,
+    "y": 345,
+    "rx": 160,
+    "ry": 160,
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 4,
+     "fill": "#f4efe4"
+    }
+   },
+   {
+    "id": "third",
+    "type": "sector",
+    "x": 330,
+    "y": 345,
+    "radius": 150,
+    "start": -36,
+    "end": 90,
+    "style": {
+     "color": "#d9a521",
+     "fill": "#f2c14e",
+     "fill_style": "wash",
+     "opacity": 0.6
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "sliver",
+    "type": "sector",
+    "x": 330,
+    "y": 345,
+    "radius": 150,
+    "start": 67,
+    "end": 90,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "hatch",
+     "opacity": 0.85
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "i_apple",
+    "type": "icon",
+    "of": "red apple",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 55,
+    "x": 380,
+    "y": 440
+   },
+   {
+    "id": "i_coffee",
+    "type": "icon",
+    "of": "hot beverage",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 55,
+    "x": 438,
+    "y": 375
+   },
+   {
+    "id": "i_choc",
+    "type": "icon",
+    "of": "chocolate bar",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 55,
+    "x": 412,
+    "y": 315
+   },
+   {
+    "id": "i_nut",
+    "type": "icon",
+    "of": "peanuts",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 55,
+    "x": 360,
+    "y": 380
+   },
+   {
+    "id": "t_third",
+    "type": "text",
+    "text": "~35 % of food",
+    "x": 740,
+    "y": 450,
+    "font_size": 52,
+    "style": {
+     "color": "#9a6b00"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "t_third2",
+    "type": "text",
+    "text": "needs pollinators",
+    "x": 740,
+    "y": 385,
+    "font_size": 40,
+    "style": {
+     "color": "#9a6b00"
+    }
+   },
+   {
+    "id": "t_sliver",
+    "type": "text",
+    "text": "lose them: −5 to 8 %",
+    "x": 720,
+    "y": 290,
+    "font_size": 42,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Do we need bees to eat?"
+    }
+   },
+   {
+    "draw": [
+     "claims_dot_1",
+     "claims_dot_2",
+     "claims_dot_3",
+     "claims_dot_4"
+    ],
+    "parallel": true,
+    "speak": "Do we need bees to eat? Four things people say about bees and our food: true, or myth?"
+   },
+   {
+    "draw": [
+     "claims_1"
+    ],
+    "speak": "First: honeybee hives are vanishing around the world."
+   },
+   {
+    "quiz": {
+     "question": "Tap True or Myth.",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "right": "Myth. Beekeepers kept about eighty-five percent more hives in 2017 than in 1961, thanks above all to Asia.",
+     "on_canvas": true,
+     "buttons_at": {
+      "x": 840,
+      "y": 420
+     },
+     "buttons_layout": "column",
+     "reveal": {
+      "text": "MYTH: +85 %",
+      "at": {
+       "x": 190,
+       "y": 440
+      },
+      "size": 48
+     }
+    }
+   },
+   {
+    "draw": [
+     "claims_2"
+    ],
+    "speak": "Next: without bees, there would be no wheat, rice or maize."
+   },
+   {
+    "quiz": {
+     "question": "Tap True or Myth.",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "right": "Myth. Wheat, rice and maize are pollinated by the wind or by themselves; they never needed an insect.",
+     "on_canvas": true,
+     "buttons_at": {
+      "x": 840,
+      "y": 420
+     },
+     "buttons_layout": "column",
+     "reveal": {
+      "text": "MYTH: wind",
+      "at": {
+       "x": 190,
+       "y": 440
+      },
+      "size": 48
+     }
+    }
+   },
+   {
+    "draw": [
+     "claims_3"
+    ],
+    "speak": "Third: three in four of the leading food crops need pollinators."
+   },
+   {
+    "quiz": {
+     "question": "Tap True or Myth.",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 1,
+     "right": "True. About three in four of the leading food crops depend on pollinators, at least in part: apples, almonds, coffee, melons.",
+     "on_canvas": true,
+     "buttons_at": {
+      "x": 840,
+      "y": 420
+     },
+     "buttons_layout": "column",
+     "reveal": {
+      "text": "TRUE: 75 %",
+      "at": {
+       "x": 190,
+       "y": 440
+      },
+      "size": 48
+     }
+    }
+   },
+   {
+    "draw": [
+     "claims_4"
+    ],
+    "speak": "And last: without pollinators, chocolate would be in trouble."
+   },
+   {
+    "quiz": {
+     "question": "Tap True or Myth.",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 1,
+     "right": "True. Cocoa cannot fruit without them, and its pollinators are not bees at all, but tiny flies called midges.",
+     "on_canvas": true,
+     "buttons_at": {
+      "x": 840,
+      "y": 420
+     },
+     "buttons_layout": "column",
+     "reveal": {
+      "text": "TRUE: midges!",
+      "at": {
+       "x": 215,
+       "y": 440
+      },
+      "size": 48
+     }
+    }
+   },
+   {
+    "draw": [
+     "claims_strip",
+     "plate"
+    ],
+    "speak": "You got {score} of {score_total}. Now the catch: think of all the food we grow, by weight."
+   },
+   {
+    "draw": [
+     "third",
+     "i_apple",
+     "i_coffee",
+     "i_choc",
+     "i_nut",
+     "t_third",
+     "t_third2"
+    ],
+    "speak": "Only about a third of it comes from crops that need pollinators at all: fruit, nuts, coffee, cocoa."
+   },
+   {
+    "draw": [
+     "sliver",
+     "t_sliver"
+    ],
+    "speak": "Lose every pollinator, and studies estimate food production would fall by about five to eight percent."
+   },
+   {
+    "highlight": {
+     "target": [
+      "sliver",
+      "t_sliver"
+     ]
+    },
+    "speak": "No famine, then, but a poorer plate, and poorer farmers where those crops are grown."
+   }
+  ]
+ }
+}

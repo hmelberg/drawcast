@@ -1,0 +1,20 @@
+{
+ "file": "children-in-1800.json",
+ "title": "In 1800, how many children died before their fifth birthday?",
+ "subtitle": "Guess how many children in a hundred died before age five in 1800, then see today's rate and how the best of then compares with the worst of now.",
+ "format": "quiz",
+ "level": "standard",
+ "lang": "en",
+ "verdict": "keep",
+ "tags": [
+  "health",
+  "history",
+  "data"
+ ],
+ "score": 4,
+ "dialogue": false,
+ "shape": "1",
+ "form": "ask on bar (drag the bar)",
+ "owid": "https://ourworldindata.org/grapher/child-mortality",
+ "notes": "Review round 2026-10-07: Nigeria checked on OWID (11.6 in 2024, the highest of any country; Niger 11.1, Somalia 10.1). Axis to 100, no axis title, whole-number bars, globe/flag icons (no smiling baby), ÷11 arrow, '>' between Norway and Nigeria, line 9 reworded. Labels placed at canvas coordinates: refs with anchor on bar_N did not land at bar tops. Final line idles ~7 s on the payoff (chosen)."
+}

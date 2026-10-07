@@ -1,0 +1,20 @@
+{
+ "file": "forest-lost.json",
+ "title": "How much of the world's forest have we lost since the last ice age?",
+ "subtitle": "Guess how much of the world's forest is gone since the ice age, then how much of that went in the last century, and where forests are growing back.",
+ "format": "quiz",
+ "tags": [
+  "earth",
+  "history",
+  "geography"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "7",
+ "form": "ask on a pie slice (drag its edge), then a tap on one of three drawn answer boxes for the folded-in second question",
+ "owid": "https://ourworldindata.org/world-lost-one-third-forests",
+ "notes": "Review fixes: second question as three drawn boxes left of the pie (an on-canvas quiz put its buttons over the caption; a quiz card covered the figure); one label '1900s ≈ 9,000 years before'; 'after 1900' beside the new slice; Europe without EU flag, 'incl. Russia, 1990–2025'; South America −180 Mha is FAO via OWID 1990→2025 (−158 to 2020). Pie stays ~40% of the page (template sizing). Idle 9 s on the opening line (nothing to draw before the guess)."
+}

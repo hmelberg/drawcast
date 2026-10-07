@@ -1,0 +1,525 @@
+{
+ "request": "How much of the world's plastic waste gets recycled? Let me split 100 tonnes between recycled, burned, mismanaged and landfill. #interactive #short",
+ "subtitle": "Split the world's plastic waste between recycling, burning, landfill and litter, then see the real share recycled and why it rarely lasts.",
+ "thumb": "band \"Into the recycling bin. Then?\" note \"?%\"",
+ "spec": {
+  "title": "How much of the world's plastic waste gets recycled?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Recycled",
+    "Burned",
+    "Mismanaged",
+    "Landfill"
+   ],
+   "values": [
+    9,
+    19,
+    23,
+    49
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    100
+   ],
+   "y_label": "% of plastic waste",
+   "bar_colors": "each",
+   "label_size": 30,
+   "icons": [
+    {
+     "of": "recycling symbol",
+     "set": "twemoji"
+    },
+    {
+     "of": "fire",
+     "set": "twemoji"
+    },
+    {
+     "of": "no littering",
+     "set": "twemoji"
+    },
+    {
+     "of": "hole",
+     "set": "twemoji"
+    }
+   ]
+  },
+  "sources": [
+   {
+    "id": "fate",
+    "title": "Annual plastic waste by disposal method (World, 2019)",
+    "authors": "Our World in Data, from OECD Global Plastics Outlook (2022)",
+    "year": 2022,
+    "url": "https://ourworldindata.org/grapher/global-plastic-fate",
+    "finding": "2019: recycled 32.8 Mt, incinerated 67.3 Mt, mismanaged/littered 79.3 Mt, landfilled 173.8 Mt of about 353 Mt: 9% recycled, 19% burned, 22% mismanaged, 49% landfilled"
+   },
+   {
+    "id": "faq",
+    "title": "FAQs on plastics",
+    "authors": "Hannah Ritchie (Our World in Data)",
+    "year": 2023,
+    "url": "https://ourworldindata.org/faq-on-plastics",
+    "finding": "of the plastic recycled to date, only 10 percent has been recycled more than once (Geyer et al. 2017); processing degrades the material; 'recycling delays, rather than avoids, final disposal'"
+   }
+  ],
+  "elements": [
+   {
+    "id": "tonnes",
+    "type": "text",
+    "text": "350 million t a year",
+    "x": 760,
+    "y": 560,
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    },
+    "cites": [
+     "fate"
+    ]
+   },
+   {
+    "id": "s100",
+    "type": "shape",
+    "shape": "rect",
+    "x": 240,
+    "y": 405,
+    "width": 380,
+    "height": 380,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#ece7df"
+    }
+   },
+   {
+    "id": "s9",
+    "type": "shape",
+    "shape": "rect",
+    "x": 600,
+    "y": 272,
+    "width": 114,
+    "height": 114,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#cfe3ee"
+    },
+    "cites": [
+     "fate",
+     "faq"
+    ]
+   },
+   {
+    "id": "s1",
+    "type": "shape",
+    "shape": "rect",
+    "x": 840,
+    "y": 234,
+    "width": 38,
+    "height": 38,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#f3d9d3"
+    },
+    "cites": [
+     "fate",
+     "faq"
+    ]
+   },
+   {
+    "id": "n100",
+    "type": "text",
+    "text": "100",
+    "font_size": 56,
+    "style": {
+     "color": "#8f887c"
+    },
+    "at": {
+     "ref": "s100",
+     "side": "above",
+     "gap": 12
+    }
+   },
+   {
+    "id": "n9",
+    "type": "text",
+    "text": "9",
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "s9",
+     "side": "above",
+     "gap": 12
+    },
+    "cites": [
+     "fate",
+     "faq"
+    ]
+   },
+   {
+    "id": "n1",
+    "type": "text",
+    "text": "1",
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "s1",
+     "side": "above",
+     "gap": 12
+    },
+    "cites": [
+     "fate",
+     "faq"
+    ]
+   },
+   {
+    "id": "w100",
+    "type": "text",
+    "text": "thrown out",
+    "font_size": 48,
+    "style": {
+     "color": "#8f887c"
+    },
+    "at": {
+     "ref": "s100",
+     "side": "below",
+     "gap": 12
+    }
+   },
+   {
+    "id": "w9",
+    "type": "text",
+    "text": "recycled",
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "s9",
+     "side": "below",
+     "gap": 12
+    },
+    "cites": [
+     "fate",
+     "faq"
+    ]
+   },
+   {
+    "id": "w1",
+    "type": "text",
+    "text": "twice",
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "s1",
+     "side": "below",
+     "gap": 12
+    },
+    "cites": [
+     "fate",
+     "faq"
+    ]
+   },
+   {
+    "id": "a1",
+    "type": "arrow",
+    "from": {
+     "x": 450,
+     "y": 265
+    },
+    "to": {
+     "x": 530,
+     "y": 265
+    },
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "a2",
+    "type": "arrow",
+    "from": {
+     "x": 675,
+     "y": 255
+    },
+    "to": {
+     "x": 805,
+     "y": 240
+    },
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "never",
+    "type": "text",
+    "text": "best: never made",
+    "x": 720,
+    "y": 560,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How much plastic gets recycled?"
+    }
+   },
+   {
+    "draw": [
+     "axes",
+     "tonnes"
+    ],
+    "speak": "Of all the plastic the world throws away, about three hundred and fifty million tonnes a year, how much actually gets recycled?"
+   },
+   {
+    "ask": {
+     "question": "Split 100 percent between the four bars, then press Done.",
+     "on": "all",
+     "budget": 100,
+     "account_label": "Left",
+     "store": "g",
+     "default": "40,15,10,35",
+     "right": "Close: you were {g.off} points off on average.",
+     "wrong": "You were {g.off} points off on average."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1"
+     ]
+    },
+    "speak": "Recycled: about nine percent. Fewer than one piece in ten."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_4",
+      "bar_2"
+     ]
+    },
+    "speak": "Half goes into landfill, and a fifth is burned."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_3"
+     ]
+    },
+    "speak": "And over a fifth is mismanaged: dumped, burned in open pits or left to blow away. That's the plastic that can reach rivers and the sea."
+   },
+   {
+    "erase": [
+     "axes",
+     "bar_1",
+     "bar_2",
+     "bar_3",
+     "bar_4",
+     "tonnes"
+    ]
+   },
+   {
+    "draw": [
+     "s100",
+     "n100",
+     "w100",
+     "a1",
+     "s9",
+     "n9",
+     "w9"
+    ],
+    "speak": "But here's the twist. Of every hundred pieces thrown out, nine get recycled."
+   },
+   {
+    "draw": [
+     "a2",
+     "s1",
+     "n1",
+     "w1"
+    ],
+    "speak": "And of all plastic ever recycled, only about one in ten has been recycled a second time. So: about one piece in a hundred."
+   },
+   {
+    "highlight": {
+     "target": [
+      "s9"
+     ]
+    },
+    "speak": "Each melt weakens it, so most recycled plastic becomes something lower-grade, and then waste. Recycling delays the bin more than it avoids it."
+   },
+   {
+    "draw": [
+     "never"
+    ],
+    "speak": "So recycle what you can, but the plastic that never ends up anywhere is the plastic never made."
+   }
+  ],
+  "affirm": "playful"
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "r",
+     "type": "icon",
+     "of": "recycling symbol",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 250,
+     "y": 480
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?%",
+     "x": 650,
+     "y": 540,
+     "font_size": 240,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "w",
+     "type": "text",
+     "text": "actually recycled",
+     "x": 620,
+     "y": 340,
+     "font_size": 64
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Into the recycling bin. Then?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "bt",
+     "type": "icon",
+     "of": "shopping bags",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 220,
+     "x": 180,
+     "y": 480
+    },
+    {
+     "id": "ar",
+     "type": "path",
+     "points": [
+      [
+       300,
+       480
+      ],
+      [
+       420,
+       480
+      ]
+     ],
+     "style": {
+      "color": "#8f887c",
+      "stroke_width": 6
+     }
+    },
+    {
+     "id": "q1",
+     "type": "icon",
+     "of": "recycling symbol",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 160,
+     "x": 500,
+     "y": 480
+    },
+    {
+     "id": "ar2",
+     "type": "path",
+     "points": [
+      [
+       590,
+       480
+      ],
+      [
+       700,
+       480
+      ]
+     ],
+     "style": {
+      "color": "#8f887c",
+      "stroke_width": 6
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?",
+     "x": 800,
+     "y": 480,
+     "font_size": 220,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Where does your plastic end up?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "tr",
+     "type": "icon",
+     "of": "wastebasket",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 250,
+     "y": 330
+    },
+    {
+     "id": "n",
+     "type": "text",
+     "text": "350 million t",
+     "x": 700,
+     "y": 420,
+     "font_size": 84,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "w",
+     "type": "text",
+     "text": "a year. Recycled: ?",
+     "x": 700,
+     "y": 290,
+     "font_size": 62
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Recycling saves us?"
+    }
+   ]
+  }
+ ]
+}

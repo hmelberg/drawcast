@@ -1,0 +1,20 @@
+{
+ "file": "phones-vs-people.json",
+ "title": "Are there more mobile phone subscriptions than people on Earth?",
+ "subtitle": "Three claims about phones and the internet, true or myth, with two hosts arguing, then how rare a mobile was in 1990.",
+ "format": "quiz",
+ "tags": [
+  "computing",
+  "data",
+  "culture"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "3",
+ "form": "quiz (true/myth chain)",
+ "owid": "https://ourworldindata.org/grapher/mobile-cellular-subscriptions-per-100-people",
+ "notes": "Quiz cards (not on_canvas): on-canvas True/Myth buttons sat on the caption band. Ending bar chart 1990 vs 2025 shows 111.0 because the 1990 bar needs one decimal (0.2)."
+}

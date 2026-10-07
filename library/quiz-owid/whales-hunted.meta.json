@@ -1,0 +1,20 @@
+{
+ "file": "whales-hunted.json",
+ "title": "How many whales were killed in the 20th century?",
+ "subtitle": "Click your guess for how many whales were hunted in the 20th century, then see it as whales per day, and what it did to the blue whale.",
+ "format": "quiz",
+ "tags": [
+  "biology",
+  "history",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "9",
+ "form": "ask on a scale (click the number line)",
+ "owid": "https://ourworldindata.org/grapher/whale-catch",
+ "notes": "Number line is now log, 1,000 to 100 million (the guess marker starts mid-line at about 300,000, far from 2.9 million); relative tolerance 30 %. Sum of OWID whale-catch (World, 1900–1999) = 2,884,708, blue whales 379,185 (said 'more than were ever alive at one time'), peak 1964 = 82,194 (one every 6.4 min); 2010s = 14,957 for the decade. Blue whales 340,280 → 4,727 (2001), drawn as 70 icons of which 69 fade. One label at a time above the grid (340,000 / 380,000 killed / 5,000 left / ban / 2010s catch). Moratorium said as 'the 1980s'. Engine: the scale's tick numbers and answer label stay small."
+}

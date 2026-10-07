@@ -1,0 +1,706 @@
+{
+ "request": "Which sent more objects into space: one recent year, or whole decades of the space age? Higher-or-lower pairs, then the launch line. as a two-voice dialogue #interactive #short",
+ "subtitle": "Tap the bigger of three space-age pairs, then watch sixty flat years of launches shoot up, and meet the one project behind most of it.",
+ "thumb": "band \"One year vs the space age\" note \"Guess first\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "rocket",
+     "type": "icon",
+     "of": "rocket",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 210,
+     "y": 450
+    },
+    {
+     "id": "y1",
+     "type": "text",
+     "text": "2025",
+     "x": 560,
+     "y": 560,
+     "font_size": 130,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "vs",
+     "type": "text",
+     "text": "vs",
+     "x": 560,
+     "y": 440,
+     "font_size": 70,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "y2",
+     "type": "text",
+     "text": "1957–2000",
+     "x": 600,
+     "y": 320,
+     "font_size": 100,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Which launched more?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "sat",
+     "type": "icon",
+     "of": "satellite",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 300,
+     "y": 440
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "? per year",
+     "x": 720,
+     "y": 460,
+     "font_size": 110,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "y",
+     "type": "text",
+     "text": "in 2025",
+     "x": 720,
+     "y": 330,
+     "font_size": 70,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Space got busy"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "flat_note",
+     "type": "path",
+     "points": [
+      [
+       90,
+       300
+      ],
+      [
+       300,
+       320
+      ],
+      [
+       520,
+       310
+      ],
+      [
+       640,
+       325
+      ]
+     ],
+     "style": {
+      "color": "#2f6b8f",
+      "stroke_width": 8
+     }
+    },
+    {
+     "id": "dash",
+     "type": "path",
+     "points": [
+      [
+       640,
+       325
+      ],
+      [
+       760,
+       470
+      ],
+      [
+       860,
+       620
+      ]
+     ],
+     "style": {
+      "color": "#b5482e",
+      "stroke_width": 6,
+      "dash": true
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?",
+     "x": 880,
+     "y": 560,
+     "font_size": 200,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "l",
+     "type": "text",
+     "text": "60 calm years",
+     "x": 330,
+     "y": 400,
+     "font_size": 60,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Then this happened"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "Which sent more into space: one year, or the whole space age?",
+  "template": "line_chart",
+  "params": {
+   "x": [
+    1957,
+    1960,
+    1965,
+    1970,
+    1975,
+    1980,
+    1985,
+    1990,
+    1995,
+    2000,
+    2005,
+    2010,
+    2015,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "series": [
+    {
+     "name": "Launches",
+     "values": [
+      2,
+      20,
+      161,
+      130,
+      158,
+      130,
+      165,
+      170,
+      105,
+      121,
+      72,
+      121,
+      222,
+      456,
+      452,
+      586,
+      1274,
+      1814,
+      2479,
+      2903,
+      2849,
+      4510
+     ]
+    }
+   ],
+   "xlim": [
+    1955,
+    2027
+   ],
+   "ylim": [
+    0,
+    5000
+   ],
+   "y_label": "Objects launched per year",
+   "label_size": 40
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Yearly number of objects launched into outer space",
+    "authors": "Our World in Data (Edouard Mathieu, Pablo Rosado), from the United Nations Office for Outer Space Affairs",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/yearly-number-of-objects-launched-into-outer-space",
+    "finding": "4,510 objects launched in 2025; 1,080 in 1957–1969; 5,408 in 1957–2000; 15,829 in 2020–2025 against 9,036 in 1957–2019 (24,865 in all)"
+   },
+   {
+    "id": "insight",
+    "title": "A record number of objects went into space",
+    "authors": "Edouard Mathieu and Pablo Rosado, Our World in Data",
+    "year": 2026,
+    "url": "https://ourworldindata.org/data-insights/a-record-number-of-objects-went-into-space-in-2023",
+    "finding": "4,510 objects launched in 2025, far above the 2023 peak of 2,903; the US 82 %; driven by commercial constellations, raising concerns about debris and congestion"
+   },
+   {
+    "id": "mcdowell",
+    "title": "Space Activities in 2025",
+    "authors": "Jonathan McDowell",
+    "year": 2026,
+    "url": "https://planet4589.org/space/papers/space25.pdf",
+    "finding": "SpaceX launched more than 3,000 Starlink satellites in 2025"
+   }
+  ],
+  "elements": [
+   {
+    "id": "duel",
+    "type": "cards",
+    "compare": "Which sent more into space?",
+    "unit": "objects",
+    "items": [
+     {
+      "text": "2025 alone",
+      "value": 4510,
+      "icon": {
+       "of": "rocket",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "1957–1969",
+      "value": 1080,
+      "icon": {
+       "of": "crescent moon",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "2025 alone",
+      "value": 4510,
+      "icon": {
+       "of": "rocket",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "1957–2000",
+      "value": 5408,
+      "icon": {
+       "of": "satellite",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "2020–2025",
+      "value": 15829,
+      "icon": {
+       "of": "rocket",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "1957–2019",
+      "value": 9036,
+      "icon": {
+       "of": "satellite",
+       "set": "twemoji"
+      }
+     }
+    ],
+    "cites": [
+     "owid"
+    ],
+    "size": 1.8,
+    "y": 540
+   },
+   {
+    "id": "flat_note",
+    "type": "text",
+    "text": "~100–200 a year",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      1985,
+      1700
+     ]
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "endpt",
+    "type": "point",
+    "at": {
+     "data": [
+      2025,
+      4510
+     ]
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "end",
+    "type": "text",
+    "text": "4,510",
+    "font_size": 60,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      2013,
+      4500
+     ]
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "sat",
+    "type": "icon",
+    "of": "satellite",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "at": {
+     "data": [
+      1975,
+      3600
+     ]
+    }
+   },
+   {
+    "id": "star",
+    "type": "text",
+    "text": "Starlink: 3,000+",
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      1999,
+      3600
+     ]
+    },
+    "cites": [
+     "mcdowell"
+    ]
+   },
+   {
+    "id": "share",
+    "type": "text",
+    "text": "64 % since 2020",
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      2004,
+      2700
+     ]
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "since",
+    "type": "polygon",
+    "data": true,
+    "points": [
+     [
+      2019.5,
+      0
+     ],
+     [
+      2025.8,
+      0
+     ],
+     [
+      2025.8,
+      4900
+     ],
+     [
+      2019.5,
+      4900
+     ]
+    ],
+    "style": {
+     "color": "#f2c14e",
+     "fill": "#f2c14e",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "old_area",
+    "type": "polygon",
+    "data": true,
+    "points": [
+     [
+      1957,
+      2
+     ],
+     [
+      1960,
+      20
+     ],
+     [
+      1965,
+      161
+     ],
+     [
+      1970,
+      130
+     ],
+     [
+      1975,
+      158
+     ],
+     [
+      1980,
+      130
+     ],
+     [
+      1985,
+      165
+     ],
+     [
+      1990,
+      170
+     ],
+     [
+      1995,
+      105
+     ],
+     [
+      2000,
+      121
+     ],
+     [
+      2000,
+      0
+     ],
+     [
+      1957,
+      0
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.5
+    }
+   },
+   {
+    "id": "col",
+    "type": "polygon",
+    "data": true,
+    "points": [
+     [
+      2024.4,
+      0
+     ],
+     [
+      2025.6,
+      0
+     ],
+     [
+      2025.6,
+      4510
+     ],
+     [
+      2024.4,
+      4510
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "opacity": 0.5
+    }
+   },
+   {
+    "id": "old",
+    "type": "text",
+    "text": "1957–2000, added up: 5,408",
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      1980,
+      1000
+     ]
+    },
+    "cites": [
+     "owid"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which sent more into space?"
+    }
+   },
+   {
+    "draw": [
+     "duel"
+    ],
+    "voice": "a",
+    "speak": "Which sent more objects into space: one recent year, or whole decades of the space age?"
+   },
+   {
+    "ask": {
+     "question": "Tap the bigger one in each pair.",
+     "on": "duel",
+     "store": "s",
+     "right": "All {s} right. One year beats the whole Space Race, not the first forty-four years, and the last six beat everything before.",
+     "wrong": "{s.within} of {s.total} on the first try.",
+     "feedback": {
+      "style": "dry",
+      "perfect": "Mission control would hire you.",
+      "good": "A smooth launch, mostly.",
+      "poor": "Space fooled you. It fools most people.",
+      "none": "Houston, we have a problem."
+     }
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "duel_1",
+      "duel_4",
+      "duel_5"
+     ]
+    },
+    "voice": "b",
+    "speak": "Hold on. One year beats the whole race to the Moon?"
+   },
+   {
+    "erase": [
+     "duel"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "line_1",
+     "flat_note"
+    ],
+    "voice": "a",
+    "speak": "It does. Here is every year since Sputnik: for almost sixty years, a hundred or two a year."
+   },
+   {
+    "draw": [
+     "endpt",
+     "end"
+    ],
+    "cue": 0.3,
+    "voice": "a",
+    "speak": "Then it took off: four thousand five hundred and ten in 2025 alone."
+   },
+   {
+    "erase": [
+     "flat_note"
+    ]
+   },
+   {
+    "draw": [
+     "old_area",
+     "col",
+     "old"
+    ],
+    "voice": "a",
+    "speak": "But add up the forty-four calm years to 2000, and they still edge it: about five thousand four hundred."
+   },
+   {
+    "highlight": {
+     "target": [
+      "old_area"
+     ]
+    },
+    "voice": "b",
+    "speak": "So the old days win on stamina, not speed."
+   },
+   {
+    "erase": [
+     "old_area",
+     "col",
+     "old"
+    ]
+   },
+   {
+    "draw": [
+     "sat",
+     "star"
+    ],
+    "voice": "a",
+    "speak": "What changed is mostly one company: in 2025, SpaceX put up more than three thousand Starlink internet satellites."
+   },
+   {
+    "highlight": {
+     "target": [
+      "star"
+     ]
+    },
+    "voice": "b",
+    "speak": "One company, in one year, nearly three times the whole Space Race?"
+   },
+   {
+    "draw": [
+     "since",
+     "share"
+    ],
+    "voice": "a",
+    "speak": "Yes. And nearly two thirds of everything ever launched went up since 2020."
+   },
+   {
+    "highlight": {
+     "target": [
+      "since",
+      "share"
+     ]
+    },
+    "voice": "b",
+    "speak": "Internet in the middle of nowhere, and traffic jams in orbit. Lovely."
+   }
+  ]
+ }
+}

@@ -1,0 +1,401 @@
+{
+ "request": "What does it cost to read a whole human genome now, compared with 2001? Let me guess on a log scale. #interactive #short",
+ "subtitle": "In 2001 reading one human genome cost $95 million. Guess today's price on a log line, then see how it outran even computer chips.",
+ "thumb": "band \"Was $95 million. Now?\" note \"2001\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "dna",
+     "type": "icon",
+     "of": "dna",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 320,
+     "x": 270,
+     "y": 440
+    },
+    {
+     "id": "then",
+     "type": "text",
+     "text": "2001: $95,000,000",
+     "x": 690,
+     "y": 510,
+     "font_size": 64,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "now",
+     "type": "text",
+     "text": "Now: $?",
+     "x": 690,
+     "y": 380,
+     "font_size": 80,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Was $95 million. Now?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "lab",
+     "type": "icon",
+     "of": "test tube",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 260,
+     "y": 480
+    },
+    {
+     "id": "t1",
+     "type": "text",
+     "text": "13 years",
+     "x": 690,
+     "y": 610,
+     "font_size": 80,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "text",
+     "text": "$95 million",
+     "x": 690,
+     "y": 490,
+     "font_size": 72,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t3",
+     "type": "text",
+     "text": "now: ?",
+     "x": 690,
+     "y": 380,
+     "font_size": 72,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "The first genome. And yours?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "ln",
+     "type": "path",
+     "points": [
+      [
+       320,
+       330
+      ],
+      [
+       680,
+       330
+      ]
+     ],
+     "style": {
+      "color": "#3d3833",
+      "stroke_width": 5
+     }
+    },
+    {
+     "id": "t1",
+     "type": "path",
+     "points": [
+      [
+       320,
+       310
+      ],
+      [
+       320,
+       350
+      ]
+     ],
+     "style": {
+      "color": "#3d3833",
+      "stroke_width": 5
+     }
+    },
+    {
+     "id": "t2",
+     "type": "path",
+     "points": [
+      [
+       680,
+       310
+      ],
+      [
+       680,
+       350
+      ]
+     ],
+     "style": {
+      "color": "#3d3833",
+      "stroke_width": 5
+     }
+    },
+    {
+     "id": "lo",
+     "type": "text",
+     "text": "$10",
+     "x": 330,
+     "y": 260,
+     "font_size": 52
+    },
+    {
+     "id": "hi",
+     "type": "text",
+     "text": "$100 M",
+     "x": 640,
+     "y": 260,
+     "font_size": 52
+    },
+    {
+     "id": "dna",
+     "type": "icon",
+     "of": "dna",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 500,
+     "y": 520
+    },
+    {
+     "id": "qm",
+     "type": "thumb",
+     "kind": "star",
+     "text": "?",
+     "x": 730,
+     "y": 380
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Your genome: what price?"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "What does it cost to read a human genome now?",
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Cost of sequencing a full human genome",
+    "authors": "Our World in Data, from the National Human Genome Research Institute",
+    "year": 2022,
+    "url": "https://ourworldindata.org/grapher/cost-of-sequencing-a-full-human-genome",
+    "finding": "about $95.3 million in 2001, $7.1 million in 2007, $70,000 in 2009, $525 in 2022 (current US$, not adjusted for inflation)"
+   },
+   {
+    "id": "nhgri",
+    "title": "DNA Sequencing Costs: Data",
+    "authors": "National Human Genome Research Institute",
+    "year": 2022,
+    "finding": "cost per human-sized genome, 2001–2022"
+   }
+  ],
+  "elements": [
+   {
+    "id": "dna",
+    "type": "icon",
+    "of": "dna",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 210,
+    "x": 150,
+    "y": 560
+   },
+   {
+    "id": "cost",
+    "type": "scale",
+    "min": 10,
+    "max": 1000000000,
+    "log": true,
+    "unit": "dollars",
+    "value": 525,
+    "cites": [
+     "owid"
+    ],
+    "x": 50,
+    "y": 330,
+    "width": 900,
+    "markers": [
+     {
+      "value": 95300000,
+      "label": "2001: $95M",
+      "color": "#b5482e"
+     },
+     {
+      "value": 66000,
+      "label": "chip pace",
+      "color": "#8a5fa8"
+     },
+     {
+      "value": 7150000,
+      "label": "2007: $7M",
+      "color": "#3d3833"
+     }
+    ]
+   },
+   {
+    "id": "times",
+    "type": "text",
+    "text": "180,000× cheaper",
+    "x": 600,
+    "y": 600,
+    "font_size": 60,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "moore",
+    "type": "text",
+    "text": "chips: ×2 per 2 years",
+    "x": 600,
+    "y": 600,
+    "font_size": 48,
+    "style": {
+     "color": "#8a5fa8"
+    }
+   },
+   {
+    "id": "fall_l",
+    "type": "text",
+    "text": "÷100 by 2009",
+    "x": 600,
+    "y": 600,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "lab",
+    "type": "text",
+    "text": "13 years → a lab test",
+    "x": 600,
+    "y": 600,
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "What does reading a genome cost now?"
+    }
+   },
+   {
+    "draw": [
+     "dna",
+     "cost"
+    ],
+    "speak": "What does it cost to read one person's whole genome, all three billion letters of their DNA?"
+   },
+   {
+    "draw": [
+     "cost_marker_1"
+    ],
+    "speak": "In 2001, when the first genomes were finished, the price was about ninety-five million dollars each."
+   },
+   {
+    "ask": {
+     "question": "Click where you think the price was in 2022. Each step is ten times the last.",
+     "on": "cost",
+     "store": "g",
+     "default": "100000",
+     "right": "Close: you said {g}, and it was about {g.true}.",
+     "wrong": "You said {g}. It was about {g.true}: much further down."
+    }
+   },
+   {
+    "draw": [
+     "times"
+    ],
+    "speak": "About five hundred dollars: a hundred and eighty thousand times cheaper in twenty-one years."
+   },
+   {
+    "erase": [
+     "times"
+    ]
+   },
+   {
+    "draw": [
+     "moore"
+    ],
+    "speak": "Compare computer chips, famous for improving fast: their power doubles about every two years."
+   },
+   {
+    "draw": [
+     "cost_marker_2"
+    ],
+    "speak": "At that pace, a genome would still cost about sixty-six thousand dollars today."
+   },
+   {
+    "erase": [
+     "moore"
+    ]
+   },
+   {
+    "draw": [
+     "cost_marker_3",
+     "fall_l"
+    ],
+    "speak": "Instead the price fell off a cliff around 2008, when new machines began reading millions of short DNA snippets at once."
+   },
+   {
+    "highlight": {
+     "target": [
+      "fall_l"
+     ]
+    },
+    "speak": "From seven million dollars in 2007 to seventy thousand in 2009: already where the chip pace only gets to today."
+   },
+   {
+    "erase": [
+     "fall_l"
+    ]
+   },
+   {
+    "draw": [
+     "lab"
+    ],
+    "speak": "So a project that once took an international team thirteen years is now an ordinary lab test."
+   }
+  ],
+  "text": {
+   "font_size": 36
+  }
+ }
+}

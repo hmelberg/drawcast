@@ -1,0 +1,1360 @@
+{
+ "request": "How many whales were killed in the 20th century? Let me click my guess on a number line. #interactive #short",
+ "subtitle": "Click your guess for how many whales were hunted in the 20th century, then see it as whales per day, and what it did to the blue whale.",
+ "thumb": "band \"Guess the catch\" note \"1900–1999\"",
+ "spec": {
+  "title": "How many whales were killed in the 20th century?",
+  "sources": [
+   {
+    "id": "owid_whale",
+    "title": "Number of whales killed",
+    "authors": "Our World in Data, from Rocha et al. (2014) and the International Whaling Commission",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/whale-catch",
+    "finding": "about 2.88 million whales killed from 1900 to 1999, about 379,000 of them blue whales; peak year 1964 with about 82,000; about 15,000 in the whole of the 2010s"
+   },
+   {
+    "id": "owid_whaling",
+    "title": "Whaling and whale populations",
+    "authors": "Hannah Ritchie",
+    "year": 2022,
+    "url": "https://ourworldindata.org/whaling",
+    "finding": "blue whales fell from about 340,000 to about 5,000, a reduction of 98.5 %; the global moratorium on commercial whaling brought a dramatic drop in catch"
+   },
+   {
+    "id": "rocha",
+    "title": "Emptying the oceans: a summary of industrial whaling catches in the 20th century",
+    "authors": "Robert C. Rocha, Phillip J. Clapham and Yulia V. Ivashchenko",
+    "year": 2014,
+    "finding": "industrial whaling killed nearly 3 million whales in the 20th century"
+   }
+  ],
+  "elements": [
+   {
+    "id": "whale",
+    "type": "icon",
+    "of": "spouting whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 240,
+    "x": 230,
+    "y": 530
+   },
+   {
+    "id": "count",
+    "type": "scale",
+    "min": 1000,
+    "max": 100000000,
+    "value": 2900000,
+    "unit": "whales",
+    "y": 330,
+    "cites": [
+     "owid_whale"
+    ],
+    "log": true
+   },
+   {
+    "id": "per_day",
+    "type": "text",
+    "text": "≈ 80 a day",
+    "x": 640,
+    "y": 560,
+    "font_size": 64,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_whale"
+    ]
+   },
+   {
+    "id": "peak",
+    "type": "text",
+    "text": "1964: one every 6 min",
+    "x": 640,
+    "y": 470,
+    "font_size": 50,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_whale"
+    ]
+   },
+   {
+    "id": "bw0",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 145,
+    "y": 560
+   },
+   {
+    "id": "bw1",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 560
+   },
+   {
+    "id": "bw2",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 305,
+    "y": 560
+   },
+   {
+    "id": "bw3",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 385,
+    "y": 560
+   },
+   {
+    "id": "bw4",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 465,
+    "y": 560
+   },
+   {
+    "id": "bw5",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 545,
+    "y": 560
+   },
+   {
+    "id": "bw6",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 625,
+    "y": 560
+   },
+   {
+    "id": "bw7",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 705,
+    "y": 560
+   },
+   {
+    "id": "bw8",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 785,
+    "y": 560
+   },
+   {
+    "id": "bw9",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 865,
+    "y": 560
+   },
+   {
+    "id": "bw10",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 145,
+    "y": 508
+   },
+   {
+    "id": "bw11",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 508
+   },
+   {
+    "id": "bw12",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 305,
+    "y": 508
+   },
+   {
+    "id": "bw13",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 385,
+    "y": 508
+   },
+   {
+    "id": "bw14",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 465,
+    "y": 508
+   },
+   {
+    "id": "bw15",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 545,
+    "y": 508
+   },
+   {
+    "id": "bw16",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 625,
+    "y": 508
+   },
+   {
+    "id": "bw17",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 705,
+    "y": 508
+   },
+   {
+    "id": "bw18",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 785,
+    "y": 508
+   },
+   {
+    "id": "bw19",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 865,
+    "y": 508
+   },
+   {
+    "id": "bw20",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 145,
+    "y": 456
+   },
+   {
+    "id": "bw21",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 456
+   },
+   {
+    "id": "bw22",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 305,
+    "y": 456
+   },
+   {
+    "id": "bw23",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 385,
+    "y": 456
+   },
+   {
+    "id": "bw24",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 465,
+    "y": 456
+   },
+   {
+    "id": "bw25",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 545,
+    "y": 456
+   },
+   {
+    "id": "bw26",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 625,
+    "y": 456
+   },
+   {
+    "id": "bw27",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 705,
+    "y": 456
+   },
+   {
+    "id": "bw28",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 785,
+    "y": 456
+   },
+   {
+    "id": "bw29",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 865,
+    "y": 456
+   },
+   {
+    "id": "bw30",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 145,
+    "y": 404
+   },
+   {
+    "id": "bw31",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 404
+   },
+   {
+    "id": "bw32",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 305,
+    "y": 404
+   },
+   {
+    "id": "bw33",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 385,
+    "y": 404
+   },
+   {
+    "id": "bw34",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 465,
+    "y": 404
+   },
+   {
+    "id": "bw35",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 545,
+    "y": 404
+   },
+   {
+    "id": "bw36",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 625,
+    "y": 404
+   },
+   {
+    "id": "bw37",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 705,
+    "y": 404
+   },
+   {
+    "id": "bw38",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 785,
+    "y": 404
+   },
+   {
+    "id": "bw39",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 865,
+    "y": 404
+   },
+   {
+    "id": "bw40",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 145,
+    "y": 352
+   },
+   {
+    "id": "bw41",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 352
+   },
+   {
+    "id": "bw42",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 305,
+    "y": 352
+   },
+   {
+    "id": "bw43",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 385,
+    "y": 352
+   },
+   {
+    "id": "bw44",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 465,
+    "y": 352
+   },
+   {
+    "id": "bw45",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 545,
+    "y": 352
+   },
+   {
+    "id": "bw46",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 625,
+    "y": 352
+   },
+   {
+    "id": "bw47",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 705,
+    "y": 352
+   },
+   {
+    "id": "bw48",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 785,
+    "y": 352
+   },
+   {
+    "id": "bw49",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 865,
+    "y": 352
+   },
+   {
+    "id": "bw50",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 145,
+    "y": 300
+   },
+   {
+    "id": "bw51",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 300
+   },
+   {
+    "id": "bw52",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 305,
+    "y": 300
+   },
+   {
+    "id": "bw53",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 385,
+    "y": 300
+   },
+   {
+    "id": "bw54",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 465,
+    "y": 300
+   },
+   {
+    "id": "bw55",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 545,
+    "y": 300
+   },
+   {
+    "id": "bw56",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 625,
+    "y": 300
+   },
+   {
+    "id": "bw57",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 705,
+    "y": 300
+   },
+   {
+    "id": "bw58",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 785,
+    "y": 300
+   },
+   {
+    "id": "bw59",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 865,
+    "y": 300
+   },
+   {
+    "id": "bw60",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 145,
+    "y": 248
+   },
+   {
+    "id": "bw61",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 225,
+    "y": 248
+   },
+   {
+    "id": "bw62",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 305,
+    "y": 248
+   },
+   {
+    "id": "bw63",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 385,
+    "y": 248
+   },
+   {
+    "id": "bw64",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 465,
+    "y": 248
+   },
+   {
+    "id": "bw65",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 545,
+    "y": 248
+   },
+   {
+    "id": "bw66",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 625,
+    "y": 248
+   },
+   {
+    "id": "bw67",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 705,
+    "y": 248
+   },
+   {
+    "id": "bw68",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 785,
+    "y": 248
+   },
+   {
+    "id": "bw69",
+    "type": "icon",
+    "of": "whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 62,
+    "x": 865,
+    "y": 248
+   },
+   {
+    "id": "gone",
+    "type": "group",
+    "members": [
+     "bw1",
+     "bw2",
+     "bw3",
+     "bw4",
+     "bw5",
+     "bw6",
+     "bw7",
+     "bw8",
+     "bw9",
+     "bw10",
+     "bw11",
+     "bw12",
+     "bw13",
+     "bw14",
+     "bw15",
+     "bw16",
+     "bw17",
+     "bw18",
+     "bw19",
+     "bw20",
+     "bw21",
+     "bw22",
+     "bw23",
+     "bw24",
+     "bw25",
+     "bw26",
+     "bw27",
+     "bw28",
+     "bw29",
+     "bw30",
+     "bw31",
+     "bw32",
+     "bw33",
+     "bw34",
+     "bw35",
+     "bw36",
+     "bw37",
+     "bw38",
+     "bw39",
+     "bw40",
+     "bw41",
+     "bw42",
+     "bw43",
+     "bw44",
+     "bw45",
+     "bw46",
+     "bw47",
+     "bw48",
+     "bw49",
+     "bw50",
+     "bw51",
+     "bw52",
+     "bw53",
+     "bw54",
+     "bw55",
+     "bw56",
+     "bw57",
+     "bw58",
+     "bw59",
+     "bw60",
+     "bw61",
+     "bw62",
+     "bw63",
+     "bw64",
+     "bw65",
+     "bw66",
+     "bw67",
+     "bw68",
+     "bw69"
+    ]
+   },
+   {
+    "id": "herd",
+    "type": "group",
+    "members": [
+     "bw0",
+     "bw1",
+     "bw2",
+     "bw3",
+     "bw4",
+     "bw5",
+     "bw6",
+     "bw7",
+     "bw8",
+     "bw9",
+     "bw10",
+     "bw11",
+     "bw12",
+     "bw13",
+     "bw14",
+     "bw15",
+     "bw16",
+     "bw17",
+     "bw18",
+     "bw19",
+     "bw20",
+     "bw21",
+     "bw22",
+     "bw23",
+     "bw24",
+     "bw25",
+     "bw26",
+     "bw27",
+     "bw28",
+     "bw29",
+     "bw30",
+     "bw31",
+     "bw32",
+     "bw33",
+     "bw34",
+     "bw35",
+     "bw36",
+     "bw37",
+     "bw38",
+     "bw39",
+     "bw40",
+     "bw41",
+     "bw42",
+     "bw43",
+     "bw44",
+     "bw45",
+     "bw46",
+     "bw47",
+     "bw48",
+     "bw49",
+     "bw50",
+     "bw51",
+     "bw52",
+     "bw53",
+     "bw54",
+     "bw55",
+     "bw56",
+     "bw57",
+     "bw58",
+     "bw59",
+     "bw60",
+     "bw61",
+     "bw62",
+     "bw63",
+     "bw64",
+     "bw65",
+     "bw66",
+     "bw67",
+     "bw68",
+     "bw69"
+    ]
+   },
+   {
+    "id": "l340",
+    "type": "text",
+    "text": "340,000 blue whales",
+    "x": 500,
+    "y": 615,
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_whaling"
+    ]
+   },
+   {
+    "id": "k380",
+    "type": "text",
+    "text": "380,000 killed",
+    "x": 500,
+    "y": 615,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_whale"
+    ]
+   },
+   {
+    "id": "l5k",
+    "type": "text",
+    "text": "≈ 5,000 left",
+    "x": 500,
+    "y": 615,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_whaling"
+    ]
+   },
+   {
+    "id": "ban",
+    "type": "text",
+    "text": "1980s: whaling ban",
+    "x": 500,
+    "y": 615,
+    "font_size": 52,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "now",
+    "type": "text",
+    "text": "2010s: ≈ 1,500 whales a year",
+    "x": 500,
+    "y": 615,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_whale"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Whales killed in the 20th century?"
+    }
+   },
+   {
+    "draw": [
+     "whale",
+     "count"
+    ],
+    "speak": "In the twentieth century, how many whales did people kill?"
+   },
+   {
+    "ask": {
+     "question": "Click on the line where you think it is.",
+     "on": "count",
+     "store": "w",
+     "default": "200000",
+     "relative": true,
+     "tolerance": 0.3,
+     "right": "Close: you said {w}, and it was about {w.true}.",
+     "wrong": "You said {w}; it was about {w.true}, nearly three million."
+    }
+   },
+   {
+    "draw": [
+     "per_day"
+    ],
+    "cue": 0.3,
+    "speak": "Spread over the century, that is about eighty whales a day, every day, for a hundred years."
+   },
+   {
+    "draw": [
+     "peak"
+    ],
+    "cue": 0.3,
+    "speak": "At the peak, in 1964, it was eighty-two thousand in a single year: one whale every six or seven minutes."
+   },
+   {
+    "erase": [
+     "whale",
+     "per_day",
+     "peak",
+     "count"
+    ]
+   },
+   {
+    "draw": [
+     "herd",
+     "l340"
+    ],
+    "speak": "The worst hit was the blue whale, the largest animal that has ever lived. Before industrial whaling there were about three hundred and forty thousand."
+   },
+   {
+    "erase": [
+     "l340"
+    ]
+   },
+   {
+    "draw": [
+     "k380"
+    ],
+    "speak": "Hunters killed about three hundred and eighty thousand of them: more than were ever alive at one time."
+   },
+   {
+    "fade": {
+     "target": [
+      "gone"
+     ],
+     "to": 0.12,
+     "duration": 3
+    },
+    "speak": "By 2001, of every seventy blue whales, one was left."
+   },
+   {
+    "erase": [
+     "k380"
+    ]
+   },
+   {
+    "draw": [
+     "l5k"
+    ],
+    "speak": "About five thousand, in all the world's oceans."
+   },
+   {
+    "erase": [
+     "l5k"
+    ]
+   },
+   {
+    "draw": [
+     "ban"
+    ],
+    "speak": "Then, in the 1980s, a worldwide ban on commercial whaling took hold."
+   },
+   {
+    "erase": [
+     "ban"
+    ]
+   },
+   {
+    "draw": [
+     "now"
+    ],
+    "speak": "By the 2010s, the whole catch, of every kind of whale, was about fifteen hundred a year: a fiftieth of the peak."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bw0"
+     ],
+     "effect": "circle"
+    },
+    "speak": "So the great hunt is almost over. But a blue whale is still a rare sight: one where seventy once swam."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "w",
+     "type": "icon",
+     "of": "spouting whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 500,
+     "y": 520
+    },
+    {
+     "type": "text",
+     "id": "q",
+     "text": "? whales",
+     "x": 500,
+     "y": 330,
+     "font_size": 130,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "1900–1999",
+     "x": 830,
+     "y": 610,
+     "angle": 12
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Guess the catch"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "clock",
+     "type": "icon",
+     "of": "alarm clock",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 250,
+     "y": 420
+    },
+    {
+     "type": "text",
+     "id": "t1",
+     "text": "one whale",
+     "x": 700,
+     "y": 500,
+     "font_size": 90,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "type": "text",
+     "id": "t2",
+     "text": "every ? min",
+     "x": 700,
+     "y": 370,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "bu",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "1964"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "b0",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 340,
+     "y": 610
+    },
+    {
+     "id": "b1",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 500,
+     "y": 610
+    },
+    {
+     "id": "b2",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 660,
+     "y": 610
+    },
+    {
+     "id": "b3",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 340,
+     "y": 470
+    },
+    {
+     "id": "b4",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 500,
+     "y": 470,
+     "style": {
+      "opacity": 0.15
+     }
+    },
+    {
+     "id": "b5",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 660,
+     "y": 470,
+     "style": {
+      "opacity": 0.15
+     }
+    },
+    {
+     "id": "b6",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 340,
+     "y": 330,
+     "style": {
+      "opacity": 0.15
+     }
+    },
+    {
+     "id": "b7",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 500,
+     "y": 330,
+     "style": {
+      "opacity": 0.15
+     }
+    },
+    {
+     "id": "b8",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 660,
+     "y": 330,
+     "style": {
+      "opacity": 0.15
+     }
+    },
+    {
+     "id": "b9",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 340,
+     "y": 190,
+     "style": {
+      "opacity": 0.15
+     }
+    },
+    {
+     "id": "b10",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 500,
+     "y": 190,
+     "style": {
+      "opacity": 0.15
+     }
+    },
+    {
+     "id": "b11",
+     "type": "icon",
+     "of": "whale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 120,
+     "x": 660,
+     "y": 190,
+     "style": {
+      "opacity": 0.15
+     }
+    },
+    {
+     "id": "qq",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Where did they go?"
+    }
+   ]
+  }
+ ]
+}

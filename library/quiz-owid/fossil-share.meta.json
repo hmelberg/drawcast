@@ -1,0 +1,20 @@
+{
+ "file": "fossil-share.json",
+ "title": "How much of the world's energy still comes from fossil fuels?",
+ "subtitle": "Two hosts argue over the fossil slice of the world's energy pie, then find why it has barely shrunk since 1990 even as solar power boomed.",
+ "format": "quiz",
+ "tags": [
+  "earth",
+  "economics",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "1 (with 6: b is the skeptic)",
+ "form": "ask on pie slice (drag the edge)",
+ "owid": "https://ourworldindata.org/grapher/fossil-fuels-share-energy",
+ "notes": "OWID's current chart (Energy Institute data released 2026, which includes 2025; 'share of total energy supply'): 86.2% in 2025, 90.3% in 1990. OWID's older substitution-method series gave ~81%; the source entry says which is used. Fix round: the template pie is drawn at full size for the guess, then replaced by two freehand pies side by side (1990 small, 2025 large, radius ∝ √ of total energy, ×1.81), year labels on each, '+73% fossil' arrow between; a gives the solar ×85 number, b reacts. Template 'animate box' does not resize a pie; a boxed pie with long slice names shrinks to a tiny disc."
+}

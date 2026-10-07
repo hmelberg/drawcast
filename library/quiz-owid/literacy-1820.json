@@ -1,0 +1,479 @@
+{
+ "request": "In 1820, what share of the world's adults could read? Let me drag a pie slice, then see today, as a two-voice dialogue. #interactive #short",
+ "subtitle": "Drag the slice: how many adults could read in 1820? Then watch the world flip in two centuries, and meet the gap between grandparents and grandchildren.",
+ "thumb": "band \"Could your ancestors read?\" note \"1820\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "book",
+     "type": "icon",
+     "of": "open book",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 300,
+     "y": 430
+    },
+    {
+     "id": "y",
+     "type": "text",
+     "text": "1820",
+     "x": 720,
+     "y": 520,
+     "font_size": 150,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "? in 100",
+     "x": 720,
+     "y": 360,
+     "font_size": 100,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Who could read this?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "old",
+     "type": "icon",
+     "of": "old woman",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 260,
+     "y": 430
+    },
+    {
+     "id": "kid",
+     "type": "icon",
+     "of": "girl",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 740,
+     "y": 430
+    },
+    {
+     "id": "vs",
+     "type": "text",
+     "text": "vs",
+     "x": 500,
+     "y": 440,
+     "font_size": 90,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "q1",
+     "type": "text",
+     "text": "?",
+     "x": 260,
+     "y": 220,
+     "font_size": 110,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "q2",
+     "type": "text",
+     "text": "?",
+     "x": 740,
+     "y": 220,
+     "font_size": 110,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "Who reads?",
+     "x": 500,
+     "y": 650,
+     "angle": 6
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "hand",
+     "type": "icon",
+     "of": "writing hand",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 320,
+     "x": 720,
+     "y": 420
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "Could you",
+     "x": 300,
+     "y": 520,
+     "font_size": 90,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "text",
+     "text": "sign your name?",
+     "x": 320,
+     "y": 400,
+     "font_size": 80,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "1820",
+     "x": 180,
+     "y": 650,
+     "angle": -8
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Guess the share"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "In 1820, what share of the world could read?",
+  "template": "pie_chart",
+  "params": {
+   "labels": [
+    "Can read",
+    "Can't read"
+   ],
+   "values": [
+    [
+     12,
+     88
+    ],
+    [
+     88,
+     12
+    ]
+   ],
+   "stage": 0,
+   "box": {
+    "x": 20,
+    "y": 160,
+    "w": 620,
+    "h": 500
+   },
+   "label_size": 24
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Literate and illiterate world population",
+    "authors": "Our World in Data, from van Zanden et al. (2014, historical) and UNESCO (recent)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/literate-and-illiterate-world-population",
+    "finding": "share of adults (15+) who can read and write: 12 % in 1820, 21 % in 1900, 81 % in 2000, 88 % in 2024"
+   },
+   {
+    "id": "owid_lit",
+    "title": "Literacy",
+    "authors": "Max Roser and Esteban Ortiz-Ospina, Our World in Data",
+    "year": 2018,
+    "url": "https://ourworldindata.org/literacy",
+    "finding": "only one in ten people could read and write in 1820; today the share has reversed, with only one in ten illiterate"
+   },
+   {
+    "id": "gen",
+    "title": "Literacy rates of the younger and older population",
+    "authors": "Our World in Data, from UNESCO",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/literacy-rates-of-younger-vs-older-population",
+    "finding": "India 2024: 97 % of 15–24-year-olds and 46 % of over-65s can read and write"
+   }
+  ],
+  "elements": [
+   {
+    "id": "book",
+    "type": "icon",
+    "of": "open book",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 800,
+    "y": 520
+   },
+   {
+    "id": "y1820",
+    "type": "text",
+    "text": "1820",
+    "x": 800,
+    "y": 360,
+    "font_size": 110,
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "y2024",
+    "type": "text",
+    "text": "today",
+    "x": 800,
+    "y": 360,
+    "font_size": 110,
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "india",
+    "type": "text",
+    "text": "India today",
+    "x": 500,
+    "y": 655,
+    "font_size": 54,
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "old",
+    "type": "icon",
+    "of": "old woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 250,
+    "x": 280,
+    "y": 410
+   },
+   {
+    "id": "old_p",
+    "type": "text",
+    "text": "46 %",
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "old",
+     "side": "below",
+     "gap": 10
+    },
+    "cites": [
+     "gen"
+    ]
+   },
+   {
+    "id": "kid",
+    "type": "icon",
+    "of": "girl",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 250,
+    "x": 720,
+    "y": 410
+   },
+   {
+    "id": "kid_p",
+    "type": "text",
+    "text": "97 %",
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "kid",
+     "side": "below",
+     "gap": 10
+    },
+    "cites": [
+     "gen"
+    ]
+   },
+   {
+    "id": "old_a",
+    "type": "text",
+    "text": "over 65",
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    },
+    "at": {
+     "ref": "old",
+     "side": "above",
+     "gap": 8
+    }
+   },
+   {
+    "id": "kid_a",
+    "type": "text",
+    "text": "15–24",
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    },
+    "at": {
+     "ref": "kid",
+     "side": "above",
+     "gap": 8
+    }
+   },
+   {
+    "id": "y1900",
+    "type": "text",
+    "text": "1900: ~1 in 5",
+    "x": 800,
+    "y": 250,
+    "font_size": 50,
+    "style": {
+     "color": "#8f887c"
+    },
+    "cites": [
+     "owid"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "In 1820, who could read?"
+    }
+   },
+   {
+    "draw": [
+     "book",
+     "y1820"
+    ],
+    "voice": "a",
+    "speak": "In 1820, what share of the world's adults could read and write? You guess too."
+   },
+   {
+    "ask": {
+     "question": "Drag the slice to the share you think could read.",
+     "on": "slice_1",
+     "store": "g",
+     "default": "50",
+     "right": "Close: you said {g} percent, and it was about {g.true}.",
+     "wrong": "You said {g} percent. It was about {g.true}.",
+     "keep": true
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "slice_1"
+     ]
+    },
+    "voice": "b",
+    "speak": "About one in eight? But there were books, newspapers, letters!"
+   },
+   {
+    "draw": [
+     "y1900"
+    ],
+    "cue": 0.4,
+    "voice": "a",
+    "speak": "For a lucky few. Even by 1900, only about one adult in five could read."
+   },
+   {
+    "erase": [
+     "y1820",
+     "y1900"
+    ]
+   },
+   {
+    "draw": [
+     "y2024"
+    ],
+    "voice": "a",
+    "speak": "Now jump to today: about eighty-eight percent of adults can read."
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 3
+   },
+   {
+    "highlight": {
+     "target": [
+      "slice_2"
+     ]
+    },
+    "voice": "b",
+    "speak": "So it flipped. One in eight could read; now one in eight can't."
+   },
+   {
+    "erase": [
+     "book",
+     "y2024",
+     "slice_1",
+     "slice_2"
+    ]
+   },
+   {
+    "draw": [
+     "india",
+     "old",
+     "kid",
+     "old_a",
+     "kid_a"
+    ],
+    "voice": "b",
+    "speak": "And here's the bit that gets me: you can still see the flip inside one family."
+   },
+   {
+    "draw": [
+     "kid_p",
+     "old_p"
+    ],
+    "voice": "a",
+    "speak": "In India, ninety-seven percent of people aged fifteen to twenty-four can read, but fewer than half of those over sixty-five."
+   },
+   {
+    "highlight": {
+     "target": [
+      "old_p",
+      "kid_p"
+     ]
+    },
+    "voice": "b",
+    "speak": "So in many homes, the grandchildren read what their grandparents can't."
+   },
+   {
+    "highlight": {
+     "target": [
+      "old",
+      "kid"
+     ]
+    },
+    "voice": "a",
+    "speak": "Two centuries of change, in one living room."
+   }
+  ]
+ }
+}

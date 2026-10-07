@@ -1,0 +1,452 @@
+{
+ "request": "What share of new cars sold in Norway are fully electric? A two-voice dialogue with an oil-country skeptic; let me drag the pie slice. #interactive #short",
+ "subtitle": "A host and an oil-country skeptic: drag a pie slice to guess Norway's share of fully electric new cars, then see how fast it got there.",
+ "thumb": "band \"Oil country, electric cars\" note \"How many?\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "t_car",
+     "type": "icon",
+     "of": "automobile",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 300,
+     "y": 430,
+     "size": 280
+    },
+    {
+     "id": "t_plug",
+     "type": "icon",
+     "of": "electric plug",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 300,
+     "y": 610,
+     "size": 110
+    },
+    {
+     "id": "t_q",
+     "type": "text",
+     "text": "?%",
+     "x": 720,
+     "y": 440,
+     "font_size": 200,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Fully electric, in Norway?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t2_oil",
+     "type": "icon",
+     "of": "oil drum",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 290,
+     "y": 450,
+     "size": 260
+    },
+    {
+     "id": "t2_bat",
+     "type": "icon",
+     "of": "battery",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 710,
+     "y": 450,
+     "size": 260
+    },
+    {
+     "id": "t2_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "The oil country that went electric"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t3_flag",
+     "type": "icon",
+     "of": "flag norway",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 300,
+     "y": 450,
+     "size": 270
+    },
+    {
+     "id": "t3_a",
+     "type": "text",
+     "text": "2015: 17%",
+     "x": 700,
+     "y": 520,
+     "font_size": 80,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "t3_b",
+     "type": "text",
+     "text": "2025: ?",
+     "x": 700,
+     "y": 380,
+     "font_size": 80,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t3_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Ten years later…"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "What share of new cars sold in Norway are fully electric?",
+  "template": "pie_chart",
+  "params": {
+   "labels": [
+    "Electric",
+    "Other"
+   ],
+   "values": [
+    [
+     95.4,
+     4.6
+    ],
+    [
+     16.9,
+     83.1
+    ],
+    [
+     0.3,
+     99.7
+    ]
+   ],
+   "stage": 0,
+   "box": {
+    "x": 420,
+    "y": 170,
+    "w": 560,
+    "h": 460
+   }
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Share of new cars sold that are electric (battery-electric and plug-in hybrid)",
+    "authors": "Our World in Data, from the International Energy Agency Global EV Outlook",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/share-car-sales-battery-plugin",
+    "finding": "Norway, battery-electric share of new car sales: 0.3% in 2010, 16.9% in 2015, 89.2% in 2024, 95.4% in 2025; world 16.5% in 2025 (IEA figures for 2025 sales)"
+   },
+   {
+    "id": "elbil",
+    "title": "Norwegian EV policy",
+    "authors": "Norwegian EV Association (Norsk elbilforening)",
+    "year": 2025,
+    "finding": "electric cars were long exempt from Norway's purchase tax and 25% VAT (VAT applies above NOK 500,000 since 2023), with lower tolls and other road perks"
+   }
+  ],
+  "elements": [
+   {
+    "id": "car",
+    "type": "icon",
+    "of": "automobile",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "x": 220,
+    "y": 495,
+    "size": 210
+   },
+   {
+    "id": "flag",
+    "type": "icon",
+    "of": "flag norway",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "x": 110,
+    "y": 640,
+    "size": 80
+   },
+   {
+    "id": "y25",
+    "type": "text",
+    "text": "2025: 95%",
+    "x": 310,
+    "y": 640,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "y15",
+    "type": "text",
+    "text": "2015: 17%",
+    "x": 310,
+    "y": 640,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "y10",
+    "type": "text",
+    "text": "2010: 0.3%",
+    "x": 310,
+    "y": 640,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "tax",
+    "type": "text",
+    "text": "almost no tax, no VAT",
+    "x": 240,
+    "y": 320,
+    "font_size": 40,
+    "style": {
+     "color": "#3d3833"
+    },
+    "cites": [
+     "elbil"
+    ]
+   },
+   {
+    "id": "oil",
+    "type": "icon",
+    "of": "oil drum",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "x": 220,
+    "y": 290,
+    "size": 130
+   },
+   {
+    "id": "w_disc",
+    "type": "shape",
+    "shape": "circle",
+    "x": 150,
+    "y": 255,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    },
+    "radius": 85
+   },
+   {
+    "id": "w_slice",
+    "type": "sector",
+    "x": 150,
+    "y": 255,
+    "radius": 85,
+    "start": 28.8,
+    "end": 90,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "w_l",
+    "type": "text",
+    "text": "World: 17%",
+    "x": 330,
+    "y": 290,
+    "font_size": 44,
+    "style": {
+     "color": "#8a5fa8"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "w_grp",
+    "type": "group",
+    "members": [
+     "w_disc",
+     "w_slice",
+     "w_l"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How many new cars in Norway are electric?"
+    }
+   },
+   {
+    "draw": [
+     "car",
+     "flag"
+    ],
+    "voice": "a",
+    "speak": "In Norway last year, what share of new cars ran on batteries alone? Not hybrids: fully electric."
+   },
+   {
+    "highlight": {
+     "target": [
+      "flag"
+     ]
+    },
+    "voice": "b",
+    "speak": "Norway? The oil country? Can't be many."
+   },
+   {
+    "ask": {
+     "question": "Drag the slice's edge to your guess.",
+     "on": "slice_1",
+     "store": "g",
+     "default": "50",
+     "right": "Close: you said {g} percent, and it was {g.true}.",
+     "wrong": "You said {g} percent; it was {g.true}."
+    }
+   },
+   {
+    "draw": [
+     "y25"
+    ],
+    "voice": "a",
+    "speak": "About ninety-five percent. Nineteen of every twenty new cars."
+   },
+   {
+    "highlight": {
+     "target": [
+      "slice_1"
+     ]
+    },
+    "voice": "b",
+    "speak": "Fine, but that must have taken decades."
+   },
+   {
+    "erase": [
+     "y25"
+    ]
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 2.5,
+    "voice": "a",
+    "speak": "Ten years. In 2015 it was about one in six."
+   },
+   {
+    "draw": [
+     "y15"
+    ]
+   },
+   {
+    "erase": [
+     "y15"
+    ]
+   },
+   {
+    "animate": {
+     "stage": 2
+    },
+    "duration": 2,
+    "voice": "a",
+    "speak": "And in 2010, about three cars in a thousand."
+   },
+   {
+    "draw": [
+     "y10"
+    ]
+   },
+   {
+    "draw": [
+     "tax"
+    ],
+    "voice": "b",
+    "speak": "So what happened? Did Norwegians just fall in love with batteries?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "tax"
+     ]
+    },
+    "voice": "a",
+    "speak": "Mostly money: electric cars paid almost no purchase tax or VAT, and lower tolls."
+   },
+   {
+    "erase": [
+     "tax"
+    ]
+   },
+   {
+    "draw": [
+     "oil"
+    ],
+    "voice": "b",
+    "speak": "While selling oil and gas to everyone else. Very Norwegian."
+   },
+   {
+    "erase": [
+     "oil",
+     "y10"
+    ]
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 1.5
+   },
+   {
+    "draw": [
+     "w_disc",
+     "w_slice",
+     "w_l"
+    ],
+    "voice": "a",
+    "speak": "And the world? About one new car in six is fully electric: Norway in 2015."
+   },
+   {
+    "animate": {
+     "stage": 0
+    },
+    "duration": 2.5,
+    "voice": "b",
+    "speak": "So the world is ten years behind a country that sells it oil. Ten more years, then?"
+   }
+  ]
+ }
+}

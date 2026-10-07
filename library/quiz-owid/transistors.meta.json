@@ -1,0 +1,19 @@
+{
+ "file": "transistors.json",
+ "title": "One chip against the planet: which is bigger?",
+ "subtitle": "One computer chip against everyone on Earth, then against all the chickens eaten in a year: pick the bigger, and hear two hosts argue about it.",
+ "format": "quiz",
+ "tags": [
+  "computing",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "5 + 6 (duel chain, two voices; b the skeptic)",
+ "form": "cards compare (higher or lower)",
+ "owid": "https://ourworldindata.org/grapher/transistors-per-microprocessor",
+ "notes": "Reworked after review (was WEAK): a duel instead of a guess-the-number. OWID: 2,308 transistors (1971) and 58.2 billion (2021, latest; brief said 100+ billion); people on Earth 7.95 billion (2021, OWID/UN WPP); chickens slaughtered for meat 78.5 billion (2024, OWID/FAO). Seven per person and ×25 million are my arithmetic. Chip-pace (Moore) twist dropped, kept only in genome-cost. Compare cards: x is the left edge and width the span; a card in two pairs stands in its first row. stage own fades the chip (and the heading) while the duel is asked; the ask instruction replaces the heading during the ask (engine behaviour). No chip icon in twemoji, so the chip is drawn and the card icon is a desktop computer."
+}

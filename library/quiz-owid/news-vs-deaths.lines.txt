@@ -1,0 +1,12 @@
+(a) Does the news cover what actually kills us? Take every story the New York Times ran in 2023 that mentions a cause of death.
+(b) Surely it does. Journalists cover what matters.
+[ASK] You are the editor: share out a hundred stories between these causes.
+  [right] Here is how the Times really split them: homicide alone got forty-two of every hundred.
+(b) Eighteen for terrorism? And heart disease and cancer get seven between them?
+(a) Keep the news as dashes. Now the bars show what Americans actually died of that year.
+(a) Heart disease and cancer shoot up: more than half of all these deaths.
+(b) And homicide, the paper's biggest bar, sinks to about one in a hundred.
+(a) Terrorism killed sixteen people in the whole country. Its share of the news was about eighteen thousand times its share of the deaths.
+(b) Fine, the Times is odd. Surely the other papers are different?
+(a) The Washington Post and Fox News look much the same.
+(a) News is what is new. A sudden death is a story; a slow one is a statistic. So when you wonder what to worry about, read the boring bars.

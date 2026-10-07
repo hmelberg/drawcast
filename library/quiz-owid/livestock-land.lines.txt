@@ -1,0 +1,15 @@
+Farms grow food for us, and food for our animals. Which gets more land, and what does each give back?
+[ASK] First, the land. Drag the edge: how much of all farmland goes to livestock?
+  [right] Close: you said {g} percent, and it is about {g.true}.
+  [wrong] You said {g} percent; it is about {g.true}.
+Grazing land, plus the fields that grow animal feed: four fifths of all the farmland on Earth.
+So the animals must feed us well. Now let the same pie show the world's calories.
+[ASK] Now drag the edge to where you think the animals' share of our calories goes.
+  [right] Close: you said {c} percent; it is about {c.true}.
+  [wrong] You said {c} percent; it is only about {c.true}.
+Eighty percent of the land, for seventeen percent of the calories.
+Why? A cow burns most of what it eats just living. So a thousand calories of beef need about a hundred and twenty square metres of land.
+The same calories of wheat: under one and a half. About eighty times less.
+Turn it round: the other fifth of farmland, crops, gives us eighty-three percent of our calories.
+Animal foods do better on protein, about thirty-eight percent of it, so that land is not simply wasted.
+Still, how much land farming needs depends less on how we farm than on what we eat.

@@ -1,0 +1,560 @@
+{
+ "request": "Most of the world's farmland feeds animals. How much of our food do they give back? Let me guess the land share on a pie, then the calories on a scale. #interactive #short",
+ "subtitle": "Guess how much farmland goes to livestock, then how much of the world's food it gives back: four fifths of the land, under a fifth of the calories.",
+ "thumb": "band \"Most farmland feeds animals. And us?\" note \"?\"",
+ "spec": {
+  "title": "Livestock uses most farmland. How much of our food does it give?",
+  "template": "pie_chart",
+  "params": {
+   "labels": [
+    " ",
+    " "
+   ],
+   "values": [
+    [
+     80,
+     20
+    ],
+    [
+     17,
+     83
+    ]
+   ],
+   "stage": 0,
+   "percent": false
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Half of the world's habitable land is used for agriculture",
+    "authors": "Hannah Ritchie and Max Roser (Our World in Data)",
+    "year": 2019,
+    "url": "https://ourworldindata.org/global-land-for-agriculture",
+    "finding": "livestock (grazing land plus cropland for feed) accounts for 80% of agricultural land; crops for humans 16%; meat, dairy and farmed fish provide 17% of the world's calories and 38% of its protein"
+   },
+   {
+    "id": "fao",
+    "title": "FAOSTAT food balances and land use; Poore & Nemecek (2018), Science",
+    "authors": "UN Food and Agriculture Organization; J. Poore and T. Nemecek",
+    "year": 2018,
+    "finding": "the land and food data behind Our World in Data's breakdown"
+   },
+   {
+    "id": "kcal",
+    "title": "Land use per 1000 kilocalories (chart)",
+    "authors": "Our World in Data, from Poore & Nemecek (2018), Science",
+    "year": 2018,
+    "url": "https://ourworldindata.org/grapher/land-use-kcal-poore",
+    "finding": "square metres per 1,000 kcal: beef (beef herd) 119, lamb & mutton 117, wheat & rye 1.4, rice 0.8, maize 0.7"
+   }
+  ],
+  "elements": [
+   {
+    "id": "cow",
+    "type": "icon",
+    "of": "cow face",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 280,
+    "x": 300,
+    "y": 430
+   },
+   {
+    "id": "wheat",
+    "type": "icon",
+    "of": "sheaf of rice",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 280,
+    "x": 700,
+    "y": 430
+   },
+   {
+    "id": "t_land",
+    "type": "text",
+    "text": "LAND",
+    "x": 110,
+    "y": 600,
+    "font_size": 56,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "t_food",
+    "type": "text",
+    "text": "FOOD",
+    "x": 110,
+    "y": 600,
+    "font_size": 56,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "n80",
+    "type": "text",
+    "text": "80% animals",
+    "x": 540,
+    "y": 300,
+    "font_size": 60,
+    "style": {
+     "color": "#3d3833"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "n17",
+    "type": "text",
+    "text": "17%",
+    "x": 580,
+    "y": 525,
+    "font_size": 64,
+    "style": {
+     "color": "#3d3833"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "n83",
+    "type": "text",
+    "text": "83% crops",
+    "x": 430,
+    "y": 280,
+    "font_size": 60,
+    "style": {
+     "color": "#3d3833"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "prot",
+    "type": "text",
+    "text": "protein: 38%",
+    "x": 880,
+    "y": 470,
+    "font_size": 38,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "sq_beef",
+    "type": "shape",
+    "shape": "rect",
+    "x": 360,
+    "y": 420,
+    "width": 380,
+    "height": 380,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#f3d9d3"
+    }
+   },
+   {
+    "id": "sq_wheat",
+    "type": "shape",
+    "shape": "rect",
+    "x": 790,
+    "y": 300,
+    "width": 42,
+    "height": 42,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#cfe3ee"
+    }
+   },
+   {
+    "id": "i_beef",
+    "type": "icon",
+    "of": "cow face",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 360,
+    "y": 460
+   },
+   {
+    "id": "l_beef",
+    "type": "text",
+    "text": "beef: 119 m²",
+    "x": 360,
+    "y": 330,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "kcal"
+    ]
+   },
+   {
+    "id": "i_wheat",
+    "type": "icon",
+    "of": "sheaf of rice",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 790,
+    "y": 410
+   },
+   {
+    "id": "l_wheat",
+    "type": "text",
+    "text": "wheat: 1.4 m²",
+    "x": 790,
+    "y": 520,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "kcal"
+    ]
+   },
+   {
+    "id": "l_per",
+    "type": "text",
+    "text": "land per 1,000 kcal",
+    "x": 790,
+    "y": 610,
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "diet",
+    "type": "text",
+    "text": "what we eat",
+    "x": 875,
+    "y": 330,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "n17l",
+    "type": "text",
+    "text": "animals",
+    "x": 870,
+    "y": 620,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "n20l",
+    "type": "text",
+    "text": "crops",
+    "x": 200,
+    "y": 500,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Livestock land: how much food?"
+    }
+   },
+   {
+    "draw": [
+     "cow",
+     "wheat"
+    ],
+    "speak": "Farms grow food for us, and food for our animals. Which gets more land, and what does each give back?"
+   },
+   {
+    "erase": [
+     "cow",
+     "wheat"
+    ]
+   },
+   {
+    "draw": [
+     "t_land"
+    ]
+   },
+   {
+    "ask": {
+     "question": "First, the land. Drag the edge: how much of all farmland goes to livestock?",
+     "on": "slice_1",
+     "store": "g",
+     "default": "50",
+     "right": "Close: you said {g} percent, and it is about {g.true}.",
+     "wrong": "You said {g} percent; it is about {g.true}."
+    }
+   },
+   {
+    "draw": [
+     "n80",
+     "n20l"
+    ],
+    "speak": "Grazing land, plus the fields that grow animal feed: four fifths of all the farmland on Earth."
+   },
+   {
+    "erase": [
+     "t_land",
+     "n80",
+     "n20l"
+    ]
+   },
+   {
+    "draw": [
+     "t_food"
+    ],
+    "speak": "So the animals must feed us well. Now let the same pie show the world's calories."
+   },
+   {
+    "ask": {
+     "question": "Now drag the edge to where you think the animals' share of our calories goes.",
+     "on": "slice_1",
+     "predict": true,
+     "store": "c",
+     "default": "50",
+     "right": "Close: you said {c} percent; it is about {c.true}.",
+     "wrong": "You said {c} percent; it is only about {c.true}."
+    }
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 2.5
+   },
+   {
+    "draw": [
+     "n17",
+     "n17l"
+    ],
+    "speak": "Eighty percent of the land, for seventeen percent of the calories."
+   },
+   {
+    "hide": [
+     "slice_1",
+     "slice_2",
+     "n17",
+     "t_food",
+     "n17l"
+    ]
+   },
+   {
+    "draw": [
+     "sq_beef",
+     "i_beef",
+     "l_beef"
+    ],
+    "speak": "Why? A cow burns most of what it eats just living. So a thousand calories of beef need about a hundred and twenty square metres of land."
+   },
+   {
+    "draw": [
+     "sq_wheat",
+     "i_wheat",
+     "l_wheat",
+     "l_per"
+    ],
+    "speak": "The same calories of wheat: under one and a half. About eighty times less."
+   },
+   {
+    "erase": [
+     "sq_beef",
+     "i_beef",
+     "l_beef",
+     "sq_wheat",
+     "i_wheat",
+     "l_wheat",
+     "l_per"
+    ]
+   },
+   {
+    "show": [
+     "slice_1",
+     "slice_2",
+     "n17",
+     "t_food",
+     "n17l"
+    ]
+   },
+   {
+    "draw": [
+     "n83"
+    ],
+    "speak": "Turn it round: the other fifth of farmland, crops, gives us eighty-three percent of our calories."
+   },
+   {
+    "draw": [
+     "prot"
+    ],
+    "speak": "Animal foods do better on protein, about thirty-eight percent of it, so that land is not simply wasted."
+   },
+   {
+    "draw": [
+     "diet"
+    ],
+    "speak": "Still, how much land farming needs depends less on how we farm than on what we eat."
+   }
+  ],
+  "affirm": "playful"
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "cow",
+     "type": "icon",
+     "of": "cow face",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 320,
+     "x": 680,
+     "y": 400
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "It eats most of the farmland. What does it give back?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "c1",
+     "type": "shape",
+     "shape": "circle",
+     "x": 270,
+     "y": 490,
+     "radius": 165,
+     "style": {
+      "color": "#b5482e",
+      "fill": "#f3d9d3"
+     }
+    },
+    {
+     "id": "c2",
+     "type": "shape",
+     "shape": "circle",
+     "x": 730,
+     "y": 490,
+     "radius": 165,
+     "style": {
+      "color": "#2f6b8f",
+      "fill": "#cfe3ee"
+     }
+    },
+    {
+     "id": "q1",
+     "type": "text",
+     "text": "?",
+     "x": 270,
+     "y": 530,
+     "font_size": 150,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "q2",
+     "type": "text",
+     "text": "?",
+     "x": 730,
+     "y": 530,
+     "font_size": 150,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "l1",
+     "type": "text",
+     "text": "land",
+     "x": 270,
+     "y": 410,
+     "font_size": 60
+    },
+    {
+     "id": "l2",
+     "type": "text",
+     "text": "food",
+     "x": 730,
+     "y": 410,
+     "font_size": 60
+    },
+    {
+     "id": "cow",
+     "type": "icon",
+     "of": "cow face",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 130,
+     "x": 500,
+     "y": 600
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "The animals' share of each"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "f",
+     "type": "icon",
+     "of": "fork and knife with plate",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 300,
+     "y": 470
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "? %",
+     "x": 700,
+     "y": 520,
+     "font_size": 200,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "w",
+     "type": "text",
+     "text": "from meat & milk",
+     "x": 700,
+     "y": 330,
+     "font_size": 64
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "GUESS",
+     "x": 860,
+     "y": 670,
+     "angle": 10
+    }
+   ]
+  }
+ ]
+}

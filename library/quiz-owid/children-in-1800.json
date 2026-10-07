@@ -1,0 +1,419 @@
+{
+ "request": "In 1800, how many children died before their fifth birthday? Let me drag the bar to my guess. #interactive #short",
+ "subtitle": "Guess how many children in a hundred died before age five in 1800, then see today's rate and how the best of then compares with the worst of now.",
+ "thumb": "band \"Then vs now\" note \"Guess first\"",
+ "spec": {
+  "title": "In 1800, how many children died before their fifth birthday?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "World 1800",
+    "World 2024",
+    "Norway 1850",
+    "Nigeria 2024"
+   ],
+   "values": [
+    43,
+    4,
+    17,
+    12
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    100
+   ],
+   "bar_colors": "same",
+   "icons": [
+    {
+     "of": "globe showing europe-africa",
+     "set": "twemoji"
+    },
+    {
+     "of": "globe showing europe-africa",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag norway",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag nigeria",
+     "set": "twemoji"
+    }
+   ],
+   "label_size": 32
+  },
+  "sources": [
+   {
+    "id": "owid_cm",
+    "title": "Child mortality rate",
+    "authors": "Our World in Data, from Gapminder (2015) and the UN Inter-agency Group for Child Mortality Estimation (2025)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/child-mortality",
+    "finding": "share of children dying before age five: world 42.8 % in 1800 and 3.7 % in 2024; Norway 16.8 % in 1850 (the lowest on record that year); Nigeria 11.6 % in 2024 (the highest that year) (rounded on the chart to 43, 4, 17 and 12)"
+   },
+   {
+    "id": "owid_deaths",
+    "title": "Number of child deaths",
+    "authors": "Our World in Data, from the UN Inter-agency Group for Child Mortality Estimation (2025)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/number-of-child-deaths-igme",
+    "finding": "about 4.86 million children died before age five in 2024"
+   },
+   {
+    "id": "owid_article",
+    "title": "Child and Infant Mortality",
+    "authors": "Saloni Dattani, Fiona Spooner, Hannah Ritchie and Max Roser",
+    "year": 2023,
+    "url": "https://ourworldindata.org/child-mortality",
+    "finding": "two centuries ago around half of all children died before the end of puberty"
+   }
+  ],
+  "elements": [
+   {
+    "id": "fall_ar",
+    "type": "arrow",
+    "from": {
+     "x": 300,
+     "y": 445
+    },
+    "to": {
+     "x": 425,
+     "y": 295
+    },
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "fall",
+    "type": "text",
+    "text": "÷ 11",
+    "font_size": 64,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_cm"
+    ],
+    "x": 450,
+    "y": 390
+   },
+   {
+    "id": "still",
+    "type": "text",
+    "text": "still 4.9 m a year",
+    "font_size": 40,
+    "style": {
+     "color": "#5e584e"
+    },
+    "cites": [
+     "owid_deaths"
+    ],
+    "x": 470,
+    "y": 500
+   },
+   {
+    "id": "gt",
+    "type": "text",
+    "text": ">",
+    "font_size": 90,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_cm"
+    ],
+    "x": 686,
+    "y": 300
+   },
+   {
+    "id": "payoff",
+    "type": "text",
+    "text": "best then > worst now",
+    "font_size": 50,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 690,
+    "y": 600,
+    "cites": [
+     "owid_cm"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "1800: how many children died young?"
+    }
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "In 1800, out of every hundred children born, how many died before their fifth birthday?"
+   },
+   {
+    "ask": {
+     "question": "Drag the 1800 bar to your guess.",
+     "on": "bar_1",
+     "store": "g",
+     "default": "15",
+     "right": "Close: you said {g} in a hundred, and it was about {g.true}.",
+     "wrong": "You said {g}; it was about {g.true}, more than four children in every ten."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1"
+     ]
+    },
+    "speak": "So in a family with six children, losing one or more was the rule, not the exception."
+   },
+   {
+    "draw": [
+     "bar_2"
+    ],
+    "speak": "Now look at the world today: about four in a hundred."
+   },
+   {
+    "draw": [
+     "fall_ar",
+     "fall"
+    ],
+    "speak": "That is a fall of more than ten times, thanks to clean water, vaccines, better food and medicine."
+   },
+   {
+    "draw": [
+     "still"
+    ],
+    "speak": "It is still about five million young children a year, so the work is not done."
+   },
+   {
+    "draw": [
+     "bar_3"
+    ],
+    "speak": "Was that only the poorest places? No. Even the luckiest country of 1850, Norway, lost about seventeen children in a hundred."
+   },
+   {
+    "draw": [
+     "bar_4"
+    ],
+    "speak": "And today, the hardest-hit country is Nigeria, at about twelve in a hundred."
+   },
+   {
+    "draw": [
+     "gt"
+    ],
+    "speak": "Now put those two side by side."
+   },
+   {
+    "draw": [
+     "payoff"
+    ],
+    "speak": "A child born in the best place of 1850 had worse odds than a child born in the worst place today."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "globe",
+     "type": "icon",
+     "of": "hourglass not done",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 250,
+     "y": 450
+    },
+    {
+     "id": "yr",
+     "type": "text",
+     "text": "1800",
+     "x": 640,
+     "y": 530,
+     "font_size": 200,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "? in 100",
+     "x": 640,
+     "y": 330,
+     "font_size": 120,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Died before age five"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "no",
+     "type": "icon",
+     "of": "flag norway",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 220,
+     "y": 440
+    },
+    {
+     "id": "ng",
+     "type": "icon",
+     "of": "flag nigeria",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 680,
+     "y": 440
+    },
+    {
+     "id": "vs",
+     "type": "text",
+     "text": "vs",
+     "x": 460,
+     "y": 470,
+     "font_size": 110,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "y1",
+     "type": "text",
+     "text": "1850",
+     "x": 220,
+     "y": 290,
+     "font_size": 90,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "y2",
+     "type": "text",
+     "text": "2024",
+     "x": 680,
+     "y": 290,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Best then vs worst now"
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "Who wins?",
+     "x": 850,
+     "y": 640,
+     "angle": 10
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "b1",
+     "type": "path",
+     "points": [
+      [
+       190,
+       250
+      ],
+      [
+       190,
+       700
+      ],
+      [
+       410,
+       700
+      ],
+      [
+       410,
+       250
+      ]
+     ],
+     "style": {
+      "color": "#b5482e",
+      "stroke_width": 6,
+      "dash": true
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?",
+     "x": 300,
+     "y": 470,
+     "font_size": 240,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "l1",
+     "type": "text",
+     "text": "1800",
+     "x": 300,
+     "y": 620,
+     "font_size": 70,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "children",
+     "x": 690,
+     "y": 520,
+     "font_size": 100,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "text",
+     "text": "in 100",
+     "x": 690,
+     "y": 380,
+     "font_size": 100,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "How tall is this bar?"
+    }
+   ]
+  }
+ ]
+}

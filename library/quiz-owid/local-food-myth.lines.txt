@@ -1,0 +1,14 @@
+(a) Quick one: how much of a beef burger's climate footprint comes from getting it to you?
+(b) Loads, surely. Lorries, ships, planes. That's why I buy local.
+(a) Let's see. A kilo of beef puts out about a hundred kilos of greenhouse gases, all told.
+[ASK] Drag the transport bar to your guess.
+  [right] Close: you said {g} kilos, and it is about {g.true}.
+  [wrong] You said {g} kilos; it is about {g.true}, a sliver.
+(b) Half a kilo? Then where's the other ninety-nine?
+(a) Mostly the farm: cows burp methane, plus manure and feed. Then forest cleared for pasture.
+(b) Let me guess the rest: meat that gets thrown away, and the packaging.
+(a) Spot on. So transport is half a percent. Local beef is still almost all cow.
+(b) So food miles never matter?
+(a) By air they do: fifty times a ship's emissions for the same load. Berries, asparagus. But almost all food goes by sea.
+(a) And one US study found that swapping beef and dairy for chicken or beans just one day a week cuts more than buying everything local.
+(b) Fine. Farmers' market on Saturday, no burger on Monday.

@@ -1,0 +1,13 @@
+(a) How much of the world's energy still comes from coal, oil and gas? Count everything: power plants, factories, cars, planes and heating.
+(b) Surely not that much any more. There are solar panels everywhere. Half?
+[ASK] Drag the edge of the slice to your guess.
+  [right] Close: you said {g} percent, and it is about {g.true}.
+  [wrong] You said {g} percent. It is about {g.true}: still most of everything.
+(b) Eighty-six percent? In 2025? That can't be right.
+(a) It is. In 1990 it was ninety, so in thirty-five years the fossil slice shrank by just four points.
+(a) And that's despite a solar boom: solar power has grown about eighty-five times over since 2010.
+(b) So clean energy is winning?
+(a) Not yet. Look at the size of the pies: the world now uses about eighty percent more energy than in 1990.
+(a) So a slightly smaller slice of a much bigger pie is still more fossil fuel: about seventy percent more.
+(b) So clean energy has mostly fed the new demand, not replaced coal and oil.
+(a) Exactly. That's the real race: clean energy has to grow faster than demand.

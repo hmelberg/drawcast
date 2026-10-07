@@ -1,0 +1,20 @@
+{
+ "file": "wild-mammals-share.json",
+ "title": "Of all the mammals on Earth, by weight, what share is wild?",
+ "subtitle": "Weigh every mammal on Earth and guess the wild slice, then meet the dogs, pigs and chickens that outweigh whole kingdoms of wildlife.",
+ "format": "quiz",
+ "level": "standard",
+ "lang": "en",
+ "verdict": "keep",
+ "tags": [
+  "biology",
+  "earth",
+  "data"
+ ],
+ "score": 4,
+ "dialogue": true,
+ "shape": "1 + 6",
+ "form": "ask on pie slice (drag the edge)",
+ "owid": "https://ourworldindata.org/wild-mammals-birds-biomass",
+ "notes": "OWID (Greenspoon et al. 2023) gives wild 5 % (2 land + 3 marine), humans 36 %, livestock 59 % - brief had 4/34/62. Review round 2026-10-07: two voices (b guesses half, jokes about the tug of war with cows, guesses pigs vs whales); the guess pie is two-way (Us + our animals / Wild), so nothing leaks; pie fills the left 60 % (long slice labels shrank it to a dot; an explicit {x,y,w,h} box and a short label fixed it); opening icons (cow, person, whale) come back beside the shares; new twist line: poultry are 71 % of bird weight (same OWID page). Left: no way to explode a slice, so the 5 % is a large red label instead."
+}

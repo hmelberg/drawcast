@@ -1,0 +1,13 @@
+(a) Take the richest country in the world, by income per person, and the poorest. How many times richer is the richest?
+(b) Ten times? Twenty, tops. Things are much cheaper in poor countries, after all.
+[ASK] Set the counter to your guess.
+  [right] Close: you said {r} times, and it is about {r.true}.
+  [wrong] You said {r}; it is about {r.true} times.
+(a) Here is Burundi, the poorest: about a thousand dollars per person a year. One coin.
+(a) And Singapore: about a hundred and forty thousand. A hundred and thirty coins.
+(b) But I said things are cheaper there!
+(a) They are, and it's already counted: these dollars are adjusted for prices. Burundi still lives on under three dollars a day.
+(b) Was it always this unequal?
+(a) No. In 1820, among the countries with estimates, the richest, Britain, was only about five times richer than the poorest, Nepal.
+(a) Back then nearly everyone was poor. Growth took off in a few places, and by these long-run estimates the poorest countries today are no richer than Nepal was then.
+(b) Five coins to a hundred and thirty. Next time someone tells me the world was always this way, I'm bringing my coins.

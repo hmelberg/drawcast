@@ -1,0 +1,19 @@
+{
+ "file": "nuclear-warheads.json",
+ "title": "How many nuclear warheads are left in the world?",
+ "subtitle": "Draw how the world's nuclear stockpile changed after its 1986 peak of 70,000, then hear about the one country that built bombs and gave them all up.",
+ "format": "quiz",
+ "tags": [
+  "history",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "2 + 6 (then and now, two voices; b brings the twist)",
+ "form": "ask on line (draw the rest)",
+ "owid": "https://ourworldindata.org/grapher/nuclear-warhead-stockpiles",
+ "notes": "OWID World line: peak 70,374 in 1986 (brief said ~64,000), 12,241 in 2025. The World series exceeds the nine countries summed (9,604 in 2025), so only the World line and single-country numbers are quoted. Ask from 1987 (from 1986 made the 1986 point part of the guess and cut the given line back to 1980). label_top 0 does not remove the series end name, so it reads Warheads; an empty name becomes Series 1. after keep does not keep the viewer drawn line after the reveal (no faint You ghost possible). Lint still warns line_1 drawn before the ask: it is the staged prefix to 1986 only."
+}

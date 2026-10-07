@@ -1,0 +1,20 @@
+{
+ "file": "literacy-1820.json",
+ "title": "In 1820, what share of the world could read?",
+ "subtitle": "Drag the slice: how many adults could read in 1820? Then watch the world flip in two centuries, and meet the gap between grandparents and grandchildren.",
+ "format": "quiz",
+ "tags": [
+  "history",
+  "language",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "2 (then and now) + 6 (a quizzes b and the viewer together; b objects at the reveal, then supplies the twist; a closes)",
+ "form": "ask on a pie slice (drag the slice)",
+ "owid": "https://ourworldindata.org/grapher/literate-and-illiterate-world-population",
+ "notes": "OWID series (van Zanden et al. historical + UNESCO recent): 12.0 % in 1820, 21 % in 1900, 87.7 % in 2024. 1950 dropped (series jumps 42 % 1940 → 36 % 1950; UNESCO-era figures differ). The brief's twist (absolute number of illiterate people fell) is not on OWID, so the twist is the generational gap from OWID's younger-vs-older chart (India 2024: 97 % vs 46 %). The pie is drawn by the ask small and grows at the reveal (engine); label_size above ~28 shrinks the pie."
+}

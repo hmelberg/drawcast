@@ -1,0 +1,20 @@
+{
+ "file": "richest-vs-poorest.json",
+ "title": "How many times richer is the richest country than the poorest?",
+ "subtitle": "Guess how many times richer the richest country is than the poorest, then see the gap in coins, and how small it was in 1820.",
+ "format": "quiz",
+ "tags": [
+  "economics",
+  "history",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "6",
+ "form": "estimate slider (log, 1–1000)",
+ "owid": "https://ourworldindata.org/grapher/gdp-per-capita-worldbank",
+ "notes": "b guesses wrong out loud (ten, twenty), objects that prices are lower, and closes with a joke. 2025 World Bank PPP: Singapore $139,593, Burundi $1,067 (131x); one coin = Burundi's $1,070, so 130 coins. 1820 Maddison (54 countries with estimates; said as 'among the countries with estimates'): UK $3,306 richest, Nepal $641 poorest (5x), drawn as coins of Nepal's 1820 income beside today's coins — a ratio, not the same dollars (the two series use different price bases). 'Poorest today no richer than Nepal then' is within Maddison: Central African Republic $596 (2022) vs Nepal $641 (1820). Estimate slider ticks and the 'You' mark are drawn small by the engine."
+}

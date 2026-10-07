@@ -1,0 +1,19 @@
+{
+ "file": "battery-prices.json",
+ "title": "Battery prices since 1991: true or myth?",
+ "subtitle": "Four claims about lithium-ion batteries, true or myth? Two hosts argue each one, then the price of an electric car's battery in 1991.",
+ "format": "quiz",
+ "tags": [
+  "economics",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "3 + 6 (myth or true chain, two voices; b the confident wrong guesser)",
+ "form": "quiz on canvas (True/Myth run over a sequence)",
+ "owid": "https://ourworldindata.org/battery-price-decline",
+ "notes": "Reworked after review from a bar drag into a True/Myth chain. All four claims from the OWID article (Ritchie & Rosado 2026): $9,200/kWh (1991) to $78 (2024), >99%; cumulative production ×27 million 1991–2023 and prices fell as more were made; early-1990s decline much slower (tiny market, Sony near-monopoly); EV cells ~$5,000 today, over $20,000 a decade ago. $600,000 = $5,000 × 9,200/78, my arithmetic, said as close to. The sequence label sat in the caption band at its default place; at.y 455 lifts it. Cast-level feedback lines; affirm playful."
+}

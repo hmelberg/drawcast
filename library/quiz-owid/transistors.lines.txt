@@ -1,0 +1,11 @@
+a: How many tiny switches, called transistors, fit on one computer chip today?
+a: The first microprocessor, Intel's 4004 in 1971, had about two thousand three hundred.
+b: So today, what, a few million? It's still one little chip.
+a: Let's settle it with a duel: one chip from 2021 against two rivals.
+[ASK] Tap the bigger number in each pair.
+  [right] One chip beats every person on Earth, and the chickens still beat the chip.
+  [wrong] {d} of {d.total}. The chip is bigger than you think, but not big enough for the chickens.
+b: Wait. One chip has more switches than there are people on the planet?
+a: Fifty-eight billion of them. That's about seven for every person alive, on one chip.
+a: From two thousand three hundred to fifty-eight billion: twenty-five million times more in fifty years.
+b: Seven each, and I never got mine. I'd like them back, please.

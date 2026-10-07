@@ -1,0 +1,694 @@
+{
+ "request": "Guinea worm once infected millions a year. How many human cases were there in 2025? A multiple-choice quiz, then the line. #interactive #short",
+ "subtitle": "Guinea worm infected millions a year in 1986. Guess how many cases were left in 2025, then see how it fell without a vaccine or a cure.",
+ "thumb": "band \"No vaccine. No cure. Nearly gone.\" note \"How?\"",
+ "spec": {
+  "title": "Guinea worm infected millions a year. How many human cases were there in 2025?",
+  "template": "line_chart",
+  "params": {
+   "x": [
+    1989,
+    1991,
+    1993,
+    1995,
+    1997,
+    2000,
+    2003,
+    2005,
+    2007,
+    2009,
+    2011,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+   ],
+   "values": [
+    892055,
+    543585,
+    229773,
+    129852,
+    77863,
+    75223,
+    32193,
+    10674,
+    9589,
+    3190,
+    1058,
+    148,
+    126,
+    22,
+    25,
+    30,
+    28,
+    54,
+    27,
+    15,
+    13,
+    14,
+    15,
+    10
+   ],
+   "ylim": [
+    0,
+    1000000
+   ],
+   "xlim": [
+    1989,
+    2025
+   ],
+   "y_label": "Reported cases",
+   "label_size": 28,
+   "points": false
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Reported cases of guinea worm disease",
+    "authors": "Our World in Data, from the World Health Organization (2026)",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/number-of-reported-guinea-worm-dracunculiasis-cases",
+    "finding": "reported human cases worldwide: 892,055 in 1989, 75,223 in 2000, 22 in 2015, 15 in 2024, 10 in 2025"
+   },
+   {
+    "id": "carter",
+    "title": "10 Guinea Worm Cases Reported Last Year, Lowest on Record",
+    "authors": "The Carter Center",
+    "year": 2026,
+    "url": "https://www.cartercenter.org/stories/10-guinea-worm-cases-reported-last-year-lowest-on-record/",
+    "finding": "an estimated 3.5 million cases a year in 21 countries in 1986; 10 human cases in 2025; no vaccine or medicine; would be the first parasitic disease eradicated; the worm also infects animals, mostly dogs in Chad, which must also reach zero before eradication can be certified"
+   }
+  ],
+  "elements": [
+   {
+    "id": "worm",
+    "type": "icon",
+    "of": "earth-worm",
+    "set": "game-icons",
+    "or": [
+     "worm"
+    ],
+    "icon_look": "picture",
+    "size": 300,
+    "x": 280,
+    "y": 440,
+    "style": {
+     "color": "#8f6b4e"
+    }
+   },
+   {
+    "id": "y86",
+    "type": "text",
+    "text": "1986: 3.5 million",
+    "font_size": 58,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 700,
+    "y": 520,
+    "cites": [
+     "carter"
+    ]
+   },
+   {
+    "id": "water",
+    "type": "icon",
+    "of": "droplet",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 110,
+    "x": 600,
+    "y": 400
+   },
+   {
+    "id": "water_l",
+    "type": "text",
+    "text": "in the water",
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 780,
+    "y": 400
+   },
+   {
+    "id": "metre",
+    "type": "text",
+    "text": "up to 1 m long",
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 700,
+    "y": 290
+   },
+   {
+    "id": "est",
+    "type": "text",
+    "text": "1986 estimate: 3.5 m ↑",
+    "font_size": 40,
+    "style": {
+     "color": "#5e584e"
+    },
+    "x": 470,
+    "y": 560,
+    "cites": [
+     "carter"
+    ]
+   },
+   {
+    "id": "p00",
+    "type": "point",
+    "at": {
+     "data": [
+      2000,
+      75223
+     ]
+    },
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "y00",
+    "type": "text",
+    "text": "2000: 75,000",
+    "font_size": 44,
+    "style": {
+     "color": "#5e584e"
+    },
+    "at": {
+     "ref": "p00",
+     "side": "above-right",
+     "gap": 40
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "p15",
+    "type": "point",
+    "at": {
+     "data": [
+      2015,
+      22
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "y15",
+    "type": "text",
+    "text": "2015: 22",
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ],
+    "x": 310,
+    "y": 235
+   },
+   {
+    "id": "p24",
+    "type": "point",
+    "at": {
+     "data": [
+      2024,
+      15
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "y24",
+    "type": "text",
+    "text": "Dec 2024: Carter dies",
+    "font_size": 38,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ],
+    "x": 700,
+    "y": 530
+   },
+   {
+    "id": "p25",
+    "type": "point",
+    "at": {
+     "data": [
+      2025,
+      10
+     ]
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "y25",
+    "type": "text",
+    "text": "2025: 10",
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ],
+    "x": 760,
+    "y": 420
+   },
+   {
+    "id": "filt",
+    "type": "icon",
+    "of": "potable water",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 240,
+    "y": 580
+   },
+   {
+    "id": "filt_l",
+    "type": "text",
+    "text": "cloth filters",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 250,
+    "y": 480
+   },
+   {
+    "id": "dogs",
+    "type": "icon",
+    "of": "dog face",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 110,
+    "x": 240,
+    "y": 580
+   },
+   {
+    "id": "dogs_l",
+    "type": "text",
+    "text": "dogs, too (Chad)",
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 270,
+    "y": 480,
+    "cites": [
+     "carter"
+    ]
+   },
+   {
+    "id": "sp",
+    "type": "text",
+    "text": "smallpox ✓",
+    "font_size": 52,
+    "style": {
+     "color": "#5e584e"
+    },
+    "x": 720,
+    "y": 630
+   },
+   {
+    "id": "gw",
+    "type": "text",
+    "text": "guinea worm ☐",
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 720,
+    "y": 550
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Guinea worm: how many cases now?"
+    }
+   },
+   {
+    "draw": [
+     "worm",
+     "y86"
+    ],
+    "speak": "In 1986, guinea worm infected about three and a half million people a year. How many human cases were left in 2025?"
+   },
+   {
+    "draw": [
+     "water",
+     "water_l"
+    ],
+    "speak": "People catch it from drinking water, by swallowing tiny fleas that carry its larvae."
+   },
+   {
+    "draw": [
+     "metre"
+    ],
+    "speak": "A year later, a worm up to a metre long breaks out through the skin."
+   },
+   {
+    "erase": [
+     "water",
+     "water_l",
+     "metre",
+     "y86",
+     "worm"
+    ]
+   },
+   {
+    "quiz": {
+     "question": "Tap your answer.",
+     "choices": [
+      "About 10",
+      "About 10,000",
+      "About a million"
+     ],
+     "correct": 1,
+     "on_canvas": true,
+     "reveal": {
+      "text": "10 cases",
+      "size": 70
+     },
+     "right": "About ten: ten human cases in the whole world, the lowest ever recorded.",
+     "wrong": "Think smaller: the campaign has run for forty years."
+    }
+   },
+   {
+    "erase": [
+     "reveal_1_stamp"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "line_1",
+     "est"
+    ],
+    "speak": "Here are the reported cases since 1989: almost nine hundred thousand that year, fewer than the estimates, but the same story."
+   },
+   {
+    "draw": [
+     "p00",
+     "y00"
+    ],
+    "speak": "By 2000, about seventy-five thousand."
+   },
+   {
+    "erase": [
+     "p00",
+     "y00",
+     "est"
+    ]
+   },
+   {
+    "animate": {
+     "xlim.0": 2015,
+     "ylim.1": 70
+    },
+    "duration": 2.5,
+    "speak": "Now zoom right in on the last ten years."
+   },
+   {
+    "draw": [
+     "p15",
+     "y15",
+     "p25",
+     "y25"
+    ],
+    "speak": "Twenty-two cases in 2015. Ten in 2025."
+   },
+   {
+    "draw": [
+     "filt",
+     "filt_l"
+    ],
+    "speak": "No vaccine, no medicine. Just cloth filters, clean water, and keeping people with a worm out of ponds."
+   },
+   {
+    "erase": [
+     "filt",
+     "filt_l"
+    ]
+   },
+   {
+    "draw": [
+     "p24",
+     "y24"
+    ],
+    "speak": "Jimmy Carter's foundation led the fight from 1986. He hoped to outlive the last worm, and died in December 2024."
+   },
+   {
+    "draw": [
+     "dogs",
+     "dogs_l"
+    ],
+    "speak": "The catch: the worm also infects dogs, mostly in Chad, and they must reach zero too."
+   },
+   {
+    "erase": [
+     "dogs",
+     "dogs_l"
+    ]
+   },
+   {
+    "erase": [
+     "y24"
+    ]
+   },
+   {
+    "draw": [
+     "sp",
+     "gw"
+    ],
+    "speak": "If they do, guinea worm will be only the second human disease ever wiped out, and the first without a vaccine or a cure."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "w",
+     "type": "icon",
+     "of": "earth-worm",
+     "set": "game-icons",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 230,
+     "y": 460,
+     "or": [
+      "worm"
+     ]
+    },
+    {
+     "id": "a",
+     "type": "text",
+     "text": "3,500,000",
+     "x": 650,
+     "y": 560,
+     "font_size": 100,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "ar",
+     "type": "arrow",
+     "from": {
+      "x": 650,
+      "y": 490
+     },
+     "to": {
+      "x": 650,
+      "y": 400
+     },
+     "style": {
+      "color": "#2f2b26",
+      "stroke_width": 6
+     }
+    },
+    {
+     "id": "b",
+     "type": "text",
+     "text": "?",
+     "x": 650,
+     "y": 310,
+     "font_size": 150,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Where did they all go?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "s1",
+     "type": "icon",
+     "of": "syringe",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 200,
+     "y": 500
+    },
+    {
+     "id": "x1",
+     "type": "path",
+     "points": [
+      [
+       110,
+       410
+      ],
+      [
+       290,
+       590
+      ]
+     ],
+     "style": {
+      "color": "#b5482e",
+      "stroke_width": 14
+     }
+    },
+    {
+     "id": "s2",
+     "type": "icon",
+     "of": "pill",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 500,
+     "y": 500
+    },
+    {
+     "id": "x2",
+     "type": "path",
+     "points": [
+      [
+       410,
+       410
+      ],
+      [
+       590,
+       590
+      ]
+     ],
+     "style": {
+      "color": "#b5482e",
+      "stroke_width": 14
+     }
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "nearly gone?",
+     "x": 350,
+     "y": 300,
+     "font_size": 90,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "No vaccine. No cure."
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "HOW?",
+     "x": 830,
+     "y": 560,
+     "angle": 10
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "sp",
+     "type": "text",
+     "text": "Smallpox",
+     "x": 280,
+     "y": 580,
+     "font_size": 90,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "ck",
+     "type": "text",
+     "text": "gone",
+     "x": 640,
+     "y": 580,
+     "font_size": 90,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "gw",
+     "type": "text",
+     "text": "Guinea worm",
+     "x": 280,
+     "y": 380,
+     "font_size": 90,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "bx",
+     "type": "text",
+     "text": "?",
+     "x": 640,
+     "y": 380,
+     "font_size": 140,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Next to be wiped out?"
+    }
+   ]
+  }
+ ]
+}

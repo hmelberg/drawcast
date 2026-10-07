@@ -1,0 +1,20 @@
+{
+ "file": "leaded-petrol.json",
+ "title": "When did the last country stop selling leaded petrol?",
+ "subtitle": "Guess the year the last country stopped selling leaded petrol, then see how long the world took, what it did for children, and who invented it.",
+ "format": "quiz",
+ "tags": [
+  "health",
+  "history",
+  "chemistry"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "1",
+ "form": "ask on a scale (click the year on a timeline); dialogue: b guesses wrong out loud, then supplies the twist",
+ "owid": "https://ourworldindata.org/data-insights/every-country-has-now-banned-the-use-of-leaded-gasoline-in-cars",
+ "notes": "Review fixes: axis 1900-2030; pump smaller; b reacts after Algeria; 'You' guess marker still vanishes at the reveal even with after: keep (engine); blood-lead fall drawn as an arrow from 1978 to 2016 above the timeline; Midgley named by a before b reacts; closing scene pump - chemist - spray can. Scale tick numbers stay small (font_size on scale no visible effect). Midgley facts from Wikipedia."
+}

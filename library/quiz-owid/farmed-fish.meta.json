@@ -1,0 +1,20 @@
+{
+ "file": "farmed-fish.json",
+ "title": "How much of the world's seafood is farmed?",
+ "subtitle": "Draw how fish farming grew after 1990 beside the wild catch, then see why it took over: the sea's catch hit a ceiling decades ago.",
+ "format": "quiz",
+ "tags": [
+  "food",
+  "earth",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "2",
+ "form": "ask on a line chart (draw the farmed line on from 1990, beside the wild catch)",
+ "owid": "https://ourworldindata.org/grapher/capture-fisheries-vs-aquaculture",
+ "notes": "Chart in million tonnes (OWID: FAO via World Bank; aquaculture includes molluscs, crustaceans and aquatic plants): farmed 17 Mt (1990) → 141 Mt (2024), passing the wild catch (~90–96 Mt since the mid-1990s) in 2013; farmed share 60% counting seaweed. Animals-only figure from FAO SOFIA 2024 (51% in 2022), said as 'passed the half-way mark in 2022'. The farmed line is staged (1960–1990 drawn before the ask). Review fix round: tonnes view instead of % chart, seaweed said up front, 'servings' dropped."
+}

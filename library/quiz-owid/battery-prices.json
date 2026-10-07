@@ -1,0 +1,390 @@
+{
+ "request": "Battery prices since 1991: four claims, true or myth? A two-voice quiz. #interactive #short",
+ "subtitle": "Four claims about lithium-ion batteries, true or myth? Two hosts argue each one, then the price of an electric car's battery in 1991.",
+ "thumb": "band \"Ten times cheaper? Not even close\" stamp \"MYTH?\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "car",
+     "type": "icon",
+     "of": "automobile",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 330,
+     "x": 290,
+     "y": 450
+    },
+    {
+     "id": "t1",
+     "type": "text",
+     "text": "its battery",
+     "x": 720,
+     "y": 520,
+     "font_size": 64,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "text",
+     "text": "in 1991: $?",
+     "x": 720,
+     "y": 400,
+     "font_size": 80,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Your car battery, 1991 prices"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "bat",
+     "type": "icon",
+     "of": "battery",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 280,
+     "y": 440
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "10× cheaper?",
+     "x": 700,
+     "y": 470,
+     "font_size": 84,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "s",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "MYTH?",
+     "x": 720,
+     "y": 330,
+     "angle": 8
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "True or myth?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "sn",
+     "type": "icon",
+     "of": "snail",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 500,
+     "y": 430
+    },
+    {
+     "id": "qm",
+     "type": "thumb",
+     "kind": "star",
+     "text": "?",
+     "x": 850,
+     "y": 560
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "question",
+     "text": "When did batteries get cheap fastest?"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "Battery prices since 1991: true or myth?",
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Battery costs have declined by 99% in the last three decades, making electrified transport a reality",
+    "authors": "Hannah Ritchie and Pablo Rosado (Our World in Data)",
+    "year": 2026,
+    "url": "https://ourworldindata.org/battery-price-decline",
+    "finding": "lithium-ion cells cost about $9,200 per kWh in 1991 and $78 in 2024, a fall of more than 99%; cumulative production grew 27 million-fold 1991–2023; the cells in a standard electric car cost around $5,000 today and would have cost over $20,000 a decade earlier"
+   },
+   {
+    "id": "zt",
+    "title": "Re-examining rates of lithium-ion battery technology improvement and cost decline",
+    "authors": "M. S. Ziegler and J. E. Trancik",
+    "year": 2021,
+    "finding": "the price of lithium-ion cells fell about 97% from 1991 to 2018"
+   }
+  ],
+  "feedback": {
+   "style": "dry",
+   "perfect": "You could run a battery factory.",
+   "good": "Sharper than our co-host.",
+   "poor": "Batteries fool almost everyone.",
+   "none": "The myths had a full charge today."
+  },
+  "affirm": "playful",
+  "elements": [
+   {
+    "id": "claims",
+    "type": "sequence",
+    "size": 270,
+    "show_upcoming": "dots",
+    "items": [
+     {
+      "icon": {
+       "of": "battery",
+       "set": "twemoji"
+      },
+      "label": "10× cheaper?",
+      "mark": {
+       "text": "Myth",
+       "color": "#b5482e"
+      }
+     },
+     {
+      "icon": {
+       "of": "factory",
+       "set": "twemoji"
+      },
+      "label": "Cheaper by making more?",
+      "mark": {
+       "text": "True",
+       "color": "#2f6b8f"
+      }
+     },
+     {
+      "icon": {
+       "of": "snail",
+       "set": "twemoji"
+      },
+      "label": "Fastest fall: 1990s?",
+      "mark": {
+       "text": "Myth",
+       "color": "#b5482e"
+      }
+     },
+     {
+      "icon": {
+       "of": "automobile",
+       "set": "twemoji"
+      },
+      "label": "Car cells: $5,000?",
+      "mark": {
+       "text": "True",
+       "color": "#2f6b8f"
+      }
+     }
+    ],
+    "at": {
+     "y": 455
+    }
+   },
+   {
+    "id": "car",
+    "type": "icon",
+    "of": "automobile",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 280,
+    "x": 220,
+    "y": 430
+   },
+   {
+    "id": "k1991",
+    "type": "text",
+    "text": "1991: $600,000",
+    "x": 640,
+    "y": 480,
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "know",
+    "type": "text",
+    "text": "today: $5,000",
+    "x": 640,
+    "y": 370,
+    "font_size": 64,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Batteries since 1991: true or myth?"
+    }
+   },
+   {
+    "draw": [
+     "claims_dot_1",
+     "claims_dot_2",
+     "claims_dot_3",
+     "claims_dot_4"
+    ],
+    "parallel": true,
+    "voice": "a",
+    "speak": "How much cheaper have lithium-ion batteries, the ones in our phones and cars, become since 1991? Four claims: true or myth?"
+   },
+   {
+    "draw": [
+     "claims_1"
+    ],
+    "voice": "b",
+    "speak": "First: they're about ten times cheaper than in 1991. Sounds right to me."
+   },
+   {
+    "quiz": {
+     "question": "Lithium-ion batteries are about ten times cheaper than in 1991. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "on_canvas": true,
+     "reveal": {
+      "text": "MYTH: 100×+",
+      "at": {
+       "x": 790,
+       "y": 540
+      },
+      "size": 40
+     },
+     "right": "Myth: more than a hundred times cheaper, from about nine thousand two hundred dollars per kilowatt-hour in 1991 to seventy-eight in 2024."
+    }
+   },
+   {
+    "draw": [
+     "claims_2"
+    ],
+    "voice": "b",
+    "speak": "Fine. Second: they got cheaper because we made so many of them."
+   },
+   {
+    "quiz": {
+     "question": "Batteries got cheaper mainly because the world made more of them. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 1,
+     "on_canvas": true,
+     "reveal": {
+      "text": "TRUE: ×27M",
+      "at": {
+       "x": 790,
+       "y": 540
+      },
+      "size": 40
+     },
+     "right": "True. Production grew twenty-seven million times, and the more the world made, the cheaper each one got."
+    }
+   },
+   {
+    "draw": [
+     "claims_3"
+    ],
+    "voice": "b",
+    "speak": "Then the price must have crashed fastest at the start, in the early nineties."
+   },
+   {
+    "quiz": {
+     "question": "Battery prices fell fastest in the early 1990s. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 2,
+     "on_canvas": true,
+     "reveal": {
+      "text": "MYTH: slow start",
+      "at": {
+       "x": 790,
+       "y": 540
+      },
+      "size": 40
+     },
+     "right": "Myth. The early years were slow: the market was tiny, and one company, Sony, held most of the technology."
+    }
+   },
+   {
+    "draw": [
+     "claims_4"
+    ],
+    "voice": "b",
+    "speak": "Last one: the battery cells in an electric car cost about five thousand dollars today."
+   },
+   {
+    "quiz": {
+     "question": "The battery cells in a standard electric car cost about $5,000 today. True or myth?",
+     "choices": [
+      "True",
+      "Myth"
+     ],
+     "correct": 1,
+     "on_canvas": true,
+     "reveal": {
+      "text": "TRUE: ~$5,000",
+      "at": {
+       "x": 790,
+       "y": 540
+      },
+      "size": 40
+     },
+     "right": "True. Only ten years ago, the same cells cost over twenty thousand."
+    }
+   },
+   {
+    "draw": [
+     "claims_strip"
+    ],
+    "voice": "b",
+    "speak": "You got {score} of {score_total}. So what would my car's battery have cost in 1991?"
+   },
+   {
+    "erase": [
+     "claims",
+     "claims_strip",
+     "claims_1_mark",
+     "claims_2_mark",
+     "claims_3_mark",
+     "claims_4_mark"
+    ]
+   },
+   {
+    "draw": [
+     "car",
+     "k1991",
+     "know"
+    ],
+    "voice": "a",
+    "speak": "Close to six hundred thousand dollars, more than the car itself. That's what a ninety-nine percent fall buys you.",
+    "cue": 0.1
+   }
+  ]
+ }
+}

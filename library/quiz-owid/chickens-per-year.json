@@ -1,0 +1,758 @@
+{
+ "request": "How many chickens are slaughtered for meat each year? A two-voice podcast: let me set my guess on a slider, then make the number graspable per person and per second. #interactive #short",
+ "subtitle": "Two hosts guess how many chickens are killed for meat each year, then shrink the answer to a size you can feel: per person and per second.",
+ "thumb": "band \"Count the chickens\" note \"per second?\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "n",
+     "type": "text",
+     "text": "? billion a year",
+     "x": 500,
+     "y": 170,
+     "font_size": 96,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "ch",
+     "type": "icon",
+     "of": "chicken",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 330,
+     "x": 640,
+     "y": 430
+    },
+    {
+     "id": "t1",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Count the chickens"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "clock",
+     "type": "icon",
+     "of": "stopwatch",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 280,
+     "y": 460
+    },
+    {
+     "id": "eq",
+     "type": "text",
+     "text": "1 second =",
+     "x": 680,
+     "y": 540,
+     "font_size": 64
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "? chickens",
+     "x": 680,
+     "y": 420,
+     "font_size": 84,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Every second, how many?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "c1",
+     "type": "icon",
+     "of": "chicken",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 140,
+     "x": 170,
+     "y": 470
+    },
+    {
+     "id": "c2",
+     "type": "icon",
+     "of": "chicken",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 140,
+     "x": 330,
+     "y": 470
+    },
+    {
+     "id": "c3",
+     "type": "icon",
+     "of": "chicken",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 140,
+     "x": 490,
+     "y": 470
+    },
+    {
+     "id": "pig",
+     "type": "icon",
+     "of": "pig face",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 140,
+     "x": 690,
+     "y": 470
+    },
+    {
+     "id": "cow",
+     "type": "icon",
+     "of": "cow face",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 140,
+     "x": 850,
+     "y": 470
+    },
+    {
+     "id": "s",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "COUNT AGAIN",
+     "x": 330,
+     "y": 640,
+     "angle": 8
+    },
+    {
+     "id": "t3",
+     "type": "thumb",
+     "kind": "band",
+     "text": "The farm animal we count wrong"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "How many chickens are slaughtered for meat each year?",
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Yearly number of animals slaughtered for meat",
+    "authors": "Our World in Data, from FAO (2025)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/animals-slaughtered-for-meat",
+    "finding": "about 78.5 billion chickens slaughtered for meat worldwide in 2024 (6.6 billion in 1961); also 4.2 billion ducks, 1.5 billion pigs, 0.7 billion sheep, 0.6 billion goats, 0.5 billion turkeys, 0.3 billion cattle — chickens ≈ 91% of the total"
+   }
+  ],
+  "elements": [
+   {
+    "id": "hen",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 300,
+    "x": 500,
+    "y": 430
+   },
+   {
+    "id": "r0",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 84,
+    "x": 95,
+    "y": 440
+   },
+   {
+    "id": "r1",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 84,
+    "x": 185,
+    "y": 440
+   },
+   {
+    "id": "r2",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 84,
+    "x": 275,
+    "y": 440
+   },
+   {
+    "id": "r3",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 84,
+    "x": 365,
+    "y": 440
+   },
+   {
+    "id": "r4",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 84,
+    "x": 455,
+    "y": 440
+   },
+   {
+    "id": "r5",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 84,
+    "x": 545,
+    "y": 440
+   },
+   {
+    "id": "r6",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 84,
+    "x": 635,
+    "y": 440
+   },
+   {
+    "id": "r7",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 84,
+    "x": 725,
+    "y": 440
+   },
+   {
+    "id": "r8",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 84,
+    "x": 815,
+    "y": 440
+   },
+   {
+    "id": "r9",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 84,
+    "x": 905,
+    "y": 440
+   },
+   {
+    "id": "person",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 500,
+    "y": 580
+   },
+   {
+    "id": "pp",
+    "type": "text",
+    "text": "≈ 10 chickens each, every year",
+    "x": 500,
+    "y": 300,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "clock",
+    "type": "icon",
+    "of": "stopwatch",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 230,
+    "x": 290,
+    "y": 430
+   },
+   {
+    "id": "ps",
+    "type": "text",
+    "text": "≈ 2,500",
+    "x": 690,
+    "y": 470,
+    "font_size": 84,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "ps2",
+    "type": "text",
+    "text": "every second",
+    "x": 690,
+    "y": 370,
+    "font_size": 46,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "c61",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 110,
+    "x": 190,
+    "y": 430
+   },
+   {
+    "id": "l61",
+    "type": "text",
+    "text": "1961",
+    "x": 190,
+    "y": 320,
+    "font_size": 48,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "x12",
+    "type": "text",
+    "text": "×12",
+    "x": 360,
+    "y": 440,
+    "font_size": 72,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "g0",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 520,
+    "y": 560
+   },
+   {
+    "id": "g1",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 630,
+    "y": 560
+   },
+   {
+    "id": "g2",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 740,
+    "y": 560
+   },
+   {
+    "id": "g3",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 850,
+    "y": 560
+   },
+   {
+    "id": "g4",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 520,
+    "y": 450
+   },
+   {
+    "id": "g5",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 630,
+    "y": 450
+   },
+   {
+    "id": "g6",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 740,
+    "y": 450
+   },
+   {
+    "id": "g7",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 850,
+    "y": 450
+   },
+   {
+    "id": "g8",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 520,
+    "y": 340
+   },
+   {
+    "id": "g9",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 630,
+    "y": 340
+   },
+   {
+    "id": "g10",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 740,
+    "y": 340
+   },
+   {
+    "id": "g11",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 850,
+    "y": 340
+   },
+   {
+    "id": "lnow",
+    "type": "text",
+    "text": "2024",
+    "x": 685,
+    "y": 250,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "q10",
+    "type": "text",
+    "text": "?",
+    "x": 905,
+    "y": 440,
+    "font_size": 90,
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "duck",
+    "type": "icon",
+    "of": "duck",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 84,
+    "x": 905,
+    "y": 440
+   },
+   {
+    "id": "nine",
+    "type": "text",
+    "text": "9 in 10 land animals killed for meat",
+    "x": 500,
+    "y": 300,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "rare",
+    "type": "text",
+    "text": "pigs + cattle: 1 in 50",
+    "x": 500,
+    "y": 580,
+    "font_size": 44,
+    "style": {
+     "color": "#8f887c"
+    },
+    "cites": [
+     "owid"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How many chickens a year?"
+    }
+   },
+   {
+    "draw": [
+     "hen"
+    ],
+    "voice": "a",
+    "speak": "How many chickens are killed for meat around the world every year? You and my co-host both get a guess."
+   },
+   {
+    "hide": [
+     "hen"
+    ]
+   },
+   {
+    "ask": {
+     "question": "Set your guess, in billions of chickens a year.",
+     "estimate": {
+      "min": 1,
+      "max": 1000,
+      "value": 78,
+      "unit": "billion",
+      "log": true
+     },
+     "store": "g",
+     "default": "100",
+     "relative": true,
+     "tolerance": 0.3,
+     "right": "Close: you said {g} billion, and it is about {g.true} billion.",
+     "wrong": "You said {g} billion. It is about {g.true} billion."
+    }
+   },
+   {
+    "speak": "I put a hundred billion, so I overshot. But seventy-eight billion, with only eight billion people?",
+    "voice": "b",
+    "highlight": {
+     "target": [
+      "estimate_1"
+     ]
+    }
+   },
+   {
+    "erase": [
+     "estimate_1"
+    ]
+   },
+   {
+    "draw": [
+     "person",
+     "r0",
+     "r1",
+     "r2",
+     "r3",
+     "r4",
+     "r5",
+     "r6",
+     "r7",
+     "r8",
+     "r9",
+     "pp"
+    ],
+    "parallel": true,
+    "voice": "a",
+    "speak": "Yes: that's nearly ten chickens for every person on Earth, every year."
+   },
+   {
+    "highlight": {
+     "target": [
+      "r0",
+      "r1",
+      "r2",
+      "r3",
+      "r4",
+      "r5",
+      "r6",
+      "r7",
+      "r8",
+      "r9"
+     ]
+    },
+    "voice": "b",
+    "speak": "Ten? Then someone's been eating mine."
+   },
+   {
+    "erase": [
+     "person",
+     "pp",
+     "r0",
+     "r1",
+     "r2",
+     "r3",
+     "r4",
+     "r5",
+     "r6",
+     "r7",
+     "r8",
+     "r9"
+    ]
+   },
+   {
+    "draw": [
+     "clock",
+     "ps",
+     "ps2"
+    ],
+    "voice": "a",
+    "speak": "Some eat none, some far more. Counted per second, it's about two and a half thousand, day and night."
+   },
+   {
+    "erase": [
+     "clock",
+     "ps",
+     "ps2"
+    ]
+   },
+   {
+    "draw": [
+     "c61",
+     "l61",
+     "x12",
+     "g0",
+     "g1",
+     "g2",
+     "g3",
+     "g4",
+     "g5",
+     "g6",
+     "g7",
+     "g8",
+     "g9",
+     "g10",
+     "g11",
+     "lnow"
+    ],
+    "parallel": true,
+    "voice": "a",
+    "speak": "And it keeps climbing. In 1961 it was six and a half billion; now, twelve times as many."
+   },
+   {
+    "erase": [
+     "c61",
+     "l61",
+     "x12",
+     "lnow",
+     "g0",
+     "g1",
+     "g2",
+     "g3",
+     "g4",
+     "g5",
+     "g6",
+     "g7",
+     "g8",
+     "g9",
+     "g10",
+     "g11"
+    ]
+   },
+   {
+    "draw": [
+     "r0",
+     "r1",
+     "r2",
+     "r3",
+     "r4",
+     "r5",
+     "r6",
+     "r7",
+     "r8",
+     "q10",
+     "nine"
+    ],
+    "parallel": true,
+    "voice": "a",
+    "speak": "Of all the land animals killed for meat, about nine in ten are chickens."
+   },
+   {
+    "highlight": {
+     "target": [
+      "q10"
+     ]
+    },
+    "voice": "b",
+    "speak": "And the tenth? Cows? Pigs?"
+   },
+   {
+    "erase": [
+     "q10"
+    ]
+   },
+   {
+    "draw": [
+     "duck",
+     "rare"
+    ],
+    "voice": "a",
+    "speak": "Mostly ducks. Pigs and cattle together are only about one in fifty."
+   },
+   {
+    "highlight": {
+     "target": [
+      "duck"
+     ],
+     "effect": "circle"
+    },
+    "voice": "b",
+    "speak": "So when we say farm animals, we really mean birds."
+   }
+  ]
+ }
+}

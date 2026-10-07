@@ -1,0 +1,20 @@
+{
+ "file": "space-launches.json",
+ "title": "Which sent more into space: one year, or the whole space age?",
+ "subtitle": "Tap the bigger of three space-age pairs, then watch sixty flat years of launches shoot up, and meet the one project behind most of it.",
+ "format": "quiz",
+ "tags": [
+  "astronomy",
+  "data",
+  "history of science"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "5 (duel) + 6 (no up-front guess: b reacts at the reveal and jokes at each twist; b closes)",
+ "form": "cards compare (higher or lower)",
+ "owid": "https://ourworldindata.org/grapher/yearly-number-of-objects-launched-into-outer-space",
+ "notes": "Brief's claim (2023 > all of 1957–2000) fails on OWID: 2025 = 4,510 vs 5,408 for 1957–2000, so the second pair is a deliberate 'lower'. Compare cards came out small at engine size (auto); size 1.7 + y 500 used so they read. Pairs cannot reuse one item (the shared card is drawn once, its partner row breaks), so '2025 alone' is two items. A region needs two curves, so the since-2020 band is a data polygon. Single-series end label 'Objects' cannot be removed. Review round: winners glow after the answer; cumulative twist drawn as the shaded 1957–2000 area vs a 2025 column; Starlink/64 % beside the since-2020 band; series name 'Launches' (a blank name renders 'Series 1')."
+}

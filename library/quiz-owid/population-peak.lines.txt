@@ -1,0 +1,16 @@
+a: When will the world's population stop growing? Since 1950 it has more than tripled, to eight point two billion. Your guess, and my co-host's.
+b: Easy, I'll go first: it never stops. Twenty-two hundred, at the earliest.
+[ASK] Click on the line where you think the peak comes.
+  [right] Close: you said {y}, and the UN says {y.true}.
+  [wrong] You said {y}; the UN's answer is {y.true}.
+a: Sorry. The UN's projection says 2084.
+b: Fine. But at the top it'll be huge. Fifteen billion?
+[ASK] And how many people at the peak? Drag the slider.
+  [right] Close: you said {p} billion, and it is about {p.true}.
+  [wrong] You said {p} billion; it is about {p.true}.
+a: Ten point three, so two billion more than today. After the peak, a slow decline.
+b: But people have fewer kids now. Why does it keep growing?
+a: They do. In fact the number of children under five already peaked, back in 2017.
+b: Wait. Fewer babies, but more people?
+a: Yes: today's children still have to grow up, and more of us live to old age. The total catches up later.
+b: So the babies peaked first, and the rest of us follow in 2084. I was off by a century.

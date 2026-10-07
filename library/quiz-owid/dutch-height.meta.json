@@ -1,0 +1,20 @@
+{
+ "file": "dutch-height.json",
+ "title": "The Dutch are the world's tallest men. How tall were they a century earlier?",
+ "subtitle": "Guess how tall Dutch men born in 1896 were, then where they ranked back then, and what made a whole nation grow 13 centimetres.",
+ "format": "quiz",
+ "tags": [
+  "health",
+  "history",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "7",
+ "form": "ask on a scale (click the number line), then a quiz",
+ "owid": "https://ourworldindata.org/grapher/average-height-of-men",
+ "notes": "Dialogue where a quizzes b and the viewer together (b guesses 175 out loud, b asks the cheese question, b closes with the joke). OWID/NCD-RisC: Dutch men born 1896 169.4 cm (12th of 200; Sweden 171.9, Norway 171.2, US 171.1 taller), born 1996 182.5 cm (1st); US 177.1 cm for both 1950 and 1996 cohorts; Iran +16.5 cm, the largest gain. Brief said 15-20 cm; OWID gives about 13 cm. Payoff picture: three men drawn to scale (icon size proportional to height). Scale ticks are small (engine). Review round: heading now 'How tall were Dutch men born in 1896?'; scale 150-200 so the starting marker (175) is not near the answer; quiz choices 1st/4th/12th/20th, '12th' stamped on the 1896 man; US 1896 (171) and US now (177) drawn as men to scale on one baseline with dashed head lines and '+13 cm'; Iran twist as two growth bars (+13 vs +16.5). Engine: the quiz card covers the figure while it is open."
+}

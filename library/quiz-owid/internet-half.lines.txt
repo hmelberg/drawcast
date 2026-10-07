@@ -1,0 +1,11 @@
+In what year did half of the world's people first use the internet?
+[ASK] Click on the line where you think it is.
+  [right] Close: you said {y}, and it was {y.true}.
+  [wrong] You said {y}; it was {y.true}.
+Only in 2019. As late as 2005, it was about one person in six.
+And today? Picture the world as a hundred people. About seventy-four are online.
+Which leaves the second question: who are the other twenty-six? More than two billion people.
+They are not spread evenly. In rich countries, ninety-four in a hundred are online.
+In the poorest countries, twenty-three.
+That is where the whole world stood in 2008. The second half of the internet is still arriving.
+And these seventy-seven are the people it's arriving for.

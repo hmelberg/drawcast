@@ -1,0 +1,20 @@
+{
+ "file": "alcohol-top.json",
+ "title": "Which country drinks the most alcohol per adult?",
+ "subtitle": "Pick the country whose adults drink the most from four suspects, then see how France, Russia, Uganda and the world average compare.",
+ "format": "quiz",
+ "tags": [
+  "health",
+  "geography",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "4",
+ "form": "choose on the figure (tap a drawn flag)",
+ "owid": "https://ourworldindata.org/grapher/total-alcohol-consumption-per-capita-litres-of-pure-alcohol",
+ "notes": "Two figures in turn: four flags for the choice, then the bar chart (Saudi Arabia 0 to Romania 17, litres per adult 15+, 2020 = latest on OWID). Bar chart flags and tick labels stay small (template)."
+}

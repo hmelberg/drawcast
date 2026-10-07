@@ -1,0 +1,20 @@
+{
+ "file": "guinea-worm.json",
+ "title": "Guinea worm infected millions a year. How many human cases were there in 2025?",
+ "subtitle": "Guinea worm infected millions a year in 1986. Guess how many cases were left in 2025, then see how it fell without a vaccine or a cure.",
+ "format": "quiz",
+ "level": "standard",
+ "lang": "en",
+ "verdict": "keep",
+ "tags": [
+  "health",
+  "epidemiology",
+  "history"
+ ],
+ "score": 4,
+ "dialogue": false,
+ "shape": "2",
+ "form": "quiz, multiple choice as on-canvas buttons with reveal stamp",
+ "owid": "https://ourworldindata.org/grapher/number-of-reported-guinea-worm-dracunculiasis-cases",
+ "notes": "OWID data run to 2025: 10 human cases (brief had 14 in 2023). 3.5 million in 1986 is the Carter Center estimate, shown as an off-chart estimate beside the reported series. Review round 2026-10-07: chart zooms (animate xlim.0 2015, ylim.1 70) so 22/15/10 sit at their dots; filter, Carter, dogs-in-Chad caveat and a smallpox-done / guinea-worm-open pair each drawn on their line; long lines trimmed; plainer worm (game-icons earth-worm); reveal stamp erased after the quiz (reveal_1_stamp). Left: quiz buttons stay engine-sized (no size option for on-canvas buttons); the zoom leaves the clipped 2013-14 line as a vertical stroke at the left edge; last line idles ~7 s on the payoff."
+}

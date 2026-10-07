@@ -1,0 +1,15 @@
+(a) In which countries do women live longer than men? Here are six: rich and poor, hot and cold.
+(b) Russia, women for sure. But Nigeria? India? I'd bet men win somewhere in there.
+[ASK] Sort each country: who lives longer there?
+  [right] {f} of {f.total}. Women live longer in all six.
+  [wrong] {f} of {f.total} on the first try. Women win in every one of them.
+(a) In fact, today women outlive men in every country in the world.
+(a) By about five years on average.
+(a) But the gap varies a lot: under a year in Nigeria, almost twelve years in Russia.
+(b) Twelve years? That can't just be biology.
+(a) Some of it is. From their first week, baby boys are more fragile than girls.
+(a) Much of the rest is how men live: more smoking, more drinking, more accidents and violence.
+(a) And it wasn't always this way. Here are the same six countries in 1950.
+(b) Hold on. India's bar is below zero. Men lived longer there?
+(a) By a year and a half. And so did men in Pakistan, Iran and Bangladesh.
+(a) Today Indian women are three years ahead. So the gap is partly biology, and partly something societies can change.

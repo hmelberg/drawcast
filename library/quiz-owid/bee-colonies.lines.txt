@@ -1,0 +1,17 @@
+Do we need bees to eat? Four things people say about bees and our food: true, or myth?
+First: honeybee hives are vanishing around the world.
+[ASK] Tap True or Myth.
+  [right] Myth. Beekeepers kept about eighty-five percent more hives in 2017 than in 1961, thanks above all to Asia.
+Next: without bees, there would be no wheat, rice or maize.
+[ASK] Tap True or Myth.
+  [right] Myth. Wheat, rice and maize are pollinated by the wind or by themselves; they never needed an insect.
+Third: three in four of the leading food crops need pollinators.
+[ASK] Tap True or Myth.
+  [right] True. About three in four of the leading food crops depend on pollinators, at least in part: apples, almonds, coffee, melons.
+And last: without pollinators, chocolate would be in trouble.
+[ASK] Tap True or Myth.
+  [right] True. Cocoa cannot fruit without them, and its pollinators are not bees at all, but tiny flies called midges.
+You got {score} of {score_total}. Now the catch: think of all the food we grow, by weight.
+Only about a third of it comes from crops that need pollinators at all: fruit, nuts, coffee, cocoa.
+Lose every pollinator, and studies estimate food production would fall by about five to eight percent.
+No famine, then, but a poorer plate, and poorer farmers where those crops are grown.

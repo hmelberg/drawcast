@@ -1,0 +1,20 @@
+{
+ "file": "poverty-headline.json",
+ "title": "How many people left extreme poverty every day since 1990?",
+ "subtitle": "Guess how many people left extreme poverty on an average day since 1990, then see the headline no paper ran, and why it may soon stop.",
+ "format": "quiz",
+ "level": "standard",
+ "lang": "en",
+ "verdict": "keep",
+ "tags": [
+  "economics",
+  "data",
+  "history"
+ ],
+ "score": 4,
+ "dialogue": true,
+ "shape": "9 + 6",
+ "form": "estimate (counter slider)",
+ "owid": "https://ourworldindata.org/end-progress-extreme-poverty",
+ "notes": "Brief said ~130,000/day for 1990-2015; OWID (Roser 2025, $3 line) gives about 115,000 a day over the last 35 years, used here; the rise after 2030 is Roser quoting the World Bank projection. Review round 2026-10-07: log slider 10 to 1 million, headline written on the paper (? then 115,000 out of poverty today, blue), stadium larger, bars in millions, 2030? label, slow-news label instead of a point under the axis, newspaper back at the end. Bar chart cannot dash a forecast bar. Opening line idles ~6 s over the newspaper."
+}

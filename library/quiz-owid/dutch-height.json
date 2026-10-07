@@ -1,0 +1,617 @@
+{
+ "request": "The Dutch are the world's tallest men. How tall were they a century earlier? A two-voice quiz where I click my guess on a line. #interactive #short",
+ "subtitle": "Guess how tall Dutch men born in 1896 were, then where they ranked back then, and what made a whole nation grow 13 centimetres.",
+ "thumb": "band \"Were they always giants?\" note \"1896 vs 1996\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "flag",
+     "type": "icon",
+     "of": "flag netherlands",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 230,
+     "y": 470
+    },
+    {
+     "id": "now",
+     "type": "text",
+     "text": "1996: 182.5 cm",
+     "x": 660,
+     "y": 540,
+     "font_size": 80,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "then",
+     "type": "text",
+     "text": "1896: ?",
+     "x": 660,
+     "y": 380,
+     "font_size": 140,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Were they always giants?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "top",
+     "type": "text",
+     "text": "182.5 cm",
+     "x": 640,
+     "y": 520,
+     "font_size": 130,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "ar",
+     "type": "path",
+     "points": [
+      [
+       640,
+       450
+      ],
+      [
+       640,
+       360
+      ]
+     ],
+     "arrow": "end",
+     "style": {
+      "color": "#8f887c",
+      "stroke_width": 6
+     }
+    },
+    {
+     "id": "bot",
+     "type": "text",
+     "text": "? cm",
+     "x": 640,
+     "y": 260,
+     "font_size": 170,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "burst",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "100 years ago?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "trophy",
+     "type": "icon",
+     "of": "trophy",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 330,
+     "x": 480,
+     "y": 440
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Where did the Dutch rank in 1896?"
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "GUESS",
+     "x": 640,
+     "y": 230,
+     "angle": 8
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "The Dutch are the world's tallest men. How tall were they a century earlier?",
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Average height of men by year of birth",
+    "authors": "Our World in Data, from NCD-RisC (2016)",
+    "year": 2017,
+    "url": "https://ourworldindata.org/grapher/average-height-of-men",
+    "finding": "Dutch men born in 1996: 182.5 cm (tallest of 200 countries); born in 1896: 169.4 cm (12th, behind Sweden 171.9, Norway 171.2 and the US 171.1); US men 177.1 cm in both 1950 and 1996 cohorts; Iran grew most, +16.5 cm"
+   },
+   {
+    "id": "owid_height",
+    "title": "Human Height",
+    "authors": "Max Roser, Cameron Appel and Hannah Ritchie (Our World in Data)",
+    "year": 2019,
+    "url": "https://ourworldindata.org/human-height",
+    "finding": "over generations, better nutrition and less disease in childhood made people taller; the Netherlands is the tallest population"
+   },
+   {
+    "id": "ncd",
+    "title": "A century of trends in adult human height",
+    "authors": "NCD Risk Factor Collaboration (eLife)",
+    "year": 2016,
+    "finding": "mean height of adults born 1896–1996 in 200 countries"
+   }
+  ],
+  "elements": [
+   {
+    "id": "man",
+    "type": "icon",
+    "of": "man standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 220,
+    "x": 110,
+    "y": 400
+   },
+   {
+    "id": "flag",
+    "type": "icon",
+    "of": "flag netherlands",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 90,
+    "x": 110,
+    "y": 570
+   },
+   {
+    "id": "h",
+    "type": "scale",
+    "min": 150,
+    "max": 200,
+    "unit": "cm",
+    "value": 169.4,
+    "markers": [
+     {
+      "value": 182.5,
+      "label": "Dutch today"
+     }
+    ],
+    "x": 240,
+    "y": 400,
+    "width": 720,
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "bguess",
+    "type": "text",
+    "text": "co-host: 175?",
+    "x": 690,
+    "y": 310,
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "d1896",
+    "type": "icon",
+    "of": "man standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 334,
+    "x": 180,
+    "y": 407.0
+   },
+   {
+    "id": "d1896_l",
+    "type": "text",
+    "text": "NL 1896: 169",
+    "x": 180,
+    "y": 208,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "us96",
+    "type": "icon",
+    "of": "man standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 338,
+    "x": 393,
+    "y": 409.0
+   },
+   {
+    "id": "us96_l",
+    "type": "text",
+    "text": "US 1896: 171",
+    "x": 393,
+    "y": 208,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "us",
+    "type": "icon",
+    "of": "man standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 349,
+    "x": 607,
+    "y": 414.5
+   },
+   {
+    "id": "us_l",
+    "type": "text",
+    "text": "US now: 177",
+    "x": 607,
+    "y": 208,
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "d1996",
+    "type": "icon",
+    "of": "man standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 360,
+    "x": 820,
+    "y": 420.0
+   },
+   {
+    "id": "d1996_l",
+    "type": "text",
+    "text": "NL now: 182.5",
+    "x": 820,
+    "y": 208,
+    "font_size": 36,
+    "style": {
+     "color": "#2f2b26"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "top1",
+    "type": "path",
+    "points": [
+     [
+      60,
+      574
+     ],
+     [
+      960,
+      574
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "dash": true,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "top2",
+    "type": "path",
+    "points": [
+     [
+      60,
+      600
+     ],
+     [
+      960,
+      600
+     ]
+    ],
+    "style": {
+     "color": "#2f2b26",
+     "dash": true,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "grew",
+    "type": "text",
+    "text": "+13 cm",
+    "x": 500,
+    "y": 630,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "why",
+    "type": "text",
+    "text": "food + fewer infections",
+    "x": 500,
+    "y": 635,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_height"
+    ]
+   },
+   {
+    "id": "nlbar",
+    "type": "shape",
+    "shape": "rect",
+    "x": 474.5,
+    "y": 450,
+    "width": 429,
+    "height": 90,
+    "style": {
+     "color": "#2f2b26",
+     "fill": "#e8e2d6"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "nlbar_l",
+    "type": "text",
+    "text": "+13 cm",
+    "x": 779,
+    "y": 450,
+    "font_size": 44,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "irbar",
+    "type": "shape",
+    "shape": "rect",
+    "x": 532.25,
+    "y": 320,
+    "width": 544.5,
+    "height": 90,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#e9c4b8"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "irbar_l",
+    "type": "text",
+    "text": "+16.5 cm",
+    "x": 904.5,
+    "y": 320,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "nlf",
+    "type": "icon",
+    "of": "flag netherlands",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 90,
+    "x": 185,
+    "y": 450
+   },
+   {
+    "id": "irf",
+    "type": "icon",
+    "of": "flag iran",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 90,
+    "x": 185,
+    "y": 320
+   },
+   {
+    "id": "grow_t",
+    "type": "text",
+    "text": "growth, born 1896 → 1996",
+    "x": 500,
+    "y": 570,
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How tall were Dutch men born in 1896?"
+    }
+   },
+   {
+    "draw": [
+     "man",
+     "flag",
+     "h"
+    ],
+    "voice": "a",
+    "speak": "Dutch men are the tallest in the world: born in 1996, they average about a metre eighty-two. So, for both of you: how tall were Dutch men born a century earlier?"
+   },
+   {
+    "draw": [
+     "bguess"
+    ],
+    "voice": "b",
+    "speak": "People were shorter back then. I'll say a metre seventy-five."
+   },
+   {
+    "ask": {
+     "question": "Click on the line where you think it is.",
+     "on": "h",
+     "store": "g",
+     "default": "175",
+     "right": "Close: you said {g}, and it was about {g.true} centimetres.",
+     "wrong": "You said {g}; it was about {g.true} centimetres."
+    }
+   },
+   {
+    "erase": [
+     "bguess"
+    ]
+   },
+   {
+    "erase": [
+     "h",
+     "man",
+     "flag"
+    ]
+   },
+   {
+    "draw": [
+     "d1896",
+     "d1896_l",
+     "d1996",
+     "d1996_l",
+     "top1",
+     "top2",
+     "grew"
+    ],
+    "voice": "b",
+    "speak": "A hundred and sixty-nine? That's thirteen centimetres in one century!"
+   },
+   {
+    "quiz": {
+     "intro": "Then the second question.",
+     "question": "Where did Dutch men born in 1896 rank?",
+     "choices": [
+      "1st",
+      "4th",
+      "12th",
+      "20th"
+     ],
+     "correct": 3,
+     "right": "Twelfth. Swedes, Norwegians and Americans all stood taller.",
+     "reveal": {
+      "text": "12th",
+      "at": {
+       "x": 180,
+       "y": 440
+      },
+      "size": 64
+     }
+    }
+   },
+   {
+    "draw": [
+     "us96",
+     "us96_l"
+    ],
+    "voice": "b",
+    "speak": "Americans? So the Americans were the giants once?"
+   },
+   {
+    "draw": [
+     "us",
+     "us_l"
+    ],
+    "voice": "a",
+    "speak": "Among them. But American men have hardly grown since those born in the 1950s, while the Dutch kept going."
+   },
+   {
+    "erase": [
+     "top1",
+     "top2",
+     "grew"
+    ]
+   },
+   {
+    "draw": [
+     "why"
+    ],
+    "voice": "b",
+    "speak": "So what did the Dutch do? Eat more cheese?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "why"
+     ]
+    },
+    "voice": "a",
+    "speak": "More and better food, and far fewer childhood infections. Height is a record of how well children grew up."
+   },
+   {
+    "erase": [
+     "why",
+     "d1896",
+     "d1896_l",
+     "us96",
+     "us96_l",
+     "us",
+     "us_l",
+     "d1996",
+     "d1996_l"
+    ]
+   },
+   {
+    "draw": [
+     "nlf",
+     "nlbar",
+     "nlbar_l",
+     "grow_t"
+    ],
+    "voice": "a",
+    "speak": "And the Dutch didn't even grow the most."
+   },
+   {
+    "draw": [
+     "irf",
+     "irbar",
+     "irbar_l"
+    ],
+    "voice": "a",
+    "speak": "Men in Iran grew about sixteen and a half centimetres."
+   },
+   {
+    "highlight": {
+     "target": [
+      "irbar"
+     ]
+    },
+    "voice": "b",
+    "speak": "So I'm not short. I was just born in the wrong century."
+   }
+  ]
+ }
+}

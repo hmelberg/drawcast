@@ -1,0 +1,20 @@
+{
+ "file": "happiest-country.json",
+ "title": "Which country tops the World Happiness Report?",
+ "subtitle": "Follow three clues to the country that tops the World Happiness Report, then find out what the survey really asks, and where money stops helping.",
+ "format": "quiz",
+ "tags": [
+  "psychology",
+  "economics",
+  "geography"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "4",
+ "form": "choose on the figure (tap a flag)",
+ "owid": "https://ourworldindata.org/grapher/happiness-cantril-ladder",
+ "notes": "a quizzes b and the viewer with three clues (clue 3 softened to 'long border with Russia'); b guesses Denmark, raises the 'Finns don't smile' twist and the money guess; a closes on Costa Rica. OWID 2025 data (WHR 2026): Finland 7.76 (first in each data year 2017–2025, nine running), Costa Rica 7.44 (4th in this edition), USA 6.82 (24th), Afghanistan 1.45 (last). The ladder now stands upright (0 bottom, 10 top) with each flag on a dashed leader to its height and 'score · rank' labels. The choose reveal colours the winner's name red (engine). Soft pacing: the ladder explanation idles ~9 s."
+}

@@ -1,0 +1,13 @@
+Earthquakes, floods, storms, droughts: do they kill more people today than a hundred years ago?
+In the 2010s, disasters killed about forty-five thousand people a year.
+[ASK] Drag the 1920s bar to your guess.
+  [right] Close: you said {g} thousand a year, and it was about {g.true} thousand.
+  [wrong] You said {g} thousand; it was about {g.true} thousand a year, more than ten times today's toll.
+Most of it was drought, which in poor farming countries meant famine.
+Drought deaths fell from about four hundred and seventy thousand a year to about two thousand, as farming, trade and food aid improved.
+Bad years still come: in 2004 alone, disasters killed about a quarter of a million people, most of them in the Indian Ocean tsunami.
+And there were only two billion people then, against seven and a half billion now. So count per million people.
+Two hundred and sixty-six deaths per million people a year, down to about six.
+A fall of about ninety-eight percent.
+Today disasters cause less than a tenth of one percent of all deaths in most years.
+So disasters still fill the news, but the chance of dying in one has never been smaller.

@@ -1,0 +1,20 @@
+{
+ "file": "cumulative-co2.json",
+ "title": "Which country has emitted the most CO₂ since 1750?",
+ "subtitle": "Rank five countries by all the CO₂ they have ever emitted, then rewind to 1850 to see who started it all, as two hosts argue it out.",
+ "format": "quiz",
+ "tags": [
+  "earth",
+  "history",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "1",
+ "form": "rank cards (drag into order); dialogue: b is the skeptic who dismisses Britain",
+ "owid": "https://ourworldindata.org/grapher/cumulative-co-emissions",
+ "notes": "Review fixes: guess highlight on all cards kept (b names both ends); 'Germany' card shortened to GER so it fits at size 2; ending ring replaced by highlight; 1800 '99%' said as 'nearly all the CO₂ on record' (records before ~1830 cover almost only Britain); 1911 label beside the USA bar. Engine gaps: ylim cannot be animated (wanted 0-30 for 2024 then 0-80 for 1850), so 2024 bars stay short; a rank reveal does not mark which of the viewer's cards were right; rank cards are small unless size 2."
+}

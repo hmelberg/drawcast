@@ -1,0 +1,11 @@
+What does it cost to read one person's whole genome, all three billion letters of their DNA?
+In 2001, when the first genomes were finished, the price was about ninety-five million dollars each.
+[ASK] Click where you think the price was in 2022. Each step is ten times the last.
+  [right] Close: you said {g}, and it was about {g.true}.
+  [wrong] You said {g}. It was about {g.true}: much further down.
+About five hundred dollars: a hundred and eighty thousand times cheaper in twenty-one years.
+Compare computer chips, famous for improving fast: their power doubles about every two years.
+At that pace, a genome would still cost about sixty-six thousand dollars today.
+Instead the price fell off a cliff around 2008, when new machines began reading millions of short DNA snippets at once.
+From seven million dollars in 2007 to seventy thousand in 2009: already where the chip pace only gets to today.
+So a project that once took an international team thirteen years is now an ordinary lab test.

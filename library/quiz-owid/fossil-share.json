@@ -1,0 +1,608 @@
+{
+ "request": "How much of the world's energy still comes from fossil fuels? A two-voice podcast where the co-host doubts the answer; let me drag the slice of a pie. #interactive #short",
+ "subtitle": "Two hosts argue over the fossil slice of the world's energy pie, then find why it has barely shrunk since 1990 even as solar power boomed.",
+ "thumb": "band \"Solar boomed. And yet…\" note \"1990 → 2025\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "pie",
+     "type": "shape",
+     "shape": "circle",
+     "x": 500,
+     "y": 470,
+     "radius": 160,
+     "style": {
+      "color": "#3d3833",
+      "fill": "#8f887c",
+      "opacity": 0.5
+     }
+    },
+    {
+     "id": "cut",
+     "type": "path",
+     "points": [
+      [
+       500,
+       470
+      ],
+      [
+       500,
+       630
+      ]
+     ],
+     "style": {
+      "color": "#3d3833",
+      "stroke_width": 4
+     }
+    },
+    {
+     "id": "cut2",
+     "type": "path",
+     "points": [
+      [
+       500,
+       470
+      ],
+      [
+       650,
+       420
+      ]
+     ],
+     "style": {
+      "color": "#3d3833",
+      "stroke_width": 4,
+      "dash": true
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?",
+     "x": 450,
+     "y": 460,
+     "font_size": 150,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "oil",
+     "type": "icon",
+     "of": "oil drum",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 140,
+     "x": 830,
+     "y": 560
+    },
+    {
+     "id": "t1",
+     "type": "thumb",
+     "kind": "band",
+     "text": "How much is still fossil?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "sun",
+     "type": "icon",
+     "of": "sun",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 260,
+     "y": 450
+    },
+    {
+     "id": "x85",
+     "type": "text",
+     "text": "×85",
+     "x": 260,
+     "y": 270,
+     "font_size": 80,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "oil",
+     "type": "icon",
+     "of": "oil drum",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 740,
+     "y": 450
+    },
+    {
+     "id": "oq",
+     "type": "text",
+     "text": "?",
+     "x": 740,
+     "y": 270,
+     "font_size": 100,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Solar boomed. And oil?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "a",
+     "type": "shape",
+     "shape": "circle",
+     "x": 250,
+     "y": 450,
+     "radius": 110,
+     "style": {
+      "color": "#8f887c",
+      "fill": "#8f887c",
+      "opacity": 0.35
+     }
+    },
+    {
+     "id": "b",
+     "type": "shape",
+     "shape": "circle",
+     "x": 680,
+     "y": 450,
+     "radius": 170,
+     "style": {
+      "color": "#b5482e",
+      "fill": "#b5482e",
+      "opacity": 0.35
+     }
+    },
+    {
+     "id": "qa",
+     "type": "text",
+     "text": "?",
+     "x": 250,
+     "y": 440,
+     "font_size": 110,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "qb",
+     "type": "text",
+     "text": "?",
+     "x": 680,
+     "y": 440,
+     "font_size": 150,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "ya",
+     "type": "text",
+     "text": "1990",
+     "x": 250,
+     "y": 620,
+     "font_size": 52,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "yb",
+     "type": "text",
+     "text": "2025",
+     "x": 680,
+     "y": 650,
+     "font_size": 52,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "s",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "BIGGER PIE",
+     "x": 440,
+     "y": 270,
+     "angle": 8
+    },
+    {
+     "id": "t3",
+     "type": "thumb",
+     "kind": "band",
+     "text": "35 years of solar later"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "How much of the world's energy still comes from fossil fuels?",
+  "template": "pie_chart",
+  "params": {
+   "labels": [
+    "Fossil",
+    "Clean"
+   ],
+   "values": [
+    86.2,
+    13.8
+   ],
+   "label_size": 34
+  },
+  "sources": [
+   {
+    "id": "owid_share",
+    "title": "Share of primary energy from fossil fuels",
+    "authors": "Our World in Data, from Energy Institute Statistical Review of World Energy (2026) and Smil (2017)",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/fossil-fuels-share-energy",
+    "finding": "fossil fuels' share of total energy supply (OWID's current chart, Energy Institute data released 2026, which now includes 2025): 90.3% in 1990, 86.2% in 2025. OWID's older substitution-method series gave about 81%; this cast uses the chart as OWID publishes it today."
+   },
+   {
+    "id": "owid_twh",
+    "title": "Fossil fuel consumption",
+    "authors": "Our World in Data, from Energy Institute Statistical Review of World Energy (2026)",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/fossil-fuel-primary-energy",
+    "finding": "world fossil fuel use rose from about 83,000 TWh in 1990 to about 144,000 TWh in 2025 (+73%)"
+   },
+   {
+    "id": "owid_solar",
+    "title": "Solar power generation",
+    "authors": "Our World in Data, from Ember and Energy Institute (2026)",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/solar-energy-consumption",
+    "finding": "world solar generation rose from 32 TWh in 2010 to about 2,780 TWh in 2025"
+   }
+  ],
+  "elements": [
+   {
+    "id": "drum",
+    "type": "icon",
+    "of": "oil drum",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170,
+    "x": 230,
+    "y": 430
+   },
+   {
+    "id": "fire",
+    "type": "icon",
+    "of": "factory",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170,
+    "x": 500,
+    "y": 430
+   },
+   {
+    "id": "plane",
+    "type": "icon",
+    "of": "airplane",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170,
+    "x": 770,
+    "y": 430
+   },
+   {
+    "id": "sun",
+    "type": "icon",
+    "of": "sun",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 440,
+    "y": 640
+   },
+   {
+    "id": "half",
+    "type": "text",
+    "text": "half?",
+    "x": 500,
+    "y": 265,
+    "font_size": 72,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "p90_f",
+    "type": "sector",
+    "x": 215,
+    "y": 440,
+    "radius": 134,
+    "start": -235.07999999999998,
+    "end": 90,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "hatch"
+    }
+   },
+   {
+    "id": "p90_c",
+    "type": "sector",
+    "x": 215,
+    "y": 440,
+    "radius": 134,
+    "start": 90,
+    "end": 124.92000000000002,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "hatch"
+    }
+   },
+   {
+    "id": "p90",
+    "type": "group",
+    "members": [
+     "p90_f",
+     "p90_c"
+    ]
+   },
+   {
+    "id": "p25_f",
+    "type": "sector",
+    "x": 690,
+    "y": 440,
+    "radius": 180,
+    "start": -220.32,
+    "end": 90,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "hatch"
+    }
+   },
+   {
+    "id": "p25_c",
+    "type": "sector",
+    "x": 690,
+    "y": 440,
+    "radius": 180,
+    "start": 90,
+    "end": 139.68,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "hatch"
+    }
+   },
+   {
+    "id": "p25",
+    "type": "group",
+    "members": [
+     "p25_f",
+     "p25_c"
+    ]
+   },
+   {
+    "id": "l90",
+    "type": "text",
+    "text": "1990: 90%",
+    "x": 215,
+    "y": 255,
+    "font_size": 48,
+    "style": {
+     "color": "#8f887c"
+    },
+    "cites": [
+     "owid_share"
+    ]
+   },
+   {
+    "id": "l25",
+    "type": "text",
+    "text": "2025: 86%",
+    "x": 690,
+    "y": 215,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_share"
+    ]
+   },
+   {
+    "id": "x85",
+    "type": "text",
+    "text": "solar ×85",
+    "x": 440,
+    "y": 560,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_solar"
+    ]
+   },
+   {
+    "id": "grow",
+    "type": "arrow",
+    "from": {
+     "x": 360,
+     "y": 440
+    },
+    "to": {
+     "x": 495,
+     "y": 440
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "more",
+    "type": "text",
+    "text": "+73%",
+    "x": 428,
+    "y": 490,
+    "font_size": 50,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_twh"
+    ]
+   },
+   {
+    "id": "more2",
+    "type": "text",
+    "text": "fossil",
+    "x": 428,
+    "y": 395,
+    "font_size": 34,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How much energy is still fossil?"
+    }
+   },
+   {
+    "draw": [
+     "drum",
+     "fire",
+     "plane"
+    ],
+    "parallel": true,
+    "voice": "a",
+    "speak": "How much of the world's energy still comes from coal, oil and gas? Count everything: power plants, factories, cars, planes and heating."
+   },
+   {
+    "draw": [
+     "half"
+    ],
+    "voice": "b",
+    "speak": "Surely not that much any more. There are solar panels everywhere. Half?"
+   },
+   {
+    "erase": [
+     "drum",
+     "fire",
+     "plane",
+     "half"
+    ]
+   },
+   {
+    "ask": {
+     "question": "Drag the edge of the slice to your guess.",
+     "on": "slice_1",
+     "store": "g",
+     "default": "50",
+     "right": "Close: you said {g} percent, and it is about {g.true}.",
+     "wrong": "You said {g} percent. It is about {g.true}: still most of everything."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "slice_1"
+     ]
+    },
+    "voice": "b",
+    "speak": "Eighty-six percent? In 2025? That can't be right."
+   },
+   {
+    "erase": [
+     "slice_1",
+     "slice_2"
+    ]
+   },
+   {
+    "draw": [
+     "p25",
+     "l25"
+    ]
+   },
+   {
+    "draw": [
+     "p90",
+     "l90"
+    ],
+    "voice": "a",
+    "speak": "It is. In 1990 it was ninety, so in thirty-five years the fossil slice shrank by just four points."
+   },
+   {
+    "draw": [
+     "sun",
+     "x85"
+    ],
+    "voice": "a",
+    "speak": "And that's despite a solar boom: solar power has grown about eighty-five times over since 2010."
+   },
+   {
+    "highlight": {
+     "target": [
+      "p25_c"
+     ]
+    },
+    "voice": "b",
+    "speak": "So clean energy is winning?"
+   },
+   {
+    "erase": [
+     "sun",
+     "x85"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "p25"
+     ],
+     "effect": "circle"
+    },
+    "voice": "a",
+    "speak": "Not yet. Look at the size of the pies: the world now uses about eighty percent more energy than in 1990."
+   },
+   {
+    "draw": [
+     "grow",
+     "more",
+     "more2"
+    ],
+    "voice": "a",
+    "speak": "So a slightly smaller slice of a much bigger pie is still more fossil fuel: about seventy percent more."
+   },
+   {
+    "highlight": {
+     "target": [
+      "p25_c"
+     ]
+    },
+    "voice": "b",
+    "speak": "So clean energy has mostly fed the new demand, not replaced coal and oil."
+   },
+   {
+    "highlight": {
+     "target": [
+      "more"
+     ]
+    },
+    "voice": "a",
+    "speak": "Exactly. That's the real race: clean energy has to grow faster than demand."
+   }
+  ]
+ }
+}

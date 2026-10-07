@@ -1,0 +1,533 @@
+{
+ "request": "A two-voice podcast quiz: of all the mammals on Earth, by weight, what share is wild? Let me drag the slice of a pie chart. #interactive #short",
+ "subtitle": "Weigh every mammal on Earth and guess the wild slice, then meet the dogs, pigs and chickens that outweigh whole kingdoms of wildlife.",
+ "thumb": "band \"Weigh every mammal on Earth\" note \"How much is wild?\"",
+ "spec": {
+  "title": "Of all the mammals on Earth, by weight, what share is wild?",
+  "template": "pie_chart",
+  "params": {
+   "labels": [
+    "Us + our animals",
+    "Wild"
+   ],
+   "values": [
+    95,
+    5
+   ],
+   "percent": false,
+   "label_size": 30,
+   "box": {
+    "x": 10,
+    "y": 180,
+    "w": 600,
+    "h": 460
+   }
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Almost all of the world's mammal biomass is humans and livestock",
+    "authors": "Hannah Ritchie and Fiona Spooner (Our World in Data)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/wild-mammals-birds-biomass",
+    "finding": "of all mammal biomass, humans are 36 %, livestock and pets 59 %, wild land mammals 2 % and wild marine mammals 3 %; humans outweigh all wild mammals more than seven times; all dogs weigh as much as all wild land mammals; farmed pigs weigh as much as all marine mammals; poultry are 71 % of all bird biomass, wild birds 29 %"
+   },
+   {
+    "id": "greenspoon",
+    "title": "The global biomass of wild mammals",
+    "authors": "Lior Greenspoon, Eyal Krieger, Ron Sender, Yuval Rosenberg, Yinon M. Bar-On, Uri Moran, Tomer Antman, Shai Meiri, Uri Roll, Elad Noor, Ron Milo",
+    "year": 2023,
+    "finding": "the study behind the shares"
+   }
+  ],
+  "elements": [
+   {
+    "id": "o_cow",
+    "type": "icon",
+    "of": "cow face",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 240,
+    "x": 220,
+    "y": 450
+   },
+   {
+    "id": "o_hum",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 240,
+    "x": 500,
+    "y": 450
+   },
+   {
+    "id": "o_wh",
+    "type": "icon",
+    "of": "spouting whale",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 240,
+    "x": 780,
+    "y": 450
+   },
+   {
+    "id": "p5",
+    "type": "text",
+    "text": "Wild: 5 %",
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 790,
+    "y": 590,
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "hum",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 640,
+    "y": 470
+   },
+   {
+    "id": "p36",
+    "type": "text",
+    "text": "Humans 36%",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 835,
+    "y": 495,
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "x7",
+    "type": "text",
+    "text": "= 7 × all wild",
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 835,
+    "y": 440,
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "cow",
+    "type": "icon",
+    "of": "cow face",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 640,
+    "y": 320
+   },
+   {
+    "id": "p59",
+    "type": "text",
+    "text": "Livestock 59%",
+    "font_size": 42,
+    "style": {
+     "color": "#5e584e"
+    },
+    "x": 835,
+    "y": 320,
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "dog",
+    "type": "icon",
+    "of": "dog face",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 120,
+    "x": 640,
+    "y": 460
+   },
+   {
+    "id": "dog_l",
+    "type": "text",
+    "text": "= wild on land",
+    "font_size": 38,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 835,
+    "y": 460,
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "pig",
+    "type": "icon",
+    "of": "pig face",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 120,
+    "x": 640,
+    "y": 310
+   },
+   {
+    "id": "pig_q",
+    "type": "text",
+    "text": "= ?",
+    "font_size": 60,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 820,
+    "y": 310
+   },
+   {
+    "id": "pig_l",
+    "type": "text",
+    "text": "= wild in sea",
+    "font_size": 38,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 835,
+    "y": 310,
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "hen",
+    "type": "icon",
+    "of": "chicken",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 640,
+    "y": 400
+   },
+   {
+    "id": "hen_l",
+    "type": "text",
+    "text": "poultry 71%",
+    "font_size": 46,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 835,
+    "y": 430,
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "hen_l2",
+    "type": "text",
+    "text": "of bird weight",
+    "font_size": 38,
+    "style": {
+     "color": "#5e584e"
+    },
+    "x": 835,
+    "y": 370,
+    "cites": [
+     "owid"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How much of mammal-kind is wild?"
+    }
+   },
+   {
+    "draw": [
+     "o_cow",
+     "o_hum",
+     "o_wh"
+    ],
+    "voice": "a",
+    "speak": "Put every mammal on Earth on one giant scale: cows, people, whales, mice. How much of the weight is wild?"
+   },
+   {
+    "voice": "b",
+    "speak": "Whales, elephants, all those deer? Half, at least.",
+    "highlight": {
+     "target": [
+      "o_wh"
+     ]
+    }
+   },
+   {
+    "erase": [
+     "o_cow",
+     "o_hum",
+     "o_wh"
+    ]
+   },
+   {
+    "ask": {
+     "question": "Drag the edge of the wild slice to your guess.",
+     "on": "slice_2",
+     "store": "g",
+     "default": "50",
+     "right": "You said {g}; it is {g.true}. Elephants, whales, deer and mice, all of them together.",
+     "wrong": "You said {g}. It is only {g.true}, and that counts every whale."
+    }
+   },
+   {
+    "draw": [
+     "p5"
+    ],
+    "voice": "b",
+    "speak": "Five percent? Every wild mammal on the planet?"
+   },
+   {
+    "draw": [
+     "hum",
+     "p36",
+     "x7"
+    ],
+    "voice": "a",
+    "speak": "Every one. Humans alone are thirty-six percent, seven times all the wild mammals together."
+   },
+   {
+    "draw": [
+     "cow",
+     "p59"
+    ],
+    "voice": "a",
+    "speak": "The rest is our farm animals and pets, mostly cattle: fifty-nine percent."
+   },
+   {
+    "voice": "b",
+    "speak": "So the wild ones lost a tug of war with cows.",
+    "highlight": {
+     "target": [
+      "slice_1"
+     ]
+    }
+   },
+   {
+    "erase": [
+     "hum",
+     "p36",
+     "x7",
+     "cow",
+     "p59"
+    ]
+   },
+   {
+    "draw": [
+     "dog",
+     "dog_l"
+    ],
+    "voice": "a",
+    "speak": "It gets stranger. All the world's dogs weigh about as much as every wild mammal on land."
+   },
+   {
+    "draw": [
+     "pig",
+     "pig_q"
+    ],
+    "voice": "b",
+    "speak": "Let me guess. Pigs against whales?"
+   },
+   {
+    "erase": [
+     "pig_q"
+    ]
+   },
+   {
+    "draw": [
+     "pig_l"
+    ],
+    "voice": "a",
+    "speak": "Right. Farmed pigs weigh about as much as all the whales, seals and dolphins in the sea."
+   },
+   {
+    "erase": [
+     "dog",
+     "dog_l",
+     "pig",
+     "pig_l"
+    ]
+   },
+   {
+    "draw": [
+     "hen"
+    ],
+    "voice": "b",
+    "speak": "Birds, then. Birds must still be wild."
+   },
+   {
+    "draw": [
+     "hen_l",
+     "hen_l2"
+    ],
+    "voice": "a",
+    "speak": "Not by weight. Chickens and other poultry weigh more than twice all the wild birds put together."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "pie",
+     "type": "shape",
+     "shape": "circle",
+     "x": 330,
+     "y": 450,
+     "radius": 190,
+     "style": {
+      "fill": "#e9c4b8",
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?",
+     "x": 330,
+     "y": 450,
+     "font_size": 220,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "w",
+     "type": "icon",
+     "of": "elephant",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 760,
+     "y": 420
+    },
+    {
+     "id": "l",
+     "type": "text",
+     "text": "wild?",
+     "x": 760,
+     "y": 610,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Weigh every mammal on Earth"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "cow",
+     "type": "icon",
+     "of": "cow face",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 220,
+     "x": 180,
+     "y": 470
+    },
+    {
+     "id": "hu",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 220,
+     "x": 440,
+     "y": 470
+    },
+    {
+     "id": "el",
+     "type": "icon",
+     "of": "elephant",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 220,
+     "x": 700,
+     "y": 470
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?",
+     "font_size": 150,
+     "style": {
+      "color": "#b5482e"
+     },
+     "x": 880,
+     "y": 470
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Who outweighs whom?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t",
+     "type": "text",
+     "text": "All the world's dogs",
+     "x": 470,
+     "y": 630,
+     "font_size": 80,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "dog",
+     "type": "icon",
+     "of": "dog face",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 330,
+     "y": 420
+    },
+    {
+     "id": "eq",
+     "type": "text",
+     "text": "= ?",
+     "x": 680,
+     "y": 420,
+     "font_size": 180,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Your dog's heavy secret"
+    }
+   ]
+  }
+ ]
+}

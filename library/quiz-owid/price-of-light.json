@@ -1,0 +1,519 @@
+{
+ "request": "How many hours of work bought an hour of light in 1800, and how long today? Let me guess on a log scale. #interactive #short",
+ "subtitle": "In 1800 an hour of bulb-bright light cost over five hours of work. Guess what it costs now, and see light become history's great bargain.",
+ "thumb": "band \"The bargain of the millennium\" note \"1800: candles\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "candle",
+     "type": "icon",
+     "of": "candle",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 220,
+     "y": 430
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "5 hours",
+     "x": 640,
+     "y": 560,
+     "font_size": 130,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "text",
+     "text": "of work",
+     "x": 640,
+     "y": 430,
+     "font_size": 80,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "t3",
+     "type": "text",
+     "text": "for 1 hour of light",
+     "x": 620,
+     "y": 320,
+     "font_size": 54,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "And today?"
+    },
+    {
+     "id": "q",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "1800",
+     "x": 180,
+     "y": 680,
+     "angle": -8
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "a",
+     "type": "text",
+     "text": "1800: 5 hours",
+     "x": 620,
+     "y": 490,
+     "font_size": 80,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "b",
+     "type": "text",
+     "text": "Today: ?",
+     "x": 430,
+     "y": 320,
+     "font_size": 150,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "bulb",
+     "type": "icon",
+     "of": "light bulb",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 850,
+     "y": 320
+    },
+    {
+     "id": "c",
+     "type": "text",
+     "text": "of work, for 1 hour of light",
+     "x": 500,
+     "y": 170,
+     "font_size": 50,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "burst",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Guess!"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "c",
+     "type": "icon",
+     "of": "candle",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 200,
+     "y": 440
+    },
+    {
+     "id": "b",
+     "type": "icon",
+     "of": "light bulb",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 760,
+     "y": 440
+    },
+    {
+     "id": "arrow",
+     "type": "arrow",
+     "from": {
+      "x": 340,
+      "y": 440
+     },
+     "to": {
+      "x": 620,
+      "y": 440
+     },
+     "style": {
+      "color": "#8f887c",
+      "stroke_width": 6
+     }
+    },
+    {
+     "id": "x",
+     "type": "text",
+     "text": "× ?",
+     "x": 480,
+     "y": 540,
+     "font_size": 150,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "How much cheaper?"
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "Not 10×",
+     "x": 840,
+     "y": 690,
+     "angle": 6
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "How much work buys an hour of light, then and now?",
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Hours of work required to produce 1,000 lumen-hours",
+    "authors": "Our World in Data, from William Nordhaus (1996)",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/hours-of-work-per-1000-lumen-hours",
+    "finding": "1,000 lumen-hours, about an hour of an 18-watt low-energy bulb: 5.37 hours of work in 1800, 0.326 in 1875, 0.012 in 1920, 0.000119 (about 0.43 seconds) in 1992"
+   },
+   {
+    "id": "nordhaus",
+    "title": "Do real-output and real-wage measures capture reality? The history of lighting suggests not",
+    "authors": "William D. Nordhaus",
+    "year": 1996,
+    "finding": "the true price of light fell far faster than price indexes, which priced lamps and fuels, recorded"
+   },
+   {
+    "id": "fouquet",
+    "title": "The price of lighting has dropped over 99.9% since 1700",
+    "authors": "Esteban Ortiz-Ospina and Pablo Arriagada, Our World in Data, from Roger Fouquet",
+    "year": 2026,
+    "url": "https://ourworldindata.org/data-insights/the-price-of-lighting-has-dropped-over-999-since-1700",
+    "finding": "in the UK, a million lumen-hours cost about £34,000 in the early 1300s and £2.15 in 2023 (2000 prices)"
+   }
+  ],
+  "elements": [
+   {
+    "id": "bulb",
+    "type": "icon",
+    "of": "light bulb",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170,
+    "x": 130,
+    "y": 630
+   },
+   {
+    "id": "candle",
+    "type": "icon",
+    "of": "candle",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170,
+    "x": 870,
+    "y": 630
+   },
+   {
+    "id": "hour",
+    "type": "text",
+    "text": "1 bulb, 1 hour",
+    "x": 500,
+    "y": 630,
+    "font_size": 56,
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "light",
+    "type": "scale",
+    "min": 0.1,
+    "max": 100000,
+    "log": true,
+    "unit": "seconds",
+    "value": 0.43,
+    "y": 430,
+    "markers": [
+     {
+      "value": 19332,
+      "label": "1800: 5 h",
+      "color": "#b5482e"
+     },
+     {
+      "value": 1174,
+      "label": "1875: 20 min",
+      "color": "#8f887c"
+     },
+     {
+      "value": 43,
+      "label": "1920: 43 s",
+      "color": "#8f887c"
+     }
+    ],
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "ratio",
+    "type": "text",
+    "text": "45,000× less work",
+    "x": 500,
+    "y": 300,
+    "font_size": 72,
+    "style": {
+     "color": "#3d3833"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "c_icon",
+    "type": "icon",
+    "of": "candle",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 100,
+    "y": 640
+   },
+   {
+    "id": "c_face",
+    "type": "ellipse",
+    "x": 270,
+    "y": 450,
+    "rx": 115,
+    "ry": 115,
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "c_slice",
+    "type": "sector",
+    "x": 270,
+    "y": 450,
+    "radius": 115,
+    "start": 24,
+    "end": 90,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "c_lab",
+    "type": "text",
+    "text": "1800: 11 minutes",
+    "x": 270,
+    "y": 285,
+    "font_size": 46,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "b_icon",
+    "type": "icon",
+    "of": "light bulb",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 900,
+    "y": 640
+   },
+   {
+    "id": "b_face",
+    "type": "ellipse",
+    "x": 730,
+    "y": 450,
+    "rx": 115,
+    "ry": 115,
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "b_slice",
+    "type": "sector",
+    "x": 730,
+    "y": 450,
+    "radius": 115,
+    "start": -255,
+    "end": 90,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "b_lab",
+    "type": "text",
+    "text": "1992: ~350 days",
+    "x": 730,
+    "y": 285,
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "one_h",
+    "type": "text",
+    "text": "1 hour of work buys…",
+    "x": 500,
+    "y": 640,
+    "font_size": 46,
+    "style": {
+     "color": "#3d3833"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "hide": [
+     "light_marker_2",
+     "light_marker_3"
+    ]
+   },
+   {
+    "card": {
+     "title": "An hour of light: how much work?"
+    }
+   },
+   {
+    "draw": [
+     "bulb",
+     "hour"
+    ],
+    "speak": "How long must you work to pay for an hour of light, the glow of one low-energy bulb?"
+   },
+   {
+    "draw": [
+     "candle",
+     "light"
+    ],
+    "speak": "In 1800, by candlelight, it cost over five hours of work. Each step on this line is ten times the last."
+   },
+   {
+    "ask": {
+     "question": "Click the line.",
+     "on": "light",
+     "store": "g",
+     "default": "60",
+     "keep": true,
+     "right": "Close: you said {g} seconds, and it was about {g.true}.",
+     "wrong": "You said {g} seconds. It was about {g.true}."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "light_answer_pin",
+      "light_answer_num"
+     ],
+     "effect": "circle"
+    },
+    "speak": "By 1992, less than half a second of work, for the same hour of light."
+   },
+   {
+    "draw": [
+     "light_marker_2"
+    ],
+    "speak": "On the way down, kerosene lamps cut it to about twenty minutes by the 1870s,"
+   },
+   {
+    "draw": [
+     "light_marker_3"
+    ],
+    "speak": "and electric bulbs to under a minute by 1920."
+   },
+   {
+    "draw": [
+     "ratio"
+    ],
+    "speak": "Five hours to half a second: about forty-five thousand times less work."
+   },
+   {
+    "erase": [
+     "light",
+     "bulb",
+     "candle",
+     "hour",
+     "ratio"
+    ]
+   },
+   {
+    "draw": [
+     "one_h",
+     "c_icon",
+     "c_face",
+     "c_slice",
+     "c_lab"
+    ],
+    "speak": "Turn it around. In 1800, an hour of work bought about eleven minutes of candlelight."
+   },
+   {
+    "draw": [
+     "b_icon",
+     "b_face",
+     "b_slice",
+     "b_lab"
+    ],
+    "speak": "By 1992, the same hour bought a bulb burning day and night for most of a year."
+   },
+   {
+    "highlight": {
+     "target": [
+      "c_slice"
+     ]
+    },
+    "speak": "And price statistics missed most of it: they tracked candles and lamps, not light itself, as the economist William Nordhaus showed."
+   },
+   {
+    "highlight": {
+     "target": [
+      "b_slice"
+     ]
+    },
+    "speak": "So the light your ancestors saved candle stubs for had become almost free."
+   }
+  ],
+  "text": {
+   "font_size": 30
+  }
+ }
+}

@@ -1,0 +1,14 @@
+a: How many hours a year did a German worker put in back in 1870? Start with today: about thirteen hundred hours.
+a: That sounds like a lot, but spread over the year, holidays and part-timers included, it's about twenty-six hours a week.
+[ASK] Drag the 1870 bar to your guess.
+  [right] Close: you said {g} hours, and it was about {g.true}.
+  [wrong] You said {g} hours; it was about {g.true}.
+b: Wait. Over three thousand? That's more than double!
+a: About sixty-three hours a week: long days, six days a week, almost no holidays.
+a: And then it fell, decade after decade.
+b: So what brought it down? Strikes?
+a: Unions and laws helped. But mostly productivity: each hour made far more, so people could buy back their time.
+b: Still, Germans are the hard workers of Europe, right?
+a: Funny you say that. In this data, Germany now has the fewest working hours of any country.
+b: So the famously hard-working Germans work the least?
+a: Fewest hours, lots made in each one. Rich countries tend to work less, not more.

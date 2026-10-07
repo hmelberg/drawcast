@@ -1,0 +1,19 @@
+{
+  "file": "obese-vs-underweight.json",
+  "title": "Are there more obese or more underweight adults in the world?",
+  "subtitle": "Two head-to-head rounds: too thin or obese, which is more common among the world's adults? Then see the year the two lines crossed.",
+  "format": "quiz",
+  "tags": [
+    "health",
+    "data"
+  ],
+  "level": "standard",
+  "lang": "en",
+  "score": 3,
+  "verdict": "keep",
+  "shape": "5",
+  "form": "higher-or-lower cards (compare)",
+  "owid": "https://ourworldindata.org/grapher/share-of-adults-defined-as-obese",
+  "notes": "OWID has no world underweight series after 2014 (NCD-RisC 2017 charts, average of men and women); both lines end 2014, obesity continued as a dashed link to 2024 (16.4%). Crossing about 2007 in the OWID series. Nearly tripled = OWID 6.1% (1990) to 16.4% (2024), 2.7x. Compare cards ignore y and stay pinned under the heading; size 2 used; the reveal numbers are engine-small and the winner of each pair is not marked.",
+  "dialogue": false
+}

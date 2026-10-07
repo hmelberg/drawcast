@@ -1,0 +1,12 @@
+(a) In 1820, what share of the world's adults could read and write? You guess too.
+[ASK] Drag the slice to the share you think could read.
+  [right] Close: you said {g} percent, and it was about {g.true}.
+  [wrong] You said {g} percent. It was about {g.true}.
+(b) About one in eight? But there were books, newspapers, letters!
+(a) For a lucky few. Even by 1900, only about one adult in five could read.
+(a) Now jump to today: about eighty-eight percent of adults can read.
+(b) So it flipped. One in eight could read; now one in eight can't.
+(b) And here's the bit that gets me: you can still see the flip inside one family.
+(a) In India, ninety-seven percent of people aged fifteen to twenty-four can read, but fewer than half of those over sixty-five.
+(b) So in many homes, the grandchildren read what their grandparents can't.
+(a) Two centuries of change, in one living room.

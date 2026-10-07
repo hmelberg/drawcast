@@ -1,0 +1,1182 @@
+{
+ "request": "How many children does the average woman in the world have today, compared with the 1960s? Let me guess, get a clue, and guess again. #interactive #short",
+ "subtitle": "Guess the world's births per woman today, take a clue and guess again, then see how it halved since the 1960s, and South Korea's record low.",
+ "thumb": "band \"Five kids, then…\" note \"Births per woman\"",
+ "spec": {
+  "title": "How many children does the average woman in the world have today?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "1963",
+    "Today"
+   ],
+   "values": [
+    5.3,
+    2.3
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    7
+   ],
+   "y_label": "Children per woman",
+   "label_size": 36
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Fertility rate: births per woman",
+    "authors": "Our World in Data, from UN World Population Prospects (2024)",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/children-per-woman-un",
+    "finding": "world 5.31 births per woman in 1963 (the peak), 2.25 in 2023; India 1.98, China 1.0; South Korea 5.99 in 1960 and 0.72 in 2023, among the lowest of any country (Hong Kong 0.72, Macao 0.66)"
+   },
+   {
+    "id": "owid_why",
+    "title": "The global decline of the fertility rate",
+    "authors": "Max Roser (Our World in Data)",
+    "year": 2014,
+    "url": "https://ourworldindata.org/global-decline-fertility-rate",
+    "finding": "the global fertility rate has more than halved; main reasons: women's empowerment through education and work, falling child mortality, and rising costs of raising children"
+   },
+   {
+    "id": "wpp",
+    "title": "World Population Prospects 2024",
+    "authors": "United Nations",
+    "year": 2024,
+    "finding": "total fertility rate by country, 1950–2023"
+   }
+  ],
+  "elements": [
+   {
+    "id": "clue",
+    "type": "text",
+    "text": "India < 2 · China ≈ 1",
+    "x": 680,
+    "y": 580,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "halved",
+    "type": "text",
+    "text": "more than halved",
+    "x": 680,
+    "y": 580,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "mom1",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 250,
+    "y": 440
+   },
+   {
+    "id": "y63",
+    "type": "text",
+    "text": "1963",
+    "x": 90,
+    "y": 440,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "k1_0",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 400,
+    "y": 430
+   },
+   {
+    "id": "k1_1",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 525,
+    "y": 430
+   },
+   {
+    "id": "k1_2",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 650,
+    "y": 430
+   },
+   {
+    "id": "k1_3",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 775,
+    "y": 430
+   },
+   {
+    "id": "k1_4",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 900,
+    "y": 430
+   },
+   {
+    "id": "mom2",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 250,
+    "y": 220
+   },
+   {
+    "id": "y23",
+    "type": "text",
+    "text": "2023",
+    "x": 90,
+    "y": 220,
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "k2_0",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 400,
+    "y": 210
+   },
+   {
+    "id": "k2_1",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 525,
+    "y": 210
+   },
+   {
+    "id": "k2_q",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 650,
+    "y": 210,
+    "style": {
+     "opacity": 0.25
+    }
+   },
+   {
+    "id": "kr",
+    "type": "icon",
+    "of": "flag south korea",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 110,
+    "y": 600
+   },
+   {
+    "id": "krt",
+    "type": "text",
+    "text": "South Korea",
+    "x": 330,
+    "y": 600,
+    "font_size": 56,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "ky60",
+    "type": "text",
+    "text": "1960",
+    "x": 100,
+    "y": 380,
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "kmom1",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 230,
+    "y": 390
+   },
+   {
+    "id": "kk1_0",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 115,
+    "x": 360,
+    "y": 380
+   },
+   {
+    "id": "kk1_1",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 115,
+    "x": 465,
+    "y": 380
+   },
+   {
+    "id": "kk1_2",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 115,
+    "x": 570,
+    "y": 380
+   },
+   {
+    "id": "kk1_3",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 115,
+    "x": 675,
+    "y": 380
+   },
+   {
+    "id": "kk1_4",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 115,
+    "x": 780,
+    "y": 380
+   },
+   {
+    "id": "kk1_5",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 115,
+    "x": 885,
+    "y": 380
+   },
+   {
+    "id": "ky23",
+    "type": "text",
+    "text": "2023",
+    "x": 100,
+    "y": 200,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "kmom2",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 230,
+    "y": 210
+   },
+   {
+    "id": "kk2",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 115,
+    "x": 360,
+    "y": 200,
+    "style": {
+     "opacity": 0.72
+    }
+   },
+   {
+    "id": "kv",
+    "type": "text",
+    "text": "0.72",
+    "x": 520,
+    "y": 200,
+    "font_size": 72,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "w_0",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 90,
+    "y": 410
+   },
+   {
+    "id": "w_1",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 162,
+    "y": 410
+   },
+   {
+    "id": "w_2",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 234,
+    "y": 410
+   },
+   {
+    "id": "w_3",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 306,
+    "y": 410
+   },
+   {
+    "id": "w_4",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 378,
+    "y": 410
+   },
+   {
+    "id": "w_5",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 450,
+    "y": 410
+   },
+   {
+    "id": "w_6",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 522,
+    "y": 410
+   },
+   {
+    "id": "w_7",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 594,
+    "y": 410
+   },
+   {
+    "id": "w_8",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 666,
+    "y": 410
+   },
+   {
+    "id": "w_9",
+    "type": "icon",
+    "of": "woman",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 738,
+    "y": 410
+   },
+   {
+    "id": "w_l",
+    "type": "text",
+    "text": "10 women",
+    "x": 860,
+    "y": 410,
+    "font_size": 44,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "o_0",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 90,
+    "y": 300,
+    "style": {
+     "opacity": 1
+    }
+   },
+   {
+    "id": "o_1",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 170,
+    "y": 300,
+    "style": {
+     "opacity": 1
+    }
+   },
+   {
+    "id": "o_2",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 250,
+    "y": 300,
+    "style": {
+     "opacity": 1
+    }
+   },
+   {
+    "id": "o_3",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 330,
+    "y": 300,
+    "style": {
+     "opacity": 1
+    }
+   },
+   {
+    "id": "o_4",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 410,
+    "y": 300,
+    "style": {
+     "opacity": 1
+    }
+   },
+   {
+    "id": "o_5",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 490,
+    "y": 300,
+    "style": {
+     "opacity": 1
+    }
+   },
+   {
+    "id": "o_6",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 570,
+    "y": 300,
+    "style": {
+     "opacity": 1
+    }
+   },
+   {
+    "id": "o_7",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 90,
+    "y": 215,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_8",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 170,
+    "y": 215,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_9",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 250,
+    "y": 215,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_10",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 330,
+    "y": 215,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_11",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 410,
+    "y": 215,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_12",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 490,
+    "y": 215,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_13",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 570,
+    "y": 215,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_14",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 90,
+    "y": 130,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_15",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 170,
+    "y": 130,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_16",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 250,
+    "y": 130,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_17",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 330,
+    "y": 130,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_18",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 410,
+    "y": 130,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_19",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 490,
+    "y": 130,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_20",
+    "type": "icon",
+    "of": "baby",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 570,
+    "y": 130,
+    "style": {
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "o_l",
+    "type": "text",
+    "text": "7 born",
+    "x": 780,
+    "y": 300,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "o_n",
+    "type": "text",
+    "text": "21 to stay level",
+    "x": 780,
+    "y": 215,
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "third",
+    "type": "text",
+    "text": "only ⅓",
+    "x": 780,
+    "y": 125,
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How many children per woman now?"
+    }
+   },
+   {
+    "draw": [
+     "axes",
+     "bar_1"
+    ],
+    "speak": "How many children does the average woman in the world have today? In 1963, it was over five."
+   },
+   {
+    "ask": {
+     "question": "Drag the second bar to your guess for today.",
+     "on": "bar_2",
+     "store": "g1",
+     "reveal": false,
+     "default": "3.5"
+    }
+   },
+   {
+    "draw": [
+     "clue"
+    ],
+    "speak": "Now a clue. India, the most populous country, is already below two children per woman, and China is at about one."
+   },
+   {
+    "ask": {
+     "question": "Want to change your guess? Drag the bar again.",
+     "on": "bar_2",
+     "revise": "g1",
+     "store": "g2",
+     "default": "2.6",
+     "right": "Close: you said {g2}, and it is about {g2.true}.",
+     "wrong": "You said {g2}; it is about {g2.true}."
+    }
+   },
+   {
+    "erase": [
+     "clue"
+    ]
+   },
+   {
+    "draw": [
+     "halved"
+    ],
+    "speak": "So in sixty years the world's average has more than halved, from over five children to about two point three."
+   },
+   {
+    "erase": [
+     "axes",
+     "bar_1",
+     "bar_2",
+     "halved"
+    ]
+   },
+   {
+    "draw": [
+     "mom1",
+     "y63",
+     "k1_0",
+     "k1_1",
+     "k1_2",
+     "k1_3",
+     "k1_4"
+    ],
+    "speak": "Picture it: a typical mother in 1963 had five children, and then some."
+   },
+   {
+    "draw": [
+     "mom2",
+     "y23",
+     "k2_0",
+     "k2_1",
+     "k2_q"
+    ],
+    "parallel": true,
+    "speak": "Today she has two, and a little bit."
+   },
+   {
+    "speak": "Why? Far fewer children die young, far more girls go to school and then to work, and children cost more to raise.",
+    "highlight": {
+     "target": [
+      "mom2"
+     ]
+    }
+   },
+   {
+    "erase": [
+     "mom1",
+     "y63",
+     "mom2",
+     "y23",
+     "k1_0",
+     "k1_1",
+     "k1_2",
+     "k1_3",
+     "k1_4",
+     "k2_0",
+     "k2_1",
+     "k2_q"
+    ]
+   },
+   {
+    "draw": [
+     "kr",
+     "krt",
+     "ky60",
+     "kmom1",
+     "kk1_0",
+     "kk1_1",
+     "kk1_2",
+     "kk1_3",
+     "kk1_4",
+     "kk1_5"
+    ],
+    "parallel": true,
+    "speak": "One of the steepest falls anywhere came in South Korea: about six children per woman in 1960."
+   },
+   {
+    "draw": [
+     "ky23",
+     "kmom2",
+     "kk2",
+     "kv"
+    ],
+    "speak": "In 2023: zero point seven two, among the very lowest in the world."
+   },
+   {
+    "erase": [
+     "ky60",
+     "kmom1",
+     "ky23",
+     "kmom2",
+     "kk2",
+     "kv",
+     "kk1_0",
+     "kk1_1",
+     "kk1_2",
+     "kk1_3",
+     "kk1_4",
+     "kk1_5"
+    ]
+   },
+   {
+    "draw": [
+     "w_0",
+     "w_1",
+     "w_2",
+     "w_3",
+     "w_4",
+     "w_5",
+     "w_6",
+     "w_7",
+     "w_8",
+     "w_9",
+     "w_l"
+    ],
+    "parallel": true,
+    "speak": "Put it another way: take ten women in South Korea today."
+   },
+   {
+    "draw": [
+     "o_7",
+     "o_8",
+     "o_9",
+     "o_10",
+     "o_11",
+     "o_12",
+     "o_13",
+     "o_14",
+     "o_15",
+     "o_16",
+     "o_17",
+     "o_18",
+     "o_19",
+     "o_20",
+     "o_n"
+    ],
+    "parallel": true,
+    "speak": "To keep a population steady, they would need about twenty-one."
+   },
+   {
+    "draw": [
+     "o_0",
+     "o_1",
+     "o_2",
+     "o_3",
+     "o_4",
+     "o_5",
+     "o_6",
+     "o_l"
+    ],
+    "parallel": true,
+    "speak": "They will have about seven. So each new generation there is roughly a third the size of the last."
+   },
+   {
+    "draw": [
+     "third"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "third"
+     ]
+    }
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "m",
+     "type": "icon",
+     "of": "woman",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 190,
+     "x": 120,
+     "y": 480
+    },
+    {
+     "id": "k0",
+     "type": "icon",
+     "of": "baby",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 270,
+     "y": 470
+    },
+    {
+     "id": "k1",
+     "type": "icon",
+     "of": "baby",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 365,
+     "y": 470
+    },
+    {
+     "id": "k2",
+     "type": "icon",
+     "of": "baby",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 460,
+     "y": 470
+    },
+    {
+     "id": "k3",
+     "type": "icon",
+     "of": "baby",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 555,
+     "y": 470
+    },
+    {
+     "id": "k4",
+     "type": "icon",
+     "of": "baby",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 650,
+     "y": 470
+    },
+    {
+     "id": "y1",
+     "type": "text",
+     "text": "1963",
+     "x": 120,
+     "y": 340,
+     "font_size": 60,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "m2",
+     "type": "icon",
+     "of": "woman",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 120,
+     "y": 200
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "now: ?",
+     "x": 420,
+     "y": 210,
+     "font_size": 120,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "GUESS",
+     "x": 800,
+     "y": 260,
+     "angle": 8
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "g",
+     "type": "icon",
+     "of": "globe showing americas",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 250,
+     "y": 430
+    },
+    {
+     "id": "n",
+     "type": "text",
+     "text": "5 … ?",
+     "x": 690,
+     "y": 460,
+     "font_size": 170,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "s",
+     "type": "text",
+     "text": "births per woman",
+     "x": 690,
+     "y": 300,
+     "font_size": 56,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "GUESS TWICE",
+     "x": 700,
+     "y": 620,
+     "angle": -6
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "f",
+     "type": "icon",
+     "of": "flag south korea",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 680,
+     "y": 470
+    },
+    {
+     "id": "a",
+     "type": "text",
+     "text": "6 children in 1960",
+     "x": 600,
+     "y": 280,
+     "font_size": 64,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "And now?"
+    }
+   ]
+  }
+ ]
+}

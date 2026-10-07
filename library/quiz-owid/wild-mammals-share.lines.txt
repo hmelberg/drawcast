@@ -1,0 +1,14 @@
+a: Put every mammal on Earth on one giant scale: cows, people, whales, mice. How much of the weight is wild?
+b: Whales, elephants, all those deer? Half, at least.
+[ASK] Drag the edge of the wild slice to your guess.
+  [right] You said {g}; it is {g.true}. Elephants, whales, deer and mice, all of them together.
+  [wrong] You said {g}. It is only {g.true}, and that counts every whale.
+b: Five percent? Every wild mammal on the planet?
+a: Every one. Humans alone are thirty-six percent, seven times all the wild mammals together.
+a: The rest is our farm animals and pets, mostly cattle: fifty-nine percent.
+b: So the wild ones lost a tug of war with cows.
+a: It gets stranger. All the world's dogs weigh about as much as every wild mammal on land.
+b: Let me guess. Pigs against whales?
+a: Right. Farmed pigs weigh about as much as all the whales, seals and dolphins in the sea.
+b: Birds, then. Birds must still be wild.
+a: Not by weight. Chickens and other poultry weigh more than twice all the wild birds put together.

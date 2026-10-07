@@ -1,0 +1,618 @@
+{
+ "request": "When did the last country in the world stop selling leaded petrol? As a two-voice podcast; let me click my guess on a timeline. #interactive #short",
+ "subtitle": "Guess the year the last country stopped selling leaded petrol, then see how long the world took, what it did for children, and who invented it.",
+ "thumb": "band \"Surely that was ages ago\" note \"Leaded petrol\"",
+ "spec": {
+  "title": "When did the last country stop selling leaded petrol?",
+  "sources": [
+   {
+    "id": "owid_ban",
+    "title": "Every country has now banned the use of leaded gasoline in cars",
+    "authors": "Hannah Ritchie (Our World in Data), from UNEP",
+    "year": 2024,
+    "url": "https://ourworldindata.org/data-insights/every-country-has-now-banned-the-use-of-leaded-gasoline-in-cars",
+    "finding": "Japan was the first country to ban leaded gasoline in cars, in 1986; Algeria was the last, in 2021"
+   },
+   {
+    "id": "owid_chart",
+    "title": "Global phase-out of leaded petrol in road vehicles",
+    "authors": "Our World in Data, from the UN Environment Programme",
+    "year": 2021,
+    "url": "https://ourworldindata.org/grapher/lead-petrol-ban",
+    "finding": "bans by year: United States 1996, United Kingdom 2000, Algeria 2021"
+   },
+   {
+    "id": "owid_lead",
+    "title": "Around one-in-three children globally suffer from lead poisoning. What can we do to reduce this?",
+    "authors": "Hannah Ritchie (Our World in Data)",
+    "year": 2022,
+    "url": "https://ourworldindata.org/reducing-lead-poisoning",
+    "finding": "median blood lead in US children fell by 95% between 1978 and 2016; around one child in three worldwide still has lead poisoning"
+   },
+   {
+    "id": "midgley",
+    "title": "Thomas Midgley Jr.",
+    "authors": "Wikipedia",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/Thomas_Midgley_Jr.",
+    "finding": "Midgley found tetraethyllead as a petrol additive in 1921 and developed CFCs (Freon) in the late 1920s"
+   }
+  ],
+  "elements": [
+   {
+    "id": "pump",
+    "type": "icon",
+    "of": "fuel pump",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 160,
+    "x": 130,
+    "y": 580
+   },
+   {
+    "id": "yr",
+    "type": "scale",
+    "min": 1900,
+    "max": 2030,
+    "value": 2021,
+    "x": 90,
+    "y": 380,
+    "width": 840,
+    "cites": [
+     "owid_ban"
+    ],
+    "markers": [
+     {
+      "value": 1986,
+      "label": "Japan",
+      "color": "#2f6b8f"
+     },
+     {
+      "value": 1996,
+      "label": "USA",
+      "color": "#2f6b8f"
+     }
+    ],
+    "font_size": 34
+   },
+   {
+    "id": "flag_dz",
+    "type": "icon",
+    "of": "flag algeria",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 120,
+    "x": 871.8461538461538,
+    "y": 640
+   },
+   {
+    "id": "y2021",
+    "type": "text",
+    "text": "Algeria",
+    "x": 721.8461538461538,
+    "y": 640,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_ban"
+    ]
+   },
+   {
+    "id": "y1921",
+    "type": "text",
+    "text": "1921: lead added",
+    "x": 315.6923076923077,
+    "y": 460,
+    "font_size": 40,
+    "style": {
+     "color": "#5e584e"
+    },
+    "cites": [
+     "midgley"
+    ]
+   },
+   {
+    "id": "brace",
+    "type": "path",
+    "points": [
+     [
+      645.6923076923077,
+      540
+     ],
+     [
+      645.6923076923077,
+      555
+     ],
+     [
+      871.8461538461538,
+      555
+     ],
+     [
+      871.8461538461538,
+      540
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "span",
+    "type": "text",
+    "text": "35 years",
+    "x": 758.7692307692307,
+    "y": 590,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_ban"
+    ]
+   },
+   {
+    "id": "fall",
+    "type": "arrow",
+    "from": {
+     "x": 594.0,
+     "y": 640
+    },
+    "to": {
+     "x": 839.5384615384615,
+     "y": 500
+    },
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "blood",
+    "type": "text",
+    "text": "child blood lead −95%",
+    "x": 330,
+    "y": 630,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_lead"
+    ]
+   },
+   {
+    "id": "third",
+    "type": "text",
+    "text": "still 1 child in 3",
+    "x": 330,
+    "y": 550,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_lead"
+    ]
+   },
+   {
+    "id": "m_pump",
+    "type": "icon",
+    "of": "fuel pump",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 240,
+    "x": 190,
+    "y": 500
+   },
+   {
+    "id": "m_pump_t",
+    "type": "text",
+    "text": "1921: lead",
+    "x": 190,
+    "y": 355,
+    "font_size": 46,
+    "style": {
+     "color": "#5e584e"
+    },
+    "cites": [
+     "midgley"
+    ]
+   },
+   {
+    "id": "chemist",
+    "type": "icon",
+    "of": "scientist",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 240,
+    "x": 500,
+    "y": 500
+   },
+   {
+    "id": "m_name",
+    "type": "text",
+    "text": "Thomas Midgley",
+    "x": 500,
+    "y": 650,
+    "font_size": 44,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "m_cfc",
+    "type": "icon",
+    "of": "spray can",
+    "set": "twemoji",
+    "or": [
+     "aerosol",
+     "ice"
+    ],
+    "icon_look": "picture",
+    "size": 240,
+    "x": 810,
+    "y": 500
+   },
+   {
+    "id": "m_cfc_t",
+    "type": "text",
+    "text": "1920s: CFCs",
+    "x": 810,
+    "y": 355,
+    "font_size": 46,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "midgley"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "When did leaded petrol end?"
+    }
+   },
+   {
+    "draw": [
+     "pump",
+     "yr"
+    ],
+    "voice": "a",
+    "speak": "Petrol with lead in it once filled almost every car on Earth. So when did the last country stop selling it?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "yr"
+     ]
+    },
+    "voice": "b",
+    "speak": "Easy, that's ancient history. Sometime in the eighties, with the shoulder pads?"
+   },
+   {
+    "ask": {
+     "question": "Click on the line where you think it is.",
+     "on": "yr",
+     "store": "y",
+     "default": "1990",
+     "tolerance": 0.05,
+     "right": "Close: you said {y}, and it was {y.true}.",
+     "wrong": "You said {y}; it was {y.true}, much later than most people think.",
+     "after": "keep"
+    }
+   },
+   {
+    "draw": [
+     "y2021",
+     "flag_dz"
+    ],
+    "voice": "a",
+    "speak": "Much later than the eighties. The last holdout was Algeria, in 2021."
+   },
+   {
+    "voice": "b",
+    "speak": "2021? I was streaming films in 2021, and somebody was still filling up with lead?",
+    "highlight": {
+     "target": [
+      "y2021"
+     ]
+    }
+   },
+   {
+    "draw": [
+     "y1921",
+     "yr_marker_1",
+     "yr_marker_2"
+    ],
+    "voice": "a",
+    "speak": "It had started in 1921, when an American chemist found lead stopped engines knocking. Japan banned it first, in 1986, and America ten years later."
+   },
+   {
+    "erase": [
+     "y2021",
+     "flag_dz"
+    ]
+   },
+   {
+    "draw": [
+     "brace",
+     "span"
+    ],
+    "voice": "b",
+    "speak": "So thirty-five years from the first ban to the last. Was it worth all that fuss?"
+   },
+   {
+    "erase": [
+     "brace",
+     "span"
+    ]
+   },
+   {
+    "draw": [
+     "fall",
+     "blood",
+     "third"
+    ],
+    "voice": "a",
+    "speak": "Very. In American children, lead in the blood fell ninety-five percent from 1978 to 2016. Though worldwide, one child in three still has too much."
+   },
+   {
+    "erase": [
+     "pump",
+     "yr",
+     "yr_marker_1",
+     "yr_marker_2",
+     "yr_answer",
+     "y1921",
+     "fall",
+     "blood",
+     "third"
+    ]
+   },
+   {
+    "draw": [
+     "m_pump",
+     "m_pump_t",
+     "chemist",
+     "m_name"
+    ],
+    "voice": "a",
+    "speak": "One more thing about that chemist. His name was Thomas Midgley."
+   },
+   {
+    "highlight": {
+     "target": [
+      "chemist"
+     ]
+    },
+    "voice": "b",
+    "speak": "Don't tell me. He had another big idea."
+   },
+   {
+    "draw": [
+     "m_cfc",
+     "m_cfc_t"
+    ],
+    "voice": "a",
+    "speak": "He did: CFCs, the gases that later tore a hole in the ozone layer. One historian says no single organism has harmed the atmosphere more."
+   },
+   {
+    "voice": "b",
+    "speak": "One man, both disasters. Remind me never to let him near my fridge.",
+    "highlight": {
+     "target": [
+      "m_pump_t",
+      "m_cfc_t"
+     ]
+    }
+   }
+  ],
+  "text": {
+   "font_size": 34
+  }
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "pump",
+     "type": "icon",
+     "of": "fuel pump",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 320,
+     "x": 260,
+     "y": 430
+    },
+    {
+     "id": "pb",
+     "type": "text",
+     "text": "Pb",
+     "x": 680,
+     "y": 500,
+     "font_size": 200,
+     "style": {
+      "color": "#5e584e"
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "last one: ?",
+     "x": 680,
+     "y": 310,
+     "font_size": 80,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "The last leaded petrol"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "line",
+     "type": "path",
+     "points": [
+      [
+       90,
+       400
+      ],
+      [
+       930,
+       400
+      ]
+     ],
+     "style": {
+      "stroke_width": 6
+     }
+    },
+    {
+     "id": "t1",
+     "type": "path",
+     "points": [
+      [
+       150,
+       380
+      ],
+      [
+       150,
+       420
+      ]
+     ],
+     "style": {
+      "stroke_width": 6
+     }
+    },
+    {
+     "id": "t2",
+     "type": "path",
+     "points": [
+      [
+       870,
+       380
+      ],
+      [
+       870,
+       420
+      ]
+     ],
+     "style": {
+      "stroke_width": 6
+     }
+    },
+    {
+     "id": "l1",
+     "type": "text",
+     "text": "1921",
+     "x": 150,
+     "y": 320,
+     "font_size": 70,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "l2",
+     "type": "text",
+     "text": "?",
+     "x": 870,
+     "y": 310,
+     "font_size": 120,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "car",
+     "type": "icon",
+     "of": "automobile",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 480,
+     "y": 560
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Lead in petrol: until when?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "sci",
+     "type": "icon",
+     "of": "scientist",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 260,
+     "y": 300
+    },
+    {
+     "id": "a",
+     "type": "text",
+     "text": "invention 1:",
+     "x": 700,
+     "y": 500,
+     "font_size": 60,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "b",
+     "type": "text",
+     "text": "leaded petrol",
+     "x": 700,
+     "y": 420,
+     "font_size": 60,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "c",
+     "type": "text",
+     "text": "invention 2: ?",
+     "x": 700,
+     "y": 300,
+     "font_size": 60,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "ONE CHEMIST",
+     "x": 720,
+     "y": 170,
+     "angle": -6
+    },
+    {
+     "id": "burst",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Two disasters?"
+    }
+   ]
+  }
+ ]
+}

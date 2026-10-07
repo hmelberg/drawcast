@@ -1,0 +1,20 @@
+{
+ "file": "smallpox-toll.json",
+ "title": "Which killed more in the 20th century: smallpox or the World Wars?",
+ "subtitle": "Pick the bigger killer, smallpox or the two World Wars, then see the gap drawn to scale, and how a vaccine wiped smallpox out for good.",
+ "format": "quiz",
+ "tags": [
+  "history",
+  "medicine",
+  "epidemiology"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "5",
+ "form": "higher or lower cards (compare pairs)",
+ "owid": "https://ourworldindata.org/smallpox",
+ "notes": "Fix round: one compare pair (Both World Wars 95 vs Smallpox 300) with a 'Smallpox!' reveal stamp; dashed cuts at 95 and 190 with '×3' show smallpox = three times both wars; hand-drawn timeline 1796 vaccine / 1967 final push / 1977 last case / 1980 gone; no ellipse. b guesses right (the trick question) and supplies the dollar-a-life kicker. War totals incl. civilians from Wikipedia (OWID counts soldiers only). Cards need size 2 / y 470 or they are tiny. '2 off-screen' is the heading card itself."
+}

@@ -1,0 +1,20 @@
+{
+ "file": "time-alone.json",
+ "title": "As Americans grow older, how much of the day do they spend alone?",
+ "subtitle": "Draw how much of the day Americans spend alone from 15 to 80, then hear two hosts weigh friends, loneliness and the young.",
+ "format": "quiz",
+ "tags": [
+  "psychology",
+  "data",
+  "culture"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "6",
+ "form": "ask on line (draw the line)",
+ "owid": "https://ourworldindata.org/grapher/time-spent-with-relationships-by-age-us",
+ "notes": "Only the age-15 point is drawn before the ask; the ask draws the true line. The frames tool does not show the viewer s line at the reveal (the player keeps it, per guess/reveal.ts). Chart tick labels stay small."
+}

@@ -1,0 +1,19 @@
+{
+ "file": "suicide-vs-homicide.json",
+ "title": "Which takes more lives worldwide: suicide or homicide?",
+ "subtitle": "Pick which takes more lives worldwide, suicide or homicide, then see the gap drawn to scale and why the news makes it feel the other way round.",
+ "format": "quiz",
+ "tags": [
+  "health",
+  "epidemiology"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "5",
+ "form": "ask choose (tap one of two drawn options)",
+ "owid": "https://ourworldindata.org/grapher/suicide-rate",
+ "notes": "OWID: suicide 9.1 per 100,000 (WHO GHE, 2021; ~718,000 deaths) vs homicide 5.5 (UNODC, 2021): ~1.65×, not the brief’s ~2×; voice says about two-thirds more. Ghost bar ~15 per 100,000 in the early 1990s and −40% from the OWID data insight (IHME; its current rate is 9, same as WHO). 43× is from OWID 2025 (NYT, Washington Post, Fox News, US 2023 deaths) — named as three big American news outlets. After review: options mid-page, then they slide down and the bars rise from them; underline (not highlighter) on the suicide bar; bridge line before the helpline; helpline text large, upper right. During the choose reveal nothing new is drawn (engine: choose has no own reveal mark besides a stamp, which felt too playful here); the right line is kept short. Thumbnail 1 is a question card instead of the tilted band."
+}

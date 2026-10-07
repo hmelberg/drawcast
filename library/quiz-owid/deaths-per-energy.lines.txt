@@ -1,0 +1,14 @@
+a: Same amount of electricity from each. Which source kills the most people, counting accidents and air pollution?
+b: Easy. Nuclear. Chernobyl, Fukushima, glowing fish.
+[ASK] Order them: fewest deaths on the left, most on the right. Then press Done.
+  [right] You got {r}. Coal is the deadliest, and nuclear sits down beside solar.
+  [wrong] You got {r}. Think about what comes out of the chimney.
+a: Deaths per terawatt-hour, about a year of power for a town of a hundred and fifty thousand. Coal, about twenty-five. Oil, about eighteen.
+b: Mine collapses? Oil rig fires?
+a: Mostly not. Mostly smoke in people's lungs. Gas burns cleaner: about three.
+b: Now nuclear. Brace yourself.
+a: Three hundredths, right beside solar at two. And that already counts Chernobyl and Fukushima.
+b: Including Chernobyl? I demand a recount.
+a: Back to that town. Run it on coal, and about twenty-five people die early, every year.
+a: Run it on nuclear, and you would expect one death every thirty-three years. Wind is about the same.
+b: So I've been scared of the wrong chimney.

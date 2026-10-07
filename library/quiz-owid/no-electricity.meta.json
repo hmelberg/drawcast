@@ -1,0 +1,20 @@
+{
+ "file": "no-electricity.json",
+ "title": "How many people still live without electricity?",
+ "subtitle": "Guess how many people still live without electricity, then a second question: where they live, and the country that switched on 420 million.",
+ "format": "quiz",
+ "tags": [
+  "geography",
+  "economics",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "7",
+ "form": "ask on a scale (number line), then a multiple-choice quiz",
+ "owid": "https://ourworldindata.org/grapher/number-of-people-with-and-without-electricity-access",
+ "notes": "OWID/World Bank 2024: 657 M (shown as ≈ 660 M) without electricity; 1.34 bn in 2000 (marker '2000: 1.3 bn' with a 'halved' arrow); India 420 M (2000) → ~1.5 M (2024) drawn as two bars; Sub-Saharan Africa 579 M drawn as a globe + '≈ 580 M' after the quiz and again at the close. Left: the scale's ticks, numbers and 'You' are small — the scale element has no size option (font_size is ignored)."
+}

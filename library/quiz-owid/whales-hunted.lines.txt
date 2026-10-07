@@ -1,0 +1,13 @@
+In the twentieth century, how many whales did people kill?
+[ASK] Click on the line where you think it is.
+  [right] Close: you said {w}, and it was about {w.true}.
+  [wrong] You said {w}; it was about {w.true}, nearly three million.
+Spread over the century, that is about eighty whales a day, every day, for a hundred years.
+At the peak, in 1964, it was eighty-two thousand in a single year: one whale every six or seven minutes.
+The worst hit was the blue whale, the largest animal that has ever lived. Before industrial whaling there were about three hundred and forty thousand.
+Hunters killed about three hundred and eighty thousand of them: more than were ever alive at one time.
+By 2001, of every seventy blue whales, one was left.
+About five thousand, in all the world's oceans.
+Then, in the 1980s, a worldwide ban on commercial whaling took hold.
+By the 2010s, the whole catch, of every kind of whale, was about fifteen hundred a year: a fiftieth of the peak.
+So the great hunt is almost over. But a blue whale is still a rare sight: one where seventy once swam.

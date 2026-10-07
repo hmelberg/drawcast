@@ -1,0 +1,530 @@
+{
+ "request": "When will the world's population peak, and how big will it be? A two-voice quiz: the host quizzes the co-host and the viewer together. #interactive #short",
+ "subtitle": "A host quizzes a co-host and you: when does the world's population peak, and how big? Then see the number that has already peaked.",
+ "thumb": "band \"The peak is coming\" note \"When?\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "t_hill",
+     "type": "path",
+     "points": [
+      [
+       120,
+       260
+      ],
+      [
+       300,
+       380
+      ],
+      [
+       480,
+       500
+      ],
+      [
+       620,
+       560
+      ],
+      [
+       700,
+       570
+      ],
+      [
+       780,
+       560
+      ],
+      [
+       880,
+       530
+      ]
+     ],
+     "smooth": true,
+     "style": {
+      "stroke_width": 9,
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "t_flag",
+     "type": "icon",
+     "of": "triangular flag",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 700,
+     "y": 640,
+     "size": 140
+    },
+    {
+     "id": "t_q",
+     "type": "text",
+     "text": "20??",
+     "x": 330,
+     "y": 600,
+     "font_size": 130,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "When do we peak?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t2_num",
+     "type": "text",
+     "text": "8,200,000,000",
+     "x": 560,
+     "y": 420,
+     "font_size": 96,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "t2_up",
+     "type": "text",
+     "text": "+ ? more",
+     "x": 640,
+     "y": 280,
+     "font_size": 110,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t2_band",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "How many of us, at most?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t3_a",
+     "type": "icon",
+     "of": "man raising hand",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 270,
+     "y": 440,
+     "size": 260
+    },
+    {
+     "id": "t3_b",
+     "type": "icon",
+     "of": "thinking face",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 720,
+     "y": 440,
+     "size": 240
+    },
+    {
+     "id": "t3_say",
+     "type": "text",
+     "text": "\"It never stops!\"",
+     "x": 500,
+     "y": 640,
+     "font_size": 64,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "t3_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Is he right?"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "When will the world's population peak, and at what size?",
+  "template": "line_chart",
+  "params": {
+   "x": [
+    1950,
+    1960,
+    1970,
+    1980,
+    1990,
+    2000,
+    2010,
+    2020,
+    2024,
+    2030,
+    2040,
+    2050,
+    2060,
+    2070,
+    2080,
+    2084,
+    2090,
+    2100
+   ],
+   "series": [
+    {
+     "name": "Past",
+     "values": [
+      2.49,
+      3.02,
+      3.69,
+      4.45,
+      5.33,
+      6.17,
+      7.02,
+      7.89,
+      8.16,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    {
+     "name": "UN projection",
+     "values": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      8.16,
+      8.57,
+      9.18,
+      9.66,
+      9.99,
+      10.19,
+      10.28,
+      10.29,
+      10.27,
+      10.18
+     ]
+    }
+   ],
+   "xlim": [
+    1950,
+    2100
+   ],
+   "ylim": [
+    0,
+    12
+   ],
+   "y_label": "Billions of people",
+   "box": {
+    "x": 70,
+    "y": 420,
+    "w": 860,
+    "h": 200
+   },
+   "label_size": 30
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Population, including UN projections",
+    "authors": "Our World in Data, from UN World Population Prospects 2024",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/population-with-un-projections",
+    "finding": "8.16 billion in 2024; medium projection peaks at 10.29 billion in 2084, 10.18 billion in 2100"
+   },
+   {
+    "id": "peakchild",
+    "title": "The world has passed \"peak child\"",
+    "authors": "Our World in Data",
+    "year": 2024,
+    "url": "https://ourworldindata.org/data-insights/the-world-has-passed-peak-child",
+    "finding": "the number of children under five peaked in 2017 (about 698 million); under-15s peaked around 2020"
+   },
+   {
+    "id": "wpp",
+    "title": "World Population Prospects 2024",
+    "authors": "United Nations, Population Division",
+    "year": 2024,
+    "finding": "medium projection: peak of about 10.3 billion in the mid-2080s"
+   }
+  ],
+  "elements": [
+   {
+    "id": "yr",
+    "type": "scale",
+    "min": 2020,
+    "max": 2200,
+    "ticks": 9,
+    "value": 2084,
+    "x": 90,
+    "y": 200,
+    "width": 820,
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "peak_pt",
+    "type": "point",
+    "at": {
+     "data": [
+      2084,
+      10.29
+     ]
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "peak_l",
+    "type": "text",
+    "text": "Peak: 2084, 10.3 bn",
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      2040,
+      11.3
+     ]
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "fill_l",
+    "type": "text",
+    "text": "kids grow up, live longer",
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      2048,
+      5.2
+     ]
+    }
+   },
+   {
+    "id": "now_l",
+    "type": "text",
+    "text": "8.2 bn",
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      1985,
+      8.8
+     ]
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "kid_tick",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      2017,
+      0
+     ],
+     [
+      2017,
+      1.4
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "kid_l",
+    "type": "text",
+    "text": "2017: peak child",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      2040,
+      2.2
+     ]
+    },
+    "cites": [
+     "peakchild"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "When will the world's population peak?"
+    }
+   },
+   {
+    "draw": [
+     "axes",
+     "line_1",
+     "now_l"
+    ],
+    "voice": "a",
+    "speak": "When will the world's population stop growing? Since 1950 it has more than tripled, to eight point two billion. Your guess, and my co-host's."
+   },
+   {
+    "draw": [
+     "yr"
+    ],
+    "voice": "b",
+    "speak": "Easy, I'll go first: it never stops. Twenty-two hundred, at the earliest."
+   },
+   {
+    "ask": {
+     "question": "Click on the line where you think the peak comes.",
+     "on": "yr",
+     "store": "y",
+     "default": "2120",
+     "tolerance": 0.06,
+     "right": "Close: you said {y}, and the UN says {y.true}.",
+     "wrong": "You said {y}; the UN's answer is {y.true}."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "yr"
+     ]
+    },
+    "voice": "a",
+    "speak": "Sorry. The UN's projection says 2084."
+   },
+   {
+    "erase": [
+     "yr"
+    ],
+    "voice": "b",
+    "speak": "Fine. But at the top it'll be huge. Fifteen billion?"
+   },
+   {
+    "hide": [
+     "axes",
+     "line_1",
+     "now_l"
+    ]
+   },
+   {
+    "ask": {
+     "question": "And how many people at the peak? Drag the slider.",
+     "estimate": {
+      "min": 8,
+      "max": 16,
+      "value": 10.3,
+      "unit": "billion"
+     },
+     "store": "p",
+     "default": "12",
+     "relative": true,
+     "tolerance": 0.06,
+     "right": "Close: you said {p} billion, and it is about {p.true}.",
+     "wrong": "You said {p} billion; it is about {p.true}."
+    }
+   },
+   {
+    "erase": [
+     "estimate_1"
+    ]
+   },
+   {
+    "show": [
+     "axes",
+     "line_1",
+     "now_l"
+    ]
+   },
+   {
+    "animate": {
+     "box.x": 70,
+     "box.y": 195,
+     "box.w": 860,
+     "box.h": 430
+    },
+    "duration": 2
+   },
+   {
+    "draw": [
+     "line_2",
+     "peak_pt",
+     "peak_l"
+    ],
+    "voice": "a",
+    "speak": "Ten point three, so two billion more than today. After the peak, a slow decline."
+   },
+   {
+    "highlight": {
+     "target": [
+      "line_2"
+     ]
+    },
+    "voice": "b",
+    "speak": "But people have fewer kids now. Why does it keep growing?"
+   },
+   {
+    "draw": [
+     "kid_tick",
+     "kid_l"
+    ],
+    "voice": "a",
+    "speak": "They do. In fact the number of children under five already peaked, back in 2017."
+   },
+   {
+    "highlight": {
+     "target": [
+      "kid_l"
+     ]
+    },
+    "voice": "b",
+    "speak": "Wait. Fewer babies, but more people?"
+   },
+   {
+    "draw": [
+     "fill_l"
+    ],
+    "voice": "a",
+    "speak": "Yes: today's children still have to grow up, and more of us live to old age. The total catches up later."
+   },
+   {
+    "highlight": {
+     "target": [
+      "peak_pt"
+     ],
+     "effect": "circle"
+    },
+    "voice": "b",
+    "speak": "So the babies peaked first, and the rest of us follow in 2084. I was off by a century."
+   }
+  ]
+ }
+}

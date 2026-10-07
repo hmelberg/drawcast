@@ -1,0 +1,658 @@
+{
+ "request": "Which country has the highest share of women in parliament? Clues, then tap the country, as a two-voice dialogue. #interactive #short",
+ "subtitle": "Two clues, four flags: find the country whose parliament is nearly two-thirds women, then learn how it got there and what seats can't tell you.",
+ "thumb": "band \"Not the one you think\" note \"Most women in parliament\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "a",
+     "type": "icon",
+     "of": "flag sweden",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 200,
+     "y": 540
+    },
+    {
+     "id": "b",
+     "type": "icon",
+     "of": "flag iceland",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 400,
+     "y": 540
+    },
+    {
+     "id": "c",
+     "type": "icon",
+     "of": "flag rwanda",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 600,
+     "y": 540
+    },
+    {
+     "id": "d",
+     "type": "icon",
+     "of": "flag cuba",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 800,
+     "y": 540
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "Which one?",
+     "x": 500,
+     "y": 360,
+     "font_size": 110,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Most women in parliament"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "w",
+     "type": "icon",
+     "of": "woman",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 220,
+     "y": 330
+    },
+    {
+     "id": "n",
+     "type": "text",
+     "text": "6 in 10",
+     "x": 640,
+     "y": 400,
+     "font_size": 170,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "l",
+     "type": "text",
+     "text": "MPs are women",
+     "x": 640,
+     "y": 230,
+     "font_size": 70,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "qq",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Where?!"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "f",
+     "type": "icon",
+     "of": "flag sweden",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 330,
+     "x": 330,
+     "y": 430
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "NOT SWEDEN",
+     "x": 330,
+     "y": 430,
+     "angle": 12
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "Then who?",
+     "x": 770,
+     "y": 430,
+     "font_size": 100,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Most women MPs"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "Which country has the most women in parliament?",
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Five countries had more women than men in parliament in 2025",
+    "authors": "Hannah Ritchie and Pablo Arriagada, Our World in Data, from V-Dem",
+    "year": 2026,
+    "url": "https://ourworldindata.org/data-insights/five-countries-had-more-women-than-men-in-parliament-in-2025",
+    "finding": "share of seats held by women in 2025: Rwanda about 63.8 %, Cuba 55.7 %, Nicaragua 55.0 %, Bolivia 50.8 %, Mexico 50.2 %"
+   },
+   {
+    "id": "share",
+    "title": "Share of women in parliament",
+    "authors": "Our World in Data, from V-Dem",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/share-of-women-in-parliament",
+    "finding": "world average 27 % in 2025; Sweden 45 %, Iceland 46 %"
+   },
+   {
+    "id": "herre",
+    "title": "Women have made major advances in politics within the last century, but progress has been mixed",
+    "authors": "Bastian Herre, Our World in Data",
+    "year": 2024,
+    "url": "https://ourworldindata.org/women-political-advances",
+    "finding": "in 2008, the Rwandan parliament became the first to have more than 50 % women"
+   },
+   {
+    "id": "regime",
+    "title": "Political regime (Regimes of the World)",
+    "authors": "Our World in Data, from V-Dem",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/political-regime",
+    "finding": "in 2025 Rwanda and Nicaragua are electoral autocracies, Cuba a closed autocracy"
+   },
+   {
+    "id": "unwomen",
+    "title": "Revisiting Rwanda five years after record-breaking parliamentary elections",
+    "authors": "UN Women",
+    "year": 2018,
+    "url": "https://www.unwomen.org/en/news/stories/2018/8/feature-rwanda-women-in-parliament",
+    "finding": "Rwanda's 2003 constitution reserves 30 % of seats in decision-making bodies for women (24 of 80 in the lower house)"
+   }
+  ],
+  "elements": [
+   {
+    "id": "fl_swe",
+    "type": "icon",
+    "of": "flag sweden",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170
+   },
+   {
+    "id": "nm_swe",
+    "type": "text",
+    "text": "Sweden",
+    "font_size": 40,
+    "at": {
+     "ref": "fl_swe",
+     "side": "below",
+     "gap": 6
+    }
+   },
+   {
+    "id": "g_swe",
+    "type": "group",
+    "members": [
+     "fl_swe",
+     "nm_swe"
+    ]
+   },
+   {
+    "id": "fl_isl",
+    "type": "icon",
+    "of": "flag iceland",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170
+   },
+   {
+    "id": "nm_isl",
+    "type": "text",
+    "text": "Iceland",
+    "font_size": 40,
+    "at": {
+     "ref": "fl_isl",
+     "side": "below",
+     "gap": 6
+    }
+   },
+   {
+    "id": "g_isl",
+    "type": "group",
+    "members": [
+     "fl_isl",
+     "nm_isl"
+    ]
+   },
+   {
+    "id": "fl_rwa",
+    "type": "icon",
+    "of": "flag rwanda",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170
+   },
+   {
+    "id": "nm_rwa",
+    "type": "text",
+    "text": "Rwanda",
+    "font_size": 40,
+    "at": {
+     "ref": "fl_rwa",
+     "side": "below",
+     "gap": 6
+    }
+   },
+   {
+    "id": "g_rwa",
+    "type": "group",
+    "members": [
+     "fl_rwa",
+     "nm_rwa"
+    ]
+   },
+   {
+    "id": "fl_cub",
+    "type": "icon",
+    "of": "flag cuba",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170
+   },
+   {
+    "id": "nm_cub",
+    "type": "text",
+    "text": "Cuba",
+    "font_size": 40,
+    "at": {
+     "ref": "fl_cub",
+     "side": "below",
+     "gap": 6
+    }
+   },
+   {
+    "id": "g_cub",
+    "type": "group",
+    "members": [
+     "fl_cub",
+     "nm_cub"
+    ]
+   },
+   {
+    "id": "flags",
+    "type": "group",
+    "members": [
+     "g_swe",
+     "g_isl",
+     "g_rwa",
+     "g_cub"
+    ],
+    "layout": "row",
+    "gap": 60,
+    "fit": {
+     "x": 60,
+     "y": 380,
+     "w": 880,
+     "h": 250
+    }
+   },
+   {
+    "id": "clue1",
+    "type": "text",
+    "text": "Clue 1: over 6 in 10",
+    "x": 500,
+    "y": 290,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "clue2",
+    "type": "text",
+    "text": "Clue 2: first majority, 2008",
+    "x": 500,
+    "y": 215,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "herre"
+    ]
+   },
+   {
+    "id": "sh_swe",
+    "type": "text",
+    "text": "45 %",
+    "font_size": 44,
+    "style": {
+     "color": "#8f887c"
+    },
+    "at": {
+     "ref": "nm_swe",
+     "side": "below",
+     "gap": 8
+    },
+    "cites": [
+     "owid",
+     "share"
+    ]
+   },
+   {
+    "id": "sh_isl",
+    "type": "text",
+    "text": "46 %",
+    "font_size": 44,
+    "style": {
+     "color": "#8f887c"
+    },
+    "at": {
+     "ref": "nm_isl",
+     "side": "below",
+     "gap": 8
+    },
+    "cites": [
+     "owid",
+     "share"
+    ]
+   },
+   {
+    "id": "sh_rwa",
+    "type": "text",
+    "text": "64 %",
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "nm_rwa",
+     "side": "below",
+     "gap": 8
+    },
+    "cites": [
+     "owid",
+     "share"
+    ]
+   },
+   {
+    "id": "sh_cub",
+    "type": "text",
+    "text": "56 %",
+    "font_size": 44,
+    "style": {
+     "color": "#8f887c"
+    },
+    "at": {
+     "ref": "nm_cub",
+     "side": "below",
+     "gap": 8
+    },
+    "cites": [
+     "owid",
+     "share"
+    ]
+   },
+   {
+    "id": "rw",
+    "type": "population",
+    "count": 100,
+    "states": {
+     "men": 36,
+     "women": 64
+    },
+    "colors": {
+     "men": "#c9c3b8",
+     "women": "#b5482e"
+    },
+    "order": "rows",
+    "legend": false,
+    "fit": {
+     "x": 50,
+     "y": 245,
+     "w": 420,
+     "h": 350
+    },
+    "cites": [
+     "owid",
+     "share"
+    ]
+   },
+   {
+    "id": "wo",
+    "type": "population",
+    "count": 100,
+    "states": {
+     "men": 73,
+     "women": 27
+    },
+    "colors": {
+     "men": "#c9c3b8",
+     "women": "#b5482e"
+    },
+    "order": "rows",
+    "legend": false,
+    "fit": {
+     "x": 530,
+     "y": 245,
+     "w": 420,
+     "h": 350
+    },
+    "cites": [
+     "owid",
+     "share"
+    ]
+   },
+   {
+    "id": "rw_t",
+    "type": "text",
+    "text": "Rwanda: 64 in 100",
+    "x": 260,
+    "y": 625,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "wo_t",
+    "type": "text",
+    "text": "World: 27 in 100",
+    "x": 740,
+    "y": 625,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "share"
+    ]
+   },
+   {
+    "id": "quota",
+    "type": "text",
+    "text": "2003: 30 % of seats reserved",
+    "x": 500,
+    "y": 222,
+    "font_size": 42,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "unwomen"
+    ]
+   },
+   {
+    "id": "auto",
+    "type": "text",
+    "text": "V-Dem: electoral autocracy",
+    "x": 500,
+    "y": 222,
+    "font_size": 46,
+    "style": {
+     "color": "#8a5fa8"
+    },
+    "cites": [
+     "regime"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Most women in parliament?"
+    }
+   },
+   {
+    "draw": [
+     "flags"
+    ],
+    "voice": "a",
+    "speak": "Which country has the most women in its parliament? Four suspects, two clues: guess along."
+   },
+   {
+    "draw": [
+     "clue1"
+    ],
+    "voice": "a",
+    "speak": "Clue one: more than six in ten of its members are women."
+   },
+   {
+    "point": {
+     "at": {
+      "ref": "fl_swe"
+     },
+     "gesture": "circle"
+    },
+    "voice": "b",
+    "speak": "Six in ten? Sweden. It's always Sweden."
+   },
+   {
+    "draw": [
+     "clue2"
+    ],
+    "voice": "a",
+    "speak": "Clue two: in 2008 it became the first parliament anywhere with more women than men."
+   },
+   {
+    "ask": {
+     "question": "Tap the country you think it is.",
+     "choose": [
+      "g_swe",
+      "g_isl",
+      "g_rwa",
+      "g_cub"
+     ],
+     "answer": "g_rwa",
+     "right": "Rwanda: about sixty-four percent women, the highest share in the world.",
+     "wrong": "Look beyond Europe."
+    }
+   },
+   {
+    "erase": [
+     "clue1",
+     "clue2"
+    ]
+   },
+   {
+    "draw": [
+     "sh_swe",
+     "sh_isl",
+     "sh_cub",
+     "sh_rwa"
+    ],
+    "parallel": true,
+    "voice": "b",
+    "speak": "Sweden only forty-five? I'd have bet the house on it."
+   },
+   {
+    "erase": [
+     "flags",
+     "sh_swe",
+     "sh_isl",
+     "sh_cub",
+     "sh_rwa"
+    ]
+   },
+   {
+    "draw": [
+     "rw",
+     "rw_t"
+    ],
+    "voice": "a",
+    "speak": "Picture Rwanda's parliament as a hundred seats: sixty-four held by women."
+   },
+   {
+    "draw": [
+     "wo",
+     "wo_t"
+    ],
+    "voice": "a",
+    "speak": "Now the world's parliaments, on average: twenty-seven."
+   },
+   {
+    "draw": [
+     "quota"
+    ],
+    "cue": 0.35,
+    "voice": "a",
+    "speak": "How did Rwanda get there? After the 1994 genocide, its 2003 constitution reserved at least thirty percent of seats for women, and women went on to win far more."
+   },
+   {
+    "highlight": {
+     "target": [
+      "rw_t"
+     ]
+    },
+    "voice": "b",
+    "speak": "So it's the model democracy, then."
+   },
+   {
+    "erase": [
+     "quota"
+    ]
+   },
+   {
+    "draw": [
+     "auto"
+    ],
+    "voice": "a",
+    "speak": "Not by V-Dem's ratings: Rwanda counts as an electoral autocracy, and Cuba, in second place, a closed one."
+   },
+   {
+    "highlight": {
+     "target": [
+      "auto"
+     ]
+    },
+    "voice": "a",
+    "speak": "So count the seats, then ask what those seats can decide."
+   }
+  ]
+ }
+}

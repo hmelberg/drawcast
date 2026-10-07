@@ -1,0 +1,572 @@
+{
+ "request": "Which of these countries still had malaria around 1900? A two-voice podcast: let me tap every one. #interactive #short",
+ "subtitle": "Tap every country that still had malaria around 1900, from Italy to Finland, then hear why it was never really a tropical disease.",
+ "thumb": "band \"Where did malaria live?\" stamp \"1900\"",
+ "spec": {
+  "title": "Which of these countries still had malaria around 1900?",
+  "sources": [
+   {
+    "id": "owid_mal",
+    "title": "Malaria was common across half the world – since then it has been eliminated in many regions",
+    "authors": "Max Roser (Our World in Data)",
+    "year": 2019,
+    "url": "https://ourworldindata.org/malaria-past-prevalence",
+    "finding": "around 1900 malaria was prevalent on about 53 % of the world's land, by 2002 on 27 %; it was prevalent in Europe and North America (Lincoln caught it in Illinois, Dürer in the Netherlands, several popes died of it in Italy); 'not a tropical disease, but a disease that was eliminated everywhere except for the tropics'"
+   },
+   {
+    "id": "hay",
+    "title": "The global distribution and population at risk of malaria: past, present, and future",
+    "authors": "Hay, Guerra, Tatem, Noor and Snow (The Lancet Infectious Diseases)",
+    "year": 2004,
+    "finding": "the historical map behind OWID's chart: malaria's reach around 1900 and where it was eliminated since"
+   },
+   {
+    "id": "cdc",
+    "title": "Elimination of malaria in the United States (1947–1951)",
+    "authors": "US Centers for Disease Control and Prevention",
+    "year": 1951,
+    "url": "https://www.cdc.gov/malaria/history/index.html",
+    "finding": "by 1951 malaria was considered eliminated from the United States"
+   },
+   {
+    "id": "fin",
+    "title": "The decline of malaria in Finland – the impact of the vector and social variables",
+    "authors": "Lena Hulden and Larry Hulden (Malaria Journal)",
+    "year": 2009,
+    "url": "https://malariajournal.biomedcentral.com/articles/10.1186/1475-2875-8-94",
+    "finding": "malaria was endemic across Finland in the 18th and 19th centuries; the last indigenous case was in 1954"
+   }
+  ],
+  "elements": [
+   {
+    "id": "land",
+    "type": "cards",
+    "select": "Had malaria",
+    "size": 1.12,
+    "arrange": "rise",
+    "y": 600,
+    "cites": [
+     "owid_mal",
+     "hay"
+    ],
+    "items": [
+     {
+      "text": "USA",
+      "in": true,
+      "icon": {
+       "of": "flag united states",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Italy",
+      "in": true,
+      "icon": {
+       "of": "flag italy",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Netherlands",
+      "in": true,
+      "icon": {
+       "of": "flag netherlands",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Finland",
+      "in": true,
+      "icon": {
+       "of": "flag finland",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Iceland",
+      "in": false,
+      "icon": {
+       "of": "flag iceland",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "New Zealand",
+      "in": false,
+      "icon": {
+       "of": "flag new zealand",
+       "set": "twemoji"
+      }
+     }
+    ]
+   },
+   {
+    "id": "t_us",
+    "type": "text",
+    "text": "until 1951",
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "land_1",
+     "side": "above",
+     "gap": 6
+    },
+    "cites": [
+     "cdc"
+    ]
+   },
+   {
+    "id": "t_fi",
+    "type": "text",
+    "text": "until 1954",
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "land_4",
+     "side": "below",
+     "gap": 6
+    },
+    "cites": [
+     "fin"
+    ]
+   },
+   {
+    "id": "t_is",
+    "type": "text",
+    "text": "never",
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "land_5",
+     "side": "left",
+     "gap": 12
+    },
+    "cites": [
+     "owid_mal",
+     "hay"
+    ]
+   },
+   {
+    "id": "t_nz",
+    "type": "text",
+    "text": "never",
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "land_6",
+     "side": "right",
+     "gap": 12
+    },
+    "cites": [
+     "owid_mal",
+     "hay"
+    ]
+   },
+   {
+    "id": "sec1",
+    "type": "sector",
+    "x": 270,
+    "y": 400,
+    "radius": 182,
+    "start": 90,
+    "end": 281,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#d98b72"
+    },
+    "cites": [
+     "owid_mal",
+     "hay"
+    ]
+   },
+   {
+    "id": "disc1",
+    "type": "shape",
+    "shape": "circle",
+    "x": 270,
+    "y": 400,
+    "radius": 190,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "lab1",
+    "type": "text",
+    "text": "1900: half",
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 270,
+    "y": 180
+   },
+   {
+    "id": "sec2",
+    "type": "sector",
+    "x": 730,
+    "y": 400,
+    "radius": 182,
+    "start": 90,
+    "end": 187,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#d98b72"
+    },
+    "cites": [
+     "owid_mal",
+     "hay"
+    ]
+   },
+   {
+    "id": "disc2",
+    "type": "shape",
+    "shape": "circle",
+    "x": 730,
+    "y": 400,
+    "radius": 190,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "lab2",
+    "type": "text",
+    "text": "2002: a quarter",
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 730,
+    "y": 180
+   },
+   {
+    "id": "worldland",
+    "type": "text",
+    "text": "of the world's land",
+    "font_size": 36,
+    "style": {
+     "color": "#5e584e"
+    },
+    "x": 500,
+    "y": 620
+   },
+   {
+    "id": "tropics",
+    "type": "text",
+    "text": "left over in the tropics",
+    "font_size": 50,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 500,
+    "y": 620,
+    "cites": [
+     "owid_mal"
+    ]
+   },
+   {
+    "id": "beaten",
+    "type": "text",
+    "text": "beaten everywhere else",
+    "font_size": 50,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 500,
+    "y": 620,
+    "cites": [
+     "owid_mal"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Malaria in 1900: where?"
+    }
+   },
+   {
+    "draw": [
+     "land"
+    ],
+    "voice": "a",
+    "speak": "Around 1900, which of these countries still had malaria? Six candidates, from Finland to New Zealand."
+   },
+   {
+    "voice": "b",
+    "speak": "Malaria? That's a tropical disease. I'd say none of them. Italy, at a push.",
+    "highlight": {
+     "target": [
+      "land_2"
+     ]
+    }
+   },
+   {
+    "ask": {
+     "question": "Tap every country that had it, then Done.",
+     "on": "land",
+     "store": "m",
+     "after": "keep",
+     "right": "All {m.total} right.",
+     "wrong": "{m} of {m.total} on the first try.",
+     "feedback": {
+      "style": "warm",
+      "perfect": "A medical historian in disguise.",
+      "good": "Most people stop at Italy.",
+      "poor": "The map surprises almost everyone.",
+      "none": "Malaria fooled you, as it fooled Europe."
+     }
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "land_2",
+      "land_3"
+     ]
+    },
+    "voice": "a",
+    "speak": "Italy, yes: several popes died of it. But the Netherlands too, where the painter Albrecht Dürer caught it."
+   },
+   {
+    "draw": [
+     "t_us"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "land_1"
+     ]
+    },
+    "voice": "a",
+    "speak": "And the United States. Abraham Lincoln caught it in Illinois, and it lingered in the US until 1951."
+   },
+   {
+    "highlight": {
+     "target": [
+      "land_4"
+     ]
+    },
+    "voice": "b",
+    "speak": "Fine. But not Finland. Finland has snow, not mosquitoes."
+   },
+   {
+    "draw": [
+     "t_fi"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "land_4"
+     ]
+    },
+    "voice": "a",
+    "speak": "Finland had both. Malaria was common there, and its last local case was in 1954."
+   },
+   {
+    "draw": [
+     "t_is",
+     "t_nz"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "land_5",
+      "land_6"
+     ]
+    },
+    "voice": "a",
+    "speak": "Only Iceland and New Zealand were spared. It never took hold on either."
+   },
+   {
+    "erase": [
+     "land",
+     "t_us",
+     "t_fi",
+     "t_is",
+     "t_nz"
+    ]
+   },
+   {
+    "draw": [
+     "sec1",
+     "disc1",
+     "lab1",
+     "worldland"
+    ],
+    "voice": "a",
+    "speak": "So around 1900, malaria reached about half of all the land on Earth."
+   },
+   {
+    "draw": [
+     "sec2",
+     "disc2",
+     "lab2"
+    ],
+    "voice": "a",
+    "speak": "Then drained marshes, better houses and DDT pushed it back. By 2002, a quarter."
+   },
+   {
+    "erase": [
+     "worldland"
+    ]
+   },
+   {
+    "draw": [
+     "tropics"
+    ],
+    "cue": 0.35,
+    "voice": "b",
+    "speak": "So it isn't a tropical disease at all. It's the disease that's left over in the tropics."
+   },
+   {
+    "erase": [
+     "tropics"
+    ]
+   },
+   {
+    "draw": [
+     "beaten"
+    ],
+    "voice": "a",
+    "speak": "Exactly. Beaten everywhere else, which means it can be beaten."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "m",
+     "type": "icon",
+     "of": "mosquito",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 320,
+     "x": 330,
+     "y": 440
+    },
+    {
+     "id": "y",
+     "type": "text",
+     "text": "1900",
+     "x": 720,
+     "y": 480,
+     "font_size": 140,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Where did malaria live?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "us",
+     "type": "icon",
+     "of": "flag united states",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 130,
+     "x": 410,
+     "y": 440
+    },
+    {
+     "id": "it",
+     "type": "icon",
+     "of": "flag italy",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 130,
+     "x": 600,
+     "y": 440
+    },
+    {
+     "id": "nl",
+     "type": "icon",
+     "of": "flag netherlands",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 130,
+     "x": 410,
+     "y": 290
+    },
+    {
+     "id": "is",
+     "type": "icon",
+     "of": "flag iceland",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 130,
+     "x": 600,
+     "y": 290
+    },
+    {
+     "id": "q",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Which had malaria in 1900?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "palm",
+     "type": "icon",
+     "of": "palm tree",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 210,
+     "x": 420,
+     "y": 260
+    },
+    {
+     "id": "pine",
+     "type": "icon",
+     "of": "evergreen tree",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 210,
+     "x": 780,
+     "y": 260
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?",
+     "x": 600,
+     "y": 270,
+     "font_size": 130,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Tropics only?"
+    }
+   ]
+  }
+ ]
+}

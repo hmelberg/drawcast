@@ -1,0 +1,587 @@
+{
+ "request": "In how many countries do women live longer than men? A two-voice quiz where I tap the countries. #interactive #short",
+ "subtitle": "Sort countries by who lives longer there, then see how big the gap is, where it comes from, and the countries where it once ran the other way.",
+ "thumb": "band \"Who lives longer, where?\" note \"Women vs men\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "w",
+     "type": "icon",
+     "of": "woman",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 250,
+     "y": 450
+    },
+    {
+     "id": "m",
+     "type": "icon",
+     "of": "man",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 750,
+     "y": 450
+    },
+    {
+     "id": "vs",
+     "type": "text",
+     "text": "vs",
+     "x": 500,
+     "y": 460,
+     "font_size": 110,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Who lives longer? Where?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "globe",
+     "type": "icon",
+     "of": "globe showing europe-africa",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 260,
+     "y": 440
+    },
+    {
+     "id": "t1",
+     "type": "text",
+     "text": "? of 200",
+     "x": 690,
+     "y": 480,
+     "font_size": 130,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "text",
+     "text": "countries",
+     "x": 690,
+     "y": 350,
+     "font_size": 70,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Women live longer in…"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "f1",
+     "type": "icon",
+     "of": "flag india",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 260,
+     "y": 450
+    },
+    {
+     "id": "y",
+     "type": "text",
+     "text": "1950",
+     "x": 680,
+     "y": 500,
+     "font_size": 150,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "Who lived longer?",
+     "x": 640,
+     "y": 340,
+     "font_size": 64,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "India, 1950"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "In how many countries do women live longer than men?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Nigeria",
+    "India",
+    "Norway",
+    "USA",
+    "Japan",
+    "Russia"
+   ],
+   "values": [
+    [
+     0.6,
+     3.1,
+     3.1,
+     5.0,
+     6.1,
+     11.8
+    ],
+    [
+     4.0,
+     -1.5,
+     3.3,
+     5.6,
+     3.3,
+     7.9
+    ]
+   ],
+   "stage": 0,
+   "value_labels": true,
+   "ylim": [
+    -3,
+    13
+   ],
+   "y_label": "Women's extra years",
+   "icons": [
+    {
+     "of": "flag nigeria",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag india",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag norway",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag united states",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag japan",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag russia",
+     "set": "twemoji"
+    }
+   ],
+   "label_size": 30,
+   "bar_colors": "same"
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Life expectancy of women vs. life expectancy of men",
+    "authors": "Our World in Data, from UN World Population Prospects (2024)",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/life-expectancy-of-women-vs-life-expectancy-of-men",
+    "finding": "in 2023 women outlive men in every country; world 75.9 vs 70.5 years; gap 0.6 years in Nigeria, 3.1 in India and Norway, 5.0 in the US, 6.1 in Japan, 11.8 in Russia; in 1950 men lived longer in India (by 1.5 years), Pakistan, Iran and Bangladesh"
+   },
+   {
+    "id": "owid_why",
+    "title": "Why do women live longer than men?",
+    "authors": "Saloni Dattani and Lucas Rodés-Guirao (Our World in Data)",
+    "year": 2023,
+    "url": "https://ourworldindata.org/why-do-women-live-longer-than-men",
+    "finding": "women live longer in all countries; newborn boys die more often than girls; smoking, alcohol, accidents and violence add to men's deaths; until recently men lived longer in India, Bangladesh, Pakistan and Iran"
+   },
+   {
+    "id": "wpp",
+    "title": "World Population Prospects 2024",
+    "authors": "United Nations",
+    "year": 2024,
+    "finding": "life expectancy at birth by sex, 1950–2023"
+   }
+  ],
+  "elements": [
+   {
+    "id": "who",
+    "type": "cards",
+    "bins": [
+     "Women longer",
+     "Men longer"
+    ],
+    "size": 2,
+    "items": [
+     {
+      "text": "Russia",
+      "icon": {
+       "of": "flag russia",
+       "set": "twemoji"
+      },
+      "bin": "Women longer"
+     },
+     {
+      "text": "Nigeria",
+      "icon": {
+       "of": "flag nigeria",
+       "set": "twemoji"
+      },
+      "bin": "Women longer"
+     },
+     {
+      "text": "India",
+      "icon": {
+       "of": "flag india",
+       "set": "twemoji"
+      },
+      "bin": "Women longer"
+     },
+     {
+      "text": "Japan",
+      "icon": {
+       "of": "flag japan",
+       "set": "twemoji"
+      },
+      "bin": "Women longer"
+     },
+     {
+      "text": "USA",
+      "icon": {
+       "of": "flag united states",
+       "set": "twemoji"
+      },
+      "bin": "Women longer"
+     },
+     {
+      "text": "Norway",
+      "icon": {
+       "of": "flag norway",
+       "set": "twemoji"
+      },
+      "bin": "Women longer"
+     }
+    ],
+    "cites": [
+     "owid"
+    ],
+    "arrange": "side",
+    "x": 40,
+    "width": 920
+   },
+   {
+    "id": "avg",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      -0.45,
+      5.3
+     ],
+     [
+      5.45,
+      5.3
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "dash": true,
+     "stroke_width": 3
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "avg_l",
+    "type": "text",
+    "text": "world: 5",
+    "font_size": 36,
+    "style": {
+     "color": "#8f887c"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "data": [
+      0.1,
+      6.3
+     ]
+    }
+   },
+   {
+    "id": "baby",
+    "type": "text",
+    "text": "baby boys: more fragile",
+    "x": 500,
+    "y": 610,
+    "font_size": 46,
+    "style": {
+     "color": "#2f2b26"
+    },
+    "cites": [
+     "owid_why"
+    ]
+   },
+   {
+    "id": "smoke",
+    "type": "text",
+    "text": "men: smoking, drink, risk",
+    "x": 500,
+    "y": 610,
+    "font_size": 46,
+    "style": {
+     "color": "#2f2b26"
+    },
+    "cites": [
+     "owid_why"
+    ]
+   },
+   {
+    "id": "y1950",
+    "type": "text",
+    "text": "1950",
+    "font_size": 72,
+    "style": {
+     "color": "#2f2b26"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "data": [
+      3.3,
+      10.5
+     ]
+    }
+   },
+   {
+    "id": "y2023",
+    "type": "text",
+    "text": "2023",
+    "font_size": 72,
+    "style": {
+     "color": "#2f2b26"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "data": [
+      3.3,
+      10.5
+     ]
+    }
+   },
+   {
+    "id": "shift",
+    "type": "text",
+    "text": "India: −1.5 → +3.1",
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "data": [
+      1.4,
+      8.6
+     ]
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Where do women live longer?"
+    }
+   },
+   {
+    "draw": [
+     "who"
+    ],
+    "voice": "a",
+    "speak": "In which countries do women live longer than men? Here are six: rich and poor, hot and cold."
+   },
+   {
+    "highlight": {
+     "target": [
+      "who_2",
+      "who_3"
+     ]
+    },
+    "voice": "b",
+    "speak": "Russia, women for sure. But Nigeria? India? I'd bet men win somewhere in there."
+   },
+   {
+    "ask": {
+     "question": "Sort each country: who lives longer there?",
+     "on": "who",
+     "store": "f",
+     "default": "4",
+     "right": "{f} of {f.total}. Women live longer in all six.",
+     "wrong": "{f} of {f.total} on the first try. Women win in every one of them."
+    }
+   },
+   {
+    "erase": [
+     "who"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "bar_1",
+     "bar_2",
+     "bar_3",
+     "bar_4",
+     "bar_5",
+     "bar_6",
+     "y2023"
+    ],
+    "voice": "a",
+    "speak": "In fact, today women outlive men in every country in the world."
+   },
+   {
+    "draw": [
+     "avg",
+     "avg_l"
+    ],
+    "voice": "a",
+    "speak": "By about five years on average."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1",
+      "bar_6"
+     ]
+    },
+    "voice": "a",
+    "speak": "But the gap varies a lot: under a year in Nigeria, almost twelve years in Russia."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_6"
+     ]
+    },
+    "voice": "b",
+    "speak": "Twelve years? That can't just be biology."
+   },
+   {
+    "erase": [
+     "y2023"
+    ]
+   },
+   {
+    "draw": [
+     "baby"
+    ],
+    "voice": "a",
+    "speak": "Some of it is. From their first week, baby boys are more fragile than girls."
+   },
+   {
+    "erase": [
+     "baby"
+    ]
+   },
+   {
+    "draw": [
+     "smoke"
+    ],
+    "voice": "a",
+    "speak": "Much of the rest is how men live: more smoking, more drinking, more accidents and violence."
+   },
+   {
+    "erase": [
+     "smoke",
+     "avg",
+     "avg_l"
+    ]
+   },
+   {
+    "draw": [
+     "y1950"
+    ]
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 2.5,
+    "voice": "a",
+    "speak": "And it wasn't always this way. Here are the same six countries in 1950."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    },
+    "voice": "b",
+    "speak": "Hold on. India's bar is below zero. Men lived longer there?"
+   },
+   {
+    "voice": "a",
+    "speak": "By a year and a half. And so did men in Pakistan, Iran and Bangladesh.",
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    }
+   },
+   {
+    "erase": [
+     "y1950"
+    ]
+   },
+   {
+    "draw": [
+     "y2023"
+    ]
+   },
+   {
+    "animate": {
+     "stage": 0
+    },
+    "duration": 2.5
+   },
+   {
+    "draw": [
+     "shift"
+    ],
+    "voice": "a",
+    "speak": "Today Indian women are three years ahead. So the gap is partly biology, and partly something societies can change."
+   },
+   {
+    "highlight": {
+     "target": [
+      "shift",
+      "bar_2"
+     ]
+    }
+   }
+  ]
+ }
+}

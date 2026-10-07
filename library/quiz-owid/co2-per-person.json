@@ -1,0 +1,774 @@
+{
+ "request": "Which country emits the most CO2 per person? A two-voice podcast where I tap the flag. #interactive #short",
+ "subtitle": "Pick the country that emits the most CO₂ per person from five oil and gas states, then see how a year in Congo compares with half a day there.",
+ "thumb": "band \"Not the one you think\" note \"CO₂ per person\"",
+ "spec": {
+  "title": "Which country emits the most CO₂ per person?",
+  "text": {
+   "font_size": 34
+  },
+  "sources": [
+   {
+    "id": "owid_pc",
+    "title": "CO₂ emissions per capita",
+    "authors": "Our World in Data, from the Global Carbon Budget (2025)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/co-emissions-per-capita",
+    "finding": "in 2024, tonnes of CO₂ per person: Qatar 41.3, Kuwait 26.2, Trinidad and Tobago 22.9, Saudi Arabia 20.4, United Arab Emirates 20.1, United States 14.2, world 4.7, Democratic Republic of Congo 0.054; nine countries are above the US (Qatar, Kuwait, Brunei, Bahrain, Trinidad and Tobago, Saudi Arabia, UAE, Oman, Australia)"
+   }
+  ],
+  "elements": [
+   {
+    "id": "fl_kwt",
+    "type": "icon",
+    "of": "flag kuwait",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 110,
+    "y": 350
+   },
+   {
+    "id": "nm_kwt",
+    "type": "text",
+    "text": "Kuwait",
+    "x": 110,
+    "y": 432,
+    "font_size": 36
+   },
+   {
+    "id": "bar_kwt",
+    "type": "shape",
+    "shape": "rect",
+    "x": 110,
+    "y": 520.3,
+    "width": 120,
+    "height": 120.5,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "v_kwt",
+    "type": "text",
+    "text": "26 t",
+    "x": 110,
+    "y": 609,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_pc"
+    ]
+   },
+   {
+    "id": "fl_qat",
+    "type": "icon",
+    "of": "flag qatar",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 280,
+    "y": 350
+   },
+   {
+    "id": "nm_qat",
+    "type": "text",
+    "text": "Qatar",
+    "x": 280,
+    "y": 432,
+    "font_size": 36
+   },
+   {
+    "id": "bar_qat",
+    "type": "shape",
+    "shape": "rect",
+    "x": 280,
+    "y": 555.0,
+    "width": 120,
+    "height": 190.0,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "v_qat",
+    "type": "text",
+    "text": "41 t",
+    "x": 280,
+    "y": 678,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_pc"
+    ]
+   },
+   {
+    "id": "fl_sau",
+    "type": "icon",
+    "of": "flag saudi arabia",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 450,
+    "y": 350
+   },
+   {
+    "id": "nm_sau",
+    "type": "text",
+    "text": "Saudi",
+    "x": 450,
+    "y": 432,
+    "font_size": 36
+   },
+   {
+    "id": "bar_sau",
+    "type": "shape",
+    "shape": "rect",
+    "x": 450,
+    "y": 506.9,
+    "width": 120,
+    "height": 93.8,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "v_sau",
+    "type": "text",
+    "text": "20 t",
+    "x": 450,
+    "y": 582,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_pc"
+    ]
+   },
+   {
+    "id": "fl_tto",
+    "type": "icon",
+    "of": "flag trinidad and tobago",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 620,
+    "y": 350
+   },
+   {
+    "id": "nm_tto",
+    "type": "text",
+    "text": "Trinidad",
+    "x": 620,
+    "y": 432,
+    "font_size": 36
+   },
+   {
+    "id": "bar_tto",
+    "type": "shape",
+    "shape": "rect",
+    "x": 620,
+    "y": 512.7,
+    "width": 120,
+    "height": 105.4,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "v_tto",
+    "type": "text",
+    "text": "23 t",
+    "x": 620,
+    "y": 593,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_pc"
+    ]
+   },
+   {
+    "id": "fl_are",
+    "type": "icon",
+    "of": "flag united arab emirates",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 790,
+    "y": 350
+   },
+   {
+    "id": "nm_are",
+    "type": "text",
+    "text": "UAE",
+    "x": 790,
+    "y": 432,
+    "font_size": 36
+   },
+   {
+    "id": "bar_are",
+    "type": "shape",
+    "shape": "rect",
+    "x": 790,
+    "y": 506.2,
+    "width": 120,
+    "height": 92.5,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.35
+    }
+   },
+   {
+    "id": "v_are",
+    "type": "text",
+    "text": "20 t",
+    "x": 790,
+    "y": 580,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_pc"
+    ]
+   },
+   {
+    "id": "row",
+    "type": "group",
+    "members": [
+     "fl_kwt",
+     "fl_qat",
+     "fl_sau",
+     "fl_tto",
+     "fl_are",
+     "nm_kwt",
+     "nm_qat",
+     "nm_sau",
+     "nm_tto",
+     "nm_are"
+    ]
+   },
+   {
+    "id": "bars",
+    "type": "group",
+    "members": [
+     "bar_kwt",
+     "bar_qat",
+     "bar_sau",
+     "bar_tto",
+     "bar_are",
+     "v_kwt",
+     "v_qat",
+     "v_sau",
+     "v_tto",
+     "v_are"
+    ]
+   },
+   {
+    "id": "ln0",
+    "type": "path",
+    "points": [
+     [
+      40,
+      525.3
+     ],
+     [
+      860,
+      525.3
+     ]
+    ],
+    "style": {
+     "color": "#5e584e",
+     "dash": true,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "lt0",
+    "type": "text",
+    "text": "USA 14",
+    "x": 905,
+    "y": 543.3,
+    "font_size": 30,
+    "style": {
+     "color": "#5e584e"
+    },
+    "cites": [
+     "owid_pc"
+    ]
+   },
+   {
+    "id": "ln1",
+    "type": "path",
+    "points": [
+     [
+      40,
+      481.6
+     ],
+     [
+      860,
+      481.6
+     ]
+    ],
+    "style": {
+     "color": "#5e584e",
+     "dash": true,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "lt1",
+    "type": "text",
+    "text": "world 5",
+    "x": 905,
+    "y": 463.6,
+    "font_size": 30,
+    "style": {
+     "color": "#5e584e"
+    },
+    "cites": [
+     "owid_pc"
+    ]
+   },
+   {
+    "id": "big41",
+    "type": "text",
+    "text": "41 tonnes CO₂",
+    "x": 500,
+    "y": 540,
+    "font_size": 90,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_pc"
+    ]
+   },
+   {
+    "id": "big41s",
+    "type": "text",
+    "text": "per person, per year",
+    "x": 500,
+    "y": 420,
+    "font_size": 46,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "w_gas",
+    "type": "icon",
+    "of": "oil drum",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 90,
+    "x": 935,
+    "y": 640
+   },
+   {
+    "id": "w_ac",
+    "type": "icon",
+    "of": "snowflake",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 935,
+    "y": 560
+   },
+   {
+    "id": "w_water",
+    "type": "icon",
+    "of": "droplet",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 935,
+    "y": 360
+   },
+   {
+    "id": "p_q",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 250,
+    "x": 250,
+    "y": 415
+   },
+   {
+    "id": "pf_q",
+    "type": "icon",
+    "of": "flag qatar",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 90,
+    "x": 360,
+    "y": 470
+   },
+   {
+    "id": "ic_q",
+    "type": "icon",
+    "of": "alarm clock",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 85,
+    "x": 190,
+    "y": 625
+   },
+   {
+    "id": "half",
+    "type": "text",
+    "text": "< ½ day",
+    "x": 320,
+    "y": 625,
+    "font_size": 50,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_pc"
+    ]
+   },
+   {
+    "id": "p_c",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 250,
+    "x": 750,
+    "y": 415
+   },
+   {
+    "id": "pf_c",
+    "type": "icon",
+    "of": "flag congo kinshasa",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 90,
+    "x": 860,
+    "y": 470
+   },
+   {
+    "id": "ic_c",
+    "type": "icon",
+    "of": "calendar",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 85,
+    "x": 680,
+    "y": 625
+   },
+   {
+    "id": "kg50",
+    "type": "text",
+    "text": "1 year",
+    "x": 800,
+    "y": 625,
+    "font_size": 50,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_pc"
+    ]
+   },
+   {
+    "id": "eq",
+    "type": "text",
+    "text": "= 50 kg =",
+    "x": 500,
+    "y": 415,
+    "font_size": 56,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "usa_g",
+    "type": "icon",
+    "of": "flag united states",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 500,
+    "y": 290
+   },
+   {
+    "id": "usa_q",
+    "type": "text",
+    "text": "?",
+    "x": 610,
+    "y": 290,
+    "font_size": 90,
+    "style": {
+     "color": "#8f887c"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Most CO₂ per person?"
+    }
+   },
+   {
+    "draw": [
+     "big41",
+     "big41s"
+    ],
+    "voice": "a",
+    "speak": "Forty-one tonnes of carbon dioxide, every year, for every person. That's the world record. Which country holds it?"
+   },
+   {
+    "voice": "b",
+    "speak": "Let me guess: America. Big cars, big houses, big everything.",
+    "draw": [
+     "usa_g",
+     "usa_q"
+    ]
+   },
+   {
+    "erase": [
+     "big41",
+     "big41s",
+     "usa_g",
+     "usa_q"
+    ]
+   },
+   {
+    "draw": [
+     "row"
+    ],
+    "voice": "a",
+    "speak": "Not even close. Nine countries beat America. Here are five of them."
+   },
+   {
+    "ask": {
+     "question": "Tap the flag you think it is.",
+     "choose": [
+      "fl_kwt",
+      "fl_qat",
+      "fl_sau",
+      "fl_tto",
+      "fl_are"
+     ],
+     "answer": "fl_qat",
+     "store": "c",
+     "right": "It's Qatar, at about forty-one tonnes a person in 2024.",
+     "wrong": "A hint: this country hosted the 2022 football World Cup."
+    }
+   },
+   {
+    "draw": [
+     "bars",
+     "ln0",
+     "lt0",
+     "ln1",
+     "lt1"
+    ],
+    "voice": "a",
+    "speak": "The others sit between twenty and twenty-six tonnes. An American: fourteen. The world average: about five."
+   },
+   {
+    "draw": [
+     "w_gas"
+    ],
+    "voice": "b",
+    "speak": "So the common thread is oil and gas, with very few people to share the bill."
+   },
+   {
+    "draw": [
+     "w_ac",
+     "w_water"
+    ],
+    "voice": "a",
+    "speak": "Right: emissions count where the gas is produced, even when it's exported. Then add air conditioning, and seawater made drinkable."
+   },
+   {
+    "erase": [
+     "row",
+     "bars",
+     "ln0",
+     "lt0",
+     "ln1",
+     "lt1",
+     "w_gas",
+     "w_ac",
+     "w_water"
+    ]
+   },
+   {
+    "draw": [
+     "p_c",
+     "pf_c",
+     "ic_c",
+     "kg50"
+    ],
+    "voice": "b",
+    "speak": "Here's the comparison that got me. A person in the Democratic Republic of the Congo emits about fifty kilos a year."
+   },
+   {
+    "draw": [
+     "p_q",
+     "pf_q",
+     "eq",
+     "ic_q",
+     "half"
+    ],
+    "voice": "a",
+    "speak": "And someone in Qatar passes fifty kilos in less than half a day."
+   },
+   {
+    "highlight": {
+     "target": [
+      "half"
+     ]
+    },
+    "voice": "b",
+    "speak": "Half a day there, a whole year here. Same sky, same air."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "p1",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 500,
+     "y": 430
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "41 tonnes of CO2 a year",
+     "x": 500,
+     "y": 640,
+     "font_size": 60,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "where?",
+     "x": 500,
+     "y": 220,
+     "font_size": 90,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "ONE PERSON",
+     "x": 820,
+     "y": 430,
+     "angle": -12
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "f1",
+     "type": "icon",
+     "of": "flag united states",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 280,
+     "y": 480
+    },
+    {
+     "id": "x",
+     "type": "text",
+     "text": "× 3 = ?",
+     "x": 680,
+     "y": 480,
+     "font_size": 140,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Three Americans' worth of CO2"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "clock",
+     "type": "icon",
+     "of": "alarm clock",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 240,
+     "x": 300,
+     "y": 360
+    },
+    {
+     "id": "a",
+     "type": "text",
+     "text": "½ day here",
+     "x": 700,
+     "y": 520,
+     "font_size": 64,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "b",
+     "type": "text",
+     "text": "= 1 year there",
+     "x": 700,
+     "y": 400,
+     "font_size": 64,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Where?"
+    }
+   ]
+  }
+ ]
+}

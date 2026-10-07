@@ -1,0 +1,15 @@
+When the last ice age ended, ten thousand years ago, forests covered more than half of the world's habitable land. How much of that forest have we lost since?
+[ASK] Drag the slice's edge to your guess.
+  [right] Close: you said {g}, and it is about a third.
+  [wrong] You said {g}; it is about a third.
+Two billion hectares gone: an area twice the size of the United States.
+Almost all of it was cleared for farms.
+So, a second question. Of all that loss, how much came after 1900?
+[ASK] Tap your answer.
+  [right] Half. In about a century we cleared as much forest as in the nine thousand years before.
+  [wrong] Think of the twentieth century's machines and billions more mouths.
+Why so fast? Billions more people to feed, and machines that clear land in days.
+But here is the twist. In Europe, counting Russia, forests are growing again: forty-one million hectares since 1990.
+That is more than the whole of Germany, turned back into forest.
+Why? Farms grow more food on less land, so old fields go back to trees. South America, meanwhile, is still losing them fast.
+So we cut down a third of the world's forests, half of it in one century, and some places have already turned the corner.

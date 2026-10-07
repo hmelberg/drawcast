@@ -1,0 +1,485 @@
+{
+ "request": "A two-voice podcast quiz: how many people left extreme poverty every day since 1990? Let me set a counter. #interactive #short",
+ "subtitle": "Guess how many people left extreme poverty on an average day since 1990, then see the headline no paper ran, and why it may soon stop.",
+ "thumb": "band \"The headline nobody printed\" note \"Every day for 35 years\"",
+ "spec": {
+  "title": "How many people left extreme poverty every day since 1990?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "1990",
+    "2025",
+    "2030?"
+   ],
+   "values": [
+    2300,
+    820,
+    780
+   ],
+   "value_labels": true,
+   "bar_colors": "same",
+   "ylim": [
+    0,
+    2600
+   ],
+   "y_label": "Millions in extreme poverty",
+   "label_size": 30
+  },
+  "sources": [
+   {
+    "id": "roser",
+    "title": "The end of progress against extreme poverty?",
+    "authors": "Max Roser (Our World in Data)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/end-progress-extreme-poverty",
+    "finding": "on an average day in the last 35 years about 115,000 people left extreme poverty; 2.3 billion lived in extreme poverty in 1990, 817 million in 2025, a projected 782 million in 2030, rising after 2030; poverty line $3 a day"
+   },
+   {
+    "id": "pip",
+    "title": "Poverty and Inequality Platform",
+    "authors": "World Bank",
+    "year": 2025,
+    "finding": "the data behind Our World in Data's extreme poverty estimates, at the $3-a-day international poverty line"
+   }
+  ],
+  "elements": [
+   {
+    "id": "paper",
+    "type": "icon",
+    "of": "newspaper",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 320,
+    "x": 500,
+    "y": 450
+   },
+   {
+    "id": "hq",
+    "type": "node",
+    "shape": "rect",
+    "text": "? out of poverty today",
+    "x": 500,
+    "y": 400,
+    "width": 600,
+    "height": 90,
+    "font_size": 44,
+    "style": {
+     "fill": "#fffdf6",
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "head",
+    "type": "node",
+    "shape": "rect",
+    "text": "115,000 out of poverty today",
+    "x": 500,
+    "y": 400,
+    "width": 640,
+    "height": 90,
+    "font_size": 44,
+    "style": {
+     "fill": "#fffdf6",
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "roser"
+    ]
+   },
+   {
+    "id": "stadium",
+    "type": "icon",
+    "of": "stadium",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 380,
+    "x": 380,
+    "y": 450
+   },
+   {
+    "id": "stad_l",
+    "type": "text",
+    "text": "≈ 1 stadium",
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 760,
+    "y": 450
+   },
+   {
+    "id": "slow",
+    "type": "text",
+    "text": "slowing",
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 760,
+    "y": 500,
+    "cites": [
+     "roser"
+    ]
+   },
+   {
+    "id": "rise",
+    "type": "text",
+    "text": "after 2030: rising",
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 760,
+    "y": 420,
+    "cites": [
+     "roser"
+    ]
+   },
+   {
+    "id": "paper2",
+    "type": "icon",
+    "of": "newspaper",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 770,
+    "y": 560
+   },
+   {
+    "id": "end_q",
+    "type": "text",
+    "text": "tomorrow's headline?",
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 770,
+    "y": 420
+   },
+   {
+    "id": "slownews",
+    "type": "text",
+    "text": "good news is slow",
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 760,
+    "y": 480
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How many left poverty each day?"
+    }
+   },
+   {
+    "draw": [
+     "paper"
+    ],
+    "voice": "a",
+    "speak": "Here is a headline no newspaper ever ran. Since 1990, on an average day, how many people left extreme poverty?"
+   },
+   {
+    "draw": [
+     "hq"
+    ],
+    "voice": "b",
+    "speak": "In one day? A few hundred, tops. Poverty doesn't move that fast."
+   },
+   {
+    "erase": [
+     "paper",
+     "hq"
+    ]
+   },
+   {
+    "ask": {
+     "question": "Set the counter: people leaving extreme poverty on an average day.",
+     "estimate": {
+      "min": 10,
+      "max": 1000000,
+      "value": 115000,
+      "unit": "a day",
+      "log": true
+     },
+     "store": "g",
+     "default": "500",
+     "relative": true,
+     "tolerance": 0.3,
+     "right": "Close: you said {g}, and it is about {g.true} people a day.",
+     "wrong": "You said {g}. It is about {g.true} people, every single day."
+    }
+   },
+   {
+    "erase": [
+     "estimate_1"
+    ]
+   },
+   {
+    "draw": [
+     "paper",
+     "head"
+    ],
+    "voice": "a",
+    "speak": "A hundred and fifteen thousand. Every day, for thirty-five years."
+   },
+   {
+    "erase": [
+     "paper",
+     "head"
+    ]
+   },
+   {
+    "draw": [
+     "stadium",
+     "stad_l"
+    ],
+    "voice": "b",
+    "speak": "Wait, every day? That's a packed football stadium, walking out of poverty daily!"
+   },
+   {
+    "erase": [
+     "stadium",
+     "stad_l"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "bar_1"
+    ],
+    "voice": "a",
+    "speak": "Yes. In 1990, about two point three billion people lived on less than three dollars a day."
+   },
+   {
+    "draw": [
+     "bar_2"
+    ],
+    "voice": "a",
+    "speak": "By 2025, about eight hundred million, even though the world added billions of people."
+   },
+   {
+    "voice": "b",
+    "speak": "So why did no paper ever print it?",
+    "highlight": {
+     "target": [
+      "bar_1",
+      "bar_2"
+     ]
+    }
+   },
+   {
+    "voice": "a",
+    "speak": "Because it happens slowly. One good day looks like nothing, while bad news arrives all at once.",
+    "draw": [
+     "slownews"
+    ]
+   },
+   {
+    "erase": [
+     "slownews"
+    ]
+   },
+   {
+    "draw": [
+     "bar_3",
+     "slow"
+    ],
+    "voice": "a",
+    "speak": "And here is the catch: the fall is slowing. The forecast for 2030 is still about seven hundred and eighty million."
+   },
+   {
+    "draw": [
+     "rise"
+    ],
+    "voice": "a",
+    "speak": "Most of the poorest now live in economies that barely grow, so after 2030 the number is expected to rise again."
+   },
+   {
+    "erase": [
+     "slow",
+     "rise"
+    ]
+   },
+   {
+    "draw": [
+     "paper2",
+     "end_q"
+    ],
+    "voice": "b",
+    "speak": "So the best headline of our lifetime might stop running."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "pg",
+     "type": "shape",
+     "shape": "rect",
+     "x": 470,
+     "y": 470,
+     "width": 760,
+     "height": 420,
+     "style": {
+      "fill": "#fffdf6",
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "mast",
+     "type": "text",
+     "text": "THE DAILY",
+     "x": 470,
+     "y": 620,
+     "font_size": 70,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "rule",
+     "type": "path",
+     "points": [
+      [
+       120,
+       575
+      ],
+      [
+       820,
+       575
+      ]
+     ],
+     "style": {
+      "color": "#2f2b26",
+      "stroke_width": 4
+     }
+    },
+    {
+     "id": "h",
+     "type": "text",
+     "text": "? escape",
+     "x": 470,
+     "y": 480,
+     "font_size": 120,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "h2",
+     "type": "text",
+     "text": "poverty today",
+     "x": 470,
+     "y": 350,
+     "font_size": 90,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "The headline nobody printed"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "sun",
+     "type": "icon",
+     "of": "sunrise",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 220,
+     "y": 460
+    },
+    {
+     "id": "n",
+     "type": "text",
+     "text": "? a day",
+     "x": 640,
+     "y": 510,
+     "font_size": 170,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "y",
+     "type": "text",
+     "text": "for 35 years",
+     "x": 640,
+     "y": 330,
+     "font_size": 80,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Out of extreme poverty"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "p1",
+     "type": "icon",
+     "of": "person walking",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 150,
+     "y": 450
+    },
+    {
+     "id": "p2",
+     "type": "icon",
+     "of": "person walking",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 330,
+     "y": 450
+    },
+    {
+     "id": "p3",
+     "type": "icon",
+     "of": "person walking",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 510,
+     "y": 450
+    },
+    {
+     "id": "x",
+     "type": "text",
+     "text": "× ?",
+     "x": 760,
+     "y": 450,
+     "font_size": 160,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Since yesterday. Again."
+    }
+   ]
+  }
+ ]
+}

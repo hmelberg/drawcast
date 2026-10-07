@@ -1,0 +1,20 @@
+{
+ "file": "working-hours.json",
+ "title": "How many hours did a German work in 1870, compared with today?",
+ "subtitle": "Two hosts, one bar to drag: guess how long Germans worked in 1870, then see what cut the hours by sixty percent, and who works least today.",
+ "format": "quiz",
+ "tags": [
+  "economics",
+  "history",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "6 (with 2: then and now)",
+ "form": "drag a bar (bar_chart guess)",
+ "owid": "https://ourworldindata.org/grapher/annual-working-hours-per-worker",
+ "notes": "y axis fixed at 5,000 so it does not hint the 1870 bar. Twist shown as a scratch card of 2023 hours (South Korea, USA, Germany lowest of all countries in the data). Text in data units on a bar chart is hard to place (anchoring unclear)."
+}

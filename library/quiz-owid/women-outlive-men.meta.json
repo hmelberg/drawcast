@@ -1,0 +1,20 @@
+{
+ "file": "women-outlive-men.json",
+ "title": "In how many countries do women live longer than men?",
+ "subtitle": "Sort countries by who lives longer there, then see how big the gap is, where it comes from, and the countries where it once ran the other way.",
+ "format": "quiz",
+ "tags": [
+  "health",
+  "data",
+  "geography"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "1",
+ "form": "cards: sort into two boxes (Women longer / Men longer; all belong in one)",
+ "owid": "https://ourworldindata.org/grapher/life-expectancy-of-women-vs-life-expectancy-of-men",
+ "notes": "Dialogue, b as the skeptic who is right once (Russia) and asks the India question. OWID/UN WPP 2024: women outlive men in every country in 2023 (world 75.9 vs 70.5); gap 0.6 y Nigeria, 3.1 India/Norway, 5.0 US, 6.1 Japan, 11.8 Russia; 1950 India -1.5 y (men longer until ~1981), also Pakistan, Iran, Bangladesh. Qatar swapped for the USA (thin 1950 data). Review round: two boxes instead of one, cards size 2 arranged side; dashed world-average line; India label -1.5 -> +3.1 at the end. Engine: sort cards drop their flag icons; bar colours only each/same (used same); per-frame 'off-screen' count comes from the parked cards."
+}

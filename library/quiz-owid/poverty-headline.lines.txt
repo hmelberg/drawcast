@@ -1,0 +1,14 @@
+a: Here is a headline no newspaper ever ran. Since 1990, on an average day, how many people left extreme poverty?
+b: In one day? A few hundred, tops. Poverty doesn't move that fast.
+[ASK] Set the counter: people leaving extreme poverty on an average day.
+  [right] Close: you said {g}, and it is about {g.true} people a day.
+  [wrong] You said {g}. It is about {g.true} people, every single day.
+a: A hundred and fifteen thousand. Every day, for thirty-five years.
+b: Wait, every day? That's a packed football stadium, walking out of poverty daily!
+a: Yes. In 1990, about two point three billion people lived on less than three dollars a day.
+a: By 2025, about eight hundred million, even though the world added billions of people.
+b: So why did no paper ever print it?
+a: Because it happens slowly. One good day looks like nothing, while bad news arrives all at once.
+a: And here is the catch: the fall is slowing. The forecast for 2030 is still about seven hundred and eighty million.
+a: Most of the poorest now live in economies that barely grow, so after 2030 the number is expected to rise again.
+b: So the best headline of our lifetime might stop running.

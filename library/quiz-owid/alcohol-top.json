@@ -1,0 +1,524 @@
+{
+ "request": "Which country drinks the most alcohol per adult? A mystery country: give me a clue, let me tap my suspect. #interactive #short",
+ "subtitle": "Pick the country whose adults drink the most from four suspects, then see how France, Russia, Uganda and the world average compare.",
+ "thumb": "band \"Who drinks the most?\" note \"per adult\"",
+ "spec": {
+  "title": "Which country drinks the most alcohol per adult?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Saudi Arabia",
+    "World",
+    "France",
+    "Russia",
+    "Ireland",
+    "Uganda",
+    "Romania"
+   ],
+   "values": [
+    0,
+    5,
+    10,
+    11,
+    11,
+    11,
+    17
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    20
+   ],
+   "y_label": "Litres of pure alcohol per adult, 2020",
+   "bar_colors": "same",
+   "icons": [
+    {
+     "of": "flag saudi arabia",
+     "set": "twemoji"
+    },
+    {
+     "of": "globe showing europe-africa",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag france",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag russia",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag ireland",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag uganda",
+     "set": "twemoji"
+    },
+    {
+     "of": "flag romania",
+     "set": "twemoji"
+    }
+   ],
+   "label_size": 34
+  },
+  "sources": [
+   {
+    "id": "owid_alc",
+    "title": "Alcohol consumption per person",
+    "authors": "Our World in Data, from the WHO Global Health Observatory via the World Bank",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/total-alcohol-consumption-per-capita-litres-of-pure-alcohol",
+    "finding": "litres of pure alcohol per person aged 15+ in 2020: Romania 16.8 (the highest), Uganda 11.3, Ireland 10.8, Russia 10.5 (14.5 in 2005), France 10.3, world 4.9; near zero in Saudi Arabia, Kuwait, Pakistan and Bangladesh"
+   }
+  ],
+  "elements": [
+   {
+    "id": "f_france",
+    "type": "icon",
+    "of": "flag france",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 230,
+    "x": 140,
+    "y": 360
+   },
+   {
+    "id": "n_france",
+    "type": "text",
+    "text": "France",
+    "x": 140,
+    "y": 205,
+    "font_size": 52,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "f_russia",
+    "type": "icon",
+    "of": "flag russia",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 230,
+    "x": 380,
+    "y": 360
+   },
+   {
+    "id": "n_russia",
+    "type": "text",
+    "text": "Russia",
+    "x": 380,
+    "y": 205,
+    "font_size": 52,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "f_ireland",
+    "type": "icon",
+    "of": "flag ireland",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 230,
+    "x": 620,
+    "y": 360
+   },
+   {
+    "id": "n_ireland",
+    "type": "text",
+    "text": "Ireland",
+    "x": 620,
+    "y": 205,
+    "font_size": 52,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "f_romania",
+    "type": "icon",
+    "of": "flag romania",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 230,
+    "x": 860,
+    "y": 360
+   },
+   {
+    "id": "n_romania",
+    "type": "text",
+    "text": "Romania",
+    "x": 860,
+    "y": 205,
+    "font_size": 52,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "clue",
+    "type": "text",
+    "text": "Clue: 17 litres",
+    "x": 500,
+    "y": 540,
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_alc"
+    ]
+   },
+   {
+    "id": "mug1",
+    "type": "icon",
+    "of": "beer mug",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 110,
+    "x": 560,
+    "y": 580
+   },
+   {
+    "id": "mug2",
+    "type": "icon",
+    "of": "beer mug",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 110,
+    "x": 650,
+    "y": 580
+   },
+   {
+    "id": "beers",
+    "type": "text",
+    "text": "a day",
+    "x": 605,
+    "y": 505,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "times",
+    "type": "text",
+    "text": "3 × the world",
+    "font_size": 46,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 620,
+    "y": 590,
+    "cites": [
+     "owid_alc"
+    ]
+   },
+   {
+    "id": "rus",
+    "type": "text",
+    "text": "−27 % since 2005",
+    "at": {
+     "ref": "bar_4",
+     "side": "above",
+     "gap": 60
+    },
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_alc"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Who drinks the most?"
+    }
+   },
+   {
+    "draw": [
+     "f_france",
+     "n_france",
+     "f_russia",
+     "n_russia",
+     "f_ireland",
+     "n_ireland",
+     "f_romania",
+     "n_romania"
+    ],
+    "speak": "Which country drinks the most alcohol per adult? Four suspects: France, Russia, Ireland and Romania."
+   },
+   {
+    "draw": [
+     "clue"
+    ],
+    "cue": 0.3,
+    "speak": "One clue: in the winner, the average adult gets through about seventeen litres of pure alcohol a year."
+   },
+   {
+    "ask": {
+     "question": "Tap the country you suspect.",
+     "choose": [
+      "f_france",
+      "f_russia",
+      "f_ireland",
+      "f_romania"
+     ],
+     "answer": "f_romania",
+     "reveal": {
+      "text": "Romania!",
+      "at": {
+       "x": 860,
+       "y": 480
+      },
+      "size": 40
+     },
+     "right": "Romania. The highest in the WHO's estimates, ahead of every wine, whisky and vodka nation.",
+     "wrong": "Look east of Paris, but well west of Moscow."
+    }
+   },
+   {
+    "erase": [
+     "f_france",
+     "n_france",
+     "f_russia",
+     "n_russia",
+     "f_ireland",
+     "n_ireland",
+     "f_romania",
+     "n_romania",
+     "clue"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "bar_3",
+     "bar_4",
+     "bar_5"
+    ],
+    "speak": "So the famous drinkers, France, Russia and Ireland, all sit around ten or eleven litres."
+   },
+   {
+    "draw": [
+     "bar_7"
+    ],
+    "speak": "Romania stands well clear, at about seventeen."
+   },
+   {
+    "draw": [
+     "mug1",
+     "mug2",
+     "beers"
+    ],
+    "cue": 0.3,
+    "speak": "That's about the alcohol in two large beers a day, for every adult, every day of the year."
+   },
+   {
+    "erase": [
+     "mug1",
+     "mug2",
+     "beers"
+    ]
+   },
+   {
+    "draw": [
+     "rus"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_4"
+     ]
+    },
+    "speak": "And Russia, home of the vodka cliché, has cut its drinking by more than a quarter since 2005."
+   },
+   {
+    "erase": [
+     "rus"
+    ]
+   },
+   {
+    "draw": [
+     "bar_6"
+    ],
+    "speak": "The surprise is Uganda: at about eleven litres, level with Russia and Ireland."
+   },
+   {
+    "draw": [
+     "bar_2"
+    ],
+    "speak": "But the world as a whole? About five litres."
+   },
+   {
+    "draw": [
+     "bar_1"
+    ],
+    "speak": "Because in much of the world, from Saudi Arabia to Bangladesh, the average is close to zero."
+   },
+   {
+    "draw": [
+     "times"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_7"
+     ]
+    },
+    "speak": "So Romania's adults drink more than three times the world's average."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "tr",
+     "type": "icon",
+     "of": "trophy",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 500,
+     "y": 520
+    },
+    {
+     "id": "f1",
+     "type": "icon",
+     "of": "flag france",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 170,
+     "y": 330
+    },
+    {
+     "id": "f2",
+     "type": "icon",
+     "of": "flag russia",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 390,
+     "y": 330
+    },
+    {
+     "id": "f3",
+     "type": "icon",
+     "of": "flag ireland",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 610,
+     "y": 330
+    },
+    {
+     "id": "f4",
+     "type": "icon",
+     "of": "flag romania",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 830,
+     "y": 330
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Who drinks the most?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "fr",
+     "type": "icon",
+     "of": "flag france",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 220,
+     "x": 250,
+     "y": 460
+    },
+    {
+     "id": "ru",
+     "type": "icon",
+     "of": "flag russia",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 220,
+     "x": 690,
+     "y": 460
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Not who you think"
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "Cliché?",
+     "x": 500,
+     "y": 650,
+     "angle": 8
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "beer",
+     "type": "icon",
+     "of": "clinking beer mugs",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 760,
+     "y": 360
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "? litres",
+     "x": 330,
+     "y": 330,
+     "font_size": 130,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "text",
+     "text": "a year, each",
+     "x": 330,
+     "y": 210,
+     "font_size": 60,
+     "style": {
+      "color": "#5e584e"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Top drinkers?"
+    }
+   ]
+  }
+ ]
+}

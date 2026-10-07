@@ -1,0 +1,20 @@
+{
+ "file": "co2-per-person.json",
+ "title": "Which country emits the most CO₂ per person?",
+ "subtitle": "Pick the country that emits the most CO₂ per person from five oil and gas states, then see how a year in Congo compares with half a day there.",
+ "format": "quiz",
+ "tags": [
+  "earth",
+  "geography",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "4",
+ "form": "choose on the figure (tap one of five drawn flags, Gulf states + Trinidad & Tobago); dialogue: b supplies the Congo twist",
+ "owid": "https://ourworldindata.org/grapher/co-emissions-per-capita",
+ "notes": "Reworked after review: five hard suspects (all above 20 t), ask comes second, wrong hint = 2022 World Cup; bars rise above the viewer's flag row, USA and world as dashed lines. Territorial emissions; 54 kg / (41.3 t/365) = 11.5 h, said as 'less than half a day'. Reasons spoken + small icons, not an OWID number."
+}

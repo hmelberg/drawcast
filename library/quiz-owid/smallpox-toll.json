@@ -1,0 +1,571 @@
+{
+ "request": "A two-voice quiz: which killed more people in the 20th century, smallpox or both World Wars? Higher-or-lower cards, then the gap to scale. #interactive #short",
+ "subtitle": "Pick the bigger killer, smallpox or the two World Wars, then see the gap drawn to scale, and how a vaccine wiped smallpox out for good.",
+ "thumb": "band \"Which killed more?\" note \"?\"",
+ "spec": {
+  "title": "Which killed more in the 20th century: smallpox or the World Wars?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Both World Wars",
+    "Smallpox"
+   ],
+   "values": [
+    95,
+    300
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    320
+   ],
+   "y_label": "Deaths, millions",
+   "bar_colors": "each",
+   "label_size": 30,
+   "icons": [
+    {
+     "of": "crossed swords",
+     "set": "twemoji"
+    },
+    {
+     "of": "microbe",
+     "set": "twemoji"
+    }
+   ],
+   "box": {
+    "x": 60,
+    "y": 370,
+    "w": 880,
+    "h": 300
+   }
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Smallpox",
+    "authors": "Sophie Ochmann, Saloni Dattani and Max Roser (Our World in Data)",
+    "year": 2018,
+    "url": "https://ourworldindata.org/smallpox",
+    "finding": "an estimated 300 million people died of smallpox in the 20th century (D. A. Henderson); about 30% of people infected with variola major died; vaccine developed in 1796; last case October 1977 in Merka, Somalia; eradication certified May 1980, the first-ever eradication of a human disease; the Intensified Eradication Programme cost about $300 million, 1967–1977"
+   },
+   {
+    "id": "henderson",
+    "title": "The eradication of smallpox — An overview of the past, present, and future",
+    "authors": "D. A. Henderson",
+    "year": 2011,
+    "doi": "10.1016/j.vaccine.2011.06.080",
+    "finding": "an estimated 300 million people died of smallpox in the 20th century"
+   },
+   {
+    "id": "ww1",
+    "title": "World War I casualties",
+    "authors": "Wikipedia",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/World_War_I_casualties",
+    "finding": "about 15 to 22 million military and civilian deaths"
+   },
+   {
+    "id": "ww2",
+    "title": "World War II casualties",
+    "authors": "Wikipedia",
+    "year": 2025,
+    "url": "https://en.wikipedia.org/wiki/World_War_II_casualties",
+    "finding": "about 70 to 85 million deaths, military and civilian"
+   }
+  ],
+  "elements": [
+   {
+    "id": "duel",
+    "type": "cards",
+    "compare": "Which killed more (millions)?",
+    "size": 2,
+    "y": 470,
+    "items": [
+     {
+      "text": "Both World Wars",
+      "value": 95,
+      "icon": {
+       "of": "crossed swords",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Smallpox, 1900s",
+      "value": 300,
+      "icon": {
+       "of": "microbe",
+       "set": "twemoji"
+      }
+     }
+    ],
+    "cites": [
+     "owid",
+     "ww1",
+     "ww2"
+    ]
+   },
+   {
+    "id": "c1",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      -0.45,
+      95
+     ],
+     [
+      1.38,
+      95
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "dash": true,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "c2",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      0.62,
+      190
+     ],
+     [
+      1.38,
+      190
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "dash": true,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "x3",
+    "type": "text",
+    "text": "×3",
+    "font_size": 64,
+    "style": {
+     "color": "#8a5fa8"
+    },
+    "at": {
+     "ref": "bar_2",
+     "side": "right",
+     "gap": 40
+    }
+   },
+   {
+    "id": "tl_line",
+    "type": "path",
+    "points": [
+     [
+      70,
+      220
+     ],
+     [
+      930,
+      220
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "tl_d1",
+    "type": "shape",
+    "shape": "circle",
+    "x": 140,
+    "y": 220,
+    "radius": 9,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#3d3833"
+    }
+   },
+   {
+    "id": "tl_y1",
+    "type": "text",
+    "text": "1796",
+    "x": 140,
+    "y": 258,
+    "font_size": 40,
+    "style": {
+     "color": "#3d3833"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "tl_w1",
+    "type": "text",
+    "text": "vaccine",
+    "x": 140,
+    "y": 180,
+    "font_size": 38,
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "tl_d2",
+    "type": "shape",
+    "shape": "circle",
+    "x": 420,
+    "y": 220,
+    "radius": 9,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#3d3833"
+    }
+   },
+   {
+    "id": "tl_y2",
+    "type": "text",
+    "text": "1967",
+    "x": 420,
+    "y": 258,
+    "font_size": 40,
+    "style": {
+     "color": "#3d3833"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "tl_w2",
+    "type": "text",
+    "text": "final push",
+    "x": 420,
+    "y": 180,
+    "font_size": 38,
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "tl_d3",
+    "type": "shape",
+    "shape": "circle",
+    "x": 660,
+    "y": 220,
+    "radius": 9,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#3d3833"
+    }
+   },
+   {
+    "id": "tl_y3",
+    "type": "text",
+    "text": "1977",
+    "x": 660,
+    "y": 258,
+    "font_size": 40,
+    "style": {
+     "color": "#3d3833"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "tl_w3",
+    "type": "text",
+    "text": "last case",
+    "x": 660,
+    "y": 180,
+    "font_size": 38,
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "tl_d4",
+    "type": "shape",
+    "shape": "circle",
+    "x": 870,
+    "y": 220,
+    "radius": 9,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f"
+    }
+   },
+   {
+    "id": "tl_y4",
+    "type": "text",
+    "text": "1980",
+    "x": 870,
+    "y": 258,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "tl_w4",
+    "type": "text",
+    "text": "gone",
+    "x": 870,
+    "y": 180,
+    "font_size": 38,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "tl",
+    "type": "group",
+    "members": [
+     "tl_line",
+     "tl_d1",
+     "tl_y1",
+     "tl_w1",
+     "tl_d2",
+     "tl_y2",
+     "tl_w2",
+     "tl_d3",
+     "tl_y3",
+     "tl_w3",
+     "tl_d4",
+     "tl_y4",
+     "tl_w4"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Smallpox or the World Wars?"
+    }
+   },
+   {
+    "draw": [
+     "duel"
+    ],
+    "voice": "a",
+    "speak": "Here's one: which killed more people in the twentieth century, both World Wars together, or one disease, smallpox?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "duel_2"
+     ]
+    },
+    "voice": "b",
+    "speak": "Smells like a trick question. I'll go with the disease."
+   },
+   {
+    "ask": {
+     "question": "Tap the bigger killer.",
+     "on": "duel",
+     "store": "g",
+     "reveal": {
+      "text": "Smallpox!",
+      "at": {
+       "x": 700,
+       "y": 615
+      },
+      "size": 56
+     },
+     "right": "Smallpox, by far: about three hundred million deaths in that century alone."
+    }
+   },
+   {
+    "erase": [
+     "duel"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "bar_1"
+    ],
+    "voice": "a",
+    "speak": "You were right. The two World Wars together killed around ninety-five million people, soldiers and civilians."
+   },
+   {
+    "draw": [
+     "bar_2"
+    ],
+    "voice": "a",
+    "speak": "Smallpox, in the same hundred years: about three hundred million, mostly children."
+   },
+   {
+    "draw": [
+     "c1",
+     "c2",
+     "x3"
+    ],
+    "voice": "b",
+    "speak": "So stack both wars three times, and you still don't reach it."
+   },
+   {
+    "draw": [
+     "tl"
+    ],
+    "voice": "b",
+    "speak": "Then why has nobody I know ever had it?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "tl"
+     ]
+    },
+    "voice": "a",
+    "speak": "Because it's gone. A vaccine existed from 1796, but the final worldwide push only began in 1967. The last natural case was in Somalia in 1977."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    },
+    "voice": "a",
+    "speak": "In 1980 smallpox was declared eradicated: the first human disease ever wiped out. That last ten-year campaign cost about three hundred million dollars."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    },
+    "voice": "b",
+    "speak": "Three hundred million dollars, against three hundred million deaths. About a dollar a life."
+   },
+   {
+    "highlight": {
+     "target": [
+      "tl"
+     ]
+    },
+    "voice": "a",
+    "speak": "The vaccine was old news. What finished smallpox was getting it to everyone, village by village."
+   }
+  ],
+  "affirm": "plain"
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "m",
+     "type": "icon",
+     "of": "microbe",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 230,
+     "y": 480
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "or",
+     "x": 500,
+     "y": 480,
+     "font_size": 110,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "h",
+     "type": "icon",
+     "of": "crossed swords",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 770,
+     "y": 480
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Which killed more?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "n",
+     "type": "text",
+     "text": "300,000,000",
+     "x": 500,
+     "y": 520,
+     "font_size": 140,
+     "style": {
+      "color": "#8a5fa8"
+     }
+    },
+    {
+     "id": "w",
+     "type": "text",
+     "text": "killed by what?",
+     "x": 500,
+     "y": 340,
+     "font_size": 80
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "The 20th century's top killer"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "s",
+     "type": "icon",
+     "of": "syringe",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 240,
+     "x": 250,
+     "y": 330
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "$1",
+     "x": 660,
+     "y": 500,
+     "font_size": 200,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "w",
+     "type": "text",
+     "text": "per death. Of what?",
+     "x": 660,
+     "y": 320,
+     "font_size": 70
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Best bargain in history?"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,532 @@
+{
+ "request": "How many people still live without electricity? Let me guess on a number line, then ask where they live. #interactive #short",
+ "subtitle": "Guess how many people still live without electricity, then a second question: where they live, and the country that switched on 420 million.",
+ "thumb": "band \"Still in the dark: how many?\" note \"1 in ?\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "q",
+     "type": "text",
+     "text": "? people",
+     "x": 540,
+     "y": 190,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "bulb",
+     "type": "icon",
+     "of": "light bulb",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 540,
+     "y": 460
+    },
+    {
+     "id": "t1",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Still no electricity at home?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "flag",
+     "type": "icon",
+     "of": "flag india",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 240,
+     "x": 260,
+     "y": 470
+    },
+    {
+     "id": "a",
+     "type": "text",
+     "text": "420 million",
+     "x": 670,
+     "y": 560,
+     "font_size": 80,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "b",
+     "type": "text",
+     "text": "in the dark (2000)",
+     "x": 670,
+     "y": 480,
+     "font_size": 44,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "c",
+     "type": "text",
+     "text": "2024: ?",
+     "x": 670,
+     "y": 370,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "thumb",
+     "kind": "band",
+     "text": "What happened in India?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "candle",
+     "type": "icon",
+     "of": "candle",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 280,
+     "y": 470
+    },
+    {
+     "id": "globe",
+     "type": "icon",
+     "of": "world map",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 720,
+     "y": 470
+    },
+    {
+     "id": "s",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "WHERE?",
+     "x": 720,
+     "y": 300,
+     "angle": 10
+    },
+    {
+     "id": "t3",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Most of them live in one place"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "How many people still live without electricity?",
+  "sources": [
+   {
+    "id": "owid_num",
+    "title": "Number of people with and without electricity access",
+    "authors": "Our World in Data, from World Bank (2026)",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/number-of-people-with-and-without-electricity-access",
+    "finding": "about 657 million people (≈ 660 M) lacked electricity in 2024, down from 1.34 billion in 2000; people with access rose from 4.82 to 7.48 billion"
+   },
+   {
+    "id": "owid_region",
+    "title": "Number of people without access to electricity, by region",
+    "authors": "Our World in Data, from World Bank (2026)",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/number-without-electricity-by-region",
+    "finding": "2024: Sub-Saharan Africa 579 million; Nigeria 87 million, DR Congo 85 million, Ethiopia 57 million; India 420 million in 2000, about 1.5 million in 2024"
+   }
+  ],
+  "elements": [
+   {
+    "id": "bulb",
+    "type": "icon",
+    "of": "light bulb",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 220,
+    "x": 500,
+    "y": 520
+   },
+   {
+    "id": "dark",
+    "type": "scale",
+    "min": 0,
+    "max": 2000,
+    "value": 660,
+    "unit": " million",
+    "ticks": 4,
+    "x": 90,
+    "y": 330,
+    "width": 820,
+    "markers": [
+     {
+      "value": 1340,
+      "label": "2000: 1.3 bn"
+     }
+    ],
+    "cites": [
+     "owid_num"
+    ]
+   },
+   {
+    "id": "halv",
+    "type": "arrow",
+    "from": {
+     "x": 640,
+     "y": 250
+    },
+    "to": {
+     "x": 380,
+     "y": 250
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "halved",
+    "type": "text",
+    "text": "halved",
+    "x": 510,
+    "y": 210,
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "pop",
+    "type": "text",
+    "text": "world: +2 billion people",
+    "x": 500,
+    "y": 520,
+    "font_size": 50,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "afr",
+    "type": "icon",
+    "of": "globe showing europe-africa",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 280,
+    "x": 330,
+    "y": 420
+   },
+   {
+    "id": "afr_l",
+    "type": "text",
+    "text": "Sub-Saharan Africa",
+    "x": 700,
+    "y": 480,
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "afr_n",
+    "type": "text",
+    "text": "≈ 580 M",
+    "x": 700,
+    "y": 390,
+    "font_size": 70,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_region"
+    ]
+   },
+   {
+    "id": "india",
+    "type": "icon",
+    "of": "flag india",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 200,
+    "y": 430
+   },
+   {
+    "id": "bar00",
+    "type": "shape",
+    "shape": "rect",
+    "x": 520,
+    "y": 385,
+    "width": 130,
+    "height": 330,
+    "style": {
+     "color": "#8f887c",
+     "fill": "#8f887c",
+     "fill_style": "hatch"
+    }
+   },
+   {
+    "id": "bar24",
+    "type": "shape",
+    "shape": "rect",
+    "x": 780,
+    "y": 222,
+    "width": 130,
+    "height": 4,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f"
+    }
+   },
+   {
+    "id": "l00",
+    "type": "text",
+    "text": "2000: 420 M",
+    "x": 520,
+    "y": 585,
+    "font_size": 44,
+    "style": {
+     "color": "#8f887c"
+    },
+    "cites": [
+     "owid_region"
+    ]
+   },
+   {
+    "id": "l24",
+    "type": "text",
+    "text": "2024: ≈ 0",
+    "x": 780,
+    "y": 270,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_region"
+    ]
+   },
+   {
+    "id": "base",
+    "type": "path",
+    "points": [
+     [
+      420,
+      220
+     ],
+     [
+      880,
+      220
+     ]
+    ],
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "ng",
+    "type": "icon",
+    "of": "flag nigeria",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 300,
+    "y": 440
+   },
+   {
+    "id": "cd",
+    "type": "icon",
+    "of": "flag congo kinshasa",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 700,
+    "y": 440
+   },
+   {
+    "id": "ng_n",
+    "type": "text",
+    "text": "87 million",
+    "x": 300,
+    "y": 290,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_region"
+    ]
+   },
+   {
+    "id": "cd_n",
+    "type": "text",
+    "text": "85 million",
+    "x": 700,
+    "y": 290,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_region"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How many still have no electricity?"
+    }
+   },
+   {
+    "draw": [
+     "bulb",
+     "dark"
+    ],
+    "speak": "How many people in the world still live without electricity at home: no light switch, no socket to charge a phone?"
+   },
+   {
+    "ask": {
+     "question": "Click on the line where you think it is.",
+     "on": "dark",
+     "store": "g",
+     "default": "1500",
+     "right": "Close: you said {g}, and it is about {g.true}.",
+     "wrong": "You said {g}. It is about {g.true}."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "dark_answer"
+     ]
+    },
+    "speak": "That is about one person in every twelve on Earth."
+   },
+   {
+    "draw": [
+     "dark_marker_1",
+     "halv",
+     "halved"
+    ],
+    "speak": "But in 2000 it was about one point three billion, twice as many."
+   },
+   {
+    "erase": [
+     "bulb"
+    ]
+   },
+   {
+    "draw": [
+     "pop"
+    ],
+    "speak": "So the number in the dark halved, even while the world added two billion people."
+   },
+   {
+    "erase": [
+     "pop"
+    ]
+   },
+   {
+    "quiz": {
+     "question": "Where do most of the 660 million live today?",
+     "choices": [
+      "India and South Asia",
+      "Sub-Saharan Africa",
+      "Latin America"
+     ],
+     "correct": 2,
+     "right": "Sub-Saharan Africa: about five hundred and eighty million people, nearly nine in ten of all those without power.",
+     "wrong": "Think of where the grid has grown slowest, not where the most people live."
+    }
+   },
+   {
+    "erase": [
+     "dark",
+     "dark_answer",
+     "dark_marker_1",
+     "halv",
+     "halved"
+    ]
+   },
+   {
+    "draw": [
+     "afr",
+     "afr_l",
+     "afr_n"
+    ]
+   },
+   {
+    "pause": 1.5
+   },
+   {
+    "erase": [
+     "afr",
+     "afr_l",
+     "afr_n"
+    ]
+   },
+   {
+    "draw": [
+     "india",
+     "base",
+     "bar00",
+     "l00"
+    ],
+    "speak": "If you guessed India, you would have been right in 2000, when four hundred and twenty million Indians had no electricity."
+   },
+   {
+    "draw": [
+     "bar24",
+     "l24"
+    ],
+    "speak": "By 2024, India had connected almost everyone."
+   },
+   {
+    "erase": [
+     "india",
+     "base",
+     "bar00",
+     "l00",
+     "bar24",
+     "l24"
+    ]
+   },
+   {
+    "draw": [
+     "ng",
+     "ng_n",
+     "cd",
+     "cd_n"
+    ],
+    "speak": "Now the longest waits are in Nigeria and the Democratic Republic of the Congo, with more than eighty million each."
+   },
+   {
+    "erase": [
+     "ng",
+     "ng_n",
+     "cd",
+     "cd_n"
+    ]
+   },
+   {
+    "draw": [
+     "afr",
+     "afr_l",
+     "afr_n"
+    ],
+    "speak": "So the last six hundred million are mostly an African story, and India shows how fast that can change."
+   }
+  ]
+ }
+}

@@ -1,0 +1,20 @@
+{
+ "file": "tb-still-top.json",
+ "title": "Which infectious disease kills the most people today?",
+ "subtitle": "Tap the infection you think kills the most people today, then hear why an old, curable disease is still on top, ahead of COVID, HIV and malaria.",
+ "format": "quiz",
+ "tags": [
+  "health",
+  "epidemiology",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "6",
+ "form": "choose on the figure (tap an icon)",
+ "owid": "https://ourworldindata.org/grapher/tuberculosis-deaths",
+ "notes": "Dialogue (b guesses COVID out loud, raises pneumonia, asks the delivery question; a ends on the fact). OWID (IHME GBD 2025) 2023: TB 1.01 M, COVID-19 847k, HIV/AIDS 833k, malaria 670k, pneumonia 2.5 M; WHO's own figures (TB ~1.25 M, HIV ~630k, malaria ~597k) named in sources; voice says 'by one major estimate'. Review round: 'No. 1' stamp on the lungs at the reveal; pneumonia drawn as a fifth bar labelled 'many germs'; chart kept to the end with 'CURABLE' over the TB bar and 'cure exists, not delivered'; icons under the bars; one bar colour + highlight; thumbnail 2 replaced (mic + 'COVID, obviously.' / '...nope.'). Engine: bar_chart has no per-bar colour, so the pneumonia bar cannot be greyed or dashed."
+}

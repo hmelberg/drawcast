@@ -1,0 +1,552 @@
+{
+ "request": "Does the news cover what actually kills us? A two-voice quiz where I split the newspaper's stories myself first. #interactive #short",
+ "subtitle": "Play newspaper editor and share out a hundred stories on causes of death, then watch the bars turn into what Americans actually died of.",
+ "thumb": "band \"Read all about it\" note \"News vs reality\"",
+ "spec": {
+  "title": "Does the news cover what actually kills us?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Heart",
+    "Cancer",
+    "Homicide",
+    "Terror",
+    "Other"
+   ],
+   "values": [
+    [
+     3,
+     4,
+     42,
+     18,
+     33
+    ],
+    [
+     29,
+     27,
+     1,
+     0,
+     43
+    ]
+   ],
+   "stage": 0,
+   "value_labels": true,
+   "ylim": [
+    0,
+    50
+   ],
+   "y_label": "Share (%)",
+   "bar_colors": "each",
+   "label_size": 34,
+   "icons": [
+    {
+     "of": "anatomical heart",
+     "set": "twemoji"
+    },
+    {
+     "of": "hospital",
+     "set": "twemoji"
+    },
+    {
+     "of": "police car light",
+     "set": "twemoji"
+    },
+    {
+     "of": "bomb",
+     "set": "twemoji"
+    },
+    null
+   ],
+   "box": {
+    "x": 100,
+    "y": 200,
+    "w": 700,
+    "h": 400
+   }
+  },
+  "sources": [
+   {
+    "id": "owid_news",
+    "title": "Does the news reflect what we die from?",
+    "authors": "Hannah Ritchie, Tuna Acisu and Edouard Mathieu",
+    "year": 2025,
+    "url": "https://ourworldindata.org/does-the-news-reflect-what-we-die-from",
+    "finding": "US, 2023, 15 causes of death: heart disease 29 % and cancer 27 % of deaths but 2.8 % and 4.1 % of New York Times coverage; homicide under 1 % of deaths but 42 % of coverage; terrorism, 16 deaths, 18 % of coverage — OWID puts its coverage at about 18,240 times its share of deaths (shares within the 15 causes); the Washington Post and Fox News look much the same"
+   },
+   {
+    "id": "cdc",
+    "title": "Deaths and mortality (FastStats)",
+    "authors": "US Centers for Disease Control and Prevention",
+    "year": 2025,
+    "finding": "US deaths by cause, 2023 (the death shares in the OWID analysis)"
+   },
+   {
+    "id": "mediacloud",
+    "title": "Media Cloud",
+    "authors": "Media Cloud",
+    "year": 2025,
+    "finding": "counts of news articles mentioning each cause of death (the coverage shares in the OWID analysis)"
+   }
+  ],
+  "elements": [
+   {
+    "id": "tag_news",
+    "type": "text",
+    "text": "NYT stories",
+    "x": 250,
+    "y": 580,
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_news"
+    ]
+   },
+   {
+    "id": "tag_deaths",
+    "type": "text",
+    "text": "US deaths",
+    "x": 250,
+    "y": 580,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_news"
+    ]
+   },
+   {
+    "id": "gh0",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      -0.32,
+      3
+     ],
+     [
+      0.32,
+      3
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true,
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "gh1",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      0.6799999999999999,
+      4
+     ],
+     [
+      1.32,
+      4
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true,
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "gh2",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      1.68,
+      42
+     ],
+     [
+      2.32,
+      42
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true,
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "gh3",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      2.68,
+      18
+     ],
+     [
+      3.32,
+      18
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true,
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "gh4",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      3.68,
+      33
+     ],
+     [
+      4.32,
+      33
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true,
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "ghosts",
+    "type": "group",
+    "members": [
+     "gh0",
+     "gh1",
+     "gh2",
+     "gh3",
+     "gh4"
+    ]
+   },
+   {
+    "id": "gh_l",
+    "type": "text",
+    "text": "- - - news",
+    "font_size": 36,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 600,
+    "y": 615
+   },
+   {
+    "id": "t16",
+    "type": "text",
+    "text": "16 deaths",
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      2.55,
+      36
+     ]
+    },
+    "cites": [
+     "owid_news"
+    ]
+   },
+   {
+    "id": "t18k",
+    "type": "text",
+    "text": "18,000×",
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      2.55,
+      26
+     ]
+    },
+    "cites": [
+     "owid_news"
+    ]
+   },
+   {
+    "id": "papers",
+    "type": "text",
+    "text": "Post, Fox: same",
+    "font_size": 42,
+    "style": {
+     "color": "#5e584e"
+    },
+    "at": {
+     "data": [
+      2.55,
+      28
+     ]
+    },
+    "cites": [
+     "owid_news"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Does the news cover what kills us?"
+    }
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "voice": "a",
+    "speak": "Does the news cover what actually kills us? Take every story the New York Times ran in 2023 that mentions a cause of death."
+   },
+   {
+    "draw": [
+     "tag_news"
+    ],
+    "voice": "b",
+    "speak": "Surely it does. Journalists cover what matters."
+   },
+   {
+    "ask": {
+     "question": "You are the editor: share out a hundred stories between these causes.",
+     "on": "all",
+     "budget": 100,
+     "judge": false,
+     "account_label": "Stories left",
+     "store": "ed",
+     "right": "Here is how the Times really split them: homicide alone got forty-two of every hundred."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_4",
+      "bar_1",
+      "bar_2"
+     ]
+    },
+    "voice": "b",
+    "speak": "Eighteen for terrorism? And heart disease and cancer get seven between them?"
+   },
+   {
+    "erase": [
+     "tag_news"
+    ]
+   },
+   {
+    "draw": [
+     "ghosts",
+     "gh_l",
+     "tag_deaths"
+    ],
+    "voice": "a",
+    "speak": "Keep the news as dashes. Now the bars show what Americans actually died of that year."
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 3,
+    "voice": "a",
+    "speak": "Heart disease and cancer shoot up: more than half of all these deaths."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_3"
+     ]
+    },
+    "voice": "b",
+    "speak": "And homicide, the paper's biggest bar, sinks to about one in a hundred."
+   },
+   {
+    "draw": [
+     "t16",
+     "t18k"
+    ],
+    "voice": "a",
+    "speak": "Terrorism killed sixteen people in the whole country. Its share of the news was about eighteen thousand times its share of the deaths."
+   },
+   {
+    "erase": [
+     "t16",
+     "t18k"
+    ]
+   },
+   {
+    "voice": "b",
+    "speak": "Fine, the Times is odd. Surely the other papers are different?",
+    "highlight": {
+     "target": [
+      "tag_deaths"
+     ]
+    }
+   },
+   {
+    "draw": [
+     "papers"
+    ],
+    "voice": "a",
+    "speak": "The Washington Post and Fox News look much the same."
+   },
+   {
+    "erase": [
+     "papers"
+    ]
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1",
+      "bar_2"
+     ]
+    },
+    "voice": "a",
+    "speak": "News is what is new. A sudden death is a story; a slow one is a statistic. So when you wonder what to worry about, read the boring bars."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "paper",
+     "type": "icon",
+     "of": "newspaper",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 260,
+     "y": 450
+    },
+    {
+     "id": "q1",
+     "type": "text",
+     "text": "What makes",
+     "x": 690,
+     "y": 530,
+     "font_size": 80,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "q2",
+     "type": "text",
+     "text": "the news?",
+     "x": 690,
+     "y": 420,
+     "font_size": 80,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "You be the editor"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "heart",
+     "type": "icon",
+     "of": "anatomical heart",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 230,
+     "y": 450
+    },
+    {
+     "id": "bomb",
+     "type": "icon",
+     "of": "bomb",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 770,
+     "y": 450
+    },
+    {
+     "id": "vs",
+     "type": "text",
+     "text": "vs",
+     "x": 500,
+     "y": 460,
+     "font_size": 110,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Which one sells papers?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "a",
+     "type": "icon",
+     "of": "anatomical heart",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 160,
+     "x": 410,
+     "y": 540
+    },
+    {
+     "id": "b",
+     "type": "icon",
+     "of": "hospital",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 160,
+     "x": 600,
+     "y": 540
+    },
+    {
+     "id": "c",
+     "type": "icon",
+     "of": "police car light",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 160,
+     "x": 410,
+     "y": 320
+    },
+    {
+     "id": "e",
+     "type": "icon",
+     "of": "bomb",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 160,
+     "x": 600,
+     "y": 320
+    },
+    {
+     "id": "q",
+     "type": "thumb",
+     "kind": "question",
+     "text": "What would you print?"
+    }
+   ]
+  }
+ ]
+}

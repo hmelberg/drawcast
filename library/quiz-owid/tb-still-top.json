@@ -1,0 +1,529 @@
+{
+ "request": "Which infectious disease kills the most people today? A two-voice quiz where I tap my guess. #interactive #short",
+ "subtitle": "Tap the infection you think kills the most people today, then hear why an old, curable disease is still on top, ahead of COVID, HIV and malaria.",
+ "thumb": "band \"Not the one you think\" note \"1 germ, 1 million deaths\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "m",
+     "type": "icon",
+     "of": "mosquito",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 210,
+     "x": 170,
+     "y": 470
+    },
+    {
+     "id": "v",
+     "type": "icon",
+     "of": "face with medical mask",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 210,
+     "x": 390,
+     "y": 470
+    },
+    {
+     "id": "r",
+     "type": "icon",
+     "of": "red ribbon",
+     "or": [
+      "reminder ribbon"
+     ],
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 210,
+     "x": 610,
+     "y": 470
+    },
+    {
+     "id": "l",
+     "type": "icon",
+     "of": "lungs",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 210,
+     "x": 830,
+     "y": 470
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "Which kills most?",
+     "x": 500,
+     "y": 300,
+     "font_size": 80,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Not the one you think"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "mic",
+     "type": "icon",
+     "of": "studio microphone",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 200,
+     "y": 430
+    },
+    {
+     "id": "s1",
+     "type": "text",
+     "text": "“COVID, obviously.”",
+     "x": 620,
+     "y": 520,
+     "font_size": 64,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "s2",
+     "type": "text",
+     "text": "“…nope.”",
+     "x": 680,
+     "y": 380,
+     "font_size": 80,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Wrong guess, live"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "l",
+     "type": "icon",
+     "of": "microbe",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 330,
+     "x": 700,
+     "y": 430
+    },
+    {
+     "id": "a",
+     "type": "text",
+     "text": "1 germ.",
+     "x": 260,
+     "y": 460,
+     "font_size": 90,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "b",
+     "type": "text",
+     "text": "? deaths",
+     "x": 260,
+     "y": 330,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "c",
+     "type": "text",
+     "text": "a year",
+     "x": 260,
+     "y": 230,
+     "font_size": 60,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "burst",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Still?"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "Which infectious disease kills the most people today?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Malaria",
+    "HIV/AIDS",
+    "COVID-19",
+    "TB",
+    "Pneumonia"
+   ],
+   "values": [
+    670,
+    830,
+    850,
+    1010,
+    2500
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    2800
+   ],
+   "y_label": "Deaths in 2023 (thousands)",
+   "box": "full",
+   "bar_colors": "same",
+   "label_size": 30,
+   "icons": [
+    {
+     "of": "mosquito",
+     "set": "twemoji"
+    },
+    {
+     "of": "reminder ribbon",
+     "set": "twemoji"
+    },
+    {
+     "of": "face with medical mask",
+     "set": "twemoji"
+    },
+    {
+     "of": "lungs",
+     "set": "twemoji"
+    },
+    {
+     "of": "face with thermometer",
+     "set": "twemoji"
+    }
+   ]
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Number of deaths from tuberculosis",
+    "authors": "Our World in Data, from IHME Global Burden of Disease (2025)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/tuberculosis-deaths",
+    "finding": "about 1.01 million tuberculosis deaths in 2023"
+   },
+   {
+    "id": "owid_causes",
+    "title": "Annual number of deaths by cause",
+    "authors": "Our World in Data, from IHME Global Burden of Disease (2025)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/annual-number-of-deaths-by-cause",
+    "finding": "IHME estimates for 2023: tuberculosis 1.01 million, COVID-19 847,000, HIV/AIDS 833,000, malaria 670,000, lower respiratory infections (pneumonia) 2.5 million; COVID-19 exceeded tuberculosis in 2020–2022. WHO's own estimates differ (TB about 1.25 million, HIV about 630,000, malaria about 597,000) but also put TB first among single infectious agents"
+   },
+   {
+    "id": "owid_tb",
+    "title": "Tuberculosis; Once a leading killer, tuberculosis is now rare in rich countries",
+    "authors": "Saloni Dattani, Fiona Spooner, Hannah Ritchie and Max Roser (Our World in Data)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/tuberculosis-history-decline",
+    "finding": "as much as one quarter of deaths in Europe and the US were once from tuberculosis; streptomycin, the first antibiotic against it, was found in 1944; treatment takes months"
+   }
+  ],
+  "elements": [
+   {
+    "id": "ic_mal",
+    "type": "icon",
+    "of": "mosquito",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 180,
+    "x": 140,
+    "y": 450
+   },
+   {
+    "id": "ic_hiv",
+    "type": "icon",
+    "of": "red ribbon",
+    "or": [
+     "reminder ribbon",
+     "ribbon"
+    ],
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 180,
+    "x": 370,
+    "y": 450
+   },
+   {
+    "id": "ic_cov",
+    "type": "icon",
+    "of": "face with medical mask",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 180,
+    "x": 600,
+    "y": 450
+   },
+   {
+    "id": "ic_tb",
+    "type": "icon",
+    "of": "lungs",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 180,
+    "x": 840,
+    "y": 450
+   },
+   {
+    "id": "l_mal",
+    "type": "text",
+    "text": "Malaria",
+    "x": 140,
+    "y": 300,
+    "font_size": 44
+   },
+   {
+    "id": "l_hiv",
+    "type": "text",
+    "text": "HIV/AIDS",
+    "x": 370,
+    "y": 300,
+    "font_size": 44
+   },
+   {
+    "id": "l_cov",
+    "type": "text",
+    "text": "COVID-19",
+    "x": 600,
+    "y": 300,
+    "font_size": 44
+   },
+   {
+    "id": "l_tb",
+    "type": "text",
+    "text": "Tuberculosis",
+    "x": 840,
+    "y": 300,
+    "font_size": 44
+   },
+   {
+    "id": "old",
+    "type": "text",
+    "text": "1800s: up to 1 in 4 deaths",
+    "x": 420,
+    "y": 560,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_tb"
+    ]
+   },
+   {
+    "id": "many",
+    "type": "text",
+    "text": "many germs",
+    "font_size": 34,
+    "style": {
+     "color": "#2f2b26"
+    },
+    "cites": [
+     "owid_causes"
+    ],
+    "at": {
+     "ref": "bar_5"
+    }
+   },
+   {
+    "id": "cure",
+    "type": "text",
+    "text": "CURABLE",
+    "font_size": 56,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_tb"
+    ],
+    "at": {
+     "ref": "bar_4",
+     "side": "above",
+     "gap": 55
+    }
+   },
+   {
+    "id": "cue",
+    "type": "text",
+    "text": "cure exists, not delivered",
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    },
+    "x": 360,
+    "y": 600
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which infection kills the most?"
+    }
+   },
+   {
+    "draw": [
+     "ic_mal",
+     "l_mal",
+     "ic_hiv",
+     "l_hiv",
+     "ic_cov",
+     "l_cov",
+     "ic_tb",
+     "l_tb"
+    ],
+    "voice": "a",
+    "speak": "Which single infectious disease kills the most people in the world today? Here are four candidates."
+   },
+   {
+    "highlight": {
+     "target": [
+      "ic_cov"
+     ]
+    },
+    "voice": "b",
+    "speak": "Easy. COVID. Everyone I know has had it."
+   },
+   {
+    "ask": {
+     "question": "Tap the one you think kills the most.",
+     "choose": [
+      "ic_mal",
+      "ic_hiv",
+      "ic_cov",
+      "ic_tb"
+     ],
+     "answer": "ic_tb",
+     "default": "ic_cov",
+     "right": "Tuberculosis: about a million deaths in 2023 by one major estimate, more than any other single germ.",
+     "wrong": "Think of a disease many people believe belongs to the past.",
+     "reveal": {
+      "text": "No. 1",
+      "at": {
+       "x": 840,
+       "y": 620
+      },
+      "size": 48
+     }
+    }
+   },
+   {
+    "erase": [
+     "ic_mal",
+     "l_mal",
+     "ic_hiv",
+     "l_hiv",
+     "ic_cov",
+     "l_cov",
+     "ic_tb",
+     "l_tb"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "bar_1",
+     "bar_2",
+     "bar_3"
+    ],
+    "voice": "a",
+    "speak": "By one major estimate, in 2023 malaria killed about six hundred and seventy thousand people, HIV about eight hundred and thirty thousand, and COVID about eight hundred and fifty thousand."
+   },
+   {
+    "draw": [
+     "bar_4"
+    ],
+    "voice": "a",
+    "speak": "And tuberculosis: about a million. Back on top, after COVID passed it for a few years."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_4"
+     ]
+    },
+    "voice": "b",
+    "speak": "Tuberculosis? Isn't that a disease from old novels?"
+   },
+   {
+    "draw": [
+     "old"
+    ],
+    "voice": "a",
+    "speak": "It was the great killer of the eighteen hundreds: once as many as one death in four in Europe and America."
+   },
+   {
+    "erase": [
+     "old"
+    ]
+   },
+   {
+    "draw": [
+     "bar_5",
+     "many"
+    ],
+    "voice": "b",
+    "speak": "Hang on. Doesn't pneumonia kill more?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_5"
+     ]
+    },
+    "voice": "a",
+    "speak": "It does, about two and a half million. But pneumonia is many different germs. Tuberculosis is one bacterium."
+   },
+   {
+    "erase": [
+     "many"
+    ]
+   },
+   {
+    "draw": [
+     "cure",
+     "cue"
+    ],
+    "voice": "a",
+    "speak": "And here's the twist: it's curable. Antibiotics have cured it since the 1940s. But treatment takes months, and the poorest places often never get the diagnosis."
+   },
+   {
+    "highlight": {
+     "target": [
+      "cue"
+     ]
+    },
+    "voice": "b",
+    "speak": "Wait. So we have the cure. We just don't get it to the people who need it?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_4"
+     ]
+    },
+    "voice": "a",
+    "speak": "Exactly. The germ isn't winning. We are losing on delivery."
+   }
+  ]
+ }
+}

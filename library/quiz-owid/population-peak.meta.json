@@ -1,0 +1,19 @@
+{
+ "file": "population-peak.json",
+ "title": "When will the world's population peak, and at what size?",
+ "subtitle": "A host quizzes a co-host and you: when does the world's population peak, and how big? Then see the number that has already peaked.",
+ "format": "quiz",
+ "tags": [
+  "geography",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "7 (as 6: host quizzes co-host and viewer)",
+ "form": "guess on a scale (year), then estimate slider (size)",
+ "owid": "https://ourworldindata.org/grapher/population-with-un-projections",
+ "notes": "Chart starts in a top box with the past line as context for the year guess, is hidden during the estimate (the slider overlaps it), then animates to full size. The estimate ask replaces the heading while answering (engine). Peak child marked as a dashed tick at 2017 on the x-axis."
+}

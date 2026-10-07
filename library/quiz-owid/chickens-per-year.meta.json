@@ -1,0 +1,20 @@
+{
+ "file": "chickens-per-year.json",
+ "title": "How many chickens are slaughtered for meat each year?",
+ "subtitle": "Two hosts guess how many chickens are killed for meat each year, then shrink the answer to a size you can feel: per person and per second.",
+ "format": "quiz",
+ "tags": [
+  "food",
+  "biology",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "9 (with 6: a quizzes b and the viewer together; b overshoots)",
+ "form": "ask estimate (slider counter)",
+ "owid": "https://ourworldindata.org/grapher/animals-slaughtered-for-meat",
+ "notes": "OWID/FAO 2024: 78.5 bn chickens (shown as 78), 6.6 bn in 1961 (×12), chickens ≈ 91% of land animals in the chart; ducks 4.2 bn are most of the rest, pigs + cattle 1.8 bn ≈ 1 in 50. Fix round: log slider 1–1000 bn (no anchor from b before the guess; b reveals an overshoot of 100 bn after); twists drawn: person + 10 chickens, stopwatch + 2,500/second, 1 chicken (1961) vs 12, a row of 9 chickens + '?' that becomes a duck. The engine does not keep the viewer's 'You' marker after an estimate's reveal; the counter stays up through b's reaction instead."
+}

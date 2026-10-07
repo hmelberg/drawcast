@@ -1,0 +1,511 @@
+{
+ "request": "Are there more obese or more underweight adults in the world? A duel in two rounds, 1980 and 2014, then the crossing drawn. #interactive #short",
+ "subtitle": "Two head-to-head rounds: too thin or obese, which is more common among the world's adults? Then see the year the two lines crossed.",
+ "thumb": "band \"Too thin or too heavy?\" note \"The lines crossed\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "t_rice",
+     "type": "icon",
+     "of": "cooked rice",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 270,
+     "y": 450,
+     "size": 240
+    },
+    {
+     "id": "t_vs",
+     "type": "text",
+     "text": "vs",
+     "x": 500,
+     "y": 450,
+     "font_size": 90,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "t_burger",
+     "type": "icon",
+     "of": "hamburger",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 730,
+     "y": 450,
+     "size": 240
+    },
+    {
+     "id": "t_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Too little or too much?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t2_ax",
+     "type": "path",
+     "points": [
+      [
+       100,
+       640
+      ],
+      [
+       100,
+       280
+      ],
+      [
+       920,
+       280
+      ]
+     ],
+     "style": {
+      "stroke_width": 6
+     }
+    },
+    {
+     "id": "t2_a",
+     "type": "path",
+     "points": [
+      [
+       120,
+       580
+      ],
+      [
+       330,
+       540
+      ],
+      [
+       520,
+       500
+      ]
+     ],
+     "style": {
+      "stroke_width": 10,
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t2_b",
+     "type": "path",
+     "points": [
+      [
+       120,
+       340
+      ],
+      [
+       330,
+       380
+      ],
+      [
+       520,
+       420
+      ]
+     ],
+     "style": {
+      "stroke_width": 10,
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "t2_q",
+     "type": "text",
+     "text": "?",
+     "x": 740,
+     "y": 460,
+     "font_size": 220,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "t2_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "What happens next?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t3_scale",
+     "type": "icon",
+     "of": "balance scale",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 560,
+     "y": 380,
+     "size": 260
+    },
+    {
+     "id": "t3_l",
+     "type": "text",
+     "text": "thin",
+     "x": 300,
+     "y": 300,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t3_r",
+     "type": "text",
+     "text": "heavy",
+     "x": 830,
+     "y": 380,
+     "font_size": 90,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "t3_band",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Which is more common?"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "Are there more obese or more underweight adults in the world?",
+  "template": "line_chart",
+  "params": {
+   "x": [
+    1975,
+    1980,
+    1985,
+    1990,
+    1995,
+    2000,
+    2005,
+    2007,
+    2010,
+    2014
+   ],
+   "series": [
+    {
+     "name": "Underweight",
+     "values": [
+      14.2,
+      13.7,
+      13.2,
+      12.8,
+      12.2,
+      11.6,
+      10.8,
+      10.4,
+      9.8,
+      9.2
+     ]
+    },
+    {
+     "name": "Obese",
+     "values": [
+      null,
+      5.0,
+      5.5,
+      6.1,
+      7.1,
+      8.3,
+      9.8,
+      10.4,
+      11.3,
+      12.6
+     ]
+    }
+   ],
+   "xlim": [
+    1975,
+    2026
+   ],
+   "ylim": [
+    0,
+    18
+   ],
+   "y_label": "% of adults",
+   "label_size": 30
+  },
+  "sources": [
+   {
+    "id": "owid_ob",
+    "title": "Share of adults who are obese",
+    "authors": "Our World in Data, from the WHO Global Health Observatory",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/share-of-adults-defined-as-obese",
+    "finding": "world: 5.0% of adults obese (BMI 30+) in 1980, 6.1% in 1990, 12.6% in 2014, 16.4% in 2024"
+   },
+   {
+    "id": "owid_uw",
+    "title": "Share of men / women defined as underweight, healthy, overweight and obese",
+    "authors": "Our World in Data, from NCD Risk Factor Collaboration (2017)",
+    "year": 2017,
+    "url": "https://ourworldindata.org/grapher/men-weight-categories",
+    "finding": "world: underweight (BMI under 18.5) about 13.7% of adults in 1980 and 9.2% in 2014 (average of men and women)"
+   },
+   {
+    "id": "owid_cont",
+    "title": "Obesity rates have increased on every continent",
+    "authors": "Our World in Data",
+    "year": 2024,
+    "url": "https://ourworldindata.org/data-insights/obesity-rates-have-increased-on-every-continent",
+    "finding": "adult obesity rates have risen on every continent"
+   },
+   {
+    "id": "ncd",
+    "title": "Trends in adult body-mass index in 200 countries from 1975 to 2014",
+    "authors": "NCD Risk Factor Collaboration, The Lancet",
+    "year": 2016,
+    "finding": "the world went from more underweight than obese adults in 1975 to more obese than underweight adults"
+   }
+  ],
+  "elements": [
+   {
+    "id": "duel",
+    "type": "cards",
+    "compare": "Which is more common?",
+    "unit": "%",
+    "items": [
+     {
+      "text": "1980: too thin",
+      "value": 13.7
+     },
+     {
+      "text": "1980: obese",
+      "value": 5.0
+     },
+     {
+      "text": "2014: obese",
+      "value": 12.6
+     },
+     {
+      "text": "2014: too thin",
+      "value": 9.2
+     }
+    ],
+    "cites": [
+     "owid_ob",
+     "owid_uw"
+    ],
+    "size": 2
+   },
+   {
+    "id": "cross_pt",
+    "type": "point",
+    "at": {
+     "data": [
+      2007,
+      10.4
+     ]
+    },
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "cross_l",
+    "type": "text",
+    "text": "2007",
+    "font_size": 52,
+    "style": {
+     "color": "#3d3833"
+    },
+    "at": {
+     "data": [
+      2007,
+      6.6
+     ]
+    },
+    "cites": [
+     "owid_ob",
+     "owid_uw"
+    ]
+   },
+   {
+    "id": "one7",
+    "type": "text",
+    "text": "1 in 7",
+    "font_size": 48,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      1982,
+      15.8
+     ]
+    },
+    "cites": [
+     "owid_uw"
+    ]
+   },
+   {
+    "id": "one20",
+    "type": "text",
+    "text": "1 in 20",
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      1983,
+      2.6
+     ]
+    },
+    "cites": [
+     "owid_ob"
+    ]
+   },
+   {
+    "id": "one6",
+    "type": "text",
+    "text": "2024: 1 in 6",
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      2012,
+      17.6
+     ]
+    },
+    "cites": [
+     "owid_ob"
+    ]
+   },
+   {
+    "id": "p24",
+    "type": "point",
+    "at": {
+     "data": [
+      2024,
+      16.4
+     ]
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "p24_link",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      2014,
+      12.6
+     ],
+     [
+      2024,
+      16.4
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "flip",
+    "type": "text",
+    "text": "too thin → too heavy",
+    "font_size": 48,
+    "style": {
+     "color": "#3d3833"
+    },
+    "at": {
+     "data": [
+      1996,
+      2.6
+     ]
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "More obese or underweight adults?"
+    }
+   },
+   {
+    "draw": [
+     "duel"
+    ],
+    "speak": "Which is more common among the world's adults: being too thin, or having obesity? Two rounds, thirty-four years apart."
+   },
+   {
+    "ask": {
+     "question": "Tap the bigger share in each pair.",
+     "on": "duel",
+     "store": "h",
+     "right": "Both right.",
+     "wrong": "{h} of 2."
+    }
+   },
+   {
+    "erase": [
+     "duel"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "line_1",
+     "one7"
+    ],
+    "speak": "Now the full story, year by year. In 1980, about one adult in seven was underweight."
+   },
+   {
+    "draw": [
+     "line_2",
+     "one20"
+    ],
+    "speak": "Obesity was rarer, about one in twenty. But it climbed, year after year."
+   },
+   {
+    "erase": [
+     "one7",
+     "one20"
+    ]
+   },
+   {
+    "draw": [
+     "cross_pt",
+     "cross_l"
+    ],
+    "speak": "Around 2007, the two lines crossed. Since then, obesity is the more common of the two."
+   },
+   {
+    "highlight": {
+     "target": [
+      "line_1"
+     ]
+    },
+    "speak": "Part of that is good news: fewer adults are too thin, because fewer go hungry."
+   },
+   {
+    "draw": [
+     "p24_link",
+     "p24",
+     "one6"
+    ],
+    "speak": "And obesity kept climbing: nearly tripled since 1990, to about one adult in six by 2024."
+   },
+   {
+    "draw": [
+     "flip"
+    ],
+    "speak": "So the world's weight problem has flipped: from too little food, to too much."
+   }
+  ]
+ }
+}

@@ -1,0 +1,13 @@
+(a) How many chickens are killed for meat around the world every year? You and my co-host both get a guess.
+[ASK] Set your guess, in billions of chickens a year.
+  [right] Close: you said {g} billion, and it is about {g.true} billion.
+  [wrong] You said {g} billion. It is about {g.true} billion.
+(b) I put a hundred billion, so I overshot. But seventy-eight billion, with only eight billion people?
+(a) Yes: that's nearly ten chickens for every person on Earth, every year.
+(b) Ten? Then someone's been eating mine.
+(a) Some eat none, some far more. Counted per second, it's about two and a half thousand, day and night.
+(a) And it keeps climbing. In 1961 it was six and a half billion; now, twelve times as many.
+(a) Of all the land animals killed for meat, about nine in ten are chickens.
+(b) And the tenth? Cows? Pigs?
+(a) Mostly ducks. Pigs and cattle together are only about one in fifty.
+(b) So when we say farm animals, we really mean birds.

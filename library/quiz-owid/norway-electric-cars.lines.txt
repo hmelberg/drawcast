@@ -1,0 +1,14 @@
+a: In Norway last year, what share of new cars ran on batteries alone? Not hybrids: fully electric.
+b: Norway? The oil country? Can't be many.
+[ASK] Drag the slice's edge to your guess.
+  [right] Close: you said {g} percent, and it was {g.true}.
+  [wrong] You said {g} percent; it was {g.true}.
+a: About ninety-five percent. Nineteen of every twenty new cars.
+b: Fine, but that must have taken decades.
+a: Ten years. In 2015 it was about one in six.
+a: And in 2010, about three cars in a thousand.
+b: So what happened? Did Norwegians just fall in love with batteries?
+a: Mostly money: electric cars paid almost no purchase tax or VAT, and lower tolls.
+b: While selling oil and gas to everyone else. Very Norwegian.
+a: And the world? About one new car in six is fully electric: Norway in 2015.
+b: So the world is ten years behind a country that sells it oil. Ten more years, then?

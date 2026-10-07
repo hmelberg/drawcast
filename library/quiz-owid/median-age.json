@@ -1,0 +1,647 @@
+{
+ "request": "How old is the typical person in Niger, Brazil, the US, Italy and Japan? Let me place the countries on an age line. #interactive #short",
+ "subtitle": "Place five countries on a line by the age of their middle person, then see why Japan, the oldest, was younger in 1950 than Brazil is today.",
+ "thumb": "band \"Half of Niger is under 15\" note \"Japan: ?\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "t_q",
+     "type": "text",
+     "text": "Median age?",
+     "x": 500,
+     "y": 650,
+     "font_size": 80,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "t_ner",
+     "type": "icon",
+     "of": "flag niger",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 260,
+     "y": 450,
+     "size": 220
+    },
+    {
+     "id": "t_jpn",
+     "type": "icon",
+     "of": "flag japan",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 740,
+     "y": 450,
+     "size": 220
+    },
+    {
+     "id": "t_q1",
+     "type": "text",
+     "text": "?",
+     "x": 260,
+     "y": 290,
+     "font_size": 130,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "t_q2",
+     "type": "text",
+     "text": "?",
+     "x": 740,
+     "y": 290,
+     "font_size": 130,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Young Niger, grey Japan"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t2_baby",
+     "type": "icon",
+     "of": "baby",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 200,
+     "y": 420,
+     "size": 220
+    },
+    {
+     "id": "t2_q",
+     "type": "text",
+     "text": "?",
+     "x": 500,
+     "y": 420,
+     "font_size": 180,
+     "style": {
+      "color": "#8a5fa8"
+     }
+    },
+    {
+     "id": "t2_old",
+     "type": "icon",
+     "of": "old woman",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 800,
+     "y": 420,
+     "size": 220
+    },
+    {
+     "id": "t2_line",
+     "type": "path",
+     "points": [
+      [
+       60,
+       270
+      ],
+      [
+       940,
+       270
+      ]
+     ],
+     "style": {
+      "stroke_width": 7
+     }
+    },
+    {
+     "id": "t2_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Who is the middle person?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t3_jp",
+     "type": "icon",
+     "of": "flag japan",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "x": 330,
+     "y": 430,
+     "size": 250
+    },
+    {
+     "id": "t3_yr",
+     "type": "text",
+     "text": "1950",
+     "x": 680,
+     "y": 500,
+     "font_size": 120,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "t3_age",
+     "type": "text",
+     "text": "age ?",
+     "x": 680,
+     "y": 340,
+     "font_size": 100,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t3_band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Japan was young once"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "How old is the typical person? Niger, Brazil, the US, Italy and Japan",
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Median age",
+    "authors": "Our World in Data, from UN World Population Prospects 2024",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/median-age",
+    "finding": "median age in 2023: Niger 15.3, Brazil 33.9, United States 38.0, Italy 47.5, Japan 49.0, world 30.4; Japan 21.3 in 1950"
+   },
+   {
+    "id": "wpp",
+    "title": "World Population Prospects 2024",
+    "authors": "United Nations, Population Division",
+    "year": 2024,
+    "finding": "medium projection: Niger's median age passes 30 around 2082"
+   }
+  ],
+  "feedback": {
+   "style": "warm",
+   "perfect": "A demographer in the making.",
+   "good": "A sharp sense of the world's ages.",
+   "poor": "The world is younger and older than it looks.",
+   "none": "Ages hide well. Now you know them."
+  },
+  "elements": [
+   {
+    "id": "age",
+    "type": "scale",
+    "min": 10,
+    "max": 55,
+    "unit": " yrs",
+    "x": 90,
+    "y": 390,
+    "width": 820,
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "lands",
+    "type": "cards",
+    "along": "age",
+    "items": [
+     {
+      "text": "Niger",
+      "icon": {
+       "of": "flag niger",
+       "set": "twemoji"
+      },
+      "value": 15.3
+     },
+     {
+      "text": "Brazil",
+      "icon": {
+       "of": "flag brazil",
+       "set": "twemoji"
+      },
+      "value": 33.9
+     },
+     {
+      "text": "USA",
+      "icon": {
+       "of": "flag united states",
+       "set": "twemoji"
+      },
+      "value": 38
+     },
+     {
+      "text": "Italy",
+      "icon": {
+       "of": "flag italy",
+       "set": "twemoji"
+      },
+      "value": 47.5
+     },
+     {
+      "text": "Japan",
+      "icon": {
+       "of": "flag japan",
+       "set": "twemoji"
+      },
+      "value": 49
+     }
+    ],
+    "cites": [
+     "owid"
+    ],
+    "size": 1.25
+   },
+   {
+    "id": "pt_ner",
+    "type": "point",
+    "at": {
+     "x": 186.57777777777778,
+     "y": 390
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "n_ner",
+    "type": "text",
+    "text": "15",
+    "x": 186.57777777777778,
+    "y": 302,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "pt_bra",
+    "type": "point",
+    "at": {
+     "x": 525.5111111111112,
+     "y": 390
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "n_bra",
+    "type": "text",
+    "text": "34",
+    "x": 525.5111111111112,
+    "y": 302,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "pt_usa",
+    "type": "point",
+    "at": {
+     "x": 600.2222222222222,
+     "y": 390
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "n_usa",
+    "type": "text",
+    "text": "38",
+    "x": 600.2222222222222,
+    "y": 302,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "pt_ita",
+    "type": "point",
+    "at": {
+     "x": 773.3333333333334,
+     "y": 390
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "n_ita",
+    "type": "text",
+    "text": "47",
+    "x": 759.3333333333334,
+    "y": 302,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "pt_jpn",
+    "type": "point",
+    "at": {
+     "x": 800.6666666666666,
+     "y": 390
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "n_jpn",
+    "type": "text",
+    "text": "49",
+    "x": 814.6666666666666,
+    "y": 302,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "gap_arrow",
+    "type": "arrow",
+    "from": {
+     "x": 186.57777777777778,
+     "y": 262
+    },
+    "to": {
+     "x": 800.6666666666666,
+     "y": 262
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "gap_l",
+    "type": "text",
+    "text": "34 years older",
+    "x": 500,
+    "y": 222,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "world_pt",
+    "type": "point",
+    "at": {
+     "x": 461.73333333333335,
+     "y": 390
+    },
+    "style": {
+     "color": "#8a5fa8"
+    }
+   },
+   {
+    "id": "world_l",
+    "type": "text",
+    "text": "World: 30",
+    "x": 461.73333333333335,
+    "y": 222,
+    "font_size": 48,
+    "style": {
+     "color": "#8a5fa8"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "jp50_pt",
+    "type": "point",
+    "at": {
+     "x": 295.9111111111111,
+     "y": 390
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "jp50_arrow",
+    "type": "arrow",
+    "from": {
+     "x": 800.6666666666666,
+     "y": 262
+    },
+    "to": {
+     "x": 301.9111111111111,
+     "y": 262
+    },
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true
+    }
+   },
+   {
+    "id": "jp50_l",
+    "type": "text",
+    "text": "Japan 1950: 21",
+    "x": 385.9111111111111,
+    "y": 222,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "ner_arrow",
+    "type": "arrow",
+    "from": {
+     "x": 186.57777777777778,
+     "y": 262
+    },
+    "to": {
+     "x": 458.0888888888889,
+     "y": 262
+    },
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true
+    }
+   },
+   {
+    "id": "ner_l",
+    "type": "text",
+    "text": "Niger ~2082: 30",
+    "x": 308.66666666666663,
+    "y": 222,
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "wpp"
+    ]
+   },
+   {
+    "id": "same",
+    "type": "text",
+    "text": "= world today",
+    "x": 611.7333333333333,
+    "y": 222,
+    "font_size": 46,
+    "style": {
+     "color": "#8a5fa8"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How old is the typical person?"
+    }
+   },
+   {
+    "draw": [
+     "age"
+    ],
+    "speak": "How old is the typical person in a country? Line everyone up by age and take the one in the middle: that is the median age."
+   },
+   {
+    "draw": [
+     "lands"
+    ],
+    "speak": "Here are five countries, from Africa, South America, North America, Europe and Asia."
+   },
+   {
+    "ask": {
+     "question": "Drag each country to its median age on the line.",
+     "on": "lands",
+     "store": "w",
+     "tolerance": 0.08,
+     "right": "All {w.total} close.",
+     "wrong": "{w.within} of {w.total} close."
+    }
+   },
+   {
+    "draw": [
+     "pt_ner",
+     "n_ner",
+     "pt_bra",
+     "n_bra",
+     "pt_usa",
+     "n_usa",
+     "pt_ita",
+     "n_ita",
+     "pt_jpn",
+     "n_jpn"
+    ],
+    "parallel": true,
+    "speak": "Here are the true ages: from about fifteen in Niger to forty-nine in Japan."
+   },
+   {
+    "highlight": {
+     "target": [
+      "n_ner"
+     ],
+     "effect": "circle"
+    },
+    "speak": "Niger is one of the youngest countries on Earth: half its people are children."
+   },
+   {
+    "draw": [
+     "gap_arrow",
+     "gap_l"
+    ],
+    "speak": "So Japan's middle person is thirty-four years older than Niger's."
+   },
+   {
+    "erase": [
+     "gap_arrow",
+     "gap_l"
+    ]
+   },
+   {
+    "draw": [
+     "world_pt",
+     "world_l"
+    ],
+    "speak": "And the whole world sits between them, at about thirty."
+   },
+   {
+    "erase": [
+     "world_l"
+    ]
+   },
+   {
+    "draw": [
+     "jp50_arrow",
+     "jp50_pt",
+     "jp50_l"
+    ],
+    "speak": "But Japan was not always old. In 1950, its median age was twenty-one."
+   },
+   {
+    "highlight": {
+     "target": [
+      "lands_2"
+     ]
+    },
+    "speak": "That is younger than Brazil is today."
+   },
+   {
+    "highlight": {
+     "target": [
+      "jp50_arrow"
+     ]
+    },
+    "speak": "Fewer babies and much longer lives aged Japan by nearly thirty years in seven decades."
+   },
+   {
+    "erase": [
+     "jp50_arrow",
+     "jp50_l",
+     "jp50_pt"
+    ]
+   },
+   {
+    "draw": [
+     "ner_arrow",
+     "ner_l"
+    ],
+    "speak": "Niger is on the same road, only later: the UN expects its median age to pass thirty around 2082."
+   },
+   {
+    "draw": [
+     "same"
+    ],
+    "speak": "So one of the youngest countries today may one day be as old as the whole world is now."
+   }
+  ],
+  "page": {
+   "valign": "none"
+  }
+ }
+}

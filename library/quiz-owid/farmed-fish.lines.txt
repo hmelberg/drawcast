@@ -1,0 +1,11 @@
+How much of the world's seafood is farmed, rather than caught in the wild? The blue line is the wild catch, in million tonnes a year.
+Red is farmed: fish, shellfish and seaweed. In 1990, farms made seventeen million tonnes, a fifth as much as the wild catch.
+[ASK] Draw the farmed line on to 2024.
+  [right] Close: you were {g.off} million tonnes off on average.
+  [wrong] You were {g.off} million tonnes off on average. Farms grew far faster.
+In 2013 the farms passed the wild catch, and by 2024 they made about a hundred and forty million tonnes.
+And look at the blue line: the wild catch has been stuck at around ninety million tonnes since the mid-1990s.
+The seas were fished to their limit, so all the growth since has come from farms.
+That farmed total counts mussels, shrimp and seaweed too: sixty percent of everything.
+Counting animals alone, farms passed the half-way mark in 2022.
+So the picture of seafood as a boat hauling in a net is out of date: most of it now grows up in a farm.

@@ -1,0 +1,20 @@
+{
+ "file": "fertilizer-feeds-half.json",
+ "title": "How many people are alive thanks to synthetic fertilizer?",
+ "subtitle": "Sweep across a crowd of a hundred to guess how many owe their food to factory fertilizer, then two hosts unmask the chemist behind it.",
+ "format": "quiz",
+ "tags": [
+  "food",
+  "chemistry",
+  "history of science"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "1 (with 6: b supplies the twist)",
+ "form": "ask on a population state (sweep across the people)",
+ "owid": "https://ourworldindata.org/how-many-people-does-synthetic-fertilizer-feed",
+ "notes": "OWID: ~48% (3.88 of 8.09 bn in 2023), ~4 billion. Fix round: a plain grey crowd of 100 is drawn while the question is asked, hidden, and the ask draws the guessable crowd in the same place (avoids showing the answer); '48 in 100' drawn at the reveal; legend off; air → Haber–Bosch → bread as one chain across the page; dates 1909 (Haber's demonstration) and 1913 (Bosch's plant). Haber's Nobel/Ypres from Wikipedia (not on OWID)."
+}

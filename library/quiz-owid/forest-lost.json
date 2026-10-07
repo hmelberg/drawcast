@@ -1,0 +1,587 @@
+{
+ "request": "How much of the world's forest has been lost since the last ice age, and how much of that since 1900? Let me drag the pie slice. #interactive #short",
+ "subtitle": "Guess how much of the world's forest is gone since the ice age, then how much of that went in the last century, and where forests are growing back.",
+ "thumb": "band \"Ten thousand years of chopping\" note \"How much is gone?\"",
+ "spec": {
+  "title": "How much of the world's forest have we lost since the last ice age?",
+  "text": {
+   "font_size": 34
+  },
+  "template": "pie_chart",
+  "params": {
+   "labels": [
+    "Lost",
+    " ",
+    "Still forest"
+   ],
+   "values": [
+    [
+     2,
+     0,
+     4
+    ],
+    [
+     1,
+     1,
+     4
+    ]
+   ],
+   "stage": 0,
+   "percent": false,
+   "box": {
+    "x": 380,
+    "y": 180,
+    "w": 610,
+    "h": 490
+   },
+   "label_size": 30
+  },
+  "sources": [
+   {
+    "id": "owid_third",
+    "title": "The world has lost one-third of its forests, but an end to deforestation is possible",
+    "authors": "Hannah Ritchie (Our World in Data)",
+    "year": 2021,
+    "url": "https://ourworldindata.org/world-lost-one-third-forests",
+    "finding": "6 billion hectares of forest 10,000 years ago, 4 billion today: one third lost, an area twice the size of the United States; half of the loss happened from 8,000 BC to 1900, the other half since 1900; driven by the expansion of farmland"
+   },
+   {
+    "id": "owid_area",
+    "title": "Forest area",
+    "authors": "Our World in Data, from the UN Food and Agriculture Organization (2025)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/forest-area-km",
+    "finding": "forest area 1990 to 2025: Europe (including Russia) 998 to 1,039 million hectares (+41 million); South America 1,028 to 849 million (−180 million)"
+   },
+   {
+    "id": "owid_transition",
+    "title": "Humans destroyed forests for thousands of years — we can become the first generation that achieves a world in which forests expand",
+    "authors": "Max Roser (Our World in Data)",
+    "year": 2021,
+    "url": "https://ourworldindata.org/global-forest-transition",
+    "finding": "forests have expanded in Europe and North America since 1990, as higher crop yields reduced the need for farmland"
+   }
+  ],
+  "elements": [
+   {
+    "id": "tree",
+    "type": "icon",
+    "of": "deciduous tree",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 170,
+    "x": 150,
+    "y": 560
+   },
+   {
+    "id": "third",
+    "type": "text",
+    "text": "⅓ gone",
+    "x": 150,
+    "y": 420,
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_third"
+    ]
+   },
+   {
+    "id": "usa2",
+    "type": "text",
+    "text": "= 2 × USA",
+    "x": 150,
+    "y": 310,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_third"
+    ]
+   },
+   {
+    "id": "farms",
+    "type": "icon",
+    "of": "cow",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 100,
+    "y": 310
+   },
+   {
+    "id": "farms2",
+    "type": "icon",
+    "of": "sheaf of rice",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 100,
+    "x": 200,
+    "y": 310
+   },
+   {
+    "id": "century",
+    "type": "text",
+    "text": "1900s ≈ 9,000 years before",
+    "x": 560,
+    "y": 655,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_third"
+    ]
+   },
+   {
+    "id": "eu_t1",
+    "type": "icon",
+    "of": "evergreen tree",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 260,
+    "y": 460
+   },
+   {
+    "id": "eu_t2",
+    "type": "icon",
+    "of": "evergreen tree",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 190,
+    "x": 420,
+    "y": 490
+   },
+   {
+    "id": "eu_t3",
+    "type": "icon",
+    "of": "evergreen tree",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 260,
+    "x": 620,
+    "y": 520
+   },
+   {
+    "id": "eu_t",
+    "type": "text",
+    "text": "Europe +41 million ha",
+    "x": 500,
+    "y": 300,
+    "font_size": 54,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_area"
+    ]
+   },
+   {
+    "id": "eu_de",
+    "type": "text",
+    "text": "> Germany",
+    "x": 850,
+    "y": 390,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "sa",
+    "type": "text",
+    "text": "−180 M ha",
+    "x": 840,
+    "y": 490,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_area"
+    ]
+   },
+   {
+    "id": "s1900",
+    "type": "text",
+    "text": "1900+",
+    "x": 920,
+    "y": 420,
+    "font_size": 34,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "stump",
+    "type": "icon",
+    "of": "wood",
+    "set": "twemoji",
+    "or": [
+     "log"
+    ],
+    "icon_look": "picture",
+    "size": 90,
+    "x": 850,
+    "y": 625
+   },
+   {
+    "id": "incl",
+    "type": "text",
+    "text": "(incl. Russia), 1990–2025",
+    "x": 500,
+    "y": 220,
+    "font_size": 34,
+    "style": {
+     "color": "#5e584e"
+    },
+    "cites": [
+     "owid_area"
+    ]
+   },
+   {
+    "id": "o1",
+    "type": "node",
+    "shape": "rect",
+    "text": "A tenth",
+    "x": 180,
+    "y": 560,
+    "width": 250,
+    "height": 86,
+    "font_size": 44
+   },
+   {
+    "id": "o2",
+    "type": "node",
+    "shape": "rect",
+    "text": "A quarter",
+    "x": 180,
+    "y": 450,
+    "width": 250,
+    "height": 86,
+    "font_size": 44
+   },
+   {
+    "id": "o3",
+    "type": "node",
+    "shape": "rect",
+    "text": "Half",
+    "x": 180,
+    "y": 340,
+    "width": 250,
+    "height": 86,
+    "font_size": 44
+   },
+   {
+    "id": "opts",
+    "type": "group",
+    "members": [
+     "o1",
+     "o2",
+     "o3"
+    ]
+   },
+   {
+    "id": "sa1",
+    "type": "text",
+    "text": "S. America",
+    "x": 840,
+    "y": 555,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How much forest have we lost?"
+    }
+   },
+   {
+    "draw": [
+     "tree"
+    ],
+    "speak": "When the last ice age ended, ten thousand years ago, forests covered more than half of the world's habitable land. How much of that forest have we lost since?"
+   },
+   {
+    "ask": {
+     "question": "Drag the slice's edge to your guess.",
+     "on": "slice_1",
+     "store": "g",
+     "default": "60",
+     "right": "Close: you said {g}, and it is about a third.",
+     "wrong": "You said {g}; it is about a third."
+    }
+   },
+   {
+    "draw": [
+     "third",
+     "usa2"
+    ],
+    "speak": "Two billion hectares gone: an area twice the size of the United States."
+   },
+   {
+    "erase": [
+     "usa2"
+    ]
+   },
+   {
+    "draw": [
+     "farms",
+     "farms2"
+    ],
+    "speak": "Almost all of it was cleared for farms."
+   },
+   {
+    "erase": [
+     "third",
+     "usa2",
+     "farms",
+     "farms2",
+     "tree"
+    ]
+   },
+   {
+    "draw": [
+     "opts"
+    ],
+    "speak": "So, a second question. Of all that loss, how much came after 1900?"
+   },
+   {
+    "ask": {
+     "question": "Tap your answer.",
+     "choose": [
+      "o1",
+      "o2",
+      "o3"
+     ],
+     "answer": "o3",
+     "store": "h",
+     "right": "Half. In about a century we cleared as much forest as in the nine thousand years before.",
+     "wrong": "Think of the twentieth century's machines and billions more mouths."
+    }
+   },
+   {
+    "erase": [
+     "o1",
+     "o2"
+    ]
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 2.5
+   },
+   {
+    "draw": [
+     "s1900"
+    ]
+   },
+   {
+    "draw": [
+     "century"
+    ],
+    "speak": "Why so fast? Billions more people to feed, and machines that clear land in days."
+   },
+   {
+    "erase": [
+     "slice_1",
+     "slice_2",
+     "slice_3",
+     "century",
+     "s1900",
+     "o3"
+    ]
+   },
+   {
+    "draw": [
+     "eu_t1",
+     "eu_t2",
+     "eu_t3",
+     "eu_t",
+     "incl"
+    ],
+    "speak": "But here is the twist. In Europe, counting Russia, forests are growing again: forty-one million hectares since 1990."
+   },
+   {
+    "draw": [
+     "eu_de"
+    ],
+    "speak": "That is more than the whole of Germany, turned back into forest."
+   },
+   {
+    "draw": [
+     "stump",
+     "sa1",
+     "sa"
+    ],
+    "speak": "Why? Farms grow more food on less land, so old fields go back to trees. South America, meanwhile, is still losing them fast."
+   },
+   {
+    "highlight": {
+     "target": [
+      "eu_t"
+     ]
+    },
+    "speak": "So we cut down a third of the world's forests, half of it in one century, and some places have already turned the corner."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "pie",
+     "type": "ellipse",
+     "x": 500,
+     "y": 430,
+     "rx": 210,
+     "ry": 210,
+     "style": {
+      "fill": "#cfe3ee",
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?",
+     "x": 500,
+     "y": 430,
+     "font_size": 220,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t1",
+     "type": "icon",
+     "of": "deciduous tree",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 160,
+     "y": 560
+    },
+    {
+     "id": "t2",
+     "type": "icon",
+     "of": "wood",
+     "set": "twemoji",
+     "or": [
+      "axe",
+      "log"
+     ],
+     "icon_look": "picture",
+     "size": 150,
+     "x": 850,
+     "y": 560
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "How much forest is gone?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "axe",
+     "type": "icon",
+     "of": "axe",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 250,
+     "x": 380,
+     "y": 450
+    },
+    {
+     "id": "st",
+     "type": "icon",
+     "of": "wood",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 700,
+     "y": 430
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "how much is left?",
+     "x": 500,
+     "y": 230,
+     "font_size": 72,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "10,000 years of chopping"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "t1",
+     "type": "icon",
+     "of": "evergreen tree",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 110,
+     "x": 320,
+     "y": 420
+    },
+    {
+     "id": "t2",
+     "type": "icon",
+     "of": "evergreen tree",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 450,
+     "y": 440
+    },
+    {
+     "id": "t3",
+     "type": "icon",
+     "of": "evergreen tree",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 190,
+     "x": 620,
+     "y": 465
+    },
+    {
+     "id": "w",
+     "type": "text",
+     "text": "where?",
+     "x": 470,
+     "y": 230,
+     "font_size": 80,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Forests growing again?"
+    }
+   ]
+  }
+ ]
+}

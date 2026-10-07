@@ -1,0 +1,15 @@
+How many children does the average woman in the world have today? In 1963, it was over five.
+[ASK] Drag the second bar to your guess for today.
+Now a clue. India, the most populous country, is already below two children per woman, and China is at about one.
+[ASK] Want to change your guess? Drag the bar again.
+  [right] Close: you said {g2}, and it is about {g2.true}.
+  [wrong] You said {g2}; it is about {g2.true}.
+So in sixty years the world's average has more than halved, from over five children to about two point three.
+Picture it: a typical mother in 1963 had five children, and then some.
+Today she has two, and a little bit.
+Why? Far fewer children die young, far more girls go to school and then to work, and children cost more to raise.
+One of the steepest falls anywhere came in South Korea: about six children per woman in 1960.
+In 2023: zero point seven two, among the very lowest in the world.
+Put it another way: take ten women in South Korea today.
+To keep a population steady, they would need about twenty-one.
+They will have about seven. So each new generation there is roughly a third the size of the last.

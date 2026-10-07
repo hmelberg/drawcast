@@ -1,0 +1,14 @@
+How many people in the world still live without electricity at home: no light switch, no socket to charge a phone?
+[ASK] Click on the line where you think it is.
+  [right] Close: you said {g}, and it is about {g.true}.
+  [wrong] You said {g}. It is about {g.true}.
+That is about one person in every twelve on Earth.
+But in 2000 it was about one point three billion, twice as many.
+So the number in the dark halved, even while the world added two billion people.
+[ASK] Where do most of the 660 million live today?
+  [right] Sub-Saharan Africa: about five hundred and eighty million people, nearly nine in ten of all those without power.
+  [wrong] Think of where the grid has grown slowest, not where the most people live.
+If you guessed India, you would have been right in 2000, when four hundred and twenty million Indians had no electricity.
+By 2024, India had connected almost everyone.
+Now the longest waits are in Nigeria and the Democratic Republic of the Congo, with more than eighty million each.
+So the last six hundred million are mostly an African story, and India shows how fast that can change.

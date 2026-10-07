@@ -1,0 +1,20 @@
+{
+ "file": "fertility-halved.json",
+ "title": "How many children does the average woman in the world have today?",
+ "subtitle": "Guess the world's births per woman today, take a clue and guess again, then see how it halved since the 1960s, and South Korea's record low.",
+ "format": "quiz",
+ "tags": [
+  "data",
+  "economics",
+  "geography"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "1",
+ "form": "revise (guess on a bar, clue, guess again)",
+ "owid": "https://ourworldindata.org/grapher/children-per-woman-un",
+ "notes": "OWID/UN WPP 2024: world 5.31 in 1963 (peak; 1960 was 4.70 because of China's famine, so 1963 is used), 2.25 in 2023; India 1.98, China 1.0; South Korea 5.99 (1960) to 0.72 (2023) - Hong Kong and Macao are as low or lower, so 'one of the lowest anywhere'. Payoff drawn as people: mother with 5 babies vs 2 and a faint third; 10 Korean women over 7 babies with 'steady: 21'. First ask uses reveal:false then revise:g1 (no reference cast used revise before; it rendered fine in frames). Review round: bars 5.3 and 2.3 (rounded, voice 'over five' / 'about two point three'); South Korea drawn as mothers with babies (6 vs a 0.72-faded baby) then 10 women over 21 baby outlines with 7 filled and 'only 1/3'; 'one of the steepest falls', 'among the very lowest'. The revise ask starts from the first guess in the live player (player.ts keeps it as a lighter mark); the frames tool shows the handle's default start instead, and the first guess is not shown during the clue beat (engine). The ask question replaces the heading on a bar guess (engine)."
+}

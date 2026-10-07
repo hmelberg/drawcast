@@ -1,0 +1,13 @@
+a: How many nuclear warheads are left in the world today?
+a: The first bombs were built in 1945. By 1986, the world's stockpiles held about seventy thousand.
+[ASK] Draw the rest of the line, to 2025.
+  [right] Close: the real line ends at about {g.true} thousand.
+  [wrong] You drew {g}; the real line ends at about {g.true} thousand.
+a: About twelve thousand. Five of every six warheads are gone.
+b: So the end of the Cold War did that?
+a: Mostly. Washington and Moscow agreed to take their arsenals apart, year after year.
+a: But the cuts have slowed to a crawl: only about a thousand fewer since 2020.
+a: And China is going the other way. Its stockpile has doubled since 2019, to about six hundred.
+b: Here's one for you, though. One country took its count all the way to zero.
+b: South Africa built six bombs in the 1980s, in secret. Then it took every one apart.
+a: The only country ever to give up nuclear weapons it built itself.

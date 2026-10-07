@@ -1,0 +1,892 @@
+{
+ "request": "Transistors on one chip against people on Earth and chickens eaten a year: which is bigger? A two-voice duel. #interactive #short",
+ "subtitle": "One computer chip against everyone on Earth, then against all the chickens eaten in a year: pick the bigger, and hear two hosts argue about it.",
+ "thumb": "band \"One chip vs the whole planet\" note \"2,300 in 1971\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "chick",
+     "type": "icon",
+     "of": "chicken",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 230,
+     "y": 450
+    },
+    {
+     "id": "vs",
+     "type": "text",
+     "text": "vs",
+     "x": 500,
+     "y": 450,
+     "font_size": 80,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "pc",
+     "type": "icon",
+     "of": "desktop computer",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 770,
+     "y": 450
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Which number is bigger?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "p1",
+     "type": "icon",
+     "of": "person standing",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 360,
+     "x": 240,
+     "y": 450
+    },
+    {
+     "id": "eq",
+     "type": "text",
+     "text": "= ? switches",
+     "x": 650,
+     "y": 450,
+     "font_size": 100,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Your share of one chip"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "box",
+     "type": "shape",
+     "shape": "rect",
+     "x": 500,
+     "y": 400,
+     "width": 380,
+     "height": 380,
+     "style": {
+      "color": "#3d3833",
+      "fill": "#d9d2c3",
+      "fill_style": "wash"
+     }
+    },
+    {
+     "id": "inner",
+     "type": "shape",
+     "shape": "rect",
+     "x": 500,
+     "y": 400,
+     "width": 220,
+     "height": 220,
+     "style": {
+      "color": "#2f6b8f",
+      "fill": "#2f6b8f",
+      "fill_style": "wash",
+      "opacity": 0.5
+     }
+    },
+    {
+     "id": "pins_l",
+     "type": "path",
+     "points": [
+      [
+       280,
+       300
+      ],
+      [
+       310,
+       300
+      ],
+      [
+       310,
+       360
+      ],
+      [
+       280,
+       360
+      ],
+      [
+       280,
+       420
+      ],
+      [
+       310,
+       420
+      ],
+      [
+       310,
+       480
+      ],
+      [
+       280,
+       480
+      ]
+     ],
+     "style": {
+      "color": "#3d3833",
+      "stroke_width": 6
+     }
+    },
+    {
+     "id": "pins_r",
+     "type": "path",
+     "points": [
+      [
+       720,
+       300
+      ],
+      [
+       690,
+       300
+      ],
+      [
+       690,
+       360
+      ],
+      [
+       720,
+       360
+      ],
+      [
+       720,
+       420
+      ],
+      [
+       690,
+       420
+      ],
+      [
+       690,
+       480
+      ],
+      [
+       720,
+       480
+      ]
+     ],
+     "style": {
+      "color": "#3d3833",
+      "stroke_width": 6
+     }
+    },
+    {
+     "id": "qm",
+     "type": "thumb",
+     "kind": "star",
+     "text": "?",
+     "x": 730,
+     "y": 420
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "question",
+     "text": "How many switches on one chip?"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "One chip against the planet: which is bigger?",
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Moore's law: The number of transistors per microprocessor",
+    "authors": "Our World in Data, from Karl Rupp (2022)",
+    "year": 2022,
+    "url": "https://ourworldindata.org/grapher/transistors-per-microprocessor",
+    "finding": "about 2,300 transistors per microprocessor in 1971 and about 58.2 billion in 2021"
+   },
+   {
+    "id": "pop",
+    "title": "Population",
+    "authors": "Our World in Data, from UN World Population Prospects",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/population",
+    "finding": "world population about 7.95 billion in 2021"
+   },
+   {
+    "id": "chick",
+    "title": "Number of animals slaughtered for meat",
+    "authors": "Our World in Data, from FAO",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/animals-slaughtered-for-meat",
+    "finding": "about 78.5 billion chickens slaughtered for meat in 2024"
+   }
+  ],
+  "elements": [
+   {
+    "id": "body",
+    "type": "shape",
+    "shape": "rect",
+    "x": 210,
+    "y": 425,
+    "width": 300,
+    "height": 350,
+    "style": {
+     "color": "#3d3833",
+     "fill": "#d9d2c3",
+     "fill_style": "wash",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "die",
+    "type": "shape",
+    "shape": "rect",
+    "x": 210,
+    "y": 425,
+    "width": 170,
+    "height": 170,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.5
+    }
+   },
+   {
+    "id": "pl0",
+    "type": "path",
+    "points": [
+     [
+      25,
+      300
+     ],
+     [
+      60,
+      300
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pr0",
+    "type": "path",
+    "points": [
+     [
+      360,
+      300
+     ],
+     [
+      395,
+      300
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pl1",
+    "type": "path",
+    "points": [
+     [
+      25,
+      350
+     ],
+     [
+      60,
+      350
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pr1",
+    "type": "path",
+    "points": [
+     [
+      360,
+      350
+     ],
+     [
+      395,
+      350
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pl2",
+    "type": "path",
+    "points": [
+     [
+      25,
+      400
+     ],
+     [
+      60,
+      400
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pr2",
+    "type": "path",
+    "points": [
+     [
+      360,
+      400
+     ],
+     [
+      395,
+      400
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pl3",
+    "type": "path",
+    "points": [
+     [
+      25,
+      450
+     ],
+     [
+      60,
+      450
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pr3",
+    "type": "path",
+    "points": [
+     [
+      360,
+      450
+     ],
+     [
+      395,
+      450
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pl4",
+    "type": "path",
+    "points": [
+     [
+      25,
+      500
+     ],
+     [
+      60,
+      500
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pr4",
+    "type": "path",
+    "points": [
+     [
+      360,
+      500
+     ],
+     [
+      395,
+      500
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pl5",
+    "type": "path",
+    "points": [
+     [
+      25,
+      550
+     ],
+     [
+      60,
+      550
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pr5",
+    "type": "path",
+    "points": [
+     [
+      360,
+      550
+     ],
+     [
+      395,
+      550
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pt0",
+    "type": "path",
+    "points": [
+     [
+      110,
+      600
+     ],
+     [
+      110,
+      635
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pb0",
+    "type": "path",
+    "points": [
+     [
+      110,
+      215
+     ],
+     [
+      110,
+      250
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pt1",
+    "type": "path",
+    "points": [
+     [
+      160,
+      600
+     ],
+     [
+      160,
+      635
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pb1",
+    "type": "path",
+    "points": [
+     [
+      160,
+      215
+     ],
+     [
+      160,
+      250
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pt2",
+    "type": "path",
+    "points": [
+     [
+      210,
+      600
+     ],
+     [
+      210,
+      635
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pb2",
+    "type": "path",
+    "points": [
+     [
+      210,
+      215
+     ],
+     [
+      210,
+      250
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pt3",
+    "type": "path",
+    "points": [
+     [
+      260,
+      600
+     ],
+     [
+      260,
+      635
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pb3",
+    "type": "path",
+    "points": [
+     [
+      260,
+      215
+     ],
+     [
+      260,
+      250
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pt4",
+    "type": "path",
+    "points": [
+     [
+      310,
+      600
+     ],
+     [
+      310,
+      635
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "pb4",
+    "type": "path",
+    "points": [
+     [
+      310,
+      215
+     ],
+     [
+      310,
+      250
+     ]
+    ],
+    "style": {
+     "color": "#3d3833",
+     "stroke_width": 6
+    }
+   },
+   {
+    "id": "chip",
+    "type": "group",
+    "members": [
+     "body",
+     "die",
+     "pl0",
+     "pr0",
+     "pl1",
+     "pr1",
+     "pl2",
+     "pr2",
+     "pl3",
+     "pr3",
+     "pl4",
+     "pr4",
+     "pl5",
+     "pr5",
+     "pt0",
+     "pb0",
+     "pt1",
+     "pb1",
+     "pt2",
+     "pb2",
+     "pt3",
+     "pb3",
+     "pt4",
+     "pb4"
+    ]
+   },
+   {
+    "id": "t1971",
+    "type": "text",
+    "text": "1971: 2,300",
+    "x": 210,
+    "y": 425,
+    "font_size": 40,
+    "style": {
+     "color": "#3d3833"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "duel",
+    "type": "cards",
+    "compare": "Which is bigger?",
+    "items": [
+     {
+      "text": "People on Earth",
+      "value": 7.9,
+      "icon": {
+       "of": "globe showing europe-africa",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "One 2021 chip",
+      "value": 58.2,
+      "icon": {
+       "of": "desktop computer",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Chickens eaten / year",
+      "value": 78.5,
+      "icon": {
+       "of": "chicken",
+       "set": "twemoji"
+      }
+     }
+    ],
+    "cites": [
+     "owid",
+     "pop",
+     "chick"
+    ],
+    "size": 1.5,
+    "pairs": [
+     [
+      0,
+      1
+     ],
+     [
+      1,
+      2
+     ]
+    ],
+    "x": 400,
+    "width": 600,
+    "unit": "billion",
+    "y": 590
+   },
+   {
+    "id": "big",
+    "type": "text",
+    "text": "58 billion",
+    "x": 210,
+    "y": 425,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "per",
+    "type": "text",
+    "text": "≈ 7 per person",
+    "x": 680,
+    "y": 470,
+    "font_size": 60,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid",
+     "pop"
+    ]
+   },
+   {
+    "id": "times",
+    "type": "text",
+    "text": "×25 million since 1971",
+    "x": 680,
+    "y": 360,
+    "font_size": 44,
+    "style": {
+     "color": "#8f887c"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "One chip vs the planet: which is bigger?"
+    }
+   },
+   {
+    "draw": [
+     "chip"
+    ],
+    "voice": "a",
+    "speak": "How many tiny switches, called transistors, fit on one computer chip today?"
+   },
+   {
+    "draw": [
+     "t1971"
+    ],
+    "voice": "a",
+    "speak": "The first microprocessor, Intel's 4004 in 1971, had about two thousand three hundred."
+   },
+   {
+    "highlight": {
+     "target": [
+      "t1971"
+     ]
+    },
+    "voice": "b",
+    "speak": "So today, what, a few million? It's still one little chip."
+   },
+   {
+    "draw": [
+     "duel"
+    ],
+    "voice": "a",
+    "speak": "Let's settle it with a duel: one chip from 2021 against two rivals."
+   },
+   {
+    "ask": {
+     "question": "Tap the bigger number in each pair.",
+     "on": "duel",
+     "store": "d",
+     "right": "One chip beats every person on Earth, and the chickens still beat the chip.",
+     "wrong": "{d} of {d.total}. The chip is bigger than you think, but not big enough for the chickens.",
+     "stage": "own"
+    }
+   },
+   {
+    "erase": [
+     "duel",
+     "t1971"
+    ]
+   },
+   {
+    "draw": [
+     "big"
+    ],
+    "voice": "b",
+    "speak": "Wait. One chip has more switches than there are people on the planet?"
+   },
+   {
+    "draw": [
+     "per"
+    ],
+    "voice": "a",
+    "speak": "Fifty-eight billion of them. That's about seven for every person alive, on one chip."
+   },
+   {
+    "draw": [
+     "times"
+    ],
+    "voice": "a",
+    "speak": "From two thousand three hundred to fifty-eight billion: twenty-five million times more in fifty years."
+   },
+   {
+    "highlight": {
+     "target": [
+      "per"
+     ]
+    },
+    "voice": "b",
+    "speak": "Seven each, and I never got mine. I'd like them back, please."
+   }
+  ],
+  "feedback": {
+   "style": "dry",
+   "perfect": "You think like a chip designer.",
+   "good": "Most people underrate the chip.",
+   "poor": "Nobody expects the chickens.",
+   "none": "The chickens win again."
+  }
+ }
+}

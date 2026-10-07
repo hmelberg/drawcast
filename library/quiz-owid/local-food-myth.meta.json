@@ -1,0 +1,20 @@
+{
+ "file": "local-food-myth.json",
+ "title": "How much of beef's carbon footprint is transport?",
+ "subtitle": "Guess how much of beef's climate footprint comes from transport, then see why what you eat matters far more than where it comes from.",
+ "format": "quiz",
+ "tags": [
+  "food",
+  "earth",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "6",
+ "form": "bar guess (drag the transport bar)",
+ "owid": "https://ourworldindata.org/food-choice-vs-eating-local",
+ "notes": "Fix round: ask first — transport bar alone on a 0–110 axis under a dashed 'total ≈ 100 kg' line, tolerance 2% of the axis (the drag starts at ~4, not the default; pressing without dragging is wrong); bars built after; '0.5%' sits on the transport bar; twist pictures on their own page: air vs ship 50:1 boxes, calendar '1 meatless day > all local'. b believes the myth, then guesses the rest of the bars right. Waste = Poore & Nemecek 'losses' 14.4. Ask prompt still overlaps the heading (engine)."
+}

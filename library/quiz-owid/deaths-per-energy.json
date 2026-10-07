@@ -1,0 +1,845 @@
+{
+ "request": "A two-voice podcast quiz: which source of electricity kills the most people per unit of energy? Let me rank coal, oil, gas, nuclear and solar. #interactive #short",
+ "subtitle": "Rank coal, oil, gas, nuclear and solar by deaths per unit of electricity, then see what a town would pay for each in lives.",
+ "thumb": "band \"Rank your fears\" stamp \"Nuclear?\"",
+ "spec": {
+  "title": "Which source of electricity is the deadliest?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Solar",
+    "Nuclear",
+    "Gas",
+    "Oil",
+    "Coal"
+   ],
+   "values": [
+    0.02,
+    0.03,
+    2.8,
+    18.4,
+    24.6
+   ],
+   "value_labels": true,
+   "bar_colors": "same",
+   "y_label": "Deaths per TWh",
+   "label_size": 32,
+   "ylim": [
+    0,
+    38
+   ],
+   "icons": [
+    {
+     "of": "sun",
+     "set": "twemoji"
+    },
+    {
+     "of": "radioactive",
+     "set": "twemoji"
+    },
+    {
+     "of": "fire",
+     "set": "twemoji"
+    },
+    {
+     "of": "oil drum",
+     "set": "twemoji"
+    },
+    {
+     "of": "factory",
+     "set": "twemoji"
+    }
+   ]
+  },
+  "sources": [
+   {
+    "id": "safest",
+    "title": "What are the safest and cleanest sources of energy?",
+    "authors": "Hannah Ritchie (Our World in Data)",
+    "year": 2020,
+    "url": "https://ourworldindata.org/safest-sources-of-energy",
+    "finding": "deaths from accidents and air pollution per TWh of electricity: coal 24.6, oil 18.4, gas 2.8, nuclear 0.03, solar 0.02; a European town of 150,000 using 1 TWh a year would see 25 early deaths a year on coal and one death every 33 years on nuclear; nuclear includes Chernobyl and Fukushima; wind 0.04"
+   },
+   {
+    "id": "data",
+    "title": "Death rates per unit of electricity production",
+    "authors": "Our World in Data, from Markandya & Wilkinson (2007), Sovacool et al. (2016) and UNSCEAR",
+    "year": 2021,
+    "url": "https://ourworldindata.org/grapher/death-rates-from-energy-production-per-twh",
+    "finding": "the chart's numbers"
+   }
+  ],
+  "elements": [
+   {
+    "id": "rank",
+    "type": "cards",
+    "items": [
+     {
+      "text": "Coal",
+      "icon": {
+       "of": "factory",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Oil",
+      "icon": {
+       "of": "oil drum",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Gas",
+      "icon": {
+       "of": "fire",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Nuclear",
+      "icon": {
+       "of": "radioactive",
+       "set": "twemoji"
+      }
+     },
+     {
+      "text": "Solar",
+      "icon": {
+       "of": "sun",
+       "set": "twemoji"
+      }
+     }
+    ],
+    "ends": [
+     "most",
+     "least"
+    ],
+    "size": 2
+   },
+   {
+    "id": "incl",
+    "type": "text",
+    "text": "incl. Chernobyl, Fukushima",
+    "font_size": 38,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 360,
+    "y": 470,
+    "cites": [
+     "safest"
+    ]
+   },
+   {
+    "id": "incl_ar",
+    "type": "arrow",
+    "from": {
+     "x": 386,
+     "y": 440
+    },
+    "to": {
+     "x": 386,
+     "y": 285
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "div",
+    "type": "path",
+    "points": [
+     [
+      500,
+      660
+     ],
+     [
+      500,
+      190
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "dash": true,
+     "stroke_width": 2
+    }
+   },
+   {
+    "id": "c_icon",
+    "type": "icon",
+    "of": "factory",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 140,
+    "y": 610
+   },
+   {
+    "id": "c_town",
+    "type": "icon",
+    "of": "houses",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 340,
+    "y": 610
+   },
+   {
+    "id": "c_l",
+    "type": "text",
+    "text": "coal: 25 a year",
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "x": 250,
+    "y": 185,
+    "cites": [
+     "safest"
+    ]
+   },
+   {
+    "id": "n_icon",
+    "type": "icon",
+    "of": "radioactive",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 130,
+    "x": 640,
+    "y": 610
+   },
+   {
+    "id": "n_town",
+    "type": "icon",
+    "of": "houses",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 840,
+    "y": 610
+   },
+   {
+    "id": "n_p",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 70,
+    "x": 740,
+    "y": 410
+   },
+   {
+    "id": "n_l",
+    "type": "text",
+    "text": "nuclear: 1 per 33 yrs",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "x": 750,
+    "y": 250,
+    "cites": [
+     "safest"
+    ]
+   },
+   {
+    "id": "wind",
+    "type": "text",
+    "text": "wind: about the same",
+    "font_size": 36,
+    "style": {
+     "color": "#5e584e"
+    },
+    "x": 750,
+    "y": 190,
+    "cites": [
+     "safest"
+    ]
+   },
+   {
+    "id": "cp00",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 130,
+    "y": 470
+   },
+   {
+    "id": "cp01",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 192,
+    "y": 470
+   },
+   {
+    "id": "cp02",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 254,
+    "y": 470
+   },
+   {
+    "id": "cp03",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 316,
+    "y": 470
+   },
+   {
+    "id": "cp04",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 378,
+    "y": 470
+   },
+   {
+    "id": "cp10",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 130,
+    "y": 420
+   },
+   {
+    "id": "cp11",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 192,
+    "y": 420
+   },
+   {
+    "id": "cp12",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 254,
+    "y": 420
+   },
+   {
+    "id": "cp13",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 316,
+    "y": 420
+   },
+   {
+    "id": "cp14",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 378,
+    "y": 420
+   },
+   {
+    "id": "cp20",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 130,
+    "y": 370
+   },
+   {
+    "id": "cp21",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 192,
+    "y": 370
+   },
+   {
+    "id": "cp22",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 254,
+    "y": 370
+   },
+   {
+    "id": "cp23",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 316,
+    "y": 370
+   },
+   {
+    "id": "cp24",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 378,
+    "y": 370
+   },
+   {
+    "id": "cp30",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 130,
+    "y": 320
+   },
+   {
+    "id": "cp31",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 192,
+    "y": 320
+   },
+   {
+    "id": "cp32",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 254,
+    "y": 320
+   },
+   {
+    "id": "cp33",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 316,
+    "y": 320
+   },
+   {
+    "id": "cp34",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 378,
+    "y": 320
+   },
+   {
+    "id": "cp40",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 130,
+    "y": 270
+   },
+   {
+    "id": "cp41",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 192,
+    "y": 270
+   },
+   {
+    "id": "cp42",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 254,
+    "y": 270
+   },
+   {
+    "id": "cp43",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 316,
+    "y": 270
+   },
+   {
+    "id": "cp44",
+    "type": "icon",
+    "of": "person standing",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 56,
+    "x": 378,
+    "y": 270
+   },
+   {
+    "id": "crowd",
+    "type": "group",
+    "members": [
+     "cp00",
+     "cp01",
+     "cp02",
+     "cp03",
+     "cp04",
+     "cp10",
+     "cp11",
+     "cp12",
+     "cp13",
+     "cp14",
+     "cp20",
+     "cp21",
+     "cp22",
+     "cp23",
+     "cp24",
+     "cp30",
+     "cp31",
+     "cp32",
+     "cp33",
+     "cp34",
+     "cp40",
+     "cp41",
+     "cp42",
+     "cp43",
+     "cp44"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which energy kills the most?"
+    }
+   },
+   {
+    "draw": [
+     "rank"
+    ],
+    "voice": "a",
+    "speak": "Same amount of electricity from each. Which source kills the most people, counting accidents and air pollution?"
+   },
+   {
+    "voice": "b",
+    "speak": "Easy. Nuclear. Chernobyl, Fukushima, glowing fish.",
+    "highlight": {
+     "target": [
+      "rank_4"
+     ]
+    }
+   },
+   {
+    "ask": {
+     "question": "Order them: fewest deaths on the left, most on the right. Then press Done.",
+     "on": "rank",
+     "store": "r",
+     "right": "You got {r}. Coal is the deadliest, and nuclear sits down beside solar.",
+     "wrong": "You got {r}. Think about what comes out of the chimney."
+    }
+   },
+   {
+    "erase": [
+     "rank"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "bar_5",
+     "bar_4"
+    ],
+    "voice": "a",
+    "speak": "Deaths per terawatt-hour, about a year of power for a town of a hundred and fifty thousand. Coal, about twenty-five. Oil, about eighteen."
+   },
+   {
+    "voice": "b",
+    "speak": "Mine collapses? Oil rig fires?",
+    "highlight": {
+     "target": [
+      "bar_5",
+      "bar_4"
+     ]
+    }
+   },
+   {
+    "draw": [
+     "bar_3"
+    ],
+    "voice": "a",
+    "speak": "Mostly not. Mostly smoke in people's lungs. Gas burns cleaner: about three."
+   },
+   {
+    "draw": [
+     "bar_1",
+     "bar_2"
+    ],
+    "voice": "b",
+    "speak": "Now nuclear. Brace yourself."
+   },
+   {
+    "draw": [
+     "incl",
+     "incl_ar"
+    ],
+    "voice": "a",
+    "speak": "Three hundredths, right beside solar at two. And that already counts Chernobyl and Fukushima."
+   },
+   {
+    "voice": "b",
+    "speak": "Including Chernobyl? I demand a recount.",
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    }
+   },
+   {
+    "erase": [
+     "axes",
+     "bar_1",
+     "bar_2",
+     "bar_3",
+     "bar_4",
+     "bar_5",
+     "incl",
+     "incl_ar"
+    ]
+   },
+   {
+    "draw": [
+     "div",
+     "c_icon",
+     "c_town",
+     "crowd",
+     "c_l"
+    ],
+    "voice": "a",
+    "speak": "Back to that town. Run it on coal, and about twenty-five people die early, every year."
+   },
+   {
+    "draw": [
+     "n_icon",
+     "n_town",
+     "n_p",
+     "n_l",
+     "wind"
+    ],
+    "voice": "a",
+    "speak": "Run it on nuclear, and you would expect one death every thirty-three years. Wind is about the same."
+   },
+   {
+    "voice": "b",
+    "speak": "So I've been scared of the wrong chimney.",
+    "highlight": {
+     "target": [
+      "c_l"
+     ]
+    }
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "a",
+     "type": "icon",
+     "of": "radioactive",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 240,
+     "x": 200,
+     "y": 480
+    },
+    {
+     "id": "b",
+     "type": "icon",
+     "of": "factory",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 240,
+     "x": 470,
+     "y": 480
+    },
+    {
+     "id": "c",
+     "type": "icon",
+     "of": "sun",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 240,
+     "x": 740,
+     "y": 480
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "Which kills more?",
+     "x": 470,
+     "y": 300,
+     "font_size": 80,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Rank your fears"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "chim",
+     "type": "icon",
+     "of": "factory",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 260,
+     "y": 470
+    },
+    {
+     "id": "sm",
+     "type": "icon",
+     "of": "cloud",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 330,
+     "y": 640
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "? deaths",
+     "x": 680,
+     "y": 540,
+     "font_size": 130,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "text",
+     "text": "per town, per year",
+     "x": 680,
+     "y": 390,
+     "font_size": 64,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "One town. Five power plants."
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "l",
+     "type": "shape",
+     "shape": "rect",
+     "x": 250,
+     "y": 470,
+     "width": 340,
+     "height": 340,
+     "style": {
+      "fill": "#e9c4b8",
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "r",
+     "type": "shape",
+     "shape": "rect",
+     "x": 700,
+     "y": 470,
+     "width": 340,
+     "height": 340,
+     "style": {
+      "fill": "#cfe3ee",
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "ln",
+     "type": "icon",
+     "of": "radioactive",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 250,
+     "y": 490
+    },
+    {
+     "id": "rn",
+     "type": "icon",
+     "of": "sun",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 700,
+     "y": 490
+    },
+    {
+     "id": "vs",
+     "type": "text",
+     "text": "=?",
+     "x": 475,
+     "y": 470,
+     "font_size": 110,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Which is deadlier?"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,505 @@
+{
+ "request": "A two-voice quiz: is eating local the best way to cut your food's carbon footprint? Let me guess transport's share of beef's emissions on a bar. #interactive #short",
+ "subtitle": "Guess how much of beef's climate footprint comes from transport, then see why what you eat matters far more than where it comes from.",
+ "thumb": "band \"Local beef saves the planet?\" stamp \"MYTH?\"",
+ "spec": {
+  "title": "How much of beef's carbon footprint is transport?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "Transport",
+    "Other",
+    "Waste",
+    "Land use",
+    "Farm"
+   ],
+   "values": [
+    0.5,
+    5.1,
+    14.4,
+    23.2,
+    56.2
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    110
+   ],
+   "y_label": "kg CO₂e per kg of beef",
+   "bar_colors": "same",
+   "label_size": 30
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "You want to reduce the carbon footprint of your food? Focus on what you eat, not whether your food is local",
+    "authors": "Hannah Ritchie (Our World in Data)",
+    "year": 2020,
+    "url": "https://ourworldindata.org/food-choice-vs-eating-local",
+    "finding": "transport is under 10% of most foods' emissions and 0.5% for beef from beef herds; in EU diets food transport is 6% of emissions; swapping less than one day a week of beef and dairy calories beats buying all food locally (Weber & Matthews 2008); air freight is 0.16% of food miles but emits about 50 times more than a boat per tonne-km"
+   },
+   {
+    "id": "chain",
+    "title": "Food: greenhouse gas emissions across the supply chain (chart)",
+    "authors": "Our World in Data, from Poore & Nemecek (2018), Science",
+    "year": 2018,
+    "url": "https://ourworldindata.org/grapher/food-emissions-supply-chain",
+    "finding": "beef (beef herd), kg CO2e per kg: farm 56.2, land use 23.2, losses 14.4, animal feed 2.7, processing 1.8, packaging 0.35, retail 0.23, transport 0.49"
+   }
+  ],
+  "elements": [
+   {
+    "id": "burger",
+    "type": "icon",
+    "of": "hamburger",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 280,
+    "x": 300,
+    "y": 430
+   },
+   {
+    "id": "truck",
+    "type": "icon",
+    "of": "delivery truck",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 280,
+    "x": 700,
+    "y": 430
+   },
+   {
+    "id": "total",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      -0.5,
+      99.4
+     ],
+     [
+      4.5,
+      99.4
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "dash": true,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "total_l",
+    "type": "label",
+    "attach_to": "total",
+    "side": "below-right",
+    "text": "total ≈ 100 kg",
+    "font_size": 40,
+    "style": {
+     "color": "#8f887c"
+    },
+    "cites": [
+     "chain"
+    ]
+   },
+   {
+    "id": "pct",
+    "type": "text",
+    "text": "0.5%",
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "bar_1",
+     "side": "above",
+     "gap": 20
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "plane",
+    "type": "icon",
+    "of": "airplane",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 230,
+    "y": 245
+   },
+   {
+    "id": "ship",
+    "type": "icon",
+    "of": "ship",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 140,
+    "x": 460,
+    "y": 245
+   },
+   {
+    "id": "r_air",
+    "type": "shape",
+    "shape": "rect",
+    "x": 230,
+    "y": 470,
+    "width": 130,
+    "height": 300,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#f3d9d3"
+    }
+   },
+   {
+    "id": "r_sea",
+    "type": "shape",
+    "shape": "rect",
+    "x": 460,
+    "y": 324,
+    "width": 130,
+    "height": 7,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#cfe3ee"
+    }
+   },
+   {
+    "id": "l_air",
+    "type": "text",
+    "text": "50×",
+    "font_size": 64,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "ref": "r_air",
+     "side": "right",
+     "gap": 20
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "l_sea",
+    "type": "text",
+    "text": "1×",
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "r_sea",
+     "side": "above",
+     "gap": 20
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "cal",
+    "type": "icon",
+    "of": "spiral calendar",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 230,
+    "x": 790,
+    "y": 520
+   },
+   {
+    "id": "l_cal",
+    "type": "text",
+    "text": "1 meatless day",
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "cal",
+     "side": "below",
+     "gap": 20
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "l_gt",
+    "type": "text",
+    "text": "> all local",
+    "font_size": 56,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "ref": "l_cal",
+     "side": "below",
+     "gap": 10
+    },
+    "cites": [
+     "owid"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Beef's footprint: how much is transport?"
+    }
+   },
+   {
+    "draw": [
+     "burger",
+     "truck"
+    ],
+    "voice": "a",
+    "speak": "Quick one: how much of a beef burger's climate footprint comes from getting it to you?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "truck"
+     ]
+    },
+    "voice": "b",
+    "speak": "Loads, surely. Lorries, ships, planes. That's why I buy local."
+   },
+   {
+    "erase": [
+     "burger",
+     "truck"
+    ]
+   },
+   {
+    "draw": [
+     "axes",
+     "total",
+     "total_l"
+    ],
+    "voice": "a",
+    "speak": "Let's see. A kilo of beef puts out about a hundred kilos of greenhouse gases, all told."
+   },
+   {
+    "ask": {
+     "question": "Drag the transport bar to your guess.",
+     "on": "bar_1",
+     "store": "g",
+     "default": "30",
+     "tolerance": 0.02,
+     "right": "Close: you said {g} kilos, and it is about {g.true}.",
+     "wrong": "You said {g} kilos; it is about {g.true}, a sliver."
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_1"
+     ]
+    },
+    "voice": "b",
+    "speak": "Half a kilo? Then where's the other ninety-nine?"
+   },
+   {
+    "draw": [
+     "bar_5",
+     "bar_4"
+    ],
+    "voice": "a",
+    "speak": "Mostly the farm: cows burp methane, plus manure and feed. Then forest cleared for pasture."
+   },
+   {
+    "draw": [
+     "bar_3",
+     "bar_2"
+    ],
+    "voice": "b",
+    "speak": "Let me guess the rest: meat that gets thrown away, and the packaging."
+   },
+   {
+    "draw": [
+     "pct"
+    ],
+    "voice": "a",
+    "speak": "Spot on. So transport is half a percent. Local beef is still almost all cow."
+   },
+   {
+    "erase": [
+     "axes",
+     "bar_1",
+     "bar_2",
+     "bar_3",
+     "bar_4",
+     "bar_5",
+     "total",
+     "total_l",
+     "pct"
+    ]
+   },
+   {
+    "draw": [
+     "plane",
+     "r_air",
+     "l_air",
+     "ship",
+     "r_sea",
+     "l_sea"
+    ],
+    "voice": "b",
+    "speak": "So food miles never matter?"
+   },
+   {
+    "highlight": {
+     "target": [
+      "r_air"
+     ]
+    },
+    "voice": "a",
+    "speak": "By air they do: fifty times a ship's emissions for the same load. Berries, asparagus. But almost all food goes by sea."
+   },
+   {
+    "draw": [
+     "cal",
+     "l_cal",
+     "l_gt"
+    ],
+    "voice": "a",
+    "speak": "And one US study found that swapping beef and dairy for chicken or beans just one day a week cuts more than buying everything local."
+   },
+   {
+    "highlight": {
+     "target": [
+      "cal"
+     ]
+    },
+    "voice": "b",
+    "speak": "Fine. Farmers' market on Saturday, no burger on Monday."
+   }
+  ],
+  "affirm": "playful"
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "tr",
+     "type": "icon",
+     "of": "delivery truck",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 330,
+     "x": 500,
+     "y": 420
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Local beef: how much greener?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "bg",
+     "type": "icon",
+     "of": "hamburger",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 320,
+     "x": 330,
+     "y": 480
+    },
+    {
+     "id": "pin",
+     "type": "icon",
+     "of": "round pushpin",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 160,
+     "x": 600,
+     "y": 560
+    },
+    {
+     "id": "l",
+     "type": "text",
+     "text": "LOCAL!",
+     "x": 680,
+     "y": 380,
+     "font_size": 100,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "MYTH?",
+     "x": 840,
+     "y": 640,
+     "angle": 12
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Food miles: the green myth?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "p",
+     "type": "icon",
+     "of": "airplane",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 250,
+     "x": 230,
+     "y": 480
+    },
+    {
+     "id": "pin",
+     "type": "icon",
+     "of": "round pushpin",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 200,
+     "x": 560,
+     "y": 480
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?",
+     "x": 820,
+     "y": 480,
+     "font_size": 220,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "FOOD MILES",
+     "x": 500,
+     "y": 660,
+     "angle": -6
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Does it matter how far it flew?"
+    }
+   ]
+  }
+ ]
+}

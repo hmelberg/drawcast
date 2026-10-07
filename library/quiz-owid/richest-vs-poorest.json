@@ -1,0 +1,1938 @@
+{
+ "request": "How many times richer is the richest country than the poorest? A two-voice quiz where I set my guess on a counter. #interactive #short",
+ "subtitle": "Guess how many times richer the richest country is than the poorest, then see the gap in coins, and how small it was in 1820.",
+ "thumb": "band \"Guess the gap\" note \"Richest vs poorest\"",
+ "spec": {
+  "title": "How many times richer is the richest country than the poorest?",
+  "sources": [
+   {
+    "id": "owid_gdp",
+    "title": "GDP per capita",
+    "authors": "Our World in Data, from the World Bank, Eurostat, OECD and IMF",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/gdp-per-capita-worldbank",
+    "finding": "GDP per person in 2025, in 2021 international dollars (adjusted for prices): Singapore about $139,600, the highest; Burundi about $1,070, the lowest; about 131 times apart"
+   },
+   {
+    "id": "owid_mad",
+    "title": "GDP per capita, 1820 to today (Maddison Project Database)",
+    "authors": "Our World in Data, from the Maddison Project Database (Bolt and van Zanden)",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/gdp-per-capita-maddison-project-database",
+    "finding": "1820: United Kingdom $3,306 (highest of 54 countries), Nepal $641 (lowest), about 5 times; 2022: the poorest, Central African Republic, $596"
+   }
+  ],
+  "elements": [
+   {
+    "id": "fl_sg",
+    "type": "icon",
+    "of": "flag singapore",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 100,
+    "y": 600
+   },
+   {
+    "id": "n_sg",
+    "type": "text",
+    "text": "Singapore",
+    "x": 250,
+    "y": 600,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "fl_bi",
+    "type": "icon",
+    "of": "flag burundi",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 80,
+    "x": 560,
+    "y": 600
+   },
+   {
+    "id": "n_bi",
+    "type": "text",
+    "text": "Burundi",
+    "x": 690,
+    "y": 600,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "c0",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 80,
+    "y": 540
+   },
+   {
+    "id": "c1",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 112,
+    "y": 540
+   },
+   {
+    "id": "c2",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 144,
+    "y": 540
+   },
+   {
+    "id": "c3",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 176,
+    "y": 540
+   },
+   {
+    "id": "c4",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 208,
+    "y": 540
+   },
+   {
+    "id": "c5",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 240,
+    "y": 540
+   },
+   {
+    "id": "c6",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 272,
+    "y": 540
+   },
+   {
+    "id": "c7",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 304,
+    "y": 540
+   },
+   {
+    "id": "c8",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 336,
+    "y": 540
+   },
+   {
+    "id": "c9",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 368,
+    "y": 540
+   },
+   {
+    "id": "c10",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 400,
+    "y": 540
+   },
+   {
+    "id": "c11",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 432,
+    "y": 540
+   },
+   {
+    "id": "c12",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 464,
+    "y": 540
+   },
+   {
+    "id": "c13",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 80,
+    "y": 510
+   },
+   {
+    "id": "c14",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 112,
+    "y": 510
+   },
+   {
+    "id": "c15",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 144,
+    "y": 510
+   },
+   {
+    "id": "c16",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 176,
+    "y": 510
+   },
+   {
+    "id": "c17",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 208,
+    "y": 510
+   },
+   {
+    "id": "c18",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 240,
+    "y": 510
+   },
+   {
+    "id": "c19",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 272,
+    "y": 510
+   },
+   {
+    "id": "c20",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 304,
+    "y": 510
+   },
+   {
+    "id": "c21",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 336,
+    "y": 510
+   },
+   {
+    "id": "c22",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 368,
+    "y": 510
+   },
+   {
+    "id": "c23",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 400,
+    "y": 510
+   },
+   {
+    "id": "c24",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 432,
+    "y": 510
+   },
+   {
+    "id": "c25",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 464,
+    "y": 510
+   },
+   {
+    "id": "c26",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 80,
+    "y": 480
+   },
+   {
+    "id": "c27",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 112,
+    "y": 480
+   },
+   {
+    "id": "c28",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 144,
+    "y": 480
+   },
+   {
+    "id": "c29",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 176,
+    "y": 480
+   },
+   {
+    "id": "c30",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 208,
+    "y": 480
+   },
+   {
+    "id": "c31",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 240,
+    "y": 480
+   },
+   {
+    "id": "c32",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 272,
+    "y": 480
+   },
+   {
+    "id": "c33",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 304,
+    "y": 480
+   },
+   {
+    "id": "c34",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 336,
+    "y": 480
+   },
+   {
+    "id": "c35",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 368,
+    "y": 480
+   },
+   {
+    "id": "c36",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 400,
+    "y": 480
+   },
+   {
+    "id": "c37",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 432,
+    "y": 480
+   },
+   {
+    "id": "c38",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 464,
+    "y": 480
+   },
+   {
+    "id": "c39",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 80,
+    "y": 450
+   },
+   {
+    "id": "c40",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 112,
+    "y": 450
+   },
+   {
+    "id": "c41",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 144,
+    "y": 450
+   },
+   {
+    "id": "c42",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 176,
+    "y": 450
+   },
+   {
+    "id": "c43",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 208,
+    "y": 450
+   },
+   {
+    "id": "c44",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 240,
+    "y": 450
+   },
+   {
+    "id": "c45",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 272,
+    "y": 450
+   },
+   {
+    "id": "c46",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 304,
+    "y": 450
+   },
+   {
+    "id": "c47",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 336,
+    "y": 450
+   },
+   {
+    "id": "c48",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 368,
+    "y": 450
+   },
+   {
+    "id": "c49",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 400,
+    "y": 450
+   },
+   {
+    "id": "c50",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 432,
+    "y": 450
+   },
+   {
+    "id": "c51",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 464,
+    "y": 450
+   },
+   {
+    "id": "c52",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 80,
+    "y": 420
+   },
+   {
+    "id": "c53",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 112,
+    "y": 420
+   },
+   {
+    "id": "c54",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 144,
+    "y": 420
+   },
+   {
+    "id": "c55",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 176,
+    "y": 420
+   },
+   {
+    "id": "c56",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 208,
+    "y": 420
+   },
+   {
+    "id": "c57",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 240,
+    "y": 420
+   },
+   {
+    "id": "c58",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 272,
+    "y": 420
+   },
+   {
+    "id": "c59",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 304,
+    "y": 420
+   },
+   {
+    "id": "c60",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 336,
+    "y": 420
+   },
+   {
+    "id": "c61",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 368,
+    "y": 420
+   },
+   {
+    "id": "c62",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 400,
+    "y": 420
+   },
+   {
+    "id": "c63",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 432,
+    "y": 420
+   },
+   {
+    "id": "c64",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 464,
+    "y": 420
+   },
+   {
+    "id": "c65",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 80,
+    "y": 390
+   },
+   {
+    "id": "c66",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 112,
+    "y": 390
+   },
+   {
+    "id": "c67",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 144,
+    "y": 390
+   },
+   {
+    "id": "c68",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 176,
+    "y": 390
+   },
+   {
+    "id": "c69",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 208,
+    "y": 390
+   },
+   {
+    "id": "c70",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 240,
+    "y": 390
+   },
+   {
+    "id": "c71",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 272,
+    "y": 390
+   },
+   {
+    "id": "c72",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 304,
+    "y": 390
+   },
+   {
+    "id": "c73",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 336,
+    "y": 390
+   },
+   {
+    "id": "c74",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 368,
+    "y": 390
+   },
+   {
+    "id": "c75",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 400,
+    "y": 390
+   },
+   {
+    "id": "c76",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 432,
+    "y": 390
+   },
+   {
+    "id": "c77",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 464,
+    "y": 390
+   },
+   {
+    "id": "c78",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 80,
+    "y": 360
+   },
+   {
+    "id": "c79",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 112,
+    "y": 360
+   },
+   {
+    "id": "c80",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 144,
+    "y": 360
+   },
+   {
+    "id": "c81",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 176,
+    "y": 360
+   },
+   {
+    "id": "c82",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 208,
+    "y": 360
+   },
+   {
+    "id": "c83",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 240,
+    "y": 360
+   },
+   {
+    "id": "c84",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 272,
+    "y": 360
+   },
+   {
+    "id": "c85",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 304,
+    "y": 360
+   },
+   {
+    "id": "c86",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 336,
+    "y": 360
+   },
+   {
+    "id": "c87",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 368,
+    "y": 360
+   },
+   {
+    "id": "c88",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 400,
+    "y": 360
+   },
+   {
+    "id": "c89",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 432,
+    "y": 360
+   },
+   {
+    "id": "c90",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 464,
+    "y": 360
+   },
+   {
+    "id": "c91",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 80,
+    "y": 330
+   },
+   {
+    "id": "c92",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 112,
+    "y": 330
+   },
+   {
+    "id": "c93",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 144,
+    "y": 330
+   },
+   {
+    "id": "c94",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 176,
+    "y": 330
+   },
+   {
+    "id": "c95",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 208,
+    "y": 330
+   },
+   {
+    "id": "c96",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 240,
+    "y": 330
+   },
+   {
+    "id": "c97",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 272,
+    "y": 330
+   },
+   {
+    "id": "c98",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 304,
+    "y": 330
+   },
+   {
+    "id": "c99",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 336,
+    "y": 330
+   },
+   {
+    "id": "c100",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 368,
+    "y": 330
+   },
+   {
+    "id": "c101",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 400,
+    "y": 330
+   },
+   {
+    "id": "c102",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 432,
+    "y": 330
+   },
+   {
+    "id": "c103",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 464,
+    "y": 330
+   },
+   {
+    "id": "c104",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 80,
+    "y": 300
+   },
+   {
+    "id": "c105",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 112,
+    "y": 300
+   },
+   {
+    "id": "c106",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 144,
+    "y": 300
+   },
+   {
+    "id": "c107",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 176,
+    "y": 300
+   },
+   {
+    "id": "c108",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 208,
+    "y": 300
+   },
+   {
+    "id": "c109",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 240,
+    "y": 300
+   },
+   {
+    "id": "c110",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 272,
+    "y": 300
+   },
+   {
+    "id": "c111",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 304,
+    "y": 300
+   },
+   {
+    "id": "c112",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 336,
+    "y": 300
+   },
+   {
+    "id": "c113",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 368,
+    "y": 300
+   },
+   {
+    "id": "c114",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 400,
+    "y": 300
+   },
+   {
+    "id": "c115",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 432,
+    "y": 300
+   },
+   {
+    "id": "c116",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 464,
+    "y": 300
+   },
+   {
+    "id": "c117",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 80,
+    "y": 270
+   },
+   {
+    "id": "c118",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 112,
+    "y": 270
+   },
+   {
+    "id": "c119",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 144,
+    "y": 270
+   },
+   {
+    "id": "c120",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 176,
+    "y": 270
+   },
+   {
+    "id": "c121",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 208,
+    "y": 270
+   },
+   {
+    "id": "c122",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 240,
+    "y": 270
+   },
+   {
+    "id": "c123",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 272,
+    "y": 270
+   },
+   {
+    "id": "c124",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 304,
+    "y": 270
+   },
+   {
+    "id": "c125",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 336,
+    "y": 270
+   },
+   {
+    "id": "c126",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 368,
+    "y": 270
+   },
+   {
+    "id": "c127",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 400,
+    "y": 270
+   },
+   {
+    "id": "c128",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 432,
+    "y": 270
+   },
+   {
+    "id": "c129",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 464,
+    "y": 270
+   },
+   {
+    "id": "rich",
+    "type": "group",
+    "members": [
+     "c0",
+     "c1",
+     "c2",
+     "c3",
+     "c4",
+     "c5",
+     "c6",
+     "c7",
+     "c8",
+     "c9",
+     "c10",
+     "c11",
+     "c12",
+     "c13",
+     "c14",
+     "c15",
+     "c16",
+     "c17",
+     "c18",
+     "c19",
+     "c20",
+     "c21",
+     "c22",
+     "c23",
+     "c24",
+     "c25",
+     "c26",
+     "c27",
+     "c28",
+     "c29",
+     "c30",
+     "c31",
+     "c32",
+     "c33",
+     "c34",
+     "c35",
+     "c36",
+     "c37",
+     "c38",
+     "c39",
+     "c40",
+     "c41",
+     "c42",
+     "c43",
+     "c44",
+     "c45",
+     "c46",
+     "c47",
+     "c48",
+     "c49",
+     "c50",
+     "c51",
+     "c52",
+     "c53",
+     "c54",
+     "c55",
+     "c56",
+     "c57",
+     "c58",
+     "c59",
+     "c60",
+     "c61",
+     "c62",
+     "c63",
+     "c64",
+     "c65",
+     "c66",
+     "c67",
+     "c68",
+     "c69",
+     "c70",
+     "c71",
+     "c72",
+     "c73",
+     "c74",
+     "c75",
+     "c76",
+     "c77",
+     "c78",
+     "c79",
+     "c80",
+     "c81",
+     "c82",
+     "c83",
+     "c84",
+     "c85",
+     "c86",
+     "c87",
+     "c88",
+     "c89",
+     "c90",
+     "c91",
+     "c92",
+     "c93",
+     "c94",
+     "c95",
+     "c96",
+     "c97",
+     "c98",
+     "c99",
+     "c100",
+     "c101",
+     "c102",
+     "c103",
+     "c104",
+     "c105",
+     "c106",
+     "c107",
+     "c108",
+     "c109",
+     "c110",
+     "c111",
+     "c112",
+     "c113",
+     "c114",
+     "c115",
+     "c116",
+     "c117",
+     "c118",
+     "c119",
+     "c120",
+     "c121",
+     "c122",
+     "c123",
+     "c124",
+     "c125",
+     "c126",
+     "c127",
+     "c128",
+     "c129"
+    ]
+   },
+   {
+    "id": "cb",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 600,
+    "y": 540
+   },
+   {
+    "id": "key",
+    "type": "text",
+    "text": "1 coin = $1,070 a year",
+    "x": 680,
+    "y": 470,
+    "font_size": 36,
+    "style": {
+     "color": "#5e584e"
+    },
+    "cites": [
+     "owid_gdp"
+    ]
+   },
+   {
+    "id": "v_sg",
+    "type": "text",
+    "text": "≈ $139,600",
+    "x": 270,
+    "y": 225,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_gdp"
+    ]
+   },
+   {
+    "id": "day",
+    "type": "text",
+    "text": "< $3 a day",
+    "x": 680,
+    "y": 400,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_gdp"
+    ]
+   },
+   {
+    "id": "x130",
+    "type": "text",
+    "text": "2025: ×130",
+    "x": 270,
+    "y": 225,
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "fl_uk",
+    "type": "icon",
+    "of": "flag united kingdom",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 70,
+    "x": 620,
+    "y": 470
+   },
+   {
+    "id": "n_uk",
+    "type": "text",
+    "text": "Britain",
+    "x": 760,
+    "y": 470,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "fl_np",
+    "type": "icon",
+    "of": "flag nepal",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 70,
+    "x": 620,
+    "y": 370
+   },
+   {
+    "id": "n_np",
+    "type": "text",
+    "text": "Nepal",
+    "x": 760,
+    "y": 370,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "u0",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 600,
+    "y": 425
+   },
+   {
+    "id": "u1",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 632,
+    "y": 425
+   },
+   {
+    "id": "u2",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 664,
+    "y": 425
+   },
+   {
+    "id": "u3",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 696,
+    "y": 425
+   },
+   {
+    "id": "u4",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 728,
+    "y": 425
+   },
+   {
+    "id": "ukc",
+    "type": "group",
+    "members": [
+     "u0",
+     "u1",
+     "u2",
+     "u3",
+     "u4"
+    ]
+   },
+   {
+    "id": "cn",
+    "type": "icon",
+    "of": "coin",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 30,
+    "x": 600,
+    "y": 325
+   },
+   {
+    "id": "y1820",
+    "type": "text",
+    "text": "1820: ×5",
+    "x": 720,
+    "y": 255,
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_mad"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How much richer is the richest country?"
+    }
+   },
+   {
+    "draw": [
+     "fl_sg",
+     "n_sg"
+    ],
+    "voice": "a",
+    "speak": "Take the richest country in the world, by income per person, and the poorest. How many times richer is the richest?"
+   },
+   {
+    "draw": [
+     "fl_bi",
+     "n_bi"
+    ],
+    "voice": "b",
+    "speak": "Ten times? Twenty, tops. Things are much cheaper in poor countries, after all."
+   },
+   {
+    "ask": {
+     "question": "Set the counter to your guess.",
+     "estimate": {
+      "min": 1,
+      "max": 1000,
+      "value": 130,
+      "unit": "times",
+      "log": true
+     },
+     "store": "r",
+     "default": "20",
+     "right": "Close: you said {r} times, and it is about {r.true}.",
+     "wrong": "You said {r}; it is about {r.true} times."
+    }
+   },
+   {
+    "erase": [
+     "estimate_1"
+    ]
+   },
+   {
+    "draw": [
+     "cb",
+     "key"
+    ],
+    "voice": "a",
+    "speak": "Here is Burundi, the poorest: about a thousand dollars per person a year. One coin."
+   },
+   {
+    "draw": [
+     "rich",
+     "v_sg"
+    ],
+    "voice": "a",
+    "speak": "And Singapore: about a hundred and forty thousand. A hundred and thirty coins."
+   },
+   {
+    "draw": [
+     "day"
+    ],
+    "voice": "b",
+    "speak": "But I said things are cheaper there!"
+   },
+   {
+    "highlight": {
+     "target": [
+      "key"
+     ]
+    },
+    "voice": "a",
+    "speak": "They are, and it's already counted: these dollars are adjusted for prices. Burundi still lives on under three dollars a day."
+   },
+   {
+    "erase": [
+     "v_sg"
+    ]
+   },
+   {
+    "draw": [
+     "x130"
+    ],
+    "voice": "b",
+    "speak": "Was it always this unequal?"
+   },
+   {
+    "erase": [
+     "key",
+     "day"
+    ]
+   },
+   {
+    "draw": [
+     "fl_uk",
+     "n_uk",
+     "fl_np",
+     "n_np",
+     "ukc",
+     "cn",
+     "y1820"
+    ],
+    "voice": "a",
+    "speak": "No. In 1820, among the countries with estimates, the richest, Britain, was only about five times richer than the poorest, Nepal."
+   },
+   {
+    "voice": "a",
+    "speak": "Back then nearly everyone was poor. Growth took off in a few places, and by these long-run estimates the poorest countries today are no richer than Nepal was then.",
+    "highlight": {
+     "target": [
+      "cn",
+      "cb"
+     ]
+    }
+   },
+   {
+    "highlight": {
+     "target": [
+      "rich",
+      "ukc"
+     ]
+    },
+    "voice": "b",
+    "speak": "Five coins to a hundred and thirty. Next time someone tells me the world was always this way, I'm bringing my coins."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "a",
+     "type": "icon",
+     "of": "flag singapore",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 220,
+     "y": 470
+    },
+    {
+     "id": "b",
+     "type": "icon",
+     "of": "flag burundi",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 230,
+     "x": 780,
+     "y": 470
+    },
+    {
+     "id": "x",
+     "type": "text",
+     "text": "× ?",
+     "x": 500,
+     "y": 470,
+     "font_size": 150,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Guess the gap"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "c",
+     "type": "icon",
+     "of": "coin",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 240,
+     "x": 720,
+     "y": 400
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "? coins to 1",
+     "x": 500,
+     "y": 190,
+     "font_size": 100,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "bu",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Richest vs poorest"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "u",
+     "type": "icon",
+     "of": "flag united kingdom",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 400,
+     "y": 520
+    },
+    {
+     "id": "n",
+     "type": "icon",
+     "of": "flag nepal",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 600,
+     "y": 520
+    },
+    {
+     "id": "y",
+     "type": "text",
+     "text": "1820",
+     "x": 500,
+     "y": 300,
+     "font_size": 130,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "q",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Was the gap always this big?"
+    }
+   ]
+  }
+ ]
+}

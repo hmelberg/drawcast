@@ -1,0 +1,20 @@
+{
+ "file": "plastic-recycled.json",
+ "title": "How much of the world's plastic waste gets recycled?",
+ "subtitle": "Split the world's plastic waste between recycling, burning, landfill and litter, then see the real share recycled and why it rarely lasts.",
+ "format": "quiz",
+ "tags": [
+  "earth",
+  "chemistry",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "1",
+ "form": "allocate (split 100 between bars, budget, scored)",
+ "owid": "https://ourworldindata.org/grapher/global-plastic-fate",
+ "notes": "Question changed from the brief's 'all plastic ever made': OWID's chart (OECD 2019) gives 9% of each year's waste recycled. Fix round: axis 0–100 before the ask; 'Split 100 percent … press Done'; '350 million t a year' drawn; icons no-littering / hole; 'one piece in ten'; twist as a to-scale cascade 100 → 9 → ~1 (only ~1 in 10 recycled plastic recycled twice, Geyer via OWID FAQ); payoff 'best: never made'. Left (engine): allocate's edge account bar, the drag pill over a value label, the viewer's guess not kept after the reveal."
+}

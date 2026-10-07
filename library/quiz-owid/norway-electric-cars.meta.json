@@ -1,0 +1,19 @@
+{
+ "file": "norway-electric-cars.json",
+ "title": "What share of new cars sold in Norway are fully electric?",
+ "subtitle": "A host and an oil-country skeptic: drag a pie slice to guess Norway's share of fully electric new cars, then see how fast it got there.",
+ "format": "quiz",
+ "tags": [
+  "economics",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "2 (as 6: oil-country skeptic)",
+ "form": "drag a pie slice",
+ "owid": "https://ourworldindata.org/grapher/share-car-sales-battery-plugin",
+ "notes": "Uses 2025 (95.4% fully electric). Pie has a 2010 stage (0.3%) so the picture matches the line. Wording almost no purchase tax or VAT (VAT applies above NOK 500k since 2023). World 2025 16.5% from IEA via OWID. World shown as a hand-built mini pie (shape + sector). Slice labels stay engine-small: label_size shrinks the pie."
+}

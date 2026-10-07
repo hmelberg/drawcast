@@ -1,0 +1,12 @@
+How many people die of measles each year, and how has that changed since 1980? By one major estimate, in 1980 it killed about one point four million, most of them small children.
+[intro] Five years later, it was still almost one point three million.
+[ASK] Draw the line on from 1985 to 2023.
+  [right] Close: you were {g.off} thousand off on average. Deaths fell, and kept on falling.
+  [wrong] You were {g.off} thousand off on average. The fall was steep, and it lasted for decades.
+By 2023, about a hundred and forty-four thousand people died of measles: around ninety percent fewer than in 1980.
+The reason is a vaccine. In the early 1980s few children got it; today more than eight in ten babies do.
+Over fifty years, measles vaccines have saved an estimated ninety-four million lives.
+But look at the very end of the line. In 2021, deaths had fallen to about seventy-one thousand.
+Two years later, by this estimate, they had roughly doubled.
+During the pandemic, vaccination slipped in many countries, and measles, one of the most contagious diseases there is, found the gaps.
+So the fall only lasts while the vaccinations keep up.

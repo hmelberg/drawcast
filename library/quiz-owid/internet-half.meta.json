@@ -1,0 +1,20 @@
+{
+ "file": "internet-half.json",
+ "title": "In what year did half of the world's people first use the internet?",
+ "subtitle": "Guess the year half of humanity first got online, then see the hundred-person world: who is still offline, and where.",
+ "format": "quiz",
+ "tags": [
+  "computing",
+  "data",
+  "geography"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "7",
+ "form": "ask on a scale (click the year)",
+ "owid": "https://ourworldindata.org/grapher/share-of-individuals-using-the-internet",
+ "notes": "Crossing year per OWID series: 49.4 % in 2018, 53.9 % in 2019. Two hundred-person grids for rich (94) and poorest (23) countries. Scale tick labels and population legends stay small. The frames tool does not show the viewer s pin at the reveal (the player keeps it)."
+}

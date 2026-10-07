@@ -1,0 +1,20 @@
+{
+ "file": "deaths-per-energy.json",
+ "title": "Which source of electricity is the deadliest?",
+ "subtitle": "Rank coal, oil, gas, nuclear and solar by deaths per unit of electricity, then see what a town would pay for each in lives.",
+ "format": "quiz",
+ "level": "standard",
+ "lang": "en",
+ "verdict": "keep",
+ "tags": [
+  "health",
+  "earth",
+  "data"
+ ],
+ "score": 4,
+ "dialogue": true,
+ "shape": "1 + 6",
+ "form": "rank cards",
+ "owid": "https://ourworldindata.org/safest-sources-of-energy",
+ "notes": "Review round 2026-10-07: two voices (b the nuclear skeptic: guesses nuclear, then demands a recount); ask wording matches the strip (fewest left); cards size 2 (the maximum the schema allows; 3 is INVALID); Chernobyl note with an arrow to the nuclear bar; payoff page instead of a chart: a coal town with 25 people beside a nuclear town with one; wind mentioned. Left: value labels print two decimals (24.60) because 0.02 needs them - no per-bar format; y-axis title stays tiny (label_size does not reach it); frames count 3 off-screen items after the rank (hidden cards), nothing visible."
+}

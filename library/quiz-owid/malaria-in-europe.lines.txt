@@ -1,0 +1,14 @@
+a: Around 1900, which of these countries still had malaria? Six candidates, from Finland to New Zealand.
+b: Malaria? That's a tropical disease. I'd say none of them. Italy, at a push.
+[ASK] Tap every country that had it, then Done.
+  [right] All {m.total} right.
+  [wrong] {m} of {m.total} on the first try.
+a: Italy, yes: several popes died of it. But the Netherlands too, where the painter Albrecht Dürer caught it.
+a: And the United States. Abraham Lincoln caught it in Illinois, and it lingered in the US until 1951.
+b: Fine. But not Finland. Finland has snow, not mosquitoes.
+a: Finland had both. Malaria was common there, and its last local case was in 1954.
+a: Only Iceland and New Zealand were spared. It never took hold on either.
+a: So around 1900, malaria reached about half of all the land on Earth.
+a: Then drained marshes, better houses and DDT pushed it back. By 2002, a quarter.
+b: So it isn't a tropical disease at all. It's the disease that's left over in the tropics.
+a: Exactly. Beaten everywhere else, which means it can be beaten.

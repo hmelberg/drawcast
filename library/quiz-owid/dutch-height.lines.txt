@@ -1,0 +1,16 @@
+(a) Dutch men are the tallest in the world: born in 1996, they average about a metre eighty-two. So, for both of you: how tall were Dutch men born a century earlier?
+(b) People were shorter back then. I'll say a metre seventy-five.
+[ASK] Click on the line where you think it is.
+  [right] Close: you said {g}, and it was about {g.true} centimetres.
+  [wrong] You said {g}; it was about {g.true} centimetres.
+(b) A hundred and sixty-nine? That's thirteen centimetres in one century!
+[intro] Then the second question.
+[ASK] Where did Dutch men born in 1896 rank?
+  [right] Twelfth. Swedes, Norwegians and Americans all stood taller.
+(b) Americans? So the Americans were the giants once?
+(a) Among them. But American men have hardly grown since those born in the 1950s, while the Dutch kept going.
+(b) So what did the Dutch do? Eat more cheese?
+(a) More and better food, and far fewer childhood infections. Height is a record of how well children grew up.
+(a) And the Dutch didn't even grow the most.
+(a) Men in Iran grew about sixteen and a half centimetres.
+(b) So I'm not short. I was just born in the wrong century.

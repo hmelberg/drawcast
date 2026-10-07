@@ -1,0 +1,14 @@
+(a) Petrol with lead in it once filled almost every car on Earth. So when did the last country stop selling it?
+(b) Easy, that's ancient history. Sometime in the eighties, with the shoulder pads?
+[ASK] Click on the line where you think it is.
+  [right] Close: you said {y}, and it was {y.true}.
+  [wrong] You said {y}; it was {y.true}, much later than most people think.
+(a) Much later than the eighties. The last holdout was Algeria, in 2021.
+(b) 2021? I was streaming films in 2021, and somebody was still filling up with lead?
+(a) It had started in 1921, when an American chemist found lead stopped engines knocking. Japan banned it first, in 1986, and America ten years later.
+(b) So thirty-five years from the first ban to the last. Was it worth all that fuss?
+(a) Very. In American children, lead in the blood fell ninety-five percent from 1978 to 2016. Though worldwide, one child in three still has too much.
+(a) One more thing about that chemist. His name was Thomas Midgley.
+(b) Don't tell me. He had another big idea.
+(a) He did: CFCs, the gases that later tore a hole in the ozone layer. One historian says no single organism has harmed the atmosphere more.
+(b) One man, both disasters. Remind me never to let him near my fridge.

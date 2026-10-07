@@ -1,0 +1,19 @@
+{
+ "file": "genome-cost.json",
+ "title": "What does it cost to read a human genome now?",
+ "subtitle": "In 2001 reading one human genome cost $95 million. Guess today's price on a log line, then see how it outran even computer chips.",
+ "format": "quiz",
+ "tags": [
+  "biology",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "1",
+ "form": "ask on scale (log number line)",
+ "owid": "https://ourworldindata.org/grapher/cost-of-sequencing-a-full-human-genome",
+ "notes": "OWID/NHGRI: $95.3 M (2001), $7.15 M (2007), $70,333 (2009), $525 (2022, latest), current dollars. Chip pace computed by me: $95.3 M halved every two years for 21 years ≈ $66,000 — and 2009 already reached it. Only this cast keeps the chip comparison. No log y on line_chart, so the figure stays a log number line with markers (2001, chip pace, 2007). An arrow between scale markers collided with their labels, so the 2007→2009 drop is a headline text instead. Scale tick size follows the page text block (36)."
+}

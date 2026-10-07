@@ -1,0 +1,630 @@
+{
+ "request": "What happened to the gases that eat the ozone layer after the world agreed to ban them? Let me draw the rest of the line. #interactive #short",
+ "subtitle": "Draw what happened to ozone-destroying gases after 1989, then see the 99 % fall, why it worked, and how long the sky still needs to heal.",
+ "thumb": "band \"The ban nobody remembers\" note \"Draw the rest\"",
+ "spec": {
+  "title": "What happened to ozone-destroying gases after the world agreed to ban them?",
+  "text": {
+   "font_size": 34
+  },
+  "template": "line_chart",
+  "params": {
+   "x": [
+    1986,
+    1989,
+    1992,
+    1995,
+    1998,
+    2001,
+    2004,
+    2007,
+    2010,
+    2013,
+    2016,
+    2019,
+    2021
+   ],
+   "series": [
+    {
+     "name": "World",
+     "values": [
+      [
+       1303,
+       1658,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       1303,
+       1658,
+       857,
+       407,
+       338,
+       208,
+       128,
+       62,
+       44,
+       29,
+       22,
+       21,
+       17
+      ]
+     ]
+    }
+   ],
+   "ylim": [
+    0,
+    1800
+   ],
+   "y_label": "kt, ozone-weighted",
+   "points": true,
+   "label_size": 30,
+   "box": {
+    "x": 160,
+    "y": 250,
+    "w": 730,
+    "h": 330
+   },
+   "stage": 0,
+   "label_top": 0
+  },
+  "sources": [
+   {
+    "id": "owid_ods",
+    "title": "Emissions of ozone-depleting substances",
+    "authors": "Our World in Data, from the UN Environment Programme (2023)",
+    "year": 2023,
+    "url": "https://ourworldindata.org/grapher/ozone-depleting-substance-consumption",
+    "finding": "world consumption of ozone-depleting substances, in ODP tonnes: about 1.66 million in 1989 and about 17,000 in 2021"
+   },
+   {
+    "id": "owid_ozone",
+    "title": "The world has made great progress in cutting the use of substances that deplete the ozone layer",
+    "authors": "Hannah Ritchie, Lucas Rodés-Guirao and Max Roser (Our World in Data)",
+    "year": 2023,
+    "url": "https://ourworldindata.org/ozone-layer",
+    "finding": "global emissions of ozone-depleting substances have fallen by more than 99% since 1989; the ozone hole stopped growing around 2000"
+   },
+   {
+    "id": "unep",
+    "title": "Ozone layer recovery is on track (Scientific Assessment of Ozone Depletion 2022)",
+    "authors": "UN Environment Programme / Scientific Assessment Panel to the Montreal Protocol",
+    "year": 2023,
+    "url": "https://www.unep.org/news-and-stories/press-release/ozone-layer-recovery-track-helping-avoid-global-warming-05degc",
+    "finding": "ozone back to 1980 levels by about 2040 for most of the world and about 2066 over Antarctica"
+   }
+  ],
+  "elements": [
+   {
+    "id": "endpt",
+    "type": "point",
+    "at": {
+     "data": [
+      2021,
+      17
+     ]
+    },
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "drop",
+    "type": "text",
+    "text": "−99%",
+    "font_size": 90,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_ozone"
+    ],
+    "at": {
+     "data": [
+      2012,
+      700
+     ]
+    }
+   },
+   {
+    "id": "montreal",
+    "type": "text",
+    "text": "← Montreal treaty",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      1999,
+      1640
+     ]
+    },
+    "cites": [
+     "owid_ozone"
+    ]
+   },
+   {
+    "id": "every",
+    "type": "text",
+    "text": "every country signed",
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      2004,
+      1400
+     ]
+    }
+   },
+   {
+    "id": "tl",
+    "type": "scale",
+    "min": 1980,
+    "max": 2070,
+    "x": 90,
+    "y": 360,
+    "width": 840,
+    "font_size": 34,
+    "cites": [
+     "unep"
+    ]
+   },
+   {
+    "id": "now",
+    "type": "text",
+    "text": "today ↓",
+    "x": 559.3333333333333,
+    "y": 510,
+    "font_size": 36,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "brace",
+    "type": "path",
+    "points": [
+     [
+      519.3333333333333,
+      285
+     ],
+     [
+      519.3333333333333,
+      270
+     ],
+     [
+      892.6666666666666,
+      270
+     ],
+     [
+      892.6666666666666,
+      285
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "yrs40",
+    "type": "text",
+    "text": "40 more years",
+    "x": 706.0,
+    "y": 230,
+    "font_size": 50,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "unep"
+    ]
+   },
+   {
+    "id": "holeic",
+    "type": "icon",
+    "of": "globe showing americas",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 166.66666666666666,
+    "y": 590
+   },
+   {
+    "id": "mt1",
+    "type": "path",
+    "points": [
+     [
+      136.66666666666666,
+      360
+     ],
+     [
+      136.66666666666666,
+      280
+     ]
+    ],
+    "style": {
+     "color": "#5e584e",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "ml1",
+    "type": "text",
+    "text": "1985: hole found",
+    "x": 246.66666666666666,
+    "y": 250,
+    "font_size": 40,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "mt2",
+    "type": "path",
+    "points": [
+     [
+      276.66666666666663,
+      360
+     ],
+     [
+      276.66666666666663,
+      410
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "ml2",
+    "type": "text",
+    "text": "2000: stops growing",
+    "x": 276.66666666666663,
+    "y": 435,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "mt3",
+    "type": "path",
+    "points": [
+     [
+      892.6666666666666,
+      360
+     ],
+     [
+      892.6666666666666,
+      410
+     ]
+    ],
+    "style": {
+     "color": "#b5482e",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "ml3",
+    "type": "text",
+    "text": "2066: healed",
+    "x": 832.6666666666666,
+    "y": 435,
+    "font_size": 40,
+    "style": {
+     "color": "#b5482e"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Ozone-killing gases: what next?"
+    }
+   },
+   {
+    "draw": [
+     "axes",
+     "line_1"
+    ],
+    "speak": "What happened to the gases that eat the ozone layer, once the world agreed to ban them?"
+   },
+   {
+    "ask": {
+     "intro": "In 1989 the world used more than one and a half million tonnes a year.",
+     "question": "Draw the line on to 2021.",
+     "on": "line_1",
+     "from": 1989,
+     "store": "g",
+     "after": "keep",
+     "default": "1500,1350,1200,1050,900,800,700,600,500,450,400",
+     "right": "Close: you were only {g.off} thousand tonnes off on average. It really did crash almost to the floor.",
+     "wrong": "You were {g.off} thousand tonnes off on average. The line drops almost to the floor."
+    }
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 2
+   },
+   {
+    "draw": [
+     "endpt",
+     "drop"
+    ],
+    "speak": "By 2021 it was about seventeen thousand tonnes: a fall of ninety-nine percent."
+   },
+   {
+    "draw": [
+     "montreal"
+    ],
+    "speak": "Why 1989? That year the Montreal Protocol came into force, to phase out CFCs from fridges and spray cans."
+   },
+   {
+    "draw": [
+     "every"
+    ],
+    "speak": "In time every country in the United Nations signed it, the first treaty ever to manage that."
+   },
+   {
+    "erase": [
+     "axes",
+     "line_1",
+     "endpt",
+     "drop",
+     "montreal",
+     "every"
+    ]
+   },
+   {
+    "draw": [
+     "tl",
+     "mt1",
+     "holeic",
+     "ml1"
+    ],
+    "speak": "They moved fast because, in 1985, scientists had found a hole in the ozone over Antarctica, letting through the ultraviolet light that causes skin cancer."
+   },
+   {
+    "draw": [
+     "mt2",
+     "ml2"
+    ],
+    "speak": "And it worked: around 2000, the hole stopped growing."
+   },
+   {
+    "draw": [
+     "mt3",
+     "now",
+     "ml3"
+    ],
+    "speak": "But the old gases linger in the sky for decades. The hole over Antarctica should heal only around 2066."
+   },
+   {
+    "draw": [
+     "brace",
+     "yrs40"
+    ],
+    "speak": "So a few years of action stopped the damage, but the sky needs another forty years to heal."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "globe",
+     "type": "icon",
+     "of": "globe showing americas",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 260,
+     "y": 450
+    },
+    {
+     "id": "sun",
+     "type": "icon",
+     "of": "sun",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 160,
+     "x": 470,
+     "y": 620
+    },
+    {
+     "id": "spray",
+     "type": "icon",
+     "of": "spray can",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "or": [
+      "aerosol",
+      "lotion bottle"
+     ],
+     "size": 200,
+     "x": 720,
+     "y": 420
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Remember the ozone hole?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "ax",
+     "type": "path",
+     "points": [
+      [
+       120,
+       650
+      ],
+      [
+       120,
+       260
+      ],
+      [
+       900,
+       260
+      ]
+     ],
+     "style": {
+      "stroke_width": 5
+     }
+    },
+    {
+     "id": "ln",
+     "type": "path",
+     "points": [
+      [
+       150,
+       470
+      ],
+      [
+       250,
+       600
+      ]
+     ],
+     "style": {
+      "stroke_width": 9,
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "dash",
+     "type": "path",
+     "points": [
+      [
+       250,
+       600
+      ],
+      [
+       880,
+       600
+      ]
+     ],
+     "style": {
+      "stroke_width": 5,
+      "dash": true,
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "?",
+     "x": 620,
+     "y": 450,
+     "font_size": 200,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "y",
+     "type": "text",
+     "text": "1989",
+     "x": 250,
+     "y": 220,
+     "font_size": 60,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Draw the rest of the line"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "spray",
+     "type": "icon",
+     "of": "spray can",
+     "set": "twemoji",
+     "or": [
+      "aerosol"
+     ],
+     "icon_look": "picture",
+     "size": 200,
+     "x": 150,
+     "y": 440
+    },
+    {
+     "id": "y1",
+     "type": "text",
+     "text": "1989:",
+     "x": 400,
+     "y": 560,
+     "font_size": 80,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "n1",
+     "type": "text",
+     "text": "1,658,000 t",
+     "x": 720,
+     "y": 560,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "y2",
+     "type": "text",
+     "text": "2021:",
+     "x": 400,
+     "y": 360,
+     "font_size": 80,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "n2",
+     "type": "text",
+     "text": "?",
+     "x": 720,
+     "y": 370,
+     "font_size": 170,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Ozone-killing gases"
+    }
+   ]
+  }
+ ]
+}

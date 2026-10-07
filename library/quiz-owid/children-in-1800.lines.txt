@@ -1,0 +1,12 @@
+In 1800, out of every hundred children born, how many died before their fifth birthday?
+[ASK] Drag the 1800 bar to your guess.
+  [right] Close: you said {g} in a hundred, and it was about {g.true}.
+  [wrong] You said {g}; it was about {g.true}, more than four children in every ten.
+So in a family with six children, losing one or more was the rule, not the exception.
+Now look at the world today: about four in a hundred.
+That is a fall of more than ten times, thanks to clean water, vaccines, better food and medicine.
+It is still about five million young children a year, so the work is not done.
+Was that only the poorest places? No. Even the luckiest country of 1850, Norway, lost about seventeen children in a hundred.
+And today, the hardest-hit country is Nigeria, at about twelve in a hundred.
+Now put those two side by side.
+A child born in the best place of 1850 had worse odds than a child born in the worst place today.

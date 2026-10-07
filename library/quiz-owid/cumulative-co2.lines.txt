@@ -1,0 +1,14 @@
+(a) Since 1750, which country has put the most carbon dioxide into the air? Five suspects.
+(b) That's easy. China, with all those coal plants. Britain is a tiny island, so last.
+[ASK] Least to most, then Done.
+  [right] You got {r}. America tops the list, and China is second.
+  [wrong] You got {r}. America comes first, then China, Russia, Germany and Britain.
+(a) Here is each country's share of all the carbon dioxide from fossil fuels so far. America alone: almost a quarter.
+(b) Hold on. China burns far more than America these days.
+(a) It does, about two and a half times as much a year. But it started late, so its total is about fifteen percent.
+(b) Fine. And Britain, four percent. Told you: nothing to see there.
+(a) Now wind the clock back to 1850. By then, Britain had made almost four fifths of all the carbon dioxide ever.
+(a) And in 1800, nearly all the carbon dioxide on record came from Britain.
+(b) All of it? Oh. The steam engines, the coal mines, the mills. Britain was the industrial revolution.
+(a) Exactly. America's running total only overtook Britain's in 1911.
+(b) So the tiny island I put last is where the whole thing started. Noted.

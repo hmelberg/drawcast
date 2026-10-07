@@ -1,0 +1,478 @@
+{
+ "request": "How much of the world's seafood is farmed? Let me draw the farmed line on from 1990 beside the wild catch. #interactive #short",
+ "subtitle": "Draw how fish farming grew after 1990 beside the wild catch, then see why it took over: the sea's catch hit a ceiling decades ago.",
+ "thumb": "band \"Caught or farmed?\" note \"1960: 6%\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "fish",
+     "type": "icon",
+     "of": "fish",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 280,
+     "x": 540,
+     "y": 420
+    },
+    {
+     "id": "s1",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "WILD?",
+     "x": 640,
+     "y": 650,
+     "angle": -6
+    },
+    {
+     "id": "s2",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "FARMED?",
+     "x": 580,
+     "y": 210,
+     "angle": -8
+    },
+    {
+     "id": "t1",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Where did your fish grow up?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "y1",
+     "type": "text",
+     "text": "1960",
+     "x": 250,
+     "y": 620,
+     "font_size": 56,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "n1",
+     "type": "text",
+     "text": "6% farmed",
+     "x": 250,
+     "y": 520,
+     "font_size": 64,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "y2",
+     "type": "text",
+     "text": "today",
+     "x": 720,
+     "y": 620,
+     "font_size": 56,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "n2",
+     "type": "text",
+     "text": "?",
+     "x": 720,
+     "y": 470,
+     "font_size": 200,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "f",
+     "type": "icon",
+     "of": "tropical fish",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 250,
+     "y": 350
+    },
+    {
+     "id": "t2",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Wild fish are out of date"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "boat",
+     "type": "icon",
+     "of": "fishing pole",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 240,
+     "x": 270,
+     "y": 470
+    },
+    {
+     "id": "flat",
+     "type": "text",
+     "text": "wild catch: flat",
+     "x": 680,
+     "y": 530,
+     "font_size": 64,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "so",
+     "type": "text",
+     "text": "since the 1990s",
+     "x": 680,
+     "y": 400,
+     "font_size": 60,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t3",
+     "type": "thumb",
+     "kind": "band",
+     "text": "The sea hit a ceiling"
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "How much of the world's seafood is farmed?",
+  "template": "line_chart",
+  "params": {
+   "x": [
+    1960,
+    1970,
+    1980,
+    1990,
+    2000,
+    2010,
+    2013,
+    2020,
+    2024
+   ],
+   "series": [
+    {
+     "name": "Farmed",
+     "values": [
+      [
+       2.1,
+       3.7,
+       7.7,
+       17.0,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       2.1,
+       3.7,
+       7.7,
+       17.0,
+       43.1,
+       78.1,
+       95.0,
+       122.8,
+       141.4
+      ]
+     ]
+    },
+    {
+     "name": "Wild catch",
+     "values": [
+      [
+       32.1,
+       56.8,
+       58.8,
+       76.4,
+       96.2,
+       89.7,
+       93.1,
+       91.6,
+       94.4
+      ],
+      [
+       32.1,
+       56.8,
+       58.8,
+       76.4,
+       96.2,
+       89.7,
+       93.1,
+       91.6,
+       94.4
+      ]
+     ]
+    }
+   ],
+   "stage": 0,
+   "xlim": [
+    1960,
+    2032
+   ],
+   "ylim": [
+    0,
+    160
+   ],
+   "y_label": "million tonnes",
+   "points": true,
+   "label_size": 28
+  },
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Seafood production: wild fish catch vs. aquaculture",
+    "authors": "Our World in Data, from FAO via World Bank (2026)",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/capture-fisheries-vs-aquaculture",
+    "finding": "aquaculture (fish, molluscs, crustaceans and aquatic plants) 2.1 Mt in 1960, 17 Mt in 1990, 95 Mt in 2013, 141 Mt in 2024; wild catch 32 Mt in 1960 and about 90–96 Mt every year since the mid-1990s (94 Mt in 2024); farming passed the wild catch in 2013; farmed share 60% in 2024 counting seaweed"
+   },
+   {
+    "id": "sofia",
+    "title": "The State of World Fisheries and Aquaculture 2024",
+    "authors": "Food and Agriculture Organization of the United Nations",
+    "year": 2024,
+    "finding": "in 2022 aquaculture produced 51% of aquatic animals (fish, shellfish), overtaking capture fisheries for the first time"
+   }
+  ],
+  "elements": [
+   {
+    "id": "cross",
+    "type": "point",
+    "at": {
+     "data": [
+      2013,
+      95
+     ]
+    },
+    "style": {
+     "color": "#3d3833"
+    }
+   },
+   {
+    "id": "cross_l",
+    "type": "text",
+    "text": "2013: farms overtake",
+    "font_size": 36,
+    "style": {
+     "color": "#3d3833"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "data": [
+      1980,
+      140
+     ]
+    }
+   },
+   {
+    "id": "ceil",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      1993,
+      104
+     ],
+     [
+      2024,
+      104
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true,
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "ceil_l",
+    "type": "text",
+    "text": "ceiling ~90 Mt",
+    "font_size": 38,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ],
+    "at": {
+     "data": [
+      2000,
+      114
+     ]
+    }
+   },
+   {
+    "id": "oyster",
+    "type": "icon",
+    "of": "oyster",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 120,
+    "x": 230,
+    "y": 560
+   },
+   {
+    "id": "shrimp",
+    "type": "icon",
+    "of": "shrimp",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 120,
+    "x": 370,
+    "y": 560
+   },
+   {
+    "id": "incl",
+    "type": "text",
+    "text": "+ shellfish, seaweed",
+    "x": 300,
+    "y": 465,
+    "font_size": 36,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "half",
+    "type": "text",
+    "text": "animals only: ~half",
+    "x": 300,
+    "y": 465,
+    "font_size": 36,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "sofia"
+    ]
+   },
+   {
+    "id": "pole",
+    "type": "icon",
+    "of": "fishing pole",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 290,
+    "y": 540
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "How much seafood is farmed?"
+    }
+   },
+   {
+    "draw": [
+     "axes",
+     "line_2"
+    ],
+    "speak": "How much of the world's seafood is farmed, rather than caught in the wild? The blue line is the wild catch, in million tonnes a year."
+   },
+   {
+    "draw": [
+     "line_1"
+    ],
+    "speak": "Red is farmed: fish, shellfish and seaweed. In 1990, farms made seventeen million tonnes, a fifth as much as the wild catch."
+   },
+   {
+    "ask": {
+     "question": "Draw the farmed line on to 2024.",
+     "on": "line_1",
+     "from": 2000,
+     "store": "g",
+     "default": "20,24,25,27,29",
+     "right": "Close: you were {g.off} million tonnes off on average.",
+     "wrong": "You were {g.off} million tonnes off on average. Farms grew far faster."
+    }
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 1.5
+   },
+   {
+    "draw": [
+     "cross",
+     "cross_l"
+    ],
+    "speak": "In 2013 the farms passed the wild catch, and by 2024 they made about a hundred and forty million tonnes."
+   },
+   {
+    "draw": [
+     "ceil",
+     "ceil_l"
+    ],
+    "speak": "And look at the blue line: the wild catch has been stuck at around ninety million tonnes since the mid-1990s."
+   },
+   {
+    "highlight": {
+     "target": [
+      "line_1"
+     ]
+    },
+    "speak": "The seas were fished to their limit, so all the growth since has come from farms."
+   },
+   {
+    "erase": [
+     "cross",
+     "cross_l",
+     "ceil",
+     "ceil_l"
+    ]
+   },
+   {
+    "draw": [
+     "oyster",
+     "shrimp",
+     "incl"
+    ],
+    "speak": "That farmed total counts mussels, shrimp and seaweed too: sixty percent of everything."
+   },
+   {
+    "erase": [
+     "incl"
+    ]
+   },
+   {
+    "draw": [
+     "half"
+    ],
+    "speak": "Counting animals alone, farms passed the half-way mark in 2022."
+   },
+   {
+    "erase": [
+     "oyster",
+     "shrimp",
+     "half"
+    ]
+   },
+   {
+    "draw": [
+     "pole"
+    ],
+    "speak": "So the picture of seafood as a boat hauling in a net is out of date: most of it now grows up in a farm."
+   }
+  ]
+ }
+}

@@ -1,0 +1,13 @@
+a: As Americans grow older, how much of their day do they spend alone? At fifteen, it's under four hours.
+b: Easy. Then you get a partner, kids, colleagues. You're never alone again until retirement.
+[ASK] Draw the line from 15 to 80.
+  [right] Close. Your line ends at {g} hours; the real one ends near {g.true}.
+  [wrong] Your line ends at {g} hours; the real one ends near {g.true}.
+a: It climbs almost all the way. Most of the waking day, spent alone.
+b: Eight hours? That's a full working day in my own company.
+a: And friends go the other way. Teenagers get about an hour and a half a day with friends.
+a: From forty on, it's about half an hour.
+b: Half an hour. That's one coffee. A short one.
+a: But alone isn't the same as lonely. Surveys show the extra time alone doesn't necessarily make older people feel lonelier.
+a: The bigger change is at the young end. Americans aged fifteen to twenty-nine spent about four hours a day alone in 2010. By 2023, six.
+b: So my teenage nephew is training early for retirement.

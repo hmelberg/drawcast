@@ -1,0 +1,20 @@
+{
+ "file": "ozone-cfc.json",
+ "title": "What happened to ozone-destroying gases after the world agreed to ban them?",
+ "subtitle": "Draw what happened to ozone-destroying gases after 1989, then see the 99 % fall, why it worked, and how long the sky still needs to heal.",
+ "format": "quiz",
+ "tags": [
+  "earth",
+  "chemistry",
+  "history"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "2",
+ "form": "ask on a line (draw the rest from 1989)",
+ "owid": "https://ourworldindata.org/grapher/ozone-depleting-substance-consumption",
+ "notes": "Review fixes: 1986-89 rise drawn first (stage 0), viewer draws 1989-2021, stage 1 reveals; one Montreal label; twist on its own timeline 1980-2070 (1985 hole found, 2000 stops growing, 2066 healed, '40 more years' brace). Engine: the viewer's drawn line still vanishes at the reveal despite after: keep; the lint flags line_1 as drawn before the ask (only its 1986-89 stage is); the 'World' end label cannot be hidden and touches the 2021 tick; scale tick numbers small. 2021 = 16,659 ODP t (sum of UNEP chemicals on OWID's chart)."
+}

@@ -1,0 +1,453 @@
+{
+ "request": "Do natural disasters kill more people than a century ago? Let me drag the 1920s bar to my guess. #interactive #short",
+ "subtitle": "Today disasters kill about 45,000 people a year. Guess the 1920s toll, then see why the risk per person fell by about 98 percent.",
+ "thumb": "band \"Deadlier than ever?\" note \"1920s vs 2010s\"",
+ "spec": {
+  "title": "Do natural disasters kill more people than a century ago?",
+  "template": "bar_chart",
+  "params": {
+   "labels": [
+    "1920s",
+    "2010s"
+   ],
+   "values": [
+    [
+     524,
+     45
+    ],
+    [
+     266,
+     6
+    ]
+   ],
+   "value_labels": true,
+   "ylim": [
+    0,
+    800
+   ],
+   "y_label": "Deaths a year",
+   "bar_colors": "same",
+   "label_size": 40,
+   "box": {
+    "x": 110,
+    "y": 190,
+    "w": 700,
+    "h": 430
+   },
+   "stage": 0
+  },
+  "sources": [
+   {
+    "id": "owid_dis",
+    "title": "Natural disasters",
+    "authors": "Hannah Ritchie, Pablo Rosado and Max Roser",
+    "year": 2026,
+    "url": "https://ourworldindata.org/natural-disasters",
+    "finding": "over the last century, disaster death rates have fallen by more than 90 %; in most recent years disasters kill 10,000–20,000 people, less than 0.1 % of global deaths"
+   },
+   {
+    "id": "owid_dec",
+    "title": "Decadal average: annual number of deaths from disasters",
+    "authors": "Our World in Data, from EM-DAT, CRED / UCLouvain",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/decadal-deaths-disasters-type",
+    "finding": "average deaths a year from all disasters: about 524,000 in the 1920s (droughts about 472,000) and about 45,000 in the 2010s (droughts about 2,000); 2004 alone about 246,000"
+   },
+   {
+    "id": "owid_pop",
+    "title": "Population",
+    "authors": "Our World in Data, from HYDE and UN World Population Prospects",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/population",
+    "finding": "world population averaged about 1.97 billion in the 1920s and 7.42 billion in the 2010s; deaths per million people a year about 266 then and about 6 now"
+   }
+  ],
+  "elements": [
+   {
+    "id": "tag_k",
+    "type": "text",
+    "text": "thousands",
+    "x": 700,
+    "y": 590,
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "tag_m",
+    "type": "text",
+    "text": "per million people",
+    "x": 640,
+    "y": 590,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_pop",
+     "owid_dec"
+    ]
+   },
+   {
+    "id": "dline",
+    "type": "path",
+    "data": true,
+    "points": [
+     [
+      -0.45,
+      472
+     ],
+     [
+      0.45,
+      472
+     ]
+    ],
+    "style": {
+     "color": "#2f2b26",
+     "dash": true,
+     "stroke_width": 4
+    },
+    "cites": [
+     "owid_dec"
+    ]
+   },
+   {
+    "id": "dlab",
+    "type": "text",
+    "text": "droughts",
+    "font_size": 44,
+    "style": {
+     "color": "#2f2b26"
+    },
+    "at": {
+     "data": [
+      0,
+      400
+     ]
+    }
+   },
+   {
+    "id": "y2004",
+    "type": "text",
+    "text": "2004 alone: ≈ 250k",
+    "font_size": 46,
+    "style": {
+     "color": "#5e584e"
+    },
+    "at": {
+     "data": [
+      1,
+      300
+     ]
+    },
+    "cites": [
+     "owid_dec"
+    ]
+   },
+   {
+    "id": "share",
+    "type": "text",
+    "text": "< 0.1% of deaths",
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "at": {
+     "data": [
+      1,
+      200
+     ]
+    },
+    "cites": [
+     "owid_dis"
+    ]
+   },
+   {
+    "id": "drop",
+    "type": "text",
+    "text": "−98%",
+    "font_size": 80,
+    "style": {
+     "color": "#b5482e"
+    },
+    "at": {
+     "data": [
+      1,
+      380
+     ]
+    },
+    "cites": [
+     "owid_dec",
+     "owid_pop"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Are disasters deadlier than they used to be?"
+    }
+   },
+   {
+    "draw": [
+     "axes"
+    ],
+    "speak": "Earthquakes, floods, storms, droughts: do they kill more people today than a hundred years ago?"
+   },
+   {
+    "draw": [
+     "bar_2",
+     "tag_k"
+    ],
+    "speak": "In the 2010s, disasters killed about forty-five thousand people a year."
+   },
+   {
+    "ask": {
+     "question": "Drag the 1920s bar to your guess.",
+     "on": "bar_1",
+     "store": "g",
+     "default": "60",
+     "relative": true,
+     "tolerance": 0.25,
+     "right": "Close: you said {g} thousand a year, and it was about {g.true} thousand.",
+     "wrong": "You said {g} thousand; it was about {g.true} thousand a year, more than ten times today's toll."
+    }
+   },
+   {
+    "draw": [
+     "dline",
+     "dlab"
+    ],
+    "speak": "Most of it was drought, which in poor farming countries meant famine."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    },
+    "speak": "Drought deaths fell from about four hundred and seventy thousand a year to about two thousand, as farming, trade and food aid improved."
+   },
+   {
+    "erase": [
+     "dline",
+     "dlab"
+    ]
+   },
+   {
+    "draw": [
+     "y2004"
+    ],
+    "speak": "Bad years still come: in 2004 alone, disasters killed about a quarter of a million people, most of them in the Indian Ocean tsunami.",
+    "cue": 0.4
+   },
+   {
+    "erase": [
+     "y2004"
+    ]
+   },
+   {
+    "erase": [
+     "tag_k"
+    ]
+   },
+   {
+    "draw": [
+     "tag_m"
+    ],
+    "speak": "And there were only two billion people then, against seven and a half billion now. So count per million people.",
+    "cue": 0.4
+   },
+   {
+    "animate": {
+     "stage": 1
+    },
+    "duration": 3,
+    "speak": "Two hundred and sixty-six deaths per million people a year, down to about six."
+   },
+   {
+    "draw": [
+     "drop"
+    ],
+    "speak": "A fall of about ninety-eight percent."
+   },
+   {
+    "draw": [
+     "share"
+    ],
+    "speak": "Today disasters cause less than a tenth of one percent of all deaths in most years."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_2"
+     ]
+    },
+    "speak": "So disasters still fill the news, but the chance of dying in one has never been smaller."
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "storm",
+     "type": "icon",
+     "of": "tornado",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 260,
+     "y": 440
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "Deadlier?",
+     "x": 680,
+     "y": 500,
+     "font_size": 110,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "yrs",
+     "type": "text",
+     "text": "1920s vs 2010s",
+     "x": 680,
+     "y": 360,
+     "font_size": 64,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "A century of disasters"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "type": "text",
+     "id": "q",
+     "text": "?",
+     "x": 300,
+     "y": 400,
+     "font_size": 260,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "type": "text",
+     "id": "l1",
+     "text": "1920s",
+     "x": 300,
+     "y": 660,
+     "font_size": 72,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "b2",
+     "type": "shape",
+     "shape": "rect",
+     "x": 680,
+     "y": 320,
+     "width": 220,
+     "height": 40,
+     "style": {
+      "fill": "#cfe3ee",
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "type": "text",
+     "id": "v2",
+     "text": "45k a year",
+     "x": 680,
+     "y": 400,
+     "font_size": 64,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "type": "text",
+     "id": "l2",
+     "text": "2010s",
+     "x": 680,
+     "y": 660,
+     "font_size": 72,
+     "style": {
+      "color": "#2f2b26"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Drag the bar"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "earth",
+     "type": "icon",
+     "of": "globe showing americas",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 250,
+     "y": 450
+    },
+    {
+     "id": "x4",
+     "type": "text",
+     "text": "×4 people",
+     "x": 680,
+     "y": 480,
+     "font_size": 90,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "deaths",
+     "type": "text",
+     "text": "deaths ×?",
+     "x": 680,
+     "y": 350,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Guess first"
+    },
+    {
+     "id": "st",
+     "type": "thumb",
+     "kind": "stamp",
+     "text": "Then vs now",
+     "x": 700,
+     "y": 640,
+     "angle": 5
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,941 @@
+{
+ "request": "Which country tops the World Happiness Report? A two-voice mystery-country quiz with clues where I tap the flag. #interactive #short",
+ "subtitle": "Follow three clues to the country that tops the World Happiness Report, then find out what the survey really asks, and where money stops helping.",
+ "thumb": "band \"Guess the happiest\" stamp \"Not who you think\"",
+ "spec": {
+  "title": "Which country tops the World Happiness Report?",
+  "sources": [
+   {
+    "id": "owid_hap",
+    "title": "Self-reported life satisfaction (Cantril ladder)",
+    "authors": "Our World in Data, from the World Happiness Report 2026 (Wellbeing Research Centre) and the Gallup World Poll",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/happiness-cantril-ladder",
+    "finding": "2025 (average of 2023–2025): Finland 7.76, first, and first every year since 2017; Costa Rica 7.44, fourth; United States 6.82, 24th; Afghanistan 1.45, last"
+   },
+   {
+    "id": "owid_happy",
+    "title": "Happiness and Life Satisfaction",
+    "authors": "Esteban Ortiz-Ospina and Max Roser",
+    "year": 2024,
+    "url": "https://ourworldindata.org/happiness-and-life-satisfaction",
+    "finding": "the Cantril ladder asks people to rate their current life from 0 (worst possible life for you) to 10 (best possible); richer countries tend to have higher average life satisfaction"
+   },
+   {
+    "id": "owid_gdp",
+    "title": "GDP per capita",
+    "authors": "Our World in Data, from the World Bank",
+    "year": 2026,
+    "url": "https://ourworldindata.org/grapher/gdp-per-capita-worldbank",
+    "finding": "2024, in 2021 international dollars: United States about $75,700, Finland about $55,900, Costa Rica about $27,300"
+   }
+  ],
+  "elements": [
+   {
+    "id": "f_us",
+    "type": "icon",
+    "of": "flag united states",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 140,
+    "y": 370
+   },
+   {
+    "id": "n_us",
+    "type": "text",
+    "text": "USA",
+    "x": 140,
+    "y": 262,
+    "font_size": 42,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "o_us",
+    "type": "group",
+    "members": [
+     "f_us",
+     "n_us"
+    ]
+   },
+   {
+    "id": "f_dk",
+    "type": "icon",
+    "of": "flag denmark",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 380,
+    "y": 370
+   },
+   {
+    "id": "n_dk",
+    "type": "text",
+    "text": "Denmark",
+    "x": 380,
+    "y": 262,
+    "font_size": 42,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "o_dk",
+    "type": "group",
+    "members": [
+     "f_dk",
+     "n_dk"
+    ]
+   },
+   {
+    "id": "f_cr",
+    "type": "icon",
+    "of": "flag costa rica",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 620,
+    "y": 370
+   },
+   {
+    "id": "n_cr",
+    "type": "text",
+    "text": "Costa Rica",
+    "x": 620,
+    "y": 262,
+    "font_size": 42,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "o_cr",
+    "type": "group",
+    "members": [
+     "f_cr",
+     "n_cr"
+    ]
+   },
+   {
+    "id": "f_fi",
+    "type": "icon",
+    "of": "flag finland",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 150,
+    "x": 860,
+    "y": 370
+   },
+   {
+    "id": "n_fi",
+    "type": "text",
+    "text": "Finland",
+    "x": 860,
+    "y": 262,
+    "font_size": 42,
+    "style": {
+     "color": "#2f2b26"
+    }
+   },
+   {
+    "id": "o_fi",
+    "type": "group",
+    "members": [
+     "f_fi",
+     "n_fi"
+    ]
+   },
+   {
+    "id": "suspects",
+    "type": "group",
+    "members": [
+     "o_us",
+     "o_dk",
+     "o_cr",
+     "o_fi"
+    ]
+   },
+   {
+    "id": "c1",
+    "type": "text",
+    "text": "1: rich, not the richest",
+    "x": 500,
+    "y": 620,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_gdp"
+    ]
+   },
+   {
+    "id": "c2",
+    "type": "text",
+    "text": "2: long, dark winters",
+    "x": 500,
+    "y": 556,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "c3",
+    "type": "text",
+    "text": "3: long border with Russia",
+    "x": 500,
+    "y": 492,
+    "font_size": 40,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_hap"
+    ]
+   },
+   {
+    "id": "rail_a",
+    "type": "path",
+    "points": [
+     [
+      450,
+      175
+     ],
+     [
+      450,
+      655
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "rail_b",
+    "type": "path",
+    "points": [
+     [
+      550,
+      175
+     ],
+     [
+      550,
+      655
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 7
+    }
+   },
+   {
+    "id": "rung0",
+    "type": "path",
+    "points": [
+     [
+      450,
+      190
+     ],
+     [
+      550,
+      190
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "rung1",
+    "type": "path",
+    "points": [
+     [
+      450,
+      235
+     ],
+     [
+      550,
+      235
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "rung2",
+    "type": "path",
+    "points": [
+     [
+      450,
+      280
+     ],
+     [
+      550,
+      280
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "rung3",
+    "type": "path",
+    "points": [
+     [
+      450,
+      325
+     ],
+     [
+      550,
+      325
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "rung4",
+    "type": "path",
+    "points": [
+     [
+      450,
+      370
+     ],
+     [
+      550,
+      370
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "rung5",
+    "type": "path",
+    "points": [
+     [
+      450,
+      415
+     ],
+     [
+      550,
+      415
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "rung6",
+    "type": "path",
+    "points": [
+     [
+      450,
+      460
+     ],
+     [
+      550,
+      460
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "rung7",
+    "type": "path",
+    "points": [
+     [
+      450,
+      505
+     ],
+     [
+      550,
+      505
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "rung8",
+    "type": "path",
+    "points": [
+     [
+      450,
+      550
+     ],
+     [
+      550,
+      550
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "rung9",
+    "type": "path",
+    "points": [
+     [
+      450,
+      595
+     ],
+     [
+      550,
+      595
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "rung10",
+    "type": "path",
+    "points": [
+     [
+      450,
+      640
+     ],
+     [
+      550,
+      640
+     ]
+    ],
+    "style": {
+     "color": "#8a5a2b",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "ladder",
+    "type": "group",
+    "members": [
+     "rail_a",
+     "rail_b",
+     "rung0",
+     "rung1",
+     "rung2",
+     "rung3",
+     "rung4",
+     "rung5",
+     "rung6",
+     "rung7",
+     "rung8",
+     "rung9",
+     "rung10"
+    ]
+   },
+   {
+    "id": "l0",
+    "type": "text",
+    "text": "0 = worst life",
+    "x": 680,
+    "y": 190,
+    "font_size": 36,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "l10",
+    "type": "text",
+    "text": "10 = best",
+    "x": 320,
+    "y": 640,
+    "font_size": 36,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "p_fi",
+    "type": "icon",
+    "of": "flag finland",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 70,
+    "x": 660,
+    "y": 600,
+    "cites": [
+     "owid_hap"
+    ]
+   },
+   {
+    "id": "t_fi",
+    "type": "text",
+    "text": "7.8 · 1st",
+    "x": 820,
+    "y": 600,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "k_fi",
+    "type": "path",
+    "points": [
+     [
+      620,
+      595
+     ],
+     [
+      555,
+      539.2
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 2,
+     "dash": true
+    }
+   },
+   {
+    "id": "p_us",
+    "type": "icon",
+    "of": "flag united states",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 70,
+    "x": 660,
+    "y": 450,
+    "cites": [
+     "owid_hap"
+    ]
+   },
+   {
+    "id": "t_us",
+    "type": "text",
+    "text": "6.8 · 24th",
+    "x": 820,
+    "y": 450,
+    "font_size": 44,
+    "style": {
+     "color": "#5e584e"
+    }
+   },
+   {
+    "id": "k_us",
+    "type": "path",
+    "points": [
+     [
+      620,
+      455
+     ],
+     [
+      555,
+      496.90000000000003
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 2,
+     "dash": true
+    }
+   },
+   {
+    "id": "p_cr",
+    "type": "icon",
+    "of": "flag costa rica",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 70,
+    "x": 340,
+    "y": 580,
+    "cites": [
+     "owid_hap"
+    ]
+   },
+   {
+    "id": "t_cr",
+    "type": "text",
+    "text": "4th · 7.4",
+    "x": 180,
+    "y": 580,
+    "font_size": 44,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "k_cr",
+    "type": "path",
+    "points": [
+     [
+      380,
+      575
+     ],
+     [
+      445,
+      524.8
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 2,
+     "dash": true
+    }
+   },
+   {
+    "id": "p_af",
+    "type": "icon",
+    "of": "flag afghanistan",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 70,
+    "x": 340,
+    "y": 255.25,
+    "cites": [
+     "owid_hap"
+    ]
+   },
+   {
+    "id": "t_af",
+    "type": "text",
+    "text": "last · 1.4",
+    "x": 180,
+    "y": 255.25,
+    "font_size": 44,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "k_af",
+    "type": "path",
+    "points": [
+     [
+      380,
+      255.25
+     ],
+     [
+      445,
+      255.25
+     ]
+    ],
+    "style": {
+     "color": "#8f887c",
+     "stroke_width": 2,
+     "dash": true
+    }
+   },
+   {
+    "id": "g_fi",
+    "type": "group",
+    "members": [
+     "p_fi",
+     "t_fi",
+     "k_fi"
+    ]
+   },
+   {
+    "id": "g_us",
+    "type": "group",
+    "members": [
+     "p_us",
+     "t_us",
+     "k_us"
+    ]
+   },
+   {
+    "id": "g_cr",
+    "type": "group",
+    "members": [
+     "p_cr",
+     "t_cr",
+     "k_cr"
+    ]
+   },
+   {
+    "id": "g_af",
+    "type": "group",
+    "members": [
+     "p_af",
+     "t_af",
+     "k_af"
+    ]
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Which is the world's happiest country?"
+    }
+   },
+   {
+    "draw": [
+     "suspects"
+    ],
+    "voice": "a",
+    "speak": "Which country tops the World Happiness Report? Let's play this one together. Here are four suspects."
+   },
+   {
+    "draw": [
+     "c1",
+     "c2"
+    ],
+    "voice": "a",
+    "speak": "Clue one: it's rich, but about a quarter poorer per person than the United States. Clue two: its winters are long and dark."
+   },
+   {
+    "highlight": {
+     "target": [
+      "o_dk"
+     ]
+    },
+    "voice": "b",
+    "speak": "Denmark, then. Danes are always called the happiest people on Earth."
+   },
+   {
+    "draw": [
+     "c3"
+    ],
+    "voice": "a",
+    "speak": "Clue three: it has a long border with Russia."
+   },
+   {
+    "ask": {
+     "question": "Tap the country.",
+     "choose": [
+      "o_us",
+      "o_dk",
+      "o_cr",
+      "o_fi"
+     ],
+     "answer": "o_fi",
+     "right": "Finland: about seven point eight out of ten, top for nine years running.",
+     "wrong": "Denmark used to win, but not lately."
+    }
+   },
+   {
+    "erase": [
+     "c1",
+     "c2",
+     "c3",
+     "suspects"
+    ]
+   },
+   {
+    "draw": [
+     "ladder",
+     "l0",
+     "l10"
+    ],
+    "voice": "b",
+    "speak": "Finland? Finns are famous for not smiling at strangers."
+   },
+   {
+    "draw": [
+     "g_fi"
+    ],
+    "voice": "a",
+    "speak": "Which is the point: nobody is asked if they feel cheerful. They picture a ladder, from the worst possible life for them to the best, and say which step they stand on."
+   },
+   {
+    "draw": [
+     "g_af"
+    ],
+    "voice": "a",
+    "speak": "At the bottom is Afghanistan, at about one point four."
+   },
+   {
+    "highlight": {
+     "target": [
+      "p_fi"
+     ]
+    },
+    "voice": "b",
+    "speak": "So money decides it. The United States must be right up there."
+   },
+   {
+    "draw": [
+     "g_us"
+    ],
+    "voice": "a",
+    "speak": "Twenty-fourth, at about six point eight. Richer countries do tend to rate their lives higher, but not always."
+   },
+   {
+    "voice": "b",
+    "speak": "Then who beats America with less money?",
+    "highlight": {
+     "target": [
+      "p_us"
+     ]
+    }
+   },
+   {
+    "draw": [
+     "g_cr"
+    ],
+    "voice": "a",
+    "speak": "Costa Rica: about a third of America's income per person, and fourth on the ladder. Money buys a few rungs, not the whole climb."
+   },
+   {
+    "highlight": {
+     "target": [
+      "g_cr"
+     ]
+    }
+   }
+  ]
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "cr",
+     "type": "icon",
+     "of": "crown",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 500,
+     "y": 610
+    },
+    {
+     "id": "a",
+     "type": "icon",
+     "of": "flag united states",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 170,
+     "y": 420
+    },
+    {
+     "id": "b",
+     "type": "icon",
+     "of": "flag denmark",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 390,
+     "y": 420
+    },
+    {
+     "id": "c",
+     "type": "icon",
+     "of": "flag costa rica",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 610,
+     "y": 420
+    },
+    {
+     "id": "d",
+     "type": "icon",
+     "of": "flag finland",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 150,
+     "x": 830,
+     "y": 420
+    },
+    {
+     "id": "band",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Who wears the crown?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "l",
+     "type": "icon",
+     "of": "ladder",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 380,
+     "x": 500,
+     "y": 420
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "0 to 10",
+     "x": 500,
+     "y": 180,
+     "font_size": 70,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "q",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Which step are you on?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "f",
+     "type": "icon",
+     "of": "neutral face",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 260,
+     "y": 260
+    },
+    {
+     "id": "t1",
+     "type": "text",
+     "text": "happiest",
+     "x": 700,
+     "y": 500,
+     "font_size": 90,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "text",
+     "text": "≠ smiliest?",
+     "x": 700,
+     "y": 380,
+     "font_size": 90,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "bu",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "Plot twist"
+    }
+   ]
+  }
+ ]
+}

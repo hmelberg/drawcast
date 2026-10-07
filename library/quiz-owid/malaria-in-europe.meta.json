@@ -1,0 +1,20 @@
+{
+ "file": "malaria-in-europe.json",
+ "title": "Which of these countries still had malaria around 1900?",
+ "subtitle": "Tap every country that still had malaria around 1900, from Italy to Finland, then hear why it was never really a tropical disease.",
+ "format": "quiz",
+ "tags": [
+  "health",
+  "history",
+  "geography"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": true,
+ "shape": "1",
+ "form": "cards select (tap all)",
+ "owid": "https://ourworldindata.org/malaria-past-prevalence",
+ "notes": "Cards arrange rise (box above, cards below) at size 1.12: the default drop layout ran the box edge through the caption and the prompt through the top card row; bigger sizes overflow the canvas. Flags inside cards stay small. Per-country facts rest on the OWID map (Hay et al. 2004) and endnotes (Italy, Netherlands, Lincoln), CDC (US 1951) and Hulden 2009 (Finland 1954)."
+}

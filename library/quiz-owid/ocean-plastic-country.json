@@ -1,0 +1,634 @@
+{
+ "request": "A two-voice quiz: which country puts the most plastic into the ocean? Let me tap one of four flags. #interactive #short",
+ "subtitle": "Pick the country that puts the most plastic into the ocean, then see why it is a nation of islands and small city rivers, not the biggest user.",
+ "thumb": "band \"Not who you'd guess\" note \"1/3 of it\"",
+ "spec": {
+  "title": "Which country puts the most plastic into the ocean?",
+  "sources": [
+   {
+    "id": "owid",
+    "title": "Where does the plastic in our oceans come from?",
+    "authors": "Hannah Ritchie (Our World in Data)",
+    "year": 2021,
+    "url": "https://ourworldindata.org/ocean-plastics",
+    "finding": "the Philippines accounts for 36% of plastic inputs to the ocean, India 13%, China 7%; seven of the top ten emitting rivers are in the Philippines; the Pasig river alone carries 6.4% of global river plastic; it takes the top 1,656 rivers to account for 80%"
+   },
+   {
+    "id": "chart",
+    "title": "Share of global plastic waste emitted to the ocean (2019)",
+    "authors": "Our World in Data, from Meijer et al. (2021), Science Advances",
+    "year": 2021,
+    "url": "https://ourworldindata.org/grapher/share-of-global-plastic-waste-emitted-to-the-ocean",
+    "finding": "Philippines 36.4%, India 12.9%, Malaysia 7.5%, China 7.2%, United States 0.25% (2019)"
+   }
+  ],
+  "elements": [
+   {
+    "id": "f_us",
+    "type": "icon",
+    "of": "flag united states",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 200,
+    "y": 580
+   },
+   {
+    "id": "f_cn",
+    "type": "icon",
+    "of": "flag china",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 500,
+    "y": 580
+   },
+   {
+    "id": "f_in",
+    "type": "icon",
+    "of": "flag india",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 800,
+    "y": 580
+   },
+   {
+    "id": "f_my",
+    "type": "icon",
+    "of": "flag malaysia",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 330,
+    "y": 300
+   },
+   {
+    "id": "f_ph",
+    "type": "icon",
+    "of": "flag philippines",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 200,
+    "x": 670,
+    "y": 300
+   },
+   {
+    "id": "l_us",
+    "type": "text",
+    "text": "<1%",
+    "font_size": 50,
+    "style": {
+     "color": "#3d3833"
+    },
+    "at": {
+     "ref": "f_us",
+     "side": "right",
+     "gap": 14
+    },
+    "cites": [
+     "chart"
+    ]
+   },
+   {
+    "id": "l_cn",
+    "type": "text",
+    "text": "7%",
+    "font_size": 50,
+    "style": {
+     "color": "#3d3833"
+    },
+    "at": {
+     "ref": "f_cn",
+     "side": "right",
+     "gap": 14
+    },
+    "cites": [
+     "chart"
+    ]
+   },
+   {
+    "id": "l_in",
+    "type": "text",
+    "text": "13%",
+    "font_size": 50,
+    "style": {
+     "color": "#3d3833"
+    },
+    "at": {
+     "ref": "f_in",
+     "side": "right",
+     "gap": 14
+    },
+    "cites": [
+     "chart"
+    ]
+   },
+   {
+    "id": "l_my",
+    "type": "text",
+    "text": "7.5%",
+    "font_size": 50,
+    "style": {
+     "color": "#3d3833"
+    },
+    "at": {
+     "ref": "f_my",
+     "side": "right",
+     "gap": 14
+    },
+    "cites": [
+     "chart"
+    ]
+   },
+   {
+    "id": "isle",
+    "type": "path",
+    "smooth": true,
+    "closed": true,
+    "points": [
+     [
+      100,
+      500
+     ],
+     [
+      180,
+      600
+     ],
+     [
+      320,
+      620
+     ],
+     [
+      430,
+      540
+     ],
+     [
+      420,
+      390
+     ],
+     [
+      340,
+      280
+     ],
+     [
+      200,
+      260
+     ],
+     [
+      110,
+      350
+     ]
+    ],
+    "style": {
+     "color": "#87a878",
+     "fill": "#e3eed8",
+     "stroke_width": 3
+    }
+   },
+   {
+    "id": "riv1",
+    "type": "path",
+    "smooth": true,
+    "points": [
+     [
+      270,
+      470
+     ],
+     [
+      220,
+      430
+     ],
+     [
+      190,
+      390
+     ],
+     [
+      125,
+      360
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 5
+    }
+   },
+   {
+    "id": "riv2",
+    "type": "path",
+    "smooth": true,
+    "points": [
+     [
+      320,
+      450
+     ],
+     [
+      370,
+      500
+     ],
+     [
+      405,
+      540
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "riv3",
+    "type": "path",
+    "smooth": true,
+    "points": [
+     [
+      280,
+      380
+     ],
+     [
+      300,
+      330
+     ],
+     [
+      330,
+      290
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "riv4",
+    "type": "path",
+    "smooth": true,
+    "points": [
+     [
+      240,
+      520
+     ],
+     [
+      220,
+      570
+     ],
+     [
+      200,
+      598
+     ]
+    ],
+    "style": {
+     "color": "#2f6b8f",
+     "stroke_width": 4
+    }
+   },
+   {
+    "id": "city",
+    "type": "shape",
+    "shape": "circle",
+    "x": 190,
+    "y": 390,
+    "radius": 10,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e"
+    }
+   },
+   {
+    "id": "pasig",
+    "type": "text",
+    "text": "Pasig: 6%",
+    "x": 150,
+    "y": 655,
+    "font_size": 48,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "rivers",
+    "type": "text",
+    "text": "1,000+ rivers",
+    "x": 280,
+    "y": 205,
+    "font_size": 50,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid"
+    ]
+   },
+   {
+    "id": "p_ar",
+    "type": "arrow",
+    "from": {
+     "x": 165,
+     "y": 615
+    },
+    "to": {
+     "ref": "city",
+     "anchor": "top"
+    },
+    "style": {
+     "color": "#2f6b8f"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Who puts most plastic in the sea?"
+    }
+   },
+   {
+    "draw": [
+     "f_us",
+     "f_cn",
+     "f_in",
+     "f_my",
+     "f_ph"
+    ],
+    "parallel": true,
+    "voice": "a",
+    "speak": "Which country puts the most plastic into the ocean? Five suspects."
+   },
+   {
+    "highlight": {
+     "target": [
+      "f_us"
+     ]
+    },
+    "voice": "b",
+    "speak": "Everyone will say China. I'm going with America: all those takeaway cups."
+   },
+   {
+    "ask": {
+     "question": "Tap the country you suspect.",
+     "choose": [
+      "f_us",
+      "f_cn",
+      "f_in",
+      "f_my",
+      "f_ph"
+     ],
+     "answer": "f_ph",
+     "store": "c",
+     "reveal": {
+      "text": "✓ 36%",
+      "at": {
+       "x": 670,
+       "y": 420
+      },
+      "size": 56
+     },
+     "right": "The Philippines: more than a third of all the plastic that reaches the sea.",
+     "wrong": "Think less about who uses the most plastic, and more about where a country's rubbish can go."
+    }
+   },
+   {
+    "draw": [
+     "l_cn",
+     "l_in",
+     "l_my"
+    ],
+    "voice": "a",
+    "speak": "China: about seven percent. India, thirteen. And little Malaysia, seven and a half, ahead of China."
+   },
+   {
+    "highlight": {
+     "target": [
+      "f_us"
+     ]
+    },
+    "voice": "b",
+    "speak": "And my America?"
+   },
+   {
+    "draw": [
+     "l_us"
+    ],
+    "voice": "a",
+    "speak": "Under one percent. Its rubbish is mostly collected and buried, far from rivers."
+   },
+   {
+    "move": {
+     "target": [
+      "f_us"
+     ],
+     "scale": 0.1,
+     "duration": 0.8
+    }
+   },
+   {
+    "move": {
+     "target": [
+      "f_cn",
+      "f_my"
+     ],
+     "scale": 0.45,
+     "duration": 0.8
+    }
+   },
+   {
+    "move": {
+     "target": [
+      "f_in"
+     ],
+     "scale": 0.6,
+     "duration": 0.8
+    }
+   },
+   {
+    "move": {
+     "target": [
+      "f_ph"
+     ],
+     "scale": 1.4,
+     "duration": 1.2
+    },
+    "voice": "b",
+    "speak": "Drawn to scale, that's lopsided. Why the Philippines?"
+   },
+   {
+    "erase": [
+     "f_us",
+     "f_cn",
+     "f_in",
+     "f_my",
+     "l_us",
+     "l_cn",
+     "l_in",
+     "l_my"
+    ]
+   },
+   {
+    "draw": [
+     "isle"
+    ],
+    "voice": "a",
+    "speak": "Thousands of islands, people living near the coast, heavy rain, and rubbish that is often never collected. It's a short trip to the sea."
+   },
+   {
+    "draw": [
+     "riv1",
+     "riv2",
+     "riv3",
+     "riv4"
+    ],
+    "parallel": true,
+    "voice": "b",
+    "speak": "So it's not one giant river, but lots of little ones?"
+   },
+   {
+    "draw": [
+     "city",
+     "pasig",
+     "p_ar"
+    ],
+    "voice": "a",
+    "speak": "Yes. The Pasig, a small river through Manila, carries six percent of all river plastic by itself."
+   },
+   {
+    "draw": [
+     "rivers"
+    ],
+    "voice": "a",
+    "speak": "It takes over a thousand rivers to make up most of the world's total. So the fix is collecting rubbish everywhere before it reaches the water."
+   }
+  ],
+  "affirm": "playful"
+ },
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "w",
+     "type": "icon",
+     "of": "water wave",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 260,
+     "x": 200,
+     "y": 470
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "1/3",
+     "x": 640,
+     "y": 560,
+     "font_size": 200,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "q2",
+     "type": "text",
+     "text": "from ONE country",
+     "x": 650,
+     "y": 360,
+     "font_size": 70
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Which one?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "a",
+     "type": "icon",
+     "of": "flag united states",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 150,
+     "y": 540
+    },
+    {
+     "id": "c",
+     "type": "icon",
+     "of": "flag china",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 330,
+     "y": 540
+    },
+    {
+     "id": "d",
+     "type": "icon",
+     "of": "flag india",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 510,
+     "y": 540
+    },
+    {
+     "id": "e",
+     "type": "icon",
+     "of": "flag malaysia",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 690,
+     "y": 540
+    },
+    {
+     "id": "f",
+     "type": "icon",
+     "of": "flag philippines",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 170,
+     "x": 870,
+     "y": 540
+    },
+    {
+     "id": "q",
+     "type": "text",
+     "text": "One of these: 1/3 of all",
+     "x": 500,
+     "y": 360,
+     "font_size": 70
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "Ocean plastic: who's #1?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "g",
+     "type": "icon",
+     "of": "cup with straw",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 330,
+     "x": 640,
+     "y": 420
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "burst",
+     "text": "A third of ocean plastic: one country. Guess?"
+    }
+   ]
+  }
+ ]
+}

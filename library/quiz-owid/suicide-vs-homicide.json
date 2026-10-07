@@ -1,0 +1,509 @@
+{
+ "request": "Worldwide, which takes more lives: suicide or homicide? Let me pick one, then show the gap to scale. #interactive #short",
+ "subtitle": "Pick which takes more lives worldwide, suicide or homicide, then see the gap drawn to scale and why the news makes it feel the other way round.",
+ "thumb": "question \"Which takes more lives worldwide?\"",
+ "thumbnails": [
+  {
+   "elements": [
+    {
+     "id": "r1",
+     "type": "shape",
+     "shape": "rect",
+     "x": 500,
+     "y": 520,
+     "width": 380,
+     "height": 130,
+     "style": {
+      "color": "#2f6b8f",
+      "stroke_width": 5
+     }
+    },
+    {
+     "id": "a",
+     "type": "text",
+     "text": "Suicide",
+     "x": 500,
+     "y": 520,
+     "font_size": 72,
+     "style": {
+      "color": "#2f6b8f"
+     }
+    },
+    {
+     "id": "vs",
+     "type": "text",
+     "text": "or",
+     "x": 500,
+     "y": 390,
+     "font_size": 56,
+     "style": {
+      "color": "#8f887c"
+     }
+    },
+    {
+     "id": "r2",
+     "type": "shape",
+     "shape": "rect",
+     "x": 500,
+     "y": 260,
+     "width": 380,
+     "height": 130,
+     "style": {
+      "color": "#b5482e",
+      "stroke_width": 5
+     }
+    },
+    {
+     "id": "h",
+     "type": "text",
+     "text": "Homicide",
+     "x": 500,
+     "y": 260,
+     "font_size": 72,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "question",
+     "text": "Which takes more lives worldwide?"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "news",
+     "type": "icon",
+     "of": "newspaper",
+     "set": "twemoji",
+     "icon_look": "picture",
+     "size": 300,
+     "x": 280,
+     "y": 440
+    },
+    {
+     "id": "t",
+     "type": "text",
+     "text": "43×",
+     "x": 680,
+     "y": 470,
+     "font_size": 140,
+     "style": {
+      "color": "#b5482e"
+     }
+    },
+    {
+     "id": "t2",
+     "type": "text",
+     "text": "the coverage",
+     "x": 680,
+     "y": 340,
+     "font_size": 52,
+     "style": {
+      "color": "#3d3833"
+     }
+    },
+    {
+     "id": "b",
+     "type": "thumb",
+     "kind": "band",
+     "text": "What the news leaves out"
+    }
+   ]
+  },
+  {
+   "elements": [
+    {
+     "id": "base",
+     "type": "path",
+     "points": [
+      [
+       320,
+       180
+      ],
+      [
+       920,
+       180
+      ]
+     ],
+     "style": {
+      "color": "#3d3833",
+      "stroke_width": 5
+     }
+    },
+    {
+     "id": "b1",
+     "type": "shape",
+     "shape": "rect",
+     "x": 490,
+     "y": 380,
+     "width": 190,
+     "height": 400,
+     "style": {
+      "color": "#8f887c",
+      "fill": "#8f887c",
+      "fill_style": "wash",
+      "opacity": 0.5
+     }
+    },
+    {
+     "id": "b3",
+     "type": "shape",
+     "shape": "rect",
+     "x": 750,
+     "y": 300,
+     "width": 190,
+     "height": 240,
+     "style": {
+      "color": "#8f887c",
+      "fill": "#8f887c",
+      "fill_style": "wash",
+      "opacity": 0.5
+     }
+    },
+    {
+     "id": "q1",
+     "type": "text",
+     "text": "?",
+     "x": 490,
+     "y": 630,
+     "font_size": 80
+    },
+    {
+     "id": "q2",
+     "type": "text",
+     "text": "?",
+     "x": 750,
+     "y": 470,
+     "font_size": 80
+    },
+    {
+     "id": "n",
+     "type": "thumb",
+     "kind": "note",
+     "text": "Suicide or homicide?",
+     "x": 130,
+     "y": 660,
+     "angle": -4
+    }
+   ]
+  }
+ ],
+ "spec": {
+  "title": "Which takes more lives worldwide: suicide or homicide?",
+  "sources": [
+   {
+    "id": "owid_s",
+    "title": "Suicide rate (both sexes); Number of suicides",
+    "authors": "Our World in Data, from the WHO Global Health Estimates",
+    "year": 2024,
+    "url": "https://ourworldindata.org/grapher/suicide-rate",
+    "finding": "world suicide death rate about 9.1 per 100,000 in 2021; about 718,000 suicides in 2021"
+   },
+   {
+    "id": "owid_h",
+    "title": "Homicide rate",
+    "authors": "Our World in Data, from the UN Office on Drugs and Crime",
+    "year": 2025,
+    "url": "https://ourworldindata.org/grapher/homicide-rate-unodc",
+    "finding": "world homicide rate about 5.5 per 100,000 in 2021, 6.9 in 2000 and 5.1 in 2024"
+   },
+   {
+    "id": "owid_fall",
+    "title": "The global suicide rate has fallen since the 1990s, but the death toll is still high",
+    "authors": "Hannah Ritchie (Our World in Data), from IHME Global Burden of Disease",
+    "year": 2026,
+    "url": "https://ourworldindata.org/data-insights/the-global-suicide-rate-has-fallen-since-the-1990s-but-the-death-toll-is-still-high",
+    "finding": "global suicide rates have fallen by an estimated 40% since the 1990s, from 15 to 9 deaths per 100,000"
+   },
+   {
+    "id": "owid_news",
+    "title": "Does the news reflect what we die from?",
+    "authors": "Hannah Ritchie, Tuna Acisu and Edouard Mathieu (Our World in Data)",
+    "year": 2025,
+    "url": "https://ourworldindata.org/does-the-news-reflect-what-we-die-from",
+    "finding": "US deaths in 2023 against coverage in the New York Times, Washington Post and Fox News: homicides received 43 times more coverage than their share of deaths"
+   }
+  ],
+  "elements": [
+   {
+    "id": "opt_s",
+    "type": "node",
+    "shape": "rect",
+    "text": "Suicide",
+    "x": 300,
+    "y": 430,
+    "width": 300,
+    "height": 110,
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   },
+   {
+    "id": "opt_h",
+    "type": "node",
+    "shape": "rect",
+    "text": "Homicide",
+    "x": 700,
+    "y": 430,
+    "width": 300,
+    "height": 110,
+    "font_size": 52,
+    "style": {
+     "color": "#b5482e"
+    }
+   },
+   {
+    "id": "then_bar",
+    "type": "shape",
+    "shape": "rect",
+    "x": 300,
+    "y": 465.0,
+    "width": 220,
+    "height": 360,
+    "style": {
+     "color": "#2f6b8f",
+     "dash": true,
+     "stroke_width": 2,
+     "opacity": 0.6
+    }
+   },
+   {
+    "id": "then_l",
+    "type": "text",
+    "text": "1990s: ~15",
+    "x": 300,
+    "y": 615,
+    "font_size": 34,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_fall"
+    ]
+   },
+   {
+    "id": "fall_s",
+    "type": "text",
+    "text": "−40%",
+    "x": 500,
+    "y": 573,
+    "font_size": 52,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_fall"
+    ]
+   },
+   {
+    "id": "bar_s",
+    "type": "shape",
+    "shape": "rect",
+    "x": 300,
+    "y": 394.2,
+    "width": 220,
+    "height": 218.39999999999998,
+    "style": {
+     "color": "#2f6b8f",
+     "fill": "#2f6b8f",
+     "fill_style": "wash",
+     "opacity": 0.45
+    }
+   },
+   {
+    "id": "bar_h",
+    "type": "shape",
+    "shape": "rect",
+    "x": 700,
+    "y": 351.0,
+    "width": 220,
+    "height": 132.0,
+    "style": {
+     "color": "#b5482e",
+     "fill": "#b5482e",
+     "fill_style": "wash",
+     "opacity": 0.45
+    }
+   },
+   {
+    "id": "val_s",
+    "type": "text",
+    "text": "9.1",
+    "x": 300,
+    "y": 463.4,
+    "font_size": 60,
+    "style": {
+     "color": "#2f6b8f"
+    },
+    "cites": [
+     "owid_s"
+    ]
+   },
+   {
+    "id": "val_h",
+    "type": "text",
+    "text": "5.5",
+    "x": 700,
+    "y": 377.0,
+    "font_size": 60,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_h"
+    ]
+   },
+   {
+    "id": "unit",
+    "type": "text",
+    "text": "per 100,000 a year",
+    "x": 700,
+    "y": 447.0,
+    "font_size": 30,
+    "style": {
+     "color": "#8f887c"
+    }
+   },
+   {
+    "id": "news",
+    "type": "icon",
+    "of": "newspaper",
+    "set": "twemoji",
+    "icon_look": "picture",
+    "size": 120,
+    "x": 600,
+    "y": 570
+   },
+   {
+    "id": "news_l",
+    "type": "text",
+    "text": "43× coverage",
+    "x": 800,
+    "y": 570,
+    "font_size": 46,
+    "style": {
+     "color": "#b5482e"
+    },
+    "cites": [
+     "owid_news"
+    ]
+   },
+   {
+    "id": "help",
+    "type": "text",
+    "text": "findahelpline.com",
+    "x": 720,
+    "y": 560,
+    "font_size": 46,
+    "style": {
+     "color": "#2f6b8f"
+    }
+   }
+  ],
+  "commands": [
+   {
+    "card": {
+     "title": "Suicide or homicide: which takes more lives?"
+    }
+   },
+   {
+    "draw": [
+     "opt_s",
+     "opt_h"
+    ],
+    "parallel": true,
+    "speak": "Around the world, which takes more lives each year: suicide, or homicide?"
+   },
+   {
+    "ask": {
+     "question": "Tap the one you think takes more lives.",
+     "choose": [
+      "opt_s",
+      "opt_h"
+     ],
+     "answer": "opt_s",
+     "store": "c",
+     "right": "Suicide does, by a wide margin.",
+     "wrong": "Think about which one you rarely hear about."
+    }
+   },
+   {
+    "move": {
+     "target": [
+      "opt_s",
+      "opt_h"
+     ],
+     "by": [
+      0,
+      -200
+     ]
+    },
+    "duration": 0.8
+   },
+   {
+    "draw": [
+     "unit",
+     "bar_s",
+     "val_s"
+    ],
+    "speak": "Worldwide, about nine people in every hundred thousand die by suicide each year: more than seven hundred thousand lives."
+   },
+   {
+    "draw": [
+     "bar_h",
+     "val_h"
+    ],
+    "speak": "Homicide takes about five and a half per hundred thousand. So suicide claims about two-thirds more lives."
+   },
+   {
+    "draw": [
+     "then_bar",
+     "then_l",
+     "fall_s"
+    ],
+    "speak": "And it is not because suicide is rising. In the early 1990s the rate was about fifteen; it has fallen by some forty percent."
+   },
+   {
+    "erase": [
+     "then_bar",
+     "then_l",
+     "fall_s",
+     "unit"
+    ]
+   },
+   {
+    "draw": [
+     "news",
+     "news_l"
+    ],
+    "speak": "So why does murder feel like the bigger threat? It is news. In three big American news outlets, homicide got forty-three times more coverage than its share of deaths."
+   },
+   {
+    "highlight": {
+     "target": [
+      "bar_s"
+     ],
+     "effect": "underline"
+    },
+    "speak": "Suicide rarely makes the news, so the larger bar is the one we hardly see."
+   },
+   {
+    "erase": [
+     "news",
+     "news_l"
+    ]
+   },
+   {
+    "draw": [
+     "help"
+    ],
+    "speak": "Behind that bar are people. If this touches you or someone close, talk to someone, or find a helpline near you."
+   }
+  ]
+ }
+}

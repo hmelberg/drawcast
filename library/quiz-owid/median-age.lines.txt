@@ -1,0 +1,14 @@
+How old is the typical person in a country? Line everyone up by age and take the one in the middle: that is the median age.
+Here are five countries, from Africa, South America, North America, Europe and Asia.
+[ASK] Drag each country to its median age on the line.
+  [right] All {w.total} close.
+  [wrong] {w.within} of {w.total} close.
+Here are the true ages: from about fifteen in Niger to forty-nine in Japan.
+Niger is one of the youngest countries on Earth: half its people are children.
+So Japan's middle person is thirty-four years older than Niger's.
+And the whole world sits between them, at about thirty.
+But Japan was not always old. In 1950, its median age was twenty-one.
+That is younger than Brazil is today.
+Fewer babies and much longer lives aged Japan by nearly thirty years in seven decades.
+Niger is on the same road, only later: the UN expects its median age to pass thirty around 2082.
+So one of the youngest countries today may one day be as old as the whole world is now.

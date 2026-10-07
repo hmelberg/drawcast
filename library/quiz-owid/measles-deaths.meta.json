@@ -1,0 +1,20 @@
+{
+ "file": "measles-deaths.json",
+ "title": "How fast have measles deaths fallen since 1980?",
+ "subtitle": "Draw how measles deaths changed after 1985, then see the fall of about 90 percent, what drove it, and why the line turned up again.",
+ "format": "quiz",
+ "tags": [
+  "health",
+  "epidemiology",
+  "data"
+ ],
+ "level": "standard",
+ "lang": "en",
+ "score": 4,
+ "verdict": "keep",
+ "dialogue": false,
+ "shape": "2",
+ "form": "ask on line (draw the rest)",
+ "owid": "https://ourworldindata.org/grapher/deaths-due-to-measles-gbd",
+ "notes": "OWID (IHME GBD 2025) gives 1.39 M deaths in 1980, not WHO's often-quoted ~2.6 M (named in sources; voice says 'by one major estimate'); 2023: 144,000; low of 71,000 in 2021, 'roughly doubled' by 2023. Review round: heading 'Where did measles deaths go?'; the given 1980-85 part drawn as its own series before the ask (an ask may not see line_1 drawn first); x ticks only at the ends; labels attached to points; chart kept to the end with an arrow on the 2021-23 rise. Engine: the ask question replaces the heading on a line guess; the viewer's drawn line is not kept after the reveal; the guess handle starts flat at the 1980 value."
+}
