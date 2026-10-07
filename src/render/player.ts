@@ -51,6 +51,7 @@ import { EACH_MS, FADED, WRONG, YOURS, besideDuration, besideMarks, besideStyles
 import { gateLang, gateWords } from "../ui/gate-words";
 import { setYouWord } from "../guess/color";
 import type { CardsGeometry } from "../spec/cards";
+import { isCardsPart } from "../spec/cards-ids";
 import { CORRECTED, counterMarks } from "../cards/counter";
 import { REORDER_MS, VERDICT_MS, reorderAt, reorderLanded, rankVerdicts, yoursRow } from "../cards/reorder";
 import { cardsMarks, cardsTruth, fadedCards, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightCards, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
@@ -2084,7 +2085,7 @@ export class Player {
     // question shows them (never a compare pair's numbers — those are the answer).
     // (Nor a deck's waiting cards: the deal shows each in turn.)
     const answerIds = new Set([...(g.valueIds ?? []), ...(g.arrows ?? []), ...(g.deal ?? []).slice(1).map((i) => g.cards[i])]);
-    show([...this.elements.keys()].filter((id) => id.startsWith(`${g.id}_`) && !answerIds.has(id)));
+    show([...this.elements.keys()].filter((id) => isCardsPart(g.id, id) && !answerIds.has(id)));
     const live = !this.autoAnswers && this.askGate !== null;
     let arrangement: Arrangement = start;
     let answered = false;

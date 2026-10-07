@@ -41,6 +41,7 @@ import { pollPlan } from "../guess/poll";
 import { animatableVars } from "../spec/vars";
 import { foldVerbDuration } from "../spec/verb-duration";
 import { taskBeside } from "../spec/question-echo";
+import { ownedByCards } from "../spec/cards-ids";
 
 /**
  * One operation on a book's text pane (spec 2026-10-01-book-layout §4.2). The
@@ -972,7 +973,10 @@ export function planCommands(commandsIn: Command[] | undefined, allIds: string[]
     const out = new Set<string>();
     const rooted = (r: string) => {
       for (const id of expandOne(r, "", true)) out.add(id);
-      for (const id of known) if (id === r || id.startsWith(`${r}_`)) out.add(id);
+      // A cards element owns exactly the pieces it generates (spec/cards-ids.ts),
+      // never an author's element that merely shares its id as a prefix.
+      const owns = opts.cardsFor?.(r) ? (id: string) => ownedByCards(r, id) : (id: string) => id === r || id.startsWith(`${r}_`);
+      for (const id of known) if (owns(id)) out.add(id);
     };
     for (const r of [...q.on, ...q.others, ...q.choose]) rooted(r);
     for (const id of q.parts) out.add(id);

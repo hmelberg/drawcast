@@ -121,6 +121,15 @@ describe("the plan: what a staged question keeps at full strength", () => {
     expect(ask?.kind === "ask" && ask.stage?.sort()).toEqual(["c", "c_1", "c_2", "c_bin_1"]);
   });
 
+  test("cards: an author's element that only shares the cards' id as a prefix fades with the rest (land_w, 2026-10-07)", () => {
+    const ids = ["land", "land_1", "land_1_text", "land_2", "land_bin_1_box", "land_w", "title"];
+    const plan = planCommands([{ draw: ["title", "land_w"] }, { ask: { question: "Tap", on: "land", stage: "own" } } as Command], ids, {
+      cardsFor: (id) => (id === "land" ? { cards: ["land_1", "land_2"], offsets: {} } : null),
+    });
+    const ask = plan.steps.find((s) => s.kind === "ask");
+    expect(ask?.kind === "ask" && ask.stage?.sort()).toEqual(["land", "land_1", "land_1_text", "land_2", "land_bin_1_box"]);
+  });
+
   test("a formula: its blanks and its tiles", () => {
     const ids = ["area", "area_blank_1", "area_tiles_1", "title"];
     const plan = planCommands([{ draw: ["title", "area"] }, { ask: { question: "Fill", on: "area", stage: "own" } } as Command], ids, {
