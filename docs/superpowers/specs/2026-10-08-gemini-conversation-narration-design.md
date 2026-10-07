@@ -27,33 +27,73 @@ about one cast a day.
 
 ## The design
 
-Recording stays **one clip per line**, so the player, the line ↔ drawing
-timing, questions, quizzes and asks are unchanged. Only how the clips are
-made changes, and only for a cast whose `voices:` are Gemini ones.
+Recording stays **one clip per line**, so the player, every line ↔ drawing
+timing rule (speech starting with a drawing, a sentence ending when a
+drawing ends, lines running under gestures, waiting for a drawing before
+moving on), questions, quizzes and asks are unchanged: they work from the
+clip and its length, not from how it was made. Only how the clips are made
+changes, and only for a cast whose `voices:` are Gemini ones.
 
-### 1. Stretches
+### The choice: `take`
+
+The cast's `voices:` block chooses how Gemini voices are recorded:
+
+```
+voices: {"a": "gemini:Charon | dry, warm historian", "b": "gemini:Puck | cheerful sceptic", "take": "conversation"}
+```
+
+- `conversation` (the default for Gemini voices): stretches performed as
+  conversations, split into lines (part B below).
+- `lines`: each line on its own (part A below) — the fallback if a cast
+  splits badly, and for a narrator with very short lines.
+- Without `voices:`: Google Studio, as now. Narration credit always speaks
+  Studio (the server speaks Cloud TTS only).
+
+The app shows it as "Recorded as: conversation / line by line" under
+Narration voices.
+
+### Build order
+
+- **Step A — line by line through batch.** Every line that needs recording
+  goes as one request of one batch job; each answer is that line's clip.
+  Nothing to split. Removes the quota problem at once; sound B ("also
+  good"). Kept afterwards as `take: lines`.
+- **Step B — conversations through batch**, on top of A: the same job,
+  waiting, storing and `voices:`, plus stretches, splitting, checking and the
+  natural-pause gap.
+
+### A1. The batch job (both steps)
+
+All requests of a recording go to Google as **one batch job**
+(`gemini-3.8-flash-tts:batchGenerateContent`, inline requests, each keyed).
+A request is `generateContent`-shaped: each spoken line one part with its
+`speech_metadata` (`speaker`, `style`; never the style in the text, which
+gets read aloud), `speech_config` with the voice (or the two speakers).
+Polled every 20 s; usually done in 2–5 min (Google allows 24 h; the job
+expires after 48). Over 20 MB of requests: several jobs.
+
+### A2. Storing (both steps)
+
+Each clip is encoded to MP3 (as today) and stored under its line's key
+with `voice` = the cast's Gemini spec, as a line-by-line clip is. A clip
+that is already recorded in the same voice and style is not re-bought.
+
+### B1. Stretches
 
 The lines to record are cut into **stretches**: runs of spoken lines in
 playing order, broken at every viewer turn (ask, quiz, explore, check), at
-every page, and at ~12 lines. Each stretch is one two-speaker request
-(single-speaker when it has only one voice). A cast has about 8–12.
+every page, and at 12 lines. Each stretch is one two-speaker request
+(single-speaker with one voice). A cast has about 8–12.
 
 A **spare closing line** ("Right.") is appended to every stretch and thrown
 away after the split, so a cut-off at the end (seen in the test) costs the
 spare, not a real line.
 
-Lines a stretch shares with an earlier recording are not re-bought: a
-stretch is recorded only if one of its lines needs recording (new text,
-new voice or style), and then whole — its unchanged lines are replaced too,
+A stretch is recorded if any of its lines needs recording (new text, new
+voice or style), and then **whole** — its unchanged lines are replaced too,
 so the stretch sounds like one take.
 
-### 2. Recording: one batch job
-
-All stretches of a publish go to Google as **one batch job**
-(`gemini-3.8-flash-tts:batchGenerateContent`, inline requests, keyed by
-stretch). Polled every 20 s; usually done in 2–5 min (Google allows 24 h).
-
-### 3. Splitting
+### B2. Splitting
 
 For each stretch's audio:
 
@@ -62,10 +102,16 @@ For each stretch's audio:
 2. Pauses are found in the audio (≥ 80 ms under 3 % of peak).
 3. Each boundary snaps to the nearest pause to its rough start, preferring
    longer pauses, never before the previous cut.
+4. Each clip is cut **tight**: its words plus about 0.1 s each side. The
+   pause between two lines is not kept in either clip — silence at a clip's
+   end would make "the sentence ends" late, silence at its start would make
+   a line spoken with a drawing start after the drawing.
+5. Each line keeps the pause that came **before** it in the take, as a
+   number (`pause` on the clip, seconds).
 
-The timing requests also go as one batch job when there are many.
+The timing requests go as one batch job when there are many.
 
-### 4. Checking — every clip
+### B3. Checking — every clip
 
 Each cut clip is transcribed **on its own** (Gemini 3.5 Flash) and its first
 and last two words compared with its line (numbers, punctuation and case
@@ -74,60 +120,72 @@ normalised: "210" = "two hundred and ten").
 - Wrong edge → move that cut to the neighbouring pause, check again (up to 3
   moves).
 - Words missing from the recording itself → that line is re-recorded **on
-  its own** (single-line request, style in `speech_metadata`), within the
-  10-a-minute limit.
+  its own** (single-line request, style in `speech_metadata`).
 - Still wrong → the line is reported and left to the Studio voice (or the
-  browser), never published as a wrong clip.
+  browser), never stored as a wrong clip.
 
-### 5. Storing
+### B4. The natural pause in playback
 
-Each clip is encoded to MP3 (as today) and stored under its line's key
-with `voice` = the cast's Gemini spec, exactly like a line-by-line clip.
-Durations come from the clip. The stretch's take is not kept.
+Where the cast's own commands decide the timing (a drawing started with the
+voice, waiting for a drawing, a `pause`, a viewer turn), they win, as now.
+Where nothing does — one spoken line simply following another — the player
+uses the clip's recorded `pause` as the gap instead of its default gap, so
+the conversation's rhythm (a quick reply, a thoughtful pause) survives.
 
-### 6. Where it runs
+## Where it runs
 
-- **Recording script** (`bake-narration.mjs`): waits for the batch job,
-  splits, checks, writes the file; a stop keeps what is done (as today).
-  First, as the proving ground.
+- **Recording script** (`bake-narration.mjs`): submits, waits, (splits,
+  checks), writes the file; a stop keeps what is done (as today). First, as
+  the proving ground.
 - **App publish** (own Gemini key): the cast publishes at once; narration is
-  "recording…" in the publish dialog and fills in when the job is done (the
-  dialog can be closed; the job is resumed on the next open). Second.
-- **Live preview in the editor** never calls Gemini: unrecorded lines play
-  in the Studio/browser voice, so playing a cast spends no quota.
-- **Narration credit** keeps Studio (the server speaks Cloud TTS only).
-- **One changed line**: a single-line request, not a batch job (quick, and
-  within the 10-a-minute limit), unless the speaker's voice changed.
+  "recording…" in the publish dialog and fills in when the job is done (a
+  re-publish of the copy with its clips; the dialog can be closed and the
+  job is resumed on the next open). Second.
+- **The editor never calls Gemini while playing**: unrecorded lines play in
+  the Studio/browser voice, so playing a cast spends no quota. Recorded
+  Gemini clips go into the browser's clip store (bake-cache, keyed as today),
+  so after a recording the editor's preview plays them, free. A cast still
+  being edited plays mixed (Gemini for recorded lines, Studio for new ones);
+  Narration voices says "N lines not yet recorded in Gemini".
+- **One changed line** (take `lines`, or a repair): a single-line request
+  within the 10-a-minute limit, not a batch job.
 
 ## Cost and limits
 
 - Speech: about $0.03 per cast (batch is half of ~$0.06).
-- Timing + checking: Gemini 3.5 Flash, about 1–2 cents per cast; its own
-  limits (batched when needed).
+- Timing + checking (step B): Gemini 3.5 Flash, about 1–2 cents per cast; its
+  own limits (batched when needed).
 - No per-minute or per-day TTS request limit in the batch path; single-line
   repairs use the 10/min, 100/day budget.
 
+## Decided (Hans, 2026-10-08)
+
+- Conversation (A in the listening test) is the goal; line by line through
+  batch comes first and stays as the fallback.
+- Tight cuts; the natural pause stored and used as the default gap.
+- Old and new side by side, chosen per cast; Studio stays the default.
+- The editor keeps the old voices for unrecorded lines; recorded Gemini
+  clips are reused there.
+- Defaults until tried: stretches of up to 12 lines; app publish fills the
+  narration in afterwards; a stretch is re-recorded whole.
+
 ## Not in this round
 
-- Per-line tone notes (excited, calm, incredulous) — fits both paths; next.
+- Per-line tone notes (excited, calm, incredulous) — fits both takes; next.
+- A "record narration now" button in the editor, without publishing.
 - Overlapping reactions — the model is told not to overlap.
 - A whole cast as one take.
 
 ## Tests
 
-- Stretch building from a playlist (breaks at asks/quizzes/pages, spare line).
-- Batch request/response shapes (fixtures from the real answers above).
-- Splitting on the saved Rome recordings (8/8 after the check-and-move step).
-- Edge check normalisation (numbers, case, punctuation).
+- Batch request/response shapes (fixtures from the real answers above),
+  polling, several jobs over 20 MB, a failed request in a job.
+- Stretch building from a playlist (breaks at asks/quizzes/pages, 12 lines,
+  spare line).
+- Splitting on the saved Rome recordings (8/8 after the check-and-move step);
+  tight cuts; the recorded pause per line.
+- Edge-check normalisation (numbers, case, punctuation).
 - Fallbacks: missing words → single-line re-record; still wrong → reported.
-- Live: Rome recorded end to end through the script, every clip checked.
-
-## Open points for Hans
-
-1. Stretch length ~12 lines: shorter stretches are safer to split, longer
-   ones flow more. Start at 12?
-2. App publish waits for the job in the background — acceptable, or should
-   publish wait (2–5 min) before finishing?
-3. Re-record a whole stretch when one of its lines changes (consistent
-   sound), or only that line on its own (cheaper, may sound a little
-   different)?
+- Playback: the recorded pause is the gap only where no command decides it.
+- Live: Rome recorded end to end through the script, both takes, every clip
+  checked, listened to by Hans.
