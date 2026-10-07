@@ -13,6 +13,7 @@ import { boxAnchor, isUniversalAnchor, type UniversalAnchor } from "../layout/an
 import { placeDelta } from "../layout/places";
 import { contentBox } from "../layout/page";
 import { fitRegion, isFitName } from "../layout/regions";
+import { ownedByCards } from "./cards-ids";
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const LINE_H = 1.25;
@@ -54,7 +55,7 @@ const idList = (raw: unknown): string[] => (typeof raw === "string" ? [raw] : Ar
 export function coVisibleWithCards(id: string, spec: Pick<Spec, "elements" | "commands">): Set<string> {
   const els = spec.elements ?? [];
   const groups = groupLeaves(els);
-  const ownsId = (x: string): boolean => x === id || x.startsWith(`${id}_`);
+  const ownsId = (x: string): boolean => ownedByCards(id, x);
   const expand = (raw: unknown): string[] => idList(raw).flatMap((x) => [x, ...(groups.get(x) ?? [])]);
   const visible = new Set<string>();
   const managed = new Set<string>();
@@ -259,7 +260,7 @@ export function templateBox(spec: Pick<Spec, "params">): BBox {
  * `at: {ref: <card>}` — and the room they need beside the set, per side.
  */
 export function followerRoom(id: string, els: SpecElement[]): { pad: CardsCompany["pad"]; followers: Set<string> } {
-  const isCard = (x: string): boolean => x.startsWith(`${id}_`) || x === id;
+  const isCard = (x: string): boolean => ownedByCards(id, x);
   const pad = { left: 0, right: 0, top: 0, bottom: 0 };
   const followers = new Set<string>();
   for (const e of els) {
@@ -291,7 +292,7 @@ export function cardsCompany(id: string, spec: Pick<Spec, "elements" | "commands
   const els = spec.elements ?? [];
   const byId = new Map(els.map((e) => [e.id, e]));
   const groups = groupLeaves(els);
-  const isCard = (x: string): boolean => x.startsWith(`${id}_`) || x === id;
+  const isCard = (x: string): boolean => ownedByCards(id, x);
   const mine = (x: string): boolean => isCard(x) || own.has(x) || [...own].some((o) => x.startsWith(`${o}_`)) || /^card_\d+_/.test(x);
   const memo = new Map<string, BBox | null>();
   const boxOf = (x: string, depth = 0): BBox | null => {
