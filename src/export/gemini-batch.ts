@@ -70,15 +70,40 @@ export async function pollBatch(
   const limit = opts.timeoutMs ?? 30 * 60_000;
   let waited = 0;
   for (;;) {
-    const res = await fetchImpl(`${BASE}/${name}`, { headers: { "x-goog-api-key": apiKey } });
-    if (!res.ok) throw await failure(res, "poll");
-    const body = (await res.json()) as { done?: boolean; metadata?: { state?: string }; response?: { inlinedResponses?: { inlinedResponses?: Inlined[] } | Inlined[] } };
+    let res: Response;
+    let consecutiveFailures = 0;
+    for (;;) {
+      try {
+        res = await fetchImpl(`${BASE}/${name}`, { headers: { "x-goog-api-key": apiKey } });
+        break;
+      } catch (e) {
+        consecutiveFailures++;
+        if (consecutiveFailures >= 3) throw e;
+        await sleep(20_000);
+        waited += 20_000;
+        if (waited >= limit) throw new Error(`Gemini batch ${name} is still running after ${Math.round(waited / 60_000)} min — run again to keep waiting for it`);
+      }
+    }
+    if (!res!.ok) {
+      if (res!.status >= 500) {
+        consecutiveFailures++;
+        if (consecutiveFailures >= 3) throw await failure(res!, "poll");
+        await sleep(20_000);
+        waited += 20_000;
+        if (waited >= limit) throw new Error(`Gemini batch ${name} is still running after ${Math.round(waited / 60_000)} min — run again to keep waiting for it`);
+        continue;
+      }
+      throw await failure(res!, "poll");
+    }
+    const body = (await res!.json()) as { done?: boolean; error?: { message?: string }; metadata?: { state?: string }; response?: { inlinedResponses?: { inlinedResponses?: Inlined[] } | Inlined[] } };
+    if (body.error) throw new Error(`Gemini batch ${name} failed: ${body.error.message ?? "unknown error"}`);
     const state = body.metadata?.state ?? "";
     opts.onState?.(state);
     if (body.done || DONE.has(state)) {
       if (state && state !== "BATCH_STATE_SUCCEEDED") throw new Error(`Gemini batch ${name} ended ${state}`);
       const r = body.response?.inlinedResponses;
       const items: Inlined[] = Array.isArray(r) ? r : (r?.inlinedResponses ?? []);
+      if (!items.length && body.done && !state) throw new Error(`Gemini batch ${name} finished with no results`);
       const out = new Map<string, BatchResult>();
       for (const item of items) {
         const key = item.metadata?.key;

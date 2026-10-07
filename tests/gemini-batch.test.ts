@@ -66,4 +66,34 @@ describe("gemini batch", () => {
     const jobs = jobsOf(reqs, 1500);
     expect(jobs.map((j) => j.map((r) => r.key))).toEqual([["k1", "k2"], ["k3"], ["k4"]]);
   });
+
+  test("poll throws on top-level batch error", async () => {
+    const fetchImpl = (async () => new Response(JSON.stringify({ error: { message: "Request rate limit exceeded" } }), { status: 200 })) as unknown as typeof fetch;
+    await expect(pollBatch("KEY", "batches/abc", { fetchImpl })).rejects.toThrow(/batches\/abc failed.*Request rate limit exceeded/);
+  });
+
+  test("poll throws on finished with no results", async () => {
+    const fetchImpl = (async () => new Response(JSON.stringify({ done: true }), { status: 200 })) as unknown as typeof fetch;
+    await expect(pollBatch("KEY", "batches/abc", { fetchImpl })).rejects.toThrow(/batches\/abc finished with no results/);
+  });
+
+  test("poll retries 5xx once then succeeds", async () => {
+    const audio = Buffer.from(wav()).toString("base64");
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls++;
+      if (calls === 1) return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 503 });
+      return new Response(JSON.stringify({
+        name: "batches/abc", done: true, metadata: { state: "BATCH_STATE_SUCCEEDED" },
+        response: { inlinedResponses: { inlinedResponses: [
+          { metadata: { key: "k1" }, response: { candidates: [{ content: { parts: [{ inlineData: { mimeType: "audio/wav", data: audio } }] } }] } },
+        ] } },
+      }), { status: 200 });
+    }) as unknown as typeof fetch;
+    let sleepCalls = 0;
+    const out = await pollBatch("KEY", "batches/abc", { fetchImpl, sleep: async () => void sleepCalls++ });
+    expect(calls).toBe(2);
+    expect(sleepCalls).toBe(1);
+    expect((out.get("k1") as { wav: Uint8Array }).wav.length).toBe(44 + 4800);
+  });
 });
