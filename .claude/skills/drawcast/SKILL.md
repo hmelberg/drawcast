@@ -90,12 +90,12 @@ every working file below is `dev-casts/<slug>…`.
      `band` + `star`, `bang` or `eyes`; adults — `band` + `note` (a
      surprising fact) or `stamp` (a myth or verdict: "MYTH?", "PLOT
      TWIST"); advanced — `band` alone or `question`.
-     Background (optional; the default is a soft gradient the title picks):
-     a preset `sky` `sunset` `mint` `lilac` `peach` `lemon` `blush` `sand`,
-     or `solid <colour>`, `gradient <colour> [<colour>]`, `glow <colour>`
-     (yellow orange red pink purple blue teal green grey, or `#hex`, kept
-     light), or `paper` for plain off-white. Pick one that suits the topic's
-     mood, or leave it out.
+     Background (optional; the default is plain paper): `card` (the picture
+     on a white card, tilted, on a desk — `card charcoal` `navy` `wood`
+     `cork` `teal` or a colour; `card` alone lets the title pick), `notebook`
+     (ruled page), `graph` (squared paper), `chalkboard` (the picture in
+     chalk on a board). Suggest `graph` or `notebook` for maths and school
+     topics, `chalkboard` for a lesson, `card` to stand out; or leave it out.
      Person (optional, never by default): `person` and plain words — sex
      (`man` `woman`), age (`45`, `40s`, `child`, `teen`, `old`), looks
      (`bald` `beard` `glasses` `grey` `curly` …) and a face (`surprised`

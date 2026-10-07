@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { Resvg } from "@resvg/resvg-js";
 import { PNG } from "pngjs";
 import { keyPaper } from "./paper-key.mts";
-import { cornerBusyness, thumbSvg, THUMB_W, type Corner, type ThumbPlan } from "./thumb.mts";
+import { cornerBusyness, seeThroughFor, thumbSvg, THUMB_W, type Corner, type ThumbPlan } from "./thumb.mts";
 
 /** How busy each corner of the poster is (thumb.mts cornerBusyness), or undefined when it cannot be read. */
 export function posterBusyness(poster: Uint8Array): Record<Corner, number> | undefined {
@@ -70,7 +70,7 @@ function personHref(id: string): string {
 export function renderThumb(plan: ThumbPlan, poster: Uint8Array): Uint8Array {
   fonts ??= fontFiles();
   if (fonts.length === 0) throw new Error("thumb fonts not found");
-  const href = `data:image/png;base64,${Buffer.from(seeThrough(poster)).toString("base64")}`;
+  const href = `data:image/png;base64,${Buffer.from(seeThroughFor(plan.bg) ? seeThrough(poster) : poster).toString("base64")}`;
   const svg = thumbSvg(plan, href, posterBusyness(poster), undefined, personHref);
   const r = new Resvg(svg, {
     fitTo: { mode: "width", value: THUMB_W },

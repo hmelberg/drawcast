@@ -21,13 +21,13 @@
 //           seal (not clickbait) · arrow — any number, combined
 //   title "…"  the listing title, when it should differ from the title card's
 //   poster · image "https://…"  the picture under the words (default: the drawing)
-//   background (2026-10-07)  paper · a preset (sky sunset mint lilac peach
-//           lemon blush sand) · solid <colour> · gradient <colour> [<colour>] ·
-//           glow <colour> [<colour>] — colours by name (yellow orange red pink
-//           purple blue teal green grey) or #hex, kept light; default: a soft
-//           preset gradient the title picks. It stands behind the picture:
-//           the poster's paper is made see-through (paper-key.mts), the
-//           drawing is drawn without paper.
+//   background (2026-10-07)  paper (the default) · card [surface] (the
+//           picture on a white card, tilted, on a desk: charcoal navy wood
+//           cork teal or a colour; card alone, a surface the title picks) ·
+//           notebook (ruled page) · graph (squared paper) · chalkboard (the
+//           picture in chalk). Behind the picture, never over it: on a card
+//           the picture keeps its paper; on a page or board its paper is
+//           see-through (paper-key.mts) or not drawn.
 //   person … (2026-10-07)  a photo person beside the picture (people.mts):
 //           person man 45 bald surprised · person woman 19 puzzled · person
 
@@ -73,7 +73,7 @@ export interface ThumbParts {
    * poster; or an image's https address (pictureAllowed says which hosts).
    */
   picture?: "poster" | string;
-  /** The background as canonical words: paper, a preset, `solid …`, `gradient …`, `glow …`. */
+  /** The background as canonical words: paper, `card <surface>`, notebook, graph, chalkboard. */
   bg?: string;
   /** A photo person, by plain words (people.mts); [] for anyone. */
   person?: string[];
@@ -104,8 +104,7 @@ export interface ThumbPlan {
   question?: string;
   figure: Figure;
   marks: Mark[];
-  /** The background (canonical words, as ThumbParts.bg); absent on cards
-   *  compiled before backgrounds — they take the default for their name. */
+  /** The background (canonical words, as ThumbParts.bg; `card` with its surface chosen); absent, paper. */
   bg?: string;
   /** The photo person's id (people.mts). */
   person?: string;
@@ -159,14 +158,9 @@ export function parseThumbLine(line: string): { parts: ThumbParts; unknown: stri
     } else if ((MARKS as readonly string[]).includes(w)) {
       const words = MARK_WORDS[w as MarkKind] !== undefined ? take(WORDS_MAX) : undefined;
       parts.marks.push({ kind: w as MarkKind, ...(words ? { words } : {}) });
-    } else if (w === "paper" || w in BG_PRESETS) {
+    } else if ((BACKGROUNDS as readonly string[]).includes(w)) {
       parts.bg = w;
-    } else if (w === "solid" || w === "gradient" || w === "glow") {
-      const cs: string[] = [];
-      while (cs.length < (w === "solid" ? 1 : 2) && ts[i + 1]?.word !== undefined && colourOf(ts[i + 1].word!)) cs.push(ts[++i].word!);
-      if (cs.length) parts.bg = [w, ...cs].join(" ");
-      else if (w === "solid") parts.bg = "solid yellow";
-      else if (w === "glow") parts.bg = "glow yellow";
+      if (w === "card" && ts[i + 1]?.word !== undefined && ts[i + 1].word! in SURFACES) parts.bg = `card ${ts[++i].word}`;
     } else if (w === "person") {
       const ws: string[] = [];
       while (ts[i + 1]?.word !== undefined && isPersonWord(ts[i + 1].word!)) ws.push(ts[++i].word!);
@@ -258,8 +252,8 @@ export function planThumb(line: string | undefined, ctx: { title?: string; forma
   let figure: Figure = person ? "none" : (p.figure ?? (ctx.kids && ctx.format === "quiz" && words === "band" ? "thinking" : "none"));
   if (figure === "eyes" && words !== "band") figure = "none";
   const marks = p.marks.map((m) => (MARK_WORDS[m.kind] !== undefined ? { kind: m.kind, words: m.words ?? MARK_WORDS[m.kind] } : { kind: m.kind }));
-  const bg = p.bg ?? defaultBackground(seed);
-  return { words, ...(words === "band" || words === "burst" ? { headline } : {}), ...(words === "question" ? { question } : {}), figure, marks, bg, ...(person ? { person } : {}) };
+  const bg = p.bg === "card" ? `card ${SURFACE_NAMES[hashOf(seed) % SURFACE_NAMES.length]}` : p.bg;
+  return { words, ...(words === "band" || words === "burst" ? { headline } : {}), ...(words === "question" ? { question } : {}), figure, marks, ...(bg && bg !== "paper" ? { bg } : {}), ...(person ? { person } : {}) };
 }
 
 /** Nothing to draw over the poster: the card serves it as published. */
@@ -268,67 +262,66 @@ export function isPlain(plan: ThumbPlan): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Backgrounds (2026-10-07). Light colours only: the drawing's ink is dark,
-// and a dark background would hide it.
+// Backgrounds (2026-10-07): behind the picture, never blended into it.
 
-/** The presets: two stops each, top left to bottom right. */
-export const BG_PRESETS: Record<string, [string, string]> = {
-  sky: ["#e3f2ff", "#b7d9ff"],
-  sunset: ["#ffe4c4", "#ffbfd3"],
-  mint: ["#e4f8ec", "#bde9d1"],
-  lilac: ["#efe6ff", "#d0c2ff"],
-  peach: ["#ffeedd", "#ffcbab"],
-  lemon: ["#fffad2", "#ffe680"],
-  blush: ["#ffe9f0", "#ffc4d8"],
-  sand: ["#f8f1e4", "#e6d6b8"],
-};
-export const BG_PRESET_NAMES = Object.keys(BG_PRESETS);
+export const BACKGROUNDS = ["paper", "card", "notebook", "graph", "chalkboard"] as const;
 
-/** Named colours, as the light tints a background uses. */
-export const BG_COLOURS: Record<string, string> = {
-  yellow: "#ffe680", orange: "#ffcc99", red: "#ffb2a6", pink: "#ffc2d6", purple: "#d8c6ff",
-  blue: "#b7d9ff", teal: "#b2e8e0", green: "#c6ebbd", grey: "#e2dfda", gray: "#e2dfda", white: "#fffdf7",
+/** The desks a card lies on: a colour and, for wood and cork, a grain. */
+export const SURFACES: Record<string, { fill: string; grain?: [number, number, number, number] }> = {
+  charcoal: { fill: "#2b2d31" },
+  navy: { fill: "#1d2a44" },
+  wood: { fill: "#4a3020", grain: [0.15, 0.08, 0.03, 0.6] },
+  cork: { fill: "#c99a66", grain: [0.55, 0.36, 0.2, 0.55] },
+  teal: { fill: "#5fb3a9" },
+  yellow: { fill: "#f2c94c" },
+  orange: { fill: "#ee9a4d" },
+  red: { fill: "#d9645a" },
+  pink: { fill: "#e88aa8" },
+  purple: { fill: "#8e7cc3" },
+  blue: { fill: "#5b8fd1" },
+  green: { fill: "#6fae6a" },
+  grey: { fill: "#8a8d93" },
 };
+/** The surfaces `card` alone may get, by title. */
+const SURFACE_NAMES = ["charcoal", "navy", "wood", "cork", "teal", "blue", "purple", "green"];
 
-const hexRgb = (h: string): [number, number, number] => {
-  const x = h.length === 4 ? h.slice(1).split("").map((c) => c + c).join("") : h.slice(1);
-  return [0, 2, 4].map((i) => parseInt(x.slice(i, i + 2), 16)) as [number, number, number];
-};
-const rgbHex = (c: number[]): string => "#" + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
-/** `c` moved a share `t` of the way to white. */
-const lighten = (c: string, t: number): string => rgbHex(hexRgb(c).map((v) => v + (255 - v) * t));
-const lum = (c: string): number => {
-  const [r, g, b] = hexRgb(c);
-  return (0.3 * r + 0.59 * g + 0.11 * b) / 255;
-};
-
-/** A colour word as a light hex, or undefined when it is not one. A dark #hex is lightened until ink reads on it. */
-export function colourOf(w: string): string | undefined {
-  if (w in BG_COLOURS) return BG_COLOURS[w];
-  if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(w)) return undefined;
-  let c = w.length === 4 ? rgbHex(hexRgb(w)) : w;
-  for (let i = 0; i < 12 && lum(c) < 0.74; i++) c = lighten(c, 0.2);
-  return c;
+/** Whether the picture's paper must be see-through under this background (a poster's, keyed with paper-key.mts). */
+export function seeThroughFor(bg: string | undefined): boolean {
+  return bg === "notebook" || bg === "graph" || bg === "chalkboard";
 }
 
-/** The background a title gets when its cast names none: one of the presets, always the same for that title. */
-export function defaultBackground(seed: string): string {
-  return BG_PRESET_NAMES[hashOf(seed) % BG_PRESET_NAMES.length];
-}
+const full = (fill: string, extra = ""): string => `<rect width="${THUMB_W}" height="${THUMB_H}" fill="${fill}"${extra}/>`;
+const grainFilter = (id: string, [r, g, b, a]: [number, number, number, number], freq = 0.8): string =>
+  `<filter id="${id}" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 ${r}  0 0 0 0 ${g}  0 0 0 0 ${b}  0 0 0 ${a} 0"/></filter>`;
+/** Chalk: lightness turned over, hues kept (invert, then the hues back round), pale fills to mid-tones, not black. */
+const CHALK = `<filter id="thumb-chalk" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0"/><feColorMatrix type="hueRotate" values="180"/><feColorMatrix type="matrix" values="0.72 0 0 0 0.28  0 0.72 0 0 0.28  0 0 0.72 0 0.28  0 0 0 1 0"/></filter>`;
 
-/** A background's SVG: its defs (a gradient) and the full-canvas rect that paints it. */
-export function backgroundSvg(bg: string | undefined): string {
-  const [kind, ...cs] = (bg ?? "paper").split(" ");
-  const cols = cs.map(colourOf).filter((c): c is string => !!c);
-  const rect = (fill: string): string => `<rect width="${THUMB_W}" height="${THUMB_H}" fill="${fill}"/>`;
-  const linear = (a: string, b: string): string =>
-    `<defs><linearGradient id="thumb-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs>${rect("url(#thumb-bg)")}`;
-  if (kind in BG_PRESETS) return linear(...BG_PRESETS[kind]);
-  if (kind === "solid" && cols[0]) return rect(cols[0]);
-  if (kind === "gradient" && cols[0]) return linear(cols[1] ? cols[0] : lighten(cols[0], 0.6), cols[1] ?? cols[0]);
-  if (kind === "glow" && cols[0])
-    return `<defs><radialGradient id="thumb-bg" cx="0.5" cy="0.45" r="0.75"><stop offset="0" stop-color="${cols[1] ? cols[0] : lighten(cols[0], 0.75)}"/><stop offset="1" stop-color="${cols[1] ?? cols[0]}"/></radialGradient></defs>${rect("url(#thumb-bg)")}`;
-  return rect("#fffdf7");
+/**
+ * The background and the picture on it: `pic` is the picture's markup on
+ * the 1000 × 750 canvas — a poster (see-through when seeThroughFor says so)
+ * or a drawing with no paper of its own.
+ */
+export function backdrop(bg: string | undefined, pic: string, drawing: boolean): string {
+  const [kind, surface] = (bg ?? "paper").split(" ");
+  if (kind === "card") {
+    const s = SURFACES[surface] ?? SURFACES.charcoal;
+    const pin = surface === "cork" ? `<circle cx="96" cy="74" r="13" fill="#d33"/><circle cx="92" cy="70" r="4" fill="#f99"/>` : "";
+    // a poster brings its own paper; a drawing gets a sheet under it
+    const sheet = drawing ? full("#fffdf7", ` filter="url(#thumb-shadow)"`) : "";
+    const shadowed = drawing ? pic : pic.replace("<image ", `<image filter="url(#thumb-shadow)" `);
+    return (
+      `<defs><filter id="thumb-shadow" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-opacity="0.5"/></filter>${s.grain ? grainFilter("thumb-grain", s.grain) : ""}</defs>` +
+      full(s.fill) + (s.grain ? full("#000", ` filter="url(#thumb-grain)"`) : "") +
+      `<g transform="rotate(-2.5 500 375) translate(70 50) scale(0.86)">${sheet}${shadowed}</g>` + pin
+    );
+  }
+  if (kind === "notebook")
+    return `<defs><pattern id="thumb-rule" width="${THUMB_W}" height="34" patternUnits="userSpaceOnUse"><path d="M0 33H${THUMB_W}" stroke="#a9c8ec" stroke-width="2"/></pattern></defs>${full("#fffef8")}${full("url(#thumb-rule)")}<path d="M88 0V${THUMB_H}" stroke="#e8817a" stroke-width="3"/>${pic}`;
+  if (kind === "graph")
+    return `<defs><pattern id="thumb-sq" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M25 0V25H0" fill="none" stroke="#9cc3e6" stroke-width="1"/></pattern><pattern id="thumb-sq5" width="125" height="125" patternUnits="userSpaceOnUse"><path d="M125 0V125H0" fill="none" stroke="#7aaedb" stroke-width="2"/></pattern></defs>${full("#fbfdff")}${full("url(#thumb-sq)")}${full("url(#thumb-sq5)")}${pic}`;
+  if (kind === "chalkboard")
+    return `<defs>${CHALK}${grainFilter("thumb-dust", [1, 1, 1, 0.05])}</defs>${full("#24372f")}${full("#000", ` filter="url(#thumb-dust)"`)}<g filter="url(#thumb-chalk)">${pic}</g>`;
+  return full("#fffdf7") + pic;
 }
 
 // ---------------------------------------------------------------------------
@@ -416,9 +409,6 @@ function burst(headline: string): { art: string; bottom: number } {
  *  drawn from its own compiled drawing (src/card, 2026-10-05) — that drawing
  *  as inline SVG markup on the same 1000 × 750 canvas. */
 function pictureLayer(posterHref: string, picture?: string): string {
-  // Drawn over the background: a drawing has no paper of its own here, and a
-  // poster's paper is made see-through first (paper-key.mts), so the
-  // background shows behind it and every colour stays as drawn.
   return picture !== undefined ? `<g>${picture}</g>` : `<image href="${esc(posterHref)}" width="1000" height="750"/>`;
 }
 
@@ -435,7 +425,8 @@ function questionCard(text: string, posterHref: string, picture?: string): strin
   const lh = size * 1.1;
   const top = THUMB_H / 2 - (lines.length * lh) / 2 + size * 0.8;
   return (
-    `<svg x="460" y="0" width="540" height="750" viewBox="270 80 460 640" preserveAspectRatio="xMidYMid slice">${pictureLayer(posterHref, picture)}</svg>` +
+    `<rect width="${THUMB_W}" height="${THUMB_H}" fill="#fffdf7"/>` +
+    `<svg x="460" y="0" width="540" height="750" viewBox="270 80 460 640" preserveAspectRatio="xMidYMid slice">${picture !== undefined ? `<rect width="1000" height="750" fill="#fffdf7"/>` : ""}${pictureLayer(posterHref, picture)}</svg>` +
     `<rect width="460" height="750" fill="#2f5d8a"/>` +
     lines.map((l, i) => `<text x="52" y="${(top + i * lh).toFixed(1)}" font-family="${FONT.hand}" font-size="${size}" fill="#fffdf7">${esc(l)}</text>`).join("")
   );
@@ -640,10 +631,10 @@ function arrowArt(fromY: number): string {
  * takes a second, smaller item nearer the middle when items outnumber corners).
  */
 export function thumbSvg(plan: ThumbPlan, posterHref: string, busy?: Record<Corner, number>, picture?: string, personHref: (id: string) => string = personHrefDefault): string {
-  const bg = backgroundSvg(plan.bg ?? defaultBackground(plan.headline ?? plan.question ?? ""));
-  let base = bg + pictureLayer(posterHref, picture);
+  // The question card is its own background: the picture stands in its panel on paper.
+  let base = backdrop(plan.bg, pictureLayer(posterHref, picture), picture !== undefined);
   let arrowFrom = 300;
-  if (plan.words === "question" && plan.question) base = bg + questionCard(plan.question, posterHref, picture);
+  if (plan.words === "question" && plan.question) base = questionCard(plan.question, posterHref, picture);
   const person = personById(plan.person);
   const side = person ? personSide(plan.words, busy) : undefined;
   if (plan.words === "burst" && plan.headline) {

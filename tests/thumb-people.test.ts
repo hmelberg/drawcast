@@ -2,36 +2,39 @@
 import { existsSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { keyPaper } from "../netlify/lib/paper-key.mts";
-import { backgroundSvg, colourOf, defaultBackground, parseThumbLine, planThumb, printThumbLine, readThumb, thumbSvg, BG_PRESET_NAMES } from "../netlify/lib/thumb.mts";
+import { parseThumbLine, planThumb, printThumbLine, readThumb, seeThroughFor, thumbSvg } from "../netlify/lib/thumb.mts";
 import { PEOPLE, pickPerson, readPersonWords, type Person } from "../netlify/lib/people.mts";
 import { renderThumb } from "../netlify/lib/thumb-render.mts";
 import { PNG } from "pngjs";
 
 describe("backgrounds", () => {
-  test("presets, solid, gradient, glow and paper read and print back", () => {
-    expect(parseThumbLine("sky").parts.bg).toBe("sky");
-    expect(parseThumbLine('band "Hey" solid teal').parts).toMatchObject({ headline: "Hey", bg: "solid teal" });
-    expect(parseThumbLine("gradient blue pink stamp").parts).toMatchObject({ bg: "gradient blue pink", marks: [{ kind: "stamp" }] });
-    expect(parseThumbLine("glow #FFAA00").parts.bg).toBe("glow #ffaa00");
-    expect(parseThumbLine("solid").parts.bg).toBe("solid yellow");
-    expect(readThumb('lilac band "x"')).toBe('band "x" lilac');
+  test("card (with a surface), notebook, graph, chalkboard and paper read and print back", () => {
+    expect(parseThumbLine("notebook").parts.bg).toBe("notebook");
+    expect(parseThumbLine('band "Hey" card cork stamp').parts).toMatchObject({ headline: "Hey", bg: "card cork", marks: [{ kind: "stamp" }] });
+    expect(parseThumbLine("card").parts.bg).toBe("card");
+    expect(readThumb('chalkboard band "x"')).toBe('band "x" chalkboard');
+    expect(parseThumbLine("gradient").unknown).toEqual(["gradient"]);
   });
-  test("the default is a preset, the same for the same title", () => {
-    expect(BG_PRESET_NAMES).toContain(defaultBackground("Why the Moon never lands"));
-    expect(planThumb(undefined, { title: "A" }).bg).toBe(planThumb('band "x"', { title: "A" }).bg);
-    expect(planThumb("mint", { title: "A" }).bg).toBe("mint");
+  test("paper is the default; card alone gets a surface the title picks, the same each time", () => {
+    expect(planThumb('band "x"', { title: "A" }).bg).toBeUndefined();
+    expect(planThumb("paper").bg).toBeUndefined();
+    const a = planThumb("card", { title: "Why the Moon never lands" }).bg!;
+    expect(a).toMatch(/^card \w+$/);
+    expect(planThumb("card", { title: "Why the Moon never lands" }).bg).toBe(a);
+    expect(planThumb("card navy").bg).toBe("card navy");
   });
-  test("a dark colour is lightened so ink still reads", () => {
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(colourOf("#102030")!.slice(i, i + 2), 16));
-    expect((0.3 * r + 0.59 * g + 0.11 * b) / 255).toBeGreaterThanOrEqual(0.74);
-    expect(colourOf("blurple")).toBeUndefined();
+  test("the background stands behind the picture; a card keeps the poster's paper, a page or board needs it see-through", () => {
+    const card = thumbSvg(planThumb("card teal"), "p.png");
+    expect(card.indexOf("#5fb3a9")).toBeLessThan(card.indexOf('href="p.png"'));
+    expect(card).toMatch(/<g transform="rotate\(-2.5[^"]*"><image filter="url\(#thumb-shadow\)" href="p.png"/);
+    expect(seeThroughFor("card teal")).toBe(false);
+    expect(seeThroughFor("graph")).toBe(true);
+    expect(thumbSvg(planThumb("chalkboard"), "p.png")).toMatch(/<g filter="url\(#thumb-chalk\)"><image href="p.png"/);
+    expect(thumbSvg(planThumb(""), "p.png")).not.toContain("thumb-");
   });
-  test("the background stands behind the picture, unblended", () => {
-    const svg = thumbSvg(planThumb("glow pink", { title: "T" }), "p.png");
-    expect(svg).toContain("radialGradient");
-    expect(svg.indexOf("thumb-bg")).toBeLessThan(svg.indexOf('href="p.png"'));
-    expect(svg).not.toContain("mix-blend-mode");
-    expect(backgroundSvg("paper")).toContain("#fffdf7");
+  test("a drawing on a card gets a sheet of paper under it", () => {
+    const svg = thumbSvg(planThumb("card wood"), "", undefined, "<path d='M0 0'/>");
+    expect(svg).toMatch(/<rect width="1000" height="750" fill="#fffdf7" filter="url\(#thumb-shadow\)"\/><g><path/);
   });
   test("a poster's paper goes see-through; ink and colours stay as drawn; edges lose their white", () => {
     // a row: paper, an edge pixel (ink half-blended with white), ink, a pale fill, paper
@@ -95,11 +98,11 @@ describe("people", () => {
   test("resvg draws the person, outlined, from the bundled file", () => {
     const poster = new PNG({ width: 100, height: 75 });
     poster.data.fill(255);
-    const png = PNG.sync.read(Buffer.from(renderThumb(planThumb("solid blue person woman 19 surprised", { title: "T" }), PNG.sync.write(poster))));
+    const png = PNG.sync.read(Buffer.from(renderThumb(planThumb("card navy person woman 19 surprised", { title: "T" }), PNG.sync.write(poster))));
     expect(png.width).toBe(1000);
-    // the right half near the bottom is the person, not the blue background
+    // the right half near the bottom is the person, not the navy desk
     const at = (x: number, y: number): number[] => Array.from(png.data.slice((y * 1000 + x) * 4, (y * 1000 + x) * 4 + 3));
-    expect(at(820, 700)).not.toEqual(at(150, 100));
-    expect(at(150, 100)).toEqual([0xb7, 0xd9, 0xff]);
+    expect(at(820, 700)).not.toEqual(at(20, 20));
+    expect(at(20, 20)).toEqual([0x1d, 0x2a, 0x44]);
   });
 });

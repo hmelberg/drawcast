@@ -15,7 +15,7 @@ import { drawCard, iconNames, type Icons } from "../card/draw";
 import { seeThroughUrl } from "../card/see-through";
 import { loadIcons } from "../card/icons";
 import type { CompiledCard } from "../card/types";
-import { pictureAllowed } from "../../netlify/lib/thumb.mts";
+import { pictureAllowed, seeThroughFor } from "../../netlify/lib/thumb.mts";
 
 /** Retry waits for a card picture the server was still building (a 503 —
  *  netlify/functions/card.mts finishes it in the background meanwhile). */
@@ -29,7 +29,7 @@ const THUMB_RETRIES_MS = [2500, 7000];
  * marks once it has loaded, fetched when the card nears the screen.
  * drawCard escapes every text it draws.
  */
-function drawnThumb(name: string, own: CompiledCard, title?: string): { box: HTMLElement; variant: number } {
+function drawnThumb(name: string, own: CompiledCard): { box: HTMLElement; variant: number } {
   // A cast with several thumbnails shows one of them (card/choose.ts): mostly
   // the one clicked most, the same one all day for this viewer.
   const all = [own, ...(own.variants ?? [])];
@@ -40,7 +40,7 @@ function drawnThumb(name: string, own: CompiledCard, title?: string): { box: HTM
   let poster: string | undefined;
   const paint = (): void => {
     try {
-      box.innerHTML = drawCard(card, { icons, posterHref: poster, seed: title ?? name });
+      box.innerHTML = drawCard(card, { icons, posterHref: poster });
     } catch {
       /* a malformed card: the box stays as it was */
     }
@@ -55,10 +55,10 @@ function drawnThumb(name: string, own: CompiledCard, title?: string): { box: HTM
   // thumbnail otherwise, and nothing more is downloaded.
   const src = card.picture === "poster" ? card.poster : card.picture && pictureAllowed(card.picture) ? card.picture : undefined;
   if (src) {
-    // The poster's paper goes see-through, so the background shows behind
-    // it; another image (a photo) stands as it is.
+    // On a page or a board the poster's paper goes see-through, so the
+    // background shows behind it; another image (a photo) stands as it is.
     const load = (): void => {
-      if (card.picture === "poster") {
+      if (card.picture === "poster" && seeThroughFor(card.marks.bg)) {
         void seeThroughUrl(src).then((href) => {
           poster = href;
           paint();
@@ -109,7 +109,7 @@ function serverThumb(c: HomeCard): HTMLElement {
 
 export function card(c: HomeCard, opts: { compact?: boolean } = {}): HTMLElement {
   const own = cardOf(c.name);
-  const drawn = own ? drawnThumb(c.name, own, c.title) : null;
+  const drawn = own ? drawnThumb(c.name, own) : null;
   const thumb = drawn ? drawn.box : serverThumb(c);
   const badges: HTMLElement[] = [];
   if (c.format) badges.push(h("span", { class: `home-badge home-badge-${c.format}` }, FORMAT_BADGE[c.format]));

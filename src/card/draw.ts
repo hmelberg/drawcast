@@ -8,7 +8,7 @@
 import rough from "roughjs";
 import type { RoughGenerator } from "roughjs/bin/generator";
 import type { Options as RoughOptions } from "roughjs/bin/core";
-import { defaultBackground, thumbSvg, type Corner } from "../../netlify/lib/thumb.mts";
+import { thumbSvg, type Corner } from "../../netlify/lib/thumb.mts";
 import { decodePts } from "./points";
 import { CARD_H, CARD_W, type CardArea, type CardIcon, type CardItem, type CardStroke, type CardText, type CompiledCard } from "./types";
 
@@ -214,10 +214,8 @@ function busyOf(corners: Corner[]): Record<Corner, number> {
  * poster — under the marks. The marks stand where the card says whichever
  * picture is under them.
  */
-export function drawCard(card: CompiledCard, opts: { posterHref?: string; width?: number; icons?: Icons; seed?: string } = {}): string {
-  // A card compiled before backgrounds (2026-10-07) takes the default its cast's name picks.
-  const marks = card.marks.bg || opts.seed === undefined ? card.marks : { ...card.marks, bg: defaultBackground(opts.seed) };
-  const svg = thumbSvg(marks, opts.posterHref ?? "", busyOf(card.corners), opts.posterHref ? undefined : drawingMarkup(card, opts.icons, false));
+export function drawCard(card: CompiledCard, opts: { posterHref?: string; width?: number; icons?: Icons } = {}): string {
+  const svg = thumbSvg(card.marks, opts.posterHref ?? "", busyOf(card.corners), opts.posterHref ? undefined : drawingMarkup(card, opts.icons, false));
   if (!opts.width) return svg;
   const h = Math.round((opts.width * CARD_H) / CARD_W);
   return svg.replace(/^<svg ([^>]*?)width="\d+" height="\d+"/, `<svg $1width="${opts.width}" height="${h}"`);

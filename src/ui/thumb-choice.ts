@@ -5,7 +5,7 @@
 // drawn here with the same three faces and the same emptiest-corner rule.
 // What it returns is written into the document's `thumb:` line at publish.
 
-import { BG_PRESET_NAMES, cornerBusyness, KID_FIGURES, MARK_WORDS, parseThumbLine, planThumb, readThumb, thumbSvg, THUMB_H, THUMB_W, type Corner } from "../../netlify/lib/thumb.mts";
+import { cornerBusyness, seeThroughFor, SURFACES, KID_FIGURES, MARK_WORDS, parseThumbLine, planThumb, readThumb, thumbSvg, THUMB_H, THUMB_W, type Corner } from "../../netlify/lib/thumb.mts";
 import { h } from "./dom";
 import { seeThroughUrl } from "../card/see-through";
 
@@ -42,11 +42,12 @@ const CHIPS: { group: string; words: { label: string; insert: string; title: str
   {
     group: "Background",
     words: [
-      ...BG_PRESET_NAMES.map((b) => ({ label: b, insert: b, title: "a soft gradient (the default is one of these, picked by the title)" })),
-      { label: "solid", insert: "solid yellow", title: "one colour: yellow orange red pink purple blue teal green grey, or #hex" },
-      { label: "gradient", insert: "gradient blue pink", title: "a diagonal gradient between one or two colours" },
-      { label: "glow", insert: "glow yellow", title: "a light centre fading to the colour" },
-      { label: "paper", insert: "paper", title: "plain off-white" },
+      { label: "card", insert: "card", title: "the picture on a white card on a desk (the title picks the desk)" },
+      ...["charcoal", "navy", "wood", "cork", "teal"].map((s) => ({ label: `card ${s}`, insert: `card ${s}`, title: `the card on ${s}; or card ${Object.keys(SURFACES).slice(5).join("/")}` })),
+      { label: "notebook", insert: "notebook", title: "a ruled notebook page" },
+      { label: "graph", insert: "graph", title: "squared graph paper" },
+      { label: "chalkboard", insert: "chalkboard", title: "the picture in chalk on a board" },
+      { label: "paper", insert: "paper", title: "plain off-white (the default)" },
     ],
   },
   {
@@ -234,6 +235,8 @@ export function thumbChoice(): ThumbChoice {
   let format: string | undefined;
   let kids = false;
   let posterHref: string | null = null;
+  /** The poster with see-through paper, for a page or a board. */
+  let keyedHref: string | null = null;
   let busy: Record<Corner, number> | undefined;
   let posterFor: (() => Promise<Uint8Array | null>) | null = null;
 
@@ -247,7 +250,7 @@ export function thumbChoice(): ThumbChoice {
       preview.replaceChildren(h("div", { class: "hint" }, "Drawing the preview…"));
       return;
     }
-    preview.innerHTML = thumbSvg(plan, posterHref, busy).replace("<svg ", '<svg class="thumb-svg" ');
+    preview.innerHTML = thumbSvg(plan, seeThroughFor(plan.bg) && keyedHref ? keyedHref : posterHref, busy).replace("<svg ", '<svg class="thumb-svg" ');
   };
   input.addEventListener("input", paint);
   // The poster is drawn only once the section is opened: it costs a render.
@@ -258,7 +261,7 @@ export function thumbChoice(): ThumbChoice {
       if (draw !== posterFor) return; // a newer document opened meanwhile
       posterHref = png ? `data:image/png;base64,${btoa(Array.from(png, (b) => String.fromCharCode(b)).join(""))}` : "data:,";
       busy = png ? await busyOf(posterHref) : undefined;
-      if (png) posterHref = await seeThroughUrl(posterHref);
+      keyedHref = png ? await seeThroughUrl(posterHref) : null;
       paint();
     });
   });
@@ -270,6 +273,7 @@ export function thumbChoice(): ThumbChoice {
       format = opts.format;
       kids = opts.kids === true;
       posterHref = null;
+      keyedHref = null;
       busy = undefined;
       posterFor = opts.poster;
       input.value = opts.thumb ?? "";

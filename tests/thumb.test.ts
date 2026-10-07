@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { castCardText } from "../netlify/lib/share-card.mts";
-import { characterArt, cornerBusyness, defaultBackground, fitText, isPlain, KID_FIGURES, kidsByTags, parseThumbLine, planThumb, printThumbLine, readThumb, thumbSvg, thumbTitle } from "../netlify/lib/thumb.mts";
+import { characterArt, cornerBusyness, fitText, isPlain, KID_FIGURES, kidsByTags, parseThumbLine, planThumb, printThumbLine, readThumb, thumbSvg, thumbTitle } from "../netlify/lib/thumb.mts";
 import { posterBusyness, renderThumb } from "../netlify/lib/thumb-render.mts";
 import { handleCardRequest, type CardDeps } from "../netlify/functions/card.mts";
 
@@ -33,9 +33,10 @@ describe("the line", () => {
 describe("planThumb", () => {
   test("a headline alone means the band; nothing means the poster on its default background; paper is plain", () => {
     expect(planThumb('"Hey"').words).toBe("band");
-    expect(planThumb(undefined, { title: "Sharks" })).toEqual({ words: "none", figure: "none", marks: [], bg: defaultBackground("Sharks") });
-    expect(isPlain(planThumb(undefined))).toBe(false);
+    expect(planThumb(undefined, { title: "Sharks" })).toEqual({ words: "none", figure: "none", marks: [] });
+    expect(isPlain(planThumb(undefined))).toBe(true);
     expect(isPlain(planThumb("paper"))).toBe(true);
+    expect(isPlain(planThumb("notebook"))).toBe(false);
   });
   test("band and burst need words; question needs a question or a title that is one", () => {
     expect(planThumb("burst").words).toBe("none");
@@ -116,7 +117,7 @@ describe("/card/ draws the line", () => {
     const drawn: string[] = [];
     const a = await handleCardRequest(get("/card/c.png"), deps('# T\nthumb: band "Hey"\n\n## T\n', drawn));
     expect(new Uint8Array(await a.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
-    const b = await handleCardRequest(get("/card/c.png"), deps("# T\nthumb: paper\n\n## T\n", drawn));
+    const b = await handleCardRequest(get("/card/c.png"), deps("# T\n\n## T\n", drawn));
     expect(new Uint8Array(await b.arrayBuffer())).toEqual(POSTER);
     expect(drawn).toEqual(["band"]);
   });
