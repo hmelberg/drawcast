@@ -153,6 +153,15 @@ export function geminiKeyFor(cfg: { apiKey: string; geminiKey?: string }): strin
   return cfg.geminiKey || geminiKeySource() || cfg.apiKey;
 }
 
+/** "retry in 44s" / "retry in 1h29m47s" in an error message, as seconds; null when it says none. */
+export function retryAfterSeconds(said: string): number | null {
+  const m = /retry in ((?:[\d.]+\s*[hms]\s*)+)/i.exec(said);
+  if (!m) return null;
+  let secs = 0;
+  for (const [, n, u] of m[1].matchAll(/([\d.]+)\s*([hms])/gi)) secs += Number(n) * (u.toLowerCase() === "h" ? 3600 : u.toLowerCase() === "m" ? 60 : 1);
+  return secs;
+}
+
 /** One line spoken by a Gemini voice, as base64 MP3 (what Cloud TTS returns too). */
 export async function geminiSynthesizeBase64(
   apiKey: string,
@@ -174,8 +183,10 @@ export async function geminiSynthesizeBase64(
   // cast's lines arrive faster than the limit, and failing would lose them all.
   for (let tries = 0; res.status === 429 && tries < 12; tries++) {
     const said = await res.clone().text().catch(() => "");
-    const secs = Number(/retry in ([\d.]+)\s*s/i.exec(said)?.[1] ?? res.headers.get("retry-after") ?? 20);
-    await sleep(Math.min(90, Math.max(2, secs + 1)) * 1000);
+    const secs = retryAfterSeconds(said) ?? Number(res.headers.get("retry-after") ?? 20);
+    // A per-day limit ("retry in 1h29m47s") is not worth waiting for: say so at once.
+    if (secs > 120) throw new Error(`Gemini TTS: the key's limit is used up — ${/limit:[^.]*/i.exec(said)?.[0] ?? "rate limit"}; try again in ${Math.ceil(secs / 60)} min, or raise the key's tier`);
+    await sleep(Math.max(2, secs + 1) * 1000);
     res = await send();
   }
   if (!res.ok) {

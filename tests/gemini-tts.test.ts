@@ -70,6 +70,14 @@ describe("voice specs", () => {
     expect(waits).toEqual([4000]);
     expect(mp3.length).toBeGreaterThan(10);
   });
+  test("a wait is read in hours, minutes and seconds; a long one (a daily limit) fails at once", async () => {
+    const { retryAfterSeconds } = await import("../src/export/gemini-tts");
+    expect(retryAfterSeconds("Please retry in 44s or upgrade")).toBe(44);
+    expect(retryAfterSeconds("Please retry in 1h29m47s or upgrade")).toBe(5387);
+    expect(retryAfterSeconds("no hint")).toBeNull();
+    const fetchImpl = (async () => new Response(JSON.stringify({ error: { message: "Rate limit exceeded (limit: 100 requests per day on Tier 1). Please retry in 1h29m47s." } }), { status: 429 })) as typeof fetch;
+    await expect(geminiSynthesizeBase64("KEY", { model: "m", voice: "Puck" }, "Hi", undefined, fetchImpl, async () => {})).rejects.toThrow(/100 requests per day.*90 min/);
+  });
   test("a refused key says what to enable", async () => {
     const fetchImpl = (async () => new Response(JSON.stringify({ error: { message: "blocked" } }), { status: 403 })) as typeof fetch;
     await expect(geminiSynthesizeBase64("KEY", { model: "m", voice: "Puck" }, "Hi", undefined, fetchImpl)).rejects.toThrow(/Gemini API/);

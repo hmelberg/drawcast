@@ -55,6 +55,8 @@ const { bakeNarration } = await vite.ssrLoadModule("/src/export/bake.ts");
 const { synthesizeBase64, stampedVoice, runLang } = await vite.ssrLoadModule("/src/export/tts.ts");
 const { bakeCost } = await vite.ssrLoadModule("/src/export/tts-cost.ts");
 const { withCastVoices, readCastVoices } = await vite.ssrLoadModule("/src/export/gemini-tts.ts");
+const { speechKey } = await vite.ssrLoadModule("/src/render/delivery.ts");
+let failed = false;
 
 let totalUsd = 0;
 let totalChars = 0;
@@ -80,21 +82,40 @@ for (const file of files) {
     console.log(`${file}: ${lines.length} lines, ${cost.chars} chars, ≈ $${cost.usd.toFixed(2)}${Object.keys(existing).length ? ` (${Object.keys(existing).length} clips already recorded)` : ""}${who}`);
     continue;
   }
-  const track = await bakeNarration(
-    lines,
-    {
-      lang: declaredLang ?? "en",
-      existing,
-      synthesize: (line) => synthesizeBase64({ apiKey, geminiKey, rate: 1, voices, lang: declaredLang }, line.text, line),
-      voiceOf,
-    },
-    (done, total) => process.stdout.write(`\r${file}: ${done}/${total}   `),
-    new AbortController().signal,
-  );
-  const out = P.formatPublished(playlist, track, "script");
   const target = isJson ? file.replace(/\.json$/, ".cast") : file.replace(/\.yaml$/, ".cast");
+  // Every clip as it arrives, so a stop halfway (a key's daily limit) keeps
+  // what was bought: the file is written with them, and a re-run records
+  // only the rest. A partial file is said to be one — never push it as is.
+  const recorded = {};
+  let track;
+  try {
+    track = await bakeNarration(
+      lines,
+      {
+        lang: declaredLang ?? "en",
+        existing,
+        synthesize: async (line) => {
+          const mp3 = await synthesizeBase64({ apiKey, geminiKey, rate: 1, voices, lang: declaredLang }, line.text, line);
+          const voice = voiceOf(line);
+          recorded[speechKey(line)] = voice ? { mp3, ms: 0, voice } : { mp3, ms: 0 };
+          return mp3;
+        },
+        voiceOf,
+      },
+      (done, total) => process.stdout.write(`\r${file}: ${done}/${total}   `),
+      new AbortController().signal,
+    );
+  } catch (err) {
+    failed = true;
+    const n = Object.keys(recorded).length;
+    if (n) writeFileSync(target, P.formatPublished(playlist, { lang: declaredLang ?? "en", lines: { ...existing, ...recorded } }, "script"));
+    console.error(`\n${file}: stopped — ${err?.message ?? err}${n ? `\n  ${n} new clips kept in ${target}; run again to record the rest (not finished: do not publish it yet)` : ""}`);
+    continue;
+  }
+  const out = P.formatPublished(playlist, track, "script");
   writeFileSync(target, out);
   console.log(`\n${file} → ${target}: ${Object.keys(track.lines).length} clips`);
 }
 if (!apply) console.log(`TOTAL ≈ $${totalUsd.toFixed(2)} for ${totalChars} characters (lines already recorded in the same voice are free).`);
 await vite.close();
+if (failed) process.exit(1);
