@@ -6,6 +6,8 @@
 //   thumb: band "Wait, what?" person man 45 bald surprised
 //   thumb: person woman 19 puzzled
 //   thumb: person annoyed
+//   thumb: person everyday talking      (an ordinary person, speaking to camera)
+//   thumb: person quirky man 60
 //
 // — and the nearest match is drawn: a word no picture has is let go (looks
 // first, then age, then sex; the expression last), and among equals the
@@ -13,6 +15,8 @@
 // and a line below; no code changes. Pure: no fs, no DOM.
 
 export type Sex = "man" | "woman";
+/** polished: the reaction-photo look; everyday: ordinary people, as if filming themselves (Hans, 2026-10-07). */
+export type Style = "polished" | "everyday";
 
 export interface Person {
   id: string;
@@ -21,28 +25,30 @@ export interface Person {
   /** Plain look words: bald, beard, glasses, grey, curly, long, … */
   looks: string[];
   expression: string;
-  /** Which way the person looks, as the viewer sees it. */
-  faces: "left" | "right";
+  style: Style;
+  /** Which way the person looks, as the viewer sees it; front: into the camera. */
+  faces: "left" | "right" | "front";
   /** The cut-out's pixel size. */
   w: number;
   h: number;
 }
 
 export const PEOPLE: readonly Person[] = [
-  { id: "m45-surprised", sex: "man", age: 45, looks: ["bald", "beard"], expression: "surprised", faces: "left", w: 561, h: 640 },
-  { id: "f19-surprised", sex: "woman", age: 19, looks: ["long", "brown"], expression: "surprised", faces: "right", w: 500, h: 640 },
-  { id: "m9-surprised", sex: "man", age: 9, looks: ["dark", "freckles"], expression: "surprised", faces: "left", w: 517, h: 640 },
-  { id: "f72-surprised", sex: "woman", age: 72, looks: ["grey", "white", "glasses"], expression: "surprised", faces: "right", w: 518, h: 640 },
-  { id: "m28-surprised", sex: "man", age: 28, looks: ["black", "curly", "beard"], expression: "surprised", faces: "left", w: 524, h: 640 },
-  { id: "f35-surprised", sex: "woman", age: 35, looks: ["black", "long"], expression: "surprised", faces: "right", w: 533, h: 640 },
-  { id: "m60-surprised", sex: "man", age: 60, looks: ["grey", "moustache"], expression: "surprised", faces: "left", w: 529, h: 640 },
-  { id: "f16-surprised", sex: "woman", age: 16, looks: ["black", "ponytail"], expression: "surprised", faces: "right", w: 490, h: 640 },
-  { id: "f19-puzzled", sex: "woman", age: 19, looks: ["red", "curly"], expression: "puzzled", faces: "right", w: 532, h: 640 },
-  { id: "m45-puzzled", sex: "man", age: 45, looks: ["brown", "glasses"], expression: "puzzled", faces: "right", w: 547, h: 640 },
+  { id: "m45-surprised", sex: "man", age: 45, looks: ["bald", "beard"], expression: "surprised", style: "polished", faces: "left", w: 561, h: 640 },
+  { id: "f19-surprised", sex: "woman", age: 19, looks: ["long", "brown"], expression: "surprised", style: "polished", faces: "right", w: 500, h: 640 },
+  { id: "m9-surprised", sex: "man", age: 9, looks: ["dark", "freckles"], expression: "surprised", style: "polished", faces: "left", w: 517, h: 640 },
+  { id: "f72-surprised", sex: "woman", age: 72, looks: ["grey", "white", "glasses"], expression: "surprised", style: "polished", faces: "right", w: 518, h: 640 },
+  { id: "m28-surprised", sex: "man", age: 28, looks: ["black", "curly", "beard"], expression: "surprised", style: "polished", faces: "left", w: 524, h: 640 },
+  { id: "f35-surprised", sex: "woman", age: 35, looks: ["black", "long"], expression: "surprised", style: "polished", faces: "right", w: 533, h: 640 },
+  { id: "m60-surprised", sex: "man", age: 60, looks: ["grey", "moustache"], expression: "surprised", style: "polished", faces: "left", w: 529, h: 640 },
+  { id: "f16-surprised", sex: "woman", age: 16, looks: ["black", "ponytail"], expression: "surprised", style: "polished", faces: "right", w: 490, h: 640 },
+  { id: "f19-puzzled", sex: "woman", age: 19, looks: ["red", "curly"], expression: "puzzled", style: "polished", faces: "right", w: 532, h: 640 },
+  { id: "m45-puzzled", sex: "man", age: 45, looks: ["brown", "glasses"], expression: "puzzled", style: "polished", faces: "right", w: 547, h: 640 },
 ];
 
 /** What a cast asked for. */
 export interface PersonAsk {
+  style?: Style;
   sex?: Sex;
   age?: number;
   looks: string[];
@@ -58,20 +64,27 @@ const EXPRESSIONS: Record<string, string> = {
   puzzled: "puzzled", confused: "puzzled", unsure: "puzzled",
   annoyed: "annoyed", irritated: "annoyed", grumpy: "annoyed", angry: "annoyed",
   laughing: "laughing", happy: "laughing", amused: "laughing",
-  thinking: "thinking", skeptical: "skeptical", worried: "worried",
+  thinking: "thinking", skeptical: "skeptical", doubtful: "skeptical", worried: "worried",
+  talking: "talking", speaking: "talking", explaining: "talking", neutral: "neutral", calm: "neutral", serious: "neutral",
+  smiling: "smiling", friendly: "smiling",
 };
-const LOOKS = new Set(["bald", "beard", "glasses", "grey", "gray", "white", "curly", "long", "short", "brown", "black", "blond", "red", "dark", "moustache", "mustache", "ponytail", "freckles", "braids"]);
+const STYLE_WORDS: Record<string, Style> = { everyday: "everyday", ordinary: "everyday", normal: "everyday", regular: "everyday", average: "everyday", real: "everyday", quirky: "everyday", odd: "everyday", eccentric: "everyday", polished: "polished" };
+/** Style words that also ask for a look. */
+const STYLE_LOOKS: Record<string, string> = { quirky: "quirky", odd: "quirky", eccentric: "quirky" };
+const LOOKS = new Set(["quirky", "bald", "beard", "glasses", "grey", "gray", "white", "curly", "long", "short", "brown", "black", "blond", "red", "dark", "moustache", "mustache", "ponytail", "freckles", "braids"]);
 const LOOK_SAME: Record<string, string> = { gray: "grey", mustache: "moustache" };
 
 /** Whether a word, after `person`, belongs to it. */
 export function isPersonWord(w: string): boolean {
-  return w in SEX_WORDS || w in AGE_WORDS || w in EXPRESSIONS || LOOKS.has(w) || /^\d{1,2}s?$/.test(w);
+  return w in STYLE_WORDS || w in SEX_WORDS || w in AGE_WORDS || w in EXPRESSIONS || LOOKS.has(w) || /^\d{1,2}s?$/.test(w);
 }
 
 /** A person's words, read (unknown words are the caller's). */
 export function readPersonWords(words: readonly string[]): PersonAsk {
   const ask: PersonAsk = { looks: [] };
   for (const w of words) {
+    if (w in STYLE_WORDS) ask.style = STYLE_WORDS[w];
+    if (w in STYLE_LOOKS && !ask.looks.includes(STYLE_LOOKS[w])) ask.looks.push(STYLE_LOOKS[w]);
     if (w in SEX_WORDS) ask.sex = SEX_WORDS[w];
     if (w in AGE_WORDS) ask.age = AGE_WORDS[w];
     else if (/^\d{1,2}s$/.test(w)) ask.age = Number(w.slice(0, -1)) + 5;
@@ -87,7 +100,7 @@ export function readPersonWords(words: readonly string[]): PersonAsk {
 
 /** The ask as canonical words (sex, age, looks, expression). */
 export function printPerson(ask: PersonAsk): string[] {
-  return [...(ask.sex ? [ask.sex] : []), ...(ask.age !== undefined ? [String(ask.age)] : []), ...ask.looks, ...(ask.expression ? [ask.expression] : [])];
+  return [...(ask.style === "everyday" ? ["everyday"] : []), ...(ask.sex ? [ask.sex] : []), ...(ask.age !== undefined ? [String(ask.age)] : []), ...ask.looks, ...(ask.expression ? [ask.expression] : [])];
 }
 
 /** A small stable hash (FNV-1a) of a string. */
@@ -102,8 +115,9 @@ export function hashOf(s: string): number {
 
 /**
  * The picture nearest the ask. Each wish narrows the choice only while some
- * picture still meets it, in order: expression, sex, age (the nearest ages),
- * then looks (the most of them); `seed` picks among what is left.
+ * picture still meets it, in order: style (polished unless asked),
+ * expression, sex, age (the nearest ages), then looks (the most of them);
+ * `seed` picks among what is left.
  */
 export function pickPerson(ask: PersonAsk, seed = "", people: readonly Person[] = PEOPLE): Person {
   let left = [...people];
@@ -111,6 +125,7 @@ export function pickPerson(ask: PersonAsk, seed = "", people: readonly Person[] 
     const next = left.filter(keep);
     if (next.length) left = next;
   };
+  narrow((p) => p.style === (ask.style ?? "polished"));
   if (ask.expression) narrow((p) => p.expression === ask.expression);
   if (ask.sex) narrow((p) => p.sex === ask.sex);
   if (ask.age !== undefined) {

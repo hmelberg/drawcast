@@ -1,8 +1,9 @@
 // Backgrounds and photo people on the listing picture (2026-10-07).
 import { existsSync } from "node:fs";
 import { describe, expect, test } from "vitest";
+import { keyPaper } from "../netlify/lib/paper-key.mts";
 import { backgroundSvg, colourOf, defaultBackground, parseThumbLine, planThumb, printThumbLine, readThumb, thumbSvg, BG_PRESET_NAMES } from "../netlify/lib/thumb.mts";
-import { PEOPLE, pickPerson, readPersonWords } from "../netlify/lib/people.mts";
+import { PEOPLE, pickPerson, readPersonWords, type Person } from "../netlify/lib/people.mts";
 import { renderThumb } from "../netlify/lib/thumb-render.mts";
 import { PNG } from "pngjs";
 
@@ -25,11 +26,24 @@ describe("backgrounds", () => {
     expect((0.3 * r + 0.59 * g + 0.11 * b) / 255).toBeGreaterThanOrEqual(0.74);
     expect(colourOf("blurple")).toBeUndefined();
   });
-  test("the picture is multiplied onto the background", () => {
+  test("the background stands behind the picture, unblended", () => {
     const svg = thumbSvg(planThumb("glow pink", { title: "T" }), "p.png");
     expect(svg).toContain("radialGradient");
-    expect(svg).toMatch(/<image href="p.png"[^>]*mix-blend-mode:multiply/);
+    expect(svg.indexOf("thumb-bg")).toBeLessThan(svg.indexOf('href="p.png"'));
+    expect(svg).not.toContain("mix-blend-mode");
     expect(backgroundSvg("paper")).toContain("#fffdf7");
+  });
+  test("a poster's paper goes see-through; ink and colours stay as drawn; edges lose their white", () => {
+    // a row: paper, an edge pixel (ink half-blended with white), ink, a pale fill, paper
+    const px = [[255, 254, 251], [149, 146, 145], [43, 38, 34], [200, 220, 240], [255, 255, 255]];
+    const rgba = new Uint8Array(px.flatMap((c) => [...c, 255]));
+    keyPaper(rgba, px.length, 1);
+    expect(rgba[3]).toBe(0);
+    expect(rgba[19]).toBe(0);
+    expect(Array.from(rgba.slice(8, 12))).toEqual([43, 38, 34, 255]);
+    // the edge pixel: darker and partly see-through, the same over white as before
+    expect(rgba[7]).toBeLessThan(255);
+    expect(Math.round(rgba[4] * (rgba[7] / 255) + 255 * (1 - rgba[7] / 255))).toBeCloseTo(149, -1);
   });
 });
 
@@ -49,6 +63,14 @@ describe("people", () => {
     expect(pickPerson(readPersonWords(["woman", "70", "puzzled"])).id).toBe("f19-puzzled");
     // nobody annoyed yet: sex and age decide
     expect(pickPerson(readPersonWords(["old", "woman", "annoyed"])).id).toBe("f72-surprised");
+  });
+  test("everyday people are asked for by a word; polished is the default", () => {
+    expect(readPersonWords(["ordinary", "talking"])).toEqual({ style: "everyday", looks: [], expression: "talking" });
+    expect(readPersonWords(["eccentric"])).toEqual({ style: "everyday", looks: ["quirky"] });
+    expect(pickPerson(readPersonWords(["man"])).style).toBe("polished");
+    const everyday: Person = { id: "e", sex: "man", age: 50, looks: [], expression: "talking", style: "everyday", faces: "front", w: 500, h: 640 };
+    expect(pickPerson(readPersonWords(["everyday"]), "", [...PEOPLE, everyday]).id).toBe("e");
+    expect(pickPerson(readPersonWords(["surprised"]), "", [...PEOPLE, everyday]).style).toBe("polished");
   });
   test("the line takes a person and keeps them; a cartoon figure gives way", () => {
     const { parts } = parseThumbLine('band "Wait" person man 60 surprised stamp');

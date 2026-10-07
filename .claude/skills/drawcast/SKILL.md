@@ -99,9 +99,12 @@ every working file below is `dev-casts/<slug>…`.
      Person (optional, never by default): `person` and plain words — sex
      (`man` `woman`), age (`45`, `40s`, `child`, `teen`, `old`), looks
      (`bald` `beard` `glasses` `grey` `curly` …) and a face (`surprised`
-     `puzzled`, more to come) — a photo of a person reacting, beside the
-     picture, e.g. `person man 45 bald surprised`. The nearest picture is
-     used. Suggest it for youths' and adults' casts with a surprising
+     `puzzled`, `talking`, `neutral`, `smiling`, `skeptical`) — a photo of a
+     person beside the picture, e.g. `person man 45 bald surprised`. The
+     people are polished reaction photos unless the line says `everyday`
+     (ordinary people talking into the camera, as if filming themselves)
+     or `quirky` (a little odd or eccentric): `person everyday woman 50
+     talking`. The nearest picture is used. Suggest it for youths' and adults' casts with a surprising
      payoff; for children's casts, only `child` or `teen`.
    - **Subtitle:** write one yourself: a single sentence in the narration's
      language saying what the viewer gets ("How herd immunity protects

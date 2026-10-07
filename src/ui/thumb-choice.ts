@@ -7,6 +7,7 @@
 
 import { BG_PRESET_NAMES, cornerBusyness, KID_FIGURES, MARK_WORDS, parseThumbLine, planThumb, readThumb, thumbSvg, THUMB_H, THUMB_W, type Corner } from "../../netlify/lib/thumb.mts";
 import { h } from "./dom";
+import { seeThroughUrl } from "../card/see-through";
 
 /** The clickable words, in groups: what each inserts. */
 const CHIPS: { group: string; words: { label: string; insert: string; title: string }[] }[] = [
@@ -257,6 +258,7 @@ export function thumbChoice(): ThumbChoice {
       if (draw !== posterFor) return; // a newer document opened meanwhile
       posterHref = png ? `data:image/png;base64,${btoa(Array.from(png, (b) => String.fromCharCode(b)).join(""))}` : "data:,";
       busy = png ? await busyOf(posterHref) : undefined;
+      if (png) posterHref = await seeThroughUrl(posterHref);
       paint();
     });
   });

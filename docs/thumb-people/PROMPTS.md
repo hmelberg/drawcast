@@ -34,3 +34,27 @@ f35 surprised · m60 surprised · f16 surprised · f19 puzzled · m45 puzzled
 - puzzled: m72 bald white beard · f9 braids · m16 blond · f28 East Asian bob · m35 dark beard · f60 short grey
 - annoyed: f45 blonde bob · m19 · m60 beard · f28 · m9 · f72 · m35 bald · f16
 - laughing: m28 · f45 · m72 · f9 · f19 · m45 · f60 · m16
+
+## Everyday people (style "everyday", asked for by Hans 2026-10-07)
+
+Ordinary, average and a little odd or eccentric people, less than perfect
+looks, talking into the camera as if filming themselves; normal faces.
+Catalogue lines get `style: "everyday"`, `faces: "front"` (or left/right),
+and `quirky` in `looks` for the eccentric ones.
+
+> Candid, unpolished smartphone-style photo, chest-up, of an ordinary
+> {AGE}-year-old {WHO}, wearing {EVERYDAY CLOTHES}, talking straight into
+> the camera mid-sentence with a {normal, slightly earnest / neutral /
+> mildly sceptical / friendly smiling} expression. Looks like a regular
+> person recording a video at home, not a model: natural imperfect skin,
+> nothing glamorous. Even soft light. Background: completely flat solid
+> chroma-key green (#00B140), uniform, no shadow on the background. Head and
+> shoulders fully inside the frame with some space above the head; body cut
+> off at mid-chest by the bottom edge. No green clothing.
+
+To make (about 12):
+- talking: m52 thinning messy grey hair, stubble, a bit overweight, faded fleece · f38 tired mum, hair in a loose bun, cardigan · m24 lanky, patchy beard, beanie, hoodie · f67 short permed hair, big glasses, patterned blouse
+- neutral: m40 average office worker, receding hairline, checked shirt · f29 plain ponytail, no make-up, grey t-shirt · m70 weathered face, flat cap, wool jumper
+- skeptical: f55 reading glasses on a chain, raised eyebrow · m33 heavy-set, arms folded, polo shirt
+- smiling: f45 round face, gap-toothed smile, denim jacket
+- quirky: m58 wild white hair and bow tie, eccentric professor · f31 bright dyed hair, mismatched earrings, vintage cardigan

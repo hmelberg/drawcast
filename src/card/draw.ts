@@ -197,9 +197,9 @@ export function iconNames(card: CompiledCard): string[] {
   return [...new Set(card.items.flatMap((it) => (it.k === "i" && it.n ? [it.n] : [])))];
 }
 
-/** The drawing alone, on the 1000 × 750 canvas (no outer <svg>). */
-export function drawingMarkup(card: CompiledCard, icons: Icons = {}): string {
-  return `<rect width="${CARD_W}" height="${CARD_H}" fill="${PAPER}"/>` + card.items.map((it) => item(it, icons)).join("");
+/** The drawing alone, on the 1000 × 750 canvas (no outer <svg>); without its paper, over a thumbnail's background. */
+export function drawingMarkup(card: CompiledCard, icons: Icons = {}, paper = true): string {
+  return (paper ? `<rect width="${CARD_W}" height="${CARD_H}" fill="${PAPER}"/>` : "") + card.items.map((it) => item(it, icons)).join("");
 }
 
 /** The corners in the card's order as thumb.mts's busyness (emptiest first). */
@@ -217,7 +217,7 @@ function busyOf(corners: Corner[]): Record<Corner, number> {
 export function drawCard(card: CompiledCard, opts: { posterHref?: string; width?: number; icons?: Icons; seed?: string } = {}): string {
   // A card compiled before backgrounds (2026-10-07) takes the default its cast's name picks.
   const marks = card.marks.bg || opts.seed === undefined ? card.marks : { ...card.marks, bg: defaultBackground(opts.seed) };
-  const svg = thumbSvg(marks, opts.posterHref ?? "", busyOf(card.corners), opts.posterHref ? undefined : drawingMarkup(card, opts.icons));
+  const svg = thumbSvg(marks, opts.posterHref ?? "", busyOf(card.corners), opts.posterHref ? undefined : drawingMarkup(card, opts.icons, false));
   if (!opts.width) return svg;
   const h = Math.round((opts.width * CARD_H) / CARD_W);
   return svg.replace(/^<svg ([^>]*?)width="\d+" height="\d+"/, `<svg $1width="${opts.width}" height="${h}"`);

@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Resvg } from "@resvg/resvg-js";
 import { PNG } from "pngjs";
+import { keyPaper } from "./paper-key.mts";
 import { cornerBusyness, thumbSvg, THUMB_W, type Corner, type ThumbPlan } from "./thumb.mts";
 
 /** How busy each corner of the poster is (thumb.mts cornerBusyness), or undefined when it cannot be read. */
@@ -45,6 +46,17 @@ function fontFiles(): string[] {
 
 let fonts: string[] | null = null;
 
+/** The poster with its paper see-through (paper-key.mts), so the background shows behind it; as it is when it cannot be read. */
+function seeThrough(poster: Uint8Array): Uint8Array {
+  try {
+    const png = PNG.sync.read(Buffer.from(poster));
+    keyPaper(png.data, png.width, png.height);
+    return PNG.sync.write(png);
+  } catch {
+    return poster;
+  }
+}
+
 /** A photo person (people.mts) as a data: URL, from public/thumb-people (netlify.toml included_files). */
 function personHref(id: string): string {
   for (const r of roots()) {
@@ -58,7 +70,7 @@ function personHref(id: string): string {
 export function renderThumb(plan: ThumbPlan, poster: Uint8Array): Uint8Array {
   fonts ??= fontFiles();
   if (fonts.length === 0) throw new Error("thumb fonts not found");
-  const href = `data:image/png;base64,${Buffer.from(poster).toString("base64")}`;
+  const href = `data:image/png;base64,${Buffer.from(seeThrough(poster)).toString("base64")}`;
   const svg = thumbSvg(plan, href, posterBusyness(poster), undefined, personHref);
   const r = new Resvg(svg, {
     fitTo: { mode: "width", value: THUMB_W },

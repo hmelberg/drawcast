@@ -12,6 +12,7 @@ import { cardOf, fetchFeed, storedFeed, thumbCountsOf } from "./feed";
 import { chooseVariant, hash32, seeded } from "../card/choose";
 import { countClick, viewerId, watchShown } from "./thumb-count";
 import { drawCard, iconNames, type Icons } from "../card/draw";
+import { seeThroughUrl } from "../card/see-through";
 import { loadIcons } from "../card/icons";
 import type { CompiledCard } from "../card/types";
 import { pictureAllowed } from "../../netlify/lib/thumb.mts";
@@ -54,7 +55,16 @@ function drawnThumb(name: string, own: CompiledCard, title?: string): { box: HTM
   // thumbnail otherwise, and nothing more is downloaded.
   const src = card.picture === "poster" ? card.poster : card.picture && pictureAllowed(card.picture) ? card.picture : undefined;
   if (src) {
+    // The poster's paper goes see-through, so the background shows behind
+    // it; another image (a photo) stands as it is.
     const load = (): void => {
+      if (card.picture === "poster") {
+        void seeThroughUrl(src).then((href) => {
+          poster = href;
+          paint();
+        });
+        return;
+      }
       const img = new Image();
       img.onload = () => {
         poster = src;

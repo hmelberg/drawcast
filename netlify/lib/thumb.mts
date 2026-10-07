@@ -25,8 +25,9 @@
 //           lemon blush sand) · solid <colour> · gradient <colour> [<colour>] ·
 //           glow <colour> [<colour>] — colours by name (yellow orange red pink
 //           purple blue teal green grey) or #hex, kept light; default: a soft
-//           preset gradient the title picks. The picture is multiplied onto
-//           it, so its paper takes the colour and its ink stays dark.
+//           preset gradient the title picks. It stands behind the picture:
+//           the poster's paper is made see-through (paper-key.mts), the
+//           drawing is drawn without paper.
 //   person … (2026-10-07)  a photo person beside the picture (people.mts):
 //           person man 45 bald surprised · person woman 19 puzzled · person
 
@@ -267,8 +268,8 @@ export function isPlain(plan: ThumbPlan): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Backgrounds (2026-10-07). Light colours only: the picture is multiplied
-// onto them, and a dark one would hide its ink.
+// Backgrounds (2026-10-07). Light colours only: the drawing's ink is dark,
+// and a dark background would hide it.
 
 /** The presets: two stops each, top left to bottom right. */
 export const BG_PRESETS: Record<string, [string, string]> = {
@@ -415,9 +416,10 @@ function burst(headline: string): { art: string; bottom: number } {
  *  drawn from its own compiled drawing (src/card, 2026-10-05) — that drawing
  *  as inline SVG markup on the same 1000 × 750 canvas. */
 function pictureLayer(posterHref: string, picture?: string): string {
-  // Multiplied onto the background: the picture's paper takes its colour, the ink stays dark.
-  const blend = `style="mix-blend-mode:multiply"`;
-  return picture !== undefined ? `<g ${blend}>${picture}</g>` : `<image href="${esc(posterHref)}" width="1000" height="750" ${blend}/>`;
+  // Drawn over the background: a drawing has no paper of its own here, and a
+  // poster's paper is made see-through first (paper-key.mts), so the
+  // background shows behind it and every colour stays as drawn.
+  return picture !== undefined ? `<g>${picture}</g>` : `<image href="${esc(posterHref)}" width="1000" height="750"/>`;
 }
 
 /** The corners' slots (left, top, width, height) the marks stand in — for a
@@ -613,7 +615,7 @@ function personArt(p: Person, side: "left" | "right", href: string): string {
   const x = side === "right" ? THUMB_W - w + PERSON_OVER : -PERSON_OVER;
   const y = THUMB_H - PERSON_H;
   const toward = side === "right" ? "left" : "right";
-  const place = p.faces === toward ? `translate(${x} ${y})` : `translate(${x + w} ${y}) scale(-1 1)`;
+  const place = p.faces === toward || p.faces === "front" ? `translate(${x} ${y})` : `translate(${x + w} ${y}) scale(-1 1)`;
   return (
     `<defs><filter id="thumb-cut" x="-10%" y="-10%" width="120%" height="120%">` +
     `<feMorphology in="SourceAlpha" operator="dilate" radius="7" result="grow"/><feFlood flood-color="#ffffff"/><feComposite in2="grow" operator="in" result="edge"/>` +
