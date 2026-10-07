@@ -270,9 +270,16 @@ export class Affirmer {
  * browser voice for "Spot on." Only the cast's language; nothing when it
  * has no quiz (the one place an affirmation is said).
  */
-export function affirmLines(spec: { lang?: string | null; affirm?: unknown; feedback?: unknown; commands?: { speak?: string; quiz?: { question?: string; feedback?: unknown }; ask?: { question?: string } }[] }): string[] {
+export function affirmLines(spec: {
+  lang?: string | null;
+  affirm?: unknown;
+  feedback?: unknown;
+  commands?: { speak?: string; quiz?: { question?: string; feedback?: unknown }; ask?: { question?: string; feedback?: unknown; choose?: unknown; answer?: unknown; say_question?: boolean } }[];
+}): string[] {
   const commands = spec.commands ?? [];
-  const quizzes = commands.flatMap((c) => (c.quiz ? [c.quiz] : []));
+  // A quiz, and a quiet choose ask (the on-canvas buttons' own form): the
+  // two places the player says an affirmation (player.ts quiz, chooseAsk).
+  const quizzes = commands.flatMap((c) => (c.quiz ? [c.quiz] : c.ask && Array.isArray(c.ask.choose) && c.ask.answer !== undefined && c.ask.say_question === false ? [c.ask] : []));
   if (quizzes.length === 0) return [];
   const setting = parseAffirm(spec.affirm);
   const lang = castLang(spec);

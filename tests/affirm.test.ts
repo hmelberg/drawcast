@@ -239,6 +239,13 @@ describe("affirmLines: what a bake records", () => {
     expect(affirmLines({ commands: [{ speak: "Hi." }] })).toEqual([]);
   });
 
+  test("a quiet choose ask (the on-canvas buttons' own form) hears an affirmation too", () => {
+    const quiet = { lang: "en", commands: [{ ask: { question: "True or myth?", choose: ["t", "m"], answer: "m", say_question: false } }] };
+    expect(affirmLines(quiet)).toEqual(expect.arrayContaining(AFFIRM.en.plain));
+    // A choose ask that reads its question says no affirmation (player.ts chooseAsk: step.quiet).
+    expect(affirmLines({ lang: "en", commands: [{ ask: { question: "Which?", choose: ["t", "m"], answer: "m" } }] })).toEqual([]);
+  });
+
   test("a plain English cast: plain + warm + streak lines, no jokes", () => {
     const lines = affirmLines(cast({ lang: "en" }));
     for (const l of [...AFFIRM.en.plain, ...AFFIRM.en.warm, "Two in a row.", "Back on track.", "A clean sweep."]) expect(lines).toContain(l);

@@ -54,7 +54,8 @@ import type { CardsGeometry } from "../spec/cards";
 import { isCardsPart } from "../spec/cards-ids";
 import { CORRECTED, counterMarks } from "../cards/counter";
 import { REORDER_MS, VERDICT_MS, reorderAt, reorderLanded, rankVerdicts, yoursRow } from "../cards/reorder";
-import { cardsMarks, cardsTruth, fadedCards, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightCards, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
+import { cardsLineVariants } from "../cards/line-variants";
+import { cardsMarks, cardsTruth, fadedCards, decodeArrangement, encodeArrangement, initialArrangement, placeOff, positions, rightPick, scoreCards, struckAbove, type Arrangement } from "../cards/model";
 import type { SpeakLine } from "./delivery";
 import { GUESS_COLOR, type GuessMarkLine, type GuessMarkText, type GuessMarks } from "../guess/marks";
 import { decodeTreeAnswer, encodeTreeAnswer, pickDiff, scoreBlanks, treeBlanks, treePick, type TreeBlank, type TreePick } from "../tree/blanks";
@@ -2388,36 +2389,21 @@ export class Player {
    * The right/wrong lines a cards answer can hear, voiced ahead while the
    * viewer works (Hans 2026-10-04: "it takes a bit long before you respond"):
    * "{w} of {w.total} close." is only known once the cards are judged, and is
-   * neither baked nor prefetched with the movie's lines — synthesized after
-   * Done, the voice started a network round trip late. Every score the cards
-   * can get is a handful of lines (≤ 8 parts), so each is fetched now; a line
-   * with a var no score sets ({w.off}, {w.secs}) simply misses, as before.
+   * not among the movie's lines — synthesized after Done, the voice started a
+   * network round trip late. Every score the cards can get is a handful of
+   * lines (≤ 8 parts), so each is fetched now (and a bake records them,
+   * export/live-lines.ts); a line with a var no score sets ({w.off},
+   * {w.secs}) simply misses, as before.
    */
   private prefetchCardLines(step: Extract<PlanStep, { kind: "ask" }>, g: CardsGeometry): void {
     const sp = this.speech as Partial<{ prefetch(lines: SpeakLine[], speed: number): void }>;
     if (this.mode !== "narrated" || typeof sp.prefetch !== "function") return;
-    if (g.mode === "decide" || (g.mode === "fill" && step.formula !== undefined)) return;
-    const sources = [step.right, step.wrong].filter((l): l is string => typeof l === "string" && l.trim() !== "");
-    if (sources.length === 0) return;
-    const count = rightCards(g, initialArrangement(g)).length;
-    if (count > 8) return;
-    const checked = g.mode === "sort" && g.each === true;
-    const lines = new Map<string, SpeakLine>();
+    if (g.mode === "fill" && step.formula !== undefined) return;
     const opts = { speaker: step.narrationSpeaker, delivery: step.narrationDelivery, gender: this.narratorGender ?? undefined };
-    for (let within = 0; within <= count; within++) {
-      const vars = new Map(this.vars);
-      if (step.store) {
-        const base = step.store.toLowerCase();
-        vars.set(base, checked ? String(within) : `${within} of ${count}`);
-        vars.set(`${base}.within`, String(within));
-        vars.set(`${base}.count`, String(count));
-        vars.set(`${base}.total`, String(count));
-      }
-      for (const src of sources) {
-        const text = subVars(translateCaption(src, this.spoken), vars);
-        if (!lines.has(text)) lines.set(text, { text, ...opts });
-      }
-    }
+    // The same variants a bake records (cards/line-variants.ts), live values filled in.
+    const texts = cardsLineVariants(step, g, this.vars, (src) => translateCaption(src, this.spoken));
+    if (texts.length === 0) return;
+    const lines = new Map<string, SpeakLine>(texts.map((text) => [text, { text, ...opts }]));
     sp.prefetch([...lines.values()], this.speedVal);
   }
 
@@ -2507,7 +2493,10 @@ export class Player {
         // live right answer hears the varied affirmation first ("Spot on.
         // Myth. The wall is…", Hans 2026-10-04; render/affirm.ts).
         const nod = live && picked && step.quiet ? this.affirmer.say(this.sourceLang, step, { streak: this.streak(), score: Number(this.vars.get("score") ?? 0), total: this.outcomes.size, last: Math.max(...this.ordinalOf.keys()) === index }) : null;
-        const said = nod && step.right ? `${nod} ${step.right}` : (nod ?? step.right);
+        // Two utterances under one caption: each is its own baked clip
+        // ("Spot on." recorded once, the explanation once); joined, the text
+        // matched neither and fell to the browser voice (2026-10-07).
+        const said = nod && step.right ? [nod, step.right] : (nod ?? step.right);
         this.stampIn(step, signal);
         await this.glowWhile(live ? [{ ids: answerOpt.members, color: ANSWER_OK_COLOR }] : [], signal, () => this.speakLines(said, extra, step, signal));
       } else {
@@ -3470,7 +3459,7 @@ export class Player {
   }
 
   /** The author's right/wrong line, then the band's line (and a joke) straight after it. */
-  private async speakLines(line: string | null | undefined, extra: readonly string[], step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): Promise<void> {
+  private async speakLines(line: string | readonly string[] | null | undefined, extra: readonly string[], step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): Promise<void> {
     if (line) await this.speakLine(line, step, signal);
     for (const l of extra) {
       if (signal.aborted) return;
@@ -3543,20 +3532,37 @@ export class Player {
   }
 
   /** Speak a runtime-chosen line (quiz/ask feedback): narrated mode voices it,
-   *  other modes hold a capped reading beat; the caption always updates. */
-  private async speakLine(source: string, step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): Promise<void> {
+   *  other modes hold a capped reading beat; the caption always updates.
+   *  Several parts (an affirmation, then the author's line) read as ONE
+   *  caption but are voiced as separate utterances, so each matches its own
+   *  recorded clip in a baked cast (speechKey is the exact text, 2026-10-07). */
+  private async speakLine(source: string | readonly string[], step: Extract<PlanStep, { kind: "quiz" | "ask" }>, signal: AbortSignal): Promise<void> {
+    const parts = typeof source === "string" ? [source] : source.filter((p) => p.trim() !== "");
+    if (parts.length === 0) return;
     // The caption may be a translation; what is SPOKEN never is.
-    const text = this.spokenLine(source);
-    this.showCaption(source);
+    const texts = parts.map((p) => this.spokenLine(p));
+    const whole = texts.join(" ");
+    if (parts.length === 1) this.showCaption(parts[0]);
+    else {
+      // Each part translated on its own (a track's keys are the raw lines), then joined.
+      this.captionSource = parts.join(" ");
+      this.setCaption(parts.map((p) => this.line(translateCaption(p, this.subtitles))).join(" "));
+    }
     if (this.mode === "narrated") {
-      await this.speech.speak(text, this.speedVal, signal, {
-        speaker: step.narrationSpeaker,
-        delivery: step.narrationDelivery,
-        gender: this.narratorGender ?? undefined,
-        onStart: this.pagerFor(text),
-      });
+      for (const [k, text] of texts.entries()) {
+        if (signal.aborted) return;
+        // The caption's pages turn over all that is said: the first part's
+        // duration, scaled by its share of the characters.
+        const share = whole.length / Math.max(1, text.length);
+        await this.speech.speak(text, this.speedVal, signal, {
+          speaker: step.narrationSpeaker,
+          delivery: step.narrationDelivery,
+          gender: this.narratorGender ?? undefined,
+          ...(k === 0 ? { onStart: (ms: number | null) => this.pageCaption((ms ?? SpeechManager.estimateMs(text) / this.speedVal) * share) } : {}),
+        });
+      }
     } else {
-      const hold = Math.min(1400, SpeechManager.estimateMs(text) * 0.4);
+      const hold = Math.min(1400, SpeechManager.estimateMs(whole) * 0.4);
       this.pageCaption(hold / this.speedVal);
       await this.waitScaled(hold, signal);
     }
