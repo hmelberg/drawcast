@@ -834,13 +834,13 @@ const commandSchema = {
     voice: {
       type: "string",
       enum: ["a", "b"],
-      description: 'With speak in a dialogue: which speaker reads this line — "a" (the lead/teacher, the default) or "b" (the second voice).',
+      description: 'With speak in a dialogue: which speaker reads this line — "a" (the lead/teacher, the default) or "b" (the second voice). Also on a quiz/ask, speak or not: that speaker reads its question and right/wrong.',
     },
     delivery: {
       type: "string",
       enum: ["grave", "brisk"],
       description:
-        "With speak: named delivery nudge — grave = slow and weighty for the key reveal; brisk = lightly quicker for recaps. Mark only the few lines where the meaning warrants it.",
+        "With speak (or a quiz/ask): named delivery nudge — grave = slow and weighty for the key reveal; brisk = lightly quicker for recaps. Mark only the few lines where the meaning warrants it.",
     },
     draw: idListSchema("Element ids to draw. Listed elements animate one after another unless parallel is true. A template may also name a SET of its own ids (a chess board's \"position\", \"pieces\", \"squares\" — its catalog entry lists them): naming one draws every member, and each member still answers to its own id for everything else."),
     parallel: { type: "boolean", description: "With draw/erase: animate the listed elements simultaneously." },
@@ -2006,8 +2006,10 @@ function semanticErrors(spec: Spec): string[] {
     if (cmd.blocking !== undefined && (verb !== "speak" || cmd.speak === undefined)) {
       errors.push(`commands[${i}]: blocking only applies to a standalone speak (a speak paired with an action always joins both)`);
     }
-    if ((cmd.voice !== undefined || cmd.delivery !== undefined) && cmd.speak === undefined) {
-      errors.push(`commands[${i}]: voice and delivery only apply to a command with speak`);
+    // A quiz/ask speaks its own lines (the question, right, wrong), so its
+    // voice/delivery mean something even without a paired speak.
+    if ((cmd.voice !== undefined || cmd.delivery !== undefined) && cmd.speak === undefined && cmd.quiz === undefined && cmd.ask === undefined) {
+      errors.push(`commands[${i}]: voice and delivery only apply to a command with speak, quiz or ask`);
     }
     if (cmd.parallel !== undefined && verb !== "draw" && verb !== "erase") errors.push(`commands[${i}]: parallel only applies to draw/erase`);
     if (

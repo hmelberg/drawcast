@@ -143,14 +143,14 @@ export const TAGS: TagDef[] = [
     group: "style",
     hint: "dialogue: one asks and reacts, one answers and draws",
     brief:
-      'Two speakers at a whiteboard, not two people at microphones. Speaker A (voice "a") is the teacher: A answers and draws. Speaker B (voice "b") asks and reacts — and is not a question machine: B also mis-guesses, reacts ("Oh — so the gap IS the loss?"), and summarizes; a wrong guess then corrected is where the insight lands. Mark EVERY speak line with voice "a" or "b". B\'s lines ride on gestures (point at what is being asked about) and A\'s on draws; never more than two speak-only lines in a row — the canvas keeps moving. Scale to the length budget: a short qa is one question, one drawn answer, one reaction.',
+      'Two speakers at a whiteboard, not two people at microphones. Speaker A (voice "a") is the teacher: A answers and draws. Speaker B (voice "b") asks and reacts — and is not a question machine: B also mis-guesses, reacts ("Oh — so the gap IS the loss?"), and summarizes; a wrong guess then corrected is where the insight lands. Mark EVERY speak line — and every quiz or ask, whose question and right/wrong lines that speaker then reads — with voice "a" or "b". B\'s lines ride on gestures (point at what is being asked about) and A\'s on draws; never more than two speak-only lines in a row — the canvas keeps moving. Scale to the length budget: a short qa is one question, one drawn answer, one reaction.',
   },
   {
     tag: "podcast",
     group: "style",
     hint: "two peers talking informally while sketching",
     brief:
-      'Two peers (voices "a" and "b") in an informal conversation at a whiteboard, not two people at microphones — either may draw and narrate; interruptions and sentences finished by the other are welcome, but always over a moving canvas: attach lines to draw/point/highlight/animate wherever possible, never more than two speak-only lines in a row. Mark EVERY speak line with voice "a" or "b".',
+      'Two peers (voices "a" and "b") in an informal conversation at a whiteboard, not two people at microphones — either may draw and narrate; interruptions and sentences finished by the other are welcome, but always over a moving canvas: attach lines to draw/point/highlight/animate wherever possible, never more than two speak-only lines in a row. Mark EVERY speak line — and every quiz or ask, whose question and right/wrong lines that speaker then reads — with voice "a" or "b".',
   },
   {
     tag: "story",

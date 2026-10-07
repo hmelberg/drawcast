@@ -798,6 +798,11 @@ export function planCommands(commandsIn: Command[] | undefined, allIds: string[]
         narrationDelivery: currentNarrationDelivery,
       };
     }
+    // A quiz/ask speaks its feedback (right/wrong) with the step's voice even
+    // when it narrates nothing up front (an ask with say_question: false).
+    if ((step.kind === "quiz" || step.kind === "ask") && currentNarration === undefined && (currentNarrationSpeaker !== undefined || currentNarrationDelivery !== undefined)) {
+      step = { ...step, narrationSpeaker: currentNarrationSpeaker, narrationDelivery: currentNarrationDelivery };
+    }
     // A cue belongs to the action whether or not THIS command carries the
     // line: an action cued inside a sentence spoken by an earlier command
     // still has to wait for its moment.

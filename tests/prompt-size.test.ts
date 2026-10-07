@@ -721,7 +721,8 @@ import fewshots from "../src/llm/prompts/fewshots.json";
 // Re-pinned UP 2026-10-05 (thumb marks): the thumb element type and its kinds. +199. -> 410128.
 // Re-pinned UP 2026-10-05 (ask once): under a heading that asks it, ask.question gives the task. +239. -> 410168.
 // Merged 2026-10-06: both of the above. -> 410367.
-const BASELINE_SYSTEM_CHARS = 410367;
+// Re-pinned UP 2026-10-07 (quiz voice): voice/delivery also on a quiz/ask. +99. -> 410466.
+const BASELINE_SYSTEM_CHARS = 410466;
 // Re-pinned DOWN 2026-09-21: `soft` left the delivery enum and its clause
 // left the enum's description (Hans — the confiding lean-in was the one
 // delivery that dropped pitch and volume, and it read as mumbling):
@@ -841,7 +842,8 @@ const BASELINE_SYSTEM_CHARS = 410367;
 // Re-pinned UP 2026-10-05 (thumb marks): the thumb element type and its kinds. +199. -> 121962.
 // Re-pinned UP 2026-10-05 (ask once): ask.question under a heading that asks it. +80. -> 121843.
 // Merged 2026-10-06: both of the above. -> 122042.
-const BASELINE_SCHEMA_CHARS = 122042;
+// Re-pinned UP 2026-10-07 (quiz voice): voice/delivery also on a quiz/ask. +99. -> 122141.
+const BASELINE_SCHEMA_CHARS = 122141;
 
 // Pinned 2026-09-21 with the revise notation card (llm/prompts/revise-v1.md):
 // the one block a REVISION pays for that a generation does not. It rides in
