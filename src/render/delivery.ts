@@ -62,6 +62,8 @@ export function dbToGain(db: number): number {
  */
 export function effectiveGender(opts?: SpeakOpts): "male" | "female" | null {
   if (!opts || (opts.gender === undefined && opts.speaker === undefined)) return null;
-  const a = opts.gender ?? "female";
+  // Speaker a, undeclared, is male: the default narrator's sex (export/tts.ts
+  // DEFAULT_VOICES, Studio-Q), so a dialogue's a and its unmarked lines match.
+  const a = opts.gender ?? "male";
   return (opts.speaker ?? "a") === "a" ? a : a === "male" ? "female" : "male";
 }

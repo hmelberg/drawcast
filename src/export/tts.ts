@@ -164,9 +164,12 @@ export interface VoiceChoice {
   name?: string;
 }
 
-/** Per-language, per-gender voice defaults; if a name drifts out of the catalog, the API picks. */
+/** Per-language, per-gender voice defaults; if a name drifts out of the catalog, the API picks.
+ *  English is the Studio pair (Hans 2026-10-07: dialogue casts should sound
+ *  like the default narrator, not Neural2): male Q — the default narrator
+ *  itself, so speaker a and an unmarked line are one voice — and female O. */
 export const VOICES: Record<string, Record<"female" | "male", VoiceChoice>> = {
-  en: { female: { languageCode: "en-US", name: "en-US-Neural2-F" }, male: { languageCode: "en-US", name: "en-US-Neural2-D" } },
+  en: { female: { languageCode: "en-US", name: "en-US-Studio-O" }, male: { languageCode: "en-US", name: "en-US-Studio-Q" } },
   nb: { female: { languageCode: "nb-NO", name: "nb-NO-Wavenet-E" }, male: { languageCode: "nb-NO", name: "nb-NO-Wavenet-B" } },
 };
 

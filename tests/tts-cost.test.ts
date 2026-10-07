@@ -22,9 +22,9 @@ describe("bakeCost", () => {
     expect(c.usd).toBeCloseTo((c.chars * TTS_PRICE_PER_MILLION.studio) / 1_000_000, 6);
   });
 
-  test("a declared gender prices at its neural table voice, and blanks cost nothing", () => {
+  test("a declared gender prices at its table voice (English: the Studio pair, 2026-10-07), and blanks cost nothing", () => {
     const c = bakeCost([{ text: "a".repeat(1000) + " plain english words", gender: "female" }, { text: "  " }], undefined);
-    expect(c.usd).toBeCloseTo((c.chars * TTS_PRICE_PER_MILLION.neural2) / 1_000_000, 6);
+    expect(c.usd).toBeCloseTo((c.chars * TTS_PRICE_PER_MILLION.studio) / 1_000_000, 6);
   });
 
   test("the author's pick reprices the lines it applies to", () => {
@@ -51,7 +51,8 @@ describe("creditBakeCost — what /tts will actually charge against credit", () 
     // very same line — priced by bakeCost's own detectLang sniff, which can
     // only ever answer "en" or "nb", both of which DO have a VOICES entry —
     // always comes out NAMED.
-    const line = { text: "This line is dialogue in reply to the previous speaker.", speaker: "b" as const };
+    // Norwegian, so the own-key guess lands on nb's Wavenet table voice (English's is Studio now).
+    const line = { text: "Dette er en replikk til den forrige taleren, og den er på norsk.", speaker: "b" as const };
     const credit = creditBakeCost([line], undefined, "de");
     const own = bakeCost([line], undefined);
     expect(credit.usd).toBeCloseTo((credit.chars * TTS_PRICE_PER_MILLION.chirp) / 1_000_000, 6);

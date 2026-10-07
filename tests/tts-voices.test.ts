@@ -45,18 +45,19 @@ describe("narrationVoice — one decision for synthesis and stamp", () => {
   });
 
   test("a declared gender is never overridden by the default", () => {
-    expect(narrationVoice(undefined, "en", { gender: "female" }).name).toBe("en-US-Neural2-F");
-    expect(narrationVoice(undefined, "en", { gender: "male" }).name).toBe("en-US-Neural2-D");
+    expect(narrationVoice(undefined, "en", { gender: "female" }).name).toBe("en-US-Studio-O");
+    expect(narrationVoice(undefined, "en", { gender: "male" }).name).toBe("en-US-Studio-Q");
   });
 
   test("dialogue keeps its a/b contrast — speakers go the gendered path", () => {
-    expect(narrationVoice(undefined, "en", { speaker: "a" }).name).toBe("en-US-Neural2-F");
-    expect(narrationVoice(undefined, "en", { speaker: "b" }).name).toBe("en-US-Neural2-D");
+    // a is the default narrator's voice, so a dialogue's unmarked lines match it; b is the other Studio voice
+    expect(narrationVoice(undefined, "en", { speaker: "a" }).name).toBe("en-US-Studio-Q");
+    expect(narrationVoice(undefined, "en", { speaker: "b" }).name).toBe("en-US-Studio-O");
   });
 
   test("the author's per-language pick beats everything for the primary speaker", () => {
     expect(narrationVoice({ en: "en-GB-Neural2-A" }, "en").name).toBe("en-GB-Neural2-A");
-    expect(narrationVoice({ en: "en-GB-Neural2-A" }, "en", { speaker: "b" }).name).toBe("en-US-Neural2-D");
+    expect(narrationVoice({ en: "en-GB-Neural2-A" }, "en", { speaker: "b" }).name).toBe("en-US-Studio-O");
   });
 
   test("a language without a default keeps the old chain", () => {

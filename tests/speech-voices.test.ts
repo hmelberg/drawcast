@@ -10,8 +10,9 @@ describe("delivery table", () => {
   });
   test("effectiveGender: null without request; b contrasts a", () => {
     expect(effectiveGender(undefined)).toBeNull();
-    expect(effectiveGender({ speaker: "a" })).toBe("female");
-    expect(effectiveGender({ speaker: "b" })).toBe("male");
+    // a, undeclared, is the default narrator's sex (male, Studio-Q); b contrasts
+    expect(effectiveGender({ speaker: "a" })).toBe("male");
+    expect(effectiveGender({ speaker: "b" })).toBe("female");
     expect(effectiveGender({ gender: "male", speaker: "b" })).toBe("female");
   });
   test("deltas are gentle, and every one of them is a PACE change only", () => {
