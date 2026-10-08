@@ -689,19 +689,19 @@ git commit -m "Gemini batch: record a cast's Gemini lines as one job, line by li
 
 pass `many, synthesizeMany` into the `bakeNarration` options object, and after a successful `writeFileSync(target, out)` add `if (existsSync(sidecar)) unlinkSync(sidecar);`. At the top: `import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";`, and parse `const timeoutMin = Number(flag("--timeout-min") ?? 30);` and `const takeFlag = flag("--take");` (add both to `flagValues`). When `takeFlag` is `"lines"` or `"conversation"`, merge `{ take: takeFlag }` into `playlist.meta.voices` the same way `--a/--b` are merged.
 
-- [ ] **Step 2: Run the estimate on Rome**
+- [ ] **Step 2: Run the estimate on Fermat (copy first)**
 
-Run: `node scripts/bake-narration.mjs dev-casts/compare/fall-of-rome-gemini.cast`
+Run: `node scripts/bake-narration.mjs dev-casts/compare/fermat-batch-lines.cast`
 Expected: prints the line count and the Gemini price (no network).
 
-- [ ] **Step 3: Record Rome line by line through batch**
+- [ ] **Step 3: Record Fermat line by line through batch**
 
 ```bash
-cp dev-casts/publish/fall-of-rome/fall-of-rome.cast dev-casts/compare/rome-batch-lines.cast
-node scripts/bake-narration.mjs --apply dev-casts/compare/rome-batch-lines.cast --a "gemini:Charon | a dry, warm historian with a twinkle, telling a good story, at a natural, lively podcast pace" --b "gemini:Puck | a cheerful, cheeky sceptic, amused and curious, at a natural, lively podcast pace" --take lines > /tmp/rome-batch.log 2>&1
+cp dev-casts/publish/fermats-last-theorem/fermats-last-theorem.cast dev-casts/compare/fermat-batch-lines.cast
+node scripts/bake-narration.mjs --apply dev-casts/compare/fermat-batch-lines.cast --a "gemini:Charon | a warm, clear mathematician who loves a good story, at a natural, lively podcast pace" --b "gemini:Puck | a cheerful, cheeky sceptic, amused and curious, at a natural, lively podcast pace" --take lines > /tmp/fermat-batch.log 2>&1
 ```
 
-Expected: `batch running … succeeded`, then `→ … 71 clips`; `grep -c "voice: gemini" dev-casts/compare/rome-batch-lines.cast` prints 71; no `.batch.json` left.
+Expected: `batch running … succeeded`, then `→ … one clip per spoken line (the estimate's count)`; `grep -c "voice: gemini" dev-casts/compare/fermat-batch-lines.cast` prints that count; no `.batch.json` left.
 
 - [ ] **Step 4: Resume check** — submit, then interrupt with Ctrl-C after "batch running"; re-run the same command.
 Expected: the re-run prints `batch …` without submitting again (the sidecar's names are polled), and finishes.
@@ -792,7 +792,7 @@ Expected: PASS (update the two source-pattern tests only if they pin the exact o
 
 - [ ] **Step 5: Manual check in the editor**
 
-Run `npm run dev -- --port 5231 --strictPort`, open `http://localhost:5231/?open=/dev-casts/compare/rome-batch-lines.cast#create`, open Publish → Narration voices: the "Recorded as" choice shows; the note shows `0 lines not yet recorded`. Change b's style: the note shows the b line count.
+Run `npm run dev -- --port 5231 --strictPort`, open `http://localhost:5231/?open=/dev-casts/compare/fermat-batch-lines.cast#create`, open Publish → Narration voices: the "Recorded as" choice shows; the note shows `0 lines not yet recorded`. Change b's style: the note shows the b line count.
 
 - [ ] **Step 6: Commit**
 
@@ -809,7 +809,7 @@ git commit -m "App publish records Gemini lines through batch; recorded clips pl
 - [ ] **Step 1:** In SKILL.md's Voices paragraph add: "`take` chooses how Gemini voices are recorded: `conversation` (default) or `lines`. Recording goes through Gemini's batch mode: a few minutes of waiting, no request limits."
 - [ ] **Step 2:** In publish.md's step 3 add: "Gemini voices are recorded through batch mode: the script waits (`--timeout-min`, default 30); if it stops waiting, run it again — it resumes the same job (`<file>.batch.json`)."
 - [ ] **Step 3:** Full test run: `npx vitest run` — Expected: all pass.
-- [ ] **Step 4:** Ask Hans to listen to `dev-casts/compare/rome-batch-lines.cast` in the player (open it as in Task 7 Step 5) beside the line-by-line direct version.
+- [ ] **Step 4:** Ask Hans to listen to `dev-casts/compare/fermat-batch-lines.cast` in the player (open it as in Task 7 Step 5) beside the line-by-line direct version.
 - [ ] **Step 5: Commit**
 
 ```bash
@@ -1389,14 +1389,14 @@ const map = conversation
 
 (`playlist` is `source` in main.ts.) Lines the conversation path leaves out fall back to `synthesize` — the single-line Gemini path (`synthesizeBase64`), as the bake already does.
 
-- [ ] **Step 2: Record Rome as conversations**
+- [ ] **Step 2: Record Fermat as conversations**
 
 ```bash
-cp dev-casts/publish/fall-of-rome/fall-of-rome.cast dev-casts/compare/rome-batch-conversation.cast
-node scripts/bake-narration.mjs --apply dev-casts/compare/rome-batch-conversation.cast --a "gemini:Charon | a dry, warm historian with a twinkle, telling a good story, at a natural, lively podcast pace" --b "gemini:Puck | a cheerful, cheeky sceptic, amused and curious, at a natural, lively podcast pace" --take conversation > /tmp/rome-conv.log 2>&1
+cp dev-casts/publish/fermats-last-theorem/fermats-last-theorem.cast dev-casts/compare/fermat-batch-conversation.cast
+node scripts/bake-narration.mjs --apply dev-casts/compare/fermat-batch-conversation.cast --a "gemini:Charon | a warm, clear mathematician who loves a good story, at a natural, lively podcast pace" --b "gemini:Puck | a cheerful, cheeky sceptic, amused and curious, at a natural, lively podcast pace" --take conversation > /tmp/fermat-conv.log 2>&1
 ```
 
-Expected: `… 71 clips`; `grep -c "pause:" dev-casts/compare/rome-batch-conversation.cast` > 50; the log lists any lines re-recorded singly.
+Expected: `… one clip per spoken line`; `grep -c "pause:" dev-casts/compare/fermat-batch-conversation.cast` > 50; the log lists any lines re-recorded singly.
 
 - [ ] **Step 3: Commit** — `git add scripts/bake-narration.mjs src/main.ts && git commit -m "Gemini voices recorded as conversations by default; take: lines records line by line"`
 
@@ -1493,9 +1493,9 @@ breathAfterMs(this.plan.steps, this.completed, (next) => {
 ### Task 16: End-to-end listening check, docs, and the full suite
 
 - [ ] **Step 1:** `npx vitest run` — all pass; `npx vite build` — builds.
-- [ ] **Step 2:** Open `dev-casts/compare/rome-batch-conversation.cast` in the player (dev server, as in Task 7) and play the first page; confirm the gaps follow the take (no long uniform beats between quick replies) and drawings still start with their lines.
+- [ ] **Step 2:** Open `dev-casts/compare/fermat-batch-conversation.cast` in the player (dev server, as in Task 7) and play the first page; confirm the gaps follow the take (no long uniform beats between quick replies) and drawings still start with their lines.
 - [ ] **Step 3:** SKILL.md / publish.md: "`take: conversation` (default) records each stretch as a conversation and cuts it into lines, checking every clip; failed lines are recorded on their own."
-- [ ] **Step 4:** Ask Hans to listen: Rome as conversation vs Rome line by line through batch, in the player.
+- [ ] **Step 4:** Ask Hans to listen: Fermat as conversation vs Fermat line by line through batch, in the player.
 - [ ] **Step 5: Commit** — `git add -A .claude/skills/drawcast && git commit -m "Skill: Gemini conversations through batch"`
 
 ---
