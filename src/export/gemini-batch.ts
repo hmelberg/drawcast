@@ -3,7 +3,9 @@
 // one job — no per-minute or per-day request limit, half price — polled until
 // done. A job's answers come back keyed, each its audio (WAV) or its error.
 
-import { lineStyle, type GeminiVoice } from "./gemini-tts";
+import { speechKey, type SpeakLine } from "../render/delivery";
+import { geminiVoice, lineStyle, pcmMs, pcmToMp3Base64, wavPcm, type GeminiVoice } from "./gemini-tts";
+import { preferredVoice, runLang } from "./tts";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -147,4 +149,39 @@ export function jobsOf(reqs: BatchRequest[], maxBytes = 18_000_000): BatchReques
     if (job.length) jobs.push(job);
   }
   return jobs;
+}
+
+/** Whether a line is spoken by a Gemini voice and can be recorded whole (no `lang` run, no `[de:…]` mark). */
+export function isGeminiLine(voices: Record<string, string>, lang: string | undefined, line: SpeakLine): boolean {
+  if (line.lang !== undefined) return false;
+  if (/\[[A-Za-z-]+:/.test(line.text)) return false;
+  return geminiVoice(preferredVoice(voices, runLang(line, lang), line.speaker)) !== null;
+}
+
+/** Each Gemini line as one request of one batch job (several jobs past the size limit); answers as MP3 clips, keyed by speechKey. */
+export async function batchLines(
+  apiKey: string,
+  voices: Record<string, string>,
+  lang: string | undefined,
+  lines: SpeakLine[],
+  opts: { fetchImpl?: typeof fetch; sleep?: (ms: number) => Promise<void>; onState?: (s: string) => void; timeoutMs?: number; onSubmitted?: (names: string[]) => void; resume?: string[] } = {},
+): Promise<Map<string, { mp3: string; ms: number }>> {
+  const reqs: BatchRequest[] = [];
+  for (const line of lines) {
+    const v = geminiVoice(preferredVoice(voices, runLang(line, lang), line.speaker));
+    if (!v) continue;
+    reqs.push({ key: speechKey(line), model: v.model, body: lineRequest(v, line.text, line.delivery) });
+  }
+  const names = opts.resume?.length ? opts.resume : await Promise.all(jobsOf(reqs).map((job) => submitBatch(apiKey, job[0].model, job, opts.fetchImpl)));
+  opts.onSubmitted?.(names);
+  const out = new Map<string, { mp3: string; ms: number }>();
+  for (const name of names) {
+    const results = await pollBatch(apiKey, name, opts);
+    for (const [key, r] of results) {
+      if (!("wav" in r)) continue;
+      const pcm = wavPcm(r.wav);
+      out.set(key, { mp3: await pcmToMp3Base64(pcm), ms: pcmMs(pcm) });
+    }
+  }
+  return out;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { jobsOf, lineRequest, pollBatch, submitBatch } from "../src/export/gemini-batch";
+import { batchLines, isGeminiLine, jobsOf, lineRequest, pollBatch, submitBatch } from "../src/export/gemini-batch";
+import { speechKey } from "../src/render/delivery";
 
 const wav = (n = 2400): Uint8Array => {
   const buf = new ArrayBuffer(44 + n * 2);
@@ -120,4 +121,41 @@ describe("gemini batch", () => {
     expect(calls).toBe(3);
     expect(sleepCalls).toBe(2);
   });
+});
+
+test("batchLines: one job for the Gemini lines, each answer that line's MP3, failures left out", async () => {
+  const voices = { "@a": "gemini:Charon | dry", "@b": "gemini:Puck" };
+  const lines = [{ text: "One.", speaker: "a" as const }, { text: "Two.", speaker: "b" as const }];
+  const audio = Buffer.from(wav()).toString("base64");
+  const sent: any[] = [];
+  const fetchImpl = (async (_url: string, init?: any) => {
+    if (init?.method === "POST") {
+      sent.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ name: "batches/j1" }), { status: 200 });
+    }
+    const reqs = sent[0].batch.input_config.requests.requests;
+    return new Response(JSON.stringify({
+      done: true, metadata: { state: "BATCH_STATE_SUCCEEDED" },
+      response: { inlinedResponses: { inlinedResponses: [
+        { metadata: reqs[0].metadata, response: { candidates: [{ content: { parts: [{ inlineData: { data: audio } }] } }] } },
+        { metadata: reqs[1].metadata, error: { message: "nope" } },
+      ] } },
+    }), { status: 200 });
+  }) as unknown as typeof fetch;
+  const names: string[][] = [];
+  const out = await batchLines("KEY", voices, "en", lines, { fetchImpl, sleep: async () => {}, onSubmitted: (n) => names.push(n) });
+  expect(isGeminiLine(voices, "en", lines[0])).toBe(true);
+  expect(isGeminiLine(voices, "en", { text: "Hi", speaker: "a", lang: "de" })).toBe(false);
+  expect(sent[0].batch.input_config.requests.requests[0].request.contents[0].parts[0].speech_metadata).toEqual({ style: "dry" });
+  expect(names).toEqual([["batches/j1"]]);
+  expect([...out.keys()]).toEqual([speechKey(lines[0])]);
+  expect(out.get(speechKey(lines[0]))!.ms).toBe(100);
+  expect(Buffer.from(out.get(speechKey(lines[0]))!.mp3, "base64").length).toBeGreaterThan(50);
+});
+
+test("isGeminiLine: a line with a language mark is not a whole-line Gemini request", () => {
+  const voices = { "@a": "gemini:Charon" };
+  expect(isGeminiLine(voices, "en", { text: "Say [de:Guten Tag] now", speaker: "a" })).toBe(false);
+  expect(isGeminiLine(voices, "en", { text: "Say hello now", speaker: "a" })).toBe(true);
+  expect(isGeminiLine({ "@a": "en-US-Neural2-D" }, "en", { text: "Plain", speaker: "a" })).toBe(false);
 });
