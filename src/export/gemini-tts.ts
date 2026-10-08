@@ -209,6 +209,12 @@ export async function geminiSynthesizeBase64(
 export interface CastVoices {
   a?: string;
   b?: string;
+  /** How Gemini voices are recorded: as conversations (default) or line by line. */
+  take?: "conversation" | "lines";
+}
+
+export function takeOf(v: CastVoices | undefined): "conversation" | "lines" {
+  return v?.take === "lines" ? "lines" : "conversation";
 }
 
 /** A header's `voices:` value, read: an object with a and/or b (a lone string is a's), each a short spec; undefined when it says nothing. */
@@ -220,6 +226,7 @@ export function readCastVoices(raw: unknown): CastVoices | undefined {
     const v = obj[k];
     if (typeof v === "string" && v.trim()) out[k] = v.replace(/\s+/g, " ").trim().slice(0, 200);
   }
+  if (obj.take === "conversation" || obj.take === "lines") out.take = obj.take;
   return out.a || out.b ? out : undefined;
 }
 

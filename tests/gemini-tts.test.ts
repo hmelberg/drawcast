@@ -1,6 +1,6 @@
 // Gemini TTS and a cast's own voices (2026-10-07).
 import { describe, expect, test } from "vitest";
-import { audioOf, castVoiceMap, geminiRequestBody, geminiSynthesizeBase64, geminiVoice, lineStyle, readCastVoices, wavPcm, withCastVoices } from "../src/export/gemini-tts";
+import { audioOf, castVoiceMap, geminiRequestBody, geminiSynthesizeBase64, geminiVoice, lineStyle, readCastVoices, takeOf, wavPcm, withCastVoices } from "../src/export/gemini-tts";
 import { narrationVoice, preferredVoice, stampedVoice, clipCacheKey, isUsableVoice } from "../src/export/tts";
 import { bakeCost, OWN_KEY_PRICE_PER_MILLION, voiceTier } from "../src/export/tts-cost";
 import { formatPlaylist, parsePlaylistText } from "../src/playlist/playlist";
@@ -114,5 +114,13 @@ describe("a cast's own voices", () => {
     expect(p.meta.voices).toEqual({ a: "gemini:Charon | dry, warm", b: "en-US-Studio-O" });
     expect(parsePlaylistText(formatPlaylist(p, "script")).meta.voices).toEqual(p.meta.voices);
     expect(parsePlaylistText(formatPlaylist(p, "yaml")).meta.voices).toEqual(p.meta.voices);
+  });
+
+  test("take: conversation by default, lines when asked; anything else is ignored", async () => {
+    expect(readCastVoices({ a: "gemini:Puck", take: "lines" })).toEqual({ a: "gemini:Puck", take: "lines" });
+    expect(readCastVoices({ a: "gemini:Puck", take: "sideways" })).toEqual({ a: "gemini:Puck" });
+    expect(takeOf({ a: "gemini:Puck" })).toBe("conversation");
+    expect(takeOf({ a: "gemini:Puck", take: "lines" })).toBe("lines");
+    expect(takeOf(undefined)).toBe("conversation");
   });
 });
