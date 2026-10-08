@@ -379,6 +379,7 @@ function readAudio(raw: unknown, warnings: string[]): AudioTrack | undefined {
     if (isPlainObject(value) && typeof value.mp3 === "string" && value.mp3.length > 0) {
       lines[key] = { mp3: value.mp3, ms: typeof value.ms === "number" ? value.ms : 0 };
       if (typeof value.voice === "string" && value.voice.length > 0) lines[key].voice = value.voice;
+      if (typeof value.pause === "number" && Number.isFinite(value.pause) && value.pause >= 0) lines[key].pause = value.pause;
     }
   }
   return { lang: typeof raw.lang === "string" ? raw.lang : "", lines };

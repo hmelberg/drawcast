@@ -5,8 +5,10 @@ import { bakedAudioFor } from "../src/playlist/audio";
 import { PublishedSpeech } from "../src/render/published-speech";
 import { SpeechManager } from "../src/render/speech";
 import { speechKey } from "../src/render/delivery";
+import { parsePlaylistText, formatPublished } from "../src/playlist/playlist";
 import type { Playlist } from "../src/playlist/playlist";
 import type { SpeakLine } from "../src/render/delivery";
+import type { Spec } from "../src/spec/types";
 
 const inner = () => new SpeechManager();
 
@@ -75,4 +77,14 @@ describe("a playlist that carries baked audio", () => {
     const baked = bakedAudioFor(inner(), playlist(trackFor("Supply meets demand.", "The price settles.")));
     expect(baked.unbaked(LINES)).toEqual([]);
   });
+});
+
+test("a clip's recorded pause survives the file (2026-10-08)", () => {
+  const spec = { title: "T", elements: [], commands: [] } as unknown as Spec;
+  const playlist = { meta: { title: "T", advance: "click" as const, gap: 1, transitions: "auto" as const }, entries: [{ kind: "item" as const, spec }], warnings: [] };
+  const audio = { lang: "en", lines: { "|a||Hi.": { mp3: "AAAA", ms: 500, voice: "gemini:Puck", pause: 0.6 } } };
+  const text = formatPublished(playlist, audio);
+  const p = parsePlaylistText(text);
+  expect(p.audio?.lines["|a||Hi."]).toEqual({ mp3: "AAAA", ms: 500, voice: "gemini:Puck", pause: 0.6 });
+  expect(parsePlaylistText(formatPublished(p, p.audio!, "script")).audio?.lines["|a||Hi."].pause).toBe(0.6);
 });
