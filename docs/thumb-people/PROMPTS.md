@@ -58,3 +58,8 @@ To make (about 12):
 - skeptical: f55 reading glasses on a chain, raised eyebrow · m33 heavy-set, arms folded, polo shirt
 - smiling: f45 round face, gap-toothed smile, denim jacket
 - quirky: m58 wild white hair and bow tie, eccentric professor · f31 bright dyed hair, mismatched earrings, vintage cardigan
+
+Made 2026-10-08 (gemini-3.1-flash-image, 768×1024): e-m52-talking, e-f38-talking,
+e-m24-talking, e-f67-talking, e-m40-neutral, e-f29-neutral, e-m70-neutral,
+e-f55-skeptical, e-m33-skeptical, e-f45-smiling. Still to make: the two quirky
+ones (e-m58-quirky, e-f31-quirky) — Figma's daily credits ran out.

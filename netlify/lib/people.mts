@@ -44,6 +44,17 @@ export const PEOPLE: readonly Person[] = [
   { id: "f16-surprised", sex: "woman", age: 16, looks: ["black", "ponytail"], expression: "surprised", style: "polished", faces: "right", w: 490, h: 640 },
   { id: "f19-puzzled", sex: "woman", age: 19, looks: ["red", "curly"], expression: "puzzled", style: "polished", faces: "right", w: 532, h: 640 },
   { id: "m45-puzzled", sex: "man", age: 45, looks: ["brown", "glasses"], expression: "puzzled", style: "polished", faces: "right", w: 547, h: 640 },
+  // Everyday people (2026-10-08): ordinary faces talking into the camera.
+  { id: "e-m52-talking", sex: "man", age: 52, looks: ["grey", "beard"], expression: "talking", style: "everyday", faces: "front", w: 478, h: 640 },
+  { id: "e-f38-talking", sex: "woman", age: 38, looks: ["brown", "dark"], expression: "talking", style: "everyday", faces: "front", w: 531, h: 640 },
+  { id: "e-m24-talking", sex: "man", age: 24, looks: ["beard", "brown"], expression: "talking", style: "everyday", faces: "front", w: 575, h: 640 },
+  { id: "e-f67-talking", sex: "woman", age: 67, looks: ["grey", "short", "curly", "glasses"], expression: "talking", style: "everyday", faces: "front", w: 547, h: 640 },
+  { id: "e-m40-neutral", sex: "man", age: 40, looks: ["short", "brown"], expression: "neutral", style: "everyday", faces: "front", w: 598, h: 640 },
+  { id: "e-f29-neutral", sex: "woman", age: 29, looks: ["brown", "ponytail"], expression: "neutral", style: "everyday", faces: "front", w: 594, h: 640 },
+  { id: "e-m70-neutral", sex: "man", age: 70, looks: ["white", "grey", "beard"], expression: "neutral", style: "everyday", faces: "front", w: 619, h: 640 },
+  { id: "e-f55-skeptical", sex: "woman", age: 55, looks: ["grey", "glasses"], expression: "skeptical", style: "everyday", faces: "front", w: 517, h: 640 },
+  { id: "e-m33-skeptical", sex: "man", age: 33, looks: ["short", "dark"], expression: "skeptical", style: "everyday", faces: "front", w: 514, h: 640 },
+  { id: "e-f45-smiling", sex: "woman", age: 45, looks: ["brown", "curly"], expression: "smiling", style: "everyday", faces: "front", w: 544, h: 640 },
 ];
 
 /** What a cast asked for. */

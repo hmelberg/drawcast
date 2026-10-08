@@ -71,9 +71,14 @@ describe("people", () => {
     expect(readPersonWords(["ordinary", "talking"])).toEqual({ style: "everyday", looks: [], expression: "talking" });
     expect(readPersonWords(["eccentric"])).toEqual({ style: "everyday", looks: ["quirky"] });
     expect(pickPerson(readPersonWords(["man"])).style).toBe("polished");
+    const polished = PEOPLE.filter((p) => p.style === "polished");
     const everyday: Person = { id: "e", sex: "man", age: 50, looks: [], expression: "talking", style: "everyday", faces: "front", w: 500, h: 640 };
-    expect(pickPerson(readPersonWords(["everyday"]), "", [...PEOPLE, everyday]).id).toBe("e");
-    expect(pickPerson(readPersonWords(["surprised"]), "", [...PEOPLE, everyday]).style).toBe("polished");
+    expect(pickPerson(readPersonWords(["everyday"]), "", [...polished, everyday]).id).toBe("e");
+    expect(pickPerson(readPersonWords(["surprised"]), "", [...polished, everyday]).style).toBe("polished");
+    // The real catalogue: an everyday ask gets an everyday picture, the nearest one.
+    expect(pickPerson(readPersonWords(["everyday", "man", "52", "talking"])).id).toBe("e-m52-talking");
+    expect(pickPerson(readPersonWords(["everyday", "woman", "skeptical"])).id).toBe("e-f55-skeptical");
+    expect(pickPerson(readPersonWords(["everyday"])).style).toBe("everyday");
   });
   test("the line takes a person and keeps them; a cartoon figure gives way", () => {
     const { parts } = parseThumbLine('band "Wait" person man 60 surprised stamp');
