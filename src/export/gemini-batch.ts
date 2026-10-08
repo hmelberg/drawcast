@@ -5,6 +5,7 @@
 
 import { speechKey, type SpeakLine } from "../render/delivery";
 import { geminiVoice, lineStyle, pcmMs, pcmToMp3Base64, wavPcm, type GeminiVoice } from "./gemini-tts";
+import { sayable } from "../render/pronounce";
 import { preferredVoice, runLang } from "./tts";
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
@@ -170,7 +171,7 @@ export async function batchLines(
   for (const line of lines) {
     const v = geminiVoice(preferredVoice(voices, runLang(line, lang), line.speaker));
     if (!v) continue;
-    reqs.push({ key: speechKey(line), model: v.model, body: lineRequest(v, line.text, line.delivery) });
+    reqs.push({ key: speechKey(line), model: v.model, body: lineRequest(v, sayable(line.text), line.delivery) });
   }
   const names = opts.resume?.length ? opts.resume : await Promise.all(jobsOf(reqs).map((job) => submitBatch(apiKey, job[0].model, job, opts.fetchImpl)));
   opts.onSubmitted?.(names);

@@ -153,6 +153,23 @@ test("batchLines: one job for the Gemini lines, each answer that line's MP3, fai
   expect(Buffer.from(out.get(speechKey(lines[0]))!.mp3, "base64").length).toBeGreaterThan(50);
 });
 
+test("batchLines sends the SAYABLE text, as the single-line path does (QALY said 'qualy'), keyed by the written line", async () => {
+  const voices = { "@a": "gemini:Charon" };
+  const line = { text: "Each QALY costs less than the ICER says.", speaker: "a" as const };
+  const sent: any[] = [];
+  const fetchImpl = (async (_url: string, init?: any) => {
+    if (init?.method === "POST") {
+      sent.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ name: "batches/j1" }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ done: true, metadata: { state: "BATCH_STATE_SUCCEEDED" }, response: { inlinedResponses: { inlinedResponses: [] } } }), { status: 200 });
+  }) as unknown as typeof fetch;
+  await batchLines("KEY", voices, "en", [line], { fetchImpl, sleep: async () => {} });
+  const req = sent[0].batch.input_config.requests.requests[0];
+  expect(req.request.contents[0].parts[0].text).toBe("Each qualy costs less than the iceer says.");
+  expect(req.metadata.key).toBe(speechKey(line));
+});
+
 test("isGeminiLine: a line with a language mark is not a whole-line Gemini request", () => {
   const voices = { "@a": "gemini:Charon" };
   expect(isGeminiLine(voices, "en", { text: "Say [de:Guten Tag] now", speaker: "a" })).toBe(false);
