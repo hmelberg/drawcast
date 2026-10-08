@@ -119,7 +119,7 @@ export interface AudioTrack {
    *  bakes and on default-chain clips. Playback never reads it; the bake's
    *  reuse check does, so a changed voice re-synthesizes instead of keeping a
    *  recording in the old one. */
-  lines: Record<string, { mp3: string; ms: number; voice?: string }>;
+  lines: Record<string, { mp3: string; ms: number; voice?: string; pause?: number }>;
 }
 
 export interface Playlist {

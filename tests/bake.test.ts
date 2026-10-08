@@ -4,6 +4,52 @@ import { describe, expect, test, vi } from "vitest";
 import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "../src/export/bake";
 import { speechKey, type SpeakLine } from "../src/render/delivery";
 
+describe("bakeNarration — many lines at once (Gemini batch, 2026-10-08)", () => {
+  const a: SpeakLine = { text: "One.", speaker: "a" };
+  const b: SpeakLine = { text: "Two.", speaker: "b" };
+  const c: SpeakLine = { text: "Three.", speaker: "a" };
+  test("lines `many` picks go to synthesizeMany in one call; a line it does not return falls back to synthesize", async () => {
+    const one: string[] = [];
+    const many: string[][] = [];
+    const track = await bakeNarration(
+      [a, b, c],
+      {
+        lang: "en",
+        many: (l) => l.text !== "Three.",
+        synthesizeMany: async (lines) => {
+          many.push(lines.map((l) => l.text));
+          return new Map([[speechKey(a), { mp3: "MANY-A", ms: 900, pause: 0.4 }]]);
+        },
+        synthesize: async (l) => (one.push(l.text), `ONE-${l.text}`),
+        voiceOf: () => "gemini:Puck",
+      },
+      () => {},
+      new AbortController().signal,
+    );
+    expect(many).toEqual([["One.", "Two."]]);
+    expect(one).toEqual(["Two.", "Three."]);
+    expect(track.lines[speechKey(a)]).toEqual({ mp3: "MANY-A", ms: 900, pause: 0.4, voice: "gemini:Puck" });
+    expect(track.lines[speechKey(b)]).toEqual({ mp3: "ONE-Two.", ms: 0, voice: "gemini:Puck" });
+  });
+  test("an answer for an already-recorded line (a whole stretch re-recorded) replaces its clip", async () => {
+    const existing = { [speechKey(c)]: { mp3: "OLD-C", ms: 1, voice: "gemini:Puck" } };
+    const track = await bakeNarration(
+      [a, c],
+      {
+        lang: "en",
+        existing,
+        many: () => true,
+        synthesizeMany: async () => new Map([[speechKey(a), { mp3: "NEW-A", ms: 5 }], [speechKey(c), { mp3: "NEW-C", ms: 6, pause: 0.3 }]]),
+        synthesize: async () => "UNUSED",
+        voiceOf: () => "gemini:Puck",
+      },
+      () => {},
+      new AbortController().signal,
+    );
+    expect(track.lines[speechKey(c)]).toEqual({ mp3: "NEW-C", ms: 6, pause: 0.3, voice: "gemini:Puck" });
+  });
+});
+
 const LINES: SpeakLine[] = [
   { text: "Supply meets demand." },
   { text: "The price settles." },

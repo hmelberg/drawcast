@@ -239,3 +239,8 @@ export function castVoiceMap(voices: { a?: string; b?: string } | undefined): Re
 export function withCastVoices(voices: Record<string, string> | undefined, cast: { a?: string; b?: string } | undefined): Record<string, string> {
   return { ...(voices ?? {}), ...castVoiceMap(cast) };
 }
+
+/** A PCM buffer's length in milliseconds. */
+export function pcmMs(pcm: { samples: Int16Array; rate: number }): number {
+  return Math.round((pcm.samples.length / pcm.rate) * 1000);
+}

@@ -25,6 +25,10 @@ export interface BakeOptions {
   voiceOf?(line: SpeakLine): string | undefined;
   /** Optional: decode for a real duration. Failing is not fatal. */
   durationMs?(base64: string): Promise<number>;
+  /** Which lines are recorded together (a Gemini batch job, 2026-10-08). */
+  many?(line: SpeakLine): boolean;
+  /** Records those lines at once; a line it does not return is recorded by `synthesize`. */
+  synthesizeMany?(lines: SpeakLine[]): Promise<Map<string, { mp3: string; ms: number; pause?: number }>>;
 }
 
 /**
@@ -79,9 +83,28 @@ export async function bakeNarration(
     if (wanted.has(key)) track.lines[key] = clip;
   }
 
-  for (const [i, line] of todo.entries()) {
+  const together = opts.synthesizeMany && opts.many ? todo.filter((l) => opts.many!(l)) : [];
+  const got = together.length ? await opts.synthesizeMany!(together) : new Map<string, { mp3: string; ms: number; pause?: number }>();
+  // A conversation take re-records a whole stretch (spec B1): its answers for
+  // lines that were already recorded replace those clips too.
+  const byKey = new Map(lines.map((l) => [speechKey(l), l]));
+  for (const [key, clip] of got) {
+    if (!wanted.has(key) || todo.some((l) => speechKey(l) === key)) continue;
+    const voice = opts.voiceOf?.(byKey.get(key)!);
+    track.lines[key] = { mp3: clip.mp3, ms: clip.ms, ...(clip.pause !== undefined ? { pause: clip.pause } : {}), ...(voice ? { voice } : {}) };
+  }
+  let done = 0;
+  for (const line of todo) {
     if (signal.aborted) throw new Error("bake cancelled");
-    onProgress(i, todo.length);
+    onProgress(done, todo.length);
+    const key = speechKey(line);
+    const voice = opts.voiceOf?.(line);
+    const many = got.get(key);
+    if (many) {
+      track.lines[key] = { mp3: many.mp3, ms: many.ms, ...(many.pause !== undefined ? { pause: many.pause } : {}), ...(voice ? { voice } : {}) };
+      done++;
+      continue;
+    }
     const mp3 = await opts.synthesize(line);
     let ms = 0;
     try {
@@ -89,8 +112,8 @@ export async function bakeNarration(
     } catch {
       // A duration is a nicety; the clip itself is the point.
     }
-    const voice = opts.voiceOf?.(line);
-    track.lines[speechKey(line)] = voice ? { mp3, ms, voice } : { mp3, ms };
+    track.lines[key] = voice ? { mp3, ms, voice } : { mp3, ms };
+    done++;
   }
   onProgress(todo.length, todo.length);
   return track;
