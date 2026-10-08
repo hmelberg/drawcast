@@ -11,13 +11,15 @@
 //        A voice is a Cloud name (en-US-Studio-O) or gemini:<Voice> / gemini-lite:<Voice>
 //        (export/gemini-tts.ts GEMINI_VOICES), after "|" a style the Gemini voice acts on.
 //        Without them the header's own voices, else the defaults.
+//   … --take conversation|lines     how Gemini speaks a page (written into voices.take); --timeout-min N (default 30)
+//        Gemini lines go through the batch API; a <file>.batch.json sidecar lets a re-run resume.
 //
 // Default voices (Settings' cloudVoices empty), rate 1.0, the declared
 // language. Lines already recorded with the same voice are reused, never
 // paid for again. A .json {request, subtitle, spec} becomes a playlist file
 // beside it (<name>.cast) holding the audio; a .yaml/.cast is rewritten in place.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "vite";
 
 const args = process.argv.slice(2);
@@ -27,7 +29,9 @@ const flag = (name) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const voiceFlags = { a: flag("--a"), b: flag("--b") };
-const flagValues = new Set(Object.values(voiceFlags).filter(Boolean));
+const timeoutMin = Number(flag("--timeout-min") ?? 30);
+const takeFlag = flag("--take");
+const flagValues = new Set([...Object.values(voiceFlags), flag("--timeout-min"), takeFlag].filter(Boolean));
 const files = args.filter((a) => !a.startsWith("--") && !flagValues.has(a));
 if (files.length === 0) {
   console.error("usage: node scripts/bake-narration.mjs [--apply] <cast> [...]");
@@ -64,8 +68,13 @@ for (const file of files) {
   const raw = readFileSync(file, "utf8");
   const isJson = file.endsWith(".json");
   const playlist = P.parsePlaylistText(isJson ? JSON.stringify(JSON.parse(raw).spec) : raw);
-  if (voiceFlags.a || voiceFlags.b) {
-    const merged = readCastVoices({ ...(playlist.meta.voices ?? {}), ...(voiceFlags.a ? { a: voiceFlags.a } : {}), ...(voiceFlags.b ? { b: voiceFlags.b } : {}) });
+  if (voiceFlags.a || voiceFlags.b || takeFlag === "lines" || takeFlag === "conversation") {
+    const merged = readCastVoices({
+      ...(playlist.meta.voices ?? {}),
+      ...(voiceFlags.a ? { a: voiceFlags.a } : {}),
+      ...(voiceFlags.b ? { b: voiceFlags.b } : {}),
+      ...(takeFlag === "lines" || takeFlag === "conversation" ? { take: takeFlag } : {}),
+    });
     if (merged) playlist.meta.voices = merged;
   }
   // The cast's own voices ride as "@a"/"@b" in the voice map (export/tts.ts preferredVoice).
@@ -87,6 +96,21 @@ for (const file of files) {
   // what was bought: the file is written with them, and a re-run records
   // only the rest. A partial file is said to be one — never push it as is.
   const recorded = {};
+  const { batchLines, isGeminiLine } = await vite.ssrLoadModule("/src/export/gemini-batch.ts");
+  // Submitted jobs are remembered beside the file, so an interrupted run resumes them instead of paying twice.
+  const sidecar = `${target}.batch.json`;
+  const resume = existsSync(sidecar) ? JSON.parse(readFileSync(sidecar, "utf8")).names : undefined;
+  const many = (line) => isGeminiLine(voices, declaredLang, line);
+  const synthesizeMany = async (todo) => {
+    const map = await batchLines(geminiKey || apiKey, voices, declaredLang, todo, {
+      resume,
+      timeoutMs: timeoutMin * 60_000,
+      onSubmitted: (names) => writeFileSync(sidecar, JSON.stringify({ names, lines: todo.map((l) => l.text) })),
+      onState: (s) => process.stdout.write(`\r${file}: batch ${s.replace("BATCH_STATE_", "").toLowerCase()}   `),
+    });
+    for (const [key, clip] of map) recorded[key] = { ...clip, voice: voiceOf(todo.find((l) => speechKey(l) === key)) };
+    return map;
+  };
   let track;
   try {
     track = await bakeNarration(
@@ -101,6 +125,8 @@ for (const file of files) {
           return mp3;
         },
         voiceOf,
+        many,
+        synthesizeMany,
       },
       (done, total) => process.stdout.write(`\r${file}: ${done}/${total}   `),
       new AbortController().signal,
@@ -114,6 +140,7 @@ for (const file of files) {
   }
   const out = P.formatPublished(playlist, track, "script");
   writeFileSync(target, out);
+  if (existsSync(sidecar)) unlinkSync(sidecar);
   console.log(`\n${file} → ${target}: ${Object.keys(track.lines).length} clips`);
 }
 if (!apply) console.log(`TOTAL ≈ $${totalUsd.toFixed(2)} for ${totalChars} characters (lines already recorded in the same voice are free).`);
