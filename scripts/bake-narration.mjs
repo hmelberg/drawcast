@@ -99,16 +99,25 @@ for (const file of files) {
   const { batchLines, isGeminiLine } = await vite.ssrLoadModule("/src/export/gemini-batch.ts");
   // Submitted jobs are remembered beside the file, so an interrupted run resumes them instead of paying twice.
   const sidecar = `${target}.batch.json`;
-  const resume = existsSync(sidecar) ? JSON.parse(readFileSync(sidecar, "utf8")).names : undefined;
+  const voicesNow = JSON.stringify(playlist.meta.voices ?? null);
+  let resume;
+  if (existsSync(sidecar)) {
+    const saved = JSON.parse(readFileSync(sidecar, "utf8"));
+    if (saved.voices === voicesNow) resume = saved.names;
+    else console.log(`${file}: ignoring ${sidecar} (it was submitted with other voices)`);
+  }
   const many = (line) => isGeminiLine(voices, declaredLang, line);
   const synthesizeMany = async (todo) => {
     const map = await batchLines(geminiKey || apiKey, voices, declaredLang, todo, {
       resume,
       timeoutMs: timeoutMin * 60_000,
-      onSubmitted: (names) => writeFileSync(sidecar, JSON.stringify({ names, lines: todo.map((l) => l.text) })),
+      onSubmitted: (names) => writeFileSync(sidecar, JSON.stringify({ names, voices: voicesNow, lines: todo.map((l) => l.text) })),
       onState: (s) => process.stdout.write(`\r${file}: batch ${s.replace("BATCH_STATE_", "").toLowerCase()}   `),
     });
-    for (const [key, clip] of map) recorded[key] = { ...clip, voice: voiceOf(todo.find((l) => speechKey(l) === key)) };
+    for (const [key, clip] of map) {
+      const line = todo.find((l) => speechKey(l) === key);
+      if (line) recorded[key] = { ...clip, voice: voiceOf(line) };
+    }
     return map;
   };
   let track;
