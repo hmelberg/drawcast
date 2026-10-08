@@ -31,6 +31,9 @@ public repo the user chooses; after that it is revised like anything published.
    cast's own `voices:` (SKILL.md's brief); `--a "<voice | style>"` / `--b "…"` set them
    from here and write them into the file. Changing a voice or its style re-records that
    speaker's lines; a Gemini voice speaks with `GEMINI_API_KEY` from `.env` (a key of its own).
+   Gemini voices are recorded through batch mode: the script waits (`--timeout-min`, default
+   30; usually 2–5 minutes); if it stops waiting, run it again — it resumes the same job
+   (`<file>.batch.json`). `--take lines|conversation` writes the cast's `take`.
 4. `push <workdir> --dry-run`, show the file list, and on a yes `push <workdir> --direct`
    (it is the user's own repo; a PR to themselves is noise — unless they want one, or the
    repo is someone else's: then plain `push` opens a PR from a fork).

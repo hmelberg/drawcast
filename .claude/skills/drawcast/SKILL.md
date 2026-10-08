@@ -121,6 +121,11 @@ every working file below is `dev-casts/<slug>…`.
      gravelly, Zubenelgenubi casual, and more (src/export/gemini-tts.ts
      GEMINI_VOICES). Gemini needs its own key, `GEMINI_API_KEY` in `.env` (Google keeps the Gemini
      API off Cloud TTS keys; made at aistudio.google.com/apikey); narration credit speaks Studio only.
+     `take` chooses how Gemini voices are recorded: `conversation` (default) or `lines`
+     (`"take": "lines"` beside `a` and `b`); until conversation recording is built both record
+     line by line. Recording goes through Gemini's batch mode: a few minutes of waiting, no
+     request limits. The editor never calls Gemini while playing: recorded lines play their
+     clips, new ones the Studio voice until the cast is published.
    - **Subtitle:** write one yourself: a single sentence in the narration's
      language saying what the viewer gets ("How herd immunity protects
      people who can't be vaccinated"), not "a drawcast about…". It is the
