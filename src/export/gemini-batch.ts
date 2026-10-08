@@ -50,6 +50,7 @@ export async function submitBatch(apiKey: string, model: string, reqs: BatchRequ
 }
 
 const DONE = new Set(["BATCH_STATE_SUCCEEDED", "BATCH_STATE_FAILED", "BATCH_STATE_CANCELLED", "BATCH_STATE_EXPIRED"]);
+const POLL_MS = 20_000;
 
 function b64ToBytes(b64: string): Uint8Array {
   const bin = atob(b64);
@@ -69,9 +70,9 @@ export async function pollBatch(
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const limit = opts.timeoutMs ?? 30 * 60_000;
   let waited = 0;
+  let consecutiveFailures = 0;
   for (;;) {
     let res: Response;
-    let consecutiveFailures = 0;
     for (;;) {
       try {
         res = await fetchImpl(`${BASE}/${name}`, { headers: { "x-goog-api-key": apiKey } });
@@ -79,8 +80,8 @@ export async function pollBatch(
       } catch (e) {
         consecutiveFailures++;
         if (consecutiveFailures >= 3) throw e;
-        await sleep(20_000);
-        waited += 20_000;
+        await sleep(POLL_MS);
+        waited += POLL_MS;
         if (waited >= limit) throw new Error(`Gemini batch ${name} is still running after ${Math.round(waited / 60_000)} min — run again to keep waiting for it`);
       }
     }
@@ -88,13 +89,14 @@ export async function pollBatch(
       if (res!.status >= 500) {
         consecutiveFailures++;
         if (consecutiveFailures >= 3) throw await failure(res!, "poll");
-        await sleep(20_000);
-        waited += 20_000;
+        await sleep(POLL_MS);
+        waited += POLL_MS;
         if (waited >= limit) throw new Error(`Gemini batch ${name} is still running after ${Math.round(waited / 60_000)} min — run again to keep waiting for it`);
         continue;
       }
       throw await failure(res!, "poll");
     }
+    consecutiveFailures = 0;
     const body = (await res!.json()) as { done?: boolean; error?: { message?: string }; metadata?: { state?: string }; response?: { inlinedResponses?: { inlinedResponses?: Inlined[] } | Inlined[] } };
     if (body.error) throw new Error(`Gemini batch ${name} failed: ${body.error.message ?? "unknown error"}`);
     const state = body.metadata?.state ?? "";
@@ -119,8 +121,8 @@ export async function pollBatch(
       return out;
     }
     if (waited >= limit) throw new Error(`Gemini batch ${name} is still running after ${Math.round(waited / 60_000)} min — run again to keep waiting for it`);
-    await sleep(20_000);
-    waited += 20_000;
+    await sleep(POLL_MS);
+    waited += POLL_MS;
   }
 }
 

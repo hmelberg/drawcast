@@ -96,4 +96,28 @@ describe("gemini batch", () => {
     expect(sleepCalls).toBe(1);
     expect((out.get("k1") as { wav: Uint8Array }).wav.length).toBe(44 + 4800);
   });
+
+  test("poll rejects after 3 persistent 5xx responses", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls++;
+      return new Response(JSON.stringify({ error: { message: "Service Unavailable" } }), { status: 503 });
+    }) as unknown as typeof fetch;
+    let sleepCalls = 0;
+    await expect(pollBatch("KEY", "batches/abc", { fetchImpl, sleep: async () => void sleepCalls++ })).rejects.toThrow(/Gemini batch poll.*Service Unavailable/);
+    expect(calls).toBe(3);
+    expect(sleepCalls).toBe(2);
+  });
+
+  test("poll rejects after 3 persistent network errors", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls++;
+      throw new Error("Network timeout");
+    }) as unknown as typeof fetch;
+    let sleepCalls = 0;
+    await expect(pollBatch("KEY", "batches/abc", { fetchImpl, sleep: async () => void sleepCalls++ })).rejects.toThrow("Network timeout");
+    expect(calls).toBe(3);
+    expect(sleepCalls).toBe(2);
+  });
 });
