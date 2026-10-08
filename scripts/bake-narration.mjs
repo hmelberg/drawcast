@@ -38,7 +38,7 @@ const env = Object.fromEntries(
     .split("\n")
     .map((l) => /^([A-Z_]+)=(.*)$/.exec(l.trim()))
     .filter(Boolean)
-    .map((m) => [m[1], m[2].replace(/^["']|["']$/g, "")]),
+    .map((m) => [m[1], m[2].trim().replace(/^["']|["']$/g, "").trim()]),
 );
 const apiKey = env.GOOGLE_API_KEY;
 // Gemini voices speak with their own key when there is one (Google keeps the Gemini API off Cloud TTS keys).
