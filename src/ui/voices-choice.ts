@@ -6,7 +6,18 @@
 // wherever it is played or re-recorded. Empty: the author's Settings voices.
 
 import { GEMINI_VOICES, readCastVoices, splitVoiceSpec, type CastVoices } from "../export/gemini-tts";
+import { stampedVoice, runLang } from "../export/tts";
+import { linesToBake } from "../export/bake";
+import { isGeminiLine } from "../export/gemini-batch";
+import type { SpeakLine } from "../render/delivery";
+import type { AudioTrack } from "../playlist/playlist";
 import { h } from "./dom";
+
+/** How many of a cast's Gemini lines have no clip in their current voice. */
+export function notYetRecorded(lines: SpeakLine[], existing: AudioTrack["lines"], voices: Record<string, string>, lang: string | undefined): number {
+  const gem = lines.filter((l) => isGeminiLine(voices, lang, l));
+  return linesToBake(gem, existing, (l) => stampedVoice(voices, runLang(l, lang), l)).length;
+}
 
 /** The voices offered, grouped: Studio (Cloud), then Gemini, then Gemini Lite. */
 const STUDIO = [
@@ -16,7 +27,12 @@ const STUDIO = [
 
 export interface VoicesChoice {
   root: HTMLElement;
-  refresh(opts: { voices: CastVoices | undefined; dialogue: boolean }): void;
+  /**
+   * `pending`: how many Gemini lines have no clip in the voices given (the
+   * cast's own recorded narration) — recounted on every change, so a new
+   * style shows at once how many lines it would re-record.
+   */
+  refresh(opts: { voices: CastVoices | undefined; dialogue: boolean; pending?: (voices: CastVoices | undefined) => number }): void;
   /** The voices as chosen, or null for none (the header is removed). */
   value(): CastVoices | null;
 }
@@ -69,21 +85,50 @@ export function voicesChoice(opts: { listen?: (spec: string, text: string) => Pr
   };
   const a = row("a", "Narrator (a)", "Here is a question worth asking, and here is how we will answer it.");
   const b = row("b", "Second voice (b)", "Wait, so that's not the whole story?");
-  const hint = h("div", { class: "hint" }, "Written into the cast as you choose, so it sounds the same everywhere. Gemini voices are cheaper than Studio and act on a style; they need your own Google key with the Gemini API allowed.");
-  const root = h("details", { class: "publish-choice publish-voices" }, h("summary", {}, "Narration voices"), a.root, b.root, hint);
+  // How Gemini voices are recorded (spec 2026-10-08): a whole conversation
+  // per stretch (the default), or line by line. Only a Gemini voice has a take.
+  const takeSel = h(
+    "select",
+    { id: "share-voice-take" },
+    h("option", { value: "conversation" }, "Conversation (default)"),
+    h("option", { value: "lines" }, "Line by line"),
+  ) as HTMLSelectElement;
+  takeSel.addEventListener("change", () => report());
+  const takeRow = h("div", { class: "publish-voice-row publish-voice-take" }, h("label", { for: "share-voice-take" }, "Recorded as"), takeSel);
+  const pendingNote = h("div", { class: "hint publish-voice-pending", hidden: "" });
+  const hint = h("div", { class: "hint" }, "Written into the cast as you choose, so it sounds the same everywhere. Gemini voices are cheaper than Studio and act on a style; they need your own Google key with the Gemini API allowed. The editor plays recorded Gemini lines from its clip store and the rest in the Studio voice; publishing records them.");
+  const root = h("details", { class: "publish-choice publish-voices" }, h("summary", {}, "Narration voices"), a.root, b.root, takeRow, pendingNote, hint);
+  let pendingOf: ((voices: CastVoices | undefined) => number) | undefined;
+  const current = (): CastVoices | undefined => {
+    const gem = a.value().startsWith("gemini") || b.value().startsWith("gemini");
+    return readCastVoices({ a: a.value(), b: b.value(), ...(gem && takeSel.value === "lines" ? { take: "lines" } : {}) });
+  };
+  const sync = (): void => {
+    const v = current();
+    takeRow.hidden = !(a.value().startsWith("gemini") || b.value().startsWith("gemini"));
+    const n = pendingOf ? pendingOf(v) : 0;
+    pendingNote.hidden = n <= 0;
+    pendingNote.textContent = n > 0 ? `${n} line${n === 1 ? "" : "s"} not yet recorded in Gemini` : "";
+  };
   // Each change goes straight into the document (its `voices:` header), so
   // every way of publishing — and the editor's own playback — uses it.
-  report = () => opts.onChange?.(readCastVoices({ a: a.value(), b: b.value() }) ?? null);
+  report = () => {
+    sync();
+    opts.onChange?.(current() ?? null);
+  };
   return {
     root,
-    refresh({ voices, dialogue }) {
+    refresh({ voices, dialogue, pending }) {
       a.set(voices?.a);
       b.set(voices?.b);
+      takeSel.value = voices?.take === "lines" ? "lines" : "conversation";
       b.root.hidden = !dialogue && !voices?.b;
+      pendingOf = pending;
+      sync();
       if (voices) (root as HTMLDetailsElement).open = true;
     },
     value() {
-      return readCastVoices({ a: a.value(), b: b.value() }) ?? null;
+      return current() ?? null;
     },
   };
 }

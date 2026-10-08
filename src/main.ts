@@ -138,7 +138,8 @@ import { translateSubtitles, withSubtitles } from "./llm/subtitles";
 import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
 import { CloudSpeech } from "./export/tts";
 import { setGeminiKeySource, withCastVoices, type CastVoices } from "./export/gemini-tts";
-import type { SpeakLine } from "./render/delivery";
+import { speechKey, type SpeakLine } from "./render/delivery";
+import { batchLines, isGeminiLine } from "./export/gemini-batch";
 import {
   addExemplar,
   appendLog,
@@ -5410,6 +5411,52 @@ async function publishTextFor(
   const synthesizeLine = apiKey
     ? (line: SpeakLine) => synthesizeBase64({ apiKey, rate: settings.rate, voices, lang: declaredLang }, line.text, line)
     : (line: SpeakLine) => serverSynthesize(DEFAULT_ENROLL_API, accountToken, { rate: settings.rate, voices, lang: declaredLang }, line.text, line);
+  // Gemini lines go through ONE batch job (2026-10-08, spec "Where it runs"):
+  // no per-minute/per-day limit, half price. The wait shows on the export
+  // chip, whose ✕ stops it — the publish then fails cleanly, nothing sent.
+  const geminiKey = getGeminiKey() || apiKey;
+  const many = (line: SpeakLine): boolean => geminiKey !== "" && isGeminiLine(voices, declaredLang, line);
+  const synthesizeMany = async (todo: SpeakLine[]) => {
+    if (signal.aborted) throw new Error("publish cancelled");
+    const stop = new AbortController();
+    const onAbort = () => stop.abort();
+    signal.addEventListener("abort", onAbort, { once: true });
+    exportAbort = stop;
+    exportChipText.textContent = "Recording narration in Gemini…";
+    exportChip.hidden = false;
+    const status = (s: string) => {
+      const text = `Recording narration in Gemini — ${s.replace("BATCH_STATE_", "").toLowerCase()}…`;
+      setStatus(text);
+      exportChipText.textContent = text;
+    };
+    try {
+      status("submitting");
+      const map = await batchLines(geminiKey, voices, declaredLang, todo, {
+        onState: status,
+        fetchImpl: (input, init) => fetch(input, { ...init, signal: stop.signal }),
+        sleep: (ms) =>
+          new Promise<void>((resolve, reject) => {
+            if (stop.signal.aborted) return reject(new Error("publish cancelled"));
+            const t = setTimeout(resolve, ms);
+            stop.signal.addEventListener("abort", () => (clearTimeout(t), reject(new Error("publish cancelled"))), { once: true });
+          }),
+      });
+      if (stop.signal.aborted) throw new Error("publish cancelled");
+      // The editor's preview finds these in the clip store (keyed as live playback keys them).
+      for (const line of todo) {
+        const clip = map.get(speechKey(line));
+        if (clip) await bakeClipStore.put(clipCacheKey(settings.rate, voices, line, declaredLang), clip.mp3);
+      }
+      return map;
+    } catch (err) {
+      if (stop.signal.aborted) throw new Error("Publish cancelled while recording narration in Gemini — nothing was published.");
+      throw err;
+    } finally {
+      signal.removeEventListener("abort", onAbort);
+      if (exportAbort === stop) exportAbort = null;
+      exportChip.hidden = true;
+    }
+  };
   const track = await bakeNarration(
     bakeLines,
     {
@@ -5429,6 +5476,8 @@ async function publishTextFor(
       // Mirrors what synthesize will do (same language decision, same voice) —
       // the reuse check and the synthesis must never disagree about the voice.
       voiceOf,
+      many,
+      synthesizeMany,
     },
     (done, total) => setStatus(`Synthesizing narration — ${done}/${total} lines…`),
     signal,

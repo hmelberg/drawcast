@@ -25,11 +25,11 @@ import type { ExportResult } from "../export/video";
 import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, sourceLanguage, type Playlist } from "../playlist/playlist";
 import { castFormat, type CastFormat } from "../standalone/transcript";
 import { thumbChoice } from "./thumb-choice";
-import { voicesChoice } from "./voices-choice";
-import type { CastVoices } from "../export/gemini-tts";
+import { notYetRecorded, voicesChoice } from "./voices-choice";
+import { withCastVoices, type CastVoices } from "../export/gemini-tts";
 import { posterForPlaylistText } from "../export/snapshot";
 import { kidsByTags } from "../../netlify/lib/thumb.mts";
-import { playlistSpeakLines } from "../playlist/session";
+import { playlistBakeLines, playlistSpeakLines } from "../playlist/session";
 import { scenes } from "../scenes/registry";
 import type { Spec } from "../spec/types";
 import { downloadBlob, getGithubToken, getTtsKey, saveDrawing, type Settings, type ShareTo } from "../store";
@@ -731,7 +731,18 @@ function build(): ShareSession {
       rows: [embedImagesLabel, bakeLabel, creditBuyRow, voicesBox.root],
       refresh(doc, subject) {
         voicesBox.root.hidden = subject !== "drawcast";
-        if (subject === "drawcast") voicesBox.refresh({ voices: doc.playlist.meta.voices, dialogue: playlistSpeakLines(doc.playlist).some((l) => l.speaker === "b") });
+        if (subject === "drawcast") {
+          // The not-yet-recorded note: the cast's Gemini lines with no clip
+          // in their current voice, recounted for each pick as it changes.
+          const bakeLines = playlistBakeLines(doc.playlist);
+          const recorded = doc.playlist.audio?.lines ?? {};
+          const declaredLang = itemsOf(doc.playlist).find((i) => i.spec.lang)?.spec.lang;
+          voicesBox.refresh({
+            voices: doc.playlist.meta.voices,
+            dialogue: playlistSpeakLines(doc.playlist).some((l) => l.speaker === "b"),
+            pending: (voices) => notYetRecorded(bakeLines, recorded, withCastVoices({}, voices), declaredLang),
+          });
+        }
         // A course has no playlist of its own to count (its lectures live in
         // the library — see course.ts's doc()), so it gets the choice without
         // a number rather than a confident, wrong "(0)".
