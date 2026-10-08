@@ -572,6 +572,18 @@ export class CloudSpeech extends SpeechManager {
     return { b64: await this.encoded(standIn, line, { ...cfg, voices: live }), key: standIn };
   }
 
+  /** A line's recorded clip, from memory or the store only — never an API call; rejects when there is none. */
+  private async recorded(line: SpeakLine, rate: number, audioCtx: AudioContext): Promise<AudioBuffer> {
+    const key = clipCacheKey(rate, this.getVoices(), line, this.langHint ?? undefined);
+    const hit = this.cache.get(key);
+    if (hit) return hit;
+    const b64 = this.clips ? await this.clips.get(key).catch(() => null) : null;
+    if (!b64) throw new Error("not recorded");
+    const b = await audioCtx.decodeAudioData(base64ToBytes(b64).buffer as ArrayBuffer);
+    this.cache.set(key, b);
+    return b;
+  }
+
   /** Warm the cache for upcoming lines (fire-and-forget; errors surface at speak time). */
   prefetch(lines: SpeakLine[], speedMultiplier: number): void {
     if (this.forceBrowser || !this.getKey()) return;
@@ -588,7 +600,14 @@ export class CloudSpeech extends SpeechManager {
   }
 
   override speakOne(text: string, speedMultiplier: number, signal?: AbortSignal, opts?: SpeakOpts): Promise<void> {
-    if (this.forceBrowser || !this.getKey()) return super.speakOne(text, speedMultiplier, signal, opts);
+    if (this.forceBrowser) return super.speakOne(text, speedMultiplier, signal, opts);
+    // No Cloud key (or Cloud playback off): a Gemini line still plays its
+    // recorded clip from the store when there is one; anything else is the
+    // browser voice, as ever.
+    const keyless = !this.getKey();
+    const line: SpeakLine = { text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender, lang: opts?.lang };
+    if (keyless && (!this.clips || liveVoices(this.getVoices(), line, this.langHint ?? undefined) === this.getVoices()))
+      return super.speakOne(text, speedMultiplier, signal, opts);
     const audioCtx = this.ensureCtx();
     // Prefetch may have created the context before any user gesture (autoplay
     // policy leaves it suspended); speak runs inside the play click, so resume.
@@ -597,7 +616,8 @@ export class CloudSpeech extends SpeechManager {
     // before its reading arrived): done now, not when the fetch lands — the
     // player waits on this voice before it says right or wrong.
     const stopped = signal ? new Promise<void>((resolve) => (signal.aborted ? resolve() : signal.addEventListener("abort", () => resolve(), { once: true }))) : null;
-    const said = this.buffer(text, this.effRate(speedMultiplier), audioCtx, opts)
+    const rate = this.effRate(speedMultiplier);
+    const said = (keyless ? this.recorded(line, rate, audioCtx) : this.buffer(text, rate, audioCtx, opts))
       .then(
         (buffer) =>
           new Promise<void>((resolve) => {

@@ -25,7 +25,8 @@ import type { ExportResult } from "../export/video";
 import { exportSequence, formatPlaylist, isSingle, itemsOf, playlistWithSpecs, sourceLanguage, type Playlist } from "../playlist/playlist";
 import { castFormat, type CastFormat } from "../standalone/transcript";
 import { thumbChoice } from "./thumb-choice";
-import { notYetRecorded, voicesChoice } from "./voices-choice";
+import { notYetRecordedIn, voicesChoice } from "./voices-choice";
+import { bakeClipStore } from "../export/bake-cache";
 import { withCastVoices, type CastVoices } from "../export/gemini-tts";
 import { posterForPlaylistText } from "../export/snapshot";
 import { kidsByTags } from "../../netlify/lib/thumb.mts";
@@ -740,7 +741,12 @@ function build(): ShareSession {
           voicesBox.refresh({
             voices: doc.playlist.meta.voices,
             dialogue: playlistSpeakLines(doc.playlist).some((l) => l.speaker === "b"),
-            pending: (voices) => notYetRecorded(bakeLines, recorded, withCastVoices({}, voices), declaredLang),
+            // Against what the editor plays: the document's own clips, or the
+            // clip store under the preview's key (a publish puts every
+            // recorded clip there) — the author's Settings voices included,
+            // as publish and the preview have them.
+            pending: (voices) =>
+              notYetRecordedIn(bakeClipStore, current.settings.rate, bakeLines, recorded, withCastVoices(current.settings.cloudVoices, voices), declaredLang),
           });
         }
         // A course has no playlist of its own to count (its lectures live in

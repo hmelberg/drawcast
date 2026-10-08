@@ -5443,9 +5443,12 @@ async function publishTextFor(
       });
       if (stop.signal.aborted) throw new Error("publish cancelled");
       // The editor's preview finds these in the clip store (keyed as live playback keys them).
-      for (const line of todo) {
-        const clip = map.get(speechKey(line));
-        if (clip) await bakeClipStore.put(clipCacheKey(settings.rate, voices, line, declaredLang), clip.mp3);
+      // Every clip the job returned — a conversation take re-records whole
+      // stretches, so its answers can cover lines beyond `todo`.
+      const byKey = new Map(bakeLines.map((l) => [speechKey(l), l]));
+      for (const [key, clip] of map) {
+        const line = byKey.get(key);
+        if (line) await bakeClipStore.put(clipCacheKey(settings.rate, voices, line, declaredLang), clip.mp3).catch(() => undefined);
       }
       return map;
     } catch (err) {

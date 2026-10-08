@@ -169,6 +169,17 @@ describe("live playback never calls Gemini (2026-10-08)", () => {
     expect(heard).toBe("gemini mp3".length * 1000); // the fake decoder: a byte a second
   });
 
+  test("with no Cloud key, a recorded Gemini clip still plays in the preview — no fetch", async () => {
+    const s = store();
+    await s.put(clipCacheKey(1, GEM, { text: LINE }, "en"), btoa("gemini mp3"));
+    const speech = new CloudSpeech(() => "", () => GEM, s);
+    speech.setLangHint("en");
+    let heard = 0;
+    await speech.speak(LINE, 1, undefined, { onStart: (ms) => (heard = ms ?? 0) });
+    expect(apiCalls).toBe(0);
+    expect(heard).toBe("gemini mp3".length * 1000);
+  });
+
   test("a Cloud voice line is unchanged — its own key, its own voice", async () => {
     const s = store();
     const speech = new CloudSpeech(() => "KEY", () => ({ "@a": "en-US-Studio-O" }), s);
