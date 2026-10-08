@@ -606,7 +606,11 @@ export class CloudSpeech extends SpeechManager {
     // browser voice, as ever.
     const keyless = !this.getKey();
     const line: SpeakLine = { text, speaker: opts?.speaker, delivery: opts?.delivery, gender: opts?.gender, lang: opts?.lang };
-    if (keyless && (!this.clips || liveVoices(this.getVoices(), line, this.langHint ?? undefined) === this.getVoices()))
+    // getVoices() builds a fresh object on every call (main.ts, viewer.ts):
+    // read it ONCE, or the identity check below never matches and every
+    // keyless line pays an AudioContext and a store lookup before its voice.
+    const voices = keyless ? this.getVoices() : null;
+    if (keyless && (!this.clips || liveVoices(voices!, line, this.langHint ?? undefined) === voices))
       return super.speakOne(text, speedMultiplier, signal, opts);
     const audioCtx = this.ensureCtx();
     // Prefetch may have created the context before any user gesture (autoplay

@@ -180,6 +180,26 @@ describe("live playback never calls Gemini (2026-10-08)", () => {
     expect(heard).toBe("gemini mp3".length * 1000);
   });
 
+  test("with no Cloud key, a non-Gemini line goes straight to the browser voice even when getVoices builds a fresh map each call", async () => {
+    // main.ts/viewer.ts pass getVoices = () => withCastVoices(...): a NEW
+    // object every call. The keyless gate must still recognise "not Gemini".
+    let lookups = 0;
+    const s: ClipStore = { get: async () => (lookups++, null), put: async () => {} };
+    const browser = vi.spyOn(Object.getPrototypeOf(CloudSpeech.prototype), "speakOne").mockResolvedValue(undefined);
+    try {
+      const speech = new CloudSpeech(() => "", () => ({ "@a": "en-US-Studio-O", "@b": "gemini:Puck" }), s);
+      speech.setLangHint("en");
+      void speech.speakOne(LINE, 1);
+      // Synchronously, inside the click: no AudioContext, no store lookup first.
+      expect(browser).toHaveBeenCalledTimes(1);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(lookups).toBe(0);
+      expect(apiCalls).toBe(0);
+    } finally {
+      browser.mockRestore();
+    }
+  });
+
   test("a Cloud voice line is unchanged — its own key, its own voice", async () => {
     const s = store();
     const speech = new CloudSpeech(() => "KEY", () => ({ "@a": "en-US-Studio-O" }), s);
