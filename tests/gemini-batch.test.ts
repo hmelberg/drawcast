@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { batchLines, isGeminiLine, jobsOf, lineRequest, pollBatch, submitBatch } from "../src/export/gemini-batch";
+import { BatchJobError, batchLines, isGeminiLine, isTimedOutJob, isUnusableJob, jobsOf, lineRequest, pollBatch, submitBatch } from "../src/export/gemini-batch";
 import { speechKey } from "../src/render/delivery";
 
 const wav = (n = 2400): Uint8Array => {
@@ -168,6 +168,82 @@ test("batchLines sends the SAYABLE text, as the single-line path does (QALY said
   const req = sent[0].batch.input_config.requests.requests[0];
   expect(req.request.contents[0].parts[0].text).toBe("Each qualy costs less than the iceer says.");
   expect(req.metadata.key).toBe(speechKey(line));
+});
+
+describe("a job that can never answer is told apart from a passing failure (final review 4)", () => {
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+  const kindOf = async (p: Promise<unknown>) => p.then(() => "resolved", (e) => (isUnusableJob(e) ? "unusable" : isTimedOutJob(e) ? "timeout" : e instanceof BatchJobError ? "other-batch" : "transient"));
+
+  test.each(["BATCH_STATE_EXPIRED", "BATCH_STATE_FAILED", "BATCH_STATE_CANCELLED"])("%s is unusable", async (state) => {
+    const fetchImpl = (async () => json({ done: true, metadata: { state } })) as unknown as typeof fetch;
+    expect(await kindOf(pollBatch("KEY", "batches/abc", { fetchImpl }))).toBe("unusable");
+  });
+
+  test.each([404, 403, 400])("a %i poll is unusable, with the job's name", async (status) => {
+    const fetchImpl = (async () => json({ error: { message: "gone" } }, status)) as unknown as typeof fetch;
+    const err = await pollBatch("KEY", "batches/abc", { fetchImpl }).catch((e) => e);
+    expect(isUnusableJob(err)).toBe(true);
+    expect(err.job).toBe("batches/abc");
+  });
+
+  test("a timeout, 429, 5xx after retries and network errors are not unusable", async () => {
+    const running = (async () => json({ metadata: { state: "BATCH_STATE_RUNNING" } })) as unknown as typeof fetch;
+    expect(await kindOf(pollBatch("KEY", "b", { fetchImpl: running, sleep: async () => {}, timeoutMs: 1 }))).toBe("timeout");
+    const busy = (async () => json({ error: { message: "slow down" } }, 429)) as unknown as typeof fetch;
+    expect(await kindOf(pollBatch("KEY", "b", { fetchImpl: busy, sleep: async () => {} }))).toBe("transient");
+    const down = (async () => json({ error: { message: "down" } }, 503)) as unknown as typeof fetch;
+    expect(await kindOf(pollBatch("KEY", "b", { fetchImpl: down, sleep: async () => {} }))).toBe("transient");
+    const offline = (async () => Promise.reject(new Error("offline"))) as unknown as typeof fetch;
+    expect(await kindOf(pollBatch("KEY", "b", { fetchImpl: offline, sleep: async () => {} }))).toBe("transient");
+  });
+
+  test("resuming an expired job falls through to a fresh submission in the same run", async () => {
+    const voices = { "@a": "gemini:Charon" };
+    const lines = [{ text: "One.", speaker: "a" as const }, { text: "Two.", speaker: "a" as const }];
+    const audio = Buffer.from(wav()).toString("base64");
+    const posts: any[] = [];
+    const fetchImpl = (async (url: string, init?: any) => {
+      if (init?.method === "POST") {
+        posts.push(JSON.parse(init.body));
+        return json({ name: "batches/fresh" });
+      }
+      if (String(url).endsWith("batches/old")) return json({ done: true, metadata: { state: "BATCH_STATE_EXPIRED" } });
+      const reqs = posts[0].batch.input_config.requests.requests;
+      return json({
+        done: true, metadata: { state: "BATCH_STATE_SUCCEEDED" },
+        response: { inlinedResponses: { inlinedResponses: reqs.map((r: any) => ({ metadata: r.metadata, response: { candidates: [{ content: { parts: [{ inlineData: { data: audio } }] } }] } })) } },
+      });
+    }) as unknown as typeof fetch;
+    const submitted: string[][] = [];
+    const gone: string[] = [];
+    const out = await batchLines("KEY", voices, "en", lines, {
+      fetchImpl, sleep: async () => {}, resume: ["batches/old"],
+      onSubmitted: (n) => submitted.push(n), onResumeGone: (e) => gone.push(e.job),
+    });
+    expect(gone).toEqual(["batches/old"]);
+    expect(submitted).toEqual([["batches/old"], ["batches/fresh"]]);
+    expect(posts).toHaveLength(1);
+    expect(posts[0].batch.input_config.requests.requests).toHaveLength(2);
+    expect([...out.keys()].sort()).toEqual(lines.map(speechKey).sort());
+  });
+
+  test("a freshly submitted job that ends unusable is not resubmitted again and again", async () => {
+    let posts = 0;
+    const fetchImpl = (async (_url: string, init?: any) => {
+      if (init?.method === "POST") return (posts++, json({ name: "batches/new" }));
+      return json({ done: true, metadata: { state: "BATCH_STATE_FAILED" } });
+    }) as unknown as typeof fetch;
+    const err = await batchLines("KEY", { "@a": "gemini:Charon" }, "en", [{ text: "One.", speaker: "a" }], { fetchImpl, sleep: async () => {} }).catch((e) => e);
+    expect(isUnusableJob(err)).toBe(true);
+    expect(posts).toBe(1);
+  });
+
+  test("the bake script drops the sidecar on an unusable job and keeps it on a timeout", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../scripts/bake-narration.mjs", import.meta.url), "utf8");
+    expect(src).toMatch(/onResumeGone:[\s\S]{0,120}unlinkSync\(sidecar\)/);
+    expect(src).toMatch(/kind === "unusable"\)\s*\{\s*if \(existsSync\(sidecar\)\) unlinkSync\(sidecar\)/);
+  });
 });
 
 test("isGeminiLine: a line with a language mark is not a whole-line Gemini request", () => {

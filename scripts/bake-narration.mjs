@@ -111,6 +111,11 @@ for (const file of files) {
     const map = await batchLines(geminiKey || apiKey, voices, declaredLang, todo, {
       resume,
       timeoutMs: timeoutMin * 60_000,
+      // A saved job that ended EXPIRED/FAILED/CANCELLED or is gone (4xx): drop it and submit afresh, this run.
+      onResumeGone: (err) => {
+        if (existsSync(sidecar)) unlinkSync(sidecar);
+        console.log(`\n${file}: saved batch job ${err.job} cannot be resumed (${err.message}); deleted ${sidecar}, submitting a fresh job`);
+      },
       onSubmitted: (names) => writeFileSync(sidecar, JSON.stringify({ names, voices: voicesNow, lines: todo.map((l) => l.text) })),
       onState: (s) => process.stdout.write(`\r${file}: batch ${s.replace("BATCH_STATE_", "").toLowerCase()}   `),
     });
@@ -144,7 +149,16 @@ for (const file of files) {
     failed = true;
     const n = Object.keys(recorded).length;
     if (n) writeFileSync(target, P.formatPublished(playlist, { lang: declaredLang ?? "en", lines: { ...existing, ...recorded } }, "script"));
-    console.error(`\n${file}: stopped — ${err?.message ?? err}${n ? `\n  ${n} new clips kept in ${target}; run again to record the rest (not finished: do not publish it yet)` : ""}`);
+    // A job that can never answer is forgotten, so the next run submits a fresh one; a
+    // timeout or a passing failure (network, 5xx) keeps the sidecar to resume.
+    let next = "";
+    if (err?.name === "BatchJobError" && err.kind === "unusable") {
+      if (existsSync(sidecar)) unlinkSync(sidecar);
+      next = `\n  batch job ${err.job} cannot be used again; deleted ${sidecar}, so the next run submits a fresh job`;
+    } else if (err?.name === "BatchJobError" && err.kind === "timeout") {
+      next = `\n  the job is still running at Google; run again to keep waiting for it (${sidecar} remembers it)`;
+    }
+    console.error(`\n${file}: stopped — ${err?.message ?? err}${next}${n ? `\n  ${n} new clips kept in ${target}; run again to record the rest (not finished: do not publish it yet)` : ""}`);
     continue;
   }
   const out = P.formatPublished(playlist, track, "script");

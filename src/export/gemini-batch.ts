@@ -27,7 +27,31 @@ export function lineRequest(v: GeminiVoice, text: string, delivery?: string): un
   };
 }
 
-async function failure(res: Response, what: string): Promise<Error> {
+/**
+ * A poll that tells the caller what to do next:
+ * - "unusable": the job ended FAILED / CANCELLED / EXPIRED (or with no
+ *   results), or the poll got a 4xx (404 gone, a revoked key). Waiting longer
+ *   never helps: forget the job and submit a fresh one.
+ * - "timeout": still running when the wait ran out. The job is fine; a later
+ *   poll of the same name may well find it done.
+ * Anything else (a network failure, 5xx after retries) stays a plain Error —
+ * transient, so a saved job is kept.
+ */
+export class BatchJobError extends Error {
+  constructor(
+    message: string,
+    readonly kind: "unusable" | "timeout",
+    readonly job: string,
+  ) {
+    super(message);
+    this.name = "BatchJobError";
+  }
+}
+
+export const isUnusableJob = (e: unknown): e is BatchJobError => e instanceof BatchJobError && e.kind === "unusable";
+export const isTimedOutJob = (e: unknown): e is BatchJobError => e instanceof BatchJobError && e.kind === "timeout";
+
+async function failureMessage(res: Response, what: string): Promise<string> {
   let message = `HTTP ${res.status}`;
   try {
     const body = (await res.json()) as { error?: { message?: string } };
@@ -35,8 +59,15 @@ async function failure(res: Response, what: string): Promise<Error> {
   } catch {
     /* keep the status */
   }
-  return new Error(`Gemini batch ${what}: ${message}`);
+  return `Gemini batch ${what}: ${message}`;
 }
+
+async function failure(res: Response, what: string): Promise<Error> {
+  return new Error(await failureMessage(res, what));
+}
+
+const stillRunning = (name: string, waited: number): BatchJobError =>
+  new BatchJobError(`Gemini batch ${name} is still running after ${Math.round(waited / 60_000)} min`, "timeout", name);
 
 export async function submitBatch(apiKey: string, model: string, reqs: BatchRequest[], fetchImpl: typeof fetch = fetch): Promise<string> {
   const res = await fetchImpl(`${BASE}/models/${model}:batchGenerateContent`, {
@@ -85,30 +116,31 @@ export async function pollBatch(
         if (consecutiveFailures >= 3) throw e;
         await sleep(POLL_MS);
         waited += POLL_MS;
-        if (waited >= limit) throw new Error(`Gemini batch ${name} is still running after ${Math.round(waited / 60_000)} min — run again to keep waiting for it`);
+        if (waited >= limit) throw stillRunning(name, waited);
       }
     }
     if (!res!.ok) {
-      if (res!.status >= 500) {
+      // 5xx, 408 and 429 are passing trouble: retry. Any other 4xx (404 gone, 403 a revoked key) never gets better.
+      if (res!.status >= 500 || res!.status === 408 || res!.status === 429) {
         consecutiveFailures++;
         if (consecutiveFailures >= 3) throw await failure(res!, "poll");
         await sleep(POLL_MS);
         waited += POLL_MS;
-        if (waited >= limit) throw new Error(`Gemini batch ${name} is still running after ${Math.round(waited / 60_000)} min — run again to keep waiting for it`);
+        if (waited >= limit) throw stillRunning(name, waited);
         continue;
       }
-      throw await failure(res!, "poll");
+      throw new BatchJobError(await failureMessage(res!, `poll of ${name}`), "unusable", name);
     }
     consecutiveFailures = 0;
     const body = (await res!.json()) as { done?: boolean; error?: { message?: string }; metadata?: { state?: string }; response?: { inlinedResponses?: { inlinedResponses?: Inlined[] } | Inlined[] } };
-    if (body.error) throw new Error(`Gemini batch ${name} failed: ${body.error.message ?? "unknown error"}`);
+    if (body.error) throw new BatchJobError(`Gemini batch ${name} failed: ${body.error.message ?? "unknown error"}`, "unusable", name);
     const state = body.metadata?.state ?? "";
     opts.onState?.(state);
     if (body.done || DONE.has(state)) {
-      if (state && state !== "BATCH_STATE_SUCCEEDED") throw new Error(`Gemini batch ${name} ended ${state}`);
+      if (state && state !== "BATCH_STATE_SUCCEEDED") throw new BatchJobError(`Gemini batch ${name} ended ${state}`, "unusable", name);
       const r = body.response?.inlinedResponses;
       const items: Inlined[] = Array.isArray(r) ? r : (r?.inlinedResponses ?? []);
-      if (!items.length && body.done && !state) throw new Error(`Gemini batch ${name} finished with no results`);
+      if (!items.length && body.done && !state) throw new BatchJobError(`Gemini batch ${name} finished with no results`, "unusable", name);
       const out = new Map<string, BatchResult>();
       for (const item of items) {
         const key = item.metadata?.key;
@@ -123,7 +155,7 @@ export async function pollBatch(
       }
       return out;
     }
-    if (waited >= limit) throw new Error(`Gemini batch ${name} is still running after ${Math.round(waited / 60_000)} min — run again to keep waiting for it`);
+    if (waited >= limit) throw stillRunning(name, waited);
     await sleep(POLL_MS);
     waited += POLL_MS;
   }
@@ -165,7 +197,16 @@ export async function batchLines(
   voices: Record<string, string>,
   lang: string | undefined,
   lines: SpeakLine[],
-  opts: { fetchImpl?: typeof fetch; sleep?: (ms: number) => Promise<void>; onState?: (s: string) => void; timeoutMs?: number; onSubmitted?: (names: string[]) => void; resume?: string[] } = {},
+  opts: {
+    fetchImpl?: typeof fetch;
+    sleep?: (ms: number) => Promise<void>;
+    onState?: (s: string) => void;
+    timeoutMs?: number;
+    onSubmitted?: (names: string[]) => void;
+    resume?: string[];
+    /** A resumed job turned out unusable (expired, failed, cancelled, 404…); a fresh job is submitted for what it did not answer. */
+    onResumeGone?: (err: BatchJobError) => void;
+  } = {},
 ): Promise<Map<string, { mp3: string; ms: number }>> {
   const reqs: BatchRequest[] = [];
   for (const line of lines) {
@@ -173,15 +214,42 @@ export async function batchLines(
     if (!v) continue;
     reqs.push({ key: speechKey(line), model: v.model, body: lineRequest(v, sayable(line.text), line.delivery) });
   }
-  const names = opts.resume?.length ? opts.resume : await Promise.all(jobsOf(reqs).map((job) => submitBatch(apiKey, job[0].model, job, opts.fetchImpl)));
-  opts.onSubmitted?.(names);
+  const submit = (list: BatchRequest[]) => Promise.all(jobsOf(list).map((job) => submitBatch(apiKey, job[0].model, job, opts.fetchImpl)));
   const out = new Map<string, { mp3: string; ms: number }>();
-  for (const name of names) {
-    const results = await pollBatch(apiKey, name, opts);
-    for (const [key, r] of results) {
-      if (!("wav" in r)) continue;
-      const pcm = wavPcm(r.wav);
-      out.set(key, { mp3: await pcmToMp3Base64(pcm), ms: pcmMs(pcm) });
+  const answered = new Set<string>();
+  const collect = async (names: string[], resumed: boolean): Promise<boolean> => {
+    let gone = false;
+    for (const name of names) {
+      let results: Map<string, BatchResult>;
+      try {
+        results = await pollBatch(apiKey, name, opts);
+      } catch (e) {
+        // A saved job that can never answer must not stick: say so and record afresh.
+        if (resumed && isUnusableJob(e)) {
+          opts.onResumeGone?.(e);
+          gone = true;
+          continue;
+        }
+        throw e;
+      }
+      for (const [key, r] of results) {
+        answered.add(key);
+        if (!("wav" in r)) continue;
+        const pcm = wavPcm(r.wav);
+        out.set(key, { mp3: await pcmToMp3Base64(pcm), ms: pcmMs(pcm) });
+      }
+    }
+    return gone;
+  };
+  const resumed = !!opts.resume?.length;
+  const names = resumed ? opts.resume! : await submit(reqs);
+  opts.onSubmitted?.(names);
+  if (await collect(names, resumed)) {
+    const rest = reqs.filter((r) => !answered.has(r.key));
+    if (rest.length) {
+      const fresh = await submit(rest);
+      opts.onSubmitted?.(fresh);
+      await collect(fresh, false);
     }
   }
   return out;
