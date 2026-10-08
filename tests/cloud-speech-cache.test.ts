@@ -50,8 +50,10 @@ vi.stubGlobal("AudioContext", FakeAudioContext);
 
 /** The Google endpoint: counts the calls that would cost money. */
 let apiCalls = 0;
-vi.stubGlobal("fetch", async () => {
+const calls: Array<{ url: string; body: string }> = [];
+vi.stubGlobal("fetch", async (url: string, init?: { body?: string }) => {
   apiCalls++;
+  calls.push({ url: String(url), body: init?.body ?? "" });
   return { ok: true, status: 200, json: async () => ({ audioContent: btoa("mp3") }) };
 });
 
@@ -128,5 +130,51 @@ describe("a line stopped while it is still being synthesized", () => {
     ac.abort();
     await said;
     expect(ended).toBe(true);
+  });
+});
+
+describe("live playback never calls Gemini (2026-10-08)", () => {
+  const GEM = { "@a": "gemini:Charon | dry historian" };
+  beforeEach(() => {
+    apiCalls = 0;
+    calls.length = 0;
+  });
+
+  test("a Gemini line with no recorded clip is spoken in the Studio default, under its own key", async () => {
+    const s = store();
+    const speech = new CloudSpeech(() => "KEY", () => GEM, s);
+    speech.setLangHint("en");
+    await speech.speak(LINE, 1);
+    expect(calls.length).toBe(1);
+    expect(calls[0].url).toContain("texttospeech.googleapis.com");
+    expect(calls.some((c) => c.url.includes("generativelanguage"))).toBe(false);
+    expect(JSON.parse(calls[0].body).voice.name).toBe("en-US-Studio-Q");
+    const geminiKey = clipCacheKey(1, GEM, { text: LINE }, "en");
+    const studioKey = clipCacheKey(1, {}, { text: LINE }, "en");
+    expect(geminiKey).not.toBe(studioKey);
+    // The stand-in sits under the Studio key, never under the Gemini one.
+    expect([...s.mem.keys()]).toEqual([studioKey]);
+  });
+
+  test("once the line is recorded in Gemini (the publish puts it in the store), the next play is that clip, free", async () => {
+    const s = store();
+    const speech = new CloudSpeech(() => "KEY", () => GEM, s);
+    speech.setLangHint("en");
+    await speech.speak(LINE, 1); // Studio stand-in
+    expect(apiCalls).toBe(1);
+    await s.put(clipCacheKey(1, GEM, { text: LINE }, "en"), btoa("gemini mp3"));
+    let heard = 0;
+    await speech.speak(LINE, 1, undefined, { onStart: (ms) => (heard = ms ?? 0) });
+    expect(apiCalls).toBe(1);
+    expect(heard).toBe("gemini mp3".length * 1000); // the fake decoder: a byte a second
+  });
+
+  test("a Cloud voice line is unchanged — its own key, its own voice", async () => {
+    const s = store();
+    const speech = new CloudSpeech(() => "KEY", () => ({ "@a": "en-US-Studio-O" }), s);
+    speech.setLangHint("en");
+    await speech.speak(LINE, 1);
+    expect(JSON.parse(calls[0].body).voice.name).toBe("en-US-Studio-O");
+    expect([...s.mem.keys()]).toEqual([clipCacheKey(1, { "@a": "en-US-Studio-O" }, { text: LINE }, "en")]);
   });
 });

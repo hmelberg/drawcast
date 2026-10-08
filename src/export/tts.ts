@@ -275,6 +275,20 @@ export function clipCacheKey(rate: number, voices: Record<string, string> | unde
   return `${rate}|${v.languageCode}|${v.name ?? ""}|${speechKey(line)}`;
 }
 
+/**
+ * The voices LIVE playback speaks a line with (2026-10-08): the editor and
+ * the viewer never call Gemini while playing. A line whose voice is Gemini
+ * gets the voice map with every Gemini entry taken out — what it would get
+ * with no Gemini voice set (the language's Studio default, or the author's
+ * Cloud pick) — and its recorded Gemini clip, when the clip store has one,
+ * is looked up under the Gemini key before this is ever used. Returns the
+ * map itself (the same object) when the line's voice is not Gemini.
+ */
+export function liveVoices(voices: Record<string, string>, line: SpeakLine, lang?: string): Record<string, string> {
+  if (!geminiVoice(preferredVoice(voices, runLang(line, lang), line.speaker))) return voices;
+  return Object.fromEntries(Object.entries(voices).filter(([, v]) => !geminiVoice(v)));
+}
+
 /** The voice for a language: the listened-to default when there is one, else
  *  the language code alone and let Google choose within the gender. */
 export function voiceFor(lang: string, gender: "female" | "male"): VoiceChoice {
@@ -507,10 +521,14 @@ export class CloudSpeech extends SpeechManager {
     if (hit) return Promise.resolve(hit);
     const inFlight = this.pending.get(key);
     if (inFlight) return inFlight;
-    const p = this.encoded(key, line, { apiKey: this.getKey(), rate, voices, lang })
-      .then((b64) => audioCtx.decodeAudioData(base64ToBytes(b64).buffer as ArrayBuffer))
-      .then((b) => {
-        this.cache.set(key, b);
+    const decode = (b64: string) => audioCtx.decodeAudioData(base64ToBytes(b64).buffer as ArrayBuffer);
+    const p = this.encodedLive(key, line, { apiKey: this.getKey(), rate, voices, lang })
+      .then(async ({ b64, key: k }) => {
+        // Cached in memory under the key it was actually recorded for: a
+        // Studio stand-in for a Gemini line never sits under the Gemini key,
+        // so once the line is recorded in Gemini the next play finds it.
+        const b = this.cache.get(k) ?? (await decode(b64));
+        this.cache.set(k, b);
         this.pending.delete(key);
         return b;
       })
@@ -534,6 +552,24 @@ export class CloudSpeech extends SpeechManager {
     const b64 = await synthesizeBase64(cfg, line.text, line);
     await this.clips?.put(key, b64).catch(() => undefined);
     return b64;
+  }
+
+  /**
+   * Live playback's clip: the line's own clip from the store (a recorded
+   * Gemini clip included), else — for a Gemini line — the Studio/Cloud
+   * stand-in under ITS OWN key (liveVoices), never a Gemini call. `key` is
+   * the key the clip belongs under; b64 is "" when the stand-in is already
+   * decoded in memory.
+   */
+  private async encodedLive(key: string, line: SpeakLine, cfg: TtsConfig): Promise<{ b64: string; key: string }> {
+    const voices = cfg.voices ?? {};
+    const live = liveVoices(voices, line, cfg.lang);
+    if (live === voices) return { b64: await this.encoded(key, line, cfg), key };
+    const recorded = this.clips ? await this.clips.get(key).catch(() => null) : null;
+    if (recorded) return { b64: recorded, key };
+    const standIn = clipCacheKey(cfg.rate, live, line, cfg.lang);
+    if (this.cache.has(standIn)) return { b64: "", key: standIn };
+    return { b64: await this.encoded(standIn, line, { ...cfg, voices: live }), key: standIn };
   }
 
   /** Warm the cache for upcoming lines (fire-and-forget; errors surface at speak time). */
