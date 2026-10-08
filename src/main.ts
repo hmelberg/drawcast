@@ -103,7 +103,7 @@ import { subtitleLanguages } from "./spec/subtitles";
 import { bakedAudioFor, type BakedAudio } from "./playlist/audio";
 import { bakeNarration, bakeSize, linesToBake, voiceChanges } from "./export/bake";
 import { listCloudVoices, runLang, stampedVoice, synthesizeBase64 } from "./export/tts";
-import { bakeClipStore, cachingSynthesizer, clipCacheKey, type SynthStats } from "./export/bake-cache";
+import { bakeClipStore, cachingSynthesizer, clipCacheKey, storedFirst, type SynthStats } from "./export/bake-cache";
 import { bakeCost, costLabel, creditBakeCost } from "./export/tts-cost";
 import { posterPagesUrl, privateCastTarget, publishCast } from "./publish/cast";
 import { LockError, type LectureLock } from "./publish/lock";
@@ -139,7 +139,7 @@ import { ExportKeepAlive, startWorkerClock } from "./export/keepalive";
 import { CloudSpeech } from "./export/tts";
 import { setGeminiKeySource, withCastVoices, type CastVoices } from "./export/gemini-tts";
 import { speechKey, type SpeakLine } from "./render/delivery";
-import { batchLines, isGeminiLine } from "./export/gemini-batch";
+import { batchLines, isGeminiLine, isTimedOutJob } from "./export/gemini-batch";
 import {
   addExemplar,
   appendLog,
@@ -5416,8 +5416,16 @@ async function publishTextFor(
   // chip, whose ✕ stops it — the publish then fails cleanly, nothing sent.
   const geminiKey = getGeminiKey() || apiKey;
   const many = (line: SpeakLine): boolean => geminiKey !== "" && isGeminiLine(voices, declaredLang, line);
-  const synthesizeMany = async (todo: SpeakLine[]) => {
+  // How long a publish waits on a Gemini batch job before giving up.
+  const GEMINI_BATCH_WAIT_MS = 30 * 60_000;
+  const synthesizeMany = async (lines: SpeakLine[]) => {
     if (signal.aborted) throw new Error("publish cancelled");
+    // Clips already in the store (an earlier publish whose job answered, then
+    // was cancelled or failed afterwards) are used as they are: only the rest
+    // go to a new job, so the same lines are never paid for twice.
+    const { stored, missing: todo } = await storedFirst(bakeClipStore, (line) => clipCacheKey(settings.rate, voices, line, declaredLang), lines);
+    stats.cached += stored.size;
+    if (todo.length === 0) return stored;
     const stop = new AbortController();
     const onAbort = () => stop.abort();
     signal.addEventListener("abort", onAbort, { once: true });
@@ -5433,6 +5441,7 @@ async function publishTextFor(
       status("submitting");
       const map = await batchLines(geminiKey, voices, declaredLang, todo, {
         onState: status,
+        timeoutMs: GEMINI_BATCH_WAIT_MS,
         fetchImpl: (input, init) => fetch(input, { ...init, signal: stop.signal }),
         sleep: (ms) =>
           new Promise<void>((resolve, reject) => {
@@ -5450,9 +5459,15 @@ async function publishTextFor(
         const line = byKey.get(key);
         if (line) await bakeClipStore.put(clipCacheKey(settings.rate, voices, line, declaredLang), clip.mp3).catch(() => undefined);
       }
+      stats.synthesized += map.size;
+      for (const [key, clip] of stored) if (!map.has(key)) map.set(key, clip);
       return map;
     } catch (err) {
       if (stop.signal.aborted) throw new Error("Publish cancelled while recording narration in Gemini — nothing was published.");
+      if (isTimedOutJob(err))
+        throw new Error(
+          `Gemini was still recording the narration after ${Math.round(GEMINI_BATCH_WAIT_MS / 60_000)} minutes, so nothing was published. Publishing again starts a new recording for the lines not yet recorded (Google may still finish and bill this one).`,
+        );
       throw err;
     } finally {
       signal.removeEventListener("abort", onAbort);

@@ -17,7 +17,7 @@
 // publishing pre-pays its replays. The key itself lives beside
 // narrationVoice() in tts.ts, the one place that decides the voice.
 
-import type { SpeakLine } from "../render/delivery";
+import { speechKey, type SpeakLine } from "../render/delivery";
 
 export { clipCacheKey } from "./tts";
 
@@ -58,6 +58,28 @@ export function cachingSynthesizer(
     await store.put(key, b64).catch(() => undefined);
     return b64;
   };
+}
+
+/**
+ * The lines whose clip is already in the store, and the rest. A batch job
+ * (Gemini, 2026-10-08) must ask only for the rest: a publish cancelled, timed
+ * out or failed AFTER its job answered has every clip sitting in the store,
+ * and submitting them again would pay twice. Stored clips come back keyed by
+ * speechKey, as a batch answers (ms 0: the store keeps no duration).
+ */
+export async function storedFirst(
+  store: ClipStore,
+  keyOf: (line: SpeakLine) => string,
+  lines: SpeakLine[],
+): Promise<{ stored: Map<string, { mp3: string; ms: number }>; missing: SpeakLine[] }> {
+  const stored = new Map<string, { mp3: string; ms: number }>();
+  const missing: SpeakLine[] = [];
+  for (const line of lines) {
+    const hit = await store.get(keyOf(line)).catch(() => null);
+    if (hit) stored.set(speechKey(line), { mp3: hit, ms: 0 });
+    else missing.push(line);
+  }
+  return { stored, missing };
 }
 
 // ---- the IndexedDB store (in-memory fallback for tests/headless) ----------
