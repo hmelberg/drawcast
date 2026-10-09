@@ -55,6 +55,8 @@ export const PEOPLE: readonly Person[] = [
   { id: "e-f55-skeptical", sex: "woman", age: 55, looks: ["grey", "glasses"], expression: "skeptical", style: "everyday", faces: "front", w: 517, h: 640 },
   { id: "e-m33-skeptical", sex: "man", age: 33, looks: ["short", "dark"], expression: "skeptical", style: "everyday", faces: "front", w: 514, h: 640 },
   { id: "e-f45-smiling", sex: "woman", age: 45, looks: ["brown", "curly"], expression: "smiling", style: "everyday", faces: "front", w: 544, h: 640 },
+  { id: "e-m58-quirky", sex: "man", age: 58, looks: ["quirky", "white", "grey", "beard"], expression: "talking", style: "everyday", faces: "front", w: 529, h: 640 },
+  { id: "e-f31-quirky", sex: "woman", age: 31, looks: ["quirky", "red"], expression: "talking", style: "everyday", faces: "front", w: 559, h: 640 },
 ];
 
 /** What a cast asked for. */

@@ -61,5 +61,5 @@ To make (about 12):
 
 Made 2026-10-08 (gemini-3.1-flash-image, 768×1024): e-m52-talking, e-f38-talking,
 e-m24-talking, e-f67-talking, e-m40-neutral, e-f29-neutral, e-m70-neutral,
-e-f55-skeptical, e-m33-skeptical, e-f45-smiling. Still to make: the two quirky
-ones (e-m58-quirky, e-f31-quirky) — Figma's daily credits ran out.
+e-f55-skeptical, e-m33-skeptical, e-f45-smiling. Made 2026-10-09: the two quirky
+ones, e-m58-quirky and e-f31-quirky. All twelve everyday people are made.
